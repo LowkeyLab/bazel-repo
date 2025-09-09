@@ -1,0 +1,5 @@
+[tools]
+bazel = "latest"
+bazelisk = "latest"
+buildifier = "latest"
+java = "21"

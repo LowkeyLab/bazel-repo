@@ -1,0 +1,8 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+# The nicknamer binary is now built in the server subdirectory
+# This file can be used for workspace-level targets or aliases
+alias(
+    name = "nicknamer",
+    actual = "//nicknamer/server:nicknamer",
+)
