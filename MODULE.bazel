@@ -5,7 +5,7 @@ module(
 )
 
 # Declare dependency on rules_rust
-bazel_dep(name = "rules_rust", version = "0.48.0")
+bazel_dep(name = "rules_rust", version = "0.64.0")
 
 # Declare dependency on rules_oci and its dependencies
 bazel_dep(name = "rules_oci", version = "2.2.6")
@@ -13,14 +13,37 @@ bazel_dep(name = "rules_pkg", version = "1.1.0")
 
 # --- Rust Configuration ---
 # Use the rust extension to configure the toolchain
-rust_extension = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust_extension.toolchain(
-    edition = "2021",
-    versions = ["1.79.0"],
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
 )
-use_repo(rust_extension, "rust_toolchains")
+use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.spec(
+    default_features = False,
+    features = [
+        "macros",
+        "net",
+        "rt-multi-thread",
+    ],
+    package = "tokio",
+    version = "1.45.1",
+)
+crate.spec(
+    default_features = False,
+    features = [
+        "runtime-tokio-rustls",  # `ASYNC_RUNTIME` feature
+        "sqlx-postgres",  # `DATABASE_DRIVER` feature
+        "cli",
+    ],
+    package = "sea-orm-migration",
+    version = "1.1.0",
+)
+crate.from_specs()
+use_repo(crate, "crates")
 
 # --- OCI Configuration ---
 # Use the oci extension to pull base images and configure the toolchain

@@ -1,0 +1,12 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "lib",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "migration",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:sea-orm-migration",
+        "@crates//:tokio",
+    ],
+)
