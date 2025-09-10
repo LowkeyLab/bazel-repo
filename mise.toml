@@ -3,3 +3,6 @@ bazel = "latest"
 bazelisk = "latest"
 buildifier = "latest"
 java = "21"
+
+[env]
+_.path=["./.bin"] # Add local bin to PATH
