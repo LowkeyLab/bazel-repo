@@ -4,10 +4,33 @@ module(
     compatibility_level = 1,
 )
 
+# Declare dependency on rules_rust
 bazel_dep(name = "rules_rust", version = "0.48.0")
 
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(edition = "2021")
-use_repo(rust, "rust_toolchains")
+# Declare dependency on rules_oci and its dependencies
+bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "rules_pkg", version = "1.1.0")
+
+# --- Rust Configuration ---
+# Use the rust extension to configure the toolchain
+rust_extension = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust_extension.toolchain(
+    edition = "2021",
+    versions = ["1.79.0"],
+)
+use_repo(rust_extension, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
+
+# --- OCI Configuration ---
+# Use the oci extension to pull base images and configure the toolchain
+oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci_extension.pull(
+    name = "distroless_cc",
+    digest = "sha256:620d8b11ae800f0dbd7995f89ddc5344ad603269ea98770588b1b07a4a0a6872",
+    image = "gcr.io/distroless/cc-debian12",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64")

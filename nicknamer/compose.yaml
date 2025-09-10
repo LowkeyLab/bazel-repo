@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: nicknamer
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # This is the command Docker will run inside the container.
+      test: [ "CMD-SHELL", "pg_isready -U user -d nicknamer" ]
+      # How often to run the check.
+      interval: 10s
+      # How long to wait for the check to return.
+      timeout: 5s
+      # How many consecutive failures to allow before marking as unhealthy.
+      retries: 5
+      # Optional: Time to wait before starting the first check.
+      start_period: 10s
+
+volumes:
+  postgres_data:

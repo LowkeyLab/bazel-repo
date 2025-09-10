@@ -1,8 +1,13 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+filegroup(
+    name = "compose_file",
+    srcs = ["compose.yaml"],
+)
 
-# The nicknamer binary is now built in the server subdirectory
-# This file can be used for workspace-level targets or aliases
-alias(
-    name = "nicknamer",
-    actual = "//nicknamer/server:nicknamer",
+sh_binary(
+    name = "run_locally",
+    srcs = ["run_locally.sh"],
+    data = [
+        ":compose_file",
+        "//nicknamer/server",
+    ],
 )
