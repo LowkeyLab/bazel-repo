@@ -4,6 +4,7 @@ module(
     compatibility_level = 1,
 )
 
+bazel_dep(name = "rules_shell", version = "0.6.0")
 # Declare dependency on rules_rust
 bazel_dep(name = "rules_rust", version = "0.64.0")
 
