@@ -1,0 +1,18 @@
+filegroup(
+    name = "all_files",
+    srcs = glob(
+        include = ["**"],
+    ),
+    visibility = ["//visibility:private"],
+)
+
+genrule(
+    name = "swagger_ui_dist",
+    srcs = [":all_files"],
+    outs = ["swagger_ui_folder"],
+    cmd = """
+    mkdir -p swagger_ui_folder
+    cp -r $(SRCS) swagger_ui_folder
+    """,
+    visibility = ["//visibility:public"],
+)

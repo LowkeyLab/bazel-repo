@@ -8,17 +8,13 @@ module(
 
 bazel_dep(name = "rules_shell", version = "0.6.0")
 
-# --- GitHub Release Configuration ---
-gh_release = use_extension("//tools/bazel:extensions.bzl", "gh_release_ext")
-
-gh_release.download(
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
     name = "swagger_ui_dist",
     url = "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip",
-    sha256 = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
-    strip_prefix = "swagger-ui-5.17.14",
+    sha256 = "481244d0812097b11fbaeef79f71d942b171617f9c9f9514e63acbe13e71ccdc",
+    build_file = "@//3rdparty/swagger_ui_dist:BUILD.bazel",
 )
-
-use_repo(gh_release, "gh_releases")
 
 # --- Rust Configuration ---
 bazel_dep(name = "rules_rust", version = "0.64.0")
@@ -32,7 +28,7 @@ use_repo(rust, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-inject_repo(crate, "gh_releases")
+inject_repo(crate, "swagger_ui_dist")
 
 # Regular dependencies
 crate.spec(
@@ -151,9 +147,9 @@ crate.spec(
 )
 crate.annotation(
     crate = "utoipa-swagger-ui",
-    deps = ["@gh_releases//:swagger_ui_dist"],
+    build_script_data = ["@swagger_ui_dist//:swagger_ui_dist"],
     build_script_env = {
-        "SWAGGER_UI_DOWNLOAD_URL": "$(locations @gh_releases//:swagger_ui_dist)",
+        "SWAGGER_UI_DOWNLOAD_URL": "file://$(location @swagger_ui_dist//:swagger_ui_dist)",
     },
 )
 crate.spec(
