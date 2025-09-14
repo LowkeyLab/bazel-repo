@@ -5,6 +5,7 @@ module(
 )
 
 bazel_dep(name = "rules_shell", version = "0.6.0")
+
 # Declare dependency on rules_rust
 bazel_dep(name = "rules_rust", version = "0.64.0")
 
@@ -23,15 +24,45 @@ use_repo(rust, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+
+# Regular dependencies
 crate.spec(
-    default_features = False,
+    package = "anyhow",
+    version = "1.0.99",
+)
+crate.spec(
+    package = "askama",
+    version = "0.14.0",
+)
+crate.spec(
+    package = "axum",
+    version = "0.8.4",
+)
+crate.spec(
+    features = ["cookie"],
+    package = "axum-extra",
+    version = "0.10.1",
+)
+crate.spec(
+    package = "chrono",
+    version = "0.4.42",
+)
+crate.spec(
+    package = "config",
+    version = "0.15.15",
+)
+crate.spec(
+    package = "jsonwebtoken",
+    version = "9.3.1",
+)
+crate.spec(
     features = [
+        "sqlx-postgres",
+        "runtime-tokio-rustls",
         "macros",
-        "net",
-        "rt-multi-thread",
     ],
-    package = "tokio",
-    version = "1.45.1",
+    package = "sea-orm",
+    version = "1.1.16",
 )
 crate.spec(
     default_features = False,
@@ -43,6 +74,98 @@ crate.spec(
     package = "sea-orm-migration",
     version = "1.1.0",
 )
+crate.spec(
+    package = "serde",
+    version = "1.0.219",
+)
+crate.spec(
+    package = "serde_json",
+    version = "1.0",
+)
+crate.spec(
+    package = "serde_yaml",
+    version = "0.9.34",
+)
+crate.spec(
+    package = "thiserror",
+    version = "2.0.16",
+)
+crate.spec(
+    package = "time",
+    version = "0.3.43",
+)
+crate.spec(
+    default_features = False,
+    features = [
+        "macros",
+        "net",
+        "rt-multi-thread",
+    ],
+    package = "tokio",
+    version = "1.47.1",
+)
+crate.spec(
+    features = ["util"],
+    package = "tower",
+    version = "0.5",
+)
+crate.spec(
+    features = [
+        "trace",
+        "cors",
+        "sensitive-headers",
+    ],
+    package = "tower-http",
+    version = "0.6.6",
+)
+crate.spec(
+    package = "tracing",
+    version = "0.1.41",
+)
+crate.spec(
+    package = "tracing-futures",
+    version = "0.2.5",
+)
+crate.spec(
+    package = "tracing-subscriber",
+    version = "0.3.20",
+)
+crate.spec(
+    features = ["axum_extras"],
+    package = "utoipa",
+    version = "5.4.0",
+)
+crate.spec(
+    features = ["axum", "vendored"],
+    package = "utoipa-swagger-ui",
+    version = "9.0.2",
+)
+crate.spec(
+    features = ["v4"],
+    package = "uuid",
+    version = "1.18.1",
+)
+
+# Dev dependencies
+crate.spec(
+    features = ["yaml"],
+    package = "insta",
+    version = "1.43.2",
+)
+crate.spec(
+    package = "mockall",
+    version = "0.13.1",
+)
+crate.spec(
+    package = "regex",
+    version = "1.11",
+)
+crate.spec(
+    features = ["postgres"],
+    package = "testcontainers-modules",
+    version = "0.13.0",
+)
+
 crate.from_specs()
 use_repo(crate, "crates")
 

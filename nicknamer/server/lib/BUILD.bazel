@@ -1,0 +1,38 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+filegroup(
+    name = "templates",
+    srcs = glob(["templates/**/*"]),
+)
+
+rust_library(
+    name = "lib",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = [":templates"],
+    data = ["@crates//:utoipa-swagger-ui"],
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "@crates//:anyhow",
+        "@crates//:askama",
+        "@crates//:axum",
+        "@crates//:axum-extra",
+        "@crates//:chrono",
+        "@crates//:config",
+        "@crates//:jsonwebtoken",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:serde_yaml",
+        "@crates//:time",
+        "@crates//:tokio",
+        "@crates//:tower-http",
+        "@crates//:tracing",
+        "@crates//:tracing-futures",
+        "@crates//:tracing-subscriber",
+        "@crates//:utoipa",
+        "@crates//:utoipa-swagger-ui",
+        "@crates//:uuid",
+    ],
+)
