@@ -1,7 +1,7 @@
 "Module file for building projects in lowkeylab"
 
 module(
-    name = "null",
+    name = "bazel-repo",
     version = "0.1.0",
     compatibility_level = 1,
 )
@@ -9,10 +9,10 @@ module(
 bazel_dep(name = "rules_shell", version = "0.6.0")
 
 # --- GitHub Release Configuration ---
-gh_release = use_extension("//tools/bazel:extensions.bzl", "gh_releases_ext")
+gh_release = use_extension("//tools/bazel:extensions.bzl", "gh_release_ext")
 
 gh_release.download(
-    name = "swagger-ui-dist",
+    name = "swagger_ui_dist",
     url = "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip",
     sha256 = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
     strip_prefix = "swagger-ui-5.17.14",
@@ -33,6 +33,7 @@ register_toolchains("@rust_toolchains//:all")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 inject_repo(crate, "gh_releases")
+
 # Regular dependencies
 crate.spec(
     package = "anyhow",
@@ -150,9 +151,9 @@ crate.spec(
 )
 crate.annotation(
     crate = "utoipa-swagger-ui",
-    deps = ["@gh_releases//:swagger-ui-dist"],
+    deps = ["@gh_releases//:swagger_ui_dist"],
     build_script_env = {
-        "SWAGGER_UI_DOWNLOAD_URL": "$(locations @gh_releases//:swagger-ui-dist)",
+        "SWAGGER_UI_DOWNLOAD_URL": "$(locations @gh_releases//:swagger_ui_dist)",
     },
 )
 crate.spec(

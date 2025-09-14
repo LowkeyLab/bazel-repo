@@ -1,0 +1,6 @@
+# Bazel extensions and rules for the project
+
+exports_files([
+    "extensions.bzl",
+    "rules.bzl",
+])

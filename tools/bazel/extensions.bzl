@@ -11,6 +11,7 @@ load("//tools/bazel:rules.bzl", "gh_releases_repo")
 
 # Define the attributes that modules can specify.
 gh_release_tag = tag_class(attrs = {
+    "name": attr.string(mandatory = True),
     "url": attr.string(mandatory = True),
     "sha256": attr.string(mandatory = True),
     "strip_prefix": attr.string(),
@@ -26,7 +27,7 @@ def _gh_release_ext_impl(module_ctx):
         for tag in mod.tags.download:
             # Generate a unique, internal repository name for the download.
             # Using the module name ensures no collisions.
-            repo_name = "_gh_download_{}".format(mod.name)
+            repo_name = "gh_download_{}".format(tag.name)
 
             http_archive(
                 name = repo_name,
@@ -34,7 +35,7 @@ def _gh_release_ext_impl(module_ctx):
                 sha256 = tag.sha256,
                 strip_prefix = tag.strip_prefix if tag.strip_prefix else "",
             )
-            releases[mod.name] = "@" + repo_name
+            releases[tag.name] = "@" + repo_name
 
     # Call the repository rule once to create the final @gh_releases repo.
     gh_releases_repo(
