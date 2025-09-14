@@ -9,8 +9,6 @@ rust_library(
     name = "lib",
     srcs = glob(["src/**/*.rs"]),
     compile_data = [":templates"],
-    data = ["@crates//:utoipa-swagger-ui"],
-    edition = "2021",
     visibility = ["//visibility:public"],
     deps = [
         "//nicknamer/migration/lib",

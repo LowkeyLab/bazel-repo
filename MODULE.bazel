@@ -1,3 +1,5 @@
+"Module file for building projects in lowkeylab"
+
 module(
     name = "null",
     version = "0.1.0",
@@ -6,15 +8,20 @@ module(
 
 bazel_dep(name = "rules_shell", version = "0.6.0")
 
-# Declare dependency on rules_rust
-bazel_dep(name = "rules_rust", version = "0.64.0")
+# --- GitHub Release Configuration ---
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# Declare dependency on rules_oci and its dependencies
-bazel_dep(name = "rules_oci", version = "2.2.6")
-bazel_dep(name = "rules_pkg", version = "1.1.0")
+http_archive(
+    name = "swagger-ui-dist",
+    urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
+    build_file = "@//:swagger-ui-dist.BUILD",
+    integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
+    strip_prefix = "swagger-ui-5.17.14",
+)
 
 # --- Rust Configuration ---
-# Use the rust extension to configure the toolchain
+bazel_dep(name = "rules_rust", version = "0.64.0")
+
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
@@ -136,9 +143,16 @@ crate.spec(
     version = "5.4.0",
 )
 crate.spec(
-    features = ["axum", "vendored"],
+    features = ["axum"],
     package = "utoipa-swagger-ui",
     version = "9.0.2",
+)
+crate.annotation(
+    crate = "utoipa-swagger-ui",
+    deps = ["@swagger-ui-dist//:dist"],
+    build_script_env = {
+        "SWAGGER_UI_DOWNLOAD_URL": "$(locations @swagger-ui-dist//:dist)",
+    },
 )
 crate.spec(
     features = ["v4"],
@@ -170,7 +184,7 @@ crate.from_specs()
 use_repo(crate, "crates")
 
 # --- OCI Configuration ---
-# Use the oci extension to pull base images and configure the toolchain
+bazel_dep(name = "rules_oci", version = "2.2.6")
 oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci_extension.pull(
     name = "distroless_cc",
