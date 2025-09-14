@@ -9,15 +9,16 @@ module(
 bazel_dep(name = "rules_shell", version = "0.6.0")
 
 # --- GitHub Release Configuration ---
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+gh_release = use_extension("//tools/bazel:extensions.bzl", "gh_releases_ext")
 
-http_archive(
+gh_release.download(
     name = "swagger-ui-dist",
-    urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
-    build_file = "@//:swagger-ui-dist.BUILD",
-    integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
+    url = "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip",
+    sha256 = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
     strip_prefix = "swagger-ui-5.17.14",
 )
+
+use_repo(gh_release, "gh_releases")
 
 # --- Rust Configuration ---
 bazel_dep(name = "rules_rust", version = "0.64.0")
@@ -31,7 +32,7 @@ use_repo(rust, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-
+inject_repo(crate, "gh_releases")
 # Regular dependencies
 crate.spec(
     package = "anyhow",
@@ -74,8 +75,8 @@ crate.spec(
 crate.spec(
     default_features = False,
     features = [
-        "runtime-tokio-rustls",  # `ASYNC_RUNTIME` feature
-        "sqlx-postgres",  # `DATABASE_DRIVER` feature
+        "runtime-tokio-rustls",
+        "sqlx-postgres",
         "cli",
     ],
     package = "sea-orm-migration",
@@ -149,9 +150,9 @@ crate.spec(
 )
 crate.annotation(
     crate = "utoipa-swagger-ui",
-    deps = ["@swagger-ui-dist//:dist"],
+    deps = ["@gh_releases//:swagger-ui-dist"],
     build_script_env = {
-        "SWAGGER_UI_DOWNLOAD_URL": "$(locations @swagger-ui-dist//:dist)",
+        "SWAGGER_UI_DOWNLOAD_URL": "$(locations @gh_releases//:swagger-ui-dist)",
     },
 )
 crate.spec(
