@@ -155,28 +155,22 @@
   "moduleExtensions": {
     "//tools/bazel:gh_releases_ext.bzl%gh_release_zip": {
       "general": {
-        "bzlTransitiveDigest": "TkV3KSMhcbpAl+Mg8uy1pKlWdC0FTqPjjgx/uW1FUEs=",
+        "bzlTransitiveDigest": "YsJ0ITqAK46OSRAL6Nun9kmLEQjhio3xxDATQvO5brA=",
         "usagesDigest": "76ZXubHXNoZc3z7Y2Z37tGe5Qe9XPJ4nBMaFtUxOhb0=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
         "generatedRepoSpecs": {
           "swagger_ui": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
+            "repoRuleId": "@@//tools/bazel:gh_releases_ext.bzl%_gh_release_file_repository",
             "attributes": {
               "url": "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip",
               "sha256": "481244d0812097b11fbaeef79f71d942b171617f9c9f9514e63acbe13e71ccdc",
-              "downloaded_file_path": "swagger-ui-5.17.14.zip"
+              "filename": "swagger-ui-5.17.14.zip"
             }
           }
         },
-        "recordedRepoMappingEntries": [
-          [
-            "",
-            "bazel_tools",
-            "bazel_tools"
-          ]
-        ]
+        "recordedRepoMappingEntries": []
       }
     },
     "@@apple_support+//crosstool:setup.bzl%apple_cc_configure_extension": {

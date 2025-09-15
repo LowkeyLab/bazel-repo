@@ -1,6 +1,33 @@
 """Bazel extension for downloading ZIP files from GitHub releases."""
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+def _gh_release_file_repository_impl(rctx):
+    """Implementation for a repository rule that downloads a file and creates a BUILD file."""
+
+    # Download the file
+    rctx.download(
+        url = rctx.attr.url,
+        sha256 = rctx.attr.sha256,
+        output = rctx.attr.filename,
+    )
+
+    # Create BUILD file
+    rctx.file("BUILD.bazel", """
+filegroup(
+    name = "file",
+    srcs = ["{filename}"],
+    visibility = ["//visibility:public"],
+)
+""".format(filename = rctx.attr.filename))
+
+# Define the repository rule
+_gh_release_file_repository = repository_rule(
+    implementation = _gh_release_file_repository_impl,
+    attrs = {
+        "url": attr.string(mandatory = True),
+        "sha256": attr.string(mandatory = False, default = ""),
+        "filename": attr.string(mandatory = True),
+    },
+)
 
 def _gh_release_zip_impl(module_ctx):
     """Implementation function for the gh_release_zip extension."""
@@ -14,15 +41,18 @@ def _gh_release_zip_impl(module_ctx):
                 tag = tag.tag,
             )
 
-            # Create the repository using http_file
-            http_file(
+            # Construct filename
+            filename = "{repo}-{tag}.zip".format(
+                repo = tag.repo,
+                tag = tag.tag.lstrip("v"),  # Remove 'v' prefix if present
+            )
+
+            # Create the repository using our custom rule
+            _gh_release_file_repository(
                 name = tag.name,
                 url = url,
                 sha256 = tag.sha256 if hasattr(tag, "sha256") and tag.sha256 else "",
-                downloaded_file_path = "{repo}-{tag}.zip".format(
-                    repo = tag.repo,
-                    tag = tag.tag.lstrip("v"),  # Remove 'v' prefix if present
-                ),
+                filename = filename,
             )
 
 # Define the tag class for download configuration
