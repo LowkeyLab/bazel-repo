@@ -1,0 +1,12 @@
+load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+
+filegroup(
+    name = "dist_files",
+    srcs = glob(["dist/**"]),
+    visibility = ["//visibility:public"],
+)
+
+directory(
+    name = "dist",
+    srcs = [":dist_files"],
+)

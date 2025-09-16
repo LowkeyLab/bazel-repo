@@ -1,0 +1,11 @@
+filegroup(
+    name = "embed_rs",
+    srcs = ["src/embed.rs"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "build_rs",
+    srcs = ["src/build.rs"],
+    visibility = ["//visibility:public"],
+)
