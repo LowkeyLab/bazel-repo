@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 
 filegroup(
     name = "dist_files",
@@ -6,7 +6,10 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-directory(
+copy_to_directory(
     name = "dist",
-    srcs = [":dist_files"],
+    srcs = ["@swagger_ui//:dist_files"],
+    include_external_repositories = ["external*"],
+    root_paths = ["dist"],
+    visibility = ["//visibility:public"],
 )
