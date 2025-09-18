@@ -43,5 +43,9 @@ rust_test_suite(
     name = "tests",
     srcs = glob(["tests/**"]),
     shared_srcs = glob(["tests/common/**"]),
-    deps = [":lib"],
+    deps = [
+        ":lib",
+        "@crates//:insta",
+        "@crates//:testcontainers-modules",
+    ],
 )
