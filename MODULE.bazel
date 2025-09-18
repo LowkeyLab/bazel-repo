@@ -147,6 +147,7 @@ crate.spec(
 crate.spec(
     package = "utoipa-swagger-ui",
     version = "9.0.2",
+    features = ["axum"],
 )
 crate.annotation(
     crate = "utoipa-swagger-ui",
@@ -163,7 +164,7 @@ filegroup(
 """,
     rustc_env = {
         # Set this to make sure that RustEmbed points to the parent dir of the swagger ui dist
-        "CARGO_MANIFEST_DIR": "$(execpath :dist)/..", 
+        "CARGO_MANIFEST_DIR": "$(execpath :dist)/..",
     },
     compile_data = [":dist"],
 )
