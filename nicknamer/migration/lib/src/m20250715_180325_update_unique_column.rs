@@ -6,23 +6,30 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Remove the old unique index
+        // First, drop the existing unique constraint on discord_id using raw SQL
         manager
-            .drop_index(
-                Index::drop()
-                    .name("idx-user-user_id_from_discord-server_id")
+            .get_connection()
+            .execute_unprepared("ALTER TABLE name DROP CONSTRAINT user_discord_id_key;")
+            .await?;
+
+        // Modify the column to ensure correct type
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Name::Table)
+                    .modify_column(ColumnDef::new(Name::DiscordId).big_integer().not_null())
                     .to_owned(),
             )
             .await?;
 
-        // Create a new unique index on just user_id_from_discord
+        // Create a new unique constraint on DiscordId + ServerId
         manager
             .create_index(
                 Index::create()
-                    .if_not_exists()
-                    .name("idx-user-user_id_from_discord")
-                    .table(User::Table)
-                    .col(User::UserIdFromDiscord)
+                    .name("name_discord_id_server_id_unique")
+                    .table(Name::Table)
+                    .col(Name::DiscordId)
+                    .col(Name::ServerId)
                     .unique()
                     .to_owned(),
             )
@@ -30,24 +37,23 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Remove the new unique index
+        // Drop the composite unique constraint
         manager
             .drop_index(
                 Index::drop()
-                    .name("idx-user-user_id_from_discord")
+                    .name("name_discord_id_server_id_unique")
+                    .table(Name::Table)
                     .to_owned(),
             )
             .await?;
 
-        // Recreate the old unique index
+        // Recreate the original unique constraint on DiscordId
         manager
             .create_index(
                 Index::create()
-                    .if_not_exists()
-                    .name("idx-user-user_id_from_discord-server_id")
-                    .table(User::Table)
-                    .col(User::UserIdFromDiscord)
-                    .col(User::ServerId)
+                    .name("user_discord_id_key")
+                    .table(Name::Table)
+                    .col(Name::DiscordId)
                     .unique()
                     .to_owned(),
             )
@@ -56,8 +62,8 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum User {
+enum Name {
     Table,
-    UserIdFromDiscord,
+    DiscordId,
     ServerId,
 }

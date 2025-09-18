@@ -1,4 +1,4 @@
-use sea_orm_migration::prelude::*;
+use sea_orm_migration::{prelude::*, schema::*};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -11,16 +11,14 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(User::Table)
                     .if_not_exists()
+                    .col(pk_auto(User::Id))
                     .col(
-                        ColumnDef::new(User::Id)
-                            .integer()
+                        ColumnDef::new(User::DiscordId)
+                            .big_unsigned()
                             .not_null()
-                            .auto_increment()
-                            .primary_key(),
+                            .unique_key(),
                     )
                     .col(ColumnDef::new(User::Name).string().not_null())
-                    .col(ColumnDef::new(User::ServerId).string())
-                    .col(ColumnDef::new(User::UserIdFromThirdPartyApp).string().not_null())
                     .to_owned(),
             )
             .await
@@ -37,7 +35,6 @@ impl MigrationTrait for Migration {
 enum User {
     Table,
     Id,
+    DiscordId,
     Name,
-    ServerId,
-    UserIdFromThirdPartyApp,
 }

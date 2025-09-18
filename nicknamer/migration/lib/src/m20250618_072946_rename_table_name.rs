@@ -7,30 +7,23 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .alter_table(
-                Table::alter()
-                    .table(User::Table)
-                    .rename_column(User::UserIdFromThirdPartyApp, User::UserIdFromDiscord)
-                    .to_owned(),
-            )
+            .rename_table(Table::rename().table(User::Table, Name::Table).to_owned())
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .alter_table(
-                Table::alter()
-                    .table(User::Table)
-                    .rename_column(User::UserIdFromDiscord, User::UserIdFromThirdPartyApp)
-                    .to_owned(),
-            )
+            .rename_table(Table::rename().table(Name::Table, User::Table).to_owned())
             .await
     }
 }
 
-#[derive(DeriveIden)]
+#[derive(Iden)]
 enum User {
     Table,
-    UserIdFromThirdPartyApp,
-    UserIdFromDiscord,
+}
+
+#[derive(Iden)]
+enum Name {
+    Table,
 }

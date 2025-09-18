@@ -9,12 +9,9 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .if_not_exists()
-                    .name("idx-user-user_id_from_discord-server_id")
-                    .table(User::Table)
-                    .col(User::UserIdFromDiscord)
-                    .col(User::ServerId)
-                    .unique()
+                    .name("idx_discord_id")
+                    .table(Name::Table)
+                    .col(Name::DiscordId)
                     .to_owned(),
             )
             .await
@@ -24,7 +21,8 @@ impl MigrationTrait for Migration {
         manager
             .drop_index(
                 Index::drop()
-                    .name("idx-user-user_id_from_discord-server_id")
+                    .name("idx_discord_id")
+                    .table(Name::Table)
                     .to_owned(),
             )
             .await
@@ -32,8 +30,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum User {
+enum Name {
     Table,
-    UserIdFromDiscord,
-    ServerId,
+    DiscordId,
 }

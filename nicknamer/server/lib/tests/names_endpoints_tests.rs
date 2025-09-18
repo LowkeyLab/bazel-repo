@@ -87,54 +87,11 @@ async fn create_test_names_multiple_servers(db: &DatabaseConnection) {
     let _result4 = name4.insert(db).await.unwrap();
 }
 
-/// Test helper to create test names in the database and return their IDs.
-async fn create_test_names_with_ids(db: &DatabaseConnection) -> Vec<i32> {
-    let name1 = name::ActiveModel {
-        discord_id: Set(123456789),
-        name: Set("TestUser1".to_string()),
-        server_id: Set("test-server-1".to_string()),
-        ..Default::default()
-    };
-
-    let name2 = name::ActiveModel {
-        discord_id: Set(987654321),
-        name: Set("TestUser2".to_string()),
-        server_id: Set("test-server-1".to_string()),
-        ..Default::default()
-    };
-
-    let name3 = name::ActiveModel {
-        discord_id: Set(555444333),
-        name: Set("TestUser3".to_string()),
-        server_id: Set("test-server-1".to_string()),
-        ..Default::default()
-    };
-
-    let result1 = name1.insert(db).await.unwrap();
-    let result2 = name2.insert(db).await.unwrap();
-    let result3 = name3.insert(db).await.unwrap();
-
-    vec![result1.id, result2.id, result3.id]
-}
-
 /// Test helper to create a single test name and return its ID.
 async fn create_single_test_name(db: &DatabaseConnection) -> i32 {
     let name = name::ActiveModel {
         discord_id: Set(555444333),
         name: Set("DeleteTestUser".to_string()),
-        server_id: Set("test-server-1".to_string()),
-        ..Default::default()
-    };
-
-    let result = name.insert(db).await.unwrap();
-    result.id
-}
-
-/// Test helper to create a single test name for editing and return its ID.
-async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
-    let name = name::ActiveModel {
-        discord_id: Set(777888999),
-        name: Set("EditableTestUser".to_string()),
         server_id: Set("test-server-1".to_string()),
         ..Default::default()
     };
@@ -270,7 +227,8 @@ async fn can_create_name_successfully() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "create_name_successfully");
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "create_name_successfully");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -334,7 +292,8 @@ async fn can_handle_form_with_special_characters_in_name() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "form_with_special_characters");
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "form_with_special_characters");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -389,7 +348,8 @@ async fn post_endpoint_returns_table_fragment_not_full_page() {
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
 
-    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "table_fragment_not_full_page");
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "table_fragment_not_full_page");
 
     assert_yaml_snapshot!(snapshot_data);
 }
@@ -469,7 +429,8 @@ async fn can_delete_name_successfully() {
     // Should return the updated names table (empty in this case)
     assert!(body_text.contains("No names found in the database"));
 
-    let snapshot_data = HttpResponseSnapshot::new(body_text, status, &headers, "delete_name_successfully");
+    let snapshot_data =
+        HttpResponseSnapshot::new(body_text, status, &headers, "delete_name_successfully");
 
     assert_yaml_snapshot!(snapshot_data);
 }
