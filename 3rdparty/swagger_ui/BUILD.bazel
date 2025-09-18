@@ -1,15 +1,5 @@
-load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
-
-filegroup(
-    name = "dist_files",
-    srcs = glob(["dist/**"]),
-    visibility = ["//visibility:public"],
-)
-
-copy_to_directory(
-    name = "dist",
-    srcs = ["@swagger_ui//:dist_files"],
-    include_external_repositories = ["external*"],
-    root_paths = ["dist"],
-    visibility = ["//visibility:public"],
+exports_files(
+    [
+        "BUILD.swagger_ui",
+    ],
 )

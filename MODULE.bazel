@@ -17,7 +17,7 @@ http_archive(
     urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
     integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
     strip_prefix = "swagger-ui-5.17.14",
-    build_file = "//3rdparty/swagger_ui:BUILD.bazel",
+    build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
 )
 
 # --- Rust Configuration ---
