@@ -1,0 +1,11 @@
+---
+source: nicknamer/server/tests/names_endpoints_tests.rs
+expression: snapshot_data
+---
+status: 200
+headers:
+  content-type: application/json
+body:
+  count: 0
+  names: []
+test_name: api_v1_names_filtered_nonexistent

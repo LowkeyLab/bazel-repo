@@ -1,0 +1,10 @@
+---
+source: nicknamer/server/tests/auth_endpoints_tests.rs
+expression: snapshot_data
+---
+test_context: handle_template_error
+status: 500
+headers:
+  content-type: text/html; charset=utf-8
+html_body:
+  - "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>"

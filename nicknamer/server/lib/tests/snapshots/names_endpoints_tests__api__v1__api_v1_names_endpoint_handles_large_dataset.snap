@@ -1,0 +1,51 @@
+---
+source: nicknamer/server/tests/names_endpoints_tests.rs
+expression: snapshot_data
+---
+status: 200
+headers:
+  content-type: application/json
+body:
+  count: 10
+  names:
+    - discord_id: 100000001
+      id: 1
+      name: TestUser1
+      server_id: test-server-1
+    - discord_id: 100000002
+      id: 2
+      name: TestUser2
+      server_id: test-server-1
+    - discord_id: 100000003
+      id: 3
+      name: TestUser3
+      server_id: test-server-1
+    - discord_id: 100000004
+      id: 4
+      name: TestUser4
+      server_id: test-server-1
+    - discord_id: 100000005
+      id: 5
+      name: TestUser5
+      server_id: test-server-1
+    - discord_id: 100000006
+      id: 6
+      name: TestUser6
+      server_id: test-server-1
+    - discord_id: 100000007
+      id: 7
+      name: TestUser7
+      server_id: test-server-1
+    - discord_id: 100000008
+      id: 8
+      name: TestUser8
+      server_id: test-server-1
+    - discord_id: 100000009
+      id: 9
+      name: TestUser9
+      server_id: test-server-1
+    - discord_id: 100000010
+      id: 10
+      name: TestUser10
+      server_id: test-server-1
+test_name: api_v1_names_large_dataset

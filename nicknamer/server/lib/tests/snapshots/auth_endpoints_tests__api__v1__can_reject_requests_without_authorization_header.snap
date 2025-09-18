@@ -1,0 +1,11 @@
+---
+source: nicknamer/server/tests/auth_endpoints_tests.rs
+expression: snapshot_data
+---
+status: 401
+headers:
+  content-type: application/json
+body:
+  error: UNAUTHORIZED
+  message: Authentication required to access this resource
+test_name: json_api_reject_requests_without_authorization_header
