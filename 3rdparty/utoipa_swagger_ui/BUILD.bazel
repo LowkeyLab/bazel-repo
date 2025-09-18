@@ -1,15 +1,5 @@
-load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_vendor")
-
-crates_vendor(
-    name = "crates_vendor",
-    cargo_lockfile = "Cargo.Bazel.lock",
-    generate_build_scripts = False,
-    mode = "local",
-    packages = {
-        "utoipa-swagger-ui": crate.spec(
-            version = "=9.0.2",
-        ),
-    },
-    repository_name = "utoipa_swagger_ui",
-    tags = ["manual"],
+exports_files(
+    [
+        "fix.patch",
+    ],
 )

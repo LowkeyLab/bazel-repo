@@ -1,0 +1,15 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 35e5beb..291f1e1 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -153,7 +153,9 @@ use serde::Serialize;
+ #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+ use utoipa::openapi::OpenApi;
+ 
+-include!(concat!(env!("OUT_DIR"), "/embed.rs"));
++#[derive(RustEmbed)]
++#[folder = r"dist/"]
++struct SwaggerUiDist;
+ 
+ /// Entry point for serving Swagger UI and api docs in application. It provides
+ /// builder style chainable configuration methods for configuring api doc urls.

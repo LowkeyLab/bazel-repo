@@ -32,7 +32,7 @@ use_repo(rust, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
-inject_repo(crate, "swagger_ui", "aspect_bazel_lib")
+inject_repo(crate, "swagger_ui")
 
 # Regular dependencies
 crate.spec(
@@ -143,6 +143,29 @@ crate.spec(
     features = ["axum_extras"],
     package = "utoipa",
     version = "5.4.0",
+)
+crate.spec(
+    package = "utoipa-swagger-ui",
+    version = "9.0.2",
+)
+crate.annotation(
+    crate = "utoipa-swagger-ui",
+    gen_build_script = "off",
+    patch_args = [
+        "-p1",
+    ],
+    patches = ["//3rdparty/utoipa_swagger_ui:fix.patch"],
+    additive_build_file_content = """
+filegroup(
+    name = "dist",
+    srcs = ["@swagger_ui//:dist"],
+)
+""",
+    rustc_env = {
+        # Set this to make sure that RustEmbed points to the parent dir of the swagger ui dist
+        "CARGO_MANIFEST_DIR": "$(execpath :dist)/..", 
+    },
+    compile_data = [":dist"],
 )
 crate.spec(
     features = ["v4"],
