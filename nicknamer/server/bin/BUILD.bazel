@@ -1,10 +1,12 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
+package(default_visibility = ["//nicknamer"])
+
 rust_binary(
     name = "bin",
     srcs = ["src/main.rs"],
     edition = "2021",
-    visibility = ["//visibility:public"],
+    visibility = ["//nicknamer"],
     deps = [
         "//nicknamer/server/lib",
         "@crates//:anyhow",

@@ -1,5 +1,10 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
+package_group(
+    name = "nicknamer",
+    packages = ["//nicknamer/..."],
+)
+
 filegroup(
     name = "compose_file",
     srcs = ["compose.yaml"],
