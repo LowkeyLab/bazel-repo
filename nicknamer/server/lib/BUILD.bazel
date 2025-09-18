@@ -45,7 +45,17 @@ rust_test_suite(
     shared_srcs = glob(["tests/common/**"]),
     deps = [
         ":lib",
+        "//nicknamer/migration/lib",
+        "@crates//:anyhow",
+        "@crates//:askama",
+        "@crates//:axum",
         "@crates//:insta",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
         "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+        "@crates//:tracing-subscriber",
     ],
 )
