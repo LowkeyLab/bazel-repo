@@ -11,6 +11,6 @@ async fn main() -> anyhow::Result<()> {
                 .add_directive("tower_http=debug".parse().unwrap()),
         )
         .init();
-    let config = nicknamer_server::config::Config::from_env()?;
-    nicknamer_server::web::start_web_server(config).await
+    let config = lib::config::Config::from_env()?;
+    lib::web::start_web_server(config).await
 }
