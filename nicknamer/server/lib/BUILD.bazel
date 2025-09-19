@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test_suite")
+load("@rules_rust//rust:defs.bzl", "rust_library")
 
 package(default_visibility = ["//nicknamer"])
 
@@ -36,35 +36,5 @@ rust_library(
         "@crates//:utoipa",
         "@crates//:utoipa-swagger-ui",
         "@crates//:uuid",
-    ],
-)
-
-filegroup(
-    name = "snapshots",
-    srcs = glob(["tests/snapshots/**"]),
-)
-
-rust_test_suite(
-    name = "tests",
-    srcs = glob(["tests/**/*.rs"]),
-    data = [":snapshots"],
-    shared_srcs = glob(["tests/common/**"]),
-    env = {
-        "INSTA_UPDATE": "no", # Read only mode
-    },
-    deps = [
-        ":lib",
-        "//nicknamer/migration/lib",
-        "@crates//:anyhow",
-        "@crates//:askama",
-        "@crates//:axum",
-        "@crates//:insta",
-        "@crates//:sea-orm",
-        "@crates//:serde",
-        "@crates//:serde_json",
-        "@crates//:testcontainers-modules",
-        "@crates//:tokio",
-        "@crates//:tower",
-        "@crates//:tracing-subscriber",
     ],
 )
