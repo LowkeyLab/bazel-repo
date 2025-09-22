@@ -18,16 +18,3 @@ sh_binary(
         "//nicknamer/server/bin",
     ],
 )
-
-# Convenience aliases for Docker operations
-alias(
-    name = "build_image",
-    actual = "//nicknamer/server/bin:image",
-    visibility = ["//visibility:public"],
-)
-
-alias(
-    name = "push_image",
-    actual = "//nicknamer/server/bin:push_image",
-    visibility = ["//visibility:public"],
-)
