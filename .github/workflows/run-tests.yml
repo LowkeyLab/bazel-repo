@@ -24,4 +24,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Run Bazel tests
-        run: bazel test //... --config=remote --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+        run: bazel test //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
