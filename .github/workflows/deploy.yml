@@ -1,0 +1,40 @@
+name: Deploy
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+on:
+  workflow_run:
+    workflows: ["Bazel Tests"]
+    types:
+      - completed
+    branches: [main]
+
+env:
+  MISE_EXPERIMENTAL: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04 # glibc version 2.36 is required for base distroless image
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: jdx/mise-action@5ac50f778e26fac95da98d50503682459e86d566
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker image
+        run: bazel run //nicknamer/server:push_image --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+        env:
+          BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}
