@@ -27,6 +27,7 @@ jobs:
       - name: Log in to GHCR
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1
         with:
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
@@ -35,7 +36,7 @@ jobs:
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
-          
+
       - name: Run Bazel tests
         run: bazel test //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
         env: 
