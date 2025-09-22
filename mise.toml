@@ -1,7 +1,7 @@
 [tools]
-bazel = "latest"
-bazelisk = "latest"
-buildifier = "latest"
+bazel = "8.4.0"
+bazelisk = "1.27.0"
+buildifier = "8.2.1"
 java = "21"
 
 [env]
