@@ -46,5 +46,6 @@ alias(
 oci_push(
     name = "push_image",
     image = ":nicknamer_image",
-    repository = "ghcr.io/lowkeylab/nicknamer-server",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/LowkeyLab/nicknamer-server",
 )
