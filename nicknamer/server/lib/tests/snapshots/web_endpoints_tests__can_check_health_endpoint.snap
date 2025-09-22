@@ -1,0 +1,10 @@
+---
+source: nicknamer/server/tests/web_endpoints_tests.rs
+expression: snapshot
+---
+test_context: health_check
+status: 200
+headers:
+  content-type: text/plain; charset=utf-8
+html_body:
+  - OK

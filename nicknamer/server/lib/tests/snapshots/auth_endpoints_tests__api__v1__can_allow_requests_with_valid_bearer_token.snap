@@ -1,0 +1,9 @@
+---
+source: nicknamer/server/tests/auth_endpoints_tests.rs
+expression: snapshot_data
+---
+status: 200
+headers:
+  content-type: text/plain; charset=utf-8
+body: Protected data
+test_name: json_api_allow_requests_with_valid_bearer_token

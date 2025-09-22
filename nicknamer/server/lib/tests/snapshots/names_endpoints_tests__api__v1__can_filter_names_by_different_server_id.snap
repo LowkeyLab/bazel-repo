@@ -1,0 +1,19 @@
+---
+source: nicknamer/server/tests/names_endpoints_tests.rs
+expression: snapshot_data
+---
+status: 200
+headers:
+  content-type: application/json
+body:
+  count: 2
+  names:
+    - discord_id: 555666777
+      id: 3
+      name: Charlie
+      server_id: server2
+    - discord_id: 444333222
+      id: 4
+      name: David
+      server_id: server2
+test_name: api_v1_names_filtered_server2
