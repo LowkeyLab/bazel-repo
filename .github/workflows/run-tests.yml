@@ -22,6 +22,8 @@ jobs:
       - uses: jdx/mise-action@5ac50f778e26fac95da98d50503682459e86d566
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Run Bazel tests
         run: bazel test //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+        env: 
+          BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}
