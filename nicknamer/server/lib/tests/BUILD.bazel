@@ -5,6 +5,10 @@ package(default_visibility = ["//nicknamer"])
 rust_test_suite(
     name = "tests",
     srcs = glob(["*.rs"]),
+    env = {
+        "INSTA_UPDATE": "no",
+        "INSTA_WORKSPACE_ROOT": ".",
+    },
     shared_srcs = glob(["common/**"]),
     deps = [
         "//nicknamer/migration/lib",
@@ -12,6 +16,7 @@ rust_test_suite(
         "@crates//:anyhow",
         "@crates//:askama",
         "@crates//:axum",
+        "@crates//:insta",
         "@crates//:sea-orm",
         "@crates//:serde",
         "@crates//:serde_json",
