@@ -44,7 +44,7 @@ oci_push(
     name = "push_image",
     image = ":nicknamer_image",
     remote_tags = ["latest"],
-    repository = "ghcr.io/nicknamer-server",
+    repository = "ghcr.io/lowkey-lab/nicknamer-server",
 )
 
 # Load the image into the local Docker daemon
