@@ -1,0 +1,11 @@
+---
+source: .:1838
+expression: snapshot_data
+---
+status: 409
+headers:
+  content-type: application/json
+body:
+  error: "Name already exists for Discord ID 123456789 in server 'test-server-1'"
+  message: "An error occurred: Name already exists for Discord ID 123456789 in server 'test-server-1'"
+test_name: api_v1_create_name_duplicate_error

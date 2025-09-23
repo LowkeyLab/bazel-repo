@@ -1729,6 +1729,242 @@ pub mod api {
 
             assert_yaml_snapshot!(snapshot_data);
         }
+
+        #[tokio::test]
+        async fn can_create_name_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            let json_data = serde_json::json!({
+                "discord_id": 555666777u64,
+                "name": "NewApiUser",
+                "server_id": "test-server-1"
+            });
+            let request = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(json_data.to_string()))
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 201 Created
+            assert_eq!(status, StatusCode::CREATED);
+
+            // Should return JSON content type
+            assert_eq!(headers.get("content-type").unwrap(), "application/json");
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["id"].is_number());
+            assert_eq!(json["discord_id"], 555666777);
+            assert_eq!(json["name"], "NewApiUser");
+            assert_eq!(json["server_id"], "test-server-1");
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_create_name_success",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn cannot_create_duplicate_name_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state.clone());
+
+            // First, create a name with a specific Discord ID and server
+            let json_data = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "FirstUser",
+                "server_id": "test-server-1"
+            });
+            let request = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(json_data.to_string()))
+                .unwrap();
+
+            let _response = app.oneshot(request).await.unwrap();
+
+            // Now try to create another name with the same Discord ID and server
+            let duplicate_json_data = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "SecondUser",
+                "server_id": "test-server-1"
+            });
+            let app2 = create_api_router(name_state.clone());
+            let duplicate_request = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(duplicate_json_data.to_string()))
+                .unwrap();
+
+            let duplicate_response = app2.oneshot(duplicate_request).await.unwrap();
+
+            let status = duplicate_response.status();
+            let headers = duplicate_response.headers().clone();
+            let body = axum::body::to_bytes(duplicate_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 409 Conflict
+            assert_eq!(status, StatusCode::CONFLICT);
+
+            // Should return JSON content type
+            assert_eq!(headers.get("content-type").unwrap(), "application/json");
+
+            // Parse and validate error response
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["error"].is_string());
+            let error_msg = json["error"].as_str().unwrap();
+            assert!(error_msg.contains("already exists"));
+            assert!(error_msg.contains("123456789"));
+            assert!(error_msg.contains("test-server-1"));
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_create_name_duplicate_error",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_create_same_discord_id_different_servers_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state.clone());
+
+            // Create a name for server-1
+            let json_data1 = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "UserInServer1",
+                "server_id": "server-1"
+            });
+            let request1 = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(json_data1.to_string()))
+                .unwrap();
+
+            let response1 = app.oneshot(request1).await.unwrap();
+            assert_eq!(response1.status(), StatusCode::CREATED);
+
+            // Now create a name with same Discord ID but different server
+            let json_data2 = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "UserInServer2",
+                "server_id": "server-2"
+            });
+            let app2 = create_api_router(name_state.clone());
+            let request2 = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(json_data2.to_string()))
+                .unwrap();
+
+            let response2 = app2.oneshot(request2).await.unwrap();
+
+            let status = response2.status();
+            let headers = response2.headers().clone();
+            let body = axum::body::to_bytes(response2.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 201 Created (different server, so allowed)
+            assert_eq!(status, StatusCode::CREATED);
+
+            // Should return JSON content type
+            assert_eq!(headers.get("content-type").unwrap(), "application/json");
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["id"].is_number());
+            assert_eq!(json["discord_id"], 123456789);
+            assert_eq!(json["name"], "UserInServer2");
+            assert_eq!(json["server_id"], "server-2");
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_create_name_different_servers",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_create_name_with_special_characters_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            let json_data = serde_json::json!({
+                "discord_id": 888999000u64,
+                "name": "User With Spaces!@#",
+                "server_id": "test-server-1"
+            });
+            let request = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(json_data.to_string()))
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 201 Created
+            assert_eq!(status, StatusCode::CREATED);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert_eq!(json["discord_id"], 888999000);
+            assert_eq!(json["name"], "User With Spaces!@#"); // Direct JSON value
+            assert_eq!(json["server_id"], "test-server-1");
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_create_name_special_characters",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
     }
 }
 

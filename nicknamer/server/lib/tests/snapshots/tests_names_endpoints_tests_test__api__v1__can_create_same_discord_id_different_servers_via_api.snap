@@ -1,0 +1,13 @@
+---
+source: .:1899
+expression: snapshot_data
+---
+status: 201
+headers:
+  content-type: application/json
+body:
+  discord_id: 123456789
+  id: 2
+  name: UserInServer2
+  server_id: server-2
+test_name: api_v1_create_name_different_servers

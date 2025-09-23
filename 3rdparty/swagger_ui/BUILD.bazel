@@ -1,5 +1,6 @@
 exports_files(
     [
         "BUILD.swagger_ui",
+        "fix.patch",
     ],
 )
