@@ -2,11 +2,11 @@ use crate::name::web::NameState;
 use crate::name::{Name, NameService};
 use crate::web::api::v1::ServerErrorResponse;
 use axum::{
-    Form, Router,
+    Router,
     extract::{Query, State},
     http::StatusCode,
     response::Json,
-    routing::{get, post},
+    routing::get,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
