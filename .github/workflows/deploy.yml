@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
-      - uses: jdx/mise-action@5ac50f778e26fac95da98d50503682459e86d566
+      - uses: jdx/mise-action@0ed130423e0c751e172c0eae48497cd4292235bc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
