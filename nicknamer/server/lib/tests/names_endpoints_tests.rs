@@ -1737,12 +1737,16 @@ pub mod api {
             let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
 
-            let form_data = "discord_id=555666777&name=NewApiUser&server_id=test-server-1";
+            let json_data = serde_json::json!({
+                "discord_id": 555666777u64,
+                "name": "NewApiUser",
+                "server_id": "test-server-1"
+            });
             let request = Request::builder()
                 .method(Method::POST)
                 .uri("/names")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(form_data))
+                .header("content-type", "application/json")
+                .body(Body::from(json_data.to_string()))
                 .unwrap();
 
             let response = app.oneshot(request).await.unwrap();
@@ -1785,25 +1789,32 @@ pub mod api {
             let app = create_api_router(name_state.clone());
 
             // First, create a name with a specific Discord ID and server
-            let form_data = "discord_id=123456789&name=FirstUser&server_id=test-server-1";
+            let json_data = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "FirstUser",
+                "server_id": "test-server-1"
+            });
             let request = Request::builder()
                 .method(Method::POST)
                 .uri("/names")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(form_data))
+                .header("content-type", "application/json")
+                .body(Body::from(json_data.to_string()))
                 .unwrap();
 
             let _response = app.oneshot(request).await.unwrap();
 
             // Now try to create another name with the same Discord ID and server
-            let duplicate_form_data =
-                "discord_id=123456789&name=SecondUser&server_id=test-server-1";
+            let duplicate_json_data = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "SecondUser",
+                "server_id": "test-server-1"
+            });
             let app2 = create_api_router(name_state.clone());
             let duplicate_request = Request::builder()
                 .method(Method::POST)
                 .uri("/names")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(duplicate_form_data))
+                .header("content-type", "application/json")
+                .body(Body::from(duplicate_json_data.to_string()))
                 .unwrap();
 
             let duplicate_response = app2.oneshot(duplicate_request).await.unwrap();
@@ -1847,25 +1858,33 @@ pub mod api {
             let app = create_api_router(name_state.clone());
 
             // Create a name for server-1
-            let form_data1 = "discord_id=123456789&name=UserInServer1&server_id=server-1";
+            let json_data1 = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "UserInServer1",
+                "server_id": "server-1"
+            });
             let request1 = Request::builder()
                 .method(Method::POST)
                 .uri("/names")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(form_data1))
+                .header("content-type", "application/json")
+                .body(Body::from(json_data1.to_string()))
                 .unwrap();
 
             let response1 = app.oneshot(request1).await.unwrap();
             assert_eq!(response1.status(), StatusCode::CREATED);
 
             // Now create a name with same Discord ID but different server
-            let form_data2 = "discord_id=123456789&name=UserInServer2&server_id=server-2";
+            let json_data2 = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "UserInServer2",
+                "server_id": "server-2"
+            });
             let app2 = create_api_router(name_state.clone());
             let request2 = Request::builder()
                 .method(Method::POST)
                 .uri("/names")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(form_data2))
+                .header("content-type", "application/json")
+                .body(Body::from(json_data2.to_string()))
                 .unwrap();
 
             let response2 = app2.oneshot(request2).await.unwrap();
@@ -1907,13 +1926,16 @@ pub mod api {
             let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
 
-            let form_data =
-                "discord_id=888999000&name=User%20With%20Spaces%21%40%23&server_id=test-server-1";
+            let json_data = serde_json::json!({
+                "discord_id": 888999000u64,
+                "name": "User With Spaces!@#",
+                "server_id": "test-server-1"
+            });
             let request = Request::builder()
                 .method(Method::POST)
                 .uri("/names")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(Body::from(form_data))
+                .header("content-type", "application/json")
+                .body(Body::from(json_data.to_string()))
                 .unwrap();
 
             let response = app.oneshot(request).await.unwrap();
@@ -1931,7 +1953,7 @@ pub mod api {
             // Parse and validate JSON structure
             let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
             assert_eq!(json["discord_id"], 888999000);
-            assert_eq!(json["name"], "User With Spaces!@#"); // URL decoded
+            assert_eq!(json["name"], "User With Spaces!@#"); // Direct JSON value
             assert_eq!(json["server_id"], "test-server-1");
 
             let snapshot_data = JsonApiResponseSnapshot::new(
