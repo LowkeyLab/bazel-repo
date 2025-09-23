@@ -1,0 +1,13 @@
+---
+source: .:1942
+expression: snapshot_data
+---
+status: 201
+headers:
+  content-type: application/json
+body:
+  discord_id: 888999000
+  id: 1
+  name: "User With Spaces!@#"
+  server_id: test-server-1
+test_name: api_v1_create_name_special_characters
