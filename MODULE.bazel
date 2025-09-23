@@ -18,6 +18,10 @@ http_archive(
     integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
     strip_prefix = "swagger-ui-5.17.14",
     build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
+    patches = ["//3rdparty/swagger_ui:fix.patch"],
+    patch_args = [
+        "-p1",
+    ],
 )
 
 # --- Rust Configuration ---
@@ -147,7 +151,7 @@ crate.spec(
 crate.spec(
     package = "utoipa-swagger-ui",
     version = "9.0.2",
-    features = ["axum"],
+    features = ["axum", "debug-embed"],
 )
 crate.annotation(
     crate = "utoipa-swagger-ui",

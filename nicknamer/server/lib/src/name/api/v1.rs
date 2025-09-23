@@ -127,7 +127,7 @@ pub async fn get_names_handler(
 )]
 pub async fn create_name_handler(
     State(state): State<Arc<NameState>>,
-    Form(request): Form<CreateNameRequest>,
+    Json(request): Json<CreateNameRequest>,
 ) -> Result<(StatusCode, Json<NameJson>), (StatusCode, Json<ServerErrorResponse>)> {
     let service = NameService::new(&state.db);
 
