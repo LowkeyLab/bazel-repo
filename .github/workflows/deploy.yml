@@ -35,6 +35,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
-        run: bazel run //nicknamer/server:push_image --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+        run: bazel run //nicknamer/server:push_image -c opt --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
         env:
           BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}
