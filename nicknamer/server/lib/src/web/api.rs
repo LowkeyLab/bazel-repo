@@ -43,6 +43,7 @@ pub(crate) mod v1 {
         paths(
             crate::auth::api::v1::json_login_handler,
             crate::name::api::v1::get_names_handler,
+            crate::name::api::v1::create_name_handler,
         ),
         components(
             schemas(
@@ -51,6 +52,8 @@ pub(crate) mod v1 {
                 ServerErrorResponse,
                 crate::name::api::v1::NameJson,
                 crate::name::api::v1::NamesResponse,
+                crate::name::api::v1::NamesQuery,
+                crate::name::api::v1::CreateNameRequest,
             )
         ),
         tags(
