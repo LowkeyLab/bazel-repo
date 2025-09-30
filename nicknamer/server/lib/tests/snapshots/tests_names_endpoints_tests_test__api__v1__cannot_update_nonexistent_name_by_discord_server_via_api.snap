@@ -1,0 +1,11 @@
+---
+source: .:2078
+expression: snapshot_data
+---
+status: 404
+headers:
+  content-type: application/json
+body:
+  error: "Name not found for Discord ID 999888777 in server 'nonexistent-server'"
+  message: "An error occurred: Name not found for Discord ID 999888777 in server 'nonexistent-server'"
+test_name: api_v1_update_name_by_discord_server_not_found

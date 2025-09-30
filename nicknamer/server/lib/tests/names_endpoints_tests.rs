@@ -1965,6 +1965,287 @@ pub mod api {
 
             assert_yaml_snapshot!(snapshot_data);
         }
+
+        #[tokio::test]
+        async fn can_update_name_by_discord_server_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state.clone());
+
+            // First create a name via API
+            let create_data = serde_json::json!({
+                "discord_id": 123456789u64,
+                "name": "OriginalName",
+                "server_id": "test-server-123"
+            });
+            let create_request = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(create_data.to_string()))
+                .unwrap();
+
+            let create_response = app.oneshot(create_request).await.unwrap();
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+
+            // Now update the name using our new endpoint
+            let update_data = serde_json::json!({
+                "name": "UpdatedName"
+            });
+            let app2 = create_api_router(name_state.clone());
+            let update_request = Request::builder()
+                .method(Method::PUT)
+                .uri("/names/123456789/servers/test-server-123")
+                .header("content-type", "application/json")
+                .body(Body::from(update_data.to_string()))
+                .unwrap();
+
+            let response = app2.oneshot(update_request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert_eq!(json["discord_id"], 123456789);
+            assert_eq!(json["name"], "UpdatedName");
+            assert_eq!(json["server_id"], "test-server-123");
+            assert!(json["id"].is_number());
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_update_name_by_discord_server_success",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn cannot_update_nonexistent_name_by_discord_server_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state.clone());
+
+            // Try to update a name that doesn't exist
+            let update_data = serde_json::json!({
+                "name": "NonexistentName"
+            });
+            let request = Request::builder()
+                .method(Method::PUT)
+                .uri("/names/999888777/servers/nonexistent-server")
+                .header("content-type", "application/json")
+                .body(Body::from(update_data.to_string()))
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 404 NOT FOUND
+            assert_eq!(status, StatusCode::NOT_FOUND);
+
+            // Parse and validate error response
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert!(json["error"].is_string());
+            assert!(
+                json["error"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Name not found for Discord ID 999888777")
+            );
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_update_name_by_discord_server_not_found",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_update_name_by_discord_server_with_special_characters_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state.clone());
+
+            // Create a name with special characters (using safe server ID for URL path)
+            let create_data = serde_json::json!({
+                "discord_id": 444555666u64,
+                "name": "OriginalName",
+                "server_id": "special-server-123"
+            });
+            let create_request = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(create_data.to_string()))
+                .unwrap();
+
+            let create_response = app.oneshot(create_request).await.unwrap();
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+
+            // Update with special characters in name
+            let update_data = serde_json::json!({
+                "name": "José María 🎮 with émojis & spëcial chars!"
+            });
+            let app2 = create_api_router(name_state.clone());
+            let update_request = Request::builder()
+                .method(Method::PUT)
+                .uri("/names/444555666/servers/special-server-123")
+                .header("content-type", "application/json")
+                .body(Body::from(update_data.to_string()))
+                .unwrap();
+
+            let response = app2.oneshot(update_request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate JSON structure with special characters
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert_eq!(json["discord_id"], 444555666);
+            assert_eq!(json["name"], "José María 🎮 with émojis & spëcial chars!");
+            assert_eq!(json["server_id"], "special-server-123");
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_update_name_by_discord_server_special_chars",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
+
+        #[tokio::test]
+        async fn can_update_same_discord_id_different_servers_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state.clone());
+
+            let discord_id = 777888999u64;
+
+            // Create names for the same discord_id in different servers
+            let create_data1 = serde_json::json!({
+                "discord_id": discord_id,
+                "name": "Name1",
+                "server_id": "server-1"
+            });
+            let create_request1 = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(create_data1.to_string()))
+                .unwrap();
+
+            let create_response1 = app.oneshot(create_request1).await.unwrap();
+            assert_eq!(create_response1.status(), StatusCode::CREATED);
+
+            let app2 = create_api_router(name_state.clone());
+            let create_data2 = serde_json::json!({
+                "discord_id": discord_id,
+                "name": "Name2",
+                "server_id": "server-2"
+            });
+            let create_request2 = Request::builder()
+                .method(Method::POST)
+                .uri("/names")
+                .header("content-type", "application/json")
+                .body(Body::from(create_data2.to_string()))
+                .unwrap();
+
+            let create_response2 = app2.oneshot(create_request2).await.unwrap();
+            assert_eq!(create_response2.status(), StatusCode::CREATED);
+
+            // Update name in server-1 only
+            let update_data = serde_json::json!({
+                "name": "UpdatedName1"
+            });
+            let app3 = create_api_router(name_state.clone());
+            let update_request = Request::builder()
+                .method(Method::PUT)
+                .uri(&format!("/names/{}/servers/server-1", discord_id))
+                .header("content-type", "application/json")
+                .body(Body::from(update_data.to_string()))
+                .unwrap();
+
+            let response = app3.oneshot(update_request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+
+            // Should return 200 OK
+            assert_eq!(status, StatusCode::OK);
+
+            // Parse and validate that server-1 name was updated
+            let json: Value = serde_json::from_str(body_text).expect("Should be valid JSON");
+            assert_eq!(json["discord_id"], discord_id);
+            assert_eq!(json["name"], "UpdatedName1");
+            assert_eq!(json["server_id"], "server-1");
+
+            // Verify server-2 name was NOT changed by querying all names
+            let app4 = create_api_router(name_state.clone());
+            let get_request = Request::builder()
+                .method(Method::GET)
+                .uri("/names?server_id=server-2")
+                .body(Body::empty())
+                .unwrap();
+
+            let get_response = app4.oneshot(get_request).await.unwrap();
+            let get_body = axum::body::to_bytes(get_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let get_body_text = std::str::from_utf8(&get_body).unwrap();
+            let get_json: Value =
+                serde_json::from_str(get_body_text).expect("Should be valid JSON");
+
+            // Server-2 should still have the original name
+            assert_eq!(get_json["count"], 1);
+            let server2_name = &get_json["names"][0];
+            assert_eq!(server2_name["discord_id"], discord_id);
+            assert_eq!(server2_name["name"], "Name2"); // Original name preserved
+            assert_eq!(server2_name["server_id"], "server-2");
+
+            let snapshot_data = JsonApiResponseSnapshot::new(
+                body_text,
+                status,
+                &headers,
+                "api_v1_update_name_different_servers",
+            );
+
+            assert_yaml_snapshot!(snapshot_data);
+        }
     }
 }
 
