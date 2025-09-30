@@ -3,10 +3,10 @@ use crate::name::{Name, NameService};
 use crate::web::api::v1::ServerErrorResponse;
 use axum::{
     Router,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::get,
+    routing::{get, put},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -62,6 +62,13 @@ pub struct CreateNameRequest {
     pub name: String,
     /// Server ID where the name is used
     pub server_id: String,
+}
+
+/// Request body for updating an existing name.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateNameRequest {
+    /// The new name/nickname
+    pub name: String,
 }
 
 /// Handler for GET /api/v1/names - Returns all names in JSON format.
@@ -162,9 +169,69 @@ pub async fn create_name_handler(
     }
 }
 
+/// Handler for PUT /api/v1/names/{discord_id}/servers/{server_id} - Updates an existing name.
+#[tracing::instrument(skip(state))]
+#[utoipa::path(
+    put,
+    path = "/api/v1/names/{discord_id}/servers/{server_id}",
+    params(
+        ("discord_id" = u64, Path, description = "Discord user ID associated with the name"),
+        ("server_id" = String, Path, description = "Server ID where the name is used")
+    ),
+    request_body = UpdateNameRequest,
+    responses(
+        (status = 200, description = "Successfully updated name", body = NameJson),
+        (status = 400, description = "Bad request", body = ServerErrorResponse),
+        (status = 404, description = "Name not found for this Discord ID and server", body = ServerErrorResponse),
+        (status = 500, description = "Internal server error", body = ServerErrorResponse)
+    ),
+    tag = "Names"
+)]
+pub async fn update_name_by_discord_server_handler(
+    State(state): State<Arc<NameState>>,
+    Path((discord_id, server_id)): Path<(u64, String)>,
+    Json(request): Json<UpdateNameRequest>,
+) -> Result<Json<NameJson>, (StatusCode, Json<ServerErrorResponse>)> {
+    let service = NameService::new(&state.db);
+
+    match service
+        .update_name_by_discord_server(discord_id, &server_id, request.name)
+        .await
+    {
+        Ok(updated_name) => Ok(Json(NameJson::from(updated_name))),
+        Err(crate::name::NameServiceError::NameNotFoundByDiscordServer(discord_id, server_id)) => {
+            tracing::warn!(
+                "Name not found for Discord ID {} in server {}",
+                discord_id,
+                server_id
+            );
+            Err((
+                StatusCode::NOT_FOUND,
+                Json(ServerErrorResponse::new(format!(
+                    "Name not found for Discord ID {} in server '{}'",
+                    discord_id, server_id
+                ))),
+            ))
+        }
+        Err(err) => {
+            tracing::error!("Failed to update name: {}", err);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ServerErrorResponse::new(
+                    "Failed to update name".to_string(),
+                )),
+            ))
+        }
+    }
+}
+
 /// Creates and returns the names API router.
 pub fn create_api_router(state: Arc<NameState>) -> Router {
     Router::new()
         .route("/names", get(get_names_handler).post(create_name_handler))
+        .route(
+            "/names/{discord_id}/servers/{server_id}",
+            put(update_name_by_discord_server_handler),
+        )
         .with_state(state)
 }
