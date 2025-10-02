@@ -56,6 +56,9 @@ pub enum NameServiceError {
     /// Represents a name not found error.
     #[error("Name entry with ID {0} not found")]
     NameNotFound(u32),
+    /// Represents a name not found error by Discord ID and Server ID combination.
+    #[error("Name entry with Discord ID {0} and Server ID '{1}' not found")]
+    NameNotFoundByDiscordServer(u64, String),
     /// Represents malformed data error during bulk operations.
     #[error("Malformed data: {0}")]
     MalformedData(String),
@@ -335,5 +338,40 @@ impl NameService<'_> {
             .await?
             .ok_or(NameServiceError::NameNotFound(id))?;
         Ok(Name::from(name_model))
+    }
+
+    /// Updates a name entry by Discord ID and Server ID combination.
+    ///
+    /// # Arguments
+    ///
+    /// * `discord_id` - The Discord ID of the user.
+    /// * `server_id` - The Server ID where the name is used.
+    /// * `new_name` - The new name to set.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the updated `Name` if successful, or an error otherwise.
+    #[tracing::instrument(skip(self))]
+    pub async fn update_name_by_discord_server(
+        &self,
+        discord_id: u64,
+        server_id: &str,
+        new_name: String,
+    ) -> Result<Name, NameServiceError> {
+        let name_to_update = name::Entity::find()
+            .filter(name::Column::DiscordId.eq(discord_id as i64))
+            .filter(name::Column::ServerId.eq(server_id))
+            .one(self.db)
+            .await?
+            .ok_or(NameServiceError::NameNotFoundByDiscordServer(
+                discord_id,
+                server_id.to_string(),
+            ))?;
+
+        let mut active_model: name::ActiveModel = name_to_update.into();
+        active_model.name = ActiveValue::Set(new_name.clone());
+        let updated_model = active_model.update(self.db).await?;
+
+        Ok(Name::from(updated_model))
     }
 }

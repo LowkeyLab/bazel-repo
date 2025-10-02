@@ -968,3 +968,131 @@ async fn can_get_names_by_server_with_special_characters() {
     assert!(special_server_names.contains(&name1));
     assert!(!special_server_names.contains(&name2));
 }
+
+#[tokio::test]
+async fn can_update_name_by_discord_server_successfully() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create a name using the service
+    let discord_id = 123456789u64;
+    let server_id = "test-server-123";
+    let original_name = "OriginalName";
+    let created_name = name_service
+        .create_name(discord_id, original_name.to_string(), server_id.to_string())
+        .await
+        .expect("Failed to create name");
+
+    // Verify the original name
+    assert_eq!(created_name.discord_id(), discord_id);
+    assert_eq!(created_name.name(), original_name);
+    assert_eq!(created_name.server_id(), server_id);
+
+    // Update the name using discord_id and server_id
+    let new_name = "UpdatedName";
+    let updated_name = name_service
+        .update_name_by_discord_server(discord_id, server_id, new_name.to_string())
+        .await
+        .expect("Failed to update name by discord server");
+
+    // Verify the update
+    assert_eq!(updated_name.id(), created_name.id()); // Same ID
+    assert_eq!(updated_name.discord_id(), discord_id);
+    assert_eq!(updated_name.name(), new_name); // Name changed
+    assert_eq!(updated_name.server_id(), server_id);
+}
+
+#[tokio::test]
+async fn can_handle_update_by_discord_server_when_not_found() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Try to update a name that doesn't exist
+    let result = name_service
+        .update_name_by_discord_server(999888777, "nonexistent-server", "NewName".to_string())
+        .await;
+
+    // Should return NameNotFoundByDiscordServer error
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match error {
+        nicknamer_server::name::NameServiceError::NameNotFoundByDiscordServer(
+            discord_id,
+            server_id,
+        ) => {
+            assert_eq!(discord_id, 999888777);
+            assert_eq!(server_id, "nonexistent-server");
+        }
+        _ => panic!(
+            "Expected NameNotFoundByDiscordServer error, got: {:?}",
+            error
+        ),
+    }
+}
+
+#[tokio::test]
+async fn can_update_name_by_discord_server_with_special_characters() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    // Create a name
+    let discord_id = 444555666u64;
+    let server_id = "special-server!@#$%";
+    let original_name = "Original Name";
+    let created_name = name_service
+        .create_name(discord_id, original_name.to_string(), server_id.to_string())
+        .await
+        .expect("Failed to create name");
+
+    // Update with special characters in name
+    let new_name = "José María 🎮 with émojis & spëcial chars!";
+    let updated_name = name_service
+        .update_name_by_discord_server(discord_id, server_id, new_name.to_string())
+        .await
+        .expect("Failed to update name with special characters");
+
+    // Verify special characters are preserved
+    assert_eq!(updated_name.name(), new_name);
+    assert_eq!(updated_name.discord_id(), discord_id);
+    assert_eq!(updated_name.server_id(), server_id);
+}
+
+#[tokio::test]
+async fn can_update_name_by_discord_server_different_servers() {
+    let state = setup().await.expect("Failed to setup test context");
+    let name_service = NameService::new(&state.db);
+
+    let discord_id = 777888999u64;
+    let server1_id = "server-1";
+    let server2_id = "server-2";
+
+    // Create names for the same discord_id in different servers
+    let name1 = name_service
+        .create_name(discord_id, "Name1".to_string(), server1_id.to_string())
+        .await
+        .expect("Failed to create name in server1");
+
+    let name2 = name_service
+        .create_name(discord_id, "Name2".to_string(), server2_id.to_string())
+        .await
+        .expect("Failed to create name in server2");
+
+    // Update name in server1 only
+    let updated_name1 = name_service
+        .update_name_by_discord_server(discord_id, server1_id, "UpdatedName1".to_string())
+        .await
+        .expect("Failed to update name in server1");
+
+    // Verify server1 name was updated
+    assert_eq!(updated_name1.name(), "UpdatedName1");
+    assert_eq!(updated_name1.server_id(), server1_id);
+
+    // Verify server2 name was NOT changed
+    let unchanged_name2 = name_service
+        .get_name_by_id(name2.id())
+        .await
+        .expect("Failed to get name from server2");
+
+    assert_eq!(unchanged_name2.name(), "Name2"); // Original name preserved
+    assert_eq!(unchanged_name2.server_id(), server2_id);
+}

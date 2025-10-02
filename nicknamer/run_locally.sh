@@ -4,7 +4,7 @@ set -e
 
 # Define the path to our binary and compose file.
 # Bazel places `data` dependencies in the same directory as the script.
-APP_BINARY="nicknamer/server/server"
+APP_BINARY="nicknamer/server/bin/bin"
 COMPOSE_FILE="nicknamer/compose.yaml"
 
 # Function to clean up containers on exit
@@ -30,5 +30,11 @@ done
 
 
 echo "--- Starting the application ---"
+# Set sensitive credentials as environment variables
+export DB_URL="postgres://user:password@localhost:5432/nicknamer"
+export ADMIN_USERNAME="admin"
+export ADMIN_PASSWORD="password"
+export JWT_SECRET="password"
+
 # Execute the actual application binary
-$APP_BINARY
+"$APP_BINARY"

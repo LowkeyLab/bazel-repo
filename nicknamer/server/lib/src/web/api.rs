@@ -44,6 +44,7 @@ pub(crate) mod v1 {
             crate::auth::api::v1::json_login_handler,
             crate::name::api::v1::get_names_handler,
             crate::name::api::v1::create_name_handler,
+            crate::name::api::v1::update_name_by_discord_server_handler,
         ),
         components(
             schemas(
@@ -54,6 +55,7 @@ pub(crate) mod v1 {
                 crate::name::api::v1::NamesResponse,
                 crate::name::api::v1::NamesQuery,
                 crate::name::api::v1::CreateNameRequest,
+                crate::name::api::v1::UpdateNameRequest,
             )
         ),
         tags(

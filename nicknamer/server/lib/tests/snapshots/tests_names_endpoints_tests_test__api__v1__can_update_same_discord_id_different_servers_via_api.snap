@@ -1,0 +1,13 @@
+---
+source: .:2244
+expression: snapshot_data
+---
+status: 200
+headers:
+  content-type: application/json
+body:
+  discord_id: 777888999
+  id: 1
+  name: UpdatedName1
+  server_id: server-1
+test_name: api_v1_update_name_different_servers
