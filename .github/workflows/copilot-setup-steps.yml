@@ -62,20 +62,9 @@ jobs:
           bazel build //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY} || true
           
           echo "=== Fetching all external dependencies ==="
-          bazel fetch //... || true
-          
+          bazel fetch //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY} || true
+
           echo "=== Checking Bazel info ==="
           bazel info
         env: 
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-
-      - name: Verify project structure
-        run: |
-          echo "=== Project structure ==="
-          ls -la
-          
-          echo "=== Nicknamer project structure ==="
-          ls -la nicknamer/
-          
-          echo "=== Build files ==="
-          find . -name "BUILD.bazel" -o -name "BUILD" | head -10
