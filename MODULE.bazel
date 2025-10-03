@@ -65,6 +65,7 @@ crate.spec(
     version = "0.15.18",
 )
 crate.spec(
+    features = ["aws_lc_rs"],
     package = "jsonwebtoken",
     version = "10.0.0",
 )
