@@ -41,7 +41,7 @@ inject_repo(crate, "swagger_ui")
 # Regular dependencies
 crate.spec(
     package = "anyhow",
-    version = "1.0.99",
+    version = "1.0.100",
 )
 crate.spec(
     package = "askama",
@@ -49,12 +49,12 @@ crate.spec(
 )
 crate.spec(
     package = "axum",
-    version = "0.8.4",
+    version = "0.8.6",
 )
 crate.spec(
     features = ["cookie"],
     package = "axum-extra",
-    version = "0.10.1",
+    version = "0.10.3",
 )
 crate.spec(
     package = "chrono",
@@ -62,11 +62,12 @@ crate.spec(
 )
 crate.spec(
     package = "config",
-    version = "0.15.15",
+    version = "0.15.18",
 )
 crate.spec(
+    features = ["aws_lc_rs"],
     package = "jsonwebtoken",
-    version = "9.3.1",
+    version = "10.0.0",
 )
 crate.spec(
     features = [
@@ -89,11 +90,11 @@ crate.spec(
 )
 crate.spec(
     package = "serde",
-    version = "1.0.219",
+    version = "1.0.228",
 )
 crate.spec(
     package = "serde_json",
-    version = "1.0",
+    version = "1.0.145",
 )
 crate.spec(
     package = "serde_yaml",
@@ -101,11 +102,11 @@ crate.spec(
 )
 crate.spec(
     package = "thiserror",
-    version = "2.0.16",
+    version = "2.0.17",
 )
 crate.spec(
     package = "time",
-    version = "0.3.43",
+    version = "0.3.44",
 )
 crate.spec(
     default_features = False,
@@ -120,7 +121,7 @@ crate.spec(
 crate.spec(
     features = ["util"],
     package = "tower",
-    version = "0.5",
+    version = "0.5.2",
 )
 crate.spec(
     features = [
@@ -190,7 +191,7 @@ crate.spec(
 )
 crate.spec(
     package = "regex",
-    version = "1.11",
+    version = "1.11.3",
 )
 crate.spec(
     features = ["postgres"],

@@ -89,7 +89,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Claims {
     pub exp: usize,       // Expiry time of the token
     pub iat: usize,       // Issued at time of the token
