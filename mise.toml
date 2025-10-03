@@ -1,6 +1,5 @@
 [tools]
-bazel = "8.4.0"
-bazelisk = "1.27.0"
+bazel = "8.4.2"
 buildifier = "8.2.1"
 java = "21"
 
