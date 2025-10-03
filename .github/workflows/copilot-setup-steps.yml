@@ -1,0 +1,70 @@
+name: "Copilot Setup Steps"
+
+# Automatically run the setup steps when they are changed to allow for easy validation, and
+# allow manual testing through the repository's "Actions" tab
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
+  copilot-setup-steps:
+    # Use the same runner as your CI to ensure compatibility
+    # glibc version 2.36 is required for base distroless image
+    runs-on: ubuntu-22.04
+
+    # Set the permissions to the lowest permissions possible needed for your steps.
+    # Copilot will be given its own token for its operations.
+    permissions:
+      contents: read
+
+    # Set environment variables that tools might need
+    env:
+      MISE_EXPERIMENTAL: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up mise (tool version manager)
+        uses: jdx/mise-action@2f998c07b77530dfa40f0179e531e248f96d998b
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify tool installations
+        run: |
+          echo "=== Mise tool versions ==="
+          mise ls
+          
+          echo "=== Java version ==="
+          java -version
+          
+          echo "=== Bazel version ==="
+          bazel version
+          
+          echo "=== Buildifier version ==="
+          buildifier --version
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        with:
+          username: ${{ vars.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Pre-warm Bazel cache and dependencies
+        run: |
+          echo "=== Building all targets to pre-warm cache ==="
+          bazel build //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY} || true
+          
+          echo "=== Fetching all external dependencies ==="
+          bazel fetch //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY} || true
+
+          echo "=== Checking Bazel info ==="
+          bazel info
+        env: 
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
