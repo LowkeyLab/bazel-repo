@@ -120,7 +120,7 @@ Key build rules:
 - The project uses Angular's standalone components (no NgModules)
 - esbuild compiles TypeScript natively without a separate transpilation step
 - **Important**: Templates must be inlined using `template:` instead of `templateUrl:` because esbuild doesn't process external HTML templates with Angular's compiler
-- `@angular/compiler` is imported in main.ts to enable JIT compilation for the inlined templates
+- **Critical**: `zone.js` must be imported first in main.ts, followed by `@angular/compiler` to enable JIT compilation
 - Tailwind CSS is processed outside of Bazel for simplicity (can be integrated into Bazel build in the future)
 - The build targets ES2020 to ensure compatibility with esbuild's decorator support
 

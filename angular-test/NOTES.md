@@ -34,13 +34,16 @@ Use inline `template:` strings instead of `templateUrl:`:
 2. The Angular compiler (imported via `@angular/compiler`) can process them at runtime
 3. JIT compilation happens in the browser with full template syntax support
 
-### Import Angular Compiler
-Add this to your `main.ts`:
+### Import Angular Compiler and Zone.js
+Add these imports to your `main.ts` **in this order**:
 ```typescript
+import 'zone.js';  // Must be first!
 import '@angular/compiler';
 ```
 
-This ensures the JIT compiler is available for runtime template compilation.
+**Order matters!** Zone.js must be imported before any Angular code. This ensures:
+1. Zone.js patches the browser APIs for change detection
+2. The JIT compiler is available for runtime template compilation
 
 ## Alternative: Use Angular CLI
 
