@@ -1,7 +1,7 @@
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
-load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -43,12 +43,10 @@ copy_to_directory(
     name = "dist",
     srcs = [
         "src/index.html",
-        ":styles",
         ":bundle",
+        ":styles",
     ],
     replace_prefixes = {
         "styles.out.css": "styles.css",
     },
 )
-
-

@@ -1,39 +1,39 @@
 {
-  "name": "angular-test",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "bazel run //angular-test:dev_server",
-    "build": "bazel build //angular-test:bundle"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "lmdb",
-      "msgpackr-extract"
-    ]
-  },
-  "dependencies": {
-    "@angular/animations": "^19.0.0",
-    "@angular/common": "^19.0.0",
-    "@angular/compiler": "^19.0.0",
-    "@angular/core": "^19.0.0",
-    "@angular/platform-browser": "^19.0.0",
-    "@angular/platform-browser-dynamic": "^19.0.0",
-    "rxjs": "^7.8.1",
-    "tslib": "^2.8.1",
-    "zone.js": "^0.15.0"
-  },
-  "devDependencies": {
-    "@angular-devkit/build-angular": "^19.0.0",
-    "@angular/cli": "^19.0.0",
-    "@angular/compiler-cli": "^19.0.0",
-    "@types/node": "^20.17.9",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.16",
-    "typescript": "~5.6.3"
-  }
+    "name": "angular-test",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "bazel run //angular-test:dev_server",
+        "build": "bazel build //angular-test:bundle"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "@parcel/watcher",
+            "esbuild",
+            "lmdb",
+            "msgpackr-extract"
+        ]
+    },
+    "dependencies": {
+        "@angular/animations": "^19.0.0",
+        "@angular/common": "^19.0.0",
+        "@angular/compiler": "^19.0.0",
+        "@angular/core": "^19.0.0",
+        "@angular/platform-browser": "^19.0.0",
+        "@angular/platform-browser-dynamic": "^19.0.0",
+        "rxjs": "^7.8.1",
+        "tslib": "^2.8.1",
+        "zone.js": "^0.15.0"
+    },
+    "devDependencies": {
+        "@angular-devkit/build-angular": "^19.0.0",
+        "@angular/cli": "^19.0.0",
+        "@angular/compiler-cli": "^19.0.0",
+        "@types/node": "^20.17.9",
+        "autoprefixer": "^10.4.20",
+        "postcss": "^8.4.49",
+        "tailwindcss": "^3.4.16",
+        "typescript": "~5.6.3"
+    }
 }
