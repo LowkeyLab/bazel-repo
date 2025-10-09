@@ -24,13 +24,13 @@ A fully functional Hello World Angular application integrated into your Bazel mo
 - **src/index.html** - Entry HTML file
 - **src/main.ts** - Bootstrap file for Angular
 - **src/styles.css** - Global styles with Tailwind directives
-- **src/styles-processed.css** - Compiled Tailwind CSS
 - **src/app/app.component.ts** - Main Angular component
 - **src/app/app.component.html** - Component template with Tailwind classes
 - **src/app/app.config.ts** - Application configuration
 
 ### Build Files
 - **BUILD.bazel** - Bazel build targets for bundling and distribution
+- **build_tailwind.sh** - Script to process Tailwind CSS in Bazel sandbox
 - **dev-server.sh** - Convenience script for development
 
 ### Documentation
@@ -57,12 +57,6 @@ python3 -m http.server 8080
 
 Then open http://localhost:8080 in your browser.
 
-### Rebuild Tailwind CSS (after template changes)
-```bash
-cd angular-test
-pnpm exec tailwindcss -i src/styles.css -o src/styles-processed.css
-```
-
 ## Technologies Used
 
 - **Angular**: 19.2.15 (standalone components)
@@ -75,14 +69,20 @@ pnpm exec tailwindcss -i src/styles.css -o src/styles-processed.css
 ## Build Process
 
 1. **npm_link_all_packages** - Links NPM dependencies from pnpm-lock.yaml
-2. **copy_file** - Copies processed Tailwind CSS
-3. **esbuild** - Bundles TypeScript/JavaScript files
+2. **tailwind_srcs** (filegroup) - Collects all HTML and TypeScript source files
+3. **build_tailwind_bin** (sh_binary) - Wrapper script for TailwindCSS CLI
+4. **styles** (genrule) - Processes Tailwind CSS
+   - Scans all source files for Tailwind classes
+   - Generates optimized CSS with only used utilities
+   - Runs in Bazel sandbox with proper file paths
+5. **esbuild** - Bundles TypeScript/JavaScript files
    - Compiles TypeScript natively
    - Handles Angular decorators (ES2020 target)
    - Bundles all dependencies
-4. **copy_to_directory** - Assembles final distribution
+6. **copy_to_directory** - Assembles final distribution
    - Flattens directory structure (`src/` prefix removed)
    - Places `index.html` at root for proper serving
+   - Includes processed CSS as `styles.css`
 
 ## Architecture Highlights
 
@@ -90,7 +90,7 @@ pnpm exec tailwindcss -i src/styles.css -o src/styles-processed.css
 - **Native esbuild**: TypeScript compilation without separate transpilation step
 - **Inlined Templates**: Templates use `template:` instead of `templateUrl:` for esbuild compatibility
 - **JIT Compilation**: `@angular/compiler` imported in main.ts to enable runtime template compilation
-- **Tailwind CSS**: Utility-first styling with purging for production
+- **Tailwind CSS**: Fully integrated into Bazel build with automatic tree-shaking
 - **Bazel Integration**: Fast, cacheable builds integrated with existing monorepo
 
 ## Features Demonstrated
@@ -112,7 +112,6 @@ The built application is in `bazel-bin/angular-test/dist/`:
 
 ## Next Steps (Future Enhancements)
 
-- Integrate Tailwind processing into Bazel build
 - Add hot module replacement (HMR)
 - Add unit and e2e testing
 - Configure production optimizations (minification, tree-shaking)
@@ -123,5 +122,6 @@ The built application is in `bazel-bin/angular-test/dist/`:
 
 - The project uses experimental decorators for Angular compatibility
 - esbuild targets ES2020 to support decorators
-- Tailwind CSS is currently processed outside Bazel for simplicity
+- Tailwind CSS is fully integrated into the Bazel build process
+- The `build_tailwind.sh` script dynamically generates Tailwind config to work within Bazel's sandbox
 - The development server is a simple Python HTTP server (suitable for development only)

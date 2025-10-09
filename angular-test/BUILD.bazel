@@ -1,15 +1,48 @@
-load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 npm_link_all_packages(name = "node_modules")
 
-# Copy processed Tailwind CSS
-copy_file(
+# Wrapper script for building Tailwind CSS
+sh_binary(
+    name = "build_tailwind_bin",
+    srcs = ["build_tailwind.sh"],
+    data = [
+        ":node_modules/autoprefixer",
+        ":node_modules/postcss",
+        ":node_modules/tailwindcss",
+    ],
+)
+
+# Collect all source files that Tailwind needs to scan
+filegroup(
+    name = "tailwind_srcs",
+    srcs = glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+)
+
+# Process Tailwind CSS
+genrule(
     name = "styles",
-    src = "src/styles-processed.css",
-    out = "styles.out.css",
+    srcs = [
+        "src/styles.css",
+        "tailwind.config.js",
+        "postcss.config.js",
+        ":tailwind_srcs",
+    ],
+    outs = ["styles.out.css"],
+    cmd = """
+        $(location :build_tailwind_bin) \
+            $(location src/styles.css) \
+            $@ \
+            $(location tailwind.config.js) \
+            $(locations :tailwind_srcs)
+    """,
+    tools = [":build_tailwind_bin"],
 )
 
 # Bundle the application with esbuild (it can compile TypeScript natively)

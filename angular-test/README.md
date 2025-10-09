@@ -7,6 +7,7 @@ A Hello World Angular application integrated with Bazel and Tailwind CSS.
 ```
 angular-test/
 ├── BUILD.bazel           # Bazel build configuration
+├── build_tailwind.sh    # Tailwind CSS build script
 ├── package.json          # NPM dependencies
 ├── pnpm-lock.yaml       # Lockfile for dependencies
 ├── tsconfig.json        # TypeScript configuration
@@ -16,7 +17,6 @@ angular-test/
     ├── index.html       # Entry HTML file
     ├── main.ts          # Bootstrap file
     ├── styles.css       # Global styles with Tailwind directives
-    ├── styles-processed.css  # Compiled Tailwind CSS
     └── app/
         ├── app.component.ts    # Main component
         ├── app.component.html  # Component template
@@ -72,22 +72,33 @@ The built files will be in `bazel-bin/angular-test/dist/`.
 
 3. Open http://localhost:8080 in your browser
 
-### Rebuild Tailwind CSS
-
-When you make changes to HTML templates or add new Tailwind classes:
-
+Or use the provided script:
 ```bash
-cd angular-test
-pnpm exec tailwindcss -i src/styles.css -o src/styles-processed.css
+./angular-test/dev-server.sh
 ```
-
-Then rebuild with Bazel.
 
 ## Build Targets
 
 - `//angular-test:bundle` - Builds the JavaScript bundle using esbuild
-- `//angular-test:styles` - Copies the processed Tailwind CSS
+- `//angular-test:styles` - Processes Tailwind CSS from source files
 - `//angular-test:dist` - Combines all assets into a distributable directory
+
+## How It Works
+
+### Tailwind CSS Integration
+
+Tailwind CSS is now fully integrated into the Bazel build process:
+
+1. **Source Scanning**: The `build_tailwind.sh` script scans all `.html` and `.ts` files for Tailwind classes
+2. **Dynamic Config**: A temporary config is generated with explicit paths to source files
+3. **Processing**: TailwindCSS CLI processes `src/styles.css` and generates the final CSS
+4. **Tree Shaking**: Only the Tailwind utilities actually used in your components are included
+
+This means:
+- ✅ No manual CSS compilation needed
+- ✅ CSS automatically updates when you change HTML/TS files
+- ✅ Optimized bundle size (only ~15KB of CSS)
+- ✅ Integrated with Bazel's incremental builds
 
 ## Configuration Files
 
@@ -121,12 +132,11 @@ Key build rules:
 - esbuild compiles TypeScript natively without a separate transpilation step
 - **Important**: Templates must be inlined using `template:` instead of `templateUrl:` because esbuild doesn't process external HTML templates with Angular's compiler
 - **Critical**: `zone.js` must be imported first in main.ts, followed by `@angular/compiler` to enable JIT compilation
-- Tailwind CSS is processed outside of Bazel for simplicity (can be integrated into Bazel build in the future)
+- Tailwind CSS processing is fully integrated into the Bazel build pipeline
 - The build targets ES2020 to ensure compatibility with esbuild's decorator support
 
 ## Future Improvements
 
-- [ ] Integrate Tailwind CSS processing into Bazel build
 - [ ] Add hot module replacement (HMR) for development
 - [ ] Add unit testing with Jasmine/Karma or Jest
 - [ ] Add e2e testing with Playwright
