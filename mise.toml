@@ -2,6 +2,8 @@
 bazel = "8.4.2"
 buildifier = "8.2.1"
 java = "21"
+node = "20.18.0"
+pnpm = "9"
 
 [env]
 _.path=["./.bin"] # Add local bin to PATH

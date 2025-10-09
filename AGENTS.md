@@ -2,13 +2,25 @@
 
 ## Project Overview
 
-This is a Bazel-based Rust monorepo containing the "Nicknamer" server application - a web service for managing names with authentication, built using Axum, SeaORM, and PostgreSQL.
+This is a Bazel-based monorepo containing multiple applications:
+
+### Nicknamer Server
+A web service for managing names with authentication, built using Axum, SeaORM, and PostgreSQL.
 
 Key components:
 - `nicknamer/server/` - Main web server with REST API and web UI
 - `nicknamer/migration/` - Database migration utilities using SeaORM
 - `3rdparty/` - Third-party dependencies and build configurations
 - `tools/` - Development tooling and scripts
+
+### Angular Test Application
+A Hello World Angular application integrated with Tailwind CSS and Bazel.
+
+Key components:
+- `angular-test/` - Angular 19 application with Tailwind CSS
+- Modern standalone components architecture
+- Built with esbuild for fast bundling
+- See `angular-test/README.md` for detailed documentation
 
 ## Setup Commands
 

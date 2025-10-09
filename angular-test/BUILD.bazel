@@ -1,0 +1,54 @@
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
+
+npm_link_all_packages(name = "node_modules")
+
+# Copy processed Tailwind CSS
+copy_file(
+    name = "styles",
+    src = "src/styles-processed.css",
+    out = "styles.out.css",
+)
+
+# Bundle the application with esbuild (it can compile TypeScript natively)
+esbuild(
+    name = "bundle",
+    srcs = glob([
+        "src/**/*.ts",
+        "src/**/*.html",
+    ]),
+    entry_point = "src/main.ts",
+    format = "esm",
+    output_dir = True,
+    platform = "browser",
+    target = "es2020",
+    tsconfig = "tsconfig.json",
+    deps = [
+        ":node_modules/@angular/animations",
+        ":node_modules/@angular/common",
+        ":node_modules/@angular/compiler",
+        ":node_modules/@angular/core",
+        ":node_modules/@angular/platform-browser",
+        ":node_modules/@angular/platform-browser-dynamic",
+        ":node_modules/rxjs",
+        ":node_modules/tslib",
+        ":node_modules/zone.js",
+    ],
+)
+
+# Copy all static files to a directory for serving
+copy_to_directory(
+    name = "dist",
+    srcs = [
+        "src/index.html",
+        ":styles",
+        ":bundle",
+    ],
+    replace_prefixes = {
+        "styles.out.css": "styles.css",
+    },
+)
+
+
