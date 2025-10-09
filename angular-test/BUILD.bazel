@@ -48,5 +48,6 @@ copy_to_directory(
     ],
     replace_prefixes = {
         "styles.out.css": "styles.css",
+        "src/": "",
     },
 )

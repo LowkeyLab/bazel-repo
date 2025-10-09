@@ -81,11 +81,15 @@ pnpm exec tailwindcss -i src/styles.css -o src/styles-processed.css
    - Handles Angular decorators (ES2020 target)
    - Bundles all dependencies
 4. **copy_to_directory** - Assembles final distribution
+   - Flattens directory structure (`src/` prefix removed)
+   - Places `index.html` at root for proper serving
 
 ## Architecture Highlights
 
 - **Standalone Components**: No NgModules, using modern Angular patterns
 - **Native esbuild**: TypeScript compilation without separate transpilation step
+- **Inlined Templates**: Templates use `template:` instead of `templateUrl:` for esbuild compatibility
+- **JIT Compilation**: `@angular/compiler` imported in main.ts to enable runtime template compilation
 - **Tailwind CSS**: Utility-first styling with purging for production
 - **Bazel Integration**: Fast, cacheable builds integrated with existing monorepo
 
@@ -102,7 +106,7 @@ pnpm exec tailwindcss -i src/styles.css -o src/styles-processed.css
 ## Output
 
 The built application is in `bazel-bin/angular-test/dist/`:
-- `src/index.html` - Entry point
+- `index.html` - Entry point (at root level)
 - `bundle/main.js` - JavaScript bundle (~1.4 MB unminified)
 - `styles.css` - Compiled Tailwind CSS (~14 KB)
 
