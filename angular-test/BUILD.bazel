@@ -21,24 +21,26 @@ sh_binary(
 filegroup(
     name = "tailwind_srcs",
     srcs = glob([
-        "src/**/*.html",
-        "src/**/*.ts",
-    ]),
+        "app/**/*.html",
+        "app/**/*.ts",
+    ]) + [
+        "main.ts",
+    ],
 )
 
 # Process Tailwind CSS
 genrule(
     name = "styles",
     srcs = [
-        "src/styles.css",
+        "styles.css",
         "tailwind.config.js",
         "postcss.config.js",
         ":tailwind_srcs",
     ],
-    outs = ["styles.css"],
+    outs = ["styles-processed.css"],
     cmd = """
         $(location :build_tailwind_bin) \
-            $(location src/styles.css) \
+            $(location styles.css) \
             $@ \
             $(location tailwind.config.js) \
             $(locations :tailwind_srcs)
@@ -56,11 +58,10 @@ ng_application(
 copy_to_directory(
     name = "dist",
     srcs = [
-        "src/index.html",
+        "index.html",
         ":app",
     ],
     replace_prefixes = {
-        "src/": "",
         "prod/": "",
     },
 )

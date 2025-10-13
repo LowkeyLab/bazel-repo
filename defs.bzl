@@ -48,7 +48,7 @@ def ng_application(name, deps = [], assets = None, html_assets = None, visibilit
     html_assets = html_assets if html_assets else []
 
     app_srcs = native.glob(
-        ["main.ts", "src/app/**/*"],
+        ["main.ts", "app/**/*"],
     )
 
     # Primary app source

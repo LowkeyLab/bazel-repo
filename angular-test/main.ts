@@ -1,13 +1,13 @@
 import { enableProdMode } from '@angular/core';
 import { platformBrowser } from '@angular/platform-browser';
 
-import { AppModule } from './src/app/app.module';
+import { AppModule } from './app/app.module';
 
 declare const process: any;
 if (process.env.NODE_ENV === 'production') {
-  enableProdMode();
+    enableProdMode();
 }
 
 platformBrowser()
-  .bootstrapModule(AppModule)
-  .catch((err) => console.error(err));
+    .bootstrapModule(AppModule)
+    .catch((err) => console.error(err));
