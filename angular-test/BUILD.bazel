@@ -6,21 +6,6 @@ load("//:defs.bzl", "ng_application")
 
 npm_link_all_packages(name = "node_modules")
 
-# TypeScript configuration
-ts_config(
-    name = "tsconfig",
-    src = "tsconfig.json",
-    visibility = ["//visibility:public"],
-    deps = ["tsconfig.base.json"],
-)
-
-ts_config(
-    name = "tsconfig.node",
-    src = "tsconfig.node.json",
-    visibility = ["//visibility:public"],
-    deps = ["tsconfig.base.json"],
-)
-
 # Wrapper script for building Tailwind CSS
 sh_binary(
     name = "build_tailwind_bin",
