@@ -1,12 +1,18 @@
 {
-    "extends": "./tsconfig.base.json",
-    "compilerOptions": {
-        "outDir": "./dist",
-        "rootDir": "."
-    },
-    "exclude": [
-        "node_modules",
-        "bazel-out",
-        "dist"
-    ]
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2020", "dom"],
+    "paths": {
+      "@angular-test/*": ["angular-test/*"]
+    }
+  },
+  "angularCompilerOptions": {
+    // Full compilation since nothing is being published as a library
+    // for others to consume with alternate Angular versions.
+    "compilationMode": "full",
+    // Enable strict options
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  }
 }

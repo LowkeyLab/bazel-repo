@@ -9,8 +9,7 @@ load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load(":ts.bzl", "ts_project")
 
 def ng_project(name, **kwargs):
-    """The rules_js ts_project() configured with the Angular ngc compiler.
-    """
+    """The rules_js ts_project() configured with the Angular ngc compiler."""
     ts_project(
         name = name,
 

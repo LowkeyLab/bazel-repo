@@ -6,6 +6,7 @@
     "workspaces": [
         "angular-test"
     ],
+    "type": "module",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@parcel/watcher",

@@ -1,26 +1,18 @@
+// General options for all TypeScript, client, server etc.
 {
-    "compilerOptions": {
-        "target": "ES2022",
-        "module": "ES2022",
-        "lib": [
-            "ES2022",
-            "dom"
-        ],
-        "moduleResolution": "bundler",
-        "strict": true,
-        "esModuleInterop": true,
-        "skipLibCheck": true,
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
-        "useDefineForClassFields": false,
-        "declaration": true,
-        "declarationMap": true,
-        "sourceMap": true,
-        "baseUrl": "./",
-        "paths": {
-            "*": [
-                "node_modules/*"
-            ]
-        }
-    }
+  "compileOnSave": false,
+  "exclude": ["bazel-*"],
+  "compilerOptions": {
+    "baseUrl": "./",
+    "strict": true,
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "downlevelIteration": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "target": "es2020",
+    "module": "es2020"
+  }
 }
