@@ -11,7 +11,7 @@ export class AppComponent {
     title = 'Hello World';
     features = [
         {
-            name: '⚡ Angular 19',
+            name: '⚡ Angular 20',
             description: 'Modern Angular with standalone components'
         },
         {

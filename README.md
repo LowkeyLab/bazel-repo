@@ -55,7 +55,7 @@ All NPM projects use **PNPM workspaces** with centralized dependency management.
 
 ### Angular Test Application
 
-Modern Angular 19 application with Tailwind CSS.
+Modern Angular 20 application with Tailwind CSS.
 
 **Location:** `angular-test/`
 
@@ -71,7 +71,7 @@ bazel run //angular-test:serve
 bazel test //angular-test:test
 ```
 
-**Tech Stack:** Angular 19, Tailwind CSS 3.4, esbuild, TypeScript 5.6
+**Tech Stack:** Angular 20, Tailwind CSS 3.4, esbuild, TypeScript 5.8
 
 📖 See [angular-test/README.md](./angular-test/README.md) for details.
 

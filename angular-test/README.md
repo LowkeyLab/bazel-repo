@@ -4,7 +4,7 @@ A Hello World Angular application integrated with Bazel and Tailwind CSS, demons
 
 ## Features
 
-- ⚡ **Angular 19** - Modern Angular with standalone components
+- ⚡ **Angular 20** - Modern Angular with standalone components
 - 🎨 **Tailwind CSS** - Utility-first CSS framework with automatic tree-shaking
 - 🏗️ **Bazel** - Fast, scalable build system with incremental builds
 - 📦 **PNPM** - Efficient package management
@@ -13,7 +13,7 @@ A Hello World Angular application integrated with Bazel and Tailwind CSS, demons
 ## Prerequisites
 
 - **Bazel** 8.4.2+
-- **Node.js** 20.18.0
+- **Node.js** 20.19.5+
 - **PNPM** 9+
 - **Mise** (for tool version management, optional)
 
@@ -150,12 +150,25 @@ Bazel caches all build artifacts:
 
 ## Tech Stack
 
-- **Angular**: 19.2.15
-- **TypeScript**: 5.6.3
+- **Angular**: 20.3.4
+- **TypeScript**: 5.8.3
 - **Tailwind CSS**: 3.4.18
 - **esbuild**: Via aspect_rules_esbuild 0.21.0
 - **RxJS**: 7.8.2
 - **Zone.js**: 0.15.1
+
+## Bazel Toolchain
+
+This project uses the following Bazel rules and versions:
+
+- **aspect_rules_js**: 2.6.2 - JavaScript/Node.js support
+- **aspect_rules_ts**: 3.7.0 - TypeScript compilation
+- **aspect_rules_esbuild**: 0.21.0 - Fast bundling with esbuild
+- **rules_nodejs**: 6.5.2 - Node.js toolchain management
+- **Node.js**: 20.19.5 (configured via rules_nodejs)
+- **TypeScript Compiler**: 5.6.3 (Bazel toolchain)
+
+These versions ensure compatibility with Angular 20's requirements (Node.js 20+ and TypeScript 5.8+).
 
 ## Development Workflow
 
@@ -225,9 +238,10 @@ This ensures:
 ### Root MODULE.bazel
 
 Includes:
-- `aspect_rules_js` - JavaScript/Node.js support
-- `aspect_rules_esbuild` - Fast bundling
-- `aspect_rules_ts` - TypeScript compilation
+- `aspect_rules_js` 2.6.2 - JavaScript/Node.js support
+- `aspect_rules_ts` 3.7.0 - TypeScript compilation  
+- `aspect_rules_esbuild` 0.21.0 - Fast bundling
+- `rules_nodejs` 6.5.2 - Node.js toolchain (v20.19.5)
 - NPM dependency management via `pnpm-lock.yaml`
 
 ### BUILD.bazel
