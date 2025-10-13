@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Angular + Tailwind + Bazel</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <app-root></app-root>
-    <script type="module" src="/bundle/main.js"></script>
+    <script type="module" src="polyfills-bundle.js"></script>
+    <script type="module" src="bundle-prod/main.js"></script>
 </body>
 
 </html>

@@ -1,10 +1,8 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 
 @Component({
     selector: 'app-root',
-    standalone: true,
-    imports: [CommonModule],
+    standalone: false,
     template: `
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
     <div class="container mx-auto px-4 py-16">

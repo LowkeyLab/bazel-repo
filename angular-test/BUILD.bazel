@@ -1,9 +1,25 @@
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
-load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//:defs.bzl", "ng_application")
 
 npm_link_all_packages(name = "node_modules")
+
+# TypeScript configuration
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+    deps = ["tsconfig.base.json"],
+)
+
+ts_config(
+    name = "tsconfig.node",
+    src = "tsconfig.node.json",
+    visibility = ["//visibility:public"],
+    deps = ["tsconfig.base.json"],
+)
 
 # Wrapper script for building Tailwind CSS
 sh_binary(
@@ -34,7 +50,7 @@ genrule(
         "postcss.config.js",
         ":tailwind_srcs",
     ],
-    outs = ["styles.out.css"],
+    outs = ["styles.css"],
     cmd = """
         $(location :build_tailwind_bin) \
             $(location src/styles.css) \
@@ -45,30 +61,10 @@ genrule(
     tools = [":build_tailwind_bin"],
 )
 
-# Bundle the application with esbuild (it can compile TypeScript natively)
-esbuild(
-    name = "bundle",
-    srcs = glob([
-        "src/**/*.ts",
-        "src/**/*.html",
-    ]),
-    entry_point = "src/main.ts",
-    format = "esm",
-    output_dir = True,
-    platform = "browser",
-    target = "es2020",
-    tsconfig = "tsconfig.json",
-    deps = [
-        ":node_modules/@angular/animations",
-        ":node_modules/@angular/common",
-        ":node_modules/@angular/compiler",
-        ":node_modules/@angular/core",
-        ":node_modules/@angular/platform-browser",
-        ":node_modules/@angular/platform-browser-dynamic",
-        ":node_modules/rxjs",
-        ":node_modules/tslib",
-        ":node_modules/zone.js",
-    ],
+# Build the Angular application using ngc compiler
+ng_application(
+    name = "app",
+    html_assets = [":styles"],
 )
 
 # Copy all static files to a directory for serving
@@ -76,11 +72,10 @@ copy_to_directory(
     name = "dist",
     srcs = [
         "src/index.html",
-        ":bundle",
-        ":styles",
+        ":app",
     ],
     replace_prefixes = {
-        "styles.out.css": "styles.css",
         "src/": "",
+        "prod/": "",
     },
 )

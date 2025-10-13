@@ -1,0 +1,15 @@
+{
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "./dist/tools",
+        "rootDir": ".",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "types": [
+            "node"
+        ]
+    },
+    "include": [
+        "tools/**/*.ts"
+    ]
+}
