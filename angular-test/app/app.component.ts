@@ -1,44 +1,11 @@
 import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
     selector: 'app-root',
-    standalone: false,
-    template: `
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-    <div class="container mx-auto px-4 py-16">
-        <div class="text-center mb-16">
-            <h1 class="text-6xl font-bold text-gray-800 mb-4">
-                {{ title }}
-            </h1>
-            <p class="text-xl text-gray-600">
-                Angular + Tailwind CSS + Bazel
-            </p>
-        </div>
-
-        <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div *ngFor="let feature of features"
-                class="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300">
-                <div class="text-4xl mb-4 text-center">
-                    {{ feature.name.split(' ')[0] }}
-                </div>
-                <h3 class="text-2xl font-bold text-gray-800 mb-3 text-center">
-                    {{ feature.name.split(' ').slice(1).join(' ') }}
-                </h3>
-                <p class="text-gray-600 text-center">
-                    {{ feature.description }}
-                </p>
-            </div>
-        </div>
-
-        <div class="mt-16 text-center">
-            <button
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-colors duration-300">
-                Get Started
-            </button>
-        </div>
-    </div>
-</div>
-    `,
+    standalone: true,
+    imports: [CommonModule],
+    templateUrl: './app.component.html',
 })
 export class AppComponent {
     title = 'Hello World';
