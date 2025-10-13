@@ -4,7 +4,7 @@
     "private": true,
     "description": "Bazel monorepo with Angular workspace",
     "workspaces": [
-        "angular-test"
+        "angular-ngc"
     ],
     "type": "module",
     "pnpm": {

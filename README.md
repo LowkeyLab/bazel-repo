@@ -57,23 +57,23 @@ All NPM projects use **PNPM workspaces** with centralized dependency management.
 
 Modern Angular 20 application with Tailwind CSS.
 
-**Location:** `angular-test/`
+**Location:** `angular-ngc/`
 
 **Commands:**
 ```bash
 # Build production bundle
-bazel build //angular-test:app
+bazel build //angular-ngc:app
 
 # Start dev server
-bazel run //angular-test:serve
+bazel run //angular-ngc:serve
 
 # Run tests
-bazel test //angular-test:test
+bazel test //angular-ngc:test
 ```
 
 **Tech Stack:** Angular 20, Tailwind CSS 3.4, esbuild, TypeScript 5.8
 
-📖 See [angular-test/README.md](./angular-test/README.md) for details.
+📖 See [angular-ngc/README.md](./angular-ngc/README.md) for details.
 
 ### Managing NPM Dependencies
 
@@ -93,7 +93,7 @@ pnpm add <package-name> -w
 2. Add to `pnpm-workspace.yaml`:
    ```yaml
    packages:
-     - 'angular-test'
+     - 'angular-ngc'
      - 'new-package'
    ```
 3. Create `new-package/package.json`:
@@ -164,7 +164,7 @@ bazel build //...
 
 # Build specific target
 bazel build //nicknamer/server/bin
-bazel build //angular-test:app
+bazel build //angular-ngc:app
 ```
 
 ### Testing
@@ -211,5 +211,5 @@ GNU Affero General Public License v3.0 (AGPLv3) - See [LICENSE](./LICENSE)
 
 **Documentation:**
 - [AGENTS.md](./AGENTS.md) - Comprehensive project overview
-- [angular-test/README.md](./angular-test/README.md) - Angular app details
+- [angular-ngc/README.md](./angular-ngc/README.md) - Angular app details
 - [nicknamer/README.md](./nicknamer/README.md) - Nicknamer server details

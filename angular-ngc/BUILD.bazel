@@ -30,7 +30,7 @@ tailwindcss_bin.tailwindcss(
         "--input",
         "$(execpath styles.css)",
         "--output",
-        "angular-test/styles-processed.css",
+        "angular-ngc/styles-processed.css",
         "--config",
         "$(execpath tailwind.config.js)",
         "--content",

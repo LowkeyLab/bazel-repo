@@ -17,10 +17,10 @@ Key components:
 A Hello World Angular application integrated with Tailwind CSS and Bazel.
 
 Key components:
-- `angular-test/` - Angular 19 application with Tailwind CSS
+- `angular-ngc/` - Angular 19 application with Tailwind CSS
 - Modern standalone components architecture
 - Built with esbuild for fast bundling
-- See `angular-test/README.md` for detailed documentation
+- See `angular-ngc/README.md` for detailed documentation
 
 ## Setup Commands
 

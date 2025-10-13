@@ -6,8 +6,8 @@
             "dom"
         ],
         "paths": {
-            "@angular-test/*": [
-                "angular-test/*"
+            "@angular-ngc/*": [
+                "angular-ngc/*"
             ]
         }
     },

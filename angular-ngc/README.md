@@ -23,7 +23,7 @@ A Hello World Angular application integrated with Bazel and Tailwind CSS, demons
 
 From the repository root:
 ```bash
-cd angular-test
+cd angular-ngc
 pnpm install
 ```
 
@@ -31,16 +31,16 @@ pnpm install
 
 From the repository root:
 ```bash
-bazel build //angular-test:app
+bazel build //angular-ngc:app
 ```
 
-The built files will be in `bazel-bin/angular-test/prod/`.
+The built files will be in `bazel-bin/angular-ngc/prod/`.
 
 ### 3. Run Development Server
 
 From the repository root:
 ```bash
-bazel run //angular-test:serve
+bazel run //angular-ngc:serve
 ```
 
 This will build the application and start a development server with history API support.
@@ -50,7 +50,7 @@ Then open http://localhost:8080 in your browser.
 ## Project Structure
 
 ```
-angular-test/
+angular-ngc/
 ├── BUILD.bazel              # Bazel build configuration
 ├── build_tailwind.sh        # Tailwind CSS build script
 ├── package.json             # NPM dependencies
@@ -74,36 +74,36 @@ angular-test/
 
 The `ng_application` macro creates the following targets:
 
-- **`//angular-test:app`** - Default production build (minified, optimized)
-- **`//angular-test:prod`** - Production build (same as `:app`)
-- **`//angular-test:dev`** - Development build (unminified, faster builds)
-- **`//angular-test:test`** - Run unit tests with Karma
-- **`//angular-test:serve`** - Start development server
-- **`//angular-test:serve-prod`** - Start production server
-- **`//angular-test:styles`** - Process Tailwind CSS only
+- **`//angular-ngc:app`** - Default production build (minified, optimized)
+- **`//angular-ngc:prod`** - Production build (same as `:app`)
+- **`//angular-ngc:dev`** - Development build (unminified, faster builds)
+- **`//angular-ngc:test`** - Run unit tests with Karma
+- **`//angular-ngc:serve`** - Start development server
+- **`//angular-ngc:serve-prod`** - Start production server
+- **`//angular-ngc:styles`** - Process Tailwind CSS only
 
 ### Running Targets
 
 ```bash
 # Build production bundle
-bazel build //angular-test:app
+bazel build //angular-ngc:app
 
 # Build development bundle
-bazel build //angular-test:dev
+bazel build //angular-ngc:dev
 
 # Run tests
-bazel test //angular-test:test
+bazel test //angular-ngc:test
 
 # Start development server (with history API support)
-bazel run //angular-test:serve
+bazel run //angular-ngc:serve
 
 # Process CSS only
-bazel build //angular-test:styles
+bazel build //angular-ngc:styles
 ```
 
 ## Build Output Structure
 
-After building with `bazel build //angular-test:app`, the output in `bazel-bin/angular-test/prod/` contains:
+After building with `bazel build //angular-ngc:app`, the output in `bazel-bin/angular-ngc/prod/` contains:
 
 ```
 prod/
@@ -176,12 +176,12 @@ These versions ensure compatibility with Angular 20's requirements (Node.js 20+ 
 
 1. Create component files in `app/` directory
 2. Import and register in `app.module.ts` or use standalone components
-3. Build: `bazel build //angular-test:app`
+3. Build: `bazel build //angular-ngc:app`
 
 ### Adding Tailwind Classes
 
 1. Add Tailwind utility classes to your HTML/TypeScript files
-2. Run `bazel build //angular-test:app`
+2. Run `bazel build //angular-ngc:app`
 3. The new classes will automatically be included in the generated CSS
 
 No separate compilation step needed!
@@ -190,12 +190,12 @@ No separate compilation step needed!
 
 Run tests with:
 ```bash
-bazel test //angular-test:test
+bazel test //angular-ngc:test
 ```
 
 For interactive debugging:
 ```bash
-bazel run //angular-test:test.server
+bazel run //angular-ngc:test.server
 ```
 
 ## Important Notes
@@ -261,7 +261,7 @@ If Tailwind classes don't appear in the generated CSS:
 ```bash
 # Rebuild from scratch
 bazel clean
-bazel build //angular-test:app
+bazel build //angular-ngc:app
 
 # Verify your file is in the glob pattern
 # Files must match: app/**/*.html or app/**/*.ts
@@ -271,14 +271,14 @@ bazel build //angular-test:app
 
 ```bash
 # Re-install dependencies
-cd angular-test
+cd angular-ngc
 pnpm install
 
 # Verbose build output
-bazel build //angular-test:app --verbose_failures
+bazel build //angular-ngc:app --verbose_failures
 
 # Check for sandbox issues
-bazel build //angular-test:app --sandbox_debug
+bazel build //angular-ngc:app --sandbox_debug
 ```
 
 ### Port Already in Use
