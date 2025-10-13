@@ -4,9 +4,6 @@ load("@npm//:defs.bzl", "npm_link_all_packages")
 # Link npm packages
 npm_link_all_packages(name = "node_modules")
 
-# Export package.json so it can be used by esbuild config
-exports_files(["package.json"])
-
 # The root repo tsconfig
 ts_config(
     name = "tsconfig",

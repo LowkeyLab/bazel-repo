@@ -1,3 +1,4 @@
+load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@npm//:@angular/compiler-cli/package_json.bzl", angular_compiler_cli = "bin")
 load(":ts.bzl", "ts_project")
 
@@ -18,5 +19,25 @@ ts_project(
         "//:node_modules/@babel/core",
         "//:node_modules/@types/babel__core",
         "//:node_modules/@types/node",
+    ],
+)
+
+exports_files(
+    [
+        "karma.conf.js",
+        "test-setup.ts",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+esbuild(
+    name = "test_bootstrap",
+    testonly = 1,
+    entry_point = ":test-bootstrap.js",
+    metafile = False,
+    sourcemap = "inline",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/zone.js",
     ],
 )
