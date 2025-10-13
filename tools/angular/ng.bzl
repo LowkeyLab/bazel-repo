@@ -25,8 +25,15 @@ def ng_esbuild(name, **kwargs):
     """The rules_esbuild esbuild() configured with the Angular linker configuration
     """
 
+    # Extract existing deps and add config dependencies
+    deps = kwargs.pop("deps", [])
+
     esbuild(
         name = name,
         config = "//tools/angular:ngc.esbuild.mjs",
+        deps = deps + [
+            "//:node_modules/@angular/compiler-cli",
+            "//:node_modules/@babel/core",
+        ],
         **kwargs
     )
