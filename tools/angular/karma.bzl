@@ -46,7 +46,7 @@ generate_karma_config = rule(
             doc = """the karma config template""",
             cfg = "exec",
             allow_single_file = True,
-            default = Label("//tools:karma.conf.js"),
+            default = Label("//tools/angular:karma.conf.js"),
         ),
     },
     outputs = {
@@ -57,7 +57,7 @@ generate_karma_config = rule(
 def generate_test_bootstrap(name):
     copy_file(
         name = name,
-        src = "//tools:test_bootstrap",
+        src = "//tools/angular:test_bootstrap",
         out = "test_bootstrap.js",
         testonly = 1,
     )
@@ -67,5 +67,5 @@ def generate_test_setup(name):
         name = name,
         out = "%s.ts" % name,
         testonly = 1,
-        src = "//tools:test-setup.ts",
+        src = "//tools/angular:test-setup.ts",
     )
