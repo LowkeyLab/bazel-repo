@@ -1,0 +1,5 @@
+{
+    "name": "@bazel-repo/angular-ngc",
+    "private": true,
+    "type": "module"
+}

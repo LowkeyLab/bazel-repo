@@ -1,0 +1,45 @@
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//:tailwindcss/package_json.bzl", tailwindcss_bin = "bin")
+load("//:defs.bzl", "ng_application")
+
+npm_link_all_packages(name = "node_modules")
+
+# Collect all source files that Tailwind needs to scan
+filegroup(
+    name = "tailwind_srcs",
+    srcs = glob([
+        "app/**/*.html",
+        "app/**/*.ts",
+    ]) + [
+        "main.ts",
+    ],
+)
+
+# Process Tailwind CSS using the tailwindcss CLI bin target
+tailwindcss_bin.tailwindcss(
+    name = "styles",
+    srcs = [
+        "postcss.config.js",
+        "styles.css",
+        "tailwind.config.js",
+        ":tailwind_srcs",
+    ],
+    outs = ["styles-processed.css"],
+    args = [
+        "--input",
+        "$(execpath styles.css)",
+        "--output",
+        "angular-ngc/styles-processed.css",
+        "--config",
+        "$(execpath tailwind.config.js)",
+        "--content",
+        "$(execpaths :tailwind_srcs)",
+    ],
+)
+
+# Build the Angular application using ngc compiler
+ng_application(
+    name = "app",
+    html_assets = [":styles"],
+)

@@ -6,3 +6,6 @@ build --remote_cache_compression
 build --noslim_profile 
 build --experimental_profile_include_primary_output 
 build --experimental_profile_include_target_label
+
+# TypeScript configuration
+common --@aspect_rules_ts//ts:skipLibCheck=always

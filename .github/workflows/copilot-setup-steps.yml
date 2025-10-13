@@ -55,6 +55,8 @@ jobs:
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      
+      - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
       - name: Pre-warm Bazel cache and dependencies
         run: |
