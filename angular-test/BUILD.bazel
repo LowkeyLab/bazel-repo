@@ -1,20 +1,9 @@
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@npm//:tailwindcss/package_json.bzl", tailwindcss_bin = "bin")
 load("//:defs.bzl", "ng_application")
 
 npm_link_all_packages(name = "node_modules")
-
-# Wrapper script for building Tailwind CSS
-sh_binary(
-    name = "build_tailwind_bin",
-    srcs = ["build_tailwind.sh"],
-    data = [
-        ":node_modules/autoprefixer",
-        ":node_modules/postcss",
-        ":node_modules/tailwindcss",
-    ],
-)
 
 # Collect all source files that Tailwind needs to scan
 filegroup(
@@ -27,24 +16,26 @@ filegroup(
     ],
 )
 
-# Process Tailwind CSS
-genrule(
+# Process Tailwind CSS using the tailwindcss CLI bin target
+tailwindcss_bin.tailwindcss(
     name = "styles",
     srcs = [
+        "postcss.config.js",
         "styles.css",
         "tailwind.config.js",
-        "postcss.config.js",
         ":tailwind_srcs",
     ],
     outs = ["styles-processed.css"],
-    cmd = """
-        $(location :build_tailwind_bin) \
-            $(location styles.css) \
-            $@ \
-            $(location tailwind.config.js) \
-            $(locations :tailwind_srcs)
-    """,
-    tools = [":build_tailwind_bin"],
+    args = [
+        "--input",
+        "$(execpath styles.css)",
+        "--output",
+        "angular-test/styles-processed.css",
+        "--config",
+        "$(execpath tailwind.config.js)",
+        "--content",
+        "$(execpaths :tailwind_srcs)",
+    ],
 )
 
 # Build the Angular application using ngc compiler
