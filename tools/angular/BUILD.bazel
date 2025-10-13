@@ -11,7 +11,7 @@ angular_compiler_cli.ngc_binary(
 # ESBuild plugin to run the Angular linker
 ts_project(
     name = "ngc.esbuild",
-    srcs = ["ngc.esbuild.ts"],
+    srcs = ["ngc.esbuild.mts"],
     tsconfig = "//:tsconfig.node",
     visibility = ["//visibility:public"],
     deps = [

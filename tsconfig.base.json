@@ -12,9 +12,9 @@
         "declarationMap": true,
         "downlevelIteration": true,
         "experimentalDecorators": true,
-        "moduleResolution": "node",
+        "moduleResolution": "nodenext",
         "importHelpers": true,
-        "target": "es2020",
-        "module": "es2020"
+        "target": "es2022",
+        "module": "nodenext"
     }
 }

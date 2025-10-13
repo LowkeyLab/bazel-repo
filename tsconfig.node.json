@@ -3,7 +3,7 @@
     "compilerOptions": {
         "allowSyntheticDefaultImports": true,
         "lib": [
-            "es2021"
+            "es2022"
         ]
     }
 }
