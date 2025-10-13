@@ -1,10 +1,4 @@
 {
     "name": "@bazel-repo/angular-test",
-    "version": "1.0.0",
-    "private": true,
-    "type": "module",
-    "scripts": {
-        "dev": "bazel run //angular-test:dev_server",
-        "build": "bazel build //angular-test:bundle"
-    }
+    "private": true
 }
