@@ -30,7 +30,7 @@
     },
     "devDependencies": {
         "@angular-devkit/build-angular": "^20.0.0",
-        "@angular/cli": "^20.0.0",
+        "@angular/compiler": "^20.0.0",
         "@angular/compiler-cli": "^20.0.0",
         "@babel/core": "^7.26.0",
         "@types/babel__core": "^7.20.5",
