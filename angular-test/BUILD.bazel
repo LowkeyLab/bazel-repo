@@ -1,9 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
-load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//:defs.bzl", "ng_application")
-
-npm_link_all_packages(name = "node_modules")
 
 # Wrapper script for building Tailwind CSS
 sh_binary(
