@@ -38,18 +38,12 @@ The built files will be in `bazel-bin/angular-test/prod/`.
 
 ### 3. Run Development Server
 
-**Option 1: Using the dev script (recommended)**
+From the repository root:
 ```bash
-cd angular-test
-bash dev-server.sh
+bazel run //angular-test:serve
 ```
 
-**Option 2: Manual**
-```bash
-bazel build //angular-test:app
-cd bazel-bin/angular-test/prod
-python3 -m http.server 8080
-```
+This will build the application and start a development server with history API support.
 
 Then open http://localhost:8080 in your browser.
 
@@ -59,7 +53,6 @@ Then open http://localhost:8080 in your browser.
 angular-test/
 ├── BUILD.bazel              # Bazel build configuration
 ├── build_tailwind.sh        # Tailwind CSS build script
-├── dev-server.sh            # Development server script
 ├── package.json             # NPM dependencies
 ├── pnpm-lock.yaml           # Dependency lockfile
 ├── tsconfig.json            # TypeScript configuration
