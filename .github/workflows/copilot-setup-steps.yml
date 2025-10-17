@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up mise (tool version manager)
-        uses: jdx/mise-action@29e927f0948d12a3ec5c02da303b90e661f38170
+        uses: jdx/mise-action@d28f84b563119c210aad0b09275bd66c07732847
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
