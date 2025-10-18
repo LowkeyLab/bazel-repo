@@ -2,7 +2,7 @@
 bazel = "8.4.2"
 buildifier = "8.2.1"
 java = "21"
-node = "20.19.5"
+node = "22.20.0"
 pnpm = "9"
 
 [env]
