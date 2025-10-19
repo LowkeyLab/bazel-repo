@@ -1,6 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//:tailwindcss/package_json.bzl", tailwindcss_bin = "bin")
+load("@npm//:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("//:defs.bzl", "ng_application")
 
 npm_link_all_packages(name = "node_modules")
@@ -16,14 +16,13 @@ filegroup(
     ],
 )
 
-# Process Tailwind CSS using the tailwindcss CLI bin target
+# Process Tailwind CSS v4 using the @tailwindcss/cli package
 tailwindcss_bin.tailwindcss(
     name = "styles",
     srcs = [
-        "postcss.config.js",
         "styles.css",
-        "tailwind.config.js",
         ":tailwind_srcs",
+        "//:node_modules/tailwindcss",
     ],
     outs = ["styles-processed.css"],
     args = [
@@ -31,10 +30,6 @@ tailwindcss_bin.tailwindcss(
         "$(execpath styles.css)",
         "--output",
         "angular-ngc/styles-processed.css",
-        "--config",
-        "$(execpath tailwind.config.js)",
-        "--content",
-        "$(execpaths :tailwind_srcs)",
     ],
 )
 
