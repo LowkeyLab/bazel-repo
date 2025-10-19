@@ -128,17 +128,17 @@ The `ng_application` macro (defined in `/defs.bzl`) orchestrates the build:
 
 ### Tailwind CSS Integration
 
-Tailwind CSS is fully integrated into the Bazel build process:
+Tailwind CSS v4 is fully integrated into the Bazel build process:
 
-1. **Source Scanning** - The `build_tailwind.sh` script scans all `.html` and `.ts` files
-2. **Dynamic Config** - A temporary config is generated with explicit paths
-3. **Processing** - TailwindCSS CLI processes `styles.css` and generates optimized CSS
+1. **Source Scanning** - Tailwind v4 automatically detects HTML and TypeScript files
+2. **CSS-first Configuration** - Uses `@import "tailwindcss"` directive instead of separate config files
+3. **Standalone CLI** - Uses `@tailwindcss/cli` package for the build tooling
 4. **Tree Shaking** - Only the Tailwind utilities actually used are included
 
 **Benefits:**
-- ✅ No manual CSS compilation needed
+- ✅ Simplified configuration (no tailwind.config.js or postcss.config.js needed)
 - ✅ CSS automatically updates when source files change
-- ✅ Optimized bundle size (~15KB of CSS vs ~3MB full Tailwind)
+- ✅ Optimized bundle size with automatic tree shaking
 - ✅ Integrated with Bazel's incremental builds and caching
 
 ### Build Caching
@@ -152,7 +152,7 @@ Bazel caches all build artifacts:
 
 - **Angular**: 20.3.4
 - **TypeScript**: 5.8.3
-- **Tailwind CSS**: 3.4.18
+- **Tailwind CSS**: 4.1.14 (using @tailwindcss/cli)
 - **esbuild**: Via aspect_rules_esbuild 0.21.0
 - **RxJS**: 7.8.2
 - **Zone.js**: 0.15.1

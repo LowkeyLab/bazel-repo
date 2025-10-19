@@ -1,6 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//:tailwindcss/package_json.bzl", tailwindcss_bin = "bin")
 load("//:defs.bzl", "ng_application")
 
 npm_link_all_packages(name = "node_modules")
@@ -16,26 +15,21 @@ filegroup(
     ],
 )
 
-# Process Tailwind CSS using the tailwindcss CLI bin target
-tailwindcss_bin.tailwindcss(
+# Process Tailwind CSS using a genrule with the CLI from node_modules
+genrule(
     name = "styles",
     srcs = [
-        "postcss.config.js",
         "styles.css",
-        "tailwind.config.js",
         ":tailwind_srcs",
+        ":node_modules/@tailwindcss/cli",
     ],
     outs = ["styles-processed.css"],
-    args = [
-        "--input",
-        "$(execpath styles.css)",
-        "--output",
-        "angular-ngc/styles-processed.css",
-        "--config",
-        "$(execpath tailwind.config.js)",
-        "--content",
-        "$(execpaths :tailwind_srcs)",
-    ],
+    cmd = """
+        $(location :node_modules/@tailwindcss/cli/bin/tailwindcss) \
+            --input $(location styles.css) \
+            --output $@
+    """,
+    tools = [":node_modules/@tailwindcss/cli/bin/tailwindcss"],
 )
 
 # Build the Angular application using ngc compiler
