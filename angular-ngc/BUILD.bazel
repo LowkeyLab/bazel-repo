@@ -22,7 +22,6 @@ tailwindcss_bin.tailwindcss(
     srcs = [
         "styles.css",
         ":tailwind_srcs",
-        "//:node_modules/tailwindcss",
     ],
     outs = ["styles-processed.css"],
     args = [
