@@ -27,19 +27,18 @@ Successfully migrated the Angular application from Tailwind CSS v3.4.18 to v4.1.
 - **Deleted**: `angular-ngc/postcss.config.js` - No longer needed
 
 ### 4. Build Configuration (`angular-ngc/BUILD.bazel`)
-Updated to use a genrule that calls the Tailwind v4 CLI from node_modules:
+Updated to use the `@tailwindcss/cli` bin rule via the `tailwindcss_bin.tailwindcss` macro:
 ```python
-genrule(
+load("@npm//tailwindcss_bin:index.bzl", "tailwindcss")
+
+tailwindcss(
     name = "styles",
-    srcs = ["styles.css", ":tailwind_srcs"],
-    outs = ["styles-processed.css"],
-    cmd = """
-        cd "$WORKSPACE" && \
-        node node_modules/.bin/tailwindcss \
-            --input angular-ngc/styles.css \
-            --output $@
-    """,
-    local = 1,
+    src = "styles.css",
+    out = "styles-processed.css",
+    args = [
+        "--input=$(execpath $(location :styles.css))",
+        "--output=$(execpath $(location :styles-processed.css))",
+    ],
 )
 ```
 
