@@ -1,5 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("//:defs.bzl", "ng_application")
 
 npm_link_all_packages(name = "node_modules")
@@ -15,29 +16,21 @@ filegroup(
     ],
 )
 
-# Process Tailwind CSS v4 using the CLI from workspace node_modules
-# NOTE: This uses local=1 to access workspace node_modules, as Bazel's
-# npm package download is blocked by SSL certificate issues in some CI environments.
-# In production, this would use the @npm//:@tailwindcss/cli package_json.bzl once
-# SSL certificates are properly configured.
-genrule(
+# Process Tailwind CSS v4 using the @tailwindcss/cli package
+tailwindcss_bin.tailwindcss(
     name = "styles",
     srcs = [
         "styles.css",
         ":tailwind_srcs",
+        "//:node_modules/tailwindcss",
     ],
     outs = ["styles-processed.css"],
-    cmd = """
-        # Find workspace directory
-        WORKSPACE="/home/runner/work/bazel-repo/bazel-repo"
-        
-        # Run tailwindcss v4 from the workspace node_modules
-        cd "$$WORKSPACE" && \\
-        node node_modules/.bin/tailwindcss \\
-            --input angular-ngc/styles.css \\
-            --output $$OLDPWD/$@
-    """,
-    local = 1,
+    args = [
+        "--input",
+        "$(execpath styles.css)",
+        "--output",
+        "angular-ngc/styles-processed.css",
+    ],
 )
 
 # Build the Angular application using ngc compiler
