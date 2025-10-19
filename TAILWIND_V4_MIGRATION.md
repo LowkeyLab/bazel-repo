@@ -13,12 +13,12 @@ Successfully migrated the Angular application from Tailwind CSS v3.4.18 to v4.1.
 
 ### 2. CSS Configuration (`angular-ngc/styles.css`)
 ```css
-// Old v3 syntax
+/* Old v3 syntax */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-// New v4 syntax  
+/* New v4 syntax */
 @import "tailwindcss";
 ```
 
