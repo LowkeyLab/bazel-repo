@@ -69,10 +69,10 @@ jobs:
       - name: Pre-warm Bazel cache and dependencies
         run: |
           echo "=== Building all targets to pre-warm cache ==="
-          bazel build //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY} || true
+          bazel build //... || true
           
           echo "=== Fetching all external dependencies ==="
-          bazel fetch //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY} || true
+          bazel fetch //... || true
 
           echo "=== Checking Bazel info ==="
           bazel info
