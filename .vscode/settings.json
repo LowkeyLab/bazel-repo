@@ -1,6 +1,3 @@
 {
     "bazel.lsp.command": "starpls",
-    "debug.javascript.defaultRuntimeExecutable": {
-        "pwa-node": "/home/tacascer/snap/code/205/.local/share/mise/shims/node"
-    },
 }
