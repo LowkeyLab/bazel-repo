@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "private": true,
     "description": "Bazel monorepo",
+      "// dependencies": "in the root package, only dependencies for monorepo-wide tooling should appear",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@parcel/watcher",
