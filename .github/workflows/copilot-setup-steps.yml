@@ -36,9 +36,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Copy API key to root .bazelrc
+        run: |
+          echo "=== Adding BuildBuddy API key to .bazelrc ==="
+          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+
       - name: Install tools via bazel
         run: |
-          bazel run //:bazel_env print-path >> $GITHUB_PATH
+          bazel run //tools:bazel_env print-path >> $GITHUB_PATH
 
       - name: Verify tool installations
         run: |
@@ -61,14 +69,6 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
-
-      - name: Copy API key to root .bazelrc
-        run: |
-          echo "=== Adding BuildBuddy API key to .bazelrc ==="
-          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
-
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
       - name: Pre-warm Bazel cache and dependencies
         run: |

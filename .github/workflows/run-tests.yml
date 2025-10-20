@@ -25,6 +25,14 @@ jobs:
       - uses: jdx/mise-action@d28f84b563119c210aad0b09275bd66c07732847
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Copy API key to root .bazelrc
+        run: |
+          echo "=== Adding BuildBuddy API key to .bazelrc ==="
+          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
       - name: Install tools via bazel
         run: |
@@ -39,6 +47,4 @@ jobs:
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
       - name: Run Bazel tests
-        run: bazel test //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
-        env: 
-          BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}
+        run: bazel test //...
