@@ -12,7 +12,9 @@ bazel_dep(name = "aspect_rules_esbuild", version = "0.23.0")
 bazel_dep(name = "aspect_rules_js", version = "2.6.2")
 bazel_dep(name = "aspect_rules_swc", version = "2.5.0")
 bazel_dep(name = "aspect_rules_ts", version = "3.7.0")
+
 bazel_dep(name = "bazel_env.bzl", version = "0.1.0", dev_dependency = True)
+
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "bazelrc-preset.bzl", version = "1.4.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.0.2")
@@ -97,7 +99,6 @@ multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitoo
 multitool.hub(lockfile = "//tools:tools.lock.json")
 use_repo(multitool, "multitool")
 
-
 #########################
 # Hermetic C++ toolchain, to relieve the dependency on a locally installed CC etc.
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
@@ -109,7 +110,6 @@ llvm.toolchain(
     },
 )
 use_repo(llvm, "llvm_toolchain", "llvm_toolchain_llvm")
-
 
 #########################
 # Protobuf and gRPC
@@ -150,8 +150,7 @@ maven.install(
     ],
     lock_file = "//:maven_install.json",
 )
-use_repo(maven,"maven")
-
+use_repo(maven, "maven")
 
 # --- Rust Configuration ---
 
@@ -163,20 +162,20 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
-
 http_archive(
     name = "swagger_ui",
-    urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
-    integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
-    strip_prefix = "swagger-ui-5.17.14",
     build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
-    patches = ["//3rdparty/swagger_ui:fix.patch"],
+    integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
     patch_args = [
         "-p1",
     ],
+    patches = ["//3rdparty/swagger_ui:fix.patch"],
+    strip_prefix = "swagger-ui-5.17.14",
+    urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
 )
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+
 inject_repo(crate, "swagger_ui")
 
 # Regular dependencies
@@ -291,28 +290,31 @@ crate.spec(
     version = "5.4.0",
 )
 crate.spec(
+    features = [
+        "axum",
+        "debug-embed",
+    ],
     package = "utoipa-swagger-ui",
     version = "9.0.2",
-    features = ["axum", "debug-embed"],
 )
 crate.annotation(
-    crate = "utoipa-swagger-ui",
-    gen_build_script = "off",
-    patch_args = [
-        "-p1",
-    ],
-    patches = ["//3rdparty/utoipa_swagger_ui:fix.patch"],
     additive_build_file_content = """
 filegroup(
     name = "dist",
     srcs = ["@swagger_ui//:dist"],
 )
 """,
+    compile_data = [":dist"],
+    crate = "utoipa-swagger-ui",
+    gen_build_script = "off",
+    patch_args = [
+        "-p1",
+    ],
+    patches = ["//3rdparty/utoipa_swagger_ui:fix.patch"],
     rustc_env = {
         # Set this to make sure that RustEmbed points to the parent dir of the swagger ui dist
         "CARGO_MANIFEST_DIR": "$(execpath :dist)/..",
     },
-    compile_data = [":dist"],
 )
 crate.spec(
     features = ["v4"],
@@ -339,7 +341,6 @@ crate.spec(
     package = "testcontainers-modules",
     version = "0.13.0",
 )
-
 crate.from_specs()
 use_repo(crate, "crates")
 
