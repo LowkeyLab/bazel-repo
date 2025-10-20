@@ -1,0 +1,7 @@
+    {
+        "name": "angular-ngc-tools",
+        "private": true,
+        "devDependencies": {
+            "@angular/compiler-cli": "^20.0.0"
+        }
+    }
