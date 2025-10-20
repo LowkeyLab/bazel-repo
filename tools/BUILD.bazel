@@ -4,7 +4,6 @@ load("@bazelrc-preset.bzl", "bazelrc_preset")
 load("@multitool//:tools.bzl", MULTITOOLS = "TOOLS")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
-load("@npm//tools:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 
 bazelrc_preset(name = "preset")
 
@@ -12,19 +11,11 @@ npm_link_all_packages(name = "node_modules")
 
 angular_cli.ng_binary(name = "ng")
 
-tailwindcss_bin.tailwindcss(
-    name = "tailwindcss",
-    srcs = [],
-    outs = [],
-    args = [],
-)
-
 # Tools found in this package
 LOCAL_TOOLS = {
     t: "//tools:" + t
     for t in [
         "ng",
-        "tailwindcss",
     ]
 }
 
