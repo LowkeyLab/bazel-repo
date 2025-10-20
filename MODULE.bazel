@@ -23,6 +23,7 @@ bazel_dep(name = "rules_oci", version = "2.2.6")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
 bazel_dep(name = "rules_rust", version = "0.66.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "rules_buf", version = "0.3.0")
 
 #########################
 # JavaScript and TypeScript
@@ -67,6 +68,30 @@ use_repo(rules_ts_ext, "npm_typescript")
 multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
 multitool.hub(lockfile = "//tools:tools.lock.json")
 use_repo(multitool, "multitool")
+
+#########################
+# Protobuf and gRPC
+# https://github.com/aspect-build/toolchains_protoc
+
+buf = use_extension("@rules_buf//buf:extensions.bzl", "buf")
+buf.toolchains(version = "v1.34.0")  #see https://github.com/bufbuild/buf/releases
+use_repo(buf, "rules_buf_toolchains")
+
+# This Aspect-provided protobuf toolchain removes the need to compile ProtoC from
+# source, speeding up builds where a cached protoc isn't used.
+protoc = use_extension("@toolchains_protoc//protoc:extensions.bzl", "protoc")
+protoc.toolchain(
+    google_protobuf = "com_google_protobuf",
+    version = "v28.2",
+)
+use_repo(protoc, "com_google_protobuf", "toolchains_protoc_hub")
+
+register_toolchains("@llvm_toolchain//:all")
+
+register_toolchains("@toolchains_protoc_hub//:all")
+
+register_toolchains("//tools/toolchains:all")
+
 
 # --- Rust Configuration ---
 
