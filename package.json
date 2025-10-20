@@ -2,5 +2,13 @@
     "name": "bazel-repo",
     "version": "1.0.0",
     "private": true,
-    "description": "Bazel monorepo"
+    "description": "Bazel monorepo",
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "@parcel/watcher",
+            "esbuild",
+            "lmdb",
+            "msgpackr-extract"
+        ]
+    }
 }

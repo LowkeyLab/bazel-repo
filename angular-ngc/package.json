@@ -2,14 +2,7 @@
     "name": "@bazel-repo/angular-ngc",
     "private": true,
     "type": "module",
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "@parcel/watcher",
-            "esbuild",
-            "lmdb",
-            "msgpackr-extract"
-        ]
-    },
+
     "dependencies": {
         "@angular/animations": "^20.0.0",
         "@angular/common": "^20.0.0",
