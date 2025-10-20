@@ -26,7 +26,11 @@ curl https://mise.run | sh
 mise install
 ```
 
-Or install manually: **Bazel** 8.4.2+, **Node.js** 20.18.0, **PNPM** 9+, **Rust** 2024 edition, **Docker**
+This installs **Bazel** 8.4.2 as defined in `mise.toml`.
+
+Or install manually: **Bazel** 8.4.2+, **Docker**
+
+**Note:** Node.js, PNPM, Rust, and other development tools are managed by Bazel through the `tools/` directory configuration. They do not need to be installed separately.
 
 ## 🏁 Quick Start
 
@@ -35,9 +39,11 @@ Or install manually: **Bazel** 8.4.2+, **Node.js** 20.18.0, **PNPM** 9+, **Rust*
 git clone https://github.com/LowkeyLab/bazel-repo.git
 cd bazel-repo
 
-# Install dependencies
+# Install Bazel
 mise install
-pnpm install
+
+# Install NPM dependencies (if working with frontend code)
+bazel run @pnpm -- --dir $PWD install
 
 # Build all
 bazel build //...
@@ -133,8 +139,29 @@ bazel clean
 # Repin Rust dependencies
 CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
 
+# Reinstall NPM dependencies
+bazel run @pnpm -- --dir $PWD install
+
 # Verbose build output
 bazel build //... --verbose_failures
+```
+
+### Development Tools
+
+Development tools are managed through Bazel in the `tools/` directory:
+
+```bash
+# Run pnpm commands
+bazel run @pnpm -- <pnpm-args>
+
+# Example: Install dependencies
+bazel run @pnpm -- --dir $PWD install
+
+# Format BUILD files
+bazel run //tools:buildifier
+
+# Run Angular CLI
+bazel run //tools:ng -- <ng-args>
 ```
 
 ## 📄 License

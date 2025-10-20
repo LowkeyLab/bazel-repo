@@ -22,10 +22,19 @@ Key components:
    curl https://mise.run | sh
    ```
    
-2. **Install project dependencies** using mise:
+2. **Install Bazel** using mise:
    ```bash
    mise install
    ```
+   
+   This installs Bazel 8.4.2 as defined in `mise.toml`.
+
+3. **Install NPM dependencies** (if working with frontend code):
+   ```bash
+   bazel run @pnpm -- --dir $PWD install
+   ```
+   
+   **Note:** Development tools including Node.js, PNPM, and Rust are managed by Bazel through the `tools/` directory. They do not need to be installed separately via mise.
 
 ### Development Environment
 
@@ -54,14 +63,26 @@ Key components:
 
 This project uses **Bazel** as the primary build system with:
 - Rust toolchain (2024 edition)
-- Rules for Rust, OCI, Shell, and packaging
+- Node.js toolchain (20.18.0)
+- PNPM package manager (managed via Bazel)
+- Rules for Rust, OCI, Shell, packaging, and JavaScript/TypeScript
 - Crate universe for Rust dependency management
 - Container image building capabilities
 
 Key Bazel concepts:
 - `MODULE.bazel` - Main module definition with dependencies
 - `BUILD.bazel` files - Build targets in each package
+- `tools/` - Development tooling managed through Bazel
 - `//nicknamer:run_locally` - Convenience target for local development
+
+### Development Tools
+
+Tools are managed centrally in the `tools/` directory through Bazel:
+- **PNPM**: Run via `bazel run @pnpm -- <args>`
+- **Angular CLI**: Run via `bazel run //tools:ng -- <args>`
+- **Buildifier**: Run via `bazel run //tools:buildifier`
+
+The `tools/BUILD.bazel` file defines available tools and their configurations.
 
 ## Testing Instructions
 
@@ -171,6 +192,12 @@ bazel run //tools:buildifier
 
 # Check for build issues
 bazel build //... --keep_going
+
+# Install NPM dependencies
+bazel run @pnpm -- --dir $PWD install
+
+# Run pnpm commands
+bazel run @pnpm -- <args>
 ```
 
 ## Troubleshooting
@@ -178,8 +205,10 @@ bazel build //... --keep_going
 - **Docker issues**: Ensure Docker daemon is running and accessible
 - **Database connection**: Check PostgreSQL container is healthy via `docker compose ps`
 - **Build failures**: Run `bazel clean` and retry
-- **Missing dependencies**: Run `mise install` to ensure all tools are available
+- **Missing Bazel**: Run `mise install` to ensure Bazel is installed
+- **NPM dependencies**: Run `bazel run @pnpm -- --dir $PWD install` to reinstall packages
 - **Port conflicts**: Check if port 8080 or 5432 are already in use
+- **Tool issues**: Development tools (Node.js, PNPM, Rust) are managed by Bazel; no manual installation needed
 
 ## File Structure Notes
 

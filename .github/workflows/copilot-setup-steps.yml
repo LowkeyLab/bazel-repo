@@ -36,6 +36,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install tools via bazel
+        run: |
+          bazel run //:bazel_env print-path >> $GITHUB_PATH
+
       - name: Verify tool installations
         run: |
           echo "=== Mise tool versions ==="
