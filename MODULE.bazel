@@ -23,7 +23,35 @@ bazel_dep(name = "rules_oci", version = "2.2.6")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
 bazel_dep(name = "rules_rust", version = "0.66.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "rules_buf", version = "0.3.0")
+bazel_dep(name = "rules_buf", version = "0.5.2")
+bazel_dep(name = "toolchains_protoc", version = "0.3.6")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_jvm_external", version = "6.7")
+bazel_dep(name = "toolchains_llvm", version = "1.1.2")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
+
+http_archive(
+    name = "net_sourceforge_pmd",
+    build_file_content = """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
+    sha256 = "21acf96d43cb40d591cacccc1c20a66fc796eaddf69ea61812594447bac7a11d",
+    strip_prefix = "pmd-bin-6.55.0/lib",
+    url = "https://github.com/pmd/pmd/releases/download/pmd_releases/6.55.0/pmd-bin-6.55.0.zip",
+)
+
+http_jar(
+    name = "com_puppycrawl_tools_checkstyle",
+    sha256 = "51c34d738520c1389d71998a9ab0e6dabe0d7cf262149f3e01a7294496062e42",
+    url = "https://github.com/checkstyle/checkstyle/releases/download/checkstyle-10.17.0/checkstyle-10.17.0-all.jar",
+)
+
+http_jar(
+    name = "google-java-format",
+    sha256 = "33068bbbdce1099982ec1171f5e202898eb35f2919cf486141e439fc6e3a4203",
+    url = "https://github.com/google/google-java-format/releases/download/v1.17.0/google-java-format-1.17.0-all-deps.jar",
+)
 
 #########################
 # JavaScript and TypeScript
@@ -69,6 +97,20 @@ multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitoo
 multitool.hub(lockfile = "//tools:tools.lock.json")
 use_repo(multitool, "multitool")
 
+
+#########################
+# Hermetic C++ toolchain, to relieve the dependency on a locally installed CC etc.
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+    llvm_versions = {
+        "": "15.0.6",
+        "darwin-aarch64": "15.0.7",
+        "darwin-x86_64": "15.0.7",
+    },
+)
+use_repo(llvm, "llvm_toolchain", "llvm_toolchain_llvm")
+
+
 #########################
 # Protobuf and gRPC
 # https://github.com/aspect-build/toolchains_protoc
@@ -92,6 +134,24 @@ register_toolchains("@toolchains_protoc_hub//:all")
 
 register_toolchains("//tools/toolchains:all")
 
+#########################
+# Java and other JVM languages:
+# https://github.com/bazelbuild/rules_jvm_external/blob/master/examples/bzlmod/MODULE.bazel
+# https://github.com/bazelbuild/rules_jvm_external#pinning-artifacts-and-integration-with-bazels-downloader
+
+# In the Maven support variation, the dependencies are conveniently listed here
+# in the MODULE.bazel file.
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    artifacts = [
+        "com.google.protobuf:protobuf-java:4.28.0",
+        "io.grpc:grpc-all:1.51.1",
+    ],
+    lock_file = "//:maven_install.json",
+)
+use_repo(maven,"maven")
+
 
 # --- Rust Configuration ---
 
@@ -103,7 +163,6 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "swagger_ui",
