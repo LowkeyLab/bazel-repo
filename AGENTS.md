@@ -13,15 +13,6 @@ Key components:
 - `3rdparty/` - Third-party dependencies and build configurations
 - `tools/` - Development tooling and scripts
 
-### Angular Test Application
-A Hello World Angular application integrated with Tailwind CSS and Bazel.
-
-Key components:
-- `angular-ngc/` - Angular 19 application with Tailwind CSS
-- Modern standalone components architecture
-- Built with esbuild for fast bundling
-- See `angular-ngc/README.md` for detailed documentation
-
 ## Setup Commands
 
 ### Prerequisites

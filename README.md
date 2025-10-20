@@ -15,7 +15,6 @@ A Bazel-based monorepo with Rust backend services and Angular frontend applicati
 ## 🎯 Overview
 
 This monorepo uses Bazel for builds and supports:
-- **NPM** - Angular applications with PNPM workspaces
 - **Rust** - Backend services with Axum, SeaORM, and PostgreSQL
 
 
@@ -46,71 +45,6 @@ bazel build //...
 # Run tests
 bazel test //...
 ```
-
----
-
-## 📦 NPM Projects
-
-All NPM projects are self-contained with their own dependencies and tooling.
-
-### Angular Test Application
-
-Modern Angular 20 application with Tailwind CSS, demonstrating a standalone Angular project integrated with Bazel.
-
-**Location:** `angular-ngc/`
-
-**Setup:**
-```bash
-cd angular-ngc
-pnpm install
-```
-
-**Commands:**
-```bash
-# Build production bundle
-bazel build //angular-ngc/applications/demo:app
-
-# Start dev server
-bazel run //angular-ngc/applications/demo:serve
-
-# Run tests
-bazel test //angular-ngc/applications/demo:test
-```
-
-**Tech Stack:** Angular 20, Tailwind CSS 4, esbuild, TypeScript 5.8
-
-**Key Features:**
-- Self-contained project with own `package.json` and `pnpm-workspace.yaml`
-- Custom Bazel build rules in `angular-ngc/tools/`
-- Demo application in `angular-ngc/applications/demo/`
-- TypeScript configurations in `angular-ngc/tsconfig*.json`
-
-📖 See [angular-ngc/README.md](./angular-ngc/README.md) for details.
-
-### Managing NPM Dependencies
-
-Each NPM project manages its own dependencies independently.
-
-**For Angular project:**
-```bash
-cd angular-ngc
-pnpm add <package-name>
-pnpm install
-```
-
-**Adding a new NPM project:**
-1. Create project directory: `new-project/`
-2. Create `new-project/package.json`:
-   ```json
-   {
-     "name": "@bazel-repo/new-project",
-     "version": "0.0.0",
-     "private": true
-   }
-   ```
-3. Create `new-project/pnpm-workspace.yaml` if needed
-4. Create `new-project/BUILD.bazel` with build rules
-5. Run `pnpm install` in the project directory
 
 ---
 
@@ -168,7 +102,6 @@ bazel build //...
 
 # Build specific target
 bazel build //nicknamer/server/bin
-bazel build //angular-ngc/applications/demo:app
 ```
 
 ### Testing
@@ -197,10 +130,6 @@ bazel run //nicknamer/server/bin:push_image
 # Clean build cache
 bazel clean
 
-# Re-install NPM dependencies (for Angular project)
-cd angular-ngc
-pnpm install
-
 # Repin Rust dependencies
 CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
 
@@ -216,5 +145,4 @@ GNU Affero General Public License v3.0 (AGPLv3) - See [LICENSE](./LICENSE)
 
 **Documentation:**
 - [AGENTS.md](./AGENTS.md) - Comprehensive project overview
-- [angular-ngc/README.md](./angular-ngc/README.md) - Angular app details
 - [nicknamer/README.md](./nicknamer/README.md) - Nicknamer server details

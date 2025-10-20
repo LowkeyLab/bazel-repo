@@ -4,7 +4,4 @@ packages:
   - .
   - angular
   - angular/projects/*
-  - angular-ngc
-  - angular-ngc/tools
-  - angular-ngc/applications/*
   - tools
