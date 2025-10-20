@@ -36,7 +36,7 @@ jobs:
 
       - name: Install tools via bazel
         run: |
-          bazel run //:bazel_env print-path >> $GITHUB_PATH
+          echo "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin" >> $GITHUB_PATH
 
       - name: Log in to Docker Hub
         uses: docker/login-action@28fdb31ff34708d19615a74d67103ddc2ea9725c
