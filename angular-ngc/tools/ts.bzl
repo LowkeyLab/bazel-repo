@@ -10,7 +10,7 @@ def ts_project(name, **kwargs):
         name = name,
 
         # Default tsconfig and aligning attributes
-        tsconfig = kwargs.pop("tsconfig", "//:tsconfig"),
+        tsconfig = kwargs.pop("tsconfig", "//angular-ngc:tsconfig"),
         declaration = kwargs.pop("declaration", True),
         declaration_map = kwargs.pop("declaration_map", True),
         source_map = kwargs.pop("source_map", True),

@@ -5,9 +5,9 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@npm//:history-server/package_json.bzl", history_server_bin = "bin")
 load("@npm//:html-insert-assets/package_json.bzl", html_insert_assets_bin = "bin")
 load("@npm//:karma/package_json.bzl", _karma_bin = "bin")
-load("//tools/angular:karma.bzl", "generate_karma_config", "generate_test_bootstrap", "generate_test_setup")
-load("//tools/angular:ng.bzl", "ng_esbuild", "ng_project")
-load("//tools/angular:ts.bzl", "ts_project")
+load("//angular-ngc/tools:karma.bzl", "generate_karma_config", "generate_test_bootstrap", "generate_test_setup")
+load("//angular-ngc/tools:ng.bzl", "ng_esbuild", "ng_project")
+load("//angular-ngc/tools:ts.bzl", "ts_project")
 
 # Common dependencies of Angular applications
 APPLICATION_DEPS = [

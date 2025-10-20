@@ -21,7 +21,7 @@ A Hello World Angular application integrated with Bazel and Tailwind CSS, demons
 
 ### 1. Install Dependencies
 
-From the repository root:
+From the angular-ngc directory:
 ```bash
 cd angular-ngc
 pnpm install
@@ -31,16 +31,16 @@ pnpm install
 
 From the repository root:
 ```bash
-bazel build //angular-ngc:app
+bazel build //angular-ngc/applications/demo:app
 ```
 
-The built files will be in `bazel-bin/angular-ngc/prod/`.
+The built files will be in `bazel-bin/angular-ngc/applications/demo/prod/`.
 
 ### 3. Run Development Server
 
 From the repository root:
 ```bash
-bazel run //angular-ngc:serve
+bazel run //angular-ngc/applications/demo:serve
 ```
 
 This will build the application and start a development server with history API support.
@@ -51,59 +51,68 @@ Then open http://localhost:8080 in your browser.
 
 ```
 angular-ngc/
-├── BUILD.bazel              # Bazel build configuration
-├── build_tailwind.sh        # Tailwind CSS build script
+├── BUILD.bazel              # NPM package linking and tsconfig
+├── defs.bzl                 # Angular application build macros
 ├── package.json             # NPM dependencies
-├── pnpm-lock.yaml           # Dependency lockfile
+├── pnpm-workspace.yaml      # PNPM workspace configuration
 ├── tsconfig.json            # TypeScript configuration
-├── tailwind.config.js       # Tailwind CSS configuration
-├── postcss.config.js        # PostCSS configuration
-├── index.html               # Entry HTML file
-├── main.ts                  # Application bootstrap file
-├── polyfills.ts             # Browser polyfills
-├── styles.css               # Global styles with Tailwind directives
-└── app/
-    ├── app.component.ts     # Main component
-    ├── app.component.html   # Component template
-    ├── app.component.spec.ts # Unit tests
-    ├── app.config.ts        # App configuration
-    └── app.module.ts        # App module
+├── tsconfig.base.json       # Base TypeScript configuration
+├── tsconfig.node.json       # Node.js TypeScript configuration
+├── applications/            # Applications directory
+│   └── demo/                # Demo application
+│       ├── BUILD.bazel      # Demo app build configuration
+│       ├── index.html       # Entry HTML file
+│       ├── main.ts          # Application bootstrap file
+│       ├── polyfills.ts     # Browser polyfills
+│       ├── styles.css       # Global styles with Tailwind directives
+│       ├── app/             # Application components
+│       │   ├── app.component.ts
+│       │   ├── app.component.html
+│       │   ├── app.component.spec.ts
+│       │   └── app.config.ts
+│       └── assets/          # Static assets
+└── tools/                   # Bazel build tools
+    ├── BUILD.bazel          # Angular compiler tools
+    ├── karma.bzl            # Karma test configuration
+    ├── ng.bzl               # Angular build rules
+    ├── ts.bzl               # TypeScript project wrapper
+    └── ...
 ```
 
 ## Build Targets
 
 The `ng_application` macro creates the following targets:
 
-- **`//angular-ngc:app`** - Default production build (minified, optimized)
-- **`//angular-ngc:prod`** - Production build (same as `:app`)
-- **`//angular-ngc:dev`** - Development build (unminified, faster builds)
-- **`//angular-ngc:test`** - Run unit tests with Karma
-- **`//angular-ngc:serve`** - Start development server
-- **`//angular-ngc:serve-prod`** - Start production server
-- **`//angular-ngc:styles`** - Process Tailwind CSS only
+- **`//angular-ngc/applications/demo:app`** - Default production build (minified, optimized)
+- **`//angular-ngc/applications/demo:prod`** - Production build (same as `:app`)
+- **`//angular-ngc/applications/demo:dev`** - Development build (unminified, faster builds)
+- **`//angular-ngc/applications/demo:test`** - Run unit tests with Karma
+- **`//angular-ngc/applications/demo:serve`** - Start development server
+- **`//angular-ngc/applications/demo:serve-prod`** - Start production server
+- **`//angular-ngc/applications/demo:styles`** - Process Tailwind CSS only
 
 ### Running Targets
 
 ```bash
 # Build production bundle
-bazel build //angular-ngc:app
+bazel build //angular-ngc/applications/demo:app
 
 # Build development bundle
-bazel build //angular-ngc:dev
+bazel build //angular-ngc/applications/demo:dev
 
 # Run tests
-bazel test //angular-ngc:test
+bazel test //angular-ngc/applications/demo:test
 
 # Start development server (with history API support)
-bazel run //angular-ngc:serve
+bazel run //angular-ngc/applications/demo:serve
 
 # Process CSS only
-bazel build //angular-ngc:styles
+bazel build //angular-ngc/applications/demo:styles
 ```
 
 ## Build Output Structure
 
-After building with `bazel build //angular-ngc:app`, the output in `bazel-bin/angular-ngc/prod/` contains:
+After building with `bazel build //angular-ngc/applications/demo:app`, the output in `bazel-bin/angular-ngc/applications/demo/prod/` contains:
 
 ```
 prod/
@@ -118,7 +127,7 @@ prod/
 
 ### Angular Application Build
 
-The `ng_application` macro (defined in `/defs.bzl`) orchestrates the build:
+The `ng_application` macro (defined in `angular-ngc/defs.bzl`) orchestrates the build:
 
 1. **TypeScript Compilation** - Compiles Angular components and services
 2. **CSS Processing** - Processes Tailwind CSS with tree-shaking
@@ -174,14 +183,14 @@ These versions ensure compatibility with Angular 20's requirements (Node.js 20+ 
 
 ### Adding New Components
 
-1. Create component files in `app/` directory
-2. Import and register in `app.module.ts` or use standalone components
-3. Build: `bazel build //angular-ngc:app`
+1. Create component files in `applications/demo/app/` directory
+2. Import and register in `app.config.ts` or use standalone components
+3. Build: `bazel build //angular-ngc/applications/demo:app`
 
 ### Adding Tailwind Classes
 
-1. Add Tailwind utility classes to your HTML/TypeScript files
-2. Run `bazel build //angular-ngc:app`
+1. Add Tailwind utility classes to your HTML/TypeScript files in `applications/demo/`
+2. Run `bazel build //angular-ngc/applications/demo:app`
 3. The new classes will automatically be included in the generated CSS
 
 No separate compilation step needed!
@@ -190,12 +199,12 @@ No separate compilation step needed!
 
 Run tests with:
 ```bash
-bazel test //angular-ngc:test
+bazel test //angular-ngc/applications/demo:test
 ```
 
 For interactive debugging:
 ```bash
-bazel run //angular-ngc:test.server
+bazel run //angular-ngc/applications/demo:test.server
 ```
 
 ## Important Notes
@@ -261,7 +270,7 @@ If Tailwind classes don't appear in the generated CSS:
 ```bash
 # Rebuild from scratch
 bazel clean
-bazel build //angular-ngc:app
+bazel build //angular-ngc/applications/demo:app
 
 # Verify your file is in the glob pattern
 # Files must match: app/**/*.html or app/**/*.ts
@@ -275,10 +284,10 @@ cd angular-ngc
 pnpm install
 
 # Verbose build output
-bazel build //angular-ngc:app --verbose_failures
+bazel build //angular-ngc/applications/demo:app --verbose_failures
 
 # Check for sandbox issues
-bazel build //angular-ngc:app --sandbox_debug
+bazel build //angular-ngc/applications/demo:app --sandbox_debug
 ```
 
 ### Port Already in Use

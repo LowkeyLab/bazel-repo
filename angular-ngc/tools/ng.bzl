@@ -14,7 +14,7 @@ def ng_project(name, **kwargs):
         name = name,
 
         # Compiler
-        tsc = "//tools/angular:ngc",
+        tsc = "//angular-ngc/tools:ngc",
         supports_workers = False,
 
         # Any other ts_project() or generic args
@@ -30,10 +30,10 @@ def ng_esbuild(name, **kwargs):
 
     esbuild(
         name = name,
-        config = "//tools/angular:ngc.esbuild.mjs",
+        config = "//angular-ngc/tools:ngc.esbuild.mjs",
         deps = deps + [
-            "//:node_modules/@angular/compiler-cli",
-            "//:node_modules/@babel/core",
+            "//angular-ngc:node_modules/@angular/compiler-cli",
+            "//angular-ngc:node_modules/@babel/core",
         ],
         **kwargs
     )

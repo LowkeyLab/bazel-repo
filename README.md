@@ -51,62 +51,66 @@ bazel test //...
 
 ## 📦 NPM Projects
 
-All NPM projects use **PNPM workspaces** with centralized dependency management.
+All NPM projects are self-contained with their own dependencies and tooling.
 
 ### Angular Test Application
 
-Modern Angular 20 application with Tailwind CSS.
+Modern Angular 20 application with Tailwind CSS, demonstrating a standalone Angular project integrated with Bazel.
 
 **Location:** `angular-ngc/`
+
+**Setup:**
+```bash
+cd angular-ngc
+pnpm install
+```
 
 **Commands:**
 ```bash
 # Build production bundle
-bazel build //angular-ngc:app
+bazel build //angular-ngc/applications/demo:app
 
 # Start dev server
-bazel run //angular-ngc:serve
+bazel run //angular-ngc/applications/demo:serve
 
 # Run tests
-bazel test //angular-ngc:test
+bazel test //angular-ngc/applications/demo:test
 ```
 
-**Tech Stack:** Angular 20, Tailwind CSS 3.4, esbuild, TypeScript 5.8
+**Tech Stack:** Angular 20, Tailwind CSS 4, esbuild, TypeScript 5.8
+
+**Key Features:**
+- Self-contained project with own `package.json` and `pnpm-workspace.yaml`
+- Custom Bazel build rules in `angular-ngc/tools/`
+- Demo application in `angular-ngc/applications/demo/`
+- TypeScript configurations in `angular-ngc/tsconfig*.json`
 
 📖 See [angular-ngc/README.md](./angular-ngc/README.md) for details.
 
 ### Managing NPM Dependencies
 
-**Add dependencies:**
+Each NPM project manages its own dependencies independently.
+
+**For Angular project:**
 ```bash
-# Add to root package.json
-pnpm add <package-name> -w
+cd angular-ngc
+pnpm add <package-name>
+pnpm install
 ```
 
-**Workspace structure:**
-- All dependencies in root `package.json`
-- Single `pnpm-lock.yaml` at root
-- Individual projects reference workspace packages
-
-**Add new workspace package:**
-1. Create directory: `new-package/`
-2. Add to `pnpm-workspace.yaml`:
-   ```yaml
-   packages:
-     - 'angular-ngc'
-     - 'new-package'
-   ```
-3. Create `new-package/package.json`:
+**Adding a new NPM project:**
+1. Create project directory: `new-project/`
+2. Create `new-project/package.json`:
    ```json
    {
-     "name": "@bazel-repo/new-package",
+     "name": "@bazel-repo/new-project",
      "version": "0.0.0",
      "private": true
    }
    ```
-4. Add dependencies to root `package.json`
-5. Create `new-package/BUILD.bazel`
-6. Run `pnpm install`
+3. Create `new-project/pnpm-workspace.yaml` if needed
+4. Create `new-project/BUILD.bazel` with build rules
+5. Run `pnpm install` in the project directory
 
 ---
 
@@ -164,7 +168,7 @@ bazel build //...
 
 # Build specific target
 bazel build //nicknamer/server/bin
-bazel build //angular-ngc:app
+bazel build //angular-ngc/applications/demo:app
 ```
 
 ### Testing
@@ -193,7 +197,8 @@ bazel run //nicknamer/server/bin:push_image
 # Clean build cache
 bazel clean
 
-# Re-install NPM dependencies
+# Re-install NPM dependencies (for Angular project)
+cd angular-ngc
 pnpm install
 
 # Repin Rust dependencies
