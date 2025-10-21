@@ -105,6 +105,7 @@ use_repo(multitool, "multitool")
 # Hermetic C++ toolchain, to relieve the dependency on a locally installed CC etc.
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
+    name = "llvm_toolchain",
     llvm_versions = {
         "": "15.0.6",
         "darwin-aarch64": "15.0.7",
