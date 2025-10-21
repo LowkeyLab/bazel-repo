@@ -198,29 +198,6 @@ pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnecti
     Ok(db)
 }
 
-/// Legacy function for backwards compatibility.
-/// Prefer using `setup_db_with_global_container()` for better performance.
-#[deprecated(note = "Use setup_db_with_global_container() instead for shared container")]
-pub async fn setup_container() -> anyhow::Result<testcontainers::ContainerAsync<postgres::Postgres>>
-{
-    let container = postgres::Postgres::default().start().await?;
-    Ok(container)
-}
-
-/// Legacy function for backwards compatibility.
-/// Prefer using `setup_db_with_global_container()` for better performance.
-#[deprecated(note = "Use setup_db_with_global_container() instead for shared container")]
-pub async fn setup_db(
-    container: &testcontainers::ContainerAsync<postgres::Postgres>,
-) -> anyhow::Result<DatabaseConnection> {
-    let host = container.get_host().await?;
-    let port = container.get_host_port_ipv4(5432).await?;
-    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
-    let db = Database::connect(&db_url).await?;
-    migration::Migrator::up(&db, None).await?;
-    Ok(db)
-}
-
 /// Stub middleware that injects a logged-in user for testing.
 /// This middleware always injects a CurrentUser with the specified username.
 pub async fn stub_user_middleware(mut request: Request<Body>, next: Next) -> Response {
