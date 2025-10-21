@@ -22,9 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
-      - uses: jdx/mise-action@d28f84b563119c210aad0b09275bd66c07732847
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
       
       - name: Copy API key to root .bazelrc
         run: |
@@ -52,4 +57,8 @@ jobs:
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
       - name: Run Bazel tests
-        run: bazel test //...
+        run: |
+          bazel \
+            --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc \
+            --config=ci \
+            test //...

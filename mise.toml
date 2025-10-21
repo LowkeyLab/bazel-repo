@@ -1,5 +1,5 @@
 [tools]
-bazel = "8.4.2"
+bazelisk = "1.27.0"
 
 [env]
 _.path = ["./.bin"] # Add local bin to PATH
