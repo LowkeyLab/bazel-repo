@@ -11,6 +11,7 @@ rust_test_suite(
         "INSTA_WORKSPACE_ROOT": ".",
     },
     shared_srcs = glob(["common/**"]),
+    tags = ["requires-network"],
     deps = [
         "//nicknamer/migration/lib",
         "//nicknamer/server/lib",
@@ -27,5 +28,4 @@ rust_test_suite(
         "@crates//:tracing-subscriber",
         "@rules_rust//tools/runfiles",
     ],
-    tags=["requires-network"]
 )
