@@ -27,4 +27,5 @@ rust_test_suite(
         "@crates//:tracing-subscriber",
         "@rules_rust//tools/runfiles",
     ],
+    tags=["requires-network"]
 )
