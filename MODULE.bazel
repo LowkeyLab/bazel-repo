@@ -172,7 +172,6 @@ types.requirements(
 )
 use_repo(types, "pip_types")
 
-
 #########################
 # Java and other JVM languages:
 # https://github.com/bazelbuild/rules_jvm_external/blob/master/examples/bzlmod/MODULE.bazel
