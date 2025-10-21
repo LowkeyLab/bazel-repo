@@ -11,6 +11,7 @@ rust_test_suite(
         "INSTA_WORKSPACE_ROOT": ".",
     },
     shared_srcs = glob(["common/**"]),
+    tags = ["requires-network"],
     deps = [
         "//nicknamer/migration/lib",
         "//nicknamer/server/lib",

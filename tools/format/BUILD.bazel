@@ -1,0 +1,43 @@
+"""BUILD definition for the formatter binary
+
+This is in its own package because it has so many loading-time symbols,
+we don't want to trigger eager fetches of these for builds that don't want to run format.
+"""
+
+load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
+load("@npm//:prettier/package_json.bzl", prettier = "bin")
+load("@rules_java//java:defs.bzl", "java_binary")
+
+package(default_visibility = ["//:__subpackages__"])
+
+prettier.prettier_binary(
+    name = "prettier",
+    env = {"BAZEL_BINDIR": "."},
+)
+
+java_binary(
+    name = "java-format",
+    jvm_flags = [
+        "--add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "--add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "--add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "--add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "--add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+    ],
+    main_class = "com.google.googlejavaformat.java.Main",
+    runtime_deps = ["@google-java-format//jar"],
+)
+
+# Creates a `bazel run`nable target that aggregates formatters so it may run against
+# any files in the repository regardless of language.
+format_multirun(
+    name = "format",
+    cc = "@llvm_toolchain_llvm//:bin/clang-format",
+    go = "@aspect_rules_lint//format:gofumpt",
+    java = ":java-format",
+    javascript = ":prettier",
+    markdown = ":prettier",
+    python = "@aspect_rules_lint//format:ruff",
+    rust = "@rules_rust//tools/upstream_wrapper:rustfmt",
+    starlark = "@buildifier_prebuilt//:buildifier",
+)

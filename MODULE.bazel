@@ -6,55 +6,191 @@ module(
     compatibility_level = 1,
 )
 
-bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "rules_pkg", version = "1.1.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.21.2")
-bazel_dep(name = "bazel_skylib", version = "1.8.2")
-
-# --- JavaScript/TypeScript Configuration ---
-bazel_dep(name = "aspect_rules_js", version = "2.6.2")
-bazel_dep(name = "aspect_rules_ts", version = "3.7.0")
+bazel_dep(name = "aspect_rules_lint", version = "1.10.2")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.23.0")
+bazel_dep(name = "aspect_rules_js", version = "2.6.2")
 bazel_dep(name = "aspect_rules_swc", version = "2.5.0")
+bazel_dep(name = "aspect_rules_ts", version = "3.7.0")
+
+bazel_dep(name = "bazel_env.bzl", version = "0.1.0", dev_dependency = True)
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "bazelrc-preset.bzl", version = "1.4.0")
+bazel_dep(name = "buildifier_prebuilt", version = "8.2.0.2")
+bazel_dep(name = "rules_java", version = "8.16.1")
+bazel_dep(name = "rules_multitool", version = "1.9.0")
 bazel_dep(name = "rules_nodejs", version = "6.5.2")
-
-# Register TypeScript toolchain
-ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext")
-ts_ext.deps(ts_version = "5.6.3")
-use_repo(ts_ext, "npm_typescript")
-
-node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
-node.toolchain(node_version = "20.19.5")
-use_repo(node, "nodejs_toolchains")
-
-pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm", dev_dependency = True)
-use_repo(pnpm, "pnpm")
-
-npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
-npm.npm_translate_lock(
-    name = "npm",
-    pnpm_lock = "//:pnpm-lock.yaml",
-    npmrc = "//:.npmrc",
-    verify_node_modules_ignored = "//:.bazelignore",
-)
-use_repo(npm, "npm")
+bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "rules_pkg", version = "1.1.0")
+bazel_dep(name = "rules_rust", version = "0.66.0")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "rules_buf", version = "0.5.2")
+bazel_dep(name = "toolchains_protoc", version = "0.3.6")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_jvm_external", version = "6.7")
+bazel_dep(name = "toolchains_llvm", version = "1.1.2")
+bazel_dep(name = "rules_mypy", version = "0.29.0")
+bazel_dep(name = "rules_python", version = "1.6.3")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
+
 http_archive(
-    name = "swagger_ui",
-    urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
-    integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
-    strip_prefix = "swagger-ui-5.17.14",
-    build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
-    patches = ["//3rdparty/swagger_ui:fix.patch"],
-    patch_args = [
-        "-p1",
-    ],
+    name = "net_sourceforge_pmd",
+    build_file_content = """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
+    sha256 = "21acf96d43cb40d591cacccc1c20a66fc796eaddf69ea61812594447bac7a11d",
+    strip_prefix = "pmd-bin-6.55.0/lib",
+    url = "https://github.com/pmd/pmd/releases/download/pmd_releases/6.55.0/pmd-bin-6.55.0.zip",
 )
 
+http_jar(
+    name = "com_puppycrawl_tools_checkstyle",
+    sha256 = "51c34d738520c1389d71998a9ab0e6dabe0d7cf262149f3e01a7294496062e42",
+    url = "https://github.com/checkstyle/checkstyle/releases/download/checkstyle-10.17.0/checkstyle-10.17.0-all.jar",
+)
+
+http_jar(
+    name = "google-java-format",
+    sha256 = "33068bbbdce1099982ec1171f5e202898eb35f2919cf486141e439fc6e3a4203",
+    url = "https://github.com/google/google-java-format/releases/download/v1.17.0/google-java-format-1.17.0-all-deps.jar",
+)
+
+#########################
+# JavaScript and TypeScript
+# https://github.com/aspect-build/rules_js/tree/main/e2e/bzlmod
+# https://github.com/aspect-build/rules_ts/tree/main/e2e/bzlmod
+
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+node.toolchain(
+    include_headers = True,
+    node_version = "20.18.0",
+)
+use_repo(node, "nodejs_toolchains")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+
+# Allows developers to get a local node_modules tree, using
+# bazel run -- @pnpm//:pnpm --dir $PWD install
+use_repo(pnpm, "pnpm")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "npm",
+    lifecycle_hooks_execution_requirements = {
+        "lmdb": ["no-remote-exec"],  # requires non-hermetic GLIBCXX_3.4.29 which is not found on remote executors but is available on host
+    },
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//:pnpm-lock.yaml",
+)
+use_repo(npm, "npm")
+
+rules_ts_ext = use_extension(
+    "@aspect_rules_ts//ts:extensions.bzl",
+    "ext",
+    dev_dependency = True,
+)
+rules_ts_ext.deps()
+use_repo(rules_ts_ext, "npm_typescript")
+
+#########################
+# Fetch tools
+# https://blog.aspect.build/run-tools-installed-by-bazel
+multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
+multitool.hub(lockfile = "//tools:tools.lock.json")
+use_repo(multitool, "multitool")
+
+#########################
+# Hermetic C++ toolchain, to relieve the dependency on a locally installed CC etc.
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+    llvm_versions = {
+        "": "15.0.6",
+        "darwin-aarch64": "15.0.7",
+        "darwin-x86_64": "15.0.7",
+    },
+)
+use_repo(llvm, "llvm_toolchain", "llvm_toolchain_llvm")
+
+#########################
+# Protobuf and gRPC
+# https://github.com/aspect-build/toolchains_protoc
+
+buf = use_extension("@rules_buf//buf:extensions.bzl", "buf")
+buf.toolchains(version = "v1.34.0")  #see https://github.com/bufbuild/buf/releases
+use_repo(buf, "rules_buf_toolchains")
+
+# This Aspect-provided protobuf toolchain removes the need to compile ProtoC from
+# source, speeding up builds where a cached protoc isn't used.
+protoc = use_extension("@toolchains_protoc//protoc:extensions.bzl", "protoc")
+protoc.toolchain(
+    google_protobuf = "com_google_protobuf",
+    version = "v28.2",
+)
+use_repo(protoc, "com_google_protobuf", "toolchains_protoc_hub")
+
+register_toolchains("@llvm_toolchain//:all")
+
+register_toolchains("@toolchains_protoc_hub//:all")
+
+register_toolchains("//tools/toolchains:all")
+
+#########################
+# Python
+# https://github.com/bazelbuild/rules_python/tree/main/examples/bzlmod
+
+# This pattern is repeated across many languages: First, bzlmod is used to bring
+# in language support. Then, an extension is grabbed from that language support
+# repository and used to configure the language version and additional
+# dependencies using a language-specific mechanism popular in the relevant
+# ecosystem.
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    python_version = "3.11",
+)
+
+pip.parse(
+    hub_name = "pip",
+    python_version = "3.11",
+    requirements_lock = "//requirements:all.txt",
+)
+use_repo(pip, "pip")
+
+# rules_mypy co-initializes with rules_python in order to discover types and
+# stubs packages in your requirements lock and create a mapping from normal
+# requirements to stub requirements which can be used to add appropriate stub
+# dependencies automatically during typechecking.
+types = use_extension("@rules_mypy//mypy:types.bzl", "types")
+types.requirements(
+    name = "pip_types",
+    pip_requirements = "@pip//:requirements.bzl",
+    requirements_txt = "//requirements:all.txt",
+)
+use_repo(types, "pip_types")
+
+#########################
+# Java and other JVM languages:
+# https://github.com/bazelbuild/rules_jvm_external/blob/master/examples/bzlmod/MODULE.bazel
+# https://github.com/bazelbuild/rules_jvm_external#pinning-artifacts-and-integration-with-bazels-downloader
+
+# In the Maven support variation, the dependencies are conveniently listed here
+# in the MODULE.bazel file.
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    artifacts = [
+        "com.google.protobuf:protobuf-java:4.28.0",
+        "io.grpc:grpc-all:1.51.1",
+    ],
+    lock_file = "//:maven_install.json",
+)
+use_repo(maven, "maven")
+
 # --- Rust Configuration ---
-bazel_dep(name = "rules_rust", version = "0.66.0")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
@@ -64,7 +200,20 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
+http_archive(
+    name = "swagger_ui",
+    build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
+    integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
+    patch_args = [
+        "-p1",
+    ],
+    patches = ["//3rdparty/swagger_ui:fix.patch"],
+    strip_prefix = "swagger-ui-5.17.14",
+    urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
+)
+
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+
 inject_repo(crate, "swagger_ui")
 
 # Regular dependencies
@@ -179,28 +328,31 @@ crate.spec(
     version = "5.4.0",
 )
 crate.spec(
+    features = [
+        "axum",
+        "debug-embed",
+    ],
     package = "utoipa-swagger-ui",
     version = "9.0.2",
-    features = ["axum", "debug-embed"],
 )
 crate.annotation(
-    crate = "utoipa-swagger-ui",
-    gen_build_script = "off",
-    patch_args = [
-        "-p1",
-    ],
-    patches = ["//3rdparty/utoipa_swagger_ui:fix.patch"],
     additive_build_file_content = """
 filegroup(
     name = "dist",
     srcs = ["@swagger_ui//:dist"],
 )
 """,
+    compile_data = [":dist"],
+    crate = "utoipa-swagger-ui",
+    gen_build_script = "off",
+    patch_args = [
+        "-p1",
+    ],
+    patches = ["//3rdparty/utoipa_swagger_ui:fix.patch"],
     rustc_env = {
         # Set this to make sure that RustEmbed points to the parent dir of the swagger ui dist
         "CARGO_MANIFEST_DIR": "$(execpath :dist)/..",
     },
-    compile_data = [":dist"],
 )
 crate.spec(
     features = ["v4"],
@@ -227,12 +379,11 @@ crate.spec(
     package = "testcontainers-modules",
     version = "0.13.0",
 )
-
 crate.from_specs()
 use_repo(crate, "crates")
 
-# --- OCI Configuration ---
-bazel_dep(name = "rules_oci", version = "2.2.6")
+##########################
+# Container images
 oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci_extension.pull(
     name = "distroless_cc",

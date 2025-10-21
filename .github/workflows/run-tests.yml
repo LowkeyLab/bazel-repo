@@ -25,16 +25,31 @@ jobs:
       - uses: jdx/mise-action@d28f84b563119c210aad0b09275bd66c07732847
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Copy API key to root .bazelrc
+        run: |
+          echo "=== Adding BuildBuddy API key to .bazelrc ==="
+          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+
+      - name: Install tools via bazel
+        run: |
+          echo "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin" >> $GITHUB_PATH
 
       - name: Log in to Docker Hub
         uses: docker/login-action@28fdb31ff34708d19615a74d67103ddc2ea9725c
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Setup Testcontainers Cloud Client
+        uses: atomicjar/testcontainers-cloud-setup-action@7d1bab3fdfe0027c91936deca6b924d8a8a7a04d
+        with:
+            token: ${{ secrets.TC_CLOUD_TOKEN }}
           
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
       - name: Run Bazel tests
-        run: bazel test //... --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
-        env: 
-          BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}
+        run: bazel test //...

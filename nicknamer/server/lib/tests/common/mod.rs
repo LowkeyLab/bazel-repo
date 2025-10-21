@@ -11,6 +11,12 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::{postgres, testcontainers};
+use tokio::sync::OnceCell;
+
+/// Global container instance shared across all tests in a binary.
+/// Initialized only once per test binary run using tokio's OnceCell.
+static GLOBAL_CONTAINER: OnceCell<testcontainers::ContainerAsync<postgres::Postgres>> =
+    OnceCell::const_new();
 
 /// Headers that vary between test runs and should be filtered out for stable snapshots.
 pub const VARIABLE_HEADERS: &[&str] = &[
@@ -101,20 +107,71 @@ pub fn filter_variable_headers(headers: &axum::http::HeaderMap) -> BTreeMap<Stri
         .collect()
 }
 
-pub async fn setup_container() -> anyhow::Result<testcontainers::ContainerAsync<postgres::Postgres>>
-{
-    let container = postgres::Postgres::default().start().await?;
-    Ok(container)
+/// Initialize the global container once per test binary run.
+/// This function is safe to call multiple times - the container will only be created once.
+/// Uses tokio's OnceCell for async-aware single initialization.
+async fn init_global_container() -> &'static testcontainers::ContainerAsync<postgres::Postgres> {
+    GLOBAL_CONTAINER
+        .get_or_init(|| async {
+            postgres::Postgres::default()
+                .start()
+                .await
+                .expect("Failed to start PostgreSQL container")
+        })
+        .await
 }
 
-pub async fn setup_db(
-    container: &testcontainers::ContainerAsync<postgres::Postgres>,
-) -> anyhow::Result<DatabaseConnection> {
+/// Setup a new database connection using the shared global container.
+/// Each test gets its own isolated database within the shared PostgreSQL container.
+/// This approach provides test isolation while minimizing resource usage.
+pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnection> {
+    use sea_orm::ConnectOptions;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    // Generate a unique database name for each test
+    static DB_COUNTER: AtomicU32 = AtomicU32::new(0);
+    let db_num = DB_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let db_name = format!("test_db_{}", db_num);
+
+    let container = init_global_container().await;
     let host = container.get_host().await?;
     let port = container.get_host_port_ipv4(5432).await?;
-    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
-    let db = Database::connect(&db_url).await?;
+
+    // First, connect to the default postgres database to create a new test database
+    // Use minimal connection pool settings for the admin connection
+    let admin_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+    let mut admin_opt = ConnectOptions::new(admin_url);
+    admin_opt
+        .max_connections(1)
+        .min_connections(1)
+        .sqlx_logging(false);
+    let admin_db = Database::connect(admin_opt).await?;
+
+    // Create a new database for this test
+    use sea_orm::ConnectionTrait;
+    admin_db
+        .execute(sea_orm::Statement::from_string(
+            sea_orm::DatabaseBackend::Postgres,
+            format!("CREATE DATABASE {}", db_name),
+        ))
+        .await?;
+
+    // Drop the admin connection
+    drop(admin_db);
+
+    // Connect to the newly created test database with minimal connection pool
+    let db_url = format!("postgres://postgres:postgres@{}:{}/{}", host, port, db_name);
+    let mut db_opt = ConnectOptions::new(db_url);
+    db_opt
+        .max_connections(5)
+        .min_connections(1)
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .sqlx_logging(false);
+    let db = Database::connect(db_opt).await?;
+
+    // Run migrations on the test database
     migration::Migrator::up(&db, None).await?;
+
     Ok(db)
 }
 

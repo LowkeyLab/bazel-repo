@@ -1,0 +1,44 @@
+"""Define linting tools
+"""
+
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+load("@rules_java//java:defs.bzl", "java_binary")
+
+package(default_visibility = ["//:__subpackages__"])
+
+alias(
+    name = "buf",
+    actual = "@rules_buf_toolchains//:buf",
+)
+
+eslint_bin.eslint_binary(name = "eslint")
+
+java_binary(
+    name = "pmd",
+    main_class = "net.sourceforge.pmd.PMD",
+    runtime_deps = ["@net_sourceforge_pmd"],
+)
+
+native_binary(
+    name = "clang_tidy",
+    src = select(
+        {
+            "@bazel_tools//src/conditions:linux_x86_64": "@llvm_toolchain_llvm//:bin/clang-tidy",
+            "@bazel_tools//src/conditions:linux_aarch64": "@llvm_toolchain_llvm//:bin/clang-tidy",
+            "@bazel_tools//src/conditions:darwin_x86_64": "@llvm_toolchain_llvm//:bin/clang-tidy",
+            "@bazel_tools//src/conditions:darwin_arm64": "@llvm_toolchain_llvm//:bin/clang-tidy",
+            # llvm_toolchain doesn't support windows: https://github.com/bazel-contrib/toolchains_llvm/issues/4
+            # as a workaround, you can download exes from
+            # https://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.6 and make available locally.
+            "@bazel_tools//src/conditions:windows_x64": "clang-tidy.exe",
+        },
+    ),
+    out = "clang_tidy",
+)
+
+java_binary(
+    name = "checkstyle",
+    main_class = "com.puppycrawl.tools.checkstyle.Main",
+    runtime_deps = ["@com_puppycrawl_tools_checkstyle//jar"],
+)

@@ -1,1 +1,35 @@
 # BUILD file for Bazel tools and extensions
+load("@bazel_env.bzl", "bazel_env")
+load("@bazelrc-preset.bzl", "bazelrc_preset")
+load("@multitool//:tools.bzl", MULTITOOLS = "TOOLS")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
+
+bazelrc_preset(name = "preset")
+
+npm_link_all_packages(name = "node_modules")
+
+angular_cli.ng_binary(name = "ng")
+
+# Tools found in this package
+LOCAL_TOOLS = {
+    t: "//tools:" + t
+    for t in [
+        "ng",
+    ]
+}
+
+bazel_env(
+    name = "bazel_env",
+    toolchains = {
+        "nodejs": "@nodejs_toolchains//:resolved_toolchain",
+        "jdk": "@rules_java//toolchains:current_host_java_runtime",
+    },
+    tools = {
+        "buildifier": "@buildifier_prebuilt//:buildifier",
+        "jar": "$(JAVABASE)/bin/jar",
+        "java": "$(JAVA)",
+        "node": "$(NODE_PATH)",
+        "pnpm": "@pnpm",
+    } | LOCAL_TOOLS | MULTITOOLS,
+)

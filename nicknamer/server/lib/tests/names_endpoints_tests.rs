@@ -15,18 +15,16 @@ use common::HttpResponseSnapshot;
 
 /// Test context for endpoint tests.
 pub struct TestContext {
-    #[allow(dead_code)] // container is kept to ensure it's not dropped
-    pub container: testcontainers::ContainerAsync<postgres::Postgres>,
     pub db: DatabaseConnection,
 }
 
-/// Setup function for endpoint tests using PostgreSQL container.
+/// Setup function for endpoint tests using shared PostgreSQL container.
+/// The container is created once per test binary run and reused across all tests.
 async fn setup() -> anyhow::Result<TestContext> {
     // Allow multiple calls to init for tests.
     let _ = tracing_subscriber::fmt().try_init();
-    let container = common::setup_container().await?;
-    let db = common::setup_db(&container).await?;
-    Ok(TestContext { db, container })
+    let db = common::setup_db_with_global_container().await?;
+    Ok(TestContext { db })
 }
 
 /// Test helper to create test names in the database.
