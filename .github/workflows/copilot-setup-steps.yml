@@ -31,10 +31,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Set up mise (tool version manager)
-        uses: jdx/mise-action@d28f84b563119c210aad0b09275bd66c07732847
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
 
       - name: Copy API key to root .bazelrc
         run: |
@@ -50,9 +54,6 @@ jobs:
 
       - name: Verify tool installations
         run: |
-          echo "=== Mise tool versions ==="
-          mise ls
-          
           echo "=== Java version ==="
           java -version
           
