@@ -54,9 +54,6 @@ jobs:
 
       - name: Verify tool installations
         run: |
-          echo "=== Mise tool versions ==="
-          mise ls
-          
           echo "=== Java version ==="
           java -version
           
