@@ -9,14 +9,14 @@ use nicknamer_server::auth::CurrentUser;
 use sea_orm::{Database, DatabaseConnection};
 use serde::Serialize;
 use std::collections::BTreeMap;
-use std::sync::OnceLock;
 use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use testcontainers_modules::{postgres, testcontainers};
+use tokio::sync::OnceCell;
 
 /// Global container instance shared across all tests in a binary.
-/// Initialized only once per test binary run using OnceLock.
-static GLOBAL_CONTAINER: OnceLock<testcontainers::ContainerAsync<postgres::Postgres>> =
-    OnceLock::new();
+/// Initialized only once per test binary run using tokio's OnceCell.
+static GLOBAL_CONTAINER: OnceCell<testcontainers::ContainerAsync<postgres::Postgres>> =
+    OnceCell::const_new();
 
 /// Headers that vary between test runs and should be filtered out for stable snapshots.
 pub const VARIABLE_HEADERS: &[&str] = &[
@@ -109,39 +109,16 @@ pub fn filter_variable_headers(headers: &axum::http::HeaderMap) -> BTreeMap<Stri
 
 /// Initialize the global container once per test binary run.
 /// This function is safe to call multiple times - the container will only be created once.
-/// Uses a simple mutex-based approach to ensure single initialization.
+/// Uses tokio's OnceCell for async-aware single initialization.
 async fn init_global_container() -> &'static testcontainers::ContainerAsync<postgres::Postgres> {
-    // Try to get the existing container first (fast path)
-    if let Some(container) = GLOBAL_CONTAINER.get() {
-        return container;
-    }
-
-    // Slow path: need to initialize the container
-    // Use a static mutex to ensure only one thread initializes
-    use std::sync::Mutex;
-    static INIT_LOCK: Mutex<()> = Mutex::new(());
-
-    let _guard = INIT_LOCK.lock().unwrap();
-
-    // Check again after acquiring the lock (another thread might have initialized)
-    if let Some(container) = GLOBAL_CONTAINER.get() {
-        return container;
-    }
-
-    // Create the container
-    let container = postgres::Postgres::default()
-        .start()
+    GLOBAL_CONTAINER
+        .get_or_init(|| async {
+            postgres::Postgres::default()
+                .start()
+                .await
+                .expect("Failed to start PostgreSQL container")
+        })
         .await
-        .expect("Failed to start PostgreSQL container");
-
-    // Set the container (should always succeed since we hold the lock)
-    GLOBAL_CONTAINER
-        .set(container)
-        .expect("Failed to set global container");
-
-    GLOBAL_CONTAINER
-        .get()
-        .expect("Container should be initialized")
 }
 
 /// Setup a new database connection using the shared global container.
