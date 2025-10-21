@@ -7,8 +7,8 @@ pub(crate) mod v1 {
     };
 
     use axum::{
-        middleware::{from_fn, from_fn_with_state},
         Router,
+        middleware::{from_fn, from_fn_with_state},
     };
 
     use tower::ServiceBuilder;
