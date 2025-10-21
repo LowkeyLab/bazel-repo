@@ -30,6 +30,8 @@ bazel_dep(name = "toolchains_protoc", version = "0.3.6")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_jvm_external", version = "6.7")
 bazel_dep(name = "toolchains_llvm", version = "1.1.2")
+bazel_dep(name = "rules_mypy", version = "0.29.0")
+bazel_dep(name = "rules_python", version = "1.6.3")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -133,6 +135,43 @@ register_toolchains("@llvm_toolchain//:all")
 register_toolchains("@toolchains_protoc_hub//:all")
 
 register_toolchains("//tools/toolchains:all")
+
+#########################
+# Python
+# https://github.com/bazelbuild/rules_python/tree/main/examples/bzlmod
+
+# This pattern is repeated across many languages: First, bzlmod is used to bring
+# in language support. Then, an extension is grabbed from that language support
+# repository and used to configure the language version and additional
+# dependencies using a language-specific mechanism popular in the relevant
+# ecosystem.
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    python_version = "3.11",
+)
+
+pip.parse(
+    hub_name = "pip",
+    python_version = "3.11",
+    requirements_lock = "//requirements:all.txt",
+)
+use_repo(pip, "pip")
+
+# rules_mypy co-initializes with rules_python in order to discover types and
+# stubs packages in your requirements lock and create a mapping from normal
+# requirements to stub requirements which can be used to add appropriate stub
+# dependencies automatically during typechecking.
+types = use_extension("@rules_mypy//mypy:types.bzl", "types")
+types.requirements(
+    name = "pip_types",
+    pip_requirements = "@pip//:requirements.bzl",
+    requirements_txt = "//requirements:all.txt",
+)
+use_repo(types, "pip_types")
+
 
 #########################
 # Java and other JVM languages:

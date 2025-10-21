@@ -5,9 +5,11 @@
 This is a Bazel-based monorepo containing multiple applications:
 
 ### Nicknamer Server
+
 A web service for managing names with authentication, built using Axum, SeaORM, and PostgreSQL.
 
 Key components:
+
 - `nicknamer/server/` - Main web server with REST API and web UI
 - `nicknamer/migration/` - Database migration utilities using SeaORM
 - `3rdparty/` - Third-party dependencies and build configurations
@@ -21,35 +23,40 @@ Key components:
    ```bash
    curl https://mise.run | sh
    ```
-   
 2. **Install Bazel** using mise:
+
    ```bash
    mise install
    ```
-   
+
    This installs Bazel 8.4.2 as defined in `mise.toml`.
 
 3. **Install NPM dependencies** (if working with frontend code):
+
    ```bash
    bazel run @pnpm -- --dir $PWD install
    ```
-   
+
    **Note:** Development tools including Node.js, PNPM, and Rust are managed by Bazel through the `tools/` directory. They do not need to be installed separately via mise.
 
 ### Development Environment
 
 - **Start local development with dependencies**:
+
   ```bash
   bazel run //nicknamer:run_locally
   ```
+
   This starts PostgreSQL in Docker and runs the server with proper environment variables.
 
 - **Build the project**:
+
   ```bash
   bazel build //nicknamer/server/bin
   ```
 
 - **Run tests**:
+
   ```bash
   bazel test //nicknamer/server/lib/tests:tests
   ```
@@ -62,6 +69,7 @@ Key components:
 ## Build System
 
 This project uses **Bazel** as the primary build system with:
+
 - Rust toolchain (2024 edition)
 - Node.js toolchain (20.18.0)
 - PNPM package manager (managed via Bazel)
@@ -70,6 +78,7 @@ This project uses **Bazel** as the primary build system with:
 - Container image building capabilities
 
 Key Bazel concepts:
+
 - `MODULE.bazel` - Main module definition with dependencies
 - `BUILD.bazel` files - Build targets in each package
 - `tools/` - Development tooling managed through Bazel
@@ -78,6 +87,7 @@ Key Bazel concepts:
 ### Development Tools
 
 Tools are managed centrally in the `tools/` directory through Bazel:
+
 - **PNPM**: Run via `bazel run @pnpm -- <args>`
 - **Angular CLI**: Run via `bazel run //tools:ng -- <args>`
 - **Buildifier**: Run via `bazel run //tools:buildifier`
@@ -87,11 +97,13 @@ The `tools/BUILD.bazel` file defines available tools and their configurations.
 ## Testing Instructions
 
 - **Run all tests**:
+
   ```bash
   bazel test //...
   ```
 
 - **Update snapshot tests** (when making intentional changes):
+
   ```bash
   INSTA_UPDATE=always bazel test //nicknamer/server/lib/tests:tests
   ```
@@ -102,6 +114,7 @@ The `tools/BUILD.bazel` file defines available tools and their configurations.
   ```
 
 Test structure:
+
 - Unit tests in `nicknamer/server/lib/tests/`
 - Snapshot testing with `insta` crate
 - Integration tests with `testcontainers` for database testing
@@ -110,6 +123,7 @@ Test structure:
 ## Code Style Guidelines
 
 ### Rust Standards
+
 - Use Rust 2024 edition
 - Follow standard Rust formatting (rustfmt)
 - Use `cargo clippy` recommendations
@@ -117,20 +131,25 @@ Test structure:
 - Use structured logging with `tracing`
 
 ### Formatting
+
 Format all code using the centralized formatting tool:
+
 ```bash
 bazel run //tools/format
 ```
+
 This will format Rust code, BUILD files, and other supported file types.
 
 ### Architecture Patterns
+
 - **Web layer**: Axum for HTTP handling
-- **Database**: SeaORM for type-safe database interactions  
+- **Database**: SeaORM for type-safe database interactions
 - **Templates**: Askama for HTML templating
 - **Authentication**: JWT tokens with bearer auth
 - **API Documentation**: utoipa for OpenAPI specs
 
 ### Dependencies
+
 - Keep dependencies minimal and well-justified
 - Use workspace dependencies defined in `MODULE.bazel`
 - Prefer async/await patterns with Tokio runtime
@@ -143,6 +162,7 @@ This will format Rust code, BUILD files, and other supported file types.
 - **Local development**: Uses Docker Compose (`nicknamer/compose.yaml`)
 
 Migration commands:
+
 ```bash
 # Run migrations (done automatically by run_locally.sh)
 bazel run //nicknamer/migration/bin -- up
@@ -160,8 +180,9 @@ sea-orm-cli migrate generate <migration_name>
 - Validate all user inputs through proper deserialization
 
 Required environment variables for local development:
+
 - `DB_URL`: PostgreSQL connection string
-- `ADMIN_USERNAME`: Admin user credentials  
+- `ADMIN_USERNAME`: Admin user credentials
 - `ADMIN_PASSWORD`: Admin user credentials
 - `JWT_SECRET`: Secret for JWT token signing
 

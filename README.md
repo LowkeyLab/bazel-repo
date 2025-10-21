@@ -15,12 +15,13 @@ A Bazel-based monorepo with Rust backend services and Angular frontend applicati
 ## 🎯 Overview
 
 This monorepo uses Bazel for builds and supports:
-- **Rust** - Backend services with Axum, SeaORM, and PostgreSQL
 
+- **Rust** - Backend services with Axum, SeaORM, and PostgreSQL
 
 ## 📦 Prerequisites
 
 Install using [mise](https://mise.run):
+
 ```bash
 curl https://mise.run | sh
 mise install
@@ -63,6 +64,7 @@ Full-featured web service for managing names with authentication and REST API.
 **Location:** `nicknamer/`
 
 **Commands:**
+
 ```bash
 # Start server with PostgreSQL
 bazel run //nicknamer:run_locally
@@ -80,6 +82,7 @@ INSTA_UPDATE=always bazel test //nicknamer/server/lib/tests:tests
 **Tech Stack:** Axum, SeaORM, PostgreSQL, JWT, OpenAPI/Swagger, Askama Templates
 
 **Environment Variables:**
+
 - `DB_URL` - PostgreSQL connection string
 - `ADMIN_USERNAME` - Admin credentials
 - `ADMIN_PASSWORD` - Admin credentials
@@ -90,6 +93,7 @@ INSTA_UPDATE=always bazel test //nicknamer/server/lib/tests:tests
 ### Managing Rust Dependencies
 
 **Modify dependencies:**
+
 1. Edit `Cargo.toml` in the relevant crate
 2. Regenerate Bazel files:
    ```bash
@@ -174,5 +178,6 @@ GNU Affero General Public License v3.0 (AGPLv3) - See [LICENSE](./LICENSE)
 ---
 
 **Documentation:**
+
 - [AGENTS.md](./AGENTS.md) - Comprehensive project overview
 - [nicknamer/README.md](./nicknamer/README.md) - Nicknamer server details

@@ -36,6 +36,8 @@ format_multirun(
     go = "@aspect_rules_lint//format:gofumpt",
     java = ":java-format",
     javascript = ":prettier",
+    markdown = ":prettier",
     python = "@aspect_rules_lint//format:ruff",
+    rust = "@rules_rust//tools/upstream_wrapper:rustfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
 )
