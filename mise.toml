@@ -1,7 +1,7 @@
 [tools]
 bazel = "8.4.2"
 buildifier = "8.2.1"
-java = "21"
+java = "21.0.8+9.0.LTS"
 node = "22.21.0"
 pnpm = "9"
 
