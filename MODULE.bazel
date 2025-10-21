@@ -118,7 +118,10 @@ use_repo(llvm, "llvm_toolchain", "llvm_toolchain_llvm")
 # https://github.com/aspect-build/toolchains_protoc
 
 buf = use_extension("@rules_buf//buf:extensions.bzl", "buf")
-buf.toolchains(version = "v1.34.0")  #see https://github.com/bufbuild/buf/releases
+buf.toolchains(
+    sha256 = "8d39d81ae5400061bbbb9ce8c2196f039ba04257e9ef5f82de06480a9c5748e0",
+    version = "v1.34.0",
+)
 use_repo(buf, "rules_buf_toolchains")
 
 # This Aspect-provided protobuf toolchain removes the need to compile ProtoC from
