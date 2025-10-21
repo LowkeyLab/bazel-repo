@@ -157,7 +157,10 @@ bazel run @pnpm -- <pnpm-args>
 # Example: Install dependencies
 bazel run @pnpm -- --dir $PWD install
 
-# Format BUILD files
+# Format code (Rust, BUILD files, etc.)
+bazel run //tools/format
+
+# Format BUILD files only
 bazel run //tools:buildifier
 
 # Run Angular CLI

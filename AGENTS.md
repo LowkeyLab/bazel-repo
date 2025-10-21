@@ -116,6 +116,13 @@ Test structure:
 - Prefer explicit error handling with `anyhow::Result`
 - Use structured logging with `tracing`
 
+### Formatting
+Format all code using the centralized formatting tool:
+```bash
+bazel run //tools/format
+```
+This will format Rust code, BUILD files, and other supported file types.
+
 ### Architecture Patterns
 - **Web layer**: Axum for HTTP handling
 - **Database**: SeaORM for type-safe database interactions  
@@ -170,10 +177,11 @@ The application serves on port 8080 by default.
 ## Development Workflow
 
 1. Make code changes
-2. Run tests: `bazel test //nicknamer/server/lib/tests:tests`
-3. Test locally: `bazel run //nicknamer:run_locally`
-4. Build image: `bazel build //nicknamer/server/bin:image`
-5. Ensure all tests pass before committing
+2. Format code: `bazel run //tools/format`
+3. Run tests: `bazel test //nicknamer/server/lib/tests:tests`
+4. Test locally: `bazel run //nicknamer:run_locally`
+5. Build image: `bazel build //nicknamer/server/bin:image`
+6. Ensure all tests pass before committing
 
 ## Common Commands
 
@@ -187,7 +195,10 @@ bazel test //...
 # Build everything
 bazel build //...
 
-# Format BUILD files
+# Format all code
+bazel run //tools/format
+
+# Format BUILD files only
 bazel run //tools:buildifier
 
 # Check for build issues
