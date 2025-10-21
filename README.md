@@ -162,7 +162,7 @@ bazel run @pnpm -- <pnpm-args>
 bazel run @pnpm -- --dir $PWD install
 
 # Format code (Rust, BUILD files, etc.)
-bazel run //tools/format
+bazel run format
 
 # Format BUILD files only
 bazel run //tools:buildifier

@@ -135,7 +135,7 @@ Test structure:
 Format all code using the centralized formatting tool:
 
 ```bash
-bazel run //tools/format
+bazel run format
 ```
 
 This will format Rust code, BUILD files, and other supported file types.
@@ -198,7 +198,7 @@ The application serves on port 8080 by default.
 ## Development Workflow
 
 1. Make code changes
-2. Format code: `bazel run //tools/format`
+2. Format code: `bazel run format`
 3. Run tests: `bazel test //nicknamer/server/lib/tests:tests`
 4. Test locally: `bazel run //nicknamer:run_locally`
 5. Build image: `bazel build //nicknamer/server/bin:image`
@@ -217,7 +217,7 @@ bazel test //...
 bazel build //...
 
 # Format all code
-bazel run //tools/format
+bazel run format
 
 # Format BUILD files only
 bazel run //tools:buildifier
