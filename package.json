@@ -9,7 +9,7 @@
     "@types/node": "^18",
     "@tsconfig/strictest": "2.0.6",
     "eslint": "^9",
-    "prettier": "^2.8.7",
+    "prettier": "^3.0.0",
     "tsconfig-to-swcconfig": "2.4.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.0.0",
