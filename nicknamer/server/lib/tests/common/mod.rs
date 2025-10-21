@@ -120,9 +120,9 @@ async fn init_global_container() -> &'static testcontainers::ContainerAsync<post
     // Use a static mutex to ensure only one thread initializes
     use std::sync::Mutex;
     static INIT_LOCK: Mutex<()> = Mutex::new(());
-    
+
     let _guard = INIT_LOCK.lock().unwrap();
-    
+
     // Check again after acquiring the lock (another thread might have initialized)
     if let Some(container) = GLOBAL_CONTAINER.get() {
         return container;
@@ -133,7 +133,7 @@ async fn init_global_container() -> &'static testcontainers::ContainerAsync<post
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
-    
+
     // Set the container (should always succeed since we hold the lock)
     GLOBAL_CONTAINER
         .set(container)
@@ -148,18 +148,18 @@ async fn init_global_container() -> &'static testcontainers::ContainerAsync<post
 /// Each test gets its own isolated database within the shared PostgreSQL container.
 /// This approach provides test isolation while minimizing resource usage.
 pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnection> {
-    use std::sync::atomic::{AtomicU32, Ordering};
     use sea_orm::ConnectOptions;
-    
+    use std::sync::atomic::{AtomicU32, Ordering};
+
     // Generate a unique database name for each test
     static DB_COUNTER: AtomicU32 = AtomicU32::new(0);
     let db_num = DB_COUNTER.fetch_add(1, Ordering::SeqCst);
     let db_name = format!("test_db_{}", db_num);
-    
+
     let container = init_global_container().await;
     let host = container.get_host().await?;
     let port = container.get_host_port_ipv4(5432).await?;
-    
+
     // First, connect to the default postgres database to create a new test database
     // Use minimal connection pool settings for the admin connection
     let admin_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
@@ -169,7 +169,7 @@ pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnecti
         .min_connections(1)
         .sqlx_logging(false);
     let admin_db = Database::connect(admin_opt).await?;
-    
+
     // Create a new database for this test
     use sea_orm::ConnectionTrait;
     admin_db
@@ -178,10 +178,10 @@ pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnecti
             format!("CREATE DATABASE {}", db_name),
         ))
         .await?;
-    
+
     // Drop the admin connection
     drop(admin_db);
-    
+
     // Connect to the newly created test database with minimal connection pool
     let db_url = format!("postgres://postgres:postgres@{}:{}/{}", host, port, db_name);
     let mut db_opt = ConnectOptions::new(db_url);
@@ -191,10 +191,10 @@ pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnecti
         .connect_timeout(std::time::Duration::from_secs(30))
         .sqlx_logging(false);
     let db = Database::connect(db_opt).await?;
-    
+
     // Run migrations on the test database
     migration::Migrator::up(&db, None).await?;
-    
+
     Ok(db)
 }
 
