@@ -39,6 +39,10 @@ jobs:
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
+      - name: Put ci.bazelrc contents into ~/.bazelrc
+        run: |
+          cat $GITHUB_WORKSPACE/.github/workflows/ci.bazelrc >> ~/.bazelrc
+
       - name: Install tools via bazel
         run: |
           echo "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin" >> $GITHUB_PATH
@@ -59,7 +63,6 @@ jobs:
       - name: Run Bazel tests
         run: |
           bazel \
-            --bazelrc=$GITHUB_WORKSPACE/.github/workflows/ci.bazelrc \
             test \
             --config=ci \
             //...
