@@ -56,7 +56,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
-        run: bazel run --config=ci \
-          //nicknamer/server:push_image -c opt
-        env:
-          BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}
+        run: bazel run --config=ci --compilation_mode=opt //nicknamer/server:push_image
