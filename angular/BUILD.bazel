@@ -6,7 +6,7 @@ npm_link_all_packages()
 ng_config(
     name = "ng-config",
     visibility = [
-        "//book-arena:__subpackages__",
+        "//angular:__subpackages__",
         "//tools/lint:__subpackages__",
     ],
 )
