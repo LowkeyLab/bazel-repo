@@ -6,7 +6,7 @@
   "// dependencies": "in the root package, only dependencies for monorepo-wide tooling should appear",
   "devDependencies": {
     "@eslint/js": "^9",
-    "@types/node": "^18",
+    "@types/node": "^22.0.0",
     "@tsconfig/strictest": "2.0.6",
     "eslint": "^9",
     "prettier": "^3.0.0",
