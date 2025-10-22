@@ -2,5 +2,83 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "newProjectRoot": "projects",
-  "projects": {}
+  "projects": {
+    "nicknamer": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/nicknamer",
+      "sourceRoot": "projects/nicknamer/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/nicknamer/src/main.ts",
+            "tsConfig": "projects/nicknamer/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/nicknamer/public"
+              }
+            ],
+            "styles": ["projects/nicknamer/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "nicknamer:build:production"
+            },
+            "development": {
+              "buildTarget": "nicknamer:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:karma",
+          "options": {
+            "tsConfig": "projects/nicknamer/tsconfig.spec.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/nicknamer/public"
+              }
+            ],
+            "styles": ["projects/nicknamer/src/styles.css"]
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": "3f30279f-30c6-43cd-afbb-a9dcf10664b2"
+  }
 }
