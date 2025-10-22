@@ -103,6 +103,8 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
+  angular/projects/nicknamer: {}
+
   tools:
     devDependencies:
       '@angular/cli':

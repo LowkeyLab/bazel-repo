@@ -14,7 +14,7 @@ copy_to_bin(
 )
 
 ng_application(
-    name = "my-app",
+    name = "nicknamer",
     ng_config = "//angular:ng-config",
     node_modules = "//angular:node_modules",
 )

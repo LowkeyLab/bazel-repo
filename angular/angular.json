@@ -66,6 +66,7 @@
           "builder": "@angular/build:karma",
           "options": {
             "tsConfig": "projects/nicknamer/tsconfig.spec.json",
+            "browsers": "ChromeHeadlessNoSandbox",
             "assets": [
               {
                 "glob": "**/*",
