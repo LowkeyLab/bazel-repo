@@ -3,7 +3,8 @@
     "github-mcp": {
       "url": "https://api.githubcopilot.com/mcp/",
       "type": "http"
-    }
+    },
+    "angular-cli": { "command": "ng", "args": ["mcp"] }
   },
   "inputs": []
 }
