@@ -22,10 +22,31 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v5
-      
-      - uses: jdx/mise-action@d28f84b563119c210aad0b09275bd66c07732847
+
+      - uses: bazel-contrib/setup-bazel@4432ac8a2318fb254c5b9fe491b9d21a002d7122
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
+
+      - name: Copy API key to root .bazelrc
+        run: |
+          echo "=== Adding BuildBuddy API key to .bazelrc ==="
+          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+
+      - name: Put ci.bazelrc contents into ~/.bazelrc
+        run: |
+          cat $GITHUB_WORKSPACE/.github/workflows/ci.bazelrc >> ~/.bazelrc
+
+      - name: Install tools via bazel
+        run: |
+          echo "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin" >> $GITHUB_PATH
 
       - name: Log in to GHCR
         uses: docker/login-action@28fdb31ff34708d19615a74d67103ddc2ea9725c
@@ -35,6 +56,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
-        run: bazel run //nicknamer/server:push_image -c opt --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+        run: bazel run --config=ci \
+          //nicknamer/server:push_image -c opt
         env:
           BUILDBUDDY_API_KEY: ${{secrets.BUILDBUDDY_API_KEY}}

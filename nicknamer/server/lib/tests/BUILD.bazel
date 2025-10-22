@@ -4,6 +4,7 @@ package(default_visibility = ["//nicknamer"])
 
 rust_test_suite(
     name = "tests",
+    size = "small",
     srcs = glob(["*.rs"]),
     data = glob(["snapshots/**/*.snap"]),
     env = {

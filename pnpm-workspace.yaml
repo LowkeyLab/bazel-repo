@@ -3,5 +3,4 @@
 packages:
   - .
   - angular
-  - angular/projects/*
   - tools

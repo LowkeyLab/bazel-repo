@@ -1,5 +1,6 @@
 [tools]
 bazel = "8.4.2"
+pre-commit = "4.3.0"
 
 [env]
 _.path = ["./.bin"] # Add local bin to PATH
