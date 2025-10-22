@@ -2,5 +2,5 @@
 # See https://pnpm.io/pnpm-workspace_yaml
 packages:
   - .
-  - book-arena
+  - angular
   - tools
