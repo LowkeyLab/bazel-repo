@@ -16,7 +16,7 @@ bazel_dep(name = "aspect_rules_ts", version = "3.7.0")
 bazel_dep(name = "bazel_env.bzl", version = "0.5.0", dev_dependency = True)
 
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
-bazel_dep(name = "bazelrc-preset.bzl", version = "1.4.0")
+bazel_dep(name = "bazelrc-preset.bzl", version = "1.5.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.0.2")
 bazel_dep(name = "rules_angular", version = "0.1.0")
 bazel_dep(name = "rules_java", version = "8.16.1")
