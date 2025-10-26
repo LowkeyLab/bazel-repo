@@ -1,0 +1,4 @@
+package_group(
+    name = "book-arena",
+    packages = ["//book-arena/..."],
+)

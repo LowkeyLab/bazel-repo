@@ -1,0 +1,24 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+package(default_visibility = ["//book-arena"])
+
+rust_library(
+    name = "lib",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "book_arena_migration",
+    deps = [
+        "@crates//:sea-orm-migration",
+        "@crates//:tokio",
+    ],
+)
+
+rust_binary(
+    name = "bin",
+    srcs = ["src/bin.rs"],
+    crate_name = "book_arena_migration_bin",
+    deps = [
+        ":lib",
+        "@crates//:sea-orm-migration",
+        "@crates//:tokio",
+    ],
+)
