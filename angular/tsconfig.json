@@ -27,6 +27,12 @@
     },
     {
       "path": "./projects/nicknamer/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/book-arena/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/book-arena/tsconfig.spec.json"
     }
   ]
 }
