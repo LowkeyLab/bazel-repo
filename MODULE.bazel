@@ -215,11 +215,6 @@ rust_host_tools = use_extension(
     "rust_host_tools",
 )
 
-# Define the default 'stable' host tools repository
-rust_host_tools.host_tools(
-    name = "rust_host_tools",
-)
-
 # Define the 'nightly' host tools repository
 rust_host_tools.host_tools(
     name = "rust_host_tools_nightly",
@@ -229,7 +224,6 @@ rust_host_tools.host_tools(
 # Make both repositories available to your project
 use_repo(
     rust_host_tools,
-    "rust_host_tools",
     "rust_host_tools_nightly",
 )
 
