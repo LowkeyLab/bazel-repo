@@ -409,6 +409,9 @@ crate.spec(
 crate.from_specs()
 use_repo(crate, "crates")
 
+######################
+# Binary Rust dependencies
+# https://bazelbuild.github.io/rules_rust/crate_universe_bzlmod.html#binary-dependencies
 bindeps = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
 bindeps.spec(
     artifact = "bin",
