@@ -14,7 +14,7 @@ rust_library(
 
 rust_binary(
     name = "bin",
-    srcs = ["src/bin.rs"],
+    srcs = ["src/main.rs"],
     crate_name = "book_arena_migration_bin",
     deps = [
         ":lib",
