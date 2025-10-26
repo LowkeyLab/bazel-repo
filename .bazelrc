@@ -39,6 +39,9 @@ build --repo_env=JAVA_HOME=../bazel_tools/jdk
 # this file. See https://bazel.build/configure/best-practices#bazelrc-file.
 try-import %workspace%/user.bazelrc
 
+# Use the nightly Rust toolchain
+build --@rules_rust//rust/toolchain/channel=nightly
+
 build --bes_results_url=https://app.buildbuddy.io/invocation/
 build --bes_backend=grpcs://remote.buildbuddy.io
 build --remote_cache=grpcs://remote.buildbuddy.io

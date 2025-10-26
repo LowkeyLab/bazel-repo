@@ -31,5 +31,6 @@ bazel_env(
         "java": "$(JAVA)",
         "node": "$(NODE_PATH)",
         "pnpm": "@pnpm",
+        "sea-orm-cli": "@bindeps//:sea-orm-cli__sea-orm-cli",
     } | LOCAL_TOOLS | MULTITOOLS,
 )

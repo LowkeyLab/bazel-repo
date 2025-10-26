@@ -210,6 +210,29 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
+rust_host_tools = use_extension(
+    "@rules_rust//rust:extensions.bzl",
+    "rust_host_tools",
+)
+
+# Define the default 'stable' host tools repository
+rust_host_tools.host_tools(
+    name = "rust_host_tools",
+)
+
+# Define the 'nightly' host tools repository
+rust_host_tools.host_tools(
+    name = "rust_host_tools_nightly",
+    version = "nightly",
+)
+
+# Make both repositories available to your project
+use_repo(
+    rust_host_tools,
+    "rust_host_tools",
+    "rust_host_tools_nightly",
+)
+
 http_archive(
     name = "swagger_ui",
     build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
@@ -391,6 +414,22 @@ crate.spec(
 )
 crate.from_specs()
 use_repo(crate, "crates")
+
+bindeps = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
+bindeps.spec(
+    artifact = "bin",
+    package = "sea-orm-cli",
+    version = "=1.1.17",
+)
+bindeps.annotation(
+    crate = "sea-orm-cli",
+    gen_all_binaries = True,
+)
+bindeps.from_specs(
+    name = "bindeps",
+    host_tools = "@rust_host_tools_nightly",
+)
+use_repo(bindeps, "bindeps")
 
 ##########################
 # Container images
