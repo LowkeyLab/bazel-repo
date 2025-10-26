@@ -22,7 +22,6 @@ eslint = lint_eslint_aspect(
     # We must also include any other config files we expect eslint to be able to locate, e.g. tsconfigs
     configs = [
         "@@//:eslintrc",
-        "@@//book-arena:tsconfig",
     ],
 )
 
