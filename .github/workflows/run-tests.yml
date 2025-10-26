@@ -60,6 +60,10 @@ jobs:
 
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
+      - name: Run Bazel Lints
+        run: |
+          bazel lint --config=ci //...
+
       - name: Run Bazel tests
         run: |
           bazel \
