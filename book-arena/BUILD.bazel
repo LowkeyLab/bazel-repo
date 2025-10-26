@@ -1,4 +1,7 @@
 package_group(
     name = "book-arena",
-    packages = ["//book-arena/..."],
+    packages = [
+        "//angular/projects/book-arena/...",
+        "//book-arena/...",
+    ],
 )
