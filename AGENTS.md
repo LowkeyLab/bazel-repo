@@ -19,19 +19,30 @@ Key components:
 
 ### Prerequisites
 
-1. **Install mise** (tool version manager):
-   ```bash
-   curl https://mise.run | sh
-   ```
-2. **Install Bazel** using mise:
+1. **Install Bazelisk** (automatically manages Bazel versions):
+
+   **On Linux:**
 
    ```bash
-   mise install
+   sudo wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+   sudo chmod +x /usr/local/bin/bazel
    ```
 
-   This installs Bazel 8.4.2 as defined in `mise.toml`.
+   **On macOS:**
 
-3. **Install NPM dependencies** (if working with frontend code):
+   ```bash
+   brew install bazelisk
+   ```
+
+   **On Windows:**
+
+   ```powershell
+   choco install bazelisk
+   ```
+
+   Bazelisk will automatically use Bazel 8.4.2 as defined in `.bazelversion`.
+
+2. **Install NPM dependencies** (if working with frontend code):
 
    ```bash
    bazel run @pnpm -- --dir $PWD install
@@ -62,6 +73,7 @@ Key components:
   ```
 
 - **Build Docker image**:
+
   ```bash
   bazel build //nicknamer/server/bin:image
   ```
@@ -109,6 +121,7 @@ The `tools/BUILD.bazel` file defines available tools and their configurations.
   ```
 
 - **Test specific modules**:
+
   ```bash
   bazel test //nicknamer/server/lib/tests:tests --test_filter="test_name_pattern"
   ```
@@ -237,7 +250,7 @@ bazel run @pnpm -- <args>
 - **Docker issues**: Ensure Docker daemon is running and accessible
 - **Database connection**: Check PostgreSQL container is healthy via `docker compose ps`
 - **Build failures**: Run `bazel clean` and retry
-- **Missing Bazel**: Run `mise install` to ensure Bazel is installed
+- **Missing Bazel**: Ensure Bazelisk is installed and accessible in your PATH
 - **NPM dependencies**: Run `bazel run @pnpm -- --dir $PWD install` to reinstall packages
 - **Port conflicts**: Check if port 8080 or 5432 are already in use
 - **Tool issues**: Development tools (Node.js, PNPM, Rust) are managed by Bazel; no manual installation needed

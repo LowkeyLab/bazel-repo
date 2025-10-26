@@ -20,16 +20,28 @@ This monorepo uses Bazel for builds and supports:
 
 ## 📦 Prerequisites
 
-Install using [mise](https://mise.run):
+Install [Bazelisk](https://github.com/bazelbuild/bazelisk) (automatically manages Bazel versions):
+
+**On Linux:**
 
 ```bash
-curl https://mise.run | sh
-mise install
+sudo wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+sudo chmod +x /usr/local/bin/bazel
 ```
 
-This installs **Bazel** 8.4.2 as defined in `mise.toml`.
+**On macOS:**
 
-Or install manually: **Bazel** 8.4.2+, **Docker**
+```bash
+brew install bazelisk
+```
+
+**On Windows:**
+
+```powershell
+choco install bazelisk
+```
+
+Or manually install: **Bazel** 8.4.2+, **Docker**
 
 **Note:** Node.js, PNPM, Rust, and other development tools are managed by Bazel through the `tools/` directory configuration. They do not need to be installed separately.
 
@@ -39,9 +51,6 @@ Or install manually: **Bazel** 8.4.2+, **Docker**
 # Clone repository
 git clone https://github.com/LowkeyLab/bazel-repo.git
 cd bazel-repo
-
-# Install Bazel
-mise install
 
 # Install NPM dependencies (if working with frontend code)
 bazel run @pnpm -- --dir $PWD install
@@ -96,6 +105,7 @@ INSTA_UPDATE=always bazel test //nicknamer/server/lib/tests:tests
 
 1. Edit `Cargo.toml` in the relevant crate
 2. Regenerate Bazel files:
+
    ```bash
    CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
    ```
