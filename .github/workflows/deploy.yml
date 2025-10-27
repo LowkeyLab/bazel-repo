@@ -55,4 +55,4 @@ jobs:
         run: bazel run --config=ci --compilation_mode=opt //nicknamer/server:push_image
       
       - name: Push RBE Bookworm Image
-        run: bazel run --config=ci --compilation_mode=opt //rbe-image/bookworm:push_image
+        run: bazel run --config=ci --compilation_mode=opt //rbe-image:push_image
