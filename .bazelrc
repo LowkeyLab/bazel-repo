@@ -59,3 +59,4 @@ build --experimental_profile_include_target_label
 
 build:remote --remote_executor=grpcs://remote.buildbuddy.io
 build:remote --host_platform=//:rbe_image_platform
+build:remote --jobs=50
