@@ -1162,7 +1162,108 @@
 		},
 		{
 			"arch": "amd64",
-			"dependencies": [],
+			"dependencies": [
+				{
+					"key": "rpcsvc-proto_1.4.3-1_amd64",
+					"name": "rpcsvc-proto",
+					"version": "1.4.3-1"
+				},
+				{
+					"key": "libc6_2.36-9-p-deb12u13_amd64",
+					"name": "libc6",
+					"version": "2.36-9+deb12u13"
+				},
+				{
+					"key": "libgcc-s1_12.2.0-14-p-deb12u1_amd64",
+					"name": "libgcc-s1",
+					"version": "12.2.0-14+deb12u1"
+				},
+				{
+					"key": "gcc-12-base_12.2.0-14-p-deb12u1_amd64",
+					"name": "gcc-12-base",
+					"version": "12.2.0-14+deb12u1"
+				},
+				{
+					"key": "libnsl-dev_1.3.0-2_amd64",
+					"name": "libnsl-dev",
+					"version": "1.3.0-2"
+				},
+				{
+					"key": "libtirpc-dev_1.3.3-p-ds-1_amd64",
+					"name": "libtirpc-dev",
+					"version": "1.3.3+ds-1"
+				},
+				{
+					"key": "libtirpc3_1.3.3-p-ds-1_amd64",
+					"name": "libtirpc3",
+					"version": "1.3.3+ds-1"
+				},
+				{
+					"key": "libtirpc-common_1.3.3-p-ds-1_amd64",
+					"name": "libtirpc-common",
+					"version": "1.3.3+ds-1"
+				},
+				{
+					"key": "libgssapi-krb5-2_1.20.1-2-p-deb12u4_amd64",
+					"name": "libgssapi-krb5-2",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libkrb5support0_1.20.1-2-p-deb12u4_amd64",
+					"name": "libkrb5support0",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libkrb5-3_1.20.1-2-p-deb12u4_amd64",
+					"name": "libkrb5-3",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libssl3_3.0.17-1_deb12u3_amd64",
+					"name": "libssl3",
+					"version": "3.0.17-1~deb12u3"
+				},
+				{
+					"key": "libkeyutils1_1.6.3-2_amd64",
+					"name": "libkeyutils1",
+					"version": "1.6.3-2"
+				},
+				{
+					"key": "libk5crypto3_1.20.1-2-p-deb12u4_amd64",
+					"name": "libk5crypto3",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libcom-err2_1.47.0-2-p-b2_amd64",
+					"name": "libcom-err2",
+					"version": "1.47.0-2+b2"
+				},
+				{
+					"key": "libnsl2_1.3.0-2_amd64",
+					"name": "libnsl2",
+					"version": "1.3.0-2"
+				},
+				{
+					"key": "libcrypt-dev_1-4.4.33-2_amd64",
+					"name": "libcrypt-dev",
+					"version": "1:4.4.33-2"
+				},
+				{
+					"key": "libcrypt1_1-4.4.33-2_amd64",
+					"name": "libcrypt1",
+					"version": "1:4.4.33-2"
+				},
+				{
+					"key": "linux-libc-dev_6.1.153-1_amd64",
+					"name": "linux-libc-dev",
+					"version": "6.1.153-1"
+				},
+				{
+					"key": "libc-dev-bin_2.36-9-p-deb12u13_amd64",
+					"name": "libc-dev-bin",
+					"version": "2.36-9+deb12u13"
+				}
+			],
 			"key": "libc6-dev_2.36-9-p-deb12u13_amd64",
 			"name": "libc6-dev",
 			"sha256": "1c07eaab8aeb1c8d18c14ff16e2e5ccc8135d51e0d8926cc1c50db5b98e4aa33",
@@ -3720,7 +3821,108 @@
 		},
 		{
 			"arch": "arm64",
-			"dependencies": [],
+			"dependencies": [
+				{
+					"key": "rpcsvc-proto_1.4.3-1_arm64",
+					"name": "rpcsvc-proto",
+					"version": "1.4.3-1"
+				},
+				{
+					"key": "libc6_2.36-9-p-deb12u13_arm64",
+					"name": "libc6",
+					"version": "2.36-9+deb12u13"
+				},
+				{
+					"key": "libgcc-s1_12.2.0-14-p-deb12u1_arm64",
+					"name": "libgcc-s1",
+					"version": "12.2.0-14+deb12u1"
+				},
+				{
+					"key": "gcc-12-base_12.2.0-14-p-deb12u1_arm64",
+					"name": "gcc-12-base",
+					"version": "12.2.0-14+deb12u1"
+				},
+				{
+					"key": "libnsl-dev_1.3.0-2_arm64",
+					"name": "libnsl-dev",
+					"version": "1.3.0-2"
+				},
+				{
+					"key": "libtirpc-dev_1.3.3-p-ds-1_arm64",
+					"name": "libtirpc-dev",
+					"version": "1.3.3+ds-1"
+				},
+				{
+					"key": "libtirpc3_1.3.3-p-ds-1_arm64",
+					"name": "libtirpc3",
+					"version": "1.3.3+ds-1"
+				},
+				{
+					"key": "libtirpc-common_1.3.3-p-ds-1_arm64",
+					"name": "libtirpc-common",
+					"version": "1.3.3+ds-1"
+				},
+				{
+					"key": "libgssapi-krb5-2_1.20.1-2-p-deb12u4_arm64",
+					"name": "libgssapi-krb5-2",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libkrb5support0_1.20.1-2-p-deb12u4_arm64",
+					"name": "libkrb5support0",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libkrb5-3_1.20.1-2-p-deb12u4_arm64",
+					"name": "libkrb5-3",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libssl3_3.0.17-1_deb12u3_arm64",
+					"name": "libssl3",
+					"version": "3.0.17-1~deb12u3"
+				},
+				{
+					"key": "libkeyutils1_1.6.3-2_arm64",
+					"name": "libkeyutils1",
+					"version": "1.6.3-2"
+				},
+				{
+					"key": "libk5crypto3_1.20.1-2-p-deb12u4_arm64",
+					"name": "libk5crypto3",
+					"version": "1.20.1-2+deb12u4"
+				},
+				{
+					"key": "libcom-err2_1.47.0-2-p-b2_arm64",
+					"name": "libcom-err2",
+					"version": "1.47.0-2+b2"
+				},
+				{
+					"key": "libnsl2_1.3.0-2_arm64",
+					"name": "libnsl2",
+					"version": "1.3.0-2"
+				},
+				{
+					"key": "libcrypt-dev_1-4.4.33-2_arm64",
+					"name": "libcrypt-dev",
+					"version": "1:4.4.33-2"
+				},
+				{
+					"key": "libcrypt1_1-4.4.33-2_arm64",
+					"name": "libcrypt1",
+					"version": "1:4.4.33-2"
+				},
+				{
+					"key": "linux-libc-dev_6.1.153-1_arm64",
+					"name": "linux-libc-dev",
+					"version": "6.1.153-1"
+				},
+				{
+					"key": "libc-dev-bin_2.36-9-p-deb12u13_arm64",
+					"name": "libc-dev-bin",
+					"version": "2.36-9+deb12u13"
+				}
+			],
 			"key": "libc6-dev_2.36-9-p-deb12u13_arm64",
 			"name": "libc6-dev",
 			"sha256": "337e7726f32e2b7f9399f44b2393a3b31b2f0a4813b0c40b856471882bb97d77",

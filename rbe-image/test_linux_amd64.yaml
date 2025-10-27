@@ -21,3 +21,7 @@ commandTests:
     command: "/bin/bash"
     args: ["-c", "curl --version | head -n 1"]
     expectedOutput: ["curl"]
+  - name: "check inttypes.h"
+    command: "/bin/bash"
+    args: ["-c", "dpkg -L libc6-dev | grep /usr/include/inttypes.h"]
+    expectedOutput: ["/usr/include/inttypes.h"]
