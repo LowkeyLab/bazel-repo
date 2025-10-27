@@ -1,0 +1,83 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@rules_distroless//distroless:defs.bzl", "cacerts")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+
+COMPATIBLE_WITH = select({
+    "@platforms//cpu:x86_64": ["@platforms//cpu:x86_64"],
+    "@platforms//cpu:arm64": ["@platforms//cpu:arm64"],
+}) + [
+    "@platforms//os:linux",
+]
+
+cacerts(
+    name = "cacerts",
+    package = "@rbe_image//ca-certificates:data",
+    target_compatible_with = COMPATIBLE_WITH,
+)
+
+oci_image(
+    name = "image",
+    architecture = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
+    env = {
+        # Required to use the SSL certs from `cacerts()`
+        "SSL_CERT_FILE": "/etc/ssl/certs/ca-certificates.crt",
+    },
+    os = "linux",
+    # NOTE: this is needed because, otherwise, bazel test //... fails, even
+    # when container_structure_test already has target_compatible_with.
+    # See 136
+    target_compatible_with = COMPATIBLE_WITH,
+    tars = [
+        # This target contains all the installed packages.
+        "@rbe_image//:flat",
+        ":cacerts",
+    ],
+)
+
+platform(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+platform(
+    name = "linux_amd64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+platform_transition_filegroup(
+    name = "image_platform",
+    srcs = [":image"],
+    target_platform = select({
+        "@platforms//cpu:arm64": ":linux_arm64",
+        "@platforms//cpu:x86_64": ":linux_amd64",
+    }),
+)
+
+oci_load(
+    name = "tarball",
+    image = ":image_platform",
+    repo_tags = [
+        "distroless/test:latest",
+    ],
+    # NOTE: this is needed because, otherwise, bazel test //... fails, even
+    # when container_structure_test already has target_compatible_with.
+    # See 136
+    target_compatible_with = COMPATIBLE_WITH,
+)
+
+# Push the image to GitHub Container Registry
+oci_push(
+    name = "push_image",
+    image = ":image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/rbe_image",
+)
