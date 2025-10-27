@@ -32,5 +32,6 @@ bazel_env(
         "node": "$(NODE_PATH)",
         "pnpm": "@pnpm",
         "sea-orm-cli": "@bindeps//:sea-orm-cli__sea-orm-cli",
+        "gazelle": "//:gazelle",
     } | LOCAL_TOOLS | MULTITOOLS,
 )

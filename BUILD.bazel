@@ -59,6 +59,7 @@ gazelle_binary(
         "@bazel_gazelle//language/proto",  # Built-in rule from gazelle for Protos.
         # Any languages that depend on Gazelle's proto plugin must come after it.
         "@rules_python_gazelle_plugin//python",
-        "@contrib_rules_jvm//java/gazelle",
+        # Temporarily disabled due to JDK 25 / protobuf 33.0 compatibility issues
+        # "@contrib_rules_jvm//java/gazelle",
     ],
 )
