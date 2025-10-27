@@ -28,7 +28,7 @@ oci_image(
     os = "linux",
     # NOTE: this is needed because, otherwise, bazel test //... fails, even
     # when container_structure_test already has target_compatible_with.
-    # See 136
+    # See https://github.com/bazel-contrib/rules_distroless/issues/136
     target_compatible_with = COMPATIBLE_WITH,
     tars = [
         # This target contains all the installed packages.
@@ -70,7 +70,7 @@ oci_load(
     ],
     # NOTE: this is needed because, otherwise, bazel test //... fails, even
     # when container_structure_test already has target_compatible_with.
-    # See 136
+    # See https://github.com/bazel-contrib/rules_distroless/issues/136
     target_compatible_with = COMPATIBLE_WITH,
 )
 
