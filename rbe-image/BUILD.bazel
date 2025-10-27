@@ -1,5 +1,6 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@container_structure_test//:defs.bzl", "container_structure_test")
+load("@rules_distroless//distroless:defs.bzl", "cacerts", "group", "passwd")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@tar.bzl", "tar")
 
@@ -10,6 +11,40 @@ COMPATIBLE_WITH = select({
     "@platforms//os:linux",
 ]
 
+passwd(
+    name = "passwd",
+    entries = [
+        {
+            "uid": 0,
+            "gid": 0,
+            "home": "/root",
+            "shell": "/bin/bash",
+            "username": "r00t",
+        },
+        {
+            "uid": 100,
+            "gid": 65534,
+            "home": "/home/_apt",
+            "shell": "/usr/sbin/nologin",
+            "username": "_apt",
+        },
+    ],
+)
+
+group(
+    name = "group",
+    entries = [
+        {
+            "name": "root",
+            "gid": 0,
+        },
+        {
+            "name": "_apt",
+            "gid": 65534,
+        },
+    ],
+)
+
 tar(
     name = "sh",
     mtree = [
@@ -18,12 +53,10 @@ tar(
     ],
 )
 
-tar(
-    name = "awk",
-    mtree = [
-        # needed as some scripts in debian base system use awk.
-        "./bin/awk type=link link=/usr/bin/gawk",
-    ],
+cacerts(
+    name = "cacerts",
+    package = "@rbe_image//ca-certificates:data",
+    target_compatible_with = COMPATIBLE_WITH,
 )
 
 oci_image(
@@ -45,7 +78,9 @@ oci_image(
         # This target contains all the installed packages.
         "@rbe_image//:flat",
         ":sh",
-        ":awk",
+        ":passwd",
+        ":group",
+        ":cacerts",
     ],
 )
 
