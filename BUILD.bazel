@@ -58,6 +58,6 @@ platform(
     exec_properties = {
         "OSFamily": "Linux",
         "dockerNetwork": "off",
-        "container-image": "docker://ghcr.io/lowkeylab/rbe_image@sha256:61e50bf7804ee06102849f4306f9a449b70fb80d5a10452dd78fbacb68698c7d",
+        "container-image": "docker://ghcr.io/lowkeylab/rbe_image@sha256:70f4bcff21e3eae9832764ca8c44bcfa1f7b9d4a98f25aadef915ca323ba802b",
     },
 )
