@@ -25,6 +25,14 @@ tar(
     ],
 )
 
+tar(
+    name = "awk",
+    mtree = [
+        # needed as some scripts in debian base system use awk.
+        "./bin/awk type=link link=/usr/bin/gawk",
+    ],
+)
+
 oci_image(
     name = "image",
     architecture = select({
@@ -45,6 +53,7 @@ oci_image(
         "@rbe_image//:flat",
         ":cacerts",
         ":sh",
+        ":awk",
     ],
 )
 
