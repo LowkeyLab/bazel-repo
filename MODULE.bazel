@@ -126,6 +126,8 @@ use_repo(llvm, "llvm_toolchain", "llvm_toolchain_llvm")
 # Protobuf and gRPC
 # https://github.com/aspect-build/toolchains_protoc
 
+PROTOBUF_VERSION = "29.1"
+
 buf = use_extension("@rules_buf//buf:extensions.bzl", "buf")
 buf.toolchains(
     sha256 = "8d39d81ae5400061bbbb9ce8c2196f039ba04257e9ef5f82de06480a9c5748e0",
@@ -138,7 +140,7 @@ use_repo(buf, "rules_buf_toolchains")
 protoc = use_extension("@toolchains_protoc//protoc:extensions.bzl", "protoc")
 protoc.toolchain(
     google_protobuf = "com_google_protobuf",
-    version = "v33.0",
+    version = "v{}".format(PROTOBUF_VERSION),
 )
 use_repo(protoc, "com_google_protobuf", "toolchains_protoc_hub")
 
@@ -195,7 +197,7 @@ use_repo(types, "pip_types")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        "com.google.protobuf:protobuf-java:4.33.0",
+        "com.google.protobuf:protobuf-java:4.{}".format(PROTOBUF_VERSION),
         "io.grpc:grpc-all:1.76.0",
     ],
     lock_file = "//:maven_install.json",
