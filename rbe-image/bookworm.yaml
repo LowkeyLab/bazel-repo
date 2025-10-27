@@ -20,4 +20,4 @@ packages:
   - "dpkg"
   - "apt"
   - "bash"
-  - "libc6-dev"
+  - "gawk"
