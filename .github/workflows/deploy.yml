@@ -27,10 +27,6 @@ jobs:
         with:
           # Avoid downloading Bazel every time.
           bazelisk-cache: true
-          # Store build cache per workflow.
-          disk-cache: ${{ github.workflow }}
-          # Share repository cache between workflows.
-          repository-cache: true
 
       - name: Copy API key to root .bazelrc
         run: |
@@ -55,5 +51,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Nicknamer Server Image
         run: bazel run --config=ci --compilation_mode=opt //nicknamer/server:push_image
+      
+      - name: Push RBE Bookworm Image
+        run: bazel run --config=ci --compilation_mode=opt //rbe-image/bookworm:push_image
