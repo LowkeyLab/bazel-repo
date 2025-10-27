@@ -42,6 +42,8 @@ try-import %workspace%/user.bazelrc
 # Set Java language version to 21
 build --java_language_version=21
 build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+build --tool_java_language_version=21
 
 build --bes_results_url=https://app.buildbuddy.io/invocation/
 build --bes_backend=grpcs://remote.buildbuddy.io
@@ -51,3 +53,9 @@ build --remote_cache_compression
 build --noslim_profile 
 build --experimental_profile_include_primary_output 
 build --experimental_profile_include_target_label
+
+
+# RBE settings
+
+build:remote --remote_executor=grpcs://remote.buildbuddy.io
+build:remote --host_platform=//:rbe_image_platform
