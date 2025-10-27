@@ -1,6 +1,6 @@
 # A top-level build file most often contains tooling and convenience aliases.
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@gazelle//:def.bzl", "gazelle")
+load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
 # JS BUILD generation is opt-in per project
@@ -49,5 +49,16 @@ js_library(
 
 gazelle(
     name = "gazelle",
-    gazelle = "@multitool//tools/gazelle",
+    gazelle = ":gazelle_binary",
+)
+
+gazelle_binary(
+    name = "gazelle_binary",
+    languages = [
+        "@bazel_gazelle//language/go",  # Built-in rule from gazelle for Golang.
+        "@bazel_gazelle//language/proto",  # Built-in rule from gazelle for Protos.
+        # Any languages that depend on Gazelle's proto plugin must come after it.
+        "@rules_python_gazelle_plugin//python",
+        "@contrib_rules_jvm//java/gazelle",
+    ],
 )
