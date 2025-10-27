@@ -16,3 +16,7 @@ archs:
 packages:
   - "build-essential"
   - "ca-certificates"
+  - "coreutils"
+  - "dpkg"
+  - "apt"
+  - "bash"
