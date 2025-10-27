@@ -26,3 +26,6 @@ packages:
   - "bash"
   - "nginx-full"
   - "nginx-core"
+  - "libgomp1"
+  - "libstdc++6"
+  - "libgcc-s1"
