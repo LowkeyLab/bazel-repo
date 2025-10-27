@@ -13,6 +13,10 @@ commandTests:
     command: "/bin/bash"
     args: ["-c", "echo 'one two three' | gawk '{print $3}'"]
     expectedOutput: ["three"]
+  - name: "check awk"
+    command: "/bin/bash"
+    args: ["-c", "echo 'alpha beta gamma' | awk '{print $2}'"]
+    expectedOutput: ["beta"]
   - name: "check curl"
     command: "/bin/bash"
     args: ["-c", "curl --version | head -n 1"]
