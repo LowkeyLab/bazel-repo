@@ -43,7 +43,10 @@ js_library(
     ],
 )
 
-# Gazelle configuration
+###### Gazelle ######
+# https://github.com/bazel-contrib/bazel-gazelle
+# https://github.com/aspect-build/aspect-gazelle
+
 gazelle(
     name = "gazelle",
     gazelle = "@multitool//tools/gazelle",

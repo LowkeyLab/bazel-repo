@@ -5,6 +5,8 @@ configure:
     protobuf: true
     bzl: true
     python: true
+    rust: true
+    kotlin: true
 plugins:
   - name: fix-visibility
     from: github.com/aspect-build/plugin-fix-visibility
