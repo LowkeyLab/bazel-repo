@@ -1,4 +1,5 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@container_structure_test//:defs.bzl", "container_structure_test")
 load("@rules_distroless//distroless:defs.bzl", "cacerts")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 
@@ -80,4 +81,14 @@ oci_push(
     image = ":image",
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/rbe_image",
+)
+
+container_structure_test(
+    name = "test",
+    configs = select({
+        "@platforms//cpu:arm64": ["test_linux_arm64.yaml"],
+        "@platforms//cpu:x86_64": ["test_linux_amd64.yaml"],
+    }),
+    image = ":image_platform",
+    target_compatible_with = COMPATIBLE_WITH,
 )
