@@ -42,6 +42,8 @@ try-import %workspace%/user.bazelrc
 # Use the nightly Rust toolchain
 build --@rules_rust//rust/toolchain/channel=nightly
 
+common --experimental_isolated_extension_usages
+
 build --bes_results_url=https://app.buildbuddy.io/invocation/
 build --bes_backend=grpcs://remote.buildbuddy.io
 build --remote_cache=grpcs://remote.buildbuddy.io
