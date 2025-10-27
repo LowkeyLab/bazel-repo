@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_distroless//distroless:defs.bzl", "cacerts")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@tar.bzl", "tar")
 
 COMPATIBLE_WITH = select({
     "@platforms//cpu:x86_64": ["@platforms//cpu:x86_64"],
@@ -13,6 +14,14 @@ cacerts(
     name = "cacerts",
     package = "@rbe_image//ca-certificates:data",
     target_compatible_with = COMPATIBLE_WITH,
+)
+
+tar(
+    name = "sh",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/sh type=link link=/bin/bash",
+    ],
 )
 
 oci_image(
@@ -34,6 +43,7 @@ oci_image(
         # This target contains all the installed packages.
         "@rbe_image//:flat",
         ":cacerts",
+        ":sh",
     ],
 )
 
