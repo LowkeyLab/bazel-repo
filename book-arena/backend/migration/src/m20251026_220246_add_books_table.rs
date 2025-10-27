@@ -9,15 +9,16 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Book::Table)
+                    .table(Users::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Books::Id)
+                        ColumnDef::new(Users::Id)
                             .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
+                    .col(ColumnDef::new(Users::Name).string().not_null())
                     .to_owned(),
             )
             .await?;
@@ -34,25 +35,7 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
-                    .table(BookToOpenLibraryWorkId::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(BookToOpenLibraryWorkId::BookId)
-                            .integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(BookToOpenLibraryWorkId::OpenLibraryWorkId)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Books::OpenLibraryWorkId).string().not_null())
                     .to_owned(),
             )
             .await?;
@@ -63,27 +46,21 @@ impl MigrationTrait for Migration {
                     .table(UserToBook::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(UserToBook::UserId).integer().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-user_to_book-user_id")
+                            .from(UserToBook::Table, UserToBook::UserId)
+                            .to(Users::Table, Users::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .col(ColumnDef::new(UserToBook::BookId).integer().not_null())
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create(
-                Index::create()
-                    .name("idx-user_to_book-user_id")
-                    .table(UserToBook::Table)
-                    .col(UserToBook::UserId)
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create(
-                Index::create()
-                    .name("idx-user_to_book-book_id")
-                    .table(UserToBook::Table)
-                    .col(UserToBook::BookId)
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-user_to_book-book_id")
+                            .from(UserToBook::Table, UserToBook::BookId)
+                            .to(Books::Table, Books::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -113,6 +90,7 @@ enum Users {
     Name,
 }
 
+#[derive(DeriveIden)]
 enum UserToBook {
     Table,
     UserId,

@@ -36,6 +36,7 @@ pub struct OpenLibraryClientImpl;
 impl OpenLibraryClient for OpenLibraryClientImpl {
     async fn search(query: SearchQuery) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
         // Implementation goes here
+        Ok(vec![])
     }
 }
 
