@@ -208,3 +208,24 @@ test:ci --test_summary="terse"
 # Set to a high value to allow tests to complete even if they take longer than expected.
 common:debug --test_timeout=9999
 # Docs: https://registry.build/flag/bazel@8.4.2?filter=test_timeout
+
+# Make sure protobuf is not built from source
+common --host_per_file_copt="external/.*protobuf.*@--PROTOBUF_WAS_NOT_SUPPOSED_TO_BE_BUILT"
+# Docs: https://registry.build/flag/bazel@8.4.2?filter=host_per_file_copt
+
+# Make sure grpc is not built from source
+common --host_per_file_copt="external/.*grpc.*@--GRPC_WAS_NOT_SUPPOSED_TO_BE_BUILT"
+# Docs: https://registry.build/flag/bazel@8.4.2?filter=host_per_file_copt
+
+# Bazel 7 introduced this flag to allow us fetch `protoc` rather than re-build it!
+# That flag ALSO decouples how each built-in language rule (Java, Python, C++, etc.) locates the runtime.
+common --incompatible_enable_proto_toolchain_resolution
+# Docs: https://registry.build/flag/bazel@8.4.2?filter=incompatible_enable_proto_toolchain_resolution
+
+# Make sure protobuf is not built from source
+common --per_file_copt="external/.*protobuf.*@--PROTOBUF_WAS_NOT_SUPPOSED_TO_BE_BUILT"
+# Docs: https://registry.build/flag/bazel@8.4.2?filter=per_file_copt
+
+# Make sure grpc is not built from source
+common --per_file_copt="external/.*grpc.*@--GRPC_WAS_NOT_SUPPOSED_TO_BE_BUILT"
+# Docs: https://registry.build/flag/bazel@8.4.2?filter=per_file_copt
