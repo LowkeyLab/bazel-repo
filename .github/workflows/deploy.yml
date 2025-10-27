@@ -55,5 +55,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Nicknamer Server Image
         run: bazel run --config=ci --compilation_mode=opt //nicknamer/server:push_image
+      
+      - name: Push RBE Bookworm Image
+        run: bazel run --config=ci --compilation_mode=opt //rbe-image/bookworm:push_image
