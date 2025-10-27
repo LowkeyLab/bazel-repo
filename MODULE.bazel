@@ -200,8 +200,9 @@ maven.install(
 )
 use_repo(maven, "maven")
 
-# --- Rust Configuration ---
-
+##########################
+# Rust
+# https://bazelbuild.github.io/rules_rust/crate_universe_bzlmod
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
@@ -385,6 +386,10 @@ crate.spec(
     features = ["v4"],
     package = "uuid",
     version = "1.18.1",
+)
+crate.spec(
+    package = "async-trait",
+    version = "0.1.89",
 )
 
 # Dev dependencies
