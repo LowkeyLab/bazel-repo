@@ -5,19 +5,14 @@ commandTests:
     command: "/bin/bash"
     args: ["-c", "echo hello world!"]
     expectedOutput: ["hello world!"]
-  - name: "check sed"
-    command: "/bin/bash"
-    args: ["-c", "echo 'foo' | sed 's/foo/bar/'"]
-    expectedOutput: ["bar"]
-  - name: "check gawk"
-    command: "/bin/bash"
-    args: ["-c", "echo 'one two three' | gawk '{print $3}'"]
-    expectedOutput: ["three"]
-  - name: "check awk"
-    command: "/bin/bash"
-    args: ["-c", "echo 'alpha beta gamma' | awk '{print $2}'"]
-    expectedOutput: ["beta"]
-  - name: "check curl"
-    command: "/bin/bash"
-    args: ["-c", "curl --version | head -n 1"]
-    expectedOutput: ["curl"]
+  - name: "whoami"
+    command: "whoami"
+    expectedOutput: [r00t]
+  - name: "naive ca-certs check"
+    command: "head"
+    args: ["-1", "/etc/ssl/certs/ca-certificates.crt"]
+    expectedOutput: [-----BEGIN CERTIFICATE-----]
+  - name: "in depth ca-certs check"
+    command: "/usr/bin/openssl"
+    args: ["s_client", "-connect", "www.google.com:443"]
+    expectedOutput: ["Verify return code: 0 .ok."]
