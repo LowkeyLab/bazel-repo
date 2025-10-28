@@ -117,9 +117,6 @@ use_repo(multitool, "multitool")
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     name = "llvm_toolchain",
-    cxx_builtin_include_directories = {
-        "": ["/buildbuddy-execroot/external/toolchains_llvm++llvm+llvm_toolchain_llvm/lib/clang/21/include"],
-    },
     llvm_versions = {
         "": "21.1.0",
     },
