@@ -9824,7 +9824,7 @@
     "@@toolchains_llvm+//toolchain/extensions:llvm.bzl%llvm": {
       "general": {
         "bzlTransitiveDigest": "c91yAeoX1Jx16JQSsb7J/fY+/nWiCnOiMgjfjoXqbSQ=",
-        "usagesDigest": "x7+Mlw7pdXjtd8c/ZZBq9COsj1GDpEsKTn2wQShov0o=",
+        "usagesDigest": "cimwmKIWpYzPrJo+8Fp4xfgjqOgMd60biZ263GAViUk=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -9859,7 +9859,11 @@
               "conly_flags": {},
               "coverage_compile_flags": {},
               "coverage_link_flags": {},
-              "cxx_builtin_include_directories": {},
+              "cxx_builtin_include_directories": {
+                "": [
+                  "/buildbuddy-execroot/external/toolchains_llvm++llvm+llvm_toolchain_llvm/lib/clang/21/include"
+                ]
+              },
               "cxx_flags": {},
               "cxx_standard": {},
               "dbg_compile_flags": {},
