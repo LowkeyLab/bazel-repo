@@ -1,7 +1,7 @@
 {
   "private": true,
   "devDependencies": {
-    "@angular/cli": "20.3.7",
+    "@angular/cli": "20.3.8",
     "@tailwindcss/cli": "^4.1.14"
   }
 }
