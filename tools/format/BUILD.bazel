@@ -32,7 +32,6 @@ java_binary(
 # any files in the repository regardless of language.
 format_multirun(
     name = "format",
-    cc = "@llvm_toolchain_llvm//:bin/clang-format",
     go = "@aspect_rules_lint//format:gofumpt",
     java = ":java-format",
     javascript = ":prettier",

@@ -33,7 +33,6 @@ bazel_dep(name = "rules_buf", version = "0.5.2")
 bazel_dep(name = "toolchains_protoc", version = "0.6.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_jvm_external", version = "6.9")
-bazel_dep(name = "toolchains_llvm", version = "1.5.0")
 bazel_dep(name = "rules_mypy", version = "0.40.0")
 bazel_dep(name = "rules_python", version = "1.6.3")
 bazel_dep(name = "rules_go", version = "0.58.3")
@@ -113,19 +112,6 @@ multitool.hub(lockfile = "//tools:tools.lock.json")
 use_repo(multitool, "multitool")
 
 #########################
-# Hermetic C++ toolchain, to relieve the dependency on a locally installed CC etc.
-llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
-llvm.toolchain(
-    name = "llvm_toolchain",
-    llvm_versions = {
-        "": "15.0.6",
-        "darwin-aarch64": "15.0.7",
-        "darwin-x86_64": "15.0.7",
-    },
-)
-use_repo(llvm, "llvm_toolchain", "llvm_toolchain_llvm")
-
-#########################
 # Protobuf and gRPC
 # https://github.com/aspect-build/toolchains_protoc
 
@@ -144,8 +130,6 @@ protoc.toolchain(
     version = "v28.2",
 )
 use_repo(protoc, "com_google_protobuf", "toolchains_protoc_hub")
-
-register_toolchains("@llvm_toolchain//:all")
 
 register_toolchains("@toolchains_protoc_hub//:all")
 
