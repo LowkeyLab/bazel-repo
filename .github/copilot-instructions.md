@@ -18,6 +18,7 @@ For detailed project documentation, refer to [AGENTS.md](../AGENTS.md) in the ro
 ## Essential Commands
 
 ### Building
+
 ```bash
 # Build everything
 bazel build //...
@@ -27,6 +28,7 @@ bazel build //nicknamer/server/bin
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 bazel test //...
@@ -39,6 +41,7 @@ INSTA_UPDATE=always bazel test //nicknamer/server/lib/tests:tests
 ```
 
 ### Formatting
+
 ```bash
 # Format all code (Rust, BUILD files, etc.)
 bazel run format
@@ -48,6 +51,7 @@ bazel run //tools:buildifier
 ```
 
 ### Development
+
 ```bash
 # Start local development environment (PostgreSQL + server)
 bazel run //nicknamer:run_locally
@@ -59,6 +63,7 @@ bazel run @pnpm -- --dir $PWD install
 ## Coding Standards
 
 ### Rust
+
 - Use Rust 2024 edition
 - Follow rustfmt formatting standards
 - Use `anyhow::Result` for error handling
@@ -66,6 +71,7 @@ bazel run @pnpm -- --dir $PWD install
 - Prefer async/await patterns with Tokio runtime
 
 ### General
+
 - Keep dependencies minimal and well-justified
 - Always format code before committing: `bazel run format`
 - Write tests for new functionality
