@@ -11,6 +11,11 @@ rust_test_suite(
         "INSTA_UPDATE": "no",
         "INSTA_WORKSPACE_ROOT": ".",
     },
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+        "test.recycle-runner": "true",
+    },
     shared_srcs = glob(["common/**"]),
     tags = ["requires-network"],
     deps = [
