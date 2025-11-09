@@ -153,6 +153,16 @@ bazel run format
 
 This will format Rust code, BUILD files, and other supported file types.
 
+### Linting
+
+Run linters using Aspect CLI:
+
+```bash
+bazel lint
+```
+
+This runs the configured linters for JavaScript, Go, Protobuf, Bzl, Python, and other file types as defined in `.aspect/cli/config.yaml`. Individual linters include eslint, shellcheck, ruff, checkstyle, pmd, and buf.
+
 ### Architecture Patterns
 
 - **Web layer**: Axum for HTTP handling
@@ -212,10 +222,11 @@ The application serves on port 8080 by default.
 
 1. Make code changes
 2. Format code: `bazel run format`
-3. Run tests: `bazel test //nicknamer/server/lib/tests:tests`
-4. Test locally: `bazel run //nicknamer:run_locally`
-5. Build image: `bazel build //nicknamer/server/bin:image`
-6. Ensure all tests pass before committing
+3. Run linters: `bazel lint`
+4. Run tests: `bazel test //nicknamer/server/lib/tests:tests`
+5. Test locally: `bazel run //nicknamer:run_locally`
+6. Build image: `bazel build //nicknamer/server/bin:image`
+7. Ensure all tests pass before committing
 
 ## Common Commands
 
@@ -231,6 +242,9 @@ bazel build //...
 
 # Format all code
 bazel run format
+
+# Run linters
+bazel lint
 
 # Format BUILD files only
 bazel run //tools:buildifier
