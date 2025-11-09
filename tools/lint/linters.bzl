@@ -2,7 +2,6 @@
 
 load("@aspect_rules_lint//lint:buf.bzl", "lint_buf_aspect")
 load("@aspect_rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
-load("@aspect_rules_lint//lint:clang_tidy.bzl", "lint_clang_tidy_aspect")
 load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
 load("@aspect_rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
 load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
@@ -33,14 +32,6 @@ ruff = lint_ruff_aspect(
 shellcheck = lint_shellcheck_aspect(
     binary = "@multitool//tools/shellcheck",
     config = "@@//:.shellcheckrc",
-)
-
-clang_tidy = lint_clang_tidy_aspect(
-    binary = "@@//tools/lint:clang_tidy",
-    configs = ["@@//:.clang-tidy"],
-    lint_target_headers = True,
-    angle_includes_are_system = False,
-    verbose = False,
 )
 
 pmd = lint_pmd_aspect(
