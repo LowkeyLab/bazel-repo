@@ -38,6 +38,7 @@ bazel_dep(name = "rules_mypy", version = "0.40.0")
 bazel_dep(name = "rules_python", version = "1.6.3")
 bazel_dep(name = "rules_go", version = "0.59.0")
 bazel_dep(name = "tar.bzl", version = "0.6.0")
+bazel_dep(name = "toolchains_buildbuddy", version = "0.0.2")
 bazel_dep(name = "gazelle", version = "0.47.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 
@@ -406,19 +407,9 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
+use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64")
 
-# Pull the base debian:12 image
-oci_extension.pull(
-    name = "debian_12",
-    digest = "sha256:0f112dd6b85a0fccd9d43465a0a32b6ad427f2d337f00a03b6a65f229e64e959",
-    image = "debian:12",
-)
-use_repo(oci_extension, "debian_12", "distroless_cc", "distroless_cc_linux_amd64")
-
-apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
-apt.install(
-    name = "rbe_image",
-    lock = "@@//rbe-image:bookworm.lock.json",
-    manifest = "//rbe-image:bookworm.yaml",
-)
-use_repo(apt, "rbe_image")
+###########################
+# BuildBuddy Remote Execution
+buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbuddy")
+buildbuddy.platform(buildbuddy_container_image = "UBUNTU22_04_IMAGE")
