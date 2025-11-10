@@ -18,7 +18,7 @@ kt_jvm_library(
 
 kt_jvm_binary(
     name = "guess_the_word",
-    main_class = "io.ktor.server.netty.EngineMain",
+    main_class = "io.lowkeylabs.ApplicationKt",
     resources = glob([
         "resources/*",
     ]),
