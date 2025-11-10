@@ -1,0 +1,36 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+kt_jvm_library(
+    name = "guess_the_word_lib",
+    srcs = glob(["src/**/*.kt"]),
+    deps = [
+        "@maven//:ch_qos_logback_logback_classic",
+        "@maven//:com_h2database_h2",
+        "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
+        "@maven//:io_ktor_ktor_server_config_yaml_jvm",
+        "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_server_core_jvm",
+        "@maven//:io_ktor_ktor_server_netty_jvm",
+        "@maven//:org_jetbrains_exposed_exposed_core",
+        "@maven//:org_jetbrains_exposed_exposed_jdbc",
+        "@maven//:org_postgresql_postgresql",
+    ],
+)
+
+kt_jvm_binary(
+    name = "guess_the_word",
+    main_class = "io.lowkeylabs.ApplicationKt",
+    runtime_deps = [":guess_the_word_lib"],
+)
+
+kt_jvm_test(
+    name = "guess_the_word_tests",
+    srcs = glob(["test/**/*.kt"]),
+    test_class = "io.lowkeylabs.ApplicationTest",
+    deps = [
+        ":guess_the_word_lib",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
+        "@maven//:org_jetbrains_kotlin_kotlin_test",
+        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
+    ],
+)

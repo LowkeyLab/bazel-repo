@@ -198,18 +198,18 @@ maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
         "com.google.protobuf:protobuf-java:4.28.0",
-        # Ktor dependencies
-        "io.ktor:ktor-server-core:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-websockets:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-di:%s" % KTOR_VERSION,
-        "io.ktor:ktor-serialization-kotlinx-json:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-content-negotiation:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-call-logging:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-call-id:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-sessions:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-netty:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-config-yaml:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-test-host:%s" % KTOR_VERSION,
+        # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
+        "io.ktor:ktor-server-core-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-di-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-serialization-kotlinx-json-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-content-negotiation-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-logging-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-id-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-sessions-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-netty-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-config-yaml-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-test-host-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
         "com.h2database:h2:%s" % H2_VERSION,
