@@ -36,6 +36,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.9")
 bazel_dep(name = "rules_mypy", version = "0.40.0")
 bazel_dep(name = "rules_python", version = "1.6.3")
 bazel_dep(name = "rules_go", version = "0.59.0")
+bazel_dep(name = "rules_kotlin", version = "2.1.9")
 bazel_dep(name = "tar.bzl", version = "0.6.0")
 bazel_dep(name = "toolchains_buildbuddy", version = "0.0.2")
 bazel_dep(name = "gazelle", version = "0.47.0")
@@ -180,13 +181,50 @@ use_repo(types, "pip_types")
 # In the Maven support variation, the dependencies are conveniently listed here
 # in the MODULE.bazel file.
 
+# Version variables for JVM dependencies
+KTOR_VERSION = "3.3.1"
+
+KOTLIN_VERSION = "2.2.20"
+
+POSTGRES_VERSION = "42.7.8"
+
+H2_VERSION = "2.3.232"
+
+EXPOSED_VERSION = "0.61.0"
+
+LOGBACK_VERSION = "1.4.14"
+
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
         "com.google.protobuf:protobuf-java:4.28.0",
-        "io.grpc:grpc-all:1.51.1",
+        # Ktor dependencies
+        "io.ktor:ktor-server-core:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-websockets:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-di:%s" % KTOR_VERSION,
+        "io.ktor:ktor-serialization-kotlinx-json:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-content-negotiation:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-logging:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-id:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-sessions:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-netty:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-config-yaml:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-test-host:%s" % KTOR_VERSION,
+        # Database dependencies
+        "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
+        "com.h2database:h2:%s" % H2_VERSION,
+        "org.jetbrains.exposed:exposed-core:%s" % EXPOSED_VERSION,
+        "org.jetbrains.exposed:exposed-jdbc:%s" % EXPOSED_VERSION,
+        # Logging
+        "ch.qos.logback:logback-classic:%s" % LOGBACK_VERSION,
     ],
     lock_file = "//:maven_install.json",
+)
+maven.artifact(
+    testonly = True,
+    artifact = "kotlin-test-junit",
+    group = "org.jetbrains.kotlin",
+    version = KOTLIN_VERSION,
 )
 use_repo(maven, "maven")
 
