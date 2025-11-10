@@ -1,35 +1,16 @@
 package io.lowkeylabs
 
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.application.Application
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 
 fun main(args: Array<String>) {
-    io.ktor.server.netty.EngineMain.main(args)
+    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
+        .start(wait = true)
 }
 
 fun Application.module() {
     configureSerialization()
     configureDatabases()
     configureRouting()
-}
-
-fun Application.configureSerialization() {
-    install(ContentNegotiation) {
-        json()
-    }
-}
-
-fun Application.configureDatabases() {
-    // TODO: Configure database connection
-}
-
-fun Application.configureRouting() {
-    routing {
-        get("/") {
-            call.respondText("Hello, World!")
-        }
-    }
 }

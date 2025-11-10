@@ -7,7 +7,6 @@ kt_jvm_library(
         "@maven//:ch_qos_logback_logback_classic",
         "@maven//:com_h2database_h2",
         "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
-        "@maven//:io_ktor_ktor_server_config_yaml_jvm",
         "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_server_core_jvm",
         "@maven//:io_ktor_ktor_server_netty_jvm",
@@ -19,7 +18,10 @@ kt_jvm_library(
 
 kt_jvm_binary(
     name = "guess_the_word",
-    main_class = "io.lowkeylabs.ApplicationKt",
+    main_class = "io.ktor.server.netty.EngineMain",
+    resources = glob([
+        "resources/*",
+    ]),
     runtime_deps = [":guess_the_word_lib"],
 )
 
