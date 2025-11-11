@@ -66,6 +66,14 @@ http_jar(
     url = "https://github.com/google/google-java-format/releases/download/v1.17.0/google-java-format-1.17.0-all-deps.jar",
 )
 
+http_archive(
+    name = "ktlint",
+    build_file_content = """sh_binary(name = "ktlint", srcs = ["bin/ktlint"], visibility = ["//visibility:public"])""",
+    integrity = "sha256-1FO4NHWHJBVZ1YMQLBiZOm78fX0QZNGjgPiljrU6BnU=",
+    strip_prefix = "ktlint-1.7.1",
+    url = "https://github.com/pinterest/ktlint/releases/download/1.7.1/ktlint-1.7.1.zip",
+)
+
 #########################
 # JavaScript and TypeScript
 # https://github.com/aspect-build/rules_js/tree/main/e2e/bzlmod
