@@ -21,7 +21,7 @@ kt_jvm_binary(
     main_class = "io.lowkeylabs.ApplicationKt",
     resource_strip_prefix = "guess_the_word/resources",
     resources = glob([
-        "resources/*",
+        "resources/**",
     ]),
     runtime_deps = [":guess_the_word_lib"],
 )
