@@ -45,4 +45,4 @@ lerna-debug.log*
 *.temp
 
 # Generated files
-genhtml/** */
+genhtml/
