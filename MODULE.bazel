@@ -202,11 +202,14 @@ EXPOSED_VERSION = "0.61.0"
 
 LOGBACK_VERSION = "1.4.14"
 
+JSON_PATH_VERSION = "2.9.0"
+
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
         "com.google.protobuf:protobuf-java:4.28.0",
         # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
+        "io.ktor:ktor-client-content-negotiation-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-core-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-di-jvm:%s" % KTOR_VERSION,
@@ -226,6 +229,8 @@ maven.install(
         "org.jetbrains.exposed:exposed-jdbc:%s" % EXPOSED_VERSION,
         # Logging
         "ch.qos.logback:logback-classic:%s" % LOGBACK_VERSION,
+        # JSON Path
+        "com.jayway.jsonpath:json-path:%s" % JSON_PATH_VERSION,
     ],
     lock_file = "//:maven_install.json",
 )
@@ -237,6 +242,7 @@ maven.artifact(
 )
 use_repo(maven, "maven")
 
+register_toolchains("//:kotlin_toolchain")
 # --- Rust Configuration ---
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
