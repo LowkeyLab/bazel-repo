@@ -10,6 +10,7 @@ kt_jvm_library(
         "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_server_core_jvm",
         "@maven//:io_ktor_ktor_server_netty_jvm",
+        "@maven//:io_ktor_ktor_server_status_pages_jvm",
         "@maven//:org_jetbrains_exposed_exposed_core",
         "@maven//:org_jetbrains_exposed_exposed_jdbc",
         "@maven//:org_postgresql_postgresql",

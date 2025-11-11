@@ -218,6 +218,7 @@ maven.install(
         "io.ktor:ktor-server-netty-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-config-yaml-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-test-host-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-status-pages-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
         "com.h2database:h2:%s" % H2_VERSION,
