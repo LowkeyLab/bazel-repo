@@ -27,6 +27,12 @@
     },
     {
       "path": "./projects/nicknamer/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/guess_the_word/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/guess_the_word/tsconfig.spec.json"
     }
   ]
 }
