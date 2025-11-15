@@ -1,4 +1,4 @@
-package io.lowkeylabs
+package com.example
 
 import io.ktor.server.application.Application
 import io.ktor.server.http.content.staticResources

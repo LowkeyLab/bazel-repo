@@ -1,4 +1,4 @@
-package io.lowkeylabs.model
+package com.example.model
 
 import kotlinx.serialization.Serializable
 

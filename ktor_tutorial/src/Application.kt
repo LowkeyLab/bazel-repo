@@ -1,5 +1,6 @@
-package io.lowkeylabs
+package com.example
 
+import com.example.model.FakeTaskRepository
 import io.ktor.server.application.Application
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -10,7 +11,9 @@ fun main() {
 }
 
 fun Application.module() {
-    configureSockets()
-    configureSerialization()
+    val repository = FakeTaskRepository()
+
+    configureSerialization(repository)
+    configureDatabases()
     configureRouting()
 }

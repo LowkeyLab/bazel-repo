@@ -1,6 +1,6 @@
-package io.lowkeylabs.model
+package com.example.model
 
-object TaskRepository {
+class FakeTaskRepository : TaskRepository {
     private val tasks =
         mutableListOf(
             Task("cleaning", "Clean the house", Priority.Low),
@@ -9,24 +9,24 @@ object TaskRepository {
             Task("painting", "Paint the fence", Priority.Medium),
         )
 
-    fun allTasks(): List<Task> = tasks
+    override suspend fun allTasks(): List<Task> = tasks
 
-    fun tasksByPriority(priority: Priority) =
+    override suspend fun tasksByPriority(priority: Priority) =
         tasks.filter {
             it.priority == priority
         }
 
-    fun taskByName(name: String) =
+    override suspend fun taskByName(name: String) =
         tasks.find {
             it.name.equals(name, ignoreCase = true)
         }
 
-    fun addTask(task: Task) {
+    override suspend fun addTask(task: Task) {
         if (taskByName(task.name) != null) {
             throw IllegalStateException("Cannot duplicate task names!")
         }
         tasks.add(task)
     }
 
-    fun removeTask(name: String): Boolean = tasks.removeIf { it.name == name }
+    override suspend fun removeTask(name: String): Boolean = tasks.removeIf { it.name == name }
 }
