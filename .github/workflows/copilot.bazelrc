@@ -1,0 +1,2 @@
+# Use remote execution on Copilot workspaces
+common --config=remote-linux

@@ -1,6 +1,3 @@
-# This file contains Bazel settings to apply on CI only.
-# It is referenced with a --bazelrc option in the call to bazel in run-tests.yml
-
 # Allows tests to run bazelisk-in-bazel, since this is the cache folder used
 test --test_env=XDG_CACHE_HOME
 

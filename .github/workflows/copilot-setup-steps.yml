@@ -64,6 +64,10 @@ jobs:
       
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
+      - name: Put copilot.bazelrc contents into ~/.bazelrc
+        run: |
+          cat $GITHUB_WORKSPACE/.github/workflows/copilot.bazelrc >> ~/.bazelrc
+
       - name: Pre-warm Bazel cache and dependencies
         run: |
           echo "=== Building all targets to pre-warm cache ==="
