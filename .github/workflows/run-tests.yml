@@ -58,11 +58,8 @@ jobs:
 
       - name: Run Bazel Lints
         run: |
-          bazel lint --config=ci //...
+          bazel lint //...
 
       - name: Run Bazel tests
         run: |
-          bazel \
-            test \
-            --config=ci \
-            //...
+          bazel test //...
