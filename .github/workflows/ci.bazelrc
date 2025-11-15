@@ -3,3 +3,5 @@ test --test_env=XDG_CACHE_HOME
 
 # Use remote execution on CI
 common --config=remote-linux
+# Use settings for CI environment
+common --config=ci
