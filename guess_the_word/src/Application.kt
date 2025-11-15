@@ -10,6 +10,6 @@ fun main() {
 }
 
 fun Application.module() {
-    configureSerialization()
+    configureTemplating()
     configureRouting()
 }

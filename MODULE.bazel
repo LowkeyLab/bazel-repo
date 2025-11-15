@@ -207,7 +207,6 @@ JSON_PATH_VERSION = "2.9.0"
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        "com.google.protobuf:protobuf-java:4.28.0",
         # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
         "io.ktor:ktor-client-content-negotiation-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-core-jvm:%s" % KTOR_VERSION,
@@ -222,6 +221,7 @@ maven.install(
         "io.ktor:ktor-server-config-yaml-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-test-host-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-status-pages-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
         "com.h2database:h2:%s" % H2_VERSION,
@@ -232,6 +232,11 @@ maven.install(
         # JSON Path
         "com.jayway.jsonpath:json-path:%s" % JSON_PATH_VERSION,
     ],
+    known_contributing_modules = [
+        "bazel-repo",
+        "bazel_worker_java",
+        "protobuf",
+    ],
     lock_file = "//:maven_install.json",
 )
 maven.artifact(
@@ -239,6 +244,24 @@ maven.artifact(
     artifact = "kotlin-test-junit",
     group = "org.jetbrains.kotlin",
     version = KOTLIN_VERSION,
+)
+maven.artifact(
+    artifact = "gson",
+    force_version = True,
+    group = "com.google.code.gson",
+    version = "2.10.1",
+)
+maven.artifact(
+    artifact = "error_prone_annotations",
+    force_version = True,
+    group = "com.google.errorprone",
+    version = "2.23.0",
+)
+maven.artifact(
+    artifact = "guava",
+    force_version = True,
+    group = "com.google.guava",
+    version = "33.0.0-jre",
 )
 use_repo(maven, "maven")
 
