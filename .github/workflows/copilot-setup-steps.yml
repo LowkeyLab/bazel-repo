@@ -64,11 +64,6 @@ jobs:
       
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
 
-      - name: Setup Testcontainers Cloud Client
-        uses: atomicjar/testcontainers-cloud-setup-action@22064b87e13754258b1a686f4d93147f904c28d5
-        with:
-            token: ${{ secrets.TC_CLOUD_TOKEN }}
-
       - name: Pre-warm Bazel cache and dependencies
         run: |
           echo "=== Building all targets to pre-warm cache ==="
