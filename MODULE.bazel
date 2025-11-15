@@ -172,6 +172,7 @@ maven.install(
     artifacts = [
         # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
         "io.ktor:ktor-client-content-negotiation-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-host-common-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-core-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-di-jvm:%s" % KTOR_VERSION,
@@ -185,6 +186,8 @@ maven.install(
         "io.ktor:ktor-server-test-host-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-status-pages-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-client-websockets-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
         "com.h2database:h2:%s" % H2_VERSION,
@@ -195,6 +198,8 @@ maven.install(
         # JSON Path
         "com.jayway.jsonpath:json-path:%s" % JSON_PATH_VERSION,
     ],
+    fetch_javadoc = True,
+    fetch_sources = True,
     known_contributing_modules = [
         "bazel-repo",
         "bazel_worker_java",
