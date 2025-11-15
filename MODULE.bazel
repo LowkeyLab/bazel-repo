@@ -399,3 +399,7 @@ use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64")
 # BuildBuddy Remote Execution
 buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbuddy")
 buildbuddy.platform(buildbuddy_container_image = "UBUNTU22_04_IMAGE")
+
+register_toolchains(
+    "@toolchains_buildbuddy//toolchains/cc:ubuntu_gcc_x86_64",
+)
