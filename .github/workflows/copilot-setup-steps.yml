@@ -68,7 +68,7 @@ jobs:
         run: |
           cat $GITHUB_WORKSPACE/.github/workflows/copilot.bazelrc >> ~/.bazelrc
 
-      - name: Pre-warm Bazel cache and dependencies
+      - name: Check Bazel info
         run: |
           echo "=== Checking Bazel info ==="
           bazel info
