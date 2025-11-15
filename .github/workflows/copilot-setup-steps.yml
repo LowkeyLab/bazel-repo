@@ -44,6 +44,10 @@ jobs:
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
+      - name: Put copilot.bazelrc contents into ~/.bazelrc
+        run: |
+          cat $GITHUB_WORKSPACE/.github/workflows/copilot.bazelrc >> ~/.bazelrc
+
       - name: Install tools via bazel
         run: |
           echo "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin" >> $GITHUB_PATH
@@ -63,10 +67,6 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
-
-      - name: Put copilot.bazelrc contents into ~/.bazelrc
-        run: |
-          cat $GITHUB_WORKSPACE/.github/workflows/copilot.bazelrc >> ~/.bazelrc
 
       - name: Check Bazel info
         run: |
