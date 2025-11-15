@@ -1,3 +1,4 @@
+load("@rules_java//java:defs.bzl", "java_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
 kt_jvm_library(
@@ -34,24 +35,32 @@ kt_jvm_binary(
     ],
 )
 
-TEST_DEPS = [
-    ":guess_the_word_lib",
-    "@maven//:io_ktor_ktor_server_test_host_jvm",
-    "@maven//:org_jetbrains_kotlin_kotlin_test",
-    "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
-    "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
-    "@maven//:io_ktor_ktor_client_websockets_jvm",
-]
+java_library(
+    name = "test_deps",
+    testonly = True,
+    exports = [
+        ":guess_the_word_lib",
+        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_client_websockets_jvm",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
+        "@maven//:org_jetbrains_kotlin_kotlin_test",
+        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
+    ],
+)
 
-TEST_RUNTIME_DEPS = [
-    "@maven//:ch_qos_logback_logback_classic",
-]
+java_library(
+    name = "test_runtime_deps",
+    testonly = True,
+    exports = [
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)
 
 kt_jvm_test(
     name = "application_test",
     size = "small",
     srcs = ["test/ApplicationTest.kt"],
     test_class = "io.lowkeylabs.ApplicationTest",
-    runtime_deps = TEST_RUNTIME_DEPS,
-    deps = TEST_DEPS,
+    runtime_deps = [":test_runtime_deps"],
+    deps = [":test_deps"],
 )
