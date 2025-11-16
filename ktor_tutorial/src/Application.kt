@@ -1,6 +1,6 @@
 package com.example
 
-import com.example.model.FakeTaskRepository
+import com.example.model.PostgresTaskRepository
 import io.ktor.server.application.Application
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -11,7 +11,7 @@ fun main() {
 }
 
 fun Application.module() {
-    val repository = FakeTaskRepository()
+    val repository = PostgresTaskRepository()
 
     configureSerialization(repository)
     configureDatabases()

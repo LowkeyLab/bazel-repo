@@ -60,8 +60,10 @@ java_library(
 kt_jvm_test(
     name = "application_test",
     size = "small",
-    srcs = ["test/ApplicationTest.kt"],
+    srcs = glob(["test/**/*.kt"]),
     test_class = "com.example.ApplicationTest",
     runtime_deps = [":test_runtime_deps"],
-    deps = [":test_deps"],
+    deps = [
+        ":test_deps",
+    ],
 )
