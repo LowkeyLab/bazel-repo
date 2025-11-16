@@ -437,7 +437,15 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64")
+oci_extension.pull(
+    name = "postgres_18_1",
+    digest = "sha256:b13e60a97e0c8d918e8c4d9a68dc356b13f53b3a2655a46a15af67f7b097dd4f",
+    image = "postgres:18.1",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution

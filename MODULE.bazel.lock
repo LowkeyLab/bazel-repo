@@ -1448,7 +1448,7 @@
     "@@rules_oci+//oci:extensions.bzl%oci": {
       "general": {
         "bzlTransitiveDigest": "UG6/u9Dl5qNozcG8E6ehAcOG2nhh8rw191ishRnBR24=",
-        "usagesDigest": "jxAgT/h1VU7PSv/x7FeCJwNm2O9WlSvOptnBIPqXHyk=",
+        "usagesDigest": "cr9iPprH2A2dB3zWC+unbsXM3m66Z1rRtUzQnvaf5Eg=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1479,6 +1479,35 @@
                 "@@platforms//cpu:x86_64": "@distroless_cc_linux_amd64"
               },
               "bzlmod_repository": "distroless_cc",
+              "reproducible": true
+            }
+          },
+          "postgres_18_1_linux_amd64": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/postgres",
+              "identifier": "sha256:b13e60a97e0c8d918e8c4d9a68dc356b13f53b3a2655a46a15af67f7b097dd4f",
+              "platform": "linux/amd64",
+              "target_name": "postgres_18_1_linux_amd64",
+              "bazel_tags": []
+            }
+          },
+          "postgres_18_1": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
+            "attributes": {
+              "target_name": "postgres_18_1",
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/postgres",
+              "identifier": "sha256:b13e60a97e0c8d918e8c4d9a68dc356b13f53b3a2655a46a15af67f7b097dd4f",
+              "platforms": {
+                "@@platforms//cpu:x86_64": "@postgres_18_1_linux_amd64"
+              },
+              "bzlmod_repository": "postgres_18_1",
               "reproducible": true
             }
           },
@@ -1599,7 +1628,9 @@
         "moduleExtensionMetadata": {
           "explicitRootModuleDirectDeps": [
             "distroless_cc",
-            "distroless_cc_linux_amd64"
+            "distroless_cc_linux_amd64",
+            "postgres_18_1",
+            "postgres_18_1_linux_amd64"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",
