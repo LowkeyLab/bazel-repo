@@ -1,7 +1,7 @@
 load("@rules_java//java:defs.bzl", "java_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-package(default_visibility = ["//guess_the_word"])
+package(default_visibility = ["//guess_the_word:pkg_group"])
 
 java_library(
     name = "test_deps",

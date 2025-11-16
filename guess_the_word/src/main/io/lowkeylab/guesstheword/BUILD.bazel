@@ -1,14 +1,13 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
 
-package(default_visibility = ["//guess_the_word"])
+package(default_visibility = ["//guess_the_word:pkg_group"])
 
 kt_jvm_library(
     name = "guess_the_word_lib",
     srcs = glob(["*.kt"]),
-    plugins = [
-        "//3rdparty/kotlin:serialization_plugin",
-    ],
     deps = [
+        "//guess_the_word/src/main/io/lowkeylab/guesstheword/game",
+        "//guess_the_word/src/main/io/lowkeylab/guesstheword/player",
         "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
         "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_server_core_jvm",

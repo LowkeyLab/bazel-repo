@@ -1,7 +1,12 @@
 package_group(
-    name = "guess_the_word",
+    name = "pkg_group",
     packages = [
         "//angular/projects/guess_the_word/...",
         "//guess_the_word/...",
     ],
+)
+
+alias(
+    name = "guess_the_word",
+    actual = "//guess_the_word/src/main/io/lowkeylab/guesstheword:guess_the_word",
 )
