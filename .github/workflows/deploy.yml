@@ -52,4 +52,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Nicknamer Server Image
-        run: bazel run --config=ci --compilation_mode=opt //nicknamer/server:push_image
+        run: bazel run --compilation_mode=opt //nicknamer/server:push_image
