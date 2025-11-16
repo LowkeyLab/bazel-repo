@@ -1,4 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":approveMajorUpdates", ":automergeAll"]
+  "extends": ["config:recommended", ":approveMajorUpdates", ":automergeAll"],
+  "packageRules": [
+    {
+      "matchManagers": ["bazel"],
+      "postUpgradeTasks": {
+        "commands": ["REPIN=1 bazel run @maven//:pin"],
+        "fileFilters": ["maven_install.json"],
+        "executionMode": "update"
+      }
+    }
+  ]
 }
