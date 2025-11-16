@@ -1,0 +1,29 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
+
+package(default_visibility = ["//guess_the_word"])
+
+kt_jvm_library(
+    name = "guess_the_word_lib",
+    srcs = glob(["*.kt"]),
+    plugins = [
+        "//3rdparty/kotlin:serialization_plugin",
+    ],
+    deps = [
+        "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
+        "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_server_core_jvm",
+        "@maven//:io_ktor_ktor_server_netty_jvm",
+        "@maven//:io_ktor_ktor_server_websockets_jvm",
+    ],
+)
+
+kt_jvm_binary(
+    name = "guess_the_word",
+    main_class = "io.lowkeylab.guesstheword.ApplicationKt",
+    resource_strip_prefix = "guess_the_word/src/main/resources",
+    resources = ["//guess_the_word/src/main/resources"],
+    runtime_deps = [
+        ":guess_the_word_lib",
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)
