@@ -1,0 +1,69 @@
+load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+kt_jvm_library(
+    name = "ktor_tutorial_lib",
+    srcs = glob(["src/**/*.kt"]),
+    plugins = [
+        "//3rdparty/kotlin:serialization_plugin",
+    ],
+    deps = [
+        "@maven//:com_h2database_h2",
+        "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
+        "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_server_core_jvm",
+        "@maven//:io_ktor_ktor_server_netty_jvm",
+        "@maven//:io_ktor_ktor_server_status_pages_jvm",
+        "@maven//:io_ktor_ktor_server_thymeleaf_jvm",
+        "@maven//:io_ktor_ktor_server_websockets_jvm",
+        "@maven//:org_jetbrains_exposed_exposed_core",
+        "@maven//:org_jetbrains_exposed_exposed_dao",
+        "@maven//:org_jetbrains_exposed_exposed_jdbc",
+        "@maven//:org_postgresql_postgresql",
+    ],
+)
+
+kt_jvm_binary(
+    name = "ktor_tutorial",
+    main_class = "com.example.ApplicationKt",
+    resource_strip_prefix = "ktor_tutorial/resources",
+    resources = glob([
+        "resources/**",
+    ]),
+    runtime_deps = [
+        ":ktor_tutorial_lib",
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)
+
+java_library(
+    name = "test_deps",
+    testonly = True,
+    exports = [
+        ":ktor_tutorial_lib",
+        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_client_websockets_jvm",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
+        "@maven//:org_jetbrains_kotlin_kotlin_test",
+        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
+    ],
+)
+
+java_library(
+    name = "test_runtime_deps",
+    testonly = True,
+    exports = [
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)
+
+kt_jvm_test(
+    name = "application_test",
+    size = "small",
+    srcs = glob(["test/**/*.kt"]),
+    test_class = "com.example.ApplicationTest",
+    runtime_deps = [":test_runtime_deps"],
+    deps = [
+        ":test_deps",
+    ],
+)

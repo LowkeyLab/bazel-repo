@@ -2,6 +2,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@gazelle//:def.bzl", "gazelle")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 # JS BUILD generation is opt-in per project
 # aspect:js disabled
@@ -47,4 +48,10 @@ js_library(
 gazelle(
     name = "gazelle",
     gazelle = "@multitool//tools/gazelle",
+)
+
+### Kotlin toolchain configuration
+define_kt_toolchain(
+    name = "kotlin_toolchain",
+    jvm_target = "21",
 )

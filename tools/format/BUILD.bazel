@@ -7,6 +7,7 @@ we don't want to trigger eager fetches of these for builds that don't want to ru
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
 load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -28,6 +29,13 @@ java_binary(
     runtime_deps = ["@google-java-format//jar"],
 )
 
+# Wrapper for ktlint that always runs with --format flag
+sh_binary(
+    name = "ktlint",
+    srcs = ["ktlint_wrapper.sh"],
+    data = ["@ktlint"],
+)
+
 # Creates a `bazel run`nable target that aggregates formatters so it may run against
 # any files in the repository regardless of language.
 format_multirun(
@@ -35,6 +43,7 @@ format_multirun(
     go = "@aspect_rules_lint//format:gofumpt",
     java = ":java-format",
     javascript = ":prettier",
+    kotlin = ":ktlint",
     markdown = ":prettier",
     python = "@aspect_rules_lint//format:ruff",
     rust = "@rules_rust//tools/upstream_wrapper:rustfmt",

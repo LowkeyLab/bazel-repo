@@ -34,9 +34,9 @@ bazel_dep(name = "toolchains_protoc", version = "0.6.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_jvm_external", version = "6.9")
 bazel_dep(name = "rules_mypy", version = "0.40.0")
-bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_go", version = "0.59.0")
 bazel_dep(name = "tar.bzl", version = "0.7.0")
+bazel_dep(name = "rules_kotlin", version = "2.1.9")
 bazel_dep(name = "toolchains_buildbuddy", version = "0.0.2")
 bazel_dep(name = "gazelle", version = "0.47.0")
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -63,6 +63,14 @@ http_jar(
     name = "google-java-format",
     sha256 = "33068bbbdce1099982ec1171f5e202898eb35f2919cf486141e439fc6e3a4203",
     url = "https://github.com/google/google-java-format/releases/download/v1.17.0/google-java-format-1.17.0-all-deps.jar",
+)
+
+http_archive(
+    name = "ktlint",
+    build_file_content = """sh_binary(name = "ktlint", srcs = ["bin/ktlint"], visibility = ["//visibility:public"])""",
+    integrity = "sha256-1FO4NHWHJBVZ1YMQLBiZOm78fX0QZNGjgPiljrU6BnU=",
+    strip_prefix = "ktlint-1.7.1",
+    url = "https://github.com/pinterest/ktlint/releases/download/1.7.1/ktlint-1.7.1.zip",
 )
 
 #########################
@@ -137,42 +145,6 @@ register_toolchains("@toolchains_protoc_hub//:all")
 register_toolchains("//tools/toolchains:all")
 
 #########################
-# Python
-# https://github.com/bazelbuild/rules_python/tree/main/examples/bzlmod
-
-# This pattern is repeated across many languages: First, bzlmod is used to bring
-# in language support. Then, an extension is grabbed from that language support
-# repository and used to configure the language version and additional
-# dependencies using a language-specific mechanism popular in the relevant
-# ecosystem.
-
-pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
-
-python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(
-    python_version = "3.11",
-)
-
-pip.parse(
-    hub_name = "pip",
-    python_version = "3.11",
-    requirements_lock = "//requirements:all.txt",
-)
-use_repo(pip, "pip")
-
-# rules_mypy co-initializes with rules_python in order to discover types and
-# stubs packages in your requirements lock and create a mapping from normal
-# requirements to stub requirements which can be used to add appropriate stub
-# dependencies automatically during typechecking.
-types = use_extension("@rules_mypy//mypy:types.bzl", "types")
-types.requirements(
-    name = "pip_types",
-    pip_requirements = "@pip//:requirements.bzl",
-    requirements_txt = "//requirements:all.txt",
-)
-use_repo(types, "pip_types")
-
-#########################
 # Java and other JVM languages:
 # https://github.com/bazelbuild/rules_jvm_external/blob/master/examples/bzlmod/MODULE.bazel
 # https://github.com/bazelbuild/rules_jvm_external#pinning-artifacts-and-integration-with-bazels-downloader
@@ -180,16 +152,88 @@ use_repo(types, "pip_types")
 # In the Maven support variation, the dependencies are conveniently listed here
 # in the MODULE.bazel file.
 
+# Version variables for JVM dependencies
+KTOR_VERSION = "3.3.1"
+
+KOTLIN_VERSION = "2.2.20"
+
+POSTGRES_VERSION = "42.7.8"
+
+H2_VERSION = "2.3.232"
+
+EXPOSED_VERSION = "0.61.0"
+
+LOGBACK_VERSION = "1.4.14"
+
+JSON_PATH_VERSION = "2.9.0"
+
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        "com.google.protobuf:protobuf-java:4.28.0",
-        "io.grpc:grpc-all:1.51.1",
+        # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
+        "io.ktor:ktor-client-content-negotiation-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-client-websockets-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-serialization-kotlinx-json-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-id-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-logging-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-config-yaml-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-content-negotiation-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-core-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-di-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-host-common-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-netty-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-sessions-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-status-pages-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-test-host-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
+        # Database dependencies
+        "com.h2database:h2:%s" % H2_VERSION,
+        "org.jetbrains.exposed:exposed-core:%s" % EXPOSED_VERSION,
+        "org.jetbrains.exposed:exposed-dao:%s" % EXPOSED_VERSION,
+        "org.jetbrains.exposed:exposed-jdbc:%s" % EXPOSED_VERSION,
+        "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
+        # Logging
+        "ch.qos.logback:logback-classic:%s" % LOGBACK_VERSION,
+        # JSON Path
+        "com.jayway.jsonpath:json-path:%s" % JSON_PATH_VERSION,
+    ],
+    fetch_javadoc = True,
+    fetch_sources = True,
+    known_contributing_modules = [
+        "bazel-repo",
+        "bazel_worker_java",
+        "protobuf",
     ],
     lock_file = "//:maven_install.json",
 )
+maven.artifact(
+    testonly = True,
+    artifact = "kotlin-test-junit",
+    group = "org.jetbrains.kotlin",
+    version = KOTLIN_VERSION,
+)
+maven.artifact(
+    artifact = "gson",
+    force_version = True,
+    group = "com.google.code.gson",
+    version = "2.10.1",
+)
+maven.artifact(
+    artifact = "error_prone_annotations",
+    force_version = True,
+    group = "com.google.errorprone",
+    version = "2.23.0",
+)
+maven.artifact(
+    artifact = "guava",
+    force_version = True,
+    group = "com.google.guava",
+    version = "33.0.0-jre",
+)
 use_repo(maven, "maven")
 
+register_toolchains("//:kotlin_toolchain")
 # --- Rust Configuration ---
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
