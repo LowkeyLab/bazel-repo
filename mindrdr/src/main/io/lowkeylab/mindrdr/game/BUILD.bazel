@@ -1,6 +1,6 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
-package(default_visibility = ["//mindrdr:pkg_group"])
+package(default_visibility = ["//mindrdr:__subpackages__"])
 
 kt_jvm_library(
     name = "game",

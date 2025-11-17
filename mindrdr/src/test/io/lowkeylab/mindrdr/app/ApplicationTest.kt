@@ -1,7 +1,9 @@
-package io.lowkeylab.mindrdr
+package io.lowkeylab.mindrdr.app
+
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
+import io.lowkeylab.mindrdr.configureRouting
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -10,10 +12,10 @@ class ApplicationTest {
     fun testRoot() =
         testApplication {
             application {
-                module()
+                configureRouting()
             }
             client.get("/").apply {
-                assertEquals(HttpStatusCode.OK, status)
+                assertEquals(HttpStatusCode.Companion.OK, status)
             }
         }
 }

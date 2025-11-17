@@ -1,13 +1,13 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
 kt_jvm_test(
-    name = "application_test",
+    name = "ApplicationTest",
     size = "small",
-    srcs = glob(["*.kt"]),
+    srcs = ["ApplicationTest.kt"],
     resources = [
         "//mindrdr/src/main/resources",
     ],
-    test_class = "io.lowkeylab.mindrdr.ApplicationTest",
+    test_class = "io.lowkeylab.mindrdr.app.ApplicationTest",
     runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
     deps = [
         "//mindrdr/src/main/io/lowkeylab/mindrdr",

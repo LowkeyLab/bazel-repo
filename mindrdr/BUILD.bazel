@@ -1,11 +1,4 @@
-package_group(
-    name = "pkg_group",
-    packages = [
-        "//mindrdr/...",
-    ],
-)
-
 alias(
     name = "mindrdr",
-    actual = "//mindrdr/src/main/io/lowkeylab/mindrdr:Application",
+    actual = "//mindrdr/src/main/io/lowkeylab/mindrdr/app",
 )
