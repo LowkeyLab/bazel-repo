@@ -1,0 +1,6 @@
+package(default_visibility = ["//mindrdr/src:__subpackages__"])
+
+filegroup(
+    name = "resources",
+    srcs = glob(["**"]),
+)

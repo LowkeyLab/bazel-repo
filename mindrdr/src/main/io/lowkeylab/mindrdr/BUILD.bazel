@@ -1,0 +1,34 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+package(default_visibility = ["//mindrdr:pkg_group"])
+
+kt_jvm_library(
+    name = "mindrdr",
+    srcs = glob(["*.kt"]),
+    plugins = [
+        "//3rdparty/kotlin:serialization_plugin",
+    ],
+    deps = [
+        "//mindrdr/src/main/io/lowkeylab/mindrdr/game",
+        "//mindrdr/src/main/io/lowkeylab/mindrdr/player",
+        "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
+        "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_server_core_jvm",
+        "@maven//:io_ktor_ktor_server_cors_jvm",
+        "@maven//:io_ktor_ktor_server_netty_jvm",
+        "@maven//:io_ktor_ktor_server_sessions_jvm",
+        "@maven//:io_ktor_ktor_server_websockets_jvm",
+    ],
+)
+
+java_binary(
+    name = "Application",
+    main_class = "io.lowkeylab.mindrdr.ApplicationKt",
+    resource_strip_prefix = "mindrdr/src/main/resources",
+    resources = ["//mindrdr/src/main/resources"],
+    runtime_deps = [
+        ":mindrdr",
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)

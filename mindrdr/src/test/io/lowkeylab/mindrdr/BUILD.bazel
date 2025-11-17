@@ -1,0 +1,19 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+kt_jvm_test(
+    name = "application_test",
+    size = "small",
+    srcs = glob(["*.kt"]),
+    resources = [
+        "//mindrdr/src/main/resources",
+    ],
+    test_class = "io.lowkeylab.mindrdr.ApplicationTest",
+    runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
+    deps = [
+        "//mindrdr/src/main/io/lowkeylab/mindrdr",
+        "//mindrdr/src/test:test_deps",
+        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_client_websockets_jvm",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
+    ],
+)

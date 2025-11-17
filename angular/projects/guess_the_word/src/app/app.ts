@@ -8,5 +8,5 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.css',
 })
 export class App {
-  protected readonly title = signal('guess_the_word');
+  protected readonly title = signal('mindrdr');
 }

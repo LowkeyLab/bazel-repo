@@ -78,26 +78,26 @@
         }
       }
     },
-    "guess_the_word": {
+    "mindrdr": {
       "projectType": "application",
       "schematics": {},
-      "root": "projects/guess_the_word",
-      "sourceRoot": "projects/guess_the_word/src",
+      "root": "projects/mindrdr",
+      "sourceRoot": "projects/mindrdr/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "browser": "projects/guess_the_word/src/main.ts",
+            "browser": "projects/mindrdr/src/main.ts",
             "polyfills": ["zone.js"],
-            "tsConfig": "projects/guess_the_word/tsconfig.app.json",
+            "tsConfig": "projects/mindrdr/tsconfig.app.json",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "projects/guess_the_word/public"
+                "input": "projects/mindrdr/public"
               }
             ],
-            "styles": ["projects/guess_the_word/src/styles.css"]
+            "styles": ["projects/mindrdr/src/styles.css"]
           },
           "configurations": {
             "production": {
@@ -127,10 +127,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "guess_the_word:build:production"
+              "buildTarget": "mindrdr:build:production"
             },
             "development": {
-              "buildTarget": "guess_the_word:build:development"
+              "buildTarget": "mindrdr:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -143,14 +143,14 @@
           "options": {
             "browsers": "ChromeHeadlessNoSandbox",
             "polyfills": ["zone.js", "zone.js/testing"],
-            "tsConfig": "projects/guess_the_word/tsconfig.spec.json",
+            "tsConfig": "projects/mindrdr/tsconfig.spec.json",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "projects/guess_the_word/public"
+                "input": "projects/mindrdr/public"
               }
             ],
-            "styles": ["projects/guess_the_word/src/styles.css"]
+            "styles": ["projects/mindrdr/src/styles.css"]
           }
         }
       }
