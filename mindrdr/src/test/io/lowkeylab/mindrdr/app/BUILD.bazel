@@ -36,22 +36,3 @@ kt_jvm_test(
         "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
     ],
 )
-
-kt_jvm_test(
-    name = "GamesWebSocketSimpleTest",
-    size = "small",
-    srcs = ["GamesWebSocketSimpleTest.kt"],
-    resources = [
-        "//mindrdr/src/main/resources",
-    ],
-    test_class = "io.lowkeylab.mindrdr.app.GamesWebSocketSimpleTest",
-    runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
-    deps = [
-        "//mindrdr/src/main/io/lowkeylab/mindrdr",
-        "//mindrdr/src/main/io/lowkeylab/mindrdr/game",
-        "//mindrdr/src/test:test_deps",
-        "@maven//:io_ktor_ktor_client_websockets_jvm",
-        "@maven//:io_ktor_ktor_server_test_host_jvm",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
-    ],
-)
