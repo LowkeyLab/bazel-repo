@@ -217,7 +217,7 @@ maven.artifact(
     artifact = "gson",
     force_version = True,
     group = "com.google.code.gson",
-    version = "2.10.1",
+    version = "2.13.2",
 )
 maven.artifact(
     artifact = "error_prone_annotations",
