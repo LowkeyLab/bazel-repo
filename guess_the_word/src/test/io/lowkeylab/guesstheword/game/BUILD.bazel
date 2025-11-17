@@ -8,5 +8,7 @@ kt_jvm_test(
     runtime_deps = ["//guess_the_word/src/test:test_runtime_deps"],
     deps = [
         "//guess_the_word/src/main/io/lowkeylab/guesstheword/game",
+        "//guess_the_word/src/main/io/lowkeylab/guesstheword/player",
+        "//guess_the_word/src/test:test_deps",
     ],
 )

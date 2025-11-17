@@ -21,7 +21,7 @@ class Game(
         get() = rounds.lastOrNull()
 
     fun addPlayer(playerId: PlayerId): Game {
-        check(state == GameState.WAITING_FOR_PLAYERS) { "Cannot add player. Game is not in WAITING_FOR_PLAYERS state." }
+        check(state == GameState.WAITING_FOR_PLAYERS) { "Cannot add player. Game is in $state state." }
         if (players.contains(playerId)) return this
         players.add(playerId)
         if (players.size == playerLimit.toInt()) {
@@ -35,6 +35,7 @@ class Game(
         playerId: PlayerId,
         guess: String,
     ): Game {
+        check(state == GameState.IN_PROGRESS) { "Cannot add guess. Game is in $state state." }
         val round = checkNotNull(currentRound) { "Cannot add guess. No current round." }
         if (round.guesses.containsKey(playerId)) return this
         round.guesses[playerId] = guess
@@ -50,6 +51,7 @@ class Game(
     }
 
     fun removePlayer(playerId: PlayerId): Game {
+        check(state != GameState.COMPLETED) { "Cannot remove player. Game is in $state state." }
         players.remove(playerId)
         if (state == GameState.IN_PROGRESS) {
             state = GameState.COMPLETED
