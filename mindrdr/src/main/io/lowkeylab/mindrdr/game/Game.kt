@@ -1,6 +1,5 @@
 package io.lowkeylab.mindrdr.game
 
-import io.lowkeylab.mindrdr.player.PlayerId
 import kotlinx.serialization.Serializable
 
 @JvmInline
@@ -13,17 +12,16 @@ value class GameId(
 class Game(
     val id: GameId,
     private val playerLimit: UInt = 2u,
-    private val players: MutableList<PlayerId> = mutableListOf(),
+    private val players: MutableList<Player> = mutableListOf(),
     private val rounds: MutableList<Round> = mutableListOf(),
     private var state: GameState = GameState.WAITING_FOR_PLAYERS,
 ) {
     private val currentRound: Round?
         get() = rounds.lastOrNull()
 
-    fun addPlayer(playerId: PlayerId): Game {
+    fun addPlayer(player: Player): Game {
         check(state == GameState.WAITING_FOR_PLAYERS) { "Cannot add player. Game is in $state state." }
-        if (players.contains(playerId)) return this
-        players.add(playerId)
+        players.add(player)
         if (players.size == playerLimit.toInt()) {
             rounds.add(Round(number = 1u))
             state = GameState.IN_PROGRESS
@@ -32,13 +30,13 @@ class Game(
     }
 
     fun addGuess(
-        playerId: PlayerId,
+        player: Player,
         guess: String,
     ): Game {
         check(state == GameState.IN_PROGRESS) { "Cannot add guess. Game is in $state state." }
         val round = checkNotNull(currentRound) { "Cannot add guess. No current round." }
-        if (round.guesses.containsKey(playerId)) return this
-        round.guesses[playerId] = guess
+        if (round.guesses.containsKey(player)) return this
+        round.guesses[player] = guess
 
         if (round.guesses.size == players.size) {
             if (round.uniqueGuesses.size == 1) {
@@ -50,9 +48,9 @@ class Game(
         return this
     }
 
-    fun removePlayer(playerId: PlayerId): Game {
+    fun removePlayer(player: Player): Game {
         check(state != GameState.COMPLETED) { "Cannot remove player. Game is in $state state." }
-        players.remove(playerId)
+        players.remove(player)
         if (state == GameState.IN_PROGRESS) {
             state = GameState.COMPLETED
         }
@@ -67,7 +65,7 @@ class Game(
 @Serializable
 data class Round(
     val number: UInt,
-    val guesses: MutableMap<PlayerId, String> = mutableMapOf(),
+    val guesses: MutableMap<Player, String> = mutableMapOf(),
 ) {
     val uniqueGuesses: Set<String>
         get() = guesses.values.toSet()

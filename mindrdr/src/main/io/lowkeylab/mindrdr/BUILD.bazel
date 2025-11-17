@@ -10,13 +10,11 @@ kt_jvm_library(
     ],
     deps = [
         "//mindrdr/src/main/io/lowkeylab/mindrdr/game",
-        "//mindrdr/src/main/io/lowkeylab/mindrdr/player",
         "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
         "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_server_core_jvm",
         "@maven//:io_ktor_ktor_server_cors_jvm",
         "@maven//:io_ktor_ktor_server_netty_jvm",
-        "@maven//:io_ktor_ktor_server_sessions_jvm",
         "@maven//:io_ktor_ktor_server_websockets_jvm",
     ],
 )

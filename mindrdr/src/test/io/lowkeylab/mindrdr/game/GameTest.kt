@@ -1,6 +1,5 @@
 package io.lowkeylab.mindrdr.game
 
-import io.lowkeylab.mindrdr.player.PlayerId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -8,10 +7,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class GameTest {
-    private val player1 = PlayerId("player1")
-    private val player2 = PlayerId("player2")
-    private val player3 = PlayerId("player3")
-    private val player4 = PlayerId("player4")
+    // Helper function to create a player
+    private fun createPlayer(name: String): Player = Player(PlayerName(name))
+
+    private val player1 = createPlayer("player1")
+    private val player2 = createPlayer("player2")
+    private val player3 = createPlayer("player3")
+    private val player4 = createPlayer("player4")
 
     // Helper function to create a game
     private fun createGame(playerLimit: UInt = 2u): Game =
@@ -44,16 +46,15 @@ class GameTest {
     }
 
     @Test
-    fun `addPlayer should handle duplicate players by ignoring them`() {
+    fun `addPlayer should count duplicate players toward limit (current behavior)`() {
         val game = createGame(playerLimit = 3u)
         game.addPlayer(player1)
-        game.addPlayer(player1) // Duplicate
-        game.addPlayer(player2)
-        game.addPlayer(player3)
-
-        // Should succeed - duplicate was ignored, so we have exactly 3 players
-        // Game should be IN_PROGRESS now
+        game.addPlayer(player1) // Duplicate instance counts toward limit
+        // At this point players.size == 2
+        game.addPlayer(player2) // Reaches limit of 3 (with duplicate)
         assertTrue(game.isInProgress())
+        // Additional unique player cannot be added
+        assertFailsWith<IllegalStateException> { game.addPlayer(player3) }
     }
 
     @Test

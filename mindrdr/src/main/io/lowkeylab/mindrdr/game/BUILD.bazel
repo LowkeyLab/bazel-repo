@@ -9,7 +9,6 @@ kt_jvm_library(
         "//3rdparty/kotlin:serialization_plugin",
     ],
     deps = [
-        "//mindrdr/src/main/io/lowkeylab/mindrdr/player",
         "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
     ],
 )

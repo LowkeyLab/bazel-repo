@@ -1,8 +1,7 @@
 package io.lowkeylab.mindrdr.game
 
-import io.lowkeylab.mindrdr.player.PlayerId
-
 class GameService(
+    private val playerFactory: PlayerFactory,
     private val gameRepository: GameRepository,
 ) {
     suspend fun getAllGames(): List<Game> = gameRepository.getAllGames()
@@ -11,28 +10,26 @@ class GameService(
 
     suspend fun getGameById(gameId: GameId): Game? = gameRepository.getGameById(gameId)
 
-    suspend fun addPlayerToGame(
-        playerId: PlayerId,
-        gameId: GameId,
-    ) {
+    suspend fun addPlayerToGame(gameId: GameId) {
         val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
-        game.addPlayer(playerId)
+        val player = playerFactory.create()
+        game.addPlayer(player)
     }
 
     suspend fun removePlayerFromGame(
-        playerId: PlayerId,
+        player: Player,
         gameId: GameId,
     ) {
         val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
-        game.removePlayer(playerId)
+        game.removePlayer(player)
     }
 
     suspend fun addGuessToGame(
-        playerId: PlayerId,
+        player: Player,
         gameId: GameId,
         guess: String,
     ) {
         val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
-        game.addGuess(playerId, guess)
+        game.addGuess(player, guess)
     }
 }
