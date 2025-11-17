@@ -8,5 +8,5 @@ package_group(
 
 alias(
     name = "guess_the_word",
-    actual = "//guess_the_word/src/main/io/lowkeylab/guesstheword:guess_the_word",
+    actual = "//guess_the_word/src/main/io/lowkeylab/guesstheword:Application",
 )

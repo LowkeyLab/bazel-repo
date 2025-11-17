@@ -10,7 +10,7 @@ kt_jvm_test(
     test_class = "io.lowkeylab.guesstheword.ApplicationTest",
     runtime_deps = ["//guess_the_word/src/test:test_runtime_deps"],
     deps = [
-        "//guess_the_word/src/main/io/lowkeylab/guesstheword:guess_the_word_lib",
+        "//guess_the_word/src/main/io/lowkeylab/guesstheword",
         "//guess_the_word/src/test:test_deps",
         "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_client_websockets_jvm",
