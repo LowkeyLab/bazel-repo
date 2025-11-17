@@ -10,7 +10,6 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.sendSerialized
 import io.ktor.server.websocket.webSocket
-import io.ktor.server.websocket.webSocketRaw
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
@@ -90,16 +89,6 @@ fun Application.configureGames(gameService: GameService) {
                                             )
                                             this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, message.reason))
                                         }
-                                        is OutgoingMessage.GameEnded -> {
-                                            sendSerialized<OutgoingMessage>(message)
-                                            log.info(
-                                                "Game {} ended for player {} with final guess {}",
-                                                gameId.id,
-                                                player.name.name,
-                                                message.finalGuess,
-                                            )
-                                            this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, "Game ended"))
-                                        }
                                         else -> sendSerialized<OutgoingMessage>(message)
                                     }
                                 } catch (_: Exception) {
@@ -133,7 +122,7 @@ fun Application.configureGames(gameService: GameService) {
                                                 // Check if game ended
                                                 if (currentGame.hasEnded()) {
                                                     // Emit termination to all clients
-                                                    sharedFlow.emit(OutgoingMessage.GameEnded(currentGame.getFinalGuess()!!))
+                                                    sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
                                                 }
                                             }.onFailure { e ->
                                                 log.error(
@@ -154,7 +143,7 @@ fun Application.configureGames(gameService: GameService) {
                         }
                     } finally {
                         // Player disconnected - remove from game and terminate all connections
-                        gameService.removePlayerFromGame(player, gameId)
+                        runCatching { gameService.removePlayerFromGame(player, gameId) }
 
                         // Emit termination to all clients (best-effort, non-suspending if no subscribers)
                         gameFlows[gameId]?.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
@@ -196,12 +185,6 @@ sealed class OutgoingMessage {
     @SerialName("game_terminated")
     data class GameTerminated(
         val reason: String,
-    ) : OutgoingMessage()
-
-    @Serializable
-    @SerialName("game_ended")
-    data class GameEnded(
-        val finalGuess: String,
     ) : OutgoingMessage()
 
     @Serializable
