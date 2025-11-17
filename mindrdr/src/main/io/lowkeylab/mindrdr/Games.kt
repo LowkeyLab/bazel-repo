@@ -10,7 +10,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
-import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.Frame.Text
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import io.lowkeylab.mindrdr.game.Game
@@ -18,6 +18,9 @@ import io.lowkeylab.mindrdr.game.GameId
 import io.lowkeylab.mindrdr.game.GameService
 import io.lowkeylab.mindrdr.game.Player
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -44,14 +47,14 @@ fun Application.configureGames(gameService: GameService) {
                 webSocket("/live") {
                     val gameIdParam =
                         call.parameters["id"] ?: run {
-                            close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID"))
+                            this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID"))
                             return@webSocket
                         }
                     val gameId = GameId(gameIdParam)
 
                     // Validate game exists
                     gameService.getGameById(gameId) ?: run {
-                        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Game not found"))
+                        this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Game not found"))
                         return@webSocket
                     }
 
@@ -60,55 +63,79 @@ fun Application.configureGames(gameService: GameService) {
                         try {
                             gameService.addPlayerToGame(gameId)
                         } catch (e: Exception) {
-                            close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Failed to join game: ${e.message}"))
+                            this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Failed to join game: ${e.message}"))
                             return@webSocket
                         }
 
-                    // Track this session
-                    val playerSession = PlayerSession(player, this)
-                    gameSessions.computeIfAbsent(gameId) { ConcurrentHashMap.newKeySet() }.add(playerSession)
+                    // Create or get the shared flow for this game
+                    val sharedFlow =
+                        gameFlows.computeIfAbsent(gameId) {
+                            MutableSharedFlow()
+                        }
+
+                    // Launch a coroutine to forward flow emissions to this client
+                    val job =
+                        launch {
+                            sharedFlow.asSharedFlow().collect { message ->
+                                val text = Json.encodeToString(OutgoingMessage.serializer(), message)
+                                try {
+                                    when (message) {
+                                        is OutgoingMessage.GameTerminated -> {
+                                            send(Frame.Text(text))
+                                            this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, message.reason))
+                                        }
+                                        else -> send(Frame.Text(text))
+                                    }
+                                } catch (_: Exception) {
+                                    // Ignore send/close failures (client may be gone)
+                                }
+                            }
+                        }
 
                     try {
-                        // Notify player they joined
+                        // Notify player they joined (only to this client)
                         val joinMessage = OutgoingMessage.PlayerJoined(player)
                         send(Frame.Text(Json.encodeToString(OutgoingMessage.serializer(), joinMessage)))
 
-                        // Broadcast current game state to all players
+                        // Broadcast current game state to all players via the shared flow
                         val updatedGame = gameService.getGameById(gameId)!!
-                        broadcastToGame(gameId, OutgoingMessage.GameState(updatedGame))
+                        sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
 
                         // Handle incoming messages
                         incoming.consumeEach { frame ->
                             if (frame is Frame.Text) {
                                 val text = frame.readText()
-                                try {
+                                runCatching {
                                     when (val message = Json.decodeFromString(IncomingMessage.serializer(), text)) {
                                         is IncomingMessage.SubmitGuess -> {
-                                            try {
-                                                gameService.addGuessToGame(player, gameId, message.guess)
+                                            this
+                                                .runCatching {
+                                                    gameService.addGuessToGame(player, gameId, message.guess)
 
-                                                // Broadcast updated game state
-                                                val currentGame = gameService.getGameById(gameId)!!
-                                                broadcastToGame(gameId, OutgoingMessage.GameState(currentGame))
+                                                    // Broadcast updated game state
+                                                    val currentGame = gameService.getGameById(gameId)!!
+                                                    sharedFlow.emit(OutgoingMessage.GameState(currentGame))
 
-                                                // Check if game ended
-                                                if (currentGame.hasEnded()) {
-                                                    broadcastToGame(gameId, OutgoingMessage.GameTerminated("Game completed"))
-                                                    closeAllGameSessions(gameId, "Game completed")
-                                                }
-                                            } catch (e: Exception) {
-                                                send(
-                                                    Frame.Text(
-                                                        Json.encodeToString(
-                                                            OutgoingMessage.serializer(),
-                                                            OutgoingMessage.Error("Failed to submit guess: ${e.message}"),
+                                                    // Check if game ended
+                                                    if (currentGame.hasEnded()) {
+                                                        // Emit termination to all clients
+                                                        sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
+                                                    }
+                                                }.onFailure { e ->
+                                                    // Per-client error message
+                                                    send(
+                                                        Text(
+                                                            Json.encodeToString(
+                                                                OutgoingMessage.serializer(),
+                                                                OutgoingMessage.Error("Failed to submit guess: ${e.message}"),
+                                                            ),
                                                         ),
-                                                    ),
-                                                )
-                                            }
+                                                    )
+                                                }
                                         }
                                     }
-                                } catch (e: Exception) {
+                                }.onFailure { e ->
+                                    // Per-client error message for bad input
                                     send(
                                         Frame.Text(
                                             Json.encodeToString(
@@ -121,19 +148,17 @@ fun Application.configureGames(gameService: GameService) {
                             }
                         }
                     } finally {
-                        // Remove this session from tracking
-                        gameSessions[gameId]?.remove(playerSession)
-
                         // Player disconnected - remove from game and terminate all connections
-                        try {
-                            gameService.removePlayerFromGame(player, gameId)
+                        runCatching { gameService.removePlayerFromGame(player, gameId) }
 
-                            // Broadcast termination message and close all sessions
-                            broadcastToGame(gameId, OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
-                            closeAllGameSessions(gameId, "Player left the game")
-                        } catch (e: Exception) {
-                            // Game might already be completed or player already removed
-                        }
+                        // Emit termination to all clients (best-effort, non-suspending if no subscribers)
+                        gameFlows[gameId]?.tryEmit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
+
+                        // Cancel the collection job before cleanup
+                        job.cancel()
+
+                        // Remove the flow for this game (allow recreation on next connect)
+                        gameFlows.remove(gameId)
                     }
                 }
             }
@@ -141,18 +166,8 @@ fun Application.configureGames(gameService: GameService) {
     }
 }
 
-@Serializable
-data class AddGuessRequest(
-    val guess: String,
-)
-
-// WebSocket session tracking
-private data class PlayerSession(
-    val player: Player,
-    val session: WebSocketSession,
-)
-
-private val gameSessions = ConcurrentHashMap<GameId, MutableSet<PlayerSession>>()
+// Replace session tracking with per-game shared flows
+private val gameFlows = ConcurrentHashMap<GameId, MutableSharedFlow<OutgoingMessage>>()
 
 // WebSocket message types
 @Serializable
@@ -189,35 +204,4 @@ sealed class OutgoingMessage {
     data class PlayerJoined(
         val player: Player,
     ) : OutgoingMessage()
-}
-
-// Helper function to broadcast messages to all sessions in a game
-private suspend fun broadcastToGame(
-    gameId: GameId,
-    message: OutgoingMessage,
-) {
-    val sessions = gameSessions[gameId] ?: return
-    val json = Json.encodeToString(OutgoingMessage.serializer(), message)
-    sessions.forEach { playerSession ->
-        try {
-            playerSession.session.send(Frame.Text(json))
-        } catch (e: Exception) {
-            // Session might be closed, ignore
-        }
-    }
-}
-
-// Helper function to close all sessions for a game
-private suspend fun closeAllGameSessions(
-    gameId: GameId,
-    reason: String,
-) {
-    val sessions = gameSessions.remove(gameId) ?: return
-    sessions.forEach { playerSession ->
-        try {
-            playerSession.session.close(CloseReason(CloseReason.Codes.NORMAL, reason))
-        } catch (e: Exception) {
-            // Session might already be closed, ignore
-        }
-    }
 }
