@@ -58,6 +58,10 @@ class Game(
         }
         return this
     }
+
+    fun hasEnded(): Boolean = state == GameState.COMPLETED
+
+    fun isInProgress(): Boolean = state == GameState.IN_PROGRESS
 }
 
 @Serializable

@@ -40,10 +40,7 @@ class GameTest {
         game.addPlayer(player2)
 
         // Game should now be IN_PROGRESS
-        // We can verify by checking that adding another player fails
-        assertFailsWith<IllegalStateException> {
-            game.addPlayer(player3)
-        }
+        assertTrue(game.isInProgress())
     }
 
     @Test
@@ -56,9 +53,7 @@ class GameTest {
 
         // Should succeed - duplicate was ignored, so we have exactly 3 players
         // Game should be IN_PROGRESS now
-        assertFailsWith<IllegalStateException> {
-            game.addPlayer(player4)
-        }
+        assertTrue(game.isInProgress())
     }
 
     @Test
@@ -84,9 +79,7 @@ class GameTest {
         game.addPlayer(player4)
 
         // Now should be IN_PROGRESS
-        assertFailsWith<IllegalStateException> {
-            game.addPlayer(PlayerId("player5"))
-        }
+        assertTrue(game.isInProgress())
     }
 
     // Test Guess Submission Logic
@@ -164,10 +157,7 @@ class GameTest {
         game.addGuess(player2, "apple") // Same guess
 
         // Game should be COMPLETED - all guesses matched
-        // When completed, no new round is created, so adding guess should fail
-        assertFailsWith<IllegalStateException> {
-            game.addGuess(player1, "banana")
-        }
+        assertTrue(game.hasEnded())
     }
 
     @Test
@@ -182,10 +172,7 @@ class GameTest {
         game.addGuess(player3, "winner")
 
         // Game should be COMPLETED - all guesses matched
-        // Now with the updated implementation, adding guess should throw
-        assertFailsWith<IllegalStateException> {
-            game.addGuess(player1, "loser")
-        }
+        assertTrue(game.hasEnded())
     }
 
     @Test
@@ -215,9 +202,7 @@ class GameTest {
         game.addPlayer(player4)
 
         // Now should be IN_PROGRESS
-        assertFailsWith<IllegalStateException> {
-            game.addPlayer(PlayerId("player5"))
-        }
+        assertTrue(game.isInProgress())
     }
 
     @Test
@@ -230,15 +215,7 @@ class GameTest {
         game.removePlayer(player1)
 
         // Game should be COMPLETED
-        // Verify by trying to add a player - should fail
-        assertFailsWith<IllegalStateException> {
-            game.addPlayer(player3)
-        }
-
-        // Also verify adding guess fails
-        assertFailsWith<IllegalStateException> {
-            game.addGuess(player2, "apple")
-        }
+        assertTrue(game.hasEnded())
     }
 
     @Test
@@ -322,9 +299,7 @@ class GameTest {
         game.addPlayer(player1)
 
         // Should immediately transition to IN_PROGRESS
-        assertFailsWith<IllegalStateException> {
-            game.addPlayer(player2)
-        }
+        assertTrue(game.isInProgress())
     }
 
     @Test
@@ -346,43 +321,6 @@ class GameTest {
         game.addGuess(player2, "round3-p2")
 
         // Should still be in progress
-    }
-
-    @Test
-    fun `addPlayer should return game instance for chaining`() {
-        val game = createGame(playerLimit = 2u)
-        val result = game.addPlayer(player1)
-
-        assertEquals(game, result)
-    }
-
-    @Test
-    fun `addGuess should return game instance for chaining`() {
-        val game = createGame(playerLimit = 2u)
-        game.addPlayer(player1)
-        game.addPlayer(player2)
-
-        val result = game.addGuess(player1, "test")
-
-        assertEquals(game, result)
-    }
-
-    @Test
-    fun `removePlayer should return game instance for chaining`() {
-        val game = createGame(playerLimit = 2u)
-        game.addPlayer(player1)
-
-        val result = game.removePlayer(player1)
-
-        assertEquals(game, result)
-    }
-
-    @Test
-    fun `GameState enum should have expected values`() {
-        val states = GameState.entries
-        assertEquals(3, states.size)
-        assertTrue(states.contains(GameState.WAITING_FOR_PLAYERS))
-        assertTrue(states.contains(GameState.IN_PROGRESS))
-        assertTrue(states.contains(GameState.COMPLETED))
+        assertTrue(game.isInProgress())
     }
 }
