@@ -4,6 +4,9 @@ kt_jvm_test(
     name = "application_test",
     size = "small",
     srcs = glob(["*.kt"]),
+    resources = [
+        "//guess_the_word/src/main/resources",
+    ],
     test_class = "io.lowkeylab.guesstheword.ApplicationTest",
     runtime_deps = ["//guess_the_word/src/test:test_runtime_deps"],
     deps = [

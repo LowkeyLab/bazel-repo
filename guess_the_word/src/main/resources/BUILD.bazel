@@ -1,5 +1,6 @@
+package(default_visibility = ["//guess_the_word/src:__subpackages__"])
+
 filegroup(
     name = "resources",
     srcs = glob(["**"]),
-    visibility = ["//visibility:public"],
 )
