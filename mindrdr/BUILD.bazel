@@ -1,7 +1,6 @@
 package_group(
     name = "pkg_group",
     packages = [
-        "//angular/projects/mindrdr/...",
         "//mindrdr/...",
     ],
 )
