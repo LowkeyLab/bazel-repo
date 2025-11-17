@@ -16,11 +16,9 @@ class InMemoryPlayerRepository : PlayerRepository {
         return newPlayer
     }
 
-    override suspend fun getPlayerById(playerId: PlayerId): Player? {
-        TODO("Not yet implemented")
-    }
+    override suspend fun getPlayerById(playerId: PlayerId): Player? = players[playerId]
 
     override suspend fun deletePlayer(playerId: PlayerId) {
-        TODO("Not yet implemented")
+        players.remove(playerId)
     }
 }

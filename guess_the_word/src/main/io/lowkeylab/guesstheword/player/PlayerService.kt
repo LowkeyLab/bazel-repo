@@ -5,8 +5,6 @@ class PlayerService(
     private val nounList: List<String>,
     private val playerRepository: PlayerRepository,
 ) {
-    suspend fun getAllPlayers(): List<Player> = playerRepository.getAllPlayers()
-
     suspend fun createPlayer(): Player {
         val randomAdjective = adjectiveList.random()
         val randomNoun = nounList.random()
@@ -15,8 +13,6 @@ class PlayerService(
     }
 
     suspend fun getPlayerById(playerId: PlayerId): Player? = playerRepository.getPlayerById(playerId)
-
-    suspend fun deletePlayer(playerId: PlayerId) = playerRepository.deletePlayer(playerId)
 }
 
 class PlayerServiceFactory(

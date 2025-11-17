@@ -1,5 +1,7 @@
 package io.lowkeylab.guesstheword.game
 
+import io.lowkeylab.guesstheword.player.PlayerId
+
 class GameService(
     private val gameRepository: GameRepository,
 ) {
@@ -7,7 +9,30 @@ class GameService(
 
     suspend fun createGame(): Game = gameRepository.newGame()
 
-    suspend fun getGameById(gameId: String): Game? = gameRepository.getGameById(gameId)
+    suspend fun getGameById(gameId: GameId): Game? = gameRepository.getGameById(gameId)
 
-    suspend fun deleteGame(gameId: String) = gameRepository.deleteGame(gameId)
+    suspend fun addPlayerToGame(
+        playerId: PlayerId,
+        gameId: GameId,
+    ) {
+        val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
+        game.addPlayer(playerId)
+    }
+
+    suspend fun removePlayerFromGame(
+        playerId: PlayerId,
+        gameId: GameId,
+    ) {
+        val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
+        game.removePlayer(playerId)
+    }
+
+    suspend fun addGuessToGame(
+        playerId: PlayerId,
+        gameId: GameId,
+        guess: String,
+    ) {
+        val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
+        game.addGuess(playerId, guess)
+    }
 }

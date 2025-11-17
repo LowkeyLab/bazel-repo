@@ -1,36 +1,16 @@
-load("@rules_java//java:defs.bzl", "java_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-
-package(default_visibility = ["//guess_the_word:pkg_group"])
-
-java_library(
-    name = "test_deps",
-    testonly = True,
-    exports = [
-        "//guess_the_word/src/main/io/lowkeylab/guesstheword:guess_the_word_lib",
-        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
-        "@maven//:io_ktor_ktor_client_websockets_jvm",
-        "@maven//:io_ktor_ktor_server_test_host_jvm",
-        "@maven//:org_jetbrains_kotlin_kotlin_test",
-        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
-    ],
-)
-
-java_library(
-    name = "test_runtime_deps",
-    testonly = True,
-    exports = [
-        "@maven//:ch_qos_logback_logback_classic",
-    ],
-)
 
 kt_jvm_test(
     name = "application_test",
     size = "small",
     srcs = glob(["*.kt"]),
     test_class = "io.lowkeylab.guesstheword.ApplicationTest",
-    runtime_deps = [":test_runtime_deps"],
+    runtime_deps = ["//guess_the_word/src/test:test_runtime_deps"],
     deps = [
-        ":test_deps",
+        "//guess_the_word/src/main/io/lowkeylab/guesstheword:guess_the_word_lib",
+        "//guess_the_word/src/test:test_deps",
+        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_client_websockets_jvm",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
     ],
 )

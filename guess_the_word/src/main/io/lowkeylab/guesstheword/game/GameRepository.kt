@@ -5,7 +5,7 @@ interface GameRepository {
 
     suspend fun newGame(): Game
 
-    suspend fun getGameById(gameId: String): Game?
+    suspend fun getGameById(gameId: GameId): Game?
 
-    suspend fun deleteGame(gameId: String)
+    suspend fun deleteGame(gameId: GameId)
 }

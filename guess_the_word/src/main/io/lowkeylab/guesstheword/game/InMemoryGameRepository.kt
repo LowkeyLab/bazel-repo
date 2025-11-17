@@ -11,9 +11,9 @@ class InMemoryGameRepository : GameRepository {
         return game
     }
 
-    override suspend fun getGameById(gameId: String): Game? = games[GameId(gameId)]
+    override suspend fun getGameById(gameId: GameId): Game? = games[gameId]
 
-    override suspend fun deleteGame(gameId: String) {
-        games.remove(GameId(gameId))
+    override suspend fun deleteGame(gameId: GameId) {
+        games.remove(gameId)
     }
 }
