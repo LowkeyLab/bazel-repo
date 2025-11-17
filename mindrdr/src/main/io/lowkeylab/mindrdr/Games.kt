@@ -90,6 +90,16 @@ fun Application.configureGames(gameService: GameService) {
                                             )
                                             this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, message.reason))
                                         }
+                                        is OutgoingMessage.GameEnded -> {
+                                            sendSerialized<OutgoingMessage>(message)
+                                            log.info(
+                                                "Game {} ended for player {} with final guess {}",
+                                                gameId.id,
+                                                player.name.name,
+                                                message.finalGuess,
+                                            )
+                                            this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, "Game ended"))
+                                        }
                                         else -> sendSerialized<OutgoingMessage>(message)
                                     }
                                 } catch (_: Exception) {
@@ -123,7 +133,7 @@ fun Application.configureGames(gameService: GameService) {
                                                 // Check if game ended
                                                 if (currentGame.hasEnded()) {
                                                     // Emit termination to all clients
-                                                    sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
+                                                    sharedFlow.emit(OutgoingMessage.GameEnded(currentGame.getFinalGuess()!!))
                                                 }
                                             }.onFailure { e ->
                                                 log.error(
@@ -186,6 +196,12 @@ sealed class OutgoingMessage {
     @SerialName("game_terminated")
     data class GameTerminated(
         val reason: String,
+    ) : OutgoingMessage()
+
+    @Serializable
+    @SerialName("game_ended")
+    data class GameEnded(
+        val finalGuess: String,
     ) : OutgoingMessage()
 
     @Serializable

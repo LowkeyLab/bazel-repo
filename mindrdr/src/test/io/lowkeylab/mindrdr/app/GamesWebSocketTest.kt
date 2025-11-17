@@ -180,10 +180,10 @@ class GamesWebSocketTest {
 
             val finalMessageClientOne = clientOneMessages.last()
             val finalMessageClientTwo = clientTwoMessages.last()
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientOne)
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientTwo)
-            assertTrue(finalMessageClientOne.reason.contains("completed"))
-            assertTrue(finalMessageClientTwo.reason.contains("completed"))
+            assertIs<OutgoingMessage.GameEnded>(finalMessageClientOne)
+            assertIs<OutgoingMessage.GameEnded>(finalMessageClientTwo)
+            assertEquals("apple", finalMessageClientOne.finalGuess)
+            assertEquals("apple", finalMessageClientTwo.finalGuess)
         }
 
     @Test

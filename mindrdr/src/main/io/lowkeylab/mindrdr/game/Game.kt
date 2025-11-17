@@ -19,8 +19,6 @@ class Game(
     private val currentRound: Round?
         get() = rounds.lastOrNull()
 
-    private var finalGuess: String? = null
-
     fun addPlayer(player: Player): Game {
         check(state == GameState.WAITING_FOR_PLAYERS) { "Cannot add player. Game is in $state state." }
         players.add(player)
@@ -67,7 +65,12 @@ class Game(
 
     fun getRoundCount(): Int = rounds.size
 
-    fun getFinalGuess(): String? = finalGuess
+    fun getFinalGuess(): String? =
+        if (state == GameState.COMPLETED) {
+            currentRound!!.uniqueGuesses.first()
+        } else {
+            null
+        }
 }
 
 @Serializable
