@@ -2,8 +2,8 @@ load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
 kt_jvm_library(
-    name = "mindrdr",
-    srcs = glob(["*.kt"]),
+    name = "ApplicationKt",
+    srcs = ["Application.kt"],
     deps = [
         "//mindrdr/src/main/io/lowkeylab/mindrdr",
     ],
@@ -15,7 +15,7 @@ java_binary(
     resource_strip_prefix = "mindrdr/src/main/resources",
     resources = ["//mindrdr/src/main/resources"],
     runtime_deps = [
-        ":mindrdr",
+        ":ApplicationKt",
         "@maven//:ch_qos_logback_logback_classic",
     ],
 )
