@@ -10,10 +10,11 @@ class GameService(
 
     suspend fun getGameById(gameId: GameId): Game? = gameRepository.getGameById(gameId)
 
-    suspend fun addPlayerToGame(gameId: GameId) {
+    suspend fun addPlayerToGame(gameId: GameId): Player {
         val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
         val player = playerFactory.create()
         game.addPlayer(player)
+        return player
     }
 
     suspend fun removePlayerFromGame(

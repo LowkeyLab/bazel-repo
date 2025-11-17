@@ -60,6 +60,10 @@ class Game(
     fun hasEnded(): Boolean = state == GameState.COMPLETED
 
     fun isInProgress(): Boolean = state == GameState.IN_PROGRESS
+
+    fun getPlayerCount(): Int = players.size
+
+    fun getRoundCount(): Int = rounds.size
 }
 
 @Serializable
