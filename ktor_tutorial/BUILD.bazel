@@ -1,5 +1,5 @@
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
+load("//bzl:kotlin.bzl", "kt_junit5_test")
 
 kt_jvm_library(
     name = "ktor_tutorial_lib",
@@ -36,34 +36,16 @@ kt_jvm_binary(
     ],
 )
 
-java_library(
-    name = "test_deps",
-    testonly = True,
-    exports = [
+kt_junit5_test(
+    name = "application_test",
+    size = "small",
+    srcs = glob(["test/**/*.kt"]),
+    test_package = "com.example",
+    runtime_deps = ["@maven//:ch_qos_logback_logback_classic"],
+    deps = [
         ":ktor_tutorial_lib",
         "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_client_websockets_jvm",
         "@maven//:io_ktor_ktor_server_test_host_jvm",
-        "@maven//:org_jetbrains_kotlin_kotlin_test",
-        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
-    ],
-)
-
-java_library(
-    name = "test_runtime_deps",
-    testonly = True,
-    exports = [
-        "@maven//:ch_qos_logback_logback_classic",
-    ],
-)
-
-kt_jvm_test(
-    name = "application_test",
-    size = "small",
-    srcs = glob(["test/**/*.kt"]),
-    test_class = "com.example.ApplicationTest",
-    runtime_deps = [":test_runtime_deps"],
-    deps = [
-        ":test_deps",
     ],
 )

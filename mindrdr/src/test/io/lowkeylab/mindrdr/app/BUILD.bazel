@@ -1,27 +1,16 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//bzl:kotlin.bzl", "kt_junit5_test")
 
-kt_jvm_test(
-    name = "app_tests",
+kt_junit5_test(
+    name = "app",
     size = "small",
     srcs = glob(["*.kt"]),
-    args = [
-        "execute --select-package io.lowkeylab.mindrdr.app",
-    ],
-    main_class = "org.junit.platform.console.ConsoleLauncher",
-    resources = [
-        "//mindrdr/src/main/resources",
-    ],
+    test_package = "io.lowkeylab.mindrdr.app",
     runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
     deps = [
         "//mindrdr/src/main/io/lowkeylab/mindrdr",
         "//mindrdr/src/main/io/lowkeylab/mindrdr/game",
-        "//mindrdr/src/test:test_deps",
         "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_client_websockets_jvm",
         "@maven//:io_ktor_ktor_server_test_host_jvm",
-        "@maven//:org_junit_jupiter_junit_jupiter_api",
-        "@maven//:org_junit_jupiter_junit_jupiter_engine",
-        "@maven//:org_junit_jupiter_junit_jupiter_params",
-        "@maven//:org_junit_platform_junit_platform_console",
     ],
 )

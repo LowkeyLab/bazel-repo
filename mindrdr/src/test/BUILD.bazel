@@ -3,15 +3,6 @@ load("@rules_java//java:defs.bzl", "java_library")
 package(default_visibility = ["//mindrdr/src/test:__subpackages__"])
 
 java_library(
-    name = "test_deps",
-    testonly = True,
-    exports = [
-        "@maven//:org_jetbrains_kotlin_kotlin_test",
-        "@maven//:org_jetbrains_kotlin_kotlin_test_junit5",
-    ],
-)
-
-java_library(
     name = "test_runtime_deps",
     testonly = True,
     exports = [

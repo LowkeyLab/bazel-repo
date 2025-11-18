@@ -1,13 +1,11 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//bzl:kotlin.bzl", "kt_junit5_test")
 
-kt_jvm_test(
-    name = "GameTest",
-    size = "small",
+kt_junit5_test(
+    name = "game",
     srcs = glob(["*.kt"]),
-    test_class = "io.lowkeylab.mindrdr.game.GameTest",
+    test_package = "io.lowkeylab.mindrdr.game",
     runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
     deps = [
         "//mindrdr/src/main/io/lowkeylab/mindrdr/game",
-        "//mindrdr/src/test:test_deps",
     ],
 )
