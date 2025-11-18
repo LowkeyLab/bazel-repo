@@ -27,7 +27,6 @@ import io.lowkeylab.mindrdr.game.PlayerFactory
 import io.lowkeylab.mindrdr.game.PlayerName
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.map
@@ -152,7 +151,6 @@ class GamesWebSocketTest {
 
             // Fill the game with 2 players
             client.webSocket("/games/${game.id.id}/live") {}
-
             client.webSocket("/games/${game.id.id}/live") {}
 
             // Try to add a third player

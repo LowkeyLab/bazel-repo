@@ -63,6 +63,7 @@ fun Application.configureGames(gameService: GameService) {
                         try {
                             gameService.addPlayerToGame(gameId)
                         } catch (e: Exception) {
+                            log.error("Failed to add player to game {}. {}", gameId.id, e.message)
                             this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Failed to join game: ${e.message}"))
                             return@webSocket
                         }
