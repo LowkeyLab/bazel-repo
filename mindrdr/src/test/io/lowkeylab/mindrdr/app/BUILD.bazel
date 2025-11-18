@@ -1,38 +1,27 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
 kt_jvm_test(
-    name = "ApplicationTest",
+    name = "app_tests",
     size = "small",
-    srcs = ["ApplicationTest.kt"],
+    srcs = glob(["*.kt"]),
+    args = [
+        "execute --select-package io.lowkeylab.mindrdr.app",
+    ],
+    main_class = "org.junit.platform.console.ConsoleLauncher",
     resources = [
         "//mindrdr/src/main/resources",
     ],
-    test_class = "io.lowkeylab.mindrdr.app.ApplicationTest",
-    runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
-    deps = [
-        "//mindrdr/src/main/io/lowkeylab/mindrdr",
-        "//mindrdr/src/test:test_deps",
-        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
-        "@maven//:io_ktor_ktor_client_websockets_jvm",
-        "@maven//:io_ktor_ktor_server_test_host_jvm",
-    ],
-)
-
-kt_jvm_test(
-    name = "GamesWebSocketTest",
-    size = "small",
-    srcs = ["GamesWebSocketTest.kt"],
-    resources = [
-        "//mindrdr/src/main/resources",
-    ],
-    test_class = "io.lowkeylab.mindrdr.app.GamesWebSocketTest",
     runtime_deps = ["//mindrdr/src/test:test_runtime_deps"],
     deps = [
         "//mindrdr/src/main/io/lowkeylab/mindrdr",
         "//mindrdr/src/main/io/lowkeylab/mindrdr/game",
         "//mindrdr/src/test:test_deps",
+        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
         "@maven//:io_ktor_ktor_client_websockets_jvm",
         "@maven//:io_ktor_ktor_server_test_host_jvm",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_serialization_json_jvm",
+        "@maven//:org_junit_jupiter_junit_jupiter_api",
+        "@maven//:org_junit_jupiter_junit_jupiter_engine",
+        "@maven//:org_junit_jupiter_junit_jupiter_params",
+        "@maven//:org_junit_platform_junit_platform_console",
     ],
 )

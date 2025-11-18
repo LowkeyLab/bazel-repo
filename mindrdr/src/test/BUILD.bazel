@@ -7,7 +7,7 @@ java_library(
     testonly = True,
     exports = [
         "@maven//:org_jetbrains_kotlin_kotlin_test",
-        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
+        "@maven//:org_jetbrains_kotlin_kotlin_test_junit5",
     ],
 )
 

@@ -14,7 +14,6 @@ import io.ktor.server.testing.testApplication
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
-import io.ktor.websocket.readText
 import io.lowkeylab.mindrdr.IncomingMessage
 import io.lowkeylab.mindrdr.OutgoingMessage
 import io.lowkeylab.mindrdr.configureGames
@@ -97,16 +96,12 @@ class GamesWebSocketTest {
 
             client.webSocket("/games/${game.id.id}/live") {
                 // Assert strict message order: PlayerJoined first
-                val frame1 = incoming.receive()
-                assertIs<Frame.Text>(frame1)
-                val playerJoined = Json.decodeFromString(OutgoingMessage.serializer(), frame1.readText())
+                val playerJoined = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.PlayerJoined>(playerJoined)
                 assertEquals("player1", playerJoined.player.name.name)
 
                 // Then GameState
-                val frame2 = incoming.receive()
-                assertIs<Frame.Text>(frame2)
-                val gameState = Json.decodeFromString(OutgoingMessage.serializer(), frame2.readText())
+                val gameState = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.GameState>(gameState)
                 assertEquals(1, gameState.game.getPlayerCount())
             }
