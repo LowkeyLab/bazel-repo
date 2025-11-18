@@ -157,6 +157,10 @@ class GamesWebSocketTest {
                 val clientOne =
                     launch {
                         client.webSocket("/games/${game.id.id}/live") {
+                            repeat(2) {
+                                incoming.receive()
+                            }
+
                             sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
                             consumeMessagesAsFlow()
@@ -167,6 +171,10 @@ class GamesWebSocketTest {
                 val clientTwo =
                     launch {
                         client.webSocket("/games/${game.id.id}/live") {
+                            repeat(2) {
+                                incoming.receive()
+                            }
+
                             sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
                             consumeMessagesAsFlow()
