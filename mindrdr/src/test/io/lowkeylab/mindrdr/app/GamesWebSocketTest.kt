@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.converter
+import io.ktor.client.plugins.websocket.receiveDeserialized
 import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.serialization.deserialize
@@ -24,12 +25,16 @@ import io.lowkeylab.mindrdr.game.InMemoryGameRepository
 import io.lowkeylab.mindrdr.game.Player
 import io.lowkeylab.mindrdr.game.PlayerFactory
 import io.lowkeylab.mindrdr.game.PlayerName
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -49,6 +54,29 @@ class GamesWebSocketTest {
 
         override fun removeName(name: PlayerName) {
             // No-op for tests
+        }
+    }
+
+    private class CoroutineBarrier(
+        val parties: Int,
+    ) {
+        private var count = 0
+        private val mutex = Mutex()
+        private var generation = CompletableDeferred<Unit>()
+
+        suspend fun await() {
+            mutex.withLock {
+                count++
+                if (count == parties) {
+                    // Trip the barrier
+                    generation.complete(Unit)
+                    val currentGeneration = generation
+                    generation = CompletableDeferred()
+                    return
+                }
+            }
+            // Wait for the barrier to be tripped
+            generation.await()
         }
     }
 
@@ -154,12 +182,11 @@ class GamesWebSocketTest {
             var clientTwoMessages = emptyList<OutgoingMessage>()
 
             coroutineScope {
+                val joinBarrier = CoroutineBarrier(2)
                 val clientOne =
                     launch {
                         client.webSocket("/games/${game.id.id}/live") {
-                            repeat(2) {
-                                incoming.receive()
-                            }
+                            joinBarrier.await() // Ensure both clients connected
 
                             sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
@@ -171,9 +198,7 @@ class GamesWebSocketTest {
                 val clientTwo =
                     launch {
                         client.webSocket("/games/${game.id.id}/live") {
-                            repeat(2) {
-                                incoming.receive()
-                            }
+                            joinBarrier.await() // Ensure both clients connected
 
                             sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
@@ -250,16 +275,15 @@ class GamesWebSocketTest {
                 // Send invalid JSON
                 send(Frame.Text("{invalid json}"))
 
-                // Should receive Error message
-                val frame = incoming.receive()
-                assertIs<Frame.Text>(frame)
-                val error = Json.decodeFromString(OutgoingMessage.serializer(), frame.readText())
+                val error = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.Error>(error)
                 assertTrue(error.message.contains("Invalid message format"))
 
                 // Session should still be open, can continue
-                val guess = IncomingMessage.SubmitGuess("test")
-                sendSerialized<IncomingMessage>(guess)
+                sendSerialized(IncomingMessage.SubmitGuess("banana"))
+
+                val secondError = receiveDeserialized<OutgoingMessage>()
+                assertIs<OutgoingMessage.Error>(secondError)
             }
         }
 

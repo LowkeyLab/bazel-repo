@@ -82,7 +82,7 @@ fun Application.configureGames(gameService: GameService) {
                                         is OutgoingMessage.GameTerminated -> {
                                             sendSerialized<OutgoingMessage>(message)
                                             log.info(
-                                                "Closing WebSocket for player {} in game {}: {}",
+                                                "Closing WebSocket for player {} in game {}. Reason is {}.",
                                                 player.name.name,
                                                 gameId.id,
                                                 message.reason,
@@ -113,6 +113,13 @@ fun Application.configureGames(gameService: GameService) {
                                     when (val message = Json.decodeFromString(IncomingMessage.serializer(), frame.readText())) {
                                         is IncomingMessage.SubmitGuess -> {
                                             runCatching {
+                                                log.info(
+                                                    "Player {} submitting guess in game {}: {}",
+                                                    player.name.name,
+                                                    gameId.id,
+                                                    message.guess,
+                                                )
+
                                                 gameService.addGuessToGame(player, gameId, message.guess)
 
                                                 // Broadcast updated game state
