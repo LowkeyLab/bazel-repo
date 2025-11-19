@@ -1,0 +1,16 @@
+load("//bzl:kotlin.bzl", "kt_junit5_test")
+
+kt_junit5_test(
+    name = "app",
+    size = "small",
+    srcs = glob(["*.kt"]),
+    test_package = "io.lowkeylab.mindreadr.app",
+    runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
+    deps = [
+        "//mindreadr/src/main/io/lowkeylab/mindreadr",
+        "//mindreadr/src/main/io/lowkeylab/mindreadr/game",
+        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_client_websockets_jvm",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
+    ],
+)

@@ -1,0 +1,11 @@
+load("@rules_java//java:defs.bzl", "java_library")
+
+package(default_visibility = ["//mindreadr/src/test:__subpackages__"])
+
+java_library(
+    name = "test_runtime_deps",
+    testonly = True,
+    exports = [
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)

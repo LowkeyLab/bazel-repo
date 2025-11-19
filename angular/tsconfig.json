@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "esModuleInterop": true,
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -27,12 +28,6 @@
     },
     {
       "path": "./projects/nicknamer/tsconfig.spec.json"
-    },
-    {
-      "path": "./projects/guess_the_word/tsconfig.app.json"
-    },
-    {
-      "path": "./projects/guess_the_word/tsconfig.spec.json"
     }
   ]
 }

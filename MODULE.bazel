@@ -19,6 +19,7 @@ bazel_dep(name = "bazel_lib", version = "3.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "bazelrc-preset.bzl", version = "1.6.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1")
+bazel_dep(name = "contrib_rules_jvm", version = "0.31.1")
 bazel_dep(name = "container_structure_test", version = "1.21.1")
 bazel_dep(name = "rules_angular", version = "0.1.0")
 bazel_dep(name = "rules_java", version = "9.0.3")
@@ -167,6 +168,8 @@ LOGBACK_VERSION = "1.4.14"
 
 JSON_PATH_VERSION = "2.9.0"
 
+JUNIT_VERSION = "6.0.1"
+
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
@@ -184,9 +187,9 @@ maven.install(
         "io.ktor:ktor-server-netty-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-sessions-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-status-pages-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-test-host-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-cors-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "com.h2database:h2:%s" % H2_VERSION,
         "org.jetbrains.exposed:exposed-core:%s" % EXPOSED_VERSION,
@@ -212,6 +215,48 @@ maven.artifact(
     artifact = "kotlin-test-junit",
     group = "org.jetbrains.kotlin",
     version = KOTLIN_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "kotlin-test-junit5",
+    group = "org.jetbrains.kotlin",
+    version = KOTLIN_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "junit-jupiter-api",
+    group = "org.junit.jupiter",
+    version = JUNIT_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "junit-jupiter-engine",
+    group = "org.junit.jupiter",
+    version = JUNIT_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "junit-jupiter-params",
+    group = "org.junit.jupiter",
+    version = JUNIT_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "junit-platform-console",
+    group = "org.junit.platform",
+    version = JUNIT_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "junit-jupiter",
+    group = "org.junit.jupiter",
+    version = JUNIT_VERSION,
+)
+maven.artifact(
+    testonly = True,
+    artifact = "ktor-server-test-host-jvm",
+    group = "io.ktor",
+    version = KTOR_VERSION,
 )
 maven.artifact(
     artifact = "gson",
@@ -437,7 +482,15 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64")
+oci_extension.pull(
+    name = "postgres_18_1",
+    digest = "sha256:b13e60a97e0c8d918e8c4d9a68dc356b13f53b3a2655a46a15af67f7b097dd4f",
+    image = "postgres:18.1",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution
