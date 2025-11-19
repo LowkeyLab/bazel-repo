@@ -1,0 +1,11 @@
+load("//bzl:kotlin.bzl", "kt_junit5_test")
+
+kt_junit5_test(
+    name = "game",
+    srcs = glob(["*.kt"]),
+    test_package = "io.lowkeylab.mindreadr.game",
+    runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
+    deps = [
+        "//mindreadr/src/main/io/lowkeylab/mindreadr/game",
+    ],
+)

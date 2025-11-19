@@ -1,0 +1,20 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+package(default_visibility = ["//mindreadr:__subpackages__"])
+
+kt_jvm_library(
+    name = "mindreadr",
+    srcs = glob(["*.kt"]),
+    plugins = [
+        "//3rdparty/kotlin:serialization_plugin",
+    ],
+    deps = [
+        "//mindreadr/src/main/io/lowkeylab/mindreadr/game",
+        "@maven//:io_ktor_ktor_serialization_kotlinx_json_jvm",
+        "@maven//:io_ktor_ktor_server_content_negotiation_jvm",
+        "@maven//:io_ktor_ktor_server_core_jvm",
+        "@maven//:io_ktor_ktor_server_cors_jvm",
+        "@maven//:io_ktor_ktor_server_netty_jvm",
+        "@maven//:io_ktor_ktor_server_websockets_jvm",
+    ],
+)
