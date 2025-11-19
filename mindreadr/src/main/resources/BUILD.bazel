@@ -1,0 +1,6 @@
+package(default_visibility = ["//mindreadr/src:__subpackages__"])
+
+filegroup(
+    name = "resources",
+    srcs = glob(["**"]),
+)

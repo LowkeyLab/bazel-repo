@@ -1,0 +1,27 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+kt_jvm_library(
+    name = "ApplicationKt",
+    srcs = ["Application.kt"],
+    deps = [
+        "//mindreadr/src/main/io/lowkeylab/mindreadr",
+    ],
+)
+
+java_binary(
+    name = "Application",
+    main_class = "io.lowkeylab.mindreadr.app.ApplicationKt",
+    resource_strip_prefix = "mindreadr/src/main/resources",
+    resources = ["//mindreadr/src/main/resources"],
+    runtime_deps = [
+        ":ApplicationKt",
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)
+
+alias(
+    name = "app",
+    actual = ":Application",
+    visibility = ["//mindreadr:__pkg__"],
+)
