@@ -1,51 +1,20 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwind_bin = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
 
-filegroup(
-    name = "src_files",
-    srcs = glob(
-        ["src/**/*"],
-        exclude = [
-            "dist/",
-        ],
-    ),
-)
-
-tailwind_bin.tailwindcss(
-    name = "styles",
-    srcs = [
-        "src/styles.css",
-        ":src_files",
-        "//angular:node_modules/tailwindcss",
-    ],
-    outs = ["src/styles-processed.css"],
-    args = [
-        "--input",
-        "$(location src/styles.css)",
-        "--output",
-        "$(location src/styles-processed.css)",
-    ],
-    visibility = ["//visibility:private"],
-)
-
 copy_to_bin(
     name = "srcs",
     srcs = glob(
         [
-            "src/**/*.css",
-            "src/**/*.html",
-            "src/**/*.ts",
+            "src/**/*",
         ],
         exclude = [
             "dist/",
-            "src/styles.css",
         ],
-    ) + [":styles"],
+    ),
 )
 
 ng_application(
