@@ -23,12 +23,12 @@ tailwind_bin.tailwindcss(
         ":src_files",
         "//angular:node_modules/tailwindcss",
     ],
-    outs = ["src/styles.processed.css"],
+    outs = ["src/styles-processed.css"],
     args = [
         "--input",
         "$(location src/styles.css)",
         "--output",
-        "$(location src/styles.processed.css)",
+        "$(location src/styles-processed.css)",
     ],
     visibility = ["//visibility:private"],
 )
