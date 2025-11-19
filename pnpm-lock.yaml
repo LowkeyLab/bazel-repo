@@ -56,12 +56,6 @@ importers:
       '@angular/router':
         specifier: ^20.3.0
         version: 20.3.12(@angular/common@20.3.12(@angular/core@20.3.12(@angular/compiler@20.3.12)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.12(@angular/compiler@20.3.12)(rxjs@7.8.2)(zone.js@0.15.1))(@angular/platform-browser@20.3.12(@angular/common@20.3.12(@angular/core@20.3.12(@angular/compiler@20.3.12)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.12(@angular/compiler@20.3.12)(rxjs@7.8.2)(zone.js@0.15.1)))(rxjs@7.8.2)
-      '@tailwindcss/postcss':
-        specifier: ^4.1.17
-        version: 4.1.17
-      postcss:
-        specifier: ^8.5.6
-        version: 8.5.6
       rxjs:
         specifier: ~7.8.0
         version: 7.8.2
@@ -85,6 +79,9 @@ importers:
         specifier: ^20.3.0
         version: 20.3.12(@angular/compiler@20.3.12)(typescript@5.9.3)
       '@tailwindcss/cli':
+        specifier: ^4.1.17
+        version: 4.1.17
+      '@tailwindcss/postcss':
         specifier: ^4.1.17
         version: 4.1.17
       '@types/jasmine':
@@ -111,6 +108,9 @@ importers:
       karma-jasmine-html-reporter:
         specifier: ~2.1.0
         version: 2.1.0(jasmine-core@5.12.1)(karma-jasmine@5.1.0(karma@6.4.4))(karma@6.4.4)
+      postcss:
+        specifier: ^8.5.6
+        version: 8.5.6
       postcss-cli:
         specifier: ^11.0.1
         version: 11.0.1(jiti@2.6.1)(postcss@8.5.6)
