@@ -67,7 +67,8 @@ class Game(
 
     fun getFinalGuess(): String? =
         if (state == GameState.COMPLETED) {
-            currentRound!!.uniqueGuesses.first()
+            val currentRound = checkNotNull(currentRound) { "Game is completed but no current round." }
+            currentRound.uniqueGuesses.first()
         } else {
             null
         }
