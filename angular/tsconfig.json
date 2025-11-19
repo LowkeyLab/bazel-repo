@@ -30,10 +30,10 @@
       "path": "./projects/nicknamer/tsconfig.spec.json"
     },
     {
-      "path": "./projects/mindrdr/tsconfig.app.json"
+      "path": "./projects/mindreadr/tsconfig.app.json"
     },
     {
-      "path": "./projects/mindrdr/tsconfig.spec.json"
+      "path": "./projects/mindreadr/tsconfig.spec.json"
     },
     {
       "path": "./projects/mindreadr/tsconfig.app.json"

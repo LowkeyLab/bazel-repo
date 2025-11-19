@@ -1,4 +1,0 @@
-alias(
-    name = "mindrdr",
-    actual = "//mindrdr/src/main/io/lowkeylab/mindrdr/app",
-)
