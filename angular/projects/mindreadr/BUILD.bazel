@@ -1,0 +1,49 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwind_bin = "bin")
+load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
+load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
+
+# aspect:generation_mode update_only
+package(default_visibility = ["//visibility:public"])
+
+tailwind_bin.tailwindcss_binary(
+    name = "tailwindcss",
+    srcs = [
+        "src/styles.css",
+        "tailwind.config.js",
+    ],
+    # Args: Standard Tailwind CLI arguments
+    args = [
+        "--input",
+        "$(location src/styles.css)",
+        "--output",
+        "$(location src/styles.processed.css)",
+        "--content",
+        # Critical: Tell Tailwind where to find content in the sandbox
+        "projects/mindreadr/src/**/*.{html,ts}",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+        exclude = ["dist/"],
+    ) + [":src/styles.processed.css"],
+)
+
+ng_application(
+    name = "mindreadr",
+    ng_config = "//angular:ng-config",
+    node_modules = "//angular:node_modules",
+)
+
+ng_test(
+    name = "test",
+    size = "small",
+    srcs = [":srcs"],
+    ng_config = "//angular:ng-config",
+    node_modules = "//angular:node_modules",
+    tags = ["no-remote-exec"],
+)
