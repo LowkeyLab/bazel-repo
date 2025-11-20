@@ -10,10 +10,8 @@ package(default_visibility = ["//visibility:public"])
 # This is the source - developers edit this file
 exports_files(["src/styles.source.css"])
 
-# TailwindCSS CLI wrapper using js_binary from rules_js
-# This directly uses the bin entry from @tailwindcss/cli package.json
-# The node_modules/@tailwindcss/cli target provides the package, and the
-# js_binary wrapper (run-tailwindcss.js) locates and executes the bin entry
+# TailwindCSS CSS generator using js_binary
+# This uses a minimal wrapper to invoke the bin from @tailwindcss/cli package.json
 # Run with: bazel run //angular/projects/tailwind-sample:generate-css
 js_binary(
     name = "generate-css",
@@ -26,7 +24,8 @@ js_binary(
         "src/**/*.html",
         "src/**/*.ts",
     ]),
-    entry_point = "run-tailwindcss.js",
+    # Minimal wrapper that resolves and executes the bin from package.json
+    entry_point = "tailwindcss-bin.js",
 )
 
 copy_to_bin(

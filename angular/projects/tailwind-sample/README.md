@@ -19,7 +19,7 @@ angular/projects/tailwind-sample/
 │   ├── styles.source.css   # Source CSS with @tailwind directives
 │   └── styles.css          # Generated CSS (committed to repo)
 ├── BUILD.bazel             # Bazel build configuration with js_binary
-├── run-tailwindcss.js      # JS wrapper that invokes @tailwindcss/cli bin
+├── tailwindcss-bin.js      # Minimal wrapper that uses bin from package.json
 ├── tsconfig.app.json       # TypeScript config for app
 └── tsconfig.spec.json      # TypeScript config for tests
 ```
@@ -52,7 +52,8 @@ This project uses TailwindCSS v4 with a **Bazel-managed generation workflow usin
 The `@angular/build` system in `rules_angular` doesn't support PostCSS configuration files in the Bazel sandbox. This approach provides:
 
 - ✅ **rules_js Integration**: Uses `js_binary` to invoke the @tailwindcss/cli package
-- ✅ **Package.json Bin**: Directly uses the bin entry from @tailwindcss/cli package.json
+- ✅ **Package.json Bin**: Uses the bin entry from @tailwindcss/cli package.json
+- ✅ **Minimal Wrapper**: 12-line wrapper that just resolves and executes the bin
 - ✅ **Tree-Shaking**: Only used utilities are included
 - ✅ **Version Control**: Generated CSS is committed for reliable CI builds  
 - ✅ **Simple Workflow**: Single `bazel run` command to regenerate
@@ -61,10 +62,10 @@ The `@angular/build` system in `rules_angular` doesn't support PostCSS configura
 
 The `generate-css` target is a `js_binary` that:
 1. References `//angular:node_modules/@tailwindcss/cli` (the package from package.json)
-2. Uses a wrapper script (`run-tailwindcss.js`) that:
-   - Resolves the @tailwindcss/cli package.json location
-   - Extracts the bin entry path
-   - Executes the CLI with appropriate arguments
+2. Uses a minimal wrapper (`tailwindcss-bin.js`) that:
+   - Resolves `@tailwindcss/cli/package.json` to locate the package
+   - Extracts the bin entry path from package.json
+   - Executes the CLI binary with input/output paths
 3. Runs in the workspace directory (via `BUILD_WORKSPACE_DIRECTORY`)
 4. Generates CSS by scanning templates and processing `@tailwind` directives
 
@@ -163,7 +164,7 @@ bazel test //angular/projects/tailwind-sample:test
 The `generate-css` Bazel target is a `js_binary` that:
 
 1. **Loads the Package**: Uses `//angular:node_modules/@tailwindcss/cli` from package.json
-2. **Resolves the Bin Entry**: The wrapper script (`run-tailwindcss.js`) finds the bin path from package.json
+2. **Resolves the Bin Entry**: The wrapper script (`tailwindcss-bin.js`) finds the bin path from package.json
 3. **Executes the CLI**: Runs the @tailwindcss/cli binary with:
    - Input: `src/styles.source.css` (with `@tailwind` directives)
    - Output: `src/styles.css`
@@ -178,10 +179,8 @@ The TailwindCSS CLI automatically detects which utilities are needed by scanning
 |------|---------|
 | `src/styles.source.css` | Source CSS with `@tailwind` directives (edit this) |
 | `src/styles.css` | Generated CSS (don't edit, regenerate with Bazel) |
-| `run-tailwindcss.js` | JS wrapper that invokes @tailwindcss/cli bin from package.json |
-| `BUILD.bazel` | Defines `js_binary` target for CSS generation |
-| `BUILD.bazel` | Bazel build configuration with `generate-css` target |
-| `.postcssrc.json` | PostCSS configuration for TailwindCSS plugin |
+| `tailwindcss-bin.js` | Minimal wrapper that uses bin from @tailwindcss/cli package.json |
+| `BUILD.bazel` | Bazel build configuration with `js_binary` CSS generator |
 
 ## Comparison: Pre-generated vs Bazel-Managed
 
