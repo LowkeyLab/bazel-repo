@@ -1,0 +1,14 @@
+/**
+ * TailwindCSS v4 using the @tailwind directives
+ * The @tailwindcss/postcss plugin processes these directives
+ */
+ 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+
+
+
