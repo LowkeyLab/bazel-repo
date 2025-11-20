@@ -1,0 +1,9 @@
+/**
+ * TailwindCSS v4 source file
+ * This file contains @tailwind directives that will be processed by the TailwindCSS CLI
+ * during the Bazel build to generate the final CSS with only the utilities used in templates.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

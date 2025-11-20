@@ -3,6 +3,8 @@ load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
 
 npm_link_all_packages()
 
+exports_files([".postcssrc.json"])
+
 ng_config(
     name = "ng-config",
     visibility = [

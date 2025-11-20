@@ -5,11 +5,36 @@ load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
 
+# Source CSS file with @tailwind directives
+# This is the source - developers edit this file
+exports_files(["src/styles.source.css"])
+
+# Shell script to regenerate TailwindCSS
+# Run with: bazel run //angular/projects/tailwind-sample:generate-css
+sh_binary(
+    name = "generate-css",
+    srcs = ["generate-css.sh"],
+    data = [
+        "src/styles.source.css",
+        "//angular:.postcssrc.json",
+        "//angular:node_modules",
+        "@pnpm",
+    ] + glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+)
+
 copy_to_bin(
     name = "srcs",
     srcs = glob(
         ["src/**/*"],
-        exclude = ["dist/"],
+        exclude = [
+            "dist/",
+            "src/styles.source.css",  # Don't include source in build
+            "generate-css.sh",  # Don't include script
+            "generate-tailwind.sh",  # Don't include old script
+        ],
     ),
 )
 
