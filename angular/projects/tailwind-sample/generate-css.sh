@@ -13,8 +13,9 @@ echo "Regenerating TailwindCSS for tailwind-sample project..."
 echo "Installing dependencies..."
 bazel run -- @pnpm//:pnpm --dir $PWD/angular install
 
-# Run TailwindCSS CLI
-echo "Running TailwindCSS CLI..."
+# Run TailwindCSS CLI using npx which will find the @tailwindcss/cli package
+# from package.json dependencies
+echo "Running TailwindCSS CLI from package.json..."
 cd angular
 npx @tailwindcss/cli \
     --input projects/tailwind-sample/src/styles.source.css \
