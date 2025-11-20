@@ -16,54 +16,44 @@ angular/projects/tailwind-sample/
 │   │   └── app.spec.ts     # Component tests
 │   ├── index.html          # Main HTML file
 │   ├── main.ts             # Application bootstrap
-│   └── styles.css          # Global styles with Tailwind directives
+│   └── styles.css          # Global styles with Tailwind CSS (pre-generated)
 ├── BUILD.bazel             # Bazel build configuration
 ├── tsconfig.app.json       # TypeScript config for app
 └── tsconfig.spec.json      # TypeScript config for tests
 ```
 
-## TailwindCSS v4 Configuration
+## TailwindCSS v4 Integration with Bazel
 
-This project uses TailwindCSS v4 with the `@tailwindcss/postcss` plugin. The configuration is minimal:
+This project uses a **pre-generated** approach for TailwindCSS integration with Bazel:
 
-### PostCSS Configuration
+### Why Pre-generated CSS?
 
-The PostCSS configuration is located at `angular/.postcssrc.json`:
+The `rules_angular` Bazel rules don't currently support PostCSS configuration files (`.postcssrc.json`) in the Bazel sandbox environment. While the Angular CLI (`ng build`) properly processes TailwindCSS via PostCSS, the Bazel build doesn't have access to these configuration files during the build process.
 
-```json
-{
-  "plugins": {
-    "@tailwindcss/postcss": {}
-  }
-}
-```
+### Solution: Pre-generated Tailwind CSS
 
-### CSS Configuration
+Instead of using `@tailwind` directives that require PostCSS processing, we generate the Tailwind CSS once using the Tailwind CLI and include it directly in `src/styles.css`.
 
-In `src/styles.css`, we use the `@tailwind` directives:
-
-```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-```
-
-## Building
-
-###With Angular CLI (Recommended)
-
-The Angular CLI properly processes TailwindCSS with PostCSS:
+**To regenerate the Tailwind CSS** (when adding new utility classes or updating templates):
 
 ```bash
 cd angular
-ng build tailwind-sample
+npx @tailwindcss/cli --input projects/tailwind-sample/src/styles.css --output /tmp/tailwind.css
+cat /tmp/tailwind.css > projects/tailwind-sample/src/styles.css
 ```
 
-The output will be in `angular/dist/tailwind-sample`.
+Or use the provided script:
 
-### With Bazel
+```bash
+cd angular
+npm run tailwind:generate
+```
 
-Build the project with Bazel:
+The generated CSS includes only the utilities used in the project templates (tree-shaken), making it compact (~2KB minified) while still providing all necessary styles.
+
+## Building
+
+### With Bazel (Recommended for CI/CD)
 
 ```bash
 bazel build //angular/projects/tailwind-sample:tailwind-sample
@@ -71,11 +61,15 @@ bazel build //angular/projects/tailwind-sample:tailwind-sample
 
 The output will be in `bazel-bin/angular/projects/tailwind-sample/dist`.
 
-**Note**: There's currently a known limitation where TailwindCSS v4's automatic content detection may not work optimally in the Bazel sandbox environment. This is being investigated. For now, using the Angular CLI (`ng build`) is the recommended approach for building this project.
+### With Angular CLI (For Development)
+
+```bash
+cd angular
+ng build tailwind-sample
+ng serve tailwind-sample  # Dev server with hot reload
+```
 
 ## Running Tests
-
-Run the tests with:
 
 ```bash
 bazel test //angular/projects/tailwind-sample:test
@@ -88,32 +82,12 @@ cd angular
 ng test tailwind-sample
 ```
 
-## Known Limitations
-
-### Content Detection in Bazel
-
-TailwindCSS v4's automatic content detection relies on PostCSS scanning template files to determine which utility classes to generate. In a Bazel sandbox environment:
-
-- File paths are virtualized during the build process
-- The PostCSS plugin may not have access to source files at the expected locations
-- This can result in utility classes not being detected and included in the final CSS
-
-**Status**: The Angular CLI build (`ng build`) works perfectly and generates all necessary utility classes. The Bazel build integration needs further investigation to ensure PostCSS processes files correctly in the Bazel sandbox.
-
-### Workarounds for Bazel Builds
-
-If you need to use Bazel builds and encounter missing utility classes:
-
-1. Use the Angular CLI for local development and CI builds
-2. Investigate custom PostCSS plugin configuration for Bazel
-3. Consider using a pre-built CSS approach with explicit utility safelisting
-
 ## Technology Stack
 
-- **Angular**: v20.3
-- **TailwindCSS**: v4.1.17
-- **PostCSS**: v8.5.3 with @tailwindcss/postcss plugin v4.1.17
-- **Build System**: Bazel with rules_angular (primary), Angular CLI (recommended for TailwindCSS)
+- **Angular**: v20.3 with zoneless change detection
+- **TailwindCSS**: v4.1.17 (pre-generated CSS approach)
+- **Build System**: Bazel with rules_angular
+- **Testing**: Jasmine/Karma with zoneless configuration
 
 ## Sample Features
 
@@ -129,7 +103,22 @@ The sample application demonstrates:
 - Responsive design with breakpoints (md, lg)
 - Shadows and transitions
 
-## Development
+## Updating Tailwind CSS
+
+When you add new Tailwind utility classes to your templates:
+
+1. Add the classes to your HTML/TS files
+2. Regenerate the CSS using the Tailwind CLI:
+   ```bash
+   cd angular
+   npx @tailwindcss/cli --input projects/tailwind-sample/src/styles.css --output /tmp/new-styles.css
+   cat /tmp/new-styles.css > projects/tailwind-sample/src/styles.css
+   ```
+3. Commit the updated `styles.css` file
+
+The Tailwind CLI will scan your templates and generate only the CSS for classes that are actually used, keeping the bundle size small.
+
+## Development Workflow
 
 For local development:
 
@@ -138,21 +127,34 @@ cd angular
 ng serve tailwind-sample
 ```
 
-This will start the Angular dev server on `http://localhost:4200` with TailwindCSS properly configured and hot-reloading enabled.
+This starts the Angular dev server on `http://localhost:4200` with hot-reloading enabled.
 
-## Verification
+For Bazel builds in CI/CD:
 
-To verify TailwindCSS is working:
+```bash
+bazel build //angular/projects/tailwind-sample:tailwind-sample
+bazel test //angular/projects/tailwind-sample:test
+```
 
-1. Build with Angular CLI: `ng build tailwind-sample`
-2. Check the generated CSS size - should be ~2KB (minified) with used utilities
-3. Open `dist/tailwind-sample/browser/index.html` in a browser
-4. Inspect elements to see Tailwind utility classes applied with generated styles
+## Comparison: Angular CLI vs Bazel
 
-The sample includes visual examples of:
+| Feature | Angular CLI | Bazel |
+|---------|-------------|-------|
+| TailwindCSS Processing | ✅ Automatic via PostCSS | ✅ Pre-generated CSS |
+| Build Time | Faster for single project | Better for monorepo |
+| Caching | Local only | Distributed caching |
+| Tree-shaking | ✅ Automatic | ✅ Manual regeneration |
+| Hot Reload | ✅ Built-in | ❌ Not applicable |
 
-- Gradient backgrounds
-- Responsive grid layouts
-- Interactive buttons
-- Typography variations
-- Color schemes
+## Future Improvements
+
+If `rules_angular` adds native PostCSS support in the future, this project can be migrated to use `@tailwind` directives directly:
+
+```css
+/* Future approach (not currently working in Bazel) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+Until then, the pre-generated approach provides a reliable, production-ready solution.
