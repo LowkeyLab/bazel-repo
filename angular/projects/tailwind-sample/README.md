@@ -150,9 +150,9 @@ To verify TailwindCSS is working:
 4. Inspect elements to see Tailwind utility classes applied with generated styles
 
 The sample includes visual examples of:
+
 - Gradient backgrounds
 - Responsive grid layouts
 - Interactive buttons
 - Typography variations
 - Color schemes
-
