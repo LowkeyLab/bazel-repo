@@ -182,7 +182,7 @@ The TailwindCSS CLI automatically detects which utilities are needed by scanning
 
 | File | Purpose |
 |------|---------|
-| `src/styles.source.css` | Source CSS with `@tailwind` directives (edit this) |
+| `src/styles.source.css` | Source CSS with `@import "tailwindcss"` and `@plugin "daisyui"` (edit this) |
 | `src/styles.css` | Generated CSS (don't edit, regenerate with Bazel) |
 | `tailwindcss-bin.js` | Minimal wrapper that uses bin from @tailwindcss/cli package.json |
 | `BUILD.bazel` | Bazel build configuration with `js_binary` CSS generator |
