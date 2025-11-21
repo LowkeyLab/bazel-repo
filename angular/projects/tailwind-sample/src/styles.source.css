@@ -1,9 +1,9 @@
 /**
- * TailwindCSS v4 source file
- * This file contains @tailwind directives that will be processed by the TailwindCSS CLI
- * during the Bazel build to generate the final CSS with only the utilities used in templates.
+ * TailwindCSS v4 source file with @source directives
+ * The @source directives tell TailwindCSS which files to scan for utility classes.
  */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "./app/**/*.html";
+@source "./app/**/*.ts";

@@ -16,12 +16,14 @@ if (!workspace) {
 }
 
 // Generate CSS for tailwind-sample project
-const input = path.join(workspace, 'angular/projects/tailwind-sample/src/styles.source.css');
-const output = path.join(workspace, 'angular/projects/tailwind-sample/src/styles.css');
+// Paths relative to angular/ directory where node_modules is located
+const input = 'projects/tailwind-sample/src/styles.source.css';
+const output = 'projects/tailwind-sample/src/styles.css';
+const angularDir = path.join(workspace, 'angular');
 
 console.log('Generating TailwindCSS...');
 execFileSync(process.execPath, [binPath, '--input', input, '--output', output], {
   stdio: 'inherit',
-  cwd: workspace,
+  cwd: angularDir, // Run from angular/ where node_modules is
 });
 console.log('✓ Done! Remember to commit styles.css');
