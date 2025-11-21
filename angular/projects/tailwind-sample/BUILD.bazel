@@ -20,6 +20,7 @@ js_binary(
         "//angular:node_modules/@tailwindcss/cli",
         "//angular:node_modules/tailwindcss",
         "//angular:node_modules/@tailwindcss/postcss",
+        "//angular:node_modules/daisyui",
     ] + glob([
         "src/**/*.html",
         "src/**/*.ts",

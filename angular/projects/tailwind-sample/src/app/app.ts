@@ -8,5 +8,5 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.css',
 })
 export class App {
-  title = 'TailwindCSS Sample';
+  title = 'TailwindCSS + DaisyUI';
 }

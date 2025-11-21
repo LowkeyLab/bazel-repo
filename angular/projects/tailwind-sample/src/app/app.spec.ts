@@ -16,16 +16,16 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'TailwindCSS Sample' title`, () => {
+  it(`should have the 'TailwindCSS + DaisyUI' title`, () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('TailwindCSS Sample');
+    expect(app.title).toEqual('TailwindCSS + DaisyUI');
   });
 
   it('should render title', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('TailwindCSS Sample');
+    expect(compiled.querySelector('h1')?.textContent).toContain('TailwindCSS + DaisyUI');
   });
 });

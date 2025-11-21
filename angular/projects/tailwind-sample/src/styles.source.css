@@ -1,9 +1,10 @@
 /**
- * TailwindCSS v4 source file with @source directives
+ * TailwindCSS v4 source file with @source directives and DaisyUI
  * The @source directives tell TailwindCSS which files to scan for utility classes.
  */
 
 @import "tailwindcss";
+@plugin "daisyui";
 
 @source "./app/**/*.html";
 @source "./app/**/*.ts";
