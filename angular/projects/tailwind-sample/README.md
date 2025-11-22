@@ -1,0 +1,224 @@
+# TailwindCSS + DaisyUI Sample Project
+
+This sample project demonstrates using TailwindCSS v4 with DaisyUI components in Angular and rules_angular within a Bazel monorepo.
+
+## Project Structure
+
+```
+angular/projects/tailwind-sample/
+├── src/
+│   ├── app/
+│   │   ├── app.ts          # Main component
+│   │   ├── app.html        # Template with DaisyUI components
+│   │   ├── app.css         # Component styles
+│   │   ├── app.config.ts   # App configuration
+│   │   ├── app.routes.ts   # Routing configuration
+│   │   └── app.spec.ts     # Component tests
+│   ├── index.html          # Main HTML file
+│   ├── main.ts             # Application bootstrap
+│   ├── styles.source.css   # Source CSS with @import and @plugin directives
+│   └── styles.css          # Generated CSS (committed to repo)
+├── BUILD.bazel             # Bazel build configuration with js_binary
+├── tailwindcss-bin.js      # Minimal wrapper that uses bin from package.json
+├── tsconfig.app.json       # TypeScript config for app
+└── tsconfig.spec.json      # TypeScript config for tests
+```
+
+## TailwindCSS v4 + DaisyUI Integration with Bazel
+
+This project uses TailwindCSS v4 with DaisyUI components via a **Bazel-managed generation workflow using rules_js**:
+
+### How It Works
+
+1. **Source CSS** (`src/styles.source.css`): Contains `@import`, `@plugin`, and `@source` directives
+   ```css
+   @import "tailwindcss";
+   @plugin "daisyui";
+   
+   @source "./app/**/*.html";
+   @source "./app/**/*.ts";
+   ```
+   - The `@import "tailwindcss"` imports TailwindCSS v4
+   - The `@plugin "daisyui"` adds DaisyUI component library
+   - The `@source` directives tell TailwindCSS which files to scan for utility classes
+
+2. **Generated CSS** (`src/styles.css`): Tree-shaken utilities + DaisyUI components
+   - Committed to the repository
+   - Includes TailwindCSS utilities and DaisyUI components used in templates
+   - ~69KB (~18KB gzipped) with DaisyUI components
+
+3. **Bazel Target** (`js_binary`): Invokes TailwindCSS CLI directly from package.json
+   ```bash
+   bazel run //angular/projects/tailwind-sample:generate-css
+   ```
+
+### Why This Approach?
+
+The `@angular/build` system in `rules_angular` doesn't support PostCSS configuration files in the Bazel sandbox. This approach provides:
+
+- ✅ **rules_js Integration**: Uses `js_binary` to invoke the @tailwindcss/cli package
+- ✅ **Package.json Bin**: Uses the bin entry from @tailwindcss/cli package.json
+- ✅ **Minimal Wrapper**: 12-line wrapper that just resolves and executes the bin
+- ✅ **Tree-Shaking**: Only used utilities are included
+- ✅ **Version Control**: Generated CSS is committed for reliable CI builds  
+- ✅ **Simple Workflow**: Single `bazel run` command to regenerate
+
+### Technical Implementation
+
+The `generate-css` target is a `js_binary` that:
+1. References `//angular:node_modules/@tailwindcss/cli` (the package from package.json)
+2. Uses a minimal wrapper (`tailwindcss-bin.js`) that:
+   - Resolves `@tailwindcss/cli/package.json` to locate the package
+   - Extracts the bin entry path from package.json
+   - Executes the CLI binary with input/output paths
+3. Runs in the workspace directory (via `BUILD_WORKSPACE_DIRECTORY`)
+4. Generates CSS by scanning templates and processing `@tailwind` directives
+
+## Building
+
+### With Bazel
+
+```bash
+bazel build //angular/projects/tailwind-sample:tailwind-sample
+```
+
+The build uses the pre-generated `styles.css` file.
+
+### Regenerating TailwindCSS
+
+When you add new Tailwind utility classes to your templates:
+
+```bash
+bazel run //angular/projects/tailwind-sample:generate-css
+```
+
+This command:
+1. Installs dependencies via pnpm
+2. Runs TailwindCSS CLI to scan templates
+3. Generates optimized CSS with only used utilities
+4. Updates `src/styles.css`
+
+**Remember to commit the updated `styles.css` file!**
+
+## Running Tests
+
+```bash
+bazel test //angular/projects/tailwind-sample:test
+```
+
+## Technology Stack
+
+- **Angular**: v20.3 with zoneless change detection
+- **TailwindCSS**: v4.1.17 with CLI-based generation
+- **Build System**: Bazel with rules_angular
+- **Testing**: Jasmine/Karma with zoneless configuration
+
+## Sample Features
+
+The sample application demonstrates:
+
+- Typography utilities (text sizes, weights, colors)
+- Color palettes (blues, greens, purples, reds, etc.)
+- Spacing and layout utilities (padding, margin, gap)
+- Flexbox and Grid layouts
+- Borders and rounded corners
+- Background gradients
+- Styled buttons with hover effects
+- Responsive design with breakpoints (md, lg)
+- Shadows and transitions
+
+## Development Workflow
+
+### Adding New Tailwind Classes
+
+1. Edit your templates (`src/app/*.html`, `src/app/*.ts`)
+2. Add Tailwind utility classes as needed
+3. Regenerate CSS:
+   ```bash
+   bazel run //angular/projects/tailwind-sample:generate-css
+   ```
+4. Verify the build:
+   ```bash
+   bazel build //angular/projects/tailwind-sample:tailwind-sample
+   ```
+5. Commit both your template changes and the updated `src/styles.css`
+
+### Local Development
+
+For local development with hot-reload:
+
+```bash
+cd angular
+ng serve tailwind-sample
+```
+
+**Note**: When using `ng serve`, you may need to regenerate CSS first if you've added new utility classes.
+
+## Continuous Integration
+
+In CI environments, the build uses the committed `styles.css` file:
+
+```bash
+# CI builds work without regenerating CSS
+bazel build //angular/projects/tailwind-sample:tailwind-sample
+bazel test //angular/projects/tailwind-sample:test
+```
+
+## How TailwindCSS Generation Works
+
+The `generate-css` Bazel target is a `js_binary` that:
+
+1. **Loads the Package**: Uses `//angular:node_modules/@tailwindcss/cli` from package.json
+2. **Resolves the Bin Entry**: The wrapper script (`tailwindcss-bin.js`) finds the bin path from package.json
+3. **Executes the CLI**: Runs the @tailwindcss/cli binary with:
+   - Input: `src/styles.source.css` (with `@tailwind` directives)
+   - Output: `src/styles.css`
+   - Scans templates (`src/**/*.html`, `src/**/*.ts`) for class usage
+4. **Generates Optimized CSS**: Tree-shaken utilities (~2KB)
+
+The TailwindCSS CLI automatically detects which utilities are needed by scanning the template files.
+
+## File Overview
+
+| File | Purpose |
+|------|---------|
+| `src/styles.source.css` | Source CSS with `@import "tailwindcss"` and `@plugin "daisyui"` (edit this) |
+| `src/styles.css` | Generated CSS (don't edit, regenerate with Bazel) |
+| `tailwindcss-bin.js` | Minimal wrapper that uses bin from @tailwindcss/cli package.json |
+| `BUILD.bazel` | Bazel build configuration with `js_binary` CSS generator |
+
+## Comparison: Pre-generated vs Bazel-Managed
+
+| Aspect | Previous (Manual) | Current (Bazel-Managed) |
+|--------|-------------------|-------------------------|
+| CSS Generation | Manual command | `bazel run` target |
+| Integration | External tool | Bazel-managed |
+| Dependencies | System npm | Bazel-managed pnpm |
+| CI Builds | Uses committed CSS | Uses committed CSS |
+| Dev Workflow | Manual regeneration | `bazel run` command |
+
+## Benefits
+
+✅ **Bazel Integration**: CSS generation is a Bazel target  
+✅ **Reproducible**: Uses Bazel-managed dependencies  
+✅ **Tree-Shaking**: Only used utilities included (~2KB)  
+✅ **Version Control**: Generated CSS committed for CI  
+✅ **Simple Workflow**: One command to regenerate  
+
+## Troubleshooting
+
+### CSS Not Updating
+
+If new utility classes aren't working:
+
+1. Regenerate CSS: `bazel run //angular/projects/tailwind-sample:generate-css`
+2. Verify `styles.css` was updated
+3. Rebuild: `bazel build //angular/projects/tailwind-sample:tailwind-sample`
+
+### Build Errors
+
+If you see build errors related to CSS:
+
+1. Ensure `styles.css` exists and is committed
+2. Run `bazel clean` if needed
+3. Regenerate CSS to ensure it's up-to-date
