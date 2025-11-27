@@ -31,13 +31,15 @@ This project uses TailwindCSS v4 with DaisyUI components via a **Bazel-managed g
 ### How It Works
 
 1. **Source CSS** (`src/styles.source.css`): Contains `@import`, `@plugin`, and `@source` directives
+
    ```css
-   @import "tailwindcss";
+   @import 'tailwindcss';
    @plugin "daisyui";
-   
+
    @source "./app/**/*.html";
    @source "./app/**/*.ts";
    ```
+
    - The `@import "tailwindcss"` imports TailwindCSS v4
    - The `@plugin "daisyui"` adds DaisyUI component library
    - The `@source` directives tell TailwindCSS which files to scan for utility classes
@@ -60,12 +62,13 @@ The `@angular/build` system in `rules_angular` doesn't support PostCSS configura
 - ✅ **Package.json Bin**: Uses the bin entry from @tailwindcss/cli package.json
 - ✅ **Minimal Wrapper**: 12-line wrapper that just resolves and executes the bin
 - ✅ **Tree-Shaking**: Only used utilities are included
-- ✅ **Version Control**: Generated CSS is committed for reliable CI builds  
+- ✅ **Version Control**: Generated CSS is committed for reliable CI builds
 - ✅ **Simple Workflow**: Single `bazel run` command to regenerate
 
 ### Technical Implementation
 
 The `generate-css` target is a `js_binary` that:
+
 1. References `//angular:node_modules/@tailwindcss/cli` (the package from package.json)
 2. Uses a minimal wrapper (`tailwindcss-bin.js`) that:
    - Resolves `@tailwindcss/cli/package.json` to locate the package
@@ -93,6 +96,7 @@ bazel run //angular/projects/tailwind-sample:generate-css
 ```
 
 This command:
+
 1. Installs dependencies via pnpm
 2. Runs TailwindCSS CLI to scan templates
 3. Generates optimized CSS with only used utilities
@@ -180,22 +184,22 @@ The TailwindCSS CLI automatically detects which utilities are needed by scanning
 
 ## File Overview
 
-| File | Purpose |
-|------|---------|
+| File                    | Purpose                                                                     |
+| ----------------------- | --------------------------------------------------------------------------- |
 | `src/styles.source.css` | Source CSS with `@import "tailwindcss"` and `@plugin "daisyui"` (edit this) |
-| `src/styles.css` | Generated CSS (don't edit, regenerate with Bazel) |
-| `tailwindcss-bin.js` | Minimal wrapper that uses bin from @tailwindcss/cli package.json |
-| `BUILD.bazel` | Bazel build configuration with `js_binary` CSS generator |
+| `src/styles.css`        | Generated CSS (don't edit, regenerate with Bazel)                           |
+| `tailwindcss-bin.js`    | Minimal wrapper that uses bin from @tailwindcss/cli package.json            |
+| `BUILD.bazel`           | Bazel build configuration with `js_binary` CSS generator                    |
 
 ## Comparison: Pre-generated vs Bazel-Managed
 
-| Aspect | Previous (Manual) | Current (Bazel-Managed) |
-|--------|-------------------|-------------------------|
-| CSS Generation | Manual command | `bazel run` target |
-| Integration | External tool | Bazel-managed |
-| Dependencies | System npm | Bazel-managed pnpm |
-| CI Builds | Uses committed CSS | Uses committed CSS |
-| Dev Workflow | Manual regeneration | `bazel run` command |
+| Aspect         | Previous (Manual)   | Current (Bazel-Managed) |
+| -------------- | ------------------- | ----------------------- |
+| CSS Generation | Manual command      | `bazel run` target      |
+| Integration    | External tool       | Bazel-managed           |
+| Dependencies   | System npm          | Bazel-managed pnpm      |
+| CI Builds      | Uses committed CSS  | Uses committed CSS      |
+| Dev Workflow   | Manual regeneration | `bazel run` command     |
 
 ## Benefits
 
@@ -203,7 +207,7 @@ The TailwindCSS CLI automatically detects which utilities are needed by scanning
 ✅ **Reproducible**: Uses Bazel-managed dependencies  
 ✅ **Tree-Shaking**: Only used utilities included (~2KB)  
 ✅ **Version Control**: Generated CSS committed for CI  
-✅ **Simple Workflow**: One command to regenerate  
+✅ **Simple Workflow**: One command to regenerate
 
 ## Troubleshooting
 
