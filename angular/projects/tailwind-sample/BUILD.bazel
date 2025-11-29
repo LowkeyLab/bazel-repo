@@ -31,7 +31,6 @@ tailwindcss_bin.tailwindcss_binary(
     name = "tailwindcss",
     data = [
         "//angular:node_modules/@tailwindcss/cli",
-        "//angular:node_modules/@tailwindcss/postcss",
         "//angular:node_modules/daisyui",
         "//angular:node_modules/tailwindcss",
     ] + glob([
@@ -48,7 +47,7 @@ js_run_binary(
     outs = ["src/styles.css"],
     args = [
         "--input",
-        "$(location src/styles.source.css)",
+        "angular/projects/tailwind-sample/src/styles.source.css",
         "--output",
         "angular/projects/tailwind-sample/src/styles.css",
     ],
