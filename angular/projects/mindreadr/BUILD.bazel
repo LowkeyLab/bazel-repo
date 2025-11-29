@@ -1,5 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
@@ -14,9 +15,8 @@ exports_files(["src/styles.source.css"])
 # This uses a minimal wrapper to invoke the bin from @tailwindcss/cli package.json
 # Run with: bazel run //angular/projects/tailwind-sample:generate-css
 js_binary(
-    name = "generate-css",
+    name = "generate_css",
     data = [
-        "src/styles.source.css",
         "//angular:node_modules/@tailwindcss/cli",
         "//angular:node_modules/@tailwindcss/postcss",
         "//angular:node_modules/daisyui",
@@ -27,6 +27,22 @@ js_binary(
     ]),
     # Minimal wrapper that resolves and executes the bin from package.json
     entry_point = "tailwindcss-bin.js",
+)
+
+js_run_binary(
+    name = "generate_css_runner",
+    srcs = [
+        "src/styles.source.css",
+    ],
+    outs = ["src/styles.css"],
+    tool = ":generate_css",
+)
+
+write_source_files(
+    name = "update_styles",
+    files = {
+        "src/styles.css": ":generate_css_runner",
+    },
 )
 
 copy_to_bin(
