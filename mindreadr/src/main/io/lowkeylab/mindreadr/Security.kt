@@ -11,10 +11,12 @@ fun Application.configureSecurity() {
     val frontEndUrl = config.property("frontend.url").getString()
     install(CORS) {
         allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Post)
-        allowHost(frontEndUrl)
+        allowHost(frontEndUrl, schemes = listOf("http", "https", "ws", "wss"))
+        allowHeader(HttpHeaders.ContentType)
     }
 }
