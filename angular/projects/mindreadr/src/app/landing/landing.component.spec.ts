@@ -2,7 +2,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { LandingComponent } from './landing.component';
-import { GamesCountComponent } from '../games-count/games-count.component';
 import { GameService } from '../services/game.service';
 import { provideRouter } from '@angular/router';
 import { routes } from '../app.routes';

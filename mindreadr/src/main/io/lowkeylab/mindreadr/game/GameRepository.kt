@@ -9,5 +9,7 @@ interface GameRepository {
 
     suspend fun countGamesByState(state: GameState): Long
 
+    suspend fun getGamesByState(state: GameState): List<Game>
+
     suspend fun deleteGame(gameId: GameId)
 }

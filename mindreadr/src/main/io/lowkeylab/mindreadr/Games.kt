@@ -4,6 +4,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.log
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
@@ -68,12 +69,157 @@ fun Game.toDto() =
         finalGuess = getFinalGuess(),
     )
 
+fun Application.configureGamesWs(gameService: GameService) {
+    routing {
+        webSocket("/games/{id}/live") {
+            val gameIdParam =
+                call.parameters["id"] ?: run {
+                    this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID"))
+                    return@webSocket
+                }
+            val gameId = GameId(gameIdParam)
+
+            // Validate game exists
+            gameService.getGameById(gameId) ?: run {
+                this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Game not found"))
+                return@webSocket
+            }
+
+            // Create and add player to game
+            val player =
+                try {
+                    gameService.addPlayerToGame(gameId)
+                } catch (e: Exception) {
+                    log.error("Failed to add player to game {}. {}", gameId.id, e.message)
+                    this@webSocket.close(
+                        CloseReason(
+                            CloseReason.Codes.VIOLATED_POLICY,
+                            "Failed to join game: ${e.message}",
+                        ),
+                    )
+                    return@webSocket
+                }
+
+            // Create or get the shared flow for this game
+            val sharedFlow =
+                gameFlows.computeIfAbsent(gameId) {
+                    MutableSharedFlow()
+                }
+
+            // Launch a coroutine to forward flow emissions to this client
+            val job =
+                launch {
+                    sharedFlow.asSharedFlow().collect { message ->
+                        try {
+                            when (message) {
+                                is OutgoingMessage.GameTerminated -> {
+                                    sendSerialized<OutgoingMessage>(message)
+                                    log.info(
+                                        "Closing WebSocket for player {} in game {}. Reason is {}.",
+                                        player.name.name,
+                                        gameId.id,
+                                        message.reason,
+                                    )
+                                    this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, message.reason))
+                                }
+
+                                else -> sendSerialized<OutgoingMessage>(message)
+                            }
+                        } catch (_: Exception) {
+                            // Ignore send/close failures (client may be gone)
+                        }
+                    }
+                }
+
+            try {
+                // Notify player they joined (only to this client)
+                log.info("Player {} joined game {}", player.name.name, gameId.id)
+                sendSerialized<OutgoingMessage>(OutgoingMessage.PlayerJoined(player))
+
+                // Broadcast current game state to all players via the shared flow
+                val updatedGame = gameService.getGameById(gameId)!!.toDto()
+                sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
+
+                // Handle incoming messages
+                for (frame in incoming) {
+                    if (frame is Frame.Text) {
+                        runCatching {
+                            when (
+                                val message =
+                                    Json.decodeFromString(IncomingMessage.serializer(), frame.readText())
+                            ) {
+                                is IncomingMessage.SubmitGuess -> {
+                                    runCatching {
+                                        log.info(
+                                            "Player {} submitting guess in game {}: {}",
+                                            player.name.name,
+                                            gameId.id,
+                                            message.guess,
+                                        )
+
+                                        gameService.addGuessToGame(player, gameId, message.guess)
+
+                                        // Broadcast updated game state
+                                        val currentGame = gameService.getGameById(gameId)!!.toDto()
+                                        sharedFlow.emit(OutgoingMessage.GameState(currentGame))
+
+                                        // Check if game ended
+                                        if (currentGame.state == GameState.COMPLETED) {
+                                            // Emit termination to all clients
+                                            sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
+                                        }
+                                    }.onFailure { e ->
+                                        log.error(
+                                            "Failed to submit guess for player ${player.name.name} in game $gameId: ${e.message}",
+                                        )
+                                        // Per-client error message
+                                        sendSerialized<OutgoingMessage>(
+                                            OutgoingMessage.Error("Failed to submit guess: ${e.message}"),
+                                        )
+                                    }
+                                }
+                            }
+                        }.onFailure { e ->
+                            // Per-client error message for bad input
+                            sendSerialized<OutgoingMessage>(OutgoingMessage.Error("Invalid message format: ${e.message}"))
+                        }
+                    }
+                }
+            } finally {
+                // Player disconnected - remove from game and terminate all connections
+                runCatching { gameService.removePlayerFromGame(player, gameId) }
+
+                // Emit termination to all clients (best-effort, non-suspending if no subscribers)
+                gameFlows[gameId]?.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
+
+                // Cancel the collection job before cleanup
+                job.cancel()
+
+                // Remove the flow for this game (allow recreation on next connect)
+                gameFlows.remove(gameId)
+            }
+        }
+    }
+}
+
 fun Application.configureGames(gameService: GameService) {
     routing {
         route("/games") {
             get {
-                val games = gameService.getAllGames().map { it.toDto() }
-                call.respond(games)
+                val status = call.request.queryParameters["status"]
+                if (status != null) {
+                    val state =
+                        when (status.lowercase()) {
+                            "waiting" -> GameState.WAITING_FOR_PLAYERS
+                            "in_progress" -> GameState.IN_PROGRESS
+                            "completed" -> GameState.COMPLETED
+                            else -> return@get call.respond(HttpStatusCode.BadRequest, "Invalid status parameter")
+                        }
+                    val gamesByState = gameService.getGamesByState(state).map { it.toDto() }
+                    return@get call.respond(gamesByState)
+                }
+
+                call.respondText("Please specify a status query parameter to filter games by state.")
             }
             get("/summary") {
                 val inProgress = gameService.countGamesByState(GameState.IN_PROGRESS)
@@ -96,126 +242,6 @@ fun Application.configureGames(gameService: GameService) {
                     val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
                     val game = gameService.getGameById(GameId(id)) ?: return@get call.respond(HttpStatusCode.NotFound)
                     call.respond(game.toDto())
-                }
-
-                webSocket("/live") {
-                    val gameIdParam =
-                        call.parameters["id"] ?: run {
-                            this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID"))
-                            return@webSocket
-                        }
-                    val gameId = GameId(gameIdParam)
-
-                    // Validate game exists
-                    gameService.getGameById(gameId) ?: run {
-                        this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Game not found"))
-                        return@webSocket
-                    }
-
-                    // Create and add player to game
-                    val player =
-                        try {
-                            gameService.addPlayerToGame(gameId)
-                        } catch (e: Exception) {
-                            log.error("Failed to add player to game {}. {}", gameId.id, e.message)
-                            this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Failed to join game: ${e.message}"))
-                            return@webSocket
-                        }
-
-                    // Create or get the shared flow for this game
-                    val sharedFlow =
-                        gameFlows.computeIfAbsent(gameId) {
-                            MutableSharedFlow()
-                        }
-
-                    // Launch a coroutine to forward flow emissions to this client
-                    val job =
-                        launch {
-                            sharedFlow.asSharedFlow().collect { message ->
-                                try {
-                                    when (message) {
-                                        is OutgoingMessage.GameTerminated -> {
-                                            sendSerialized<OutgoingMessage>(message)
-                                            log.info(
-                                                "Closing WebSocket for player {} in game {}. Reason is {}.",
-                                                player.name.name,
-                                                gameId.id,
-                                                message.reason,
-                                            )
-                                            this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, message.reason))
-                                        }
-                                        else -> sendSerialized<OutgoingMessage>(message)
-                                    }
-                                } catch (_: Exception) {
-                                    // Ignore send/close failures (client may be gone)
-                                }
-                            }
-                        }
-
-                    try {
-                        // Notify player they joined (only to this client)
-                        log.info("Player {} joined game {}", player.name.name, gameId.id)
-                        sendSerialized<OutgoingMessage>(OutgoingMessage.PlayerJoined(player))
-
-                        // Broadcast current game state to all players via the shared flow
-                        val updatedGame = gameService.getGameById(gameId)!!.toDto()
-                        sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
-
-                        // Handle incoming messages
-                        for (frame in incoming) {
-                            if (frame is Frame.Text) {
-                                runCatching {
-                                    when (val message = Json.decodeFromString(IncomingMessage.serializer(), frame.readText())) {
-                                        is IncomingMessage.SubmitGuess -> {
-                                            runCatching {
-                                                log.info(
-                                                    "Player {} submitting guess in game {}: {}",
-                                                    player.name.name,
-                                                    gameId.id,
-                                                    message.guess,
-                                                )
-
-                                                gameService.addGuessToGame(player, gameId, message.guess)
-
-                                                // Broadcast updated game state
-                                                val currentGame = gameService.getGameById(gameId)!!.toDto()
-                                                sharedFlow.emit(OutgoingMessage.GameState(currentGame))
-
-                                                // Check if game ended
-                                                if (currentGame.state == GameState.COMPLETED) {
-                                                    // Emit termination to all clients
-                                                    sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
-                                                }
-                                            }.onFailure { e ->
-                                                log.error(
-                                                    "Failed to submit guess for player ${player.name.name} in game $gameId: ${e.message}",
-                                                )
-                                                // Per-client error message
-                                                sendSerialized<OutgoingMessage>(
-                                                    OutgoingMessage.Error("Failed to submit guess: ${e.message}"),
-                                                )
-                                            }
-                                        }
-                                    }
-                                }.onFailure { e ->
-                                    // Per-client error message for bad input
-                                    sendSerialized<OutgoingMessage>(OutgoingMessage.Error("Invalid message format: ${e.message}"))
-                                }
-                            }
-                        }
-                    } finally {
-                        // Player disconnected - remove from game and terminate all connections
-                        runCatching { gameService.removePlayerFromGame(player, gameId) }
-
-                        // Emit termination to all clients (best-effort, non-suspending if no subscribers)
-                        gameFlows[gameId]?.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
-
-                        // Cancel the collection job before cleanup
-                        job.cancel()
-
-                        // Remove the flow for this game (allow recreation on next connect)
-                        gameFlows.remove(gameId)
-                    }
                 }
             }
         }

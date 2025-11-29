@@ -16,7 +16,7 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.lowkeylab.mindreadr.IncomingMessage
 import io.lowkeylab.mindreadr.OutgoingMessage
-import io.lowkeylab.mindreadr.configureGames
+import io.lowkeylab.mindreadr.configureGamesWs
 import io.lowkeylab.mindreadr.configureSerialization
 import io.lowkeylab.mindreadr.configureSockets
 import io.lowkeylab.mindreadr.game.GameService
@@ -88,7 +88,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
@@ -117,7 +117,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val client = createClient()
@@ -138,7 +138,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
@@ -165,7 +165,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
@@ -222,7 +222,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
@@ -255,7 +255,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()

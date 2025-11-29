@@ -23,6 +23,15 @@ class InMemoryGameRepository : GameRepository {
                 }
             }.toLong()
 
+    override suspend fun getGamesByState(state: GameState): List<Game> =
+        games.values.filter {
+            when (state) {
+                GameState.WAITING_FOR_PLAYERS -> it.isWaitingForPlayers()
+                GameState.IN_PROGRESS -> it.isInProgress()
+                GameState.COMPLETED -> it.hasEnded()
+            }
+        }
+
     override suspend fun deleteGame(gameId: GameId) {
         games.remove(gameId)
     }

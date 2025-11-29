@@ -17,6 +17,8 @@ class GameService(
 
     suspend fun countGamesByState(state: GameState): Long = gameRepository.countGamesByState(state)
 
+    suspend fun getGamesByState(state: GameState): List<Game> = gameRepository.getGamesByState(state)
+
     suspend fun addPlayerToGame(gameId: GameId): Player {
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
