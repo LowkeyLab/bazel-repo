@@ -19,13 +19,17 @@
           </button>
         </div>
 
-        <p class="text-error mt-3" *ngIf="error()">{{ error() }}</p>
+        @if (error()) {
+          <p class="text-error mt-3">{{ error() }}</p>
+        }
 
-        <div class="alert alert-success mt-3" *ngIf="lastGame() as game">
-          <span
-            >Game created! ID <span class="font-mono font-semibold">{{ game.id }}</span></span
-          >
-        </div>
+        @if (lastGame(); as game) {
+          <div class="alert alert-success mt-3">
+            <span
+              >Game created! ID <span class="font-mono font-semibold">{{ game.id }}</span></span
+            >
+          </div>
+        }
       </div>
     </div>
 
@@ -34,13 +38,15 @@
 </section>
 
 <!-- Join modal using DaisyUI -->
-<div *ngIf="showJoinModal()" class="modal modal-open">
-  <div class="modal-box">
-    <h3 class="font-bold text-lg">Game Ready</h3>
-    <p class="py-2">Your game has been created. Join now to start playing.</p>
-    <div class="modal-action">
-      <button class="btn" (click)="showJoinModal.set(false)">Cancel</button>
-      <button class="btn btn-primary" (click)="joinGame()">Join Game</button>
+@if (showJoinModal()) {
+  <div class="modal modal-open">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Game Ready</h3>
+      <p class="py-2">Your game has been created. Join now to start playing.</p>
+      <div class="modal-action">
+        <button class="btn" (click)="showJoinModal.set(false)">Cancel</button>
+        <button class="btn btn-primary" (click)="joinGame()">Join Game</button>
+      </div>
     </div>
   </div>
-</div>
+}
