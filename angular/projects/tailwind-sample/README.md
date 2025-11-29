@@ -19,7 +19,6 @@ angular/projects/tailwind-sample/
 │   ├── styles.source.css   # Source CSS with @import and @plugin directives
 │   └── styles.css          # Generated CSS (committed to repo)
 ├── BUILD.bazel             # Bazel build configuration with js_binary
-├── tailwindcss-bin.js      # Minimal wrapper that uses bin from package.json
 ├── tsconfig.app.json       # TypeScript config for app
 └── tsconfig.spec.json      # TypeScript config for tests
 ```
@@ -172,12 +171,11 @@ bazel test //angular/projects/tailwind-sample:test
 The primary CSS generation path uses the Bazel `write_styles_css` target, which wraps a Tailwind CLI runner to produce `styles.css`:
 
 1. **Loads the Package**: Uses `//angular:node_modules/@tailwindcss/cli` from package.json
-2. **Resolves the Bin Entry**: The wrapper script (`tailwindcss-bin.js`) finds the bin path from package.json
-3. **Executes the CLI**: Runs the @tailwindcss/cli binary with:
+2. **Executes the CLI**: Runs the @tailwindcss/cli binary with:
    - Input: `src/styles.source.css` (with `@tailwind` directives)
    - Output: `src/styles.css`
    - Scans templates (`src/**/*.html`, `src/**/*.ts`) for class usage
-4. **Generates Optimized CSS**: Tree-shaken utilities (~2KB)
+3. **Generates Optimized CSS**: Tree-shaken utilities (~2KB)
 
 The TailwindCSS CLI automatically detects which utilities are needed by scanning the template files.
 
@@ -187,7 +185,6 @@ The TailwindCSS CLI automatically detects which utilities are needed by scanning
 | ----------------------- | --------------------------------------------------------------------------- |
 | `src/styles.source.css` | Source CSS with `@import "tailwindcss"` and `@plugin "daisyui"` (edit this) |
 | `src/styles.css`        | Generated CSS (don't edit, regenerate with Bazel)                           |
-| `tailwindcss-bin.js`    | Minimal wrapper that uses bin from @tailwindcss/cli package.json            |
 | `BUILD.bazel`           | Bazel build configuration with `js_binary` CSS generator                    |
 
 ## Comparison: Pre-generated vs Bazel-Managed
