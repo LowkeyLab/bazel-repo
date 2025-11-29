@@ -3,6 +3,7 @@ package io.lowkeylab.mindreadr.app
 import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
 import io.lowkeylab.mindreadr.configureGames
+import io.lowkeylab.mindreadr.configureObservability
 import io.lowkeylab.mindreadr.configureRouting
 import io.lowkeylab.mindreadr.configureSecurity
 import io.lowkeylab.mindreadr.configureSerialization
@@ -24,5 +25,6 @@ fun Application.module() {
     configureSockets()
     configureSerialization()
     configureRouting()
+    configureObservability()
     configureGames(gameService)
 }

@@ -190,6 +190,8 @@ maven.install(
         "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-cors-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-id-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-logging-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "com.h2database:h2:%s" % H2_VERSION,
         "org.jetbrains.exposed:exposed-core:%s" % EXPOSED_VERSION,
