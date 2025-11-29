@@ -44,12 +44,12 @@ js_run_binary(
     srcs = [
         "src/styles.source.css",
     ],
-    outs = ["src/styles.css"],
+    outs = ["src/styles_generated.css"],
     args = [
         "--input",
         "angular/projects/tailwind-sample/src/styles.source.css",
         "--output",
-        "angular/projects/tailwind-sample/src/styles.css",
+        "angular/projects/tailwind-sample/src/styles_generated.css",
     ],
     tool = ":tailwindcss",
 )
