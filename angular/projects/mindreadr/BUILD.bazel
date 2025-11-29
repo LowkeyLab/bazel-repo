@@ -47,7 +47,6 @@ copy_to_bin(
     srcs = glob(
         ["src/**/*"],
         exclude = [
-            "dist/",
             "src/styles.source.css",  # Don't include source in build
         ],
     ),

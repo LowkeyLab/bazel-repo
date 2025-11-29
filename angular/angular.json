@@ -206,7 +206,7 @@
             },
             "development": {
               "buildTarget": "mindreadr:build:development",
-              "proxyConfig": "projects/mindreadr/proxy.conf.json"
+              "proxyConfig": "projects/mindreadr/src/proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
