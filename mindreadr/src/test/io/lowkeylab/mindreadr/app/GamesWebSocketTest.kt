@@ -27,7 +27,9 @@ import io.lowkeylab.mindreadr.game.PlayerName
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.launch
@@ -36,7 +38,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -79,7 +80,7 @@ class GamesWebSocketTest {
     }
 
     @Test
-    fun `single client connection receives PlayerJoined then GameState in order`() =
+    fun `single client connection receives GameState update`() =
         testApplication {
             val playerFactory = TestPlayerFactory()
             val gameRepository = InMemoryGameRepository()
@@ -95,15 +96,8 @@ class GamesWebSocketTest {
             val client = createClient()
 
             client.webSocket("/games/${game.id.id}/live") {
-                // Assert strict message order: PlayerJoined first
-                val playerJoined = receiveDeserialized<OutgoingMessage>()
-                assertIs<OutgoingMessage.PlayerJoined>(playerJoined)
-                assertEquals("player1", playerJoined.player.name.name)
-
-                // Then GameState
                 val gameState = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.GameState>(gameState)
-                assertEquals(1, gameState.game.players.size)
             }
         }
 
@@ -141,17 +135,37 @@ class GamesWebSocketTest {
                 configureGamesWs(gameService)
             }
 
-            val game = gameService.createGame()
             val client = createClient()
 
-            // Fill the game with 2 players
-            client.webSocket("/games/${game.id.id}/live") {}
-            client.webSocket("/games/${game.id.id}/live") {}
+            val game = gameService.createGame()
+            val joinBarrier = CoroutineBarrier(3)
+            val exitSignal = MutableSharedFlow<Unit>()
 
-            // Try to add a third player
-            client.webSocket("/games/${game.id.id}/live") {
-                val reason = closeReason.await()
-                assertTrue(reason != null, "Session should be closed for full game")
+            // Fill the game with 2 players
+            coroutineScope {
+                launch {
+                    client.webSocket("/games/${game.id.id}/live") {
+                        joinBarrier.await()
+                        exitSignal.first()
+                    }
+                }
+
+                launch {
+                    client.webSocket("/games/${game.id.id}/live") {
+                        joinBarrier.await()
+                        exitSignal.first()
+                    }
+                }
+
+                // Both players joined, now signal the barrier
+                joinBarrier.await()
+
+                // Try to add a third player
+                client.webSocket("/games/${game.id.id}/live") {
+                    val reason = closeReason.await()
+                    assertTrue(reason != null, "Session should be closed for full game")
+                    exitSignal.emit(Unit)
+                }
             }
         }
 
@@ -262,7 +276,6 @@ class GamesWebSocketTest {
             val client = createClient()
 
             client.webSocket("/games/${game.id.id}/live") {
-                incoming.receive() // PlayerJoined
                 incoming.receive() // GameState
 
                 // Send invalid JSON

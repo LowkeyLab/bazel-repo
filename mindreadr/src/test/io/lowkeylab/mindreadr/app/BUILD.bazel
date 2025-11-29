@@ -1,55 +1,9 @@
-load("@rules_java//java:defs.bzl", "java_library")
-load("//bzl:kotlin.bzl", "kt_junit5_test")
+load("//mindreadr/src/test/io/lowkeylab/mindreadr/app:rules.bzl", "http_test")
 
-java_library(
-    name = "_test_deps",
-    testonly = True,
-    exports = [
-        "//mindreadr/src/main/io/lowkeylab/mindreadr",
-        "//mindreadr/src/main/io/lowkeylab/mindreadr/game",
-        "@maven//:io_ktor_ktor_client_content_negotiation_jvm",
-        "@maven//:io_ktor_ktor_client_websockets_jvm",
-        "@maven//:io_ktor_ktor_server_test_host_jvm",
-    ],
-)
+http_test(name = "ApplicationTest")
 
-kt_junit5_test(
-    name = "ApplicationTest",
-    size = "small",
-    srcs = ["ApplicationTest.kt"],
-    test_package = "io.lowkeylab.mindreadr.app",
-    runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
-    deps = [
-        ":_test_deps",
-    ],
-)
+http_test(name = "GamesHttpTest")
 
-kt_junit5_test(
-    name = "GamesHttpTest",
-    srcs = ["GamesHttpTest.kt"],
-    test_package = "io.lowkeylab.mindreadr.app",
-    runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
-    deps = [
-        ":_test_deps",
-    ],
-)
+http_test(name = "GamesWebSocketTest")
 
-kt_junit5_test(
-    name = "GamesWebSocketTest",
-    srcs = ["GamesWebSocketTest.kt"],
-    test_package = "io.lowkeylab.mindreadr.app",
-    runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
-    deps = [
-        ":_test_deps",
-    ],
-)
-
-kt_junit5_test(
-    name = "GamesSummaryTest",
-    srcs = ["GamesSummaryTest.kt"],
-    test_package = "io.lowkeylab.mindreadr.app",
-    runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
-    deps = [
-        ":_test_deps",
-    ],
-)
+http_test(name = "GamesSummaryTest")
