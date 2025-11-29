@@ -1,14 +1,16 @@
 {
-  "/games": {
+  "/api/games": {
     "target": "http://localhost:8080",
     "secure": false,
     "changeOrigin": true,
-    "logLevel": "debug"
+    "logLevel": "debug",
+    "pathRewrite": { "^/api/games": "/games" }
   },
-  "/games/live": {
+  "/api/games/live": {
     "target": "http://localhost:8080",
     "secure": false,
     "changeOrigin": true,
-    "ws": true
+    "ws": true,
+    "pathRewrite": { "^/api/games/live": "/games/live" }
   }
 }

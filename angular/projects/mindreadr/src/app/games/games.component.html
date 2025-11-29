@@ -1,0 +1,15 @@
+<section class="max-w-2xl mx-auto mt-12">
+  <h1 class="text-3xl font-bold mb-4">Open Games</h1>
+  @if (games().length) {
+    <ul>
+      @for (game of games(); track game.id) {
+        <li class="mb-4 p-4 border rounded flex items-center justify-between">
+          <span class="font-mono">ID: {{ game.id }}</span>
+          <button class="btn btn-primary" (click)="joinGame(game.id)">Join</button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="opacity-70">No open games at the moment.</p>
+  }
+</section>
