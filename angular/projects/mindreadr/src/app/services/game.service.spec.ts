@@ -48,4 +48,23 @@ describe('GameService', () => {
     const req = httpMock.expectOne((r) => r.method === 'POST' && r.url.includes('/games'));
     req.flush({ message: 'server error' }, { status: 500, statusText: 'Server Error' });
   });
+  it('should GET games count and return the count', () => {
+    const mockResponse = { count: 42 };
+    service.getGamesCount().subscribe((count) => {
+      expect(count).toBe(42);
+    });
+    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
+    req.flush(mockResponse);
+  });
+
+  it('should surface errors from getGamesCount', () => {
+    service.getGamesCount().subscribe({
+      next: () => fail('expected an error'),
+      error: (err) => {
+        expect(err.status).toBe(404);
+      },
+    });
+    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
+    req.flush({ message: 'not found' }, { status: 404, statusText: 'Not Found' });
+  });
 });

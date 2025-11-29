@@ -1,7 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
+
+interface GamesCountResponse {
+  count: number;
+}
 
 export interface Game {
   id: string;
@@ -16,5 +20,14 @@ export class GameService {
     // Use relative path; proxy handles dev. Fallback to environment base for non-dev builds.
     const url = environment.API_BASE_URL === '/' ? '/games' : `${environment.API_BASE_URL}/games`;
     return this.http.post<Game>(url, {});
+  }
+
+  /**
+   * Returns the number of games from the backend.
+   * Hides backend details from consumers.
+   */
+  getGamesCount(): Observable<number> {
+    const url = environment.API_BASE_URL === '/' ? '/games' : `${environment.API_BASE_URL}/games`;
+    return this.http.get<GamesCountResponse>(url).pipe(map((res) => res.count));
   }
 }
