@@ -17,6 +17,7 @@ interface GamesResponse {
 export class GamesCountComponent implements OnInit {
   count = signal<number | null>(null);
   openCount = signal<number | null>(null);
+  completedCount = signal<number | null>(null);
   loading = signal(true);
   error = signal<string | null>(null);
 
@@ -32,10 +33,12 @@ export class GamesCountComponent implements OnInit {
     forkJoin({
       active: this.games.getGamesCount(),
       open: this.games.getOpenGamesCount(),
+      completed: this.games.getCompletedGamesCount(),
     }).subscribe({
-      next: ({ active, open }) => {
+      next: ({ active, open, completed }) => {
         this.count.set(active);
         this.openCount.set(open);
+        this.completedCount.set(completed);
         this.loading.set(false);
       },
       error: (err) => {

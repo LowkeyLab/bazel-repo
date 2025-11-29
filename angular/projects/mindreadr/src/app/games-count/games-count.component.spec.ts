@@ -8,6 +8,7 @@ import { Component } from '@angular/core';
 class MockGameService {
   getGamesCount = jasmine.createSpy().and.returnValue(of(5));
   getOpenGamesCount = jasmine.createSpy().and.returnValue(of(3));
+  getCompletedGamesCount = jasmine.createSpy().and.returnValue(of(2));
 }
 
 // Host component for standalone test
@@ -37,12 +38,14 @@ describe('GamesCountComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call both services and set counts', () => {
+  it('should call all services and set counts', () => {
     component.fetchCounts();
     expect(gameService.getGamesCount).toHaveBeenCalled();
     expect(gameService.getOpenGamesCount).toHaveBeenCalled();
+    expect(gameService.getCompletedGamesCount).toHaveBeenCalled();
     expect(component.count()).toBe(5);
     expect(component.openCount()).toBe(3);
+    expect(component.completedCount()).toBe(2);
     expect(component.loading()).toBe(false);
     expect(component.error()).toBeNull();
   });
@@ -52,6 +55,7 @@ describe('GamesCountComponent', () => {
     component.fetchCounts();
     expect(component.count()).toBeNull();
     expect(component.openCount()).toBeNull();
+    expect(component.completedCount()).toBeNull();
     expect(component.loading()).toBe(false);
     expect(component.error()).toBe('fail');
   });

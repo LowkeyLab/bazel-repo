@@ -43,4 +43,14 @@ export class GameService {
       .get<Game[]>(url)
       .pipe(map((games) => games.filter((g) => g.state === 'WAITING_FOR_PLAYERS').length));
   }
+
+  /**
+   * Returns the number of games that have completed.
+   */
+  getCompletedGamesCount(): Observable<number> {
+    const url = environment.API_BASE_URL === '/' ? '/games' : `${environment.API_BASE_URL}/games`;
+    return this.http
+      .get<Game[]>(url)
+      .pipe(map((games) => games.filter((g) => g.state === 'COMPLETED').length));
+  }
 }
