@@ -1,5 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
@@ -18,15 +19,54 @@ js_binary(
     data = [
         "src/styles.source.css",
         "//angular:node_modules/@tailwindcss/cli",
-        "//angular:node_modules/tailwindcss",
         "//angular:node_modules/@tailwindcss/postcss",
         "//angular:node_modules/daisyui",
+        "//angular:node_modules/tailwindcss",
     ] + glob([
         "src/**/*.html",
         "src/**/*.ts",
     ]),
     # Minimal wrapper that resolves and executes the bin from package.json
     entry_point = "tailwindcss-bin.js",
+)
+
+# Build-time TailwindCSS generator binary
+js_binary(
+    name = "tailwindcss-generator-bin",
+    data = [
+        "//angular:node_modules/@tailwindcss/cli",
+        "//angular:node_modules/@tailwindcss/postcss",
+        "//angular:node_modules/daisyui",
+        "//angular:node_modules/tailwindcss",
+    ],
+    entry_point = "tailwindcss-generate.js",
+)
+
+# Generate styles.css from styles.source.css at build time
+js_run_binary(
+    name = "generate-styles-css",
+    srcs = [
+        "src/styles.source.css",
+    ] + glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+    outs = ["_generated_styles.css"],
+    args = [
+        "$(location src/styles.source.css)",
+        "$(location _generated_styles.css)",
+    ],
+    tool = ":tailwindcss-generator-bin",
+)
+
+# Write the generated styles.css to the source tree
+# Run with: bazel run //angular/projects/tailwind-sample:write-styles-css
+# This will update src/styles.css if it differs from the generated output
+write_source_files(
+    name = "write-styles-css",
+    files = {
+        "src/styles.css": ":_generated_styles.css",
+    },
 )
 
 copy_to_bin(
