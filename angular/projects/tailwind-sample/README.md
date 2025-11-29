@@ -33,7 +33,7 @@ This project uses TailwindCSS v4 with DaisyUI components via a **Bazel-managed g
 
    ```css
    @import 'tailwindcss';
-   @plugin "daisyui";
+   @plugin 'daisyui';
 
    @source "./app/**/*.html";
    @source "./app/**/*.ts";
@@ -60,7 +60,6 @@ The `@angular/build` system in `rules_angular` doesn't support PostCSS configura
 
 - ✅ **rules_js Integration**: Uses `js_binary` to invoke the @tailwindcss/cli package
 - ✅ **Package.json Bin**: Uses the bin entry from @tailwindcss/cli package.json
-- ✅ **Minimal Wrapper**: 12-line wrapper that just resolves and executes the bin
 - ✅ **Tree-Shaking**: Only used utilities are included
 - ✅ **Version Control**: Generated CSS is committed for reliable CI builds
 - ✅ **Simple Workflow**: Single `bazel run` command to regenerate
@@ -71,8 +70,7 @@ The CSS generation uses a runner + writer pair:
 
 1. `tailwindcss_runner` executes the Tailwind CLI to read `src/styles.source.css` and produce `src/styles_generated.css`
 2. `write_styles_css` writes `src/styles_generated.css` to `src/styles.css` for Angular to consume
-3. Runs in the workspace directory (via `BUILD_WORKSPACE_DIRECTORY`)
-4. Generates CSS by scanning templates and processing `@tailwind` directives
+3. Generates CSS by scanning templates and processing `@import`, `@plugin`, and `@source` directives
 
 ## Building
 
@@ -185,7 +183,7 @@ The TailwindCSS CLI automatically detects which utilities are needed by scanning
 | ----------------------- | --------------------------------------------------------------------------- |
 | `src/styles.source.css` | Source CSS with `@import "tailwindcss"` and `@plugin "daisyui"` (edit this) |
 | `src/styles.css`        | Generated CSS (don't edit, regenerate with Bazel)                           |
-| `BUILD.bazel`           | Bazel build configuration with `js_binary` CSS generator                    |
+| `BUILD.bazel`           | `js_run_binary` and `write_source_files` CSS generator                      |
 
 ## Comparison: Pre-generated vs Bazel-Managed
 
