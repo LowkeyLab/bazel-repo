@@ -61,6 +61,8 @@ class Game(
 
     fun isInProgress(): Boolean = state == GameState.IN_PROGRESS
 
+    fun isWaitingForPlayers(): Boolean = state == GameState.WAITING_FOR_PLAYERS
+
     fun getPlayerCount(): Int = players.size
 
     fun getRoundCount(): Int = rounds.size

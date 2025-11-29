@@ -15,6 +15,17 @@ class GameService(
 
     suspend fun getGameById(gameId: GameId): Game? = gameRepository.getGameById(gameId)
 
+    suspend fun getGameSummaries(): GamesSummary {
+        val openGames = gameRepository.countGamesByState(GameState.WAITING_FOR_PLAYERS)
+        val completedGames = gameRepository.countGamesByState(GameState.COMPLETED)
+        val ongoingGames = gameRepository.countGamesByState(GameState.IN_PROGRESS)
+        return GamesSummary(
+            waitingForPlayerGames = openGames.toInt(),
+            completedGames = completedGames.toInt(),
+            inProgressGames = ongoingGames.toInt(),
+        )
+    }
+
     suspend fun addPlayerToGame(gameId: GameId): Player {
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }

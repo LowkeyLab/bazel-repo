@@ -33,6 +33,10 @@ fun Application.configureGames(gameService: GameService) {
                 val games = gameService.getAllGames()
                 call.respond(games)
             }
+            get("/summary") {
+                val summaries = gameService.getGameSummaries()
+                call.respond(summaries)
+            }
             post {
                 val newGame = gameService.createGame()
                 call.respond(newGame)

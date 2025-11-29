@@ -13,6 +13,16 @@ class InMemoryGameRepository : GameRepository {
 
     override suspend fun getGameById(gameId: GameId): Game? = games[gameId]
 
+    override suspend fun countGamesByState(state: GameState): Long =
+        games.values
+            .count {
+                when (state) {
+                    GameState.WAITING_FOR_PLAYERS -> it.isWaitingForPlayers()
+                    GameState.IN_PROGRESS -> it.isInProgress()
+                    GameState.COMPLETED -> it.hasEnded()
+                }
+            }.toLong()
+
     override suspend fun deleteGame(gameId: GameId) {
         games.remove(gameId)
     }
