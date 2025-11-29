@@ -1,32 +1,45 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
 
-# Source CSS file with @import, @plugin, and @source directives (TailwindCSS v4 syntax)
-# This is the source - developers edit this file
-exports_files(["src/styles.source.css"])
-
-# TailwindCSS CSS generator using js_binary
-# This uses a minimal wrapper to invoke the bin from @tailwindcss/cli package.json
-# Run with: bazel run //angular/projects/tailwind-sample:generate-css
-js_binary(
-    name = "generate-css",
+tailwindcss_bin.tailwindcss_binary(
+    name = "tailwindcss",
     data = [
-        "src/styles.source.css",
         "//angular:node_modules/@tailwindcss/cli",
-        "//angular:node_modules/tailwindcss",
-        "//angular:node_modules/@tailwindcss/postcss",
         "//angular:node_modules/daisyui",
+        "//angular:node_modules/tailwindcss",
     ] + glob([
         "src/**/*.html",
         "src/**/*.ts",
     ]),
-    # Minimal wrapper that resolves and executes the bin from package.json
-    entry_point = "tailwindcss-bin.js",
+)
+
+js_run_binary(
+    name = "tailwindcss_runner",
+    srcs = [
+        "src/styles.source.css",
+    ],
+    outs = ["src/styles_generated.css"],
+    args = [
+        "--input",
+        "angular/projects/tailwind-sample/src/styles.source.css",
+        "--output",
+        "angular/projects/tailwind-sample/src/styles_generated.css",
+    ],
+    tool = ":tailwindcss",
+)
+
+write_source_files(
+    name = "write_styles_css",
+    files = {
+        "src/styles.css": ":tailwindcss_runner",
+    },
 )
 
 copy_to_bin(
