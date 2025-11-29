@@ -1,13 +1,5 @@
 <!-- Mindreadr root layout using DaisyUI components -->
-<header class="navbar bg-base-100 border-b">
-  <div class="max-w-5xl mx-auto flex w-full items-center justify-between px-4">
-    <a routerLink="/" class="btn btn-ghost text-xl font-semibold tracking-tight">Mindreadr</a>
-    <nav class="flex gap-6 text-sm">
-      <a routerLink="/" class="link link-hover">Home</a>
-      <!-- Future links: <a routerLink="/about" class="link link-hover">About</a> -->
-    </nav>
-  </div>
-</header>
+<app-navbar />
 <main class="min-h-[calc(100vh-6rem)] bg-base-200">
   <router-outlet />
 </main>
