@@ -80,7 +80,7 @@ class GamesWebSocketTest {
     }
 
     @Test
-    fun `single client connection receives GameState update`() =
+    fun `single client connection receives PlayerJoined and GameState update`() =
         testApplication {
             val playerFactory = TestPlayerFactory()
             val gameRepository = InMemoryGameRepository()
@@ -96,6 +96,8 @@ class GamesWebSocketTest {
             val client = createClient()
 
             client.webSocket("/games/${game.id.id}/live") {
+                val playerJoined = receiveDeserialized<OutgoingMessage>()
+                assertIs<OutgoingMessage.PlayerJoined>(playerJoined)
                 val gameState = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.GameState>(gameState)
             }
@@ -276,6 +278,7 @@ class GamesWebSocketTest {
             val client = createClient()
 
             client.webSocket("/games/${game.id.id}/live") {
+                incoming.receive() // PlayerJoined
                 incoming.receive() // GameState
 
                 // Send invalid JSON

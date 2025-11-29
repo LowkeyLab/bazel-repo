@@ -133,6 +133,7 @@ fun Application.configureGamesWs(gameService: GameService) {
 
             try {
                 log.info("Player {} joined game {}", player.name.name, gameId.id)
+                sendSerialized<OutgoingMessage>(OutgoingMessage.PlayerJoined(player))
 
                 // Broadcast current game state to all players via the shared flow
                 val updatedGame = gameService.getGameById(gameId)!!.toDto()
@@ -277,5 +278,11 @@ sealed class OutgoingMessage {
     @SerialName("error")
     data class Error(
         val message: String,
+    ) : OutgoingMessage()
+
+    @Serializable
+    @SerialName("player_joined")
+    data class PlayerJoined(
+        val player: Player,
     ) : OutgoingMessage()
 }
