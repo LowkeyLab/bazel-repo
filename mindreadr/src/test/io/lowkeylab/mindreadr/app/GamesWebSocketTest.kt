@@ -103,7 +103,7 @@ class GamesWebSocketTest {
                 // Then GameState
                 val gameState = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.GameState>(gameState)
-                assertEquals(1, gameState.game.getPlayerCount())
+                assertEquals(1, gameState.game.players.size)
             }
         }
 

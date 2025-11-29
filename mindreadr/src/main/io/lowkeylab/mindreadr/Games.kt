@@ -17,6 +17,7 @@ import io.ktor.websocket.readText
 import io.lowkeylab.mindreadr.game.Game
 import io.lowkeylab.mindreadr.game.GameId
 import io.lowkeylab.mindreadr.game.GameService
+import io.lowkeylab.mindreadr.game.GameState
 import io.lowkeylab.mindreadr.game.Player
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -25,12 +26,46 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.component1
+import kotlin.collections.component2
+
+@Serializable
+data class RoundDto(
+    val number: UInt,
+    val guesses: Map<String, String>, // player name -> guess
+)
+
+@Serializable
+data class GameDto(
+    val id: GameId,
+    val playerLimit: UInt,
+    val players: List<Player>,
+    val rounds: List<RoundDto>,
+    val state: GameState,
+    val finalGuess: String? = null,
+)
+
+fun Game.toDto() =
+    GameDto(
+        id = id,
+        playerLimit = getPlayerLimit(),
+        players = getPlayers(),
+        rounds =
+            getRounds().map { r ->
+                RoundDto(
+                    number = r.number,
+                    guesses = r.guesses.map { (player, guess) -> player.name.name to guess }.toMap(),
+                )
+            },
+        state = getState(),
+        finalGuess = getFinalGuess(),
+    )
 
 fun Application.configureGames(gameService: GameService) {
     routing {
         route("/games") {
             get {
-                val games = gameService.getAllGames()
+                val games = gameService.getAllGames().map { it.toDto() }
                 call.respond(games)
             }
             get("/summary") {
@@ -38,14 +73,14 @@ fun Application.configureGames(gameService: GameService) {
                 call.respond(summaries)
             }
             post {
-                val newGame = gameService.createGame()
+                val newGame = gameService.createGame().toDto()
                 call.respond(newGame)
             }
             route("/{id}") {
                 get {
                     val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest)
                     val game = gameService.getGameById(GameId(id)) ?: return@get call.respond(HttpStatusCode.NotFound)
-                    call.respond(game)
+                    call.respond(game.toDto())
                 }
 
                 webSocket("/live") {
@@ -108,7 +143,7 @@ fun Application.configureGames(gameService: GameService) {
                         sendSerialized<OutgoingMessage>(OutgoingMessage.PlayerJoined(player))
 
                         // Broadcast current game state to all players via the shared flow
-                        val updatedGame = gameService.getGameById(gameId)!!
+                        val updatedGame = gameService.getGameById(gameId)!!.toDto()
                         sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
 
                         // Handle incoming messages
@@ -128,11 +163,11 @@ fun Application.configureGames(gameService: GameService) {
                                                 gameService.addGuessToGame(player, gameId, message.guess)
 
                                                 // Broadcast updated game state
-                                                val currentGame = gameService.getGameById(gameId)!!
+                                                val currentGame = gameService.getGameById(gameId)!!.toDto()
                                                 sharedFlow.emit(OutgoingMessage.GameState(currentGame))
 
                                                 // Check if game ended
-                                                if (currentGame.hasEnded()) {
+                                                if (currentGame.state == GameState.COMPLETED) {
                                                     // Emit termination to all clients
                                                     sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
                                                 }
@@ -190,7 +225,7 @@ sealed class OutgoingMessage {
     @Serializable
     @SerialName("game_state")
     data class GameState(
-        val game: Game,
+        val game: GameDto,
     ) : OutgoingMessage()
 
     @Serializable

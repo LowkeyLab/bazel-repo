@@ -8,7 +8,6 @@ value class GameId(
     val id: String,
 )
 
-@Serializable
 class Game(
     val id: GameId,
     private val playerLimit: UInt = 2u,
@@ -74,6 +73,14 @@ class Game(
         } else {
             null
         }
+
+    fun getPlayerLimit(): UInt = playerLimit
+
+    fun getPlayers(): List<Player> = players.toList()
+
+    fun getRounds(): List<Round> = rounds.toList()
+
+    fun getState(): GameState = state
 }
 
 @Serializable
