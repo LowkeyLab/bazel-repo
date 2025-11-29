@@ -37,7 +37,7 @@ class GamesHttpTest {
     }
 
     @Test
-    fun post_games_creates_game() =
+    fun `post games creates game`() =
         testApplication {
             val service = GameService(TestPlayerFactory(), InMemoryGameRepository())
             application {
@@ -54,7 +54,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_id_returns_game() =
+    fun `get games id returns game`() =
         testApplication {
             val repo = InMemoryGameRepository()
             val service = GameService(TestPlayerFactory(), repo)
@@ -71,7 +71,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_id_not_found() =
+    fun `get games id not found`() =
         testApplication {
             val service = GameService(TestPlayerFactory(), InMemoryGameRepository())
             application {
@@ -84,7 +84,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_status_waiting() =
+    fun `get games status waiting`() =
         testApplication {
             val repo = InMemoryGameRepository()
             val service = GameService(TestPlayerFactory(), repo)
@@ -104,7 +104,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_status_in_progress() =
+    fun `get games status in progress`() =
         testApplication {
             val repo = InMemoryGameRepository()
             val service = GameService(TestPlayerFactory(), repo)
@@ -125,7 +125,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_status_completed() =
+    fun `get games status completed`() =
         testApplication {
             val repo = InMemoryGameRepository()
             val service = GameService(TestPlayerFactory(), repo)
@@ -149,7 +149,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_invalid_status() =
+    fun `get games invalid status`() =
         testApplication {
             val service = GameService(TestPlayerFactory(), InMemoryGameRepository())
             application {
@@ -162,7 +162,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_without_status_message() =
+    fun `get games without status message`() =
         testApplication {
             val service = GameService(TestPlayerFactory(), InMemoryGameRepository())
             application {
@@ -177,7 +177,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_summary_counts() =
+    fun `get games summary counts`() =
         testApplication {
             val repo = InMemoryGameRepository()
             val factory = TestPlayerFactory()
@@ -210,7 +210,7 @@ class GamesHttpTest {
         }
 
     @Test
-    fun get_games_case_insensitive_status() =
+    fun `get games case insensitive status`() =
         testApplication {
             val repo = InMemoryGameRepository()
             val service = GameService(TestPlayerFactory(), repo)
