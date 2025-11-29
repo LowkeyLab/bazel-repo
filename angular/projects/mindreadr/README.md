@@ -22,11 +22,11 @@ angular/projects/mindreadr/
 
 ## Bazel Targets
 
-| Target                                            | Kind             | Purpose                                   |
-| ------------------------------------------------- | ---------------- | ----------------------------------------- |
-| `//angular/projects/mindreadr:mindreadr`          | `ng_application` | Builds the Angular application bundle     |
-| `//angular/projects/mindreadr:test`               | `ng_test`        | Runs Angular unit tests                   |
-| `//angular/projects/mindreadr:tailwindcss_runner` | `js_run_binary`  | (Optional) Regenerates TailwindCSS output |
+| Target                                          | Kind                 | Purpose                                   |
+| ----------------------------------------------- | -------------------- | ----------------------------------------- |
+| `//angular/projects/mindreadr:mindreadr`        | `ng_application`     | Builds the Angular application bundle     |
+| `//angular/projects/mindreadr:test`             | `ng_test`            | Runs Angular unit tests                   |
+| `//angular/projects/mindreadr:write_styles_css` | `write_source_files` | (Optional) Regenerates TailwindCSS output |
 
 ## Prerequisites
 

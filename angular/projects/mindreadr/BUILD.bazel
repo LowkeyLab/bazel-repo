@@ -5,9 +5,6 @@ load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
-# aspect:generation_mode update_only
-package(default_visibility = ["//visibility:public"])
-
 tailwindcss_bin.tailwindcss_binary(
     name = "tailwindcss",
     data = [
