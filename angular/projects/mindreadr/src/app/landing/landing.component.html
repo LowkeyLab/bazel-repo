@@ -1,56 +1,44 @@
-<section class="max-w-2xl mx-auto mt-12 px-4">
-  <h1 class="text-3xl font-semibold tracking-tight">Mindreadr</h1>
-  <p class="text-gray-600 mt-2">A cooperative word-guessing game for two players.</p>
+<section class="hero mt-12">
+  <div class="hero-content flex-col max-w-2xl">
+    <h1 class="text-4xl font-bold tracking-tight">Mindreadr</h1>
+    <p class="opacity-70">A cooperative word-guessing game for two players.</p>
 
-  <div class="mt-6">
-    <h2 class="text-xl font-medium">How to Play</h2>
-    <ul class="list-disc pl-6 mt-2 space-y-2 text-gray-800">
-      <li>Both players think of any word and submit it.</li>
-      <li>See both words. Without chatting, each writes a new word that bridges the two.</li>
-      <li>Repeat the process, aiming to converge on the same word.</li>
-      <li>When both submit the exact same word in a round, you win!</li>
-    </ul>
-  </div>
+    <div class="card w-full bg-base-100 shadow">
+      <div class="card-body">
+        <h2 class="card-title">How to Play</h2>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>Both players think of any word and submit it.</li>
+          <li>See both words. Without chatting, each writes a new word that bridges the two.</li>
+          <li>Repeat the process, aiming to converge on the same word.</li>
+          <li>When both submit the exact same word in a round, you win!</li>
+        </ul>
 
-  <div class="mt-8">
-    <button
-      class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-gray-50 disabled:opacity-60"
-      (click)="createGame()"
-      [disabled]="creating()"
-    >
-      {{ creating() ? 'Creating…' : 'Create Game' }}
-    </button>
+        <div class="card-actions mt-4">
+          <button class="btn btn-primary" (click)="createGame()" [disabled]="creating()">
+            {{ creating() ? 'Creating…' : 'Create Game' }}
+          </button>
+        </div>
 
-    <p class="text-red-600 mt-3" *ngIf="error()">{{ error() }}</p>
+        <p class="text-error mt-3" *ngIf="error()">{{ error() }}</p>
 
-    <div class="mt-3" *ngIf="lastGame() as game">
-      <p>
-        <span class="font-medium">Game created!</span>
-        ID: <span class="font-mono font-semibold">{{ game.id }}</span>
-      </p>
+        <div class="alert alert-success mt-3" *ngIf="lastGame() as game">
+          <span
+            >Game created! ID <span class="font-mono font-semibold">{{ game.id }}</span></span
+          >
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-  <!-- Join modal -->
-  <div *ngIf="showJoinModal()" class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-black/40"></div>
-    <div class="relative bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-6">
-      <h3 class="text-lg font-semibold">Game Ready</h3>
-      <p class="text-gray-700 mt-2">Your game has been created. Join now to start playing.</p>
-      <div class="mt-4 flex items-center justify-end gap-2">
-        <button
-          class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
-          (click)="showJoinModal.set(false)"
-        >
-          Cancel
-        </button>
-        <button
-          class="inline-flex items-center rounded-md bg-blue-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-blue-700"
-          (click)="joinGame()"
-        >
-          Join Game
-        </button>
-      </div>
+<!-- Join modal using DaisyUI -->
+<div *ngIf="showJoinModal()" class="modal modal-open">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Game Ready</h3>
+    <p class="py-2">Your game has been created. Join now to start playing.</p>
+    <div class="modal-action">
+      <button class="btn" (click)="showJoinModal.set(false)">Cancel</button>
+      <button class="btn btn-primary" (click)="joinGame()">Join Game</button>
     </div>
   </div>
+</div>

@@ -1,14 +1,18 @@
-<!-- Mindreadr root layout -->
-<header class="py-4 border-b bg-white/80 backdrop-blur">
-  <div class="max-w-5xl mx-auto px-4 flex items-center justify-between">
-    <a routerLink="/" class="text-lg font-semibold tracking-tight">Mindreadr</a>
-    <nav class="flex gap-6 text-sm text-gray-600">
-      <a routerLink="/" class="hover:text-gray-900">Home</a>
-      <!-- Future links: <a routerLink="/about">About</a> -->
+<!-- Mindreadr root layout using DaisyUI components -->
+<header class="navbar bg-base-100 border-b">
+  <div class="max-w-5xl mx-auto flex w-full items-center justify-between px-4">
+    <a routerLink="/" class="btn btn-ghost text-xl font-semibold tracking-tight">Mindreadr</a>
+    <nav class="flex gap-6 text-sm">
+      <a routerLink="/" class="link link-hover">Home</a>
+      <!-- Future links: <a routerLink="/about" class="link link-hover">About</a> -->
     </nav>
   </div>
 </header>
-<main class="min-h-[calc(100vh-6rem)] bg-linear-to-b from-white to-gray-50">
+<main class="min-h-[calc(100vh-6rem)] bg-base-200">
   <router-outlet />
 </main>
-<footer class="py-8 text-center text-xs text-gray-500">© 2025 Mindreadr</footer>
+<footer class="footer footer-center p-4 bg-base-300 text-base-content">
+  <aside>
+    <p>© 2025 Mindreadr</p>
+  </aside>
+</footer>

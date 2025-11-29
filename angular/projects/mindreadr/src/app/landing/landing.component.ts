@@ -7,7 +7,6 @@ import { GameService, Game } from '../services/game.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './landing.component.html',
-  styleUrls: ['./landing.component.css'],
 })
 export class LandingComponent {
   creating = signal(false);
