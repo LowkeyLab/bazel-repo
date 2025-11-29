@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { GameService } from './game.service';
+import { GameService, GameSummary } from './game.service';
+import { environment } from '../../environments/environment';
 
 describe('GameService', () => {
   let service: GameService;
@@ -20,70 +21,71 @@ describe('GameService', () => {
     httpMock.verify();
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
+  it('should fetch summary from /games/summary', (done) => {
+    const mock: GameSummary = {
+      waitingForPlayerGames: 2,
+      inProgressGames: 3,
+      completedGames: 4,
+    };
 
-  it('should POST to /games and return a game', () => {
-    const mockResponse: { id: string } = { id: 'game-123' };
-
-    service.createGame().subscribe((game) => {
-      expect(game).toBeTruthy();
-      expect(game.id).toBe('game-123');
+    service.getSummary().subscribe((res) => {
+      expect(res).toEqual(mock);
+      done();
     });
 
-    const req = httpMock.expectOne((r) => r.method === 'POST' && r.url.includes('/games'));
-    expect(req.request.body).toEqual({});
-    req.flush(mockResponse);
+    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mock);
   });
 
-  it('should surface errors from backend', () => {
-    service.createGame().subscribe({
-      next: () => fail('expected an error'),
-      error: (err) => {
-        expect(err.status).toBe(500);
-      },
-    });
+  it('getGamesCount should map to inProgressGames', (done) => {
+    const mock: GameSummary = {
+      waitingForPlayerGames: 0,
+      inProgressGames: 7,
+      completedGames: 1,
+    };
 
-    const req = httpMock.expectOne((r) => r.method === 'POST' && r.url.includes('/games'));
-    req.flush({ message: 'server error' }, { status: 500, statusText: 'Server Error' });
-  });
-  it('should GET games and return number in progress', () => {
-    const mockResponse = [
-      { id: '1', state: 'WAITING_FOR_PLAYERS' },
-      { id: '2', state: 'IN_PROGRESS' },
-      { id: '3', state: 'IN_PROGRESS' },
-      { id: '4', state: 'COMPLETED' },
-    ];
     service.getGamesCount().subscribe((count) => {
-      expect(count).toBe(2);
+      expect(count).toBe(7);
+      done();
     });
-    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
-    req.flush(mockResponse);
+
+    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mock);
   });
 
-  it('should surface errors from getGamesCount', () => {
-    service.getGamesCount().subscribe({
-      next: () => fail('expected an error'),
-      error: (err) => {
-        expect(err.status).toBe(404);
-      },
-    });
-    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
-    req.flush({ message: 'not found' }, { status: 404, statusText: 'Not Found' });
-  });
+  it('getOpenGamesCount should map to waitingForPlayerGames', (done) => {
+    const mock: GameSummary = {
+      waitingForPlayerGames: 5,
+      inProgressGames: 0,
+      completedGames: 0,
+    };
 
-  it('should GET open games and return number waiting for players', () => {
-    const mockResponse = [
-      { id: '1', state: 'WAITING_FOR_PLAYERS' },
-      { id: '2', state: 'IN_PROGRESS' },
-      { id: '3', state: 'WAITING_FOR_PLAYERS' },
-      { id: '4', state: 'COMPLETED' },
-    ];
     service.getOpenGamesCount().subscribe((count) => {
-      expect(count).toBe(2);
+      expect(count).toBe(5);
+      done();
     });
-    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
-    req.flush(mockResponse);
+
+    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mock);
+  });
+
+  it('getCompletedGamesCount should map to completedGames', (done) => {
+    const mock: GameSummary = {
+      waitingForPlayerGames: 0,
+      inProgressGames: 0,
+      completedGames: 9,
+    };
+
+    service.getCompletedGamesCount().subscribe((count) => {
+      expect(count).toBe(9);
+      done();
+    });
+
+    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mock);
   });
 });

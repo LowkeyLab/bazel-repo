@@ -14,6 +14,12 @@ export interface Game {
   [key: string]: unknown;
 }
 
+export interface GameSummary {
+  waitingForPlayerGames: number;
+  inProgressGames: number;
+  completedGames: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class GameService {
   constructor(private http: HttpClient) {}
@@ -25,32 +31,31 @@ export class GameService {
   }
 
   /**
+   * Fetches aggregated game counts from the backend.
+   */
+  getSummary(): Observable<GameSummary> {
+    const url = `${environment.API_BASE_URL}/games/summary`;
+    return this.http.get<GameSummary>(url);
+  }
+
+  /**
    * Returns the number of games that are currently in progress.
    */
   getGamesCount(): Observable<number> {
-    const url = `${environment.API_BASE_URL}/games`;
-    return this.http
-      .get<Game[]>(url)
-      .pipe(map((games) => games.filter((g) => g.state === 'IN_PROGRESS').length));
+    return this.getSummary().pipe(map((s) => s.inProgressGames));
   }
 
   /**
    * Returns the number of games that are open for joining (waiting for players).
    */
   getOpenGamesCount(): Observable<number> {
-    const url = `${environment.API_BASE_URL}/games`;
-    return this.http
-      .get<Game[]>(url)
-      .pipe(map((games) => games.filter((g) => g.state === 'WAITING_FOR_PLAYERS').length));
+    return this.getSummary().pipe(map((s) => s.waitingForPlayerGames));
   }
 
   /**
    * Returns the number of games that have completed.
    */
   getCompletedGamesCount(): Observable<number> {
-    const url = `${environment.API_BASE_URL}/games`;
-    return this.http
-      .get<Game[]>(url)
-      .pipe(map((games) => games.filter((g) => g.state === 'COMPLETED').length));
+    return this.getSummary().pipe(map((s) => s.completedGames));
   }
 }

@@ -3,10 +3,6 @@ import { CommonModule } from '@angular/common';
 import { GameService } from '../services/game.service';
 import { forkJoin } from 'rxjs';
 
-interface GamesResponse {
-  count: number;
-}
-
 @Component({
   selector: 'mindreadr-games-count',
   standalone: true,
