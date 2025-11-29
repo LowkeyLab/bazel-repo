@@ -45,6 +45,13 @@ data class GameDto(
     val finalGuess: String? = null,
 )
 
+@Serializable
+data class GamesSummary(
+    val waitingForPlayerGames: Int,
+    val inProgressGames: Int,
+    val completedGames: Int,
+)
+
 fun Game.toDto() =
     GameDto(
         id = id,
@@ -69,8 +76,16 @@ fun Application.configureGames(gameService: GameService) {
                 call.respond(games)
             }
             get("/summary") {
-                val summaries = gameService.getGameSummaries()
-                call.respond(summaries)
+                val inProgress = gameService.countGamesByState(GameState.IN_PROGRESS)
+                val completed = gameService.countGamesByState(GameState.COMPLETED)
+                val waiting = gameService.countGamesByState(GameState.WAITING_FOR_PLAYERS)
+                val summary =
+                    GamesSummary(
+                        waitingForPlayerGames = waiting.toInt(),
+                        inProgressGames = inProgress.toInt(),
+                        completedGames = completed.toInt(),
+                    )
+                call.respond(summary)
             }
             post {
                 val newGame = gameService.createGame().toDto()

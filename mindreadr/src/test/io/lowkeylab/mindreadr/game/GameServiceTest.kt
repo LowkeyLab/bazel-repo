@@ -104,24 +104,28 @@ class GameServiceTest {
         }
 
     @Test
-    fun `getGameSummaries returns counts across states`() =
+    fun `can get game counts by state`() =
         runBlocking {
             val service = newService()
-            // Waiting game
-            service.createGame()
-            // In-progress game
-            val inProgress = service.createGame()
-            service.addPlayerToGame(inProgress.id)
-            service.addPlayerToGame(inProgress.id)
-            // Completed game via matching guesses
-            val completed = service.createGame()
-            val c1 = service.addPlayerToGame(completed.id)
-            val c2 = service.addPlayerToGame(completed.id)
-            service.addGuessToGame(c1, completed.id, "same")
-            service.addGuessToGame(c2, completed.id, "same")
-            val summary = service.getGameSummaries()
-            assertEquals(1, summary.waitingForPlayerGames)
-            assertEquals(1, summary.inProgressGames)
-            assertEquals(1, summary.completedGames)
+            // Create games in different states
+            val waitingGame = service.createGame()
+
+            val inProgressGame = service.createGame()
+            service.addPlayerToGame(inProgressGame.id)
+            service.addPlayerToGame(inProgressGame.id)
+
+            val completedGame = service.createGame()
+            val c1 = service.addPlayerToGame(completedGame.id)
+            val c2 = service.addPlayerToGame(completedGame.id)
+            service.addGuessToGame(c1, completedGame.id, "apple")
+            service.addGuessToGame(c2, completedGame.id, "apple")
+
+            val waitingCount = service.countGamesByState(GameState.WAITING_FOR_PLAYERS)
+            val inProgressCount = service.countGamesByState(GameState.IN_PROGRESS)
+            val completedCount = service.countGamesByState(GameState.COMPLETED)
+
+            assertEquals(1, waitingCount)
+            assertEquals(1, inProgressCount)
+            assertEquals(1, completedCount)
         }
 }

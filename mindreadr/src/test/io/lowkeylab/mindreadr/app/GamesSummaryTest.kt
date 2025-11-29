@@ -5,11 +5,11 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.testApplication
+import io.lowkeylab.mindreadr.GamesSummary
 import io.lowkeylab.mindreadr.configureGames
 import io.lowkeylab.mindreadr.configureSerialization
 import io.lowkeylab.mindreadr.configureSockets
 import io.lowkeylab.mindreadr.game.GameService
-import io.lowkeylab.mindreadr.game.GamesSummary
 import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.Player
 import io.lowkeylab.mindreadr.game.PlayerFactory
