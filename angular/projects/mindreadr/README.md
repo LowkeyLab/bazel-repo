@@ -2,7 +2,7 @@
 
 Mindreadr is a cooperative word-convergence game for two players. Each round both players submit a word; then, seeing both words, they silently try to "meet in the middle" by each submitting a new bridging word. You win the moment both submit the exact same word in a round.
 
-This project lives inside a Bazel monorepo and is built with Angular (zoneless), `rules_angular`, and `rules_js`. TailwindCSS utilities can be generated (same pattern as the `tailwind-sample` project) if you introduce Tailwind classes.
+This project lives inside a Bazel monorepo and is built with Angular (zoneless), `rules_angular`, and `rules_js`. TailwindCSS utilities can be generated using the shared pattern (same as `tailwind-sample`) if you introduce Tailwind classes.
 
 ## Project Structure
 
@@ -16,18 +16,18 @@ angular/projects/mindreadr/
 │   └── styles.css          # (Optional) Generated CSS if Tailwind used
 ├── public/                 # Static assets (served/copied)
 ├── BUILD.bazel             # Bazel build + test targets
-├── tailwindcss-bin.js      # Wrapper invoking Tailwind CLI (if used)
+├── (no wrapper file)       # Tailwind CLI invoked via generated Bazel binary target
 ├── tsconfig.app.json       # TypeScript config (app)
 └── tsconfig.spec.json      # TypeScript config (tests)
 ```
 
 ## Bazel Targets
 
-| Target                                      | Kind             | Purpose                                   |
-| ------------------------------------------- | ---------------- | ----------------------------------------- |
-| `//angular/projects/mindreadr:mindreadr`    | `ng_application` | Builds the Angular application bundle     |
-| `//angular/projects/mindreadr:test`         | `ng_test`        | Runs Angular unit tests                   |
-| `//angular/projects/mindreadr:generate-css` | `js_binary`      | (Optional) Regenerates TailwindCSS output |
+| Target                                            | Kind             | Purpose                                   |
+| ------------------------------------------------- | ---------------- | ----------------------------------------- |
+| `//angular/projects/mindreadr:mindreadr`          | `ng_application` | Builds the Angular application bundle     |
+| `//angular/projects/mindreadr:test`               | `ng_test`        | Runs Angular unit tests                   |
+| `//angular/projects/mindreadr:tailwindcss_runner` | `js_run_binary`  | (Optional) Regenerates TailwindCSS output |
 
 ## Prerequisites
 
@@ -74,16 +74,16 @@ bazel run //tools:ng -- serve mindreadr --proxy-config angular/projects/mindread
 When you add or change Tailwind utility classes (in templates or TS):
 
 ```bash
-bazel run //angular/projects/mindreadr:generate-css
+bazel run //angular/projects/mindreadr:tailwindcss_runner
 ```
 
-This command:
+This target:
 
-1. Resolves the Tailwind CLI from `node_modules` via `rules_js`.
-2. Scans `src/**/*.html` and `src/**/*.ts` for used classes.
-3. Generates a tree‑shaken `src/styles.css` from `src/styles.source.css`.
+1. Uses the Tailwind CLI binary provided by `@tailwindcss/cli` (via `tailwindcss_binary`).
+2. Scans `src/**/*.html` and `src/**/*.ts` for referenced utility classes.
+3. Produces a tree‑shaken `src/styles_generated.css` then writes `src/styles.css` via a `write_source_files` action.
 
-Commit the updated `src/styles.css` after regeneration.
+Commit the updated `src/styles.css` after regeneration (it is treated as generated but checked in for deterministic builds).
 
 ## Running Tests
 
