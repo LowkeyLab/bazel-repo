@@ -1,11 +1,12 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService, Game } from '../services/game.service';
+import { GamesCountComponent } from '../games-count/games-count.component';
 
 @Component({
   selector: 'mindreadr-landing',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, GamesCountComponent],
   templateUrl: './landing.component.html',
 })
 export class LandingComponent {
