@@ -1,31 +1,12 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
-
-# TailwindCSS CSS generator using js_binary
-# This uses a minimal wrapper to invoke the bin from @tailwindcss/cli package.json
-# Run with: bazel run //angular/projects/tailwind-sample:generate-css
-js_binary(
-    name = "generate-css",
-    data = [
-        "src/styles.source.css",
-        "//angular:node_modules/@tailwindcss/cli",
-        "//angular:node_modules/@tailwindcss/postcss",
-        "//angular:node_modules/daisyui",
-        "//angular:node_modules/tailwindcss",
-    ] + glob([
-        "src/**/*.html",
-        "src/**/*.ts",
-    ]),
-    # Minimal wrapper that resolves and executes the bin from package.json
-    entry_point = "tailwindcss-bin.js",
-)
 
 tailwindcss_bin.tailwindcss_binary(
     name = "tailwindcss",
