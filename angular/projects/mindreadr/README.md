@@ -16,7 +16,6 @@ angular/projects/mindreadr/
 │   └── styles.css          # (Optional) Generated CSS if Tailwind used
 ├── public/                 # Static assets (served/copied)
 ├── BUILD.bazel             # Bazel build + test targets
-├── (no wrapper file)       # Tailwind CLI invoked via generated Bazel binary target
 ├── tsconfig.app.json       # TypeScript config (app)
 └── tsconfig.spec.json      # TypeScript config (tests)
 ```
