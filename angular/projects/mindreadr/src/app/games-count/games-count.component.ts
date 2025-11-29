@@ -1,6 +1,7 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService } from '../services/game.service';
+import { forkJoin } from 'rxjs';
 
 interface GamesResponse {
   count: number;
@@ -15,25 +16,30 @@ interface GamesResponse {
 })
 export class GamesCountComponent implements OnInit {
   count = signal<number | null>(null);
+  openCount = signal<number | null>(null);
   loading = signal(true);
   error = signal<string | null>(null);
 
   constructor(private games: GameService) {}
 
   ngOnInit() {
-    this.fetchGamesCount();
+    this.fetchCounts();
   }
 
-  fetchGamesCount() {
+  fetchCounts() {
     this.loading.set(true);
     this.error.set(null);
-    this.games.getGamesCount().subscribe({
-      next: (count) => {
-        this.count.set(count);
+    forkJoin({
+      active: this.games.getGamesCount(),
+      open: this.games.getOpenGamesCount(),
+    }).subscribe({
+      next: ({ active, open }) => {
+        this.count.set(active);
+        this.openCount.set(open);
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to fetch games count');
+        this.error.set(err?.message ?? 'Failed to fetch game stats');
         this.loading.set(false);
       },
     });

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { GameService, Game } from './game.service';
+import { GameService } from './game.service';
 
 describe('GameService', () => {
   let service: GameService;
@@ -25,7 +25,7 @@ describe('GameService', () => {
   });
 
   it('should POST to /games and return a game', () => {
-    const mockResponse: Game = { id: 'game-123' };
+    const mockResponse: { id: string } = { id: 'game-123' };
 
     service.createGame().subscribe((game) => {
       expect(game).toBeTruthy();
@@ -48,10 +48,15 @@ describe('GameService', () => {
     const req = httpMock.expectOne((r) => r.method === 'POST' && r.url.includes('/games'));
     req.flush({ message: 'server error' }, { status: 500, statusText: 'Server Error' });
   });
-  it('should GET games count and return the count', () => {
-    const mockResponse = { count: 42 };
+  it('should GET games and return number in progress', () => {
+    const mockResponse = [
+      { id: '1', state: 'WAITING_FOR_PLAYERS' },
+      { id: '2', state: 'IN_PROGRESS' },
+      { id: '3', state: 'IN_PROGRESS' },
+      { id: '4', state: 'COMPLETED' },
+    ];
     service.getGamesCount().subscribe((count) => {
-      expect(count).toBe(42);
+      expect(count).toBe(2);
     });
     const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
     req.flush(mockResponse);
@@ -66,5 +71,19 @@ describe('GameService', () => {
     });
     const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
     req.flush({ message: 'not found' }, { status: 404, statusText: 'Not Found' });
+  });
+
+  it('should GET open games and return number waiting for players', () => {
+    const mockResponse = [
+      { id: '1', state: 'WAITING_FOR_PLAYERS' },
+      { id: '2', state: 'IN_PROGRESS' },
+      { id: '3', state: 'WAITING_FOR_PLAYERS' },
+      { id: '4', state: 'COMPLETED' },
+    ];
+    service.getOpenGamesCount().subscribe((count) => {
+      expect(count).toBe(2);
+    });
+    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.includes('/games'));
+    req.flush(mockResponse);
   });
 });

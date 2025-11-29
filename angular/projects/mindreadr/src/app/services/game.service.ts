@@ -3,12 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-interface GamesCountResponse {
-  count: number;
-}
+type GameState = 'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED';
 
 export interface Game {
+  // Backend uses Kotlin value class for id; it is serialized as a string.
   id: string;
+  // State enum used to determine open/active/completed
+  state?: GameState;
+  // Other properties are ignored by the client
   [key: string]: unknown;
 }
 
@@ -23,11 +25,22 @@ export class GameService {
   }
 
   /**
-   * Returns the number of games from the backend.
-   * Hides backend details from consumers.
+   * Returns the number of games that are currently in progress.
    */
   getGamesCount(): Observable<number> {
     const url = environment.API_BASE_URL === '/' ? '/games' : `${environment.API_BASE_URL}/games`;
-    return this.http.get<GamesCountResponse>(url).pipe(map((res) => res.count));
+    return this.http
+      .get<Game[]>(url)
+      .pipe(map((games) => games.filter((g) => g.state === 'IN_PROGRESS').length));
+  }
+
+  /**
+   * Returns the number of games that are open for joining (waiting for players).
+   */
+  getOpenGamesCount(): Observable<number> {
+    const url = environment.API_BASE_URL === '/' ? '/games' : `${environment.API_BASE_URL}/games`;
+    return this.http
+      .get<Game[]>(url)
+      .pipe(map((games) => games.filter((g) => g.state === 'WAITING_FOR_PLAYERS').length));
   }
 }
