@@ -20,16 +20,14 @@ import io.lowkeylab.mindreadr.game.GameId
 import io.lowkeylab.mindreadr.game.GameService
 import io.lowkeylab.mindreadr.game.GameState
 import io.lowkeylab.mindreadr.game.Player
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.component1
-import kotlin.collections.component2
 
 @Serializable
 data class RoundDto(
@@ -103,34 +101,40 @@ fun Application.configureGamesWs(gameService: GameService) {
                 }
 
             // Create or get the shared flow for this game
-            val sharedFlow =
-                gameFlows.computeIfAbsent(gameId) {
+            val broadcastFlow =
+                broadcastFlows.computeIfAbsent(gameId) {
                     MutableSharedFlow()
                 }
 
-            val gameTerminationJob =
+            val broadcastJob =
                 launch {
-                    sharedFlow.asSharedFlow().collect { message ->
-                        try {
-                            when (message) {
-                                is OutgoingMessage.GameTerminated -> {
-                                    sendSerialized<OutgoingMessage>(message)
-                                    log.info(
-                                        "Closing WebSocket for player {} in game {}. Reason is {}.",
-                                        player.name.name,
-                                        gameId.id,
-                                        message.reason,
-                                    )
-                                    this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, message.reason))
-                                }
-
-                                else -> sendSerialized<OutgoingMessage>(message)
-                            }
-                        } catch (_: Exception) {
-                            // Ignore send/close failures (client may be gone)
-                        }
+                    broadcastFlow.asSharedFlow().collect { message ->
+                        sendSerialized<OutgoingMessage>(message)
                     }
                 }
+
+            val terminationFlow =
+                terminationFlows.computeIfAbsent(gameId) {
+                    MutableSharedFlow()
+                }
+
+            launch {
+                // Wait for termination signal
+                terminationFlow.asSharedFlow().first()
+
+                log.info(
+                    "Terminating WebSocket for player {} in game {} due to game termination flow.",
+                    player.name.name,
+                    gameId.id,
+                )
+
+                broadcastFlows.remove(gameId)
+                terminationFlows.remove(gameId)
+
+                broadcastJob.cancel()
+
+                this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, "Game has ended"))
+            }
 
             try {
                 log.info("Player {} joined game {}", player.name.name, gameId.id)
@@ -138,7 +142,7 @@ fun Application.configureGamesWs(gameService: GameService) {
 
                 // Broadcast current game state to all players via the shared flow
                 val updatedGame = gameService.getGameById(gameId)!!.toDto()
-                sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
+                broadcastFlow.emit(OutgoingMessage.GameState(updatedGame))
 
                 // Handle incoming messages
                 for (frame in incoming) {
@@ -161,12 +165,13 @@ fun Application.configureGamesWs(gameService: GameService) {
 
                                         // Broadcast updated game state
                                         val currentGame = gameService.getGameById(gameId)!!.toDto()
-                                        sharedFlow.emit(OutgoingMessage.GameState(currentGame))
+                                        broadcastFlow.emit(OutgoingMessage.GameState(currentGame))
 
                                         // Check if game ended
                                         if (currentGame.state == GameState.COMPLETED) {
                                             // Emit termination to all clients
-                                            sharedFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
+                                            broadcastFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
+                                            terminationFlow.emit(Unit)
                                         }
                                     }.onFailure { e ->
                                         log.error(
@@ -192,53 +197,30 @@ fun Application.configureGamesWs(gameService: GameService) {
                 if (game != null) {
                     if (game.hasEnded()) {
                         log.info("Game $gameId has already ended. Closing connections.")
-                        closeAllConnectionsToGame(gameId, player, gameTerminationJob)
+                        terminationFlow.emit(Unit)
                     } else {
                         val game = gameService.removePlayerFromGame(player, gameId)
                         log.info("Player ${player.name.name} removed from game $gameId")
                         // Notify remaining players
-                        sharedFlow.emit(OutgoingMessage.PlayerLeft(player))
+                        broadcastFlow.emit(OutgoingMessage.PlayerLeft(player))
 
                         if (game.hasEnded()) {
                             log.info("Game $gameId ended due to player ${player.name.name} leaving. Closing connections.")
-                            closeAllConnectionsToGame(gameId, player, gameTerminationJob)
+                            broadcastFlow.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
+                            terminationFlow.emit(Unit)
                         } else {
                             // Broadcast updated game state
                             val updatedGame = game.toDto()
-                            sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
+                            broadcastFlow.emit(OutgoingMessage.GameState(updatedGame))
                         }
                     }
                 } else {
                     log.info("Game $gameId not found during disconnect of player ${player.name.name}. Closing connections.")
-                    closeAllConnectionsToGame(gameId, player, gameTerminationJob)
+                    terminationFlow.emit(Unit)
                 }
             }
         }
     }
-}
-
-/**
- * - Closes all WebSocket connections for a given game ID.
- * - Emits a termination message to all connected clients before closing.
- * - Cancels the collection job to stop further message processing.
- *
- * @param gameId The ID of the game whose connections should be closed.
- * @param player The player triggering the closure (for logging purposes).
- * @param job The coroutine job handling message collection for this game.
- */
-private suspend fun closeAllConnectionsToGame(
-    gameId: GameId,
-    player: Player,
-    job: Job,
-) {
-    // Emit termination to all clients (best-effort, non-suspending if no subscribers)
-    gameFlows[gameId]?.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
-
-    // Cancel the collection job before cleanup
-    job.cancel()
-
-    // Remove the flow for this game (allow recreation on next connect)
-    gameFlows.remove(gameId)
 }
 
 fun Application.configureGames(gameService: GameService) {
@@ -287,8 +269,9 @@ fun Application.configureGames(gameService: GameService) {
     }
 }
 
-// Replace session tracking with per-game shared flows
-private val gameFlows = ConcurrentHashMap<GameId, MutableSharedFlow<OutgoingMessage>>()
+private val broadcastFlows = ConcurrentHashMap<GameId, MutableSharedFlow<OutgoingMessage>>()
+
+private val terminationFlows = ConcurrentHashMap<GameId, MutableSharedFlow<Unit>>()
 
 // WebSocket message types
 @Serializable
