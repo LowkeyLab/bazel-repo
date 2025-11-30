@@ -1382,7 +1382,7 @@
     "@@rules_oci+//oci:extensions.bzl%oci": {
       "general": {
         "bzlTransitiveDigest": "UG6/u9Dl5qNozcG8E6ehAcOG2nhh8rw191ishRnBR24=",
-        "usagesDigest": "v3cQK6oCdOMiNHRm0B5bWuIoChnx9nx+mCaIksQ2swg=",
+        "usagesDigest": "QWdqSmqPg2r2HCxODj7HX/uDE4fdLSYitYvWCtJsy3k=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1500,6 +1500,35 @@
                 "@@platforms//cpu:x86_64": "@distroless_node24_linux_amd64"
               },
               "bzlmod_repository": "distroless_node24",
+              "reproducible": true
+            }
+          },
+          "alpine_caddy_linux_amd64": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/caddy",
+              "identifier": "sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446",
+              "platform": "linux/amd64",
+              "target_name": "alpine_caddy_linux_amd64",
+              "bazel_tags": []
+            }
+          },
+          "alpine_caddy": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
+            "attributes": {
+              "target_name": "alpine_caddy",
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "index.docker.io",
+              "repository": "library/caddy",
+              "identifier": "sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446",
+              "platforms": {
+                "@@platforms//cpu:x86_64": "@alpine_caddy_linux_amd64"
+              },
+              "bzlmod_repository": "alpine_caddy",
               "reproducible": true
             }
           },
@@ -1626,7 +1655,9 @@
             "distroless_java21",
             "distroless_java21_linux_amd64",
             "distroless_node24",
-            "distroless_node24_linux_amd64"
+            "distroless_node24_linux_amd64",
+            "alpine_caddy",
+            "alpine_caddy_linux_amd64"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",
