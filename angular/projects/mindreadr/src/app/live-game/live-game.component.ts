@@ -66,6 +66,32 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     return Object.keys(obj) as Array<keyof T & string>;
   }
 
+  getStatusBadgeClass(state: string): string {
+    switch (state) {
+      case 'WAITING_FOR_PLAYERS':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'IN_PROGRESS':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'COMPLETED':
+        return 'bg-blue-100 text-blue-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  }
+
+  getStatusLabel(state: string): string {
+    switch (state) {
+      case 'WAITING_FOR_PLAYERS':
+        return 'Waiting for Players';
+      case 'IN_PROGRESS':
+        return 'In Progress';
+      case 'COMPLETED':
+        return 'Completed';
+      default:
+        return state;
+    }
+  }
+
   ngOnDestroy(): void {
     try {
       this.subs.forEach((s) => s.unsubscribe());

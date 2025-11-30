@@ -8,8 +8,12 @@
     </div>
     @if (terminated()) {
       <span class="px-3 py-1 rounded bg-red-100 text-red-700">Terminated: {{ terminated() }}</span>
+    } @else if (game(); as g) {
+      <span class="px-3 py-1 rounded" [class]="getStatusBadgeClass(g.state)">
+        {{ getStatusLabel(g.state) }}
+      </span>
     } @else {
-      <span class="px-3 py-1 rounded bg-emerald-100 text-emerald-700">Live</span>
+      <span class="px-3 py-1 rounded bg-gray-100 text-gray-700">Connecting...</span>
     }
     <button class="btn" (click)="leaveGame()">Leave</button>
   </header>

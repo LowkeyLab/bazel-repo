@@ -11,9 +11,15 @@
     --color-red-100: oklch(93.6% 0.032 17.717);
     --color-red-200: oklch(88.5% 0.062 18.334);
     --color-red-700: oklch(50.5% 0.213 27.518);
+    --color-yellow-100: oklch(97.3% 0.071 103.193);
+    --color-yellow-700: oklch(55.4% 0.135 66.442);
     --color-emerald-100: oklch(95% 0.052 163.051);
     --color-emerald-700: oklch(50.8% 0.118 165.612);
+    --color-blue-100: oklch(93.2% 0.032 255.585);
+    --color-blue-700: oklch(48.8% 0.243 264.376);
+    --color-gray-100: oklch(96.7% 0.003 264.542);
     --color-gray-600: oklch(44.6% 0.03 256.802);
+    --color-gray-700: oklch(37.3% 0.034 259.733);
     --color-black: #000;
     --spacing: 0.25rem;
     --container-2xl: 42rem;
@@ -1185,14 +1191,23 @@
   .bg-base-300 {
     background-color: var(--color-base-300);
   }
+  .bg-blue-100 {
+    background-color: var(--color-blue-100);
+  }
   .bg-emerald-100 {
     background-color: var(--color-emerald-100);
+  }
+  .bg-gray-100 {
+    background-color: var(--color-gray-100);
   }
   .bg-red-50 {
     background-color: var(--color-red-50);
   }
   .bg-red-100 {
     background-color: var(--color-red-100);
+  }
+  .bg-yellow-100 {
+    background-color: var(--color-yellow-100);
   }
   .loading-spinner {
     @layer daisyui.l1.l2 {
@@ -1261,6 +1276,9 @@
   .text-base-content {
     color: var(--color-base-content);
   }
+  .text-blue-700 {
+    color: var(--color-blue-700);
+  }
   .text-emerald-700 {
     color: var(--color-emerald-700);
   }
@@ -1270,8 +1288,14 @@
   .text-gray-600 {
     color: var(--color-gray-600);
   }
+  .text-gray-700 {
+    color: var(--color-gray-700);
+  }
   .text-red-700 {
     color: var(--color-red-700);
+  }
+  .text-yellow-700 {
+    color: var(--color-yellow-700);
   }
   .link-hover {
     @layer daisyui.l1.l2 {
