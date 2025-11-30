@@ -14,7 +14,6 @@ fun Application.configureSecurity() {
             .property("cors.extraAllowedOrigins")
             .getString()
             .split(",")
-            .filter(String::isNotEmpty)
             .toSet()
     val allowedHosts = (baseAllowedHosts + extraAllowedHosts).filter { it.isNotBlank() }
     install(CORS) {
