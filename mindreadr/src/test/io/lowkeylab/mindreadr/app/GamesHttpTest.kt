@@ -96,7 +96,7 @@ class GamesHttpTest {
             // create two games waiting
             service.createGame()
             service.createGame()
-            val response = client.get("/games?status=waiting")
+            val response = client.get("/games?status=waiting_for_players")
             assertEquals(HttpStatusCode.OK, response.status)
             val list = response.body<List<GameDto>>()
             assertEquals(2, list.size)
@@ -220,7 +220,7 @@ class GamesHttpTest {
             }
             val client = createClient { install(ContentNegotiation) { json(Json) } }
             service.createGame()
-            val response = client.get("/games?status=WaItInG")
+            val response = client.get("/games?status=WaItInG_FoR_PlaYeRs")
             assertEquals(HttpStatusCode.OK, response.status)
             val list = response.body<List<GameDto>>()
             assertEquals(1, list.size)

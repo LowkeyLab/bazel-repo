@@ -209,7 +209,7 @@ fun Application.configureGames(gameService: GameService) {
                 if (status != null) {
                     val state =
                         when (status.lowercase()) {
-                            "waiting" -> GameState.WAITING_FOR_PLAYERS
+                            "waiting_for_players" -> GameState.WAITING_FOR_PLAYERS
                             "in_progress" -> GameState.IN_PROGRESS
                             "completed" -> GameState.COMPLETED
                             else -> return@get call.respond(HttpStatusCode.BadRequest, "Invalid status parameter")
