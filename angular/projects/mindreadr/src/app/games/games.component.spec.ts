@@ -3,7 +3,7 @@ import { GamesComponent } from './games.component';
 import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
 import { Component } from '@angular/core';
-import { of, Subject, throwError } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 
 // Mock GameService with spies

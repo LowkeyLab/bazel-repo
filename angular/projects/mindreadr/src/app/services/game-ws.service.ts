@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { Observable, Subject, map, shareReplay, takeUntil, filter } from 'rxjs';
 import { webSocket, WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSocket';
-import { GameDto, GameState, Player } from './game.types';
+import { GameDto, Player } from './game.types';
 
 // Server -> Client messages (OutgoingMessage in Kotlin)
 export type ServerMessage =
