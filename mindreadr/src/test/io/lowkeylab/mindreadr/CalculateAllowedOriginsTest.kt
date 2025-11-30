@@ -24,12 +24,12 @@ class CalculateAllowedOriginsTest {
 
     @Test
     fun `handles empty extra string`() {
-        val base = kotlin.collections.listOf("foo.com")
+        val base = listOf("foo.com")
         val extra = "   "
 
         val result = calculateAllowedOrigins(base, extra)
 
-        assertEquals(kotlin.collections.setOf("foo.com"), result)
+        assertEquals(setOf("foo.com"), result)
     }
 
     @Test
