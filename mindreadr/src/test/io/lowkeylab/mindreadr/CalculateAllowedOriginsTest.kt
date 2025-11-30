@@ -1,6 +1,7 @@
 package io.lowkeylab.mindreadr
 
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class CalculateAllowedOriginsTest {
     @Test
@@ -10,7 +11,7 @@ class CalculateAllowedOriginsTest {
 
         val result = calculateAllowedOrigins(base, extra)
 
-        org.junit.jupiter.api.Assertions.assertEquals(
+        assertEquals(
             setOf(
                 "example.com",
                 "api.example.com",
@@ -28,8 +29,7 @@ class CalculateAllowedOriginsTest {
 
         val result = calculateAllowedOrigins(base, extra)
 
-        org.junit.jupiter.api.Assertions
-            .assertEquals(kotlin.collections.setOf("foo.com"), result)
+        assertEquals(kotlin.collections.setOf("foo.com"), result)
     }
 
     @Test
@@ -39,11 +39,10 @@ class CalculateAllowedOriginsTest {
 
         val result = calculateAllowedOrigins(base, extra)
 
-        org.junit.jupiter.api.Assertions
-            .assertEquals(setOf("bar.com", "baz.com"), result)
+        assertEquals(setOf("bar.com", "baz.com"), result)
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     fun `trims whitespace around hosts`() {
         val base = listOf(" one.com ", "two.com")
         val extra = " three.com , four.com"
@@ -51,7 +50,7 @@ class CalculateAllowedOriginsTest {
         val result = calculateAllowedOrigins(base, extra)
 
         // Note: base entries are not trimmed in implementation, only extra is; keep behavior consistent
-        org.junit.jupiter.api.Assertions.assertEquals(
+        assertEquals(
             setOf(
                 " one.com ",
                 "two.com",
