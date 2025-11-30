@@ -500,7 +500,15 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
+oci_extension.pull(
+    name = "distroless_node24",
+    digest = "sha256:1eb863ed9b3276bdff6030942999343fe287e7e50ddd8742d1d20668d1cb0ece",
+    image = "gcr.io/distroless/nodejs24-debian12",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution

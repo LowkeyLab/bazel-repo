@@ -1382,7 +1382,7 @@
     "@@rules_oci+//oci:extensions.bzl%oci": {
       "general": {
         "bzlTransitiveDigest": "UG6/u9Dl5qNozcG8E6ehAcOG2nhh8rw191ishRnBR24=",
-        "usagesDigest": "mLhSaB+YOK8gaGvUo3rmMMWj1pMMnMeKB13NP49ugGc=",
+        "usagesDigest": "v3cQK6oCdOMiNHRm0B5bWuIoChnx9nx+mCaIksQ2swg=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1471,6 +1471,35 @@
                 "@@platforms//cpu:x86_64": "@distroless_java21_linux_amd64"
               },
               "bzlmod_repository": "distroless_java21",
+              "reproducible": true
+            }
+          },
+          "distroless_node24_linux_amd64": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
+            "attributes": {
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "gcr.io",
+              "repository": "distroless/nodejs24-debian12",
+              "identifier": "sha256:1eb863ed9b3276bdff6030942999343fe287e7e50ddd8742d1d20668d1cb0ece",
+              "platform": "linux/amd64",
+              "target_name": "distroless_node24_linux_amd64",
+              "bazel_tags": []
+            }
+          },
+          "distroless_node24": {
+            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
+            "attributes": {
+              "target_name": "distroless_node24",
+              "www_authenticate_challenges": {},
+              "scheme": "https",
+              "registry": "gcr.io",
+              "repository": "distroless/nodejs24-debian12",
+              "identifier": "sha256:1eb863ed9b3276bdff6030942999343fe287e7e50ddd8742d1d20668d1cb0ece",
+              "platforms": {
+                "@@platforms//cpu:x86_64": "@distroless_node24_linux_amd64"
+              },
+              "bzlmod_repository": "distroless_node24",
               "reproducible": true
             }
           },
@@ -1595,7 +1624,9 @@
             "postgres_18_1",
             "postgres_18_1_linux_amd64",
             "distroless_java21",
-            "distroless_java21_linux_amd64"
+            "distroless_java21_linux_amd64",
+            "distroless_node24",
+            "distroless_node24_linux_amd64"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",
