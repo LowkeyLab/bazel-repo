@@ -4,7 +4,7 @@
 export type GameState = 'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
 
 export interface Player {
-  [key: string]: unknown;
+  name: string;
 }
 
 export interface RoundDto {

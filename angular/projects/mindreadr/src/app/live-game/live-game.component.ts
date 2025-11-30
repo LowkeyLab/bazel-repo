@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { StatusBadgeComponent } from './status-badge.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameWsService } from '../services/game-ws.service';
-import { GameDto, RoundDto } from '../services/game.types';
+import { GameDto, RoundDto, Player } from '../services/game.types';
 
 interface Toast {
   message: string;
@@ -114,13 +114,9 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   }
 
   /** Attempt to build a stable identity key for a player for diffing purposes. */
-  private getPlayerIdentityKey(player: any): string {
-    if (!player) return 'unknown';
-    const idFields = [player.id, player.playerId, player.uuid];
-    const firstId = idFields.find((v) => v !== undefined && v !== null);
-    if (firstId !== undefined) return `id:${firstId}`;
-    // Fall back to name.
-    return `name:${this.getPlayerName(player)}`;
+  private getPlayerIdentityKey(player: Player): string {
+    // Use player name as the identity key since Player only has name property
+    return `name:${player.name}`;
   }
 
   submitGuess() {
@@ -135,12 +131,8 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     this.router.navigate(['/games']);
   }
 
-  getPlayerName(p: any): string {
-    try {
-      return p?.name?.name ?? p?.name ?? 'Player';
-    } catch {
-      return 'Player';
-    }
+  getPlayerName(p: Player | null | undefined): string {
+    return p?.name ?? 'Player';
   }
 
   objectKeys<T extends object>(obj: T): Array<keyof T & string> {
@@ -201,15 +193,9 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   }
 
   /** Attempt to detect if the given player has already guessed in this round. */
-  hasPlayerGuessed(round: RoundDto, player: any): boolean {
+  hasPlayerGuessed(round: RoundDto, player: Player): boolean {
     if (!round || !player) return false;
-    const name = this.getPlayerName(player);
-    const keys = Object.keys(round.guesses);
-    if (keys.includes(name)) return true;
-    // Fallbacks: try common id fields
-    const pid = (player.id ?? player.playerId ?? player.uuid ?? '').toString();
-    if (pid && keys.includes(pid)) return true;
-    return false;
+    return Object.keys(round.guesses).includes(player.name);
   }
 
   /** True if current player is waiting for others (already guessed, round incomplete). */

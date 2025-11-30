@@ -86,16 +86,10 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   }
 
   sorted_player_names_from_players(players: GameDto['players']): string[] {
-    const names = (players ?? []).map((p: any) => {
-      try {
-        return (p?.name?.name ?? p?.name ?? '').toString();
-      } catch {
-        return '';
-      }
-    });
-    return names
-      .filter((n: string) => n.length > 0)
-      .sort((a: string, b: string) => a.localeCompare(b));
+    return players
+      .map((p) => p.name)
+      .filter((n) => n.length > 0)
+      .sort((a, b) => a.localeCompare(b));
   }
 
   sorted_player_names_for_round(game: GameDto, round: GameDto['rounds'][number]): string[] {
@@ -110,13 +104,9 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   }
 
   getPlayerName(p: any): string {
-    try {
-      // Prefer initial navigation-provided name for stability
-      if (this.initialPlayerName) return this.initialPlayerName;
-      return p?.name?.name ?? p?.name ?? 'Player';
-    } catch {
-      return 'Player';
-    }
+    // Prefer initial navigation-provided name for stability
+    if (this.initialPlayerName) return this.initialPlayerName;
+    return p?.name ?? 'Player';
   }
 
   // Canvas-based confetti effect
