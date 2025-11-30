@@ -53,3 +53,6 @@ jobs:
 
       - name: Push Nicknamer Server Image
         run: bazel run --compilation_mode=opt //nicknamer/server:push_image
+
+      - name: Push Mindreadr Server Image
+        run: bazel run --compilation_mode=opt //mindreadr:push_image
