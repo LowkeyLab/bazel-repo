@@ -108,8 +108,7 @@ fun Application.configureGamesWs(gameService: GameService) {
                     MutableSharedFlow()
                 }
 
-            // Launch a coroutine to forward flow emissions to this client
-            val job =
+            val gameTerminationJob =
                 launch {
                     sharedFlow.asSharedFlow().collect { message ->
                         try {
@@ -189,25 +188,30 @@ fun Application.configureGamesWs(gameService: GameService) {
             } finally {
                 log.info("Player {} disconnected from game {}", player.name.name, gameId.id)
 
-                // Player disconnected - remove from game and terminate all connections
-                runCatching { gameService.removePlayerFromGame(player, gameId) }
-                    .onFailure { e ->
-                        log.error(
-                            "Failed to remove player ${player.name.name} from game $gameId: ${e.message}. Closing game connections.",
-                        )
+                val game = gameService.getGameById(gameId)
+                if (game != null) {
+                    if (game.hasEnded()) {
+                        log.info("Game $gameId has already ended. Closing connections.")
+                        closeAllConnectionsToGame(gameId, player, gameTerminationJob)
+                    } else {
+                        val game = gameService.removePlayerFromGame(player, gameId)
+                        log.info("Player ${player.name.name} removed from game $gameId")
+                        // Notify remaining players
+                        sharedFlow.emit(OutgoingMessage.PlayerLeft(player))
 
-                        gameService.removeGame(gameId)
-
-                        closeAllConnectionsToGame(gameId, player, job)
-                    }.onSuccess {
-                        log.info("Player ${player.name.name} removed from game $gameId.")
-
-                        if (it.hasEnded()) {
-                            log.info("Game $gameId has ended due to player ${player.name.name} leaving. Closing game connections.")
-
-                            closeAllConnectionsToGame(gameId, player, job)
+                        if (game.hasEnded()) {
+                            log.info("Game $gameId ended due to player ${player.name.name} leaving. Closing connections.")
+                            closeAllConnectionsToGame(gameId, player, gameTerminationJob)
+                        } else {
+                            // Broadcast updated game state
+                            val updatedGame = game.toDto()
+                            sharedFlow.emit(OutgoingMessage.GameState(updatedGame))
                         }
                     }
+                } else {
+                    log.info("Game $gameId not found during disconnect of player ${player.name.name}. Closing connections.")
+                    closeAllConnectionsToGame(gameId, player, gameTerminationJob)
+                }
             }
         }
     }
@@ -319,6 +323,12 @@ sealed class OutgoingMessage {
     @Serializable
     @SerialName("player_joined")
     data class PlayerJoined(
+        val player: Player,
+    ) : OutgoingMessage()
+
+    @Serializable
+    @SerialName("player_left")
+    data class PlayerLeft(
         val player: Player,
     ) : OutgoingMessage()
 }

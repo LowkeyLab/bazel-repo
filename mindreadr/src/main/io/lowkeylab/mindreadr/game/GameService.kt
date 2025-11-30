@@ -35,11 +35,6 @@ class GameService(
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
             game.removePlayer(player)
-
-            if (game.hasEnded()) {
-                gameRepository.deleteGame(game.id)
-            }
-
             return game
         }
     }

@@ -229,7 +229,7 @@ class GamesWebSocketTest {
         }
 
     @Test
-    fun `player disconnection broadcasts GameTerminated to remaining clients`() =
+    fun `player disconnection broadcasts PlayerLeft to remaining clients`() =
         testApplication {
             val playerFactory = TestPlayerFactory()
             val gameRepository = InMemoryGameRepository()
@@ -256,9 +256,11 @@ class GamesWebSocketTest {
                     .collect { messages -> clientOneMessages = messages }
             }
 
-            val finalMessageClientOne = clientOneMessages.last()
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientOne)
-            assertTrue(finalMessageClientOne.reason.contains("left"))
+            assertTrue(
+                clientOneMessages.any {
+                    it is OutgoingMessage.PlayerLeft && it.player == Player(PlayerName("player2"))
+                },
+            )
         }
 
     @Test
