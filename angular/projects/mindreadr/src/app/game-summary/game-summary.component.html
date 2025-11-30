@@ -25,20 +25,14 @@
 
   @if (game(); as g) {
     <div class="p-4 border rounded">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <div class="text-sm opacity-70">Total Players</div>
-          <div class="font-mono">{{ g.players.length }}</div>
-        </div>
-        <div>
-          <div class="text-sm opacity-70">Player Limit</div>
-          <div class="font-mono">{{ g.playerLimit }}</div>
-        </div>
-        <div>
-          <div class="text-sm opacity-70">Total Rounds</div>
-          <div class="font-mono">{{ g.rounds.length }}</div>
-        </div>
-      </div>
+      <p class="text-sm flex items-center gap-2">
+        <span class="text-xl">🏆</span>
+        <span>
+          You've come to an agreement in only
+          <b>{{ g.rounds.length }}</b>
+          {{ g.rounds.length === 1 ? 'round' : 'rounds' }}!
+        </span>
+      </p>
     </div>
 
     <div class="p-4 border rounded">
