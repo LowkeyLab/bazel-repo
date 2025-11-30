@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
+import { GameDto } from '../services/game-ws.service';
 
 @Component({
   selector: 'mindreadr-game-summary',
@@ -11,7 +11,6 @@ import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
 })
 export class GameSummaryComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
-  private readonly ws = inject(GameWsService);
   private readonly router = inject(Router);
 
   gameId = signal<string>('');
@@ -20,12 +19,11 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   currentPlayer = signal<any | null>(null);
   private initialPlayerName: string | null = null;
 
-  private connection: ReturnType<GameWsService['connect']> | null = null;
-  private subs: Array<{ unsubscribe: () => void }> = [];
+  // No websocket subscriptions for summary view
 
   ngOnInit(): void {
     // Read navigation extras state if available for faster initial render
-    const nav = this.router.getCurrentNavigation();
+    const nav = this.router.currentNavigation ? this.router.currentNavigation() : null;
     const state: any = nav?.extras?.state ?? history.state ?? {};
     if (state?.playerName) {
       this.initialPlayerName = state.playerName as string;
@@ -40,21 +38,17 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
       return;
     }
     this.gameId.set(id);
-    this.connection = this.ws.connect(id);
-    const conn = this.connection;
-    this.subs.push(
-      conn.gameState$.subscribe((g) => this.game.set(g)),
-      conn.errors$.subscribe((e) => this.error.set(e)),
-      conn.terminated$.subscribe(() => {}),
-      conn.playerJoined$.subscribe((player) => this.currentPlayer.set(player)),
-    );
+
+    // If no final game data was provided, show inline message then redirect.
+    if (!this.game()) {
+      this.error.set('Summary unavailable. Redirecting to games...');
+      setTimeout(() => this.router.navigate(['/games']), 1500);
+      return;
+    }
   }
 
   ngOnDestroy(): void {
-    try {
-      this.subs.forEach((s) => s.unsubscribe());
-    } catch {}
-    if (this.connection) this.connection.close();
+    // Nothing to clean up; no subscriptions.
   }
 
   roundsCount(): number {
