@@ -69,14 +69,27 @@
           @for (r of g.rounds; track r.number) {
             <li class="border rounded p-3">
               <div class="font-mono text-sm mb-2">Round #{{ r.number }}</div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                @for (entry of objectKeys(r.guesses); track entry) {
-                  <div class="flex items-start gap-2">
-                    <div class="font-semibold">{{ entry }}:</div>
-                    <div class="wrap-break-word">{{ r.guesses[entry] }}</div>
-                  </div>
-                }
-              </div>
+              @if (shouldHideGuesses(r, g)) {
+                <div class="text-sm italic opacity-70">
+                  @if (waitingForOtherPlayer()) {
+                    Waiting for other player's guess...
+                  } @else {
+                    Guesses hidden until all players submit.
+                  }
+                </div>
+                <div class="text-xs opacity-50 mt-2">
+                  Submitted: {{ objectKeys(r.guesses).length }}/{{ g.players.length }}
+                </div>
+              } @else {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  @for (entry of objectKeys(r.guesses); track entry) {
+                    <div class="flex items-start gap-2">
+                      <div class="font-semibold">{{ entry }}:</div>
+                      <div class="wrap-break-word">{{ r.guesses[entry] }}</div>
+                    </div>
+                  }
+                </div>
+              }
             </li>
           }
         </ul>
@@ -85,7 +98,11 @@
   } @else {
     <div class="opacity-70">Connecting to game...</div>
   }
-
+  @if (waitingForOtherPlayer()) {
+    <div class="text-sm text-amber-600">
+      You have submitted your guess. Waiting for other player...
+    </div>
+  }
   <form class="flex gap-2" (submit)="$event.preventDefault(); submitGuess()">
     <input
       type="text"
@@ -94,9 +111,13 @@
       [ngModel]="guess()"
       (ngModelChange)="guess.set($event)"
       name="guess"
-      [disabled]="!!terminated()"
+      [disabled]="!!terminated() || waitingForOtherPlayer()"
     />
-    <button class="btn btn-primary" type="submit" [disabled]="!!terminated() || !guess().trim()">
+    <button
+      class="btn btn-primary"
+      type="submit"
+      [disabled]="!!terminated() || waitingForOtherPlayer() || !guess().trim()"
+    >
       Submit
     </button>
   </form>

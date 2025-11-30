@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameWsService, GameDto } from '../services/game-ws.service';
+import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
 
 interface Toast {
   message: string;
@@ -110,6 +110,44 @@ export class LiveGameComponent implements OnInit, OnDestroy {
       default:
         return state;
     }
+  }
+
+  /** Latest (active) round or null */
+  private latestRound(): RoundDto | null {
+    const g = this.game();
+    if (!g || g.rounds.length === 0) return null;
+    return g.rounds[g.rounds.length - 1];
+  }
+
+  /** Whether a round has guesses from all currently present players */
+  isRoundComplete(round: RoundDto, game: GameDto): boolean {
+    return Object.keys(round.guesses).length >= game.players.length && game.players.length > 0;
+  }
+
+  /** Attempt to detect if the given player has already guessed in this round. */
+  hasPlayerGuessed(round: RoundDto, player: any): boolean {
+    if (!round || !player) return false;
+    const name = this.getPlayerName(player);
+    const keys = Object.keys(round.guesses);
+    if (keys.includes(name)) return true;
+    // Fallbacks: try common id fields
+    const pid = (player.id ?? player.playerId ?? player.uuid ?? '').toString();
+    if (pid && keys.includes(pid)) return true;
+    return false;
+  }
+
+  /** True if current player is waiting for others (already guessed, round incomplete). */
+  waitingForOtherPlayer(): boolean {
+    const g = this.game();
+    const p = this.currentPlayer();
+    const r = this.latestRound();
+    if (!g || !p || !r) return false;
+    return this.hasPlayerGuessed(r, p) && !this.isRoundComplete(r, g);
+  }
+
+  /** Hide guesses until every player has submitted for that round. */
+  shouldHideGuesses(round: RoundDto, game: GameDto): boolean {
+    return !this.isRoundComplete(round, game);
   }
 
   ngOnDestroy(): void {
