@@ -4,9 +4,7 @@ kt_junit5_test(
     name = "CalculateAllowedOriginsTest",
     size = "small",
     srcs = ["CalculateAllowedOriginsTest.kt"],
+    associates = ["//mindreadr/src/main/io/lowkeylab/mindreadr"],
     test_package = "io.lowkeylab.mindreadr",
     runtime_deps = ["//mindreadr/src/test:test_runtime_deps"],
-    deps = [
-        "//mindreadr/src/main/io/lowkeylab/mindreadr",
-    ],
 )

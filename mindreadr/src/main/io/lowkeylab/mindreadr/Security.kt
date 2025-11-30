@@ -24,7 +24,7 @@ fun Application.configureSecurity() {
     }
 }
 
-fun calculateAllowedOrigins(
+internal fun calculateAllowedOrigins(
     base: List<String>,
     extra: String,
 ): Set<String> {
