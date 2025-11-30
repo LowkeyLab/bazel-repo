@@ -25,6 +25,7 @@ import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.Player
 import io.lowkeylab.mindreadr.game.PlayerFactory
 import io.lowkeylab.mindreadr.game.PlayerName
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -62,14 +63,19 @@ class GamesWebSocketTest {
     ) {
         private var count = 0
         private val mutex = Mutex()
+        private var generation = CompletableDeferred<Unit>()
 
         suspend fun await() {
             mutex.withLock {
                 count++
                 if (count == parties) {
+                    // Trip the barrier
+                    generation.complete(Unit)
                     return
                 }
             }
+            // Wait for the barrier to be tripped
+            generation.await()
         }
     }
 
