@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { LiveGameComponent } from './live-game.component';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
+import { GameWsService } from '../services/game-ws.service';
+import { GameDto, RoundDto } from '../services/game.types';
 import { Subject } from 'rxjs';
 
 describe('LiveGameComponent logic', () => {

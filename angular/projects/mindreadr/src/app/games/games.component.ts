@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GameService, Game } from '../services/game.service';
+import { GameService } from '../services/game.service';
+import { GameDto } from '../services/game.types';
 import { Router } from '@angular/router';
 
 @Component({
@@ -14,7 +15,7 @@ export class GamesComponent implements OnInit {
   private readonly router = inject(Router);
 
   // Signal holding currently open (waiting for players) games.
-  games = signal<Game[]>([]);
+  games = signal<GameDto[]>([]);
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
 

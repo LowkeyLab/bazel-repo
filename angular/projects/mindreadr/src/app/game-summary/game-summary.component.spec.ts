@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameSummaryComponent } from './game-summary.component';
-import { GameDto } from '../services/game-ws.service';
+import { GameDto } from '../services/game.types';
 
 describe('GameSummaryComponent', () => {
   function createComponentWithNavState(state: any, id: string | null = 'g1') {

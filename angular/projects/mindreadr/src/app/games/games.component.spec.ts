@@ -1,14 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GamesComponent } from './games.component';
-import { GameService, Game } from '../services/game.service';
+import { GameService } from '../services/game.service';
+import { GameDto } from '../services/game.types';
 import { Component } from '@angular/core';
 import { of, Subject, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 
 // Mock GameService with spies
 class MockGameService {
-  createGame = jasmine.createSpy().and.returnValue(of({ id: 'new-game' } as Game));
-  getGamesByStatus = jasmine.createSpy().and.returnValue(of([{ id: 'g1' } as Game]));
+  createGame = jasmine.createSpy().and.returnValue(of({ id: 'new-game' } as GameDto));
+  getGamesByStatus = jasmine.createSpy().and.returnValue(of([{ id: 'g1' } as GameDto]));
 }
 
 // Optional host for template mounting scenarios
@@ -43,7 +44,7 @@ describe('GamesComponent', () => {
   });
 
   it('fetches waiting games on init and sets state', () => {
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'a' } as Game]));
+    gameService.getGamesByStatus.and.returnValue(of([{ id: 'a' } as GameDto]));
     fixture.detectChanges();
     expect(gameService.getGamesByStatus).toHaveBeenCalledWith('WAITING_FOR_PLAYERS');
     expect(component.games().length).toBe(1);
@@ -72,7 +73,7 @@ describe('GamesComponent', () => {
     gameService.getGamesByStatus.and.returnValue(of([]));
     fixture.detectChanges();
     component.loading.set(false);
-    component.games.set([{ id: '1' } as Game, { id: '2' } as Game]);
+    component.games.set([{ id: '1' } as GameDto, { id: '2' } as GameDto]);
     fixture.detectChanges();
     const items = fixture.nativeElement.querySelectorAll('ul li');
     expect(items.length).toBe(2);
@@ -98,8 +99,8 @@ describe('GamesComponent', () => {
     gameService.getGamesByStatus.calls.reset();
     gameService.createGame.calls.reset();
 
-    gameService.createGame.and.returnValue(of({ id: 'created' } as Game));
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'created' } as Game]));
+    gameService.createGame.and.returnValue(of({ id: 'created' } as GameDto));
+    gameService.getGamesByStatus.and.returnValue(of([{ id: 'created' } as GameDto]));
 
     component.createNewGame();
 

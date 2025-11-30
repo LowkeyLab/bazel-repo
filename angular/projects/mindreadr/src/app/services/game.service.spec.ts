@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { GameService, GameSummary, Game } from './game.service';
+import { GameService, GameSummary } from './game.service';
+import { GameDto } from '../services/game.types';
 import { environment } from '../../environments/environment';
 
 describe('GameService', () => {
@@ -90,9 +91,9 @@ describe('GameService', () => {
   });
 
   it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', (done) => {
-    const mockGames: Game[] = [
-      { id: 'G1', state: 'WAITING_FOR_PLAYERS' },
-      { id: 'G2', state: 'WAITING_FOR_PLAYERS' },
+    const mockGames: GameDto[] = [
+      { id: 'G1', state: 'WAITING_FOR_PLAYERS', playerLimit: 2, players: [], rounds: [] },
+      { id: 'G2', state: 'WAITING_FOR_PLAYERS', playerLimit: 2, players: [], rounds: [] },
     ];
 
     service.getGamesByStatus('WAITING_FOR_PLAYERS').subscribe((games) => {
@@ -107,10 +108,10 @@ describe('GameService', () => {
   });
 
   it('getGamesByStatus should fetch /games?status=IN_PROGRESS', (done) => {
-    const mockGames: Game[] = [
-      { id: 'IP1', state: 'IN_PROGRESS' },
-      { id: 'IP2', state: 'IN_PROGRESS' },
-      { id: 'IP3', state: 'IN_PROGRESS' },
+    const mockGames: GameDto[] = [
+      { id: 'IP1', state: 'IN_PROGRESS', playerLimit: 2, players: [], rounds: [] },
+      { id: 'IP2', state: 'IN_PROGRESS', playerLimit: 2, players: [], rounds: [] },
+      { id: 'IP3', state: 'IN_PROGRESS', playerLimit: 2, players: [], rounds: [] },
     ];
 
     service.getGamesByStatus('IN_PROGRESS').subscribe((games) => {
@@ -125,7 +126,9 @@ describe('GameService', () => {
   });
 
   it('getGamesByStatus should fetch /games?status=COMPLETED', (done) => {
-    const mockGames: Game[] = [{ id: 'C1', state: 'COMPLETED' }];
+    const mockGames: GameDto[] = [
+      { id: 'C1', state: 'COMPLETED', playerLimit: 2, players: [], rounds: [] },
+    ];
 
     service.getGamesByStatus('COMPLETED').subscribe((games) => {
       expect(games).toEqual(mockGames);

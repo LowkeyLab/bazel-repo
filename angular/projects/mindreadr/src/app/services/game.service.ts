@@ -2,17 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
-
-type GameState = 'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED';
-
-export interface Game {
-  // Backend uses Kotlin value class for id; it is serialized as a string.
-  id: string;
-  // State enum used to determine open/active/completed
-  state?: GameState;
-  // Other properties are ignored by the client
-  [key: string]: unknown;
-}
+import { GameDto, GameState } from './game.types';
 
 export interface GameSummary {
   waitingForPlayerGames: number;
@@ -24,10 +14,10 @@ export interface GameSummary {
 export class GameService {
   constructor(private http: HttpClient) {}
 
-  createGame(): Observable<Game> {
+  createGame(): Observable<GameDto> {
     // Use relative path; proxy handles dev. Fallback to environment base for non-dev builds.
     const url = `${environment.API_BASE_URL}/games`;
-    return this.http.post<Game>(url, {});
+    return this.http.post<GameDto>(url, {});
   }
 
   /**
@@ -63,8 +53,8 @@ export class GameService {
    * Fetches games filtered by backend status enum.
    * Example: /games?status=WAITING_FOR_PLAYERS
    */
-  getGamesByStatus(status: GameState): Observable<Game[]> {
+  getGamesByStatus(status: GameState): Observable<GameDto[]> {
     const url = `${environment.API_BASE_URL}/games?status=${encodeURIComponent(status)}`;
-    return this.http.get<Game[]>(url);
+    return this.http.get<GameDto[]>(url);
   }
 }

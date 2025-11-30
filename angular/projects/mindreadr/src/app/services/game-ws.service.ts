@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { Observable, Subject, map, shareReplay, takeUntil, filter } from 'rxjs';
 import { webSocket, WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSocket';
+import { GameDto, GameState, Player } from './game.types';
 
 // Server -> Client messages (OutgoingMessage in Kotlin)
 export type ServerMessage =
@@ -13,27 +14,7 @@ export type ServerMessage =
 // Client -> Server messages (IncomingMessage in Kotlin)
 export type ClientMessage = { type: 'submit_guess'; guess: string };
 
-// Minimal types reflecting Kotlin DTOs
-export type GameState = 'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
-
-export interface Player {
-  // Structure depends on server; keep flexible
-  [key: string]: unknown;
-}
-
-export interface RoundDto {
-  number: number;
-  guesses: Record<string, string>;
-}
-
-export interface GameDto {
-  id: string; // Kotlin value class likely serialized as string
-  playerLimit: number;
-  players: Player[];
-  rounds: RoundDto[];
-  state: GameState;
-  finalGuess?: string | null;
-}
+// Minimal types now shared via game.types.ts
 
 export interface GameWsConnection {
   messages$: Observable<ServerMessage>;

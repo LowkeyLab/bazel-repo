@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StatusBadgeComponent } from './status-badge.component';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
+import { GameWsService } from '../services/game-ws.service';
+import { GameDto, RoundDto } from '../services/game.types';
 
 interface Toast {
   message: string;

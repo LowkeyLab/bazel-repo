@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameDto } from '../services/game-ws.service';
+import { GameDto, RoundDto } from '../services/game.types';
 import confetti from 'canvas-confetti';
 
 @Component({
@@ -77,12 +77,12 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   }
 
   sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
-    return (rounds ?? []).slice().sort((a, b) => a.number - b.number);
+    return (rounds ?? []).slice().sort((a: RoundDto, b: RoundDto) => a.number - b.number);
   }
 
   sorted_player_name(guesses: Record<string, string> | undefined | null): string[] {
     if (!guesses) return [];
-    return Object.keys(guesses).sort((a, b) => a.localeCompare(b));
+    return Object.keys(guesses).sort((a: string, b: string) => a.localeCompare(b));
   }
 
   sorted_player_names_from_players(players: GameDto['players']): string[] {
@@ -93,7 +93,9 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
         return '';
       }
     });
-    return names.filter((n) => n.length > 0).sort((a, b) => a.localeCompare(b));
+    return names
+      .filter((n: string) => n.length > 0)
+      .sort((a: string, b: string) => a.localeCompare(b));
   }
 
   sorted_player_names_for_round(game: GameDto, round: GameDto['rounds'][number]): string[] {
