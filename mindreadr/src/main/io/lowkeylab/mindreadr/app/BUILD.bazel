@@ -56,6 +56,6 @@ oci_push(
 
 alias(
     name = "app",
-    actual = ":Application",
+    actual = ":application",
     visibility = ["//mindreadr:__pkg__"],
 )
