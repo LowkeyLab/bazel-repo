@@ -117,6 +117,6 @@ oci_load(
 oci_push(
     name = "push_image",
     image = ":image",
+    remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/mindreadr_frontend",
-    tags = ["latest"],
 )
