@@ -31,6 +31,8 @@ export class LiveGameComponent implements OnInit, OnDestroy {
 
   private connection: ReturnType<GameWsService['connect']> | null = null;
   private subs: Array<{ unsubscribe: () => void }> = [];
+  private previousPlayerKeys: string[] = [];
+  private initialGameStateProcessed = false;
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -42,15 +44,41 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     const conn = (this.connection = this.ws.connect(id));
 
     this.subs.push(
-      conn.gameState$.subscribe((g) => this.game.set(g)),
+      conn.gameState$.subscribe((g) => {
+        const prevKeys = this.previousPlayerKeys;
+        const newKeys = g.players.map((p) => this.getPlayerIdentityKey(p));
+
+        // Detect newly added players after the initial state.
+        if (this.initialGameStateProcessed) {
+          const newlyAdded = newKeys.filter((k) => !prevKeys.includes(k));
+          if (newlyAdded.length > 0) {
+            // Show a toast for each newly added player.
+            g.players.forEach((p) => {
+              const key = this.getPlayerIdentityKey(p);
+              if (newlyAdded.includes(key)) {
+                this.showToast(`Player joined: ${this.getPlayerName(p)}`, 'info');
+              }
+            });
+          }
+        } else {
+          // Skip toasts for initial full state.
+          this.initialGameStateProcessed = true;
+        }
+
+        this.previousPlayerKeys = newKeys;
+        this.game.set(g);
+      }),
       conn.errors$.subscribe((e) => this.error.set(e)),
       conn.terminated$.subscribe((reason) => this.terminated.set(reason)),
       conn.playerJoined$.subscribe((player) => {
+        // Still capture current player but do not emit a toast here.
         this.currentPlayer.set(player);
-        this.showToast(`Player joined: ${this.getPlayerName(player)}`, 'info');
       }),
       conn.playerLeft$.subscribe((player) => {
         this.showToast(`Player left: ${this.getPlayerName(player)}`, 'info');
+        // Remove player from previous list so a rejoin later can trigger toast.
+        const key = this.getPlayerIdentityKey(player);
+        this.previousPlayerKeys = this.previousPlayerKeys.filter((k) => k !== key);
       }),
     );
   }
@@ -60,6 +88,16 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.toasts.update((arr) => arr.filter((t) => t !== toast));
     }, 3500);
+  }
+
+  /** Attempt to build a stable identity key for a player for diffing purposes. */
+  private getPlayerIdentityKey(player: any): string {
+    if (!player) return 'unknown';
+    const idFields = [player.id, player.playerId, player.uuid];
+    const firstId = idFields.find((v) => v !== undefined && v !== null);
+    if (firstId !== undefined) return `id:${firstId}`;
+    // Fall back to name.
+    return `name:${this.getPlayerName(player)}`;
   }
 
   submitGuess() {
