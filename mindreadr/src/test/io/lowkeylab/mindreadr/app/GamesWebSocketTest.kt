@@ -71,8 +71,6 @@ class GamesWebSocketTest {
                 if (count == parties) {
                     // Trip the barrier
                     generation.complete(Unit)
-                    val currentGeneration = generation
-                    generation = CompletableDeferred()
                     return
                 }
             }
@@ -226,8 +224,8 @@ class GamesWebSocketTest {
             val finalMessageClientTwo = clientTwoMessages.last()
             assertIs<OutgoingMessage.GameState>(finalMessageClientOne)
             assertIs<OutgoingMessage.GameState>(finalMessageClientTwo)
-            assertEquals(finalMessageClientOne.game.state, GameState.COMPLETED)
-            assertEquals(finalMessageClientTwo.game.state, GameState.COMPLETED)
+            assertEquals(GameState.COMPLETED, finalMessageClientOne.game.state)
+            assertEquals(GameState.COMPLETED, finalMessageClientTwo.game.state)
         }
 
     @Test
