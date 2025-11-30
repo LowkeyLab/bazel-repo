@@ -6,7 +6,6 @@ import { webSocket, WebSocketSubject, WebSocketSubjectConfig } from 'rxjs/webSoc
 // Server -> Client messages (OutgoingMessage in Kotlin)
 export type ServerMessage =
   | { type: 'game_state'; game: GameDto }
-  | { type: 'game_terminated'; reason: string }
   | { type: 'error'; message: string }
   | { type: 'player_joined'; player: Player }
   | { type: 'player_left'; player: Player };
@@ -15,7 +14,7 @@ export type ServerMessage =
 export type ClientMessage = { type: 'submit_guess'; guess: string };
 
 // Minimal types reflecting Kotlin DTOs
-export type GameState = 'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED';
+export type GameState = 'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
 
 export interface Player {
   // Structure depends on server; keep flexible
@@ -92,12 +91,13 @@ export class GameWsService {
       map((m) => m.player),
     );
 
+    // Emit termination when game state moves to COMPLETED or TERMINATED.
+    // We keep the observable shape (string) for compatibility, emitting the state string.
     const terminated$ = messages$.pipe(
-      filter(
-        (m): m is Extract<ServerMessage, { type: 'game_terminated' }> =>
-          m.type === 'game_terminated',
-      ),
-      map((m) => m.reason),
+      filter((m): m is Extract<ServerMessage, { type: 'game_state' }> => m.type === 'game_state'),
+      map((m) => m.game),
+      filter((g) => g.state === 'COMPLETED' || g.state === 'TERMINATED'),
+      map((g) => g.state),
       shareReplay({ bufferSize: 1, refCount: true }),
     );
 
@@ -121,8 +121,11 @@ export class GameWsService {
       }
     };
 
-    // Auto-close on termination signal
-    terminated$.pipe(takeUntil(destroy$)).subscribe(() => close());
+    // Auto-close on termination signal (defer close to ensure external subscribers receive the emission)
+    terminated$.pipe(takeUntil(destroy$)).subscribe(() => {
+      // Defer to next microtask so firstValueFrom/other synchronous subscribers see the value
+      Promise.resolve().then(() => close());
+    });
 
     return {
       messages$,

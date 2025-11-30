@@ -101,11 +101,46 @@ describe('GameWsService', () => {
 
   it('auto-closes the socket when terminated', async () => {
     (environment as any).API_BASE_URL = 'http://api.example.com';
-    service.connect('game');
+    const conn = service.connect('game');
+    const termP = firstValueFrom(conn.terminated$);
 
     expect(fake.completed).toBeFalse();
-    fake.incoming$.next({ type: 'game_terminated', reason: 'bye' } as ServerMessage);
-    // completion is synchronous in our fake
+    // Emulate server sending a completed game state
+    fake.incoming$.next({
+      type: 'game_state',
+      game: {
+        id: 'g2',
+        playerLimit: 5,
+        players: [],
+        rounds: [],
+        state: 'COMPLETED',
+        finalGuess: null,
+      },
+    } as ServerMessage);
+
+    await expectAsync(termP).toBeResolvedTo('COMPLETED');
+    // Auto-close should have completed the fake socket
+    expect(fake.completed).toBeTrue();
+  });
+
+  it('auto-closes and emits TERMINATED state', async () => {
+    (environment as any).API_BASE_URL = 'http://api.example.com';
+    const conn = service.connect('game');
+    const termP = firstValueFrom(conn.terminated$);
+
+    fake.incoming$.next({
+      type: 'game_state',
+      game: {
+        id: 'g3',
+        playerLimit: 5,
+        players: [],
+        rounds: [],
+        state: 'TERMINATED',
+        finalGuess: null,
+      },
+    } as ServerMessage);
+
+    await expectAsync(termP).toBeResolvedTo('TERMINATED');
     expect(fake.completed).toBeTrue();
   });
 
