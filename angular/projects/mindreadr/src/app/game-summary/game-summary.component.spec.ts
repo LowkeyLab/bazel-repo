@@ -1,0 +1,46 @@
+import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router } from '@angular/router';
+import { GameSummaryComponent } from './game-summary.component';
+import { GameDto } from '../services/game-ws.service';
+
+describe('GameSummaryComponent', () => {
+  function createComponentWithNavState(state: any, id: string | null = 'g1') {
+    const routerSpy = {
+      currentNavigation: () => ({ extras: { state } }),
+      navigate: jasmine.createSpy('navigate'),
+    } as any as Router;
+    TestBed.configureTestingModule({
+      imports: [GameSummaryComponent],
+      providers: [
+        { provide: Router, useValue: routerSpy },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
+      ],
+    });
+    const fixture = TestBed.createComponent(GameSummaryComponent);
+    const comp = fixture.componentInstance;
+    fixture.detectChanges();
+    return { fixture, comp, routerSpy };
+  }
+
+  it('renders with player name and final game from navigation state', () => {
+    const finalGame: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      players: [],
+      rounds: [],
+      state: 'COMPLETED',
+    };
+    const { comp } = createComponentWithNavState({ playerName: 'Alice', finalGame });
+    expect(comp.getPlayerName({})).toBe('Alice');
+    expect(comp.game()).toEqual(finalGame);
+  });
+
+  it('shows inline error and redirects when finalGame is missing', (done) => {
+    const { comp, routerSpy } = createComponentWithNavState({}, 'g1');
+    expect(comp.error()).toContain('Summary unavailable');
+    setTimeout(() => {
+      expect(routerSpy.navigate).toHaveBeenCalledWith(['/games']);
+      done();
+    }, 1600);
+  });
+});

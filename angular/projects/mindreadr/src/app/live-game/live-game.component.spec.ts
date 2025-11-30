@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { LiveGameComponent } from './live-game.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
+import { Subject } from 'rxjs';
 
 describe('LiveGameComponent logic', () => {
   let component: LiveGameComponent;
@@ -85,5 +86,67 @@ describe('LiveGameComponent logic', () => {
     // All guessed -> not hidden
     expect(component.shouldHideGuesses(round, game)).toBeFalse();
     expect(component.waitingForOtherPlayer()).toBeFalse();
+  });
+});
+
+describe('LiveGameComponent navigation', () => {
+  let component: LiveGameComponent;
+  let router: Router;
+  let gameState$: Subject<GameDto>;
+  let errors$: Subject<string>;
+  let terminated$: Subject<string>;
+  let playerJoined$: Subject<any>;
+  let playerLeft$: Subject<any>;
+
+  beforeEach(() => {
+    gameState$ = new Subject<GameDto>();
+    errors$ = new Subject<string>();
+    terminated$ = new Subject<string>();
+    playerJoined$ = new Subject<any>();
+    playerLeft$ = new Subject<any>();
+    const mockConn = {
+      gameState$,
+      errors$,
+      terminated$,
+      playerJoined$,
+      playerLeft$,
+      submitGuess: jasmine.createSpy('submitGuess'),
+      close: jasmine.createSpy('close'),
+    };
+
+    TestBed.configureTestingModule({
+      imports: [LiveGameComponent],
+      providers: [
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'g1' } } } },
+        { provide: GameWsService, useValue: { connect: () => mockConn } },
+        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(LiveGameComponent);
+    component = fixture.componentInstance;
+    router = TestBed.inject(Router);
+    fixture.detectChanges();
+  });
+
+  it('navigates to summary when game state becomes COMPLETED', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      players: [],
+      rounds: [],
+      state: 'COMPLETED',
+    };
+    gameState$.next(game);
+    expect(router.navigate).toHaveBeenCalledWith(['/games/g1/summary'], {
+      state: jasmine.objectContaining({ playerName: 'Player', finalGame: game }),
+    });
+  });
+
+  it('navigates to summary when terminated with COMPLETED', () => {
+    terminated$.next('COMPLETED');
+    expect(router.navigate).toHaveBeenCalledWith(['/games/g1/summary'], {
+      state: jasmine.objectContaining({ playerName: 'Player' }),
+    });
   });
 });
