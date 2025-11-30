@@ -68,9 +68,30 @@ export class LiveGameComponent implements OnInit, OnDestroy {
 
         this.previousPlayerKeys = newKeys;
         this.game.set(g);
+
+        // Redirect to summary when game completed
+        if (g.state === 'COMPLETED') {
+          this.router.navigate([`/games/${this.gameId()}/summary`], {
+            state: {
+              playerName: this.getPlayerName(this.currentPlayer()),
+              finalGame: g,
+            },
+          });
+        }
       }),
       conn.errors$.subscribe((e) => this.error.set(e)),
-      conn.terminated$.subscribe((reason) => this.terminated.set(reason)),
+      conn.terminated$.subscribe((reason) => {
+        this.terminated.set(reason);
+        if (reason === 'COMPLETED') {
+          const g = this.game();
+          this.router.navigate([`/games/${this.gameId()}/summary`], {
+            state: {
+              playerName: this.getPlayerName(this.currentPlayer()),
+              finalGame: g ?? undefined,
+            },
+          });
+        }
+      }),
       conn.playerJoined$.subscribe((player) => {
         // Still capture current player but do not emit a toast here.
         this.currentPlayer.set(player);
