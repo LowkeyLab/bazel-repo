@@ -1,10 +1,4 @@
-{
-    admin :2019
-}
-
-mindreadr_frontend {
-    localhost:80
-
+localhost:80 {
     root * /app/browser
     file_server
     try_files {path} /index.html
