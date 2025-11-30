@@ -1,5 +1,10 @@
 <section class="max-w-2xl mx-auto mt-12">
-  <h1 class="text-3xl font-bold mb-4">Open Games</h1>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-3xl font-bold">Open Games</h1>
+    <button class="btn btn-primary" (click)="createNewGame()" [disabled]="loading()">
+      Create Game
+    </button>
+  </div>
   @if (loading()) {
     <div class="flex justify-center py-12" aria-live="polite" aria-label="Loading open games">
       <div

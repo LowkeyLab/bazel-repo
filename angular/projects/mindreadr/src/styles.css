@@ -322,6 +322,65 @@
       mask-image: url("data:image/svg+xml,%3Csvg width='24' height='24' stroke='black' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform-origin='center'%3E%3Ccircle cx='12' cy='12' r='9.5' fill='none' stroke-width='3' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='2s' repeatCount='indefinite'/%3E%3Canimate attributeName='stroke-dasharray' values='0,150;42,150;42,150' keyTimes='0;0.475;1' dur='1.5s' repeatCount='indefinite'/%3E%3Canimate attributeName='stroke-dashoffset' values='0;-16;-59' keyTimes='0;0.475;1' dur='1.5s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/g%3E%3C/svg%3E");
     }
   }
+  .list {
+    @layer daisyui.l1.l2.l3 {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.875rem;
+      .list-row {
+        --list-grid-cols: minmax(0, auto) 1fr;
+        position: relative;
+        display: grid;
+        grid-auto-flow: column;
+        gap: calc(0.25rem * 4);
+        border-radius: var(--radius-box);
+        padding: calc(0.25rem * 4);
+        word-break: break-word;
+        grid-template-columns: var(--list-grid-cols);
+      }
+      & > :not(:last-child) {
+        &.list-row, .list-row {
+          &:after {
+            content: "";
+            border-bottom: var(--border) solid;
+            inset-inline: var(--radius-box);
+            position: absolute;
+            bottom: calc(0.25rem * 0);
+            border-color: var(--color-base-content);
+            @supports (color: color-mix(in lab, red, red)) {
+              border-color: color-mix(in oklab, var(--color-base-content) 5%, transparent);
+            }
+          }
+        }
+      }
+    }
+    @layer daisyui.l1.l2 {
+      .list-row {
+        &:has(.list-col-grow:nth-child(1)) {
+          --list-grid-cols: 1fr;
+        }
+        &:has(.list-col-grow:nth-child(2)) {
+          --list-grid-cols: minmax(0, auto) 1fr;
+        }
+        &:has(.list-col-grow:nth-child(3)) {
+          --list-grid-cols: minmax(0, auto) minmax(0, auto) 1fr;
+        }
+        &:has(.list-col-grow:nth-child(4)) {
+          --list-grid-cols: minmax(0, auto) minmax(0, auto) minmax(0, auto) 1fr;
+        }
+        &:has(.list-col-grow:nth-child(5)) {
+          --list-grid-cols: minmax(0, auto) minmax(0, auto) minmax(0, auto) minmax(0, auto) 1fr;
+        }
+        &:has(.list-col-grow:nth-child(6)) {
+          --list-grid-cols: minmax(0, auto) minmax(0, auto) minmax(0, auto) minmax(0, auto)
+          minmax(0, auto) 1fr;
+        }
+        > :not(.list-col-wrap) {
+          grid-row-start: 1;
+        }
+      }
+    }
+  }
   .navbar {
     @layer daisyui.l1.l2.l3 {
       display: flex;
