@@ -510,7 +510,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "alpine_caddy",
-    digest = "sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446",
+    digest = "sha256:cef7fe17d4df3b0843eae25bed319d6140b1a7bb13ccef076f5f1783d5bca9b1",
     image = "caddy",
     platforms = [
         "linux/amd64",
