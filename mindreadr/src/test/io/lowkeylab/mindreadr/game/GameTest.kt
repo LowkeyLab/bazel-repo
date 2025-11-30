@@ -215,7 +215,7 @@ class GameTest {
         // Game is IN_PROGRESS
         game.removePlayer(player1)
 
-        // Game should be COMPLETED
+        // Game should have ended
         assertTrue(game.hasEnded())
     }
 

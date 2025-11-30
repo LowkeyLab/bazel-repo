@@ -106,16 +106,26 @@ fun Application.configureGamesWs(gameService: GameService) {
                     MutableSharedFlow()
                 }
 
+            val terminationFlow =
+                terminationFlows.computeIfAbsent(gameId) {
+                    MutableSharedFlow()
+                }
+
             val broadcastJob =
                 launch {
                     broadcastFlow.asSharedFlow().collect { message ->
                         sendSerialized<OutgoingMessage>(message)
-                    }
-                }
 
-            val terminationFlow =
-                terminationFlows.computeIfAbsent(gameId) {
-                    MutableSharedFlow()
+                        if (message is OutgoingMessage.GameState) {
+                            if (message.game.state == GameState.COMPLETED || message.game.state == GameState.TERMINATED) {
+                                log.info(
+                                    "Game {} has completed. Emitting termination signal.",
+                                    gameId.id,
+                                )
+                                terminationFlow.emit(Unit)
+                            }
+                        }
+                    }
                 }
 
             launch {
@@ -166,13 +176,6 @@ fun Application.configureGamesWs(gameService: GameService) {
                                         // Broadcast updated game state
                                         val currentGame = gameService.getGameById(gameId)!!.toDto()
                                         broadcastFlow.emit(OutgoingMessage.GameState(currentGame))
-
-                                        // Check if game ended
-                                        if (currentGame.state == GameState.COMPLETED) {
-                                            // Emit termination to all clients
-                                            broadcastFlow.emit(OutgoingMessage.GameTerminated("Game completed"))
-                                            terminationFlow.emit(Unit)
-                                        }
                                     }.onFailure { e ->
                                         log.error(
                                             "Failed to submit guess for player ${player.name.name} in game $gameId: ${e.message}",
@@ -203,16 +206,7 @@ fun Application.configureGamesWs(gameService: GameService) {
                         log.info("Player ${player.name.name} removed from game $gameId")
                         // Notify remaining players
                         broadcastFlow.emit(OutgoingMessage.PlayerLeft(player))
-
-                        if (game.hasEnded()) {
-                            log.info("Game $gameId ended due to player ${player.name.name} leaving. Closing connections.")
-                            broadcastFlow.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
-                            terminationFlow.emit(Unit)
-                        } else {
-                            // Broadcast updated game state
-                            val updatedGame = game.toDto()
-                            broadcastFlow.emit(OutgoingMessage.GameState(updatedGame))
-                        }
+                        broadcastFlow.emit(OutgoingMessage.GameState(game.toDto()))
                     }
                 } else {
                     log.info("Game $gameId not found during disconnect of player ${player.name.name}. Closing connections.")
@@ -289,12 +283,6 @@ sealed class OutgoingMessage {
     @SerialName("game_state")
     data class GameState(
         val game: GameDto,
-    ) : OutgoingMessage()
-
-    @Serializable
-    @SerialName("game_terminated")
-    data class GameTerminated(
-        val reason: String,
     ) : OutgoingMessage()
 
     @Serializable

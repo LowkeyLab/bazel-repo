@@ -51,12 +51,12 @@ class Game(
         check(state != GameState.COMPLETED) { "Cannot remove player. Game is in $state state." }
         players.remove(player)
         if (state == GameState.IN_PROGRESS) {
-            state = GameState.COMPLETED
+            state = GameState.TERMINATED
         }
         return this
     }
 
-    fun hasEnded(): Boolean = state == GameState.COMPLETED
+    fun hasEnded(): Boolean = state == GameState.COMPLETED || state == GameState.TERMINATED
 
     fun isInProgress(): Boolean = state == GameState.IN_PROGRESS
 
@@ -97,4 +97,5 @@ enum class GameState {
     WAITING_FOR_PLAYERS,
     IN_PROGRESS,
     COMPLETED,
+    TERMINATED,
 }

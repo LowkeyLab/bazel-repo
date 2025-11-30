@@ -20,6 +20,7 @@ import io.lowkeylab.mindreadr.configureGamesWs
 import io.lowkeylab.mindreadr.configureSerialization
 import io.lowkeylab.mindreadr.configureSockets
 import io.lowkeylab.mindreadr.game.GameService
+import io.lowkeylab.mindreadr.game.GameState
 import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.Player
 import io.lowkeylab.mindreadr.game.PlayerFactory
@@ -38,6 +39,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -222,10 +224,10 @@ class GamesWebSocketTest {
 
             val finalMessageClientOne = clientOneMessages.last()
             val finalMessageClientTwo = clientTwoMessages.last()
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientOne)
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientTwo)
-            assertTrue(finalMessageClientOne.reason.contains("completed"))
-            assertTrue(finalMessageClientTwo.reason.contains("completed"))
+            assertIs<OutgoingMessage.GameState>(finalMessageClientOne)
+            assertIs<OutgoingMessage.GameState>(finalMessageClientTwo)
+            assertEquals(finalMessageClientOne.game.state, GameState.COMPLETED)
+            assertEquals(finalMessageClientTwo.game.state, GameState.COMPLETED)
         }
 
     @Test

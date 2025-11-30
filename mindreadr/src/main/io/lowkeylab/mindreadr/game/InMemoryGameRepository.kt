@@ -17,18 +17,20 @@ class InMemoryGameRepository : GameRepository {
         games.values
             .count {
                 when (state) {
-                    GameState.WAITING_FOR_PLAYERS -> it.isWaitingForPlayers()
-                    GameState.IN_PROGRESS -> it.isInProgress()
-                    GameState.COMPLETED -> it.hasEnded()
+                    GameState.WAITING_FOR_PLAYERS -> it.getState() == GameState.WAITING_FOR_PLAYERS
+                    GameState.IN_PROGRESS -> it.getState() == GameState.IN_PROGRESS
+                    GameState.COMPLETED -> it.getState() == GameState.COMPLETED
+                    GameState.TERMINATED -> it.getState() == GameState.TERMINATED
                 }
             }.toLong()
 
     override suspend fun getGamesByState(state: GameState): List<Game> =
         games.values.filter {
             when (state) {
-                GameState.WAITING_FOR_PLAYERS -> it.isWaitingForPlayers()
-                GameState.IN_PROGRESS -> it.isInProgress()
-                GameState.COMPLETED -> it.hasEnded()
+                GameState.WAITING_FOR_PLAYERS -> it.getState() == GameState.WAITING_FOR_PLAYERS
+                GameState.IN_PROGRESS -> it.getState() == GameState.IN_PROGRESS
+                GameState.COMPLETED -> it.getState() == GameState.COMPLETED
+                GameState.TERMINATED -> it.getState() == GameState.TERMINATED
             }
         }
 
