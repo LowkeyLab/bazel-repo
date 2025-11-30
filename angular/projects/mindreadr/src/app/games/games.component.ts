@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService, Game } from '../services/game.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'mindreadr-games',
@@ -10,6 +11,7 @@ import { GameService, Game } from '../services/game.service';
 })
 export class GamesComponent implements OnInit {
   private readonly gameService = inject(GameService);
+  private readonly router = inject(Router);
 
   // Signal holding currently open (waiting for players) games.
   games = signal<Game[]>([]);
@@ -57,6 +59,6 @@ export class GamesComponent implements OnInit {
   }
 
   joinGame(id: string) {
-    alert(`Joining game ${id}`);
+    this.router.navigate(['/games', id, 'live']);
   }
 }

@@ -3,6 +3,7 @@ import { GamesComponent } from './games.component';
 import { GameService, Game } from '../services/game.service';
 import { Component } from '@angular/core';
 import { of, Subject, throwError } from 'rxjs';
+import { Router } from '@angular/router';
 
 // Mock GameService with spies
 class MockGameService {
@@ -26,7 +27,10 @@ describe('GamesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [GamesComponent],
-      providers: [{ provide: GameService, useClass: MockGameService }],
+      providers: [
+        { provide: GameService, useClass: MockGameService },
+        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(GamesComponent);
@@ -105,9 +109,9 @@ describe('GamesComponent', () => {
     expect(component.games().length).toBe(1);
   });
 
-  it('joinGame shows alert with id', () => {
-    const spy = spyOn(window, 'alert');
+  it('joinGame navigates to live route', () => {
+    const router = TestBed.inject(Router) as any;
     component.joinGame('123');
-    expect(spy).toHaveBeenCalledWith('Joining game 123');
+    expect(router.navigate).toHaveBeenCalledWith(['/games', '123', 'live']);
   });
 });
