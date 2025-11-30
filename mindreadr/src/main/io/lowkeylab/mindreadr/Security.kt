@@ -8,7 +8,15 @@ import io.ktor.server.plugins.cors.routing.CORS
 
 fun Application.configureSecurity() {
     val config = environment.config
-    val frontEndUrl = config.property("frontend.url").getString()
+    val baseAllowHosts = config.property("cors.allowedHosts").getList()
+    val extraAllowedHosts =
+        config
+            .property("cors.extraAllowedOrigins")
+            .getString()
+            .split(",")
+            .filter(String::isNotEmpty)
+            .toSet()
+    val allowedHosts = (baseAllowHosts + extraAllowedHosts).filter { it.isNotBlank() }
     install(CORS) {
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Get)
@@ -16,7 +24,9 @@ fun Application.configureSecurity() {
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Post)
-        allowHost(frontEndUrl, schemes = listOf("http", "https", "ws", "wss"))
+        allowedHosts.forEach {
+            allowHost(it, schemes = listOf("http", "https", "ws", "wss"))
+        }
         allowHeader(HttpHeaders.ContentType)
     }
 }
