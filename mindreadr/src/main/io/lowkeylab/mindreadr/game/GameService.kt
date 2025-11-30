@@ -31,10 +31,16 @@ class GameService(
     suspend fun removePlayerFromGame(
         player: Player,
         gameId: GameId,
-    ) {
+    ): Game {
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
             game.removePlayer(player)
+
+            if (game.hasEnded()) {
+                gameRepository.deleteGame(game.id)
+            }
+
+            return game
         }
     }
 
@@ -46,6 +52,12 @@ class GameService(
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
             game.addGuess(player, guess)
+        }
+    }
+
+    suspend fun removeGame(gameId: GameId) {
+        mutex.withLock {
+            gameRepository.deleteGame(gameId)
         }
     }
 }

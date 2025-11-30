@@ -20,6 +20,7 @@ import io.lowkeylab.mindreadr.game.GameId
 import io.lowkeylab.mindreadr.game.GameService
 import io.lowkeylab.mindreadr.game.GameState
 import io.lowkeylab.mindreadr.game.Player
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
@@ -186,20 +187,54 @@ fun Application.configureGamesWs(gameService: GameService) {
                     }
                 }
             } finally {
+                log.info("Player {} disconnected from game {}", player.name.name, gameId.id)
+
                 // Player disconnected - remove from game and terminate all connections
                 runCatching { gameService.removePlayerFromGame(player, gameId) }
+                    .onFailure { e ->
+                        log.error(
+                            "Failed to remove player ${player.name.name} from game $gameId: ${e.message}. Closing game connections.",
+                        )
 
-                // Emit termination to all clients (best-effort, non-suspending if no subscribers)
-                gameFlows[gameId]?.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
+                        gameService.removeGame(gameId)
 
-                // Cancel the collection job before cleanup
-                job.cancel()
+                        closeAllConnectionsToGame(gameId, player, job)
+                    }.onSuccess {
+                        log.info("Player ${player.name.name} removed from game $gameId.")
 
-                // Remove the flow for this game (allow recreation on next connect)
-                gameFlows.remove(gameId)
+                        if (it.hasEnded()) {
+                            log.info("Game $gameId has ended due to player ${player.name.name} leaving. Closing game connections.")
+
+                            closeAllConnectionsToGame(gameId, player, job)
+                        }
+                    }
             }
         }
     }
+}
+
+/**
+ * - Closes all WebSocket connections for a given game ID.
+ * - Emits a termination message to all connected clients before closing.
+ * - Cancels the collection job to stop further message processing.
+ *
+ * @param gameId The ID of the game whose connections should be closed.
+ * @param player The player triggering the closure (for logging purposes).
+ * @param job The coroutine job handling message collection for this game.
+ */
+private suspend fun closeAllConnectionsToGame(
+    gameId: GameId,
+    player: Player,
+    job: Job,
+) {
+    // Emit termination to all clients (best-effort, non-suspending if no subscribers)
+    gameFlows[gameId]?.emit(OutgoingMessage.GameTerminated("Player ${player.name.name} left the game"))
+
+    // Cancel the collection job before cleanup
+    job.cancel()
+
+    // Remove the flow for this game (allow recreation on next connect)
+    gameFlows.remove(gameId)
 }
 
 fun Application.configureGames(gameService: GameService) {
