@@ -1,13 +1,13 @@
 <section class="max-w-3xl mx-auto mt-10 space-y-6">
-  <header class="flex items-center justify-between">
+  <header class="flex flex-col gap-4 items-start md:flex-row md:items-center md:justify-between">
     <div>
       @if (game(); as g) {
-        <h1 class="text-2xl font-bold">
+        <h1 class="text-xl md:text-2xl font-bold">
           🎉 Congratulations,
           {{ sorted_player_names_from_players(g.players).join(' and ') || 'both players' }}!
         </h1>
       } @else {
-        <h1 class="text-2xl font-bold">🎉 Congratulations, both players!</h1>
+        <h1 class="text-xl md:text-2xl font-bold">🎉 Congratulations, both players!</h1>
       }
       <p class="text-sm opacity-80">
         @if (guessedWord(); as w) {
@@ -19,7 +19,9 @@
       </p>
       <div class="mt-2 text-xs opacity-70">Game ID: {{ gameId() }}</div>
     </div>
-    <button class="btn btn-neutral" (click)="backToGames()">Back to Games</button>
+    <button class="btn btn-neutral self-center md:self-auto" (click)="backToGames()">
+      Back to Games
+    </button>
   </header>
 
   @if (error()) {
