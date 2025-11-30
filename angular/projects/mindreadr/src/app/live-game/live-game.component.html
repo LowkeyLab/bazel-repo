@@ -1,4 +1,20 @@
 <section class="max-w-3xl mx-auto mt-10 space-y-6">
+  <!-- Toast notifications -->
+  <div class="toast toast-top toast-center z-50">
+    @for (toast of toasts(); track $index) {
+      <div
+        [class]="
+          toast.type === 'error'
+            ? 'alert alert-error'
+            : toast.type === 'success'
+              ? 'alert alert-success'
+              : 'alert alert-info'
+        "
+      >
+        <span>{{ toast.message }}</span>
+      </div>
+    }
+  </div>
   <header class="flex items-center justify-between">
     <div>
       <h1 class="text-2xl font-bold">Game Live: {{ gameId() }}</h1>

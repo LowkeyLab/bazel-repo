@@ -8,7 +8,8 @@ export type ServerMessage =
   | { type: 'game_state'; game: GameDto }
   | { type: 'game_terminated'; reason: string }
   | { type: 'error'; message: string }
-  | { type: 'player_joined'; player: Player };
+  | { type: 'player_joined'; player: Player }
+  | { type: 'player_left'; player: Player };
 
 // Client -> Server messages (IncomingMessage in Kotlin)
 export type ClientMessage = { type: 'submit_guess'; guess: string };
@@ -39,6 +40,7 @@ export interface GameWsConnection {
   messages$: Observable<ServerMessage>;
   gameState$: Observable<GameDto>;
   playerJoined$: Observable<Player>;
+  playerLeft$: Observable<Player>;
   terminated$: Observable<string>; // reason
   errors$: Observable<string>; // message
   submitGuess: (guess: string) => void;
@@ -85,6 +87,11 @@ export class GameWsService {
       map((m) => m.player),
     );
 
+    const playerLeft$ = messages$.pipe(
+      filter((m): m is Extract<ServerMessage, { type: 'player_left' }> => m.type === 'player_left'),
+      map((m) => m.player),
+    );
+
     const terminated$ = messages$.pipe(
       filter(
         (m): m is Extract<ServerMessage, { type: 'game_terminated' }> =>
@@ -117,7 +124,16 @@ export class GameWsService {
     // Auto-close on termination signal
     terminated$.pipe(takeUntil(destroy$)).subscribe(() => close());
 
-    return { messages$, gameState$, playerJoined$, terminated$, errors$, submitGuess, close };
+    return {
+      messages$,
+      gameState$,
+      playerJoined$,
+      playerLeft$,
+      terminated$,
+      errors$,
+      submitGuess,
+      close,
+    };
   }
 
   private toWsUrl(httpish: string): string {

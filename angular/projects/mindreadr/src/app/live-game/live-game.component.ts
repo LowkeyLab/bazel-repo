@@ -4,6 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameWsService, GameDto } from '../services/game-ws.service';
 
+interface Toast {
+  message: string;
+  type: 'info' | 'success' | 'error';
+}
+
 @Component({
   selector: 'mindreadr-live-game',
   standalone: true,
@@ -22,6 +27,8 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   guess = signal<string>('');
   currentPlayer = signal<any | null>(null);
 
+  toasts = signal<Toast[]>([]);
+
   private connection: ReturnType<GameWsService['connect']> | null = null;
   private subs: Array<{ unsubscribe: () => void }> = [];
 
@@ -38,8 +45,21 @@ export class LiveGameComponent implements OnInit, OnDestroy {
       conn.gameState$.subscribe((g) => this.game.set(g)),
       conn.errors$.subscribe((e) => this.error.set(e)),
       conn.terminated$.subscribe((reason) => this.terminated.set(reason)),
-      conn.playerJoined$.subscribe((player) => this.currentPlayer.set(player)),
+      conn.playerJoined$.subscribe((player) => {
+        this.currentPlayer.set(player);
+        this.showToast(`Player joined: ${this.getPlayerName(player)}`, 'info');
+      }),
+      conn.playerLeft$.subscribe((player) => {
+        this.showToast(`Player left: ${this.getPlayerName(player)}`, 'info');
+      }),
     );
+  }
+  showToast(message: string, type: 'info' | 'success' | 'error' = 'info') {
+    const toast: Toast = { message, type };
+    this.toasts.update((arr) => [...arr, toast]);
+    setTimeout(() => {
+      this.toasts.update((arr) => arr.filter((t) => t !== toast));
+    }, 3500);
   }
 
   submitGuess() {
