@@ -1,12 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
 import { GameService, Game } from '../services/game.service';
 
 @Component({
   selector: 'mindreadr-games',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule],
   templateUrl: './games.component.html',
 })
 export class GamesComponent implements OnInit {
