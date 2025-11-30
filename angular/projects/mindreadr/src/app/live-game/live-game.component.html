@@ -19,7 +19,7 @@
     <div>
       <h1 class="text-2xl font-bold">Game ID: {{ gameId() }}</h1>
       @if (currentPlayer()) {
-        <p class="text-sm text-gray-600">
+        <p class="text-sm text-secondary">
           Playing as: <b>{{ getPlayerName(currentPlayer()) }}</b>
         </p>
       }
@@ -46,7 +46,9 @@
   </header>
 
   @if (error()) {
-    <div class="p-3 rounded bg-red-50 text-red-700 border border-red-200">{{ error() }}</div>
+    <div class="alert alert-error">
+      <span>{{ error() }}</span>
+    </div>
   }
 
   @if (game(); as g) {
@@ -110,7 +112,7 @@
     <div class="opacity-70">Connecting to game...</div>
   }
   @if (waitingForOtherPlayer()) {
-    <div class="text-sm text-amber-600">
+    <div class="text-sm text-warning">
       You have submitted your guess. Waiting for other player...
     </div>
   }
