@@ -493,14 +493,14 @@ oci_extension.pull(
     ],
 )
 oci_extension.pull(
-    name = "distroless_java_21",
+    name = "distroless_java21",
     digest = "sha256:b41ca849c90e111ed5a6d2431b474225535f266ac1b3902cd508718f160cea60",
     image = "gcr.io/distroless/java21-debian12",
     platforms = [
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "distroless_java_21", "distroless_java_21_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
+use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution

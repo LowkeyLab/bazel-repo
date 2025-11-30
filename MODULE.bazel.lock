@@ -1382,7 +1382,7 @@
     "@@rules_oci+//oci:extensions.bzl%oci": {
       "general": {
         "bzlTransitiveDigest": "UG6/u9Dl5qNozcG8E6ehAcOG2nhh8rw191ishRnBR24=",
-        "usagesDigest": "L0+tbukeXLTDM4tbLQxt+L5W4oHfew8mpiWD6PzVCjk=",
+        "usagesDigest": "mLhSaB+YOK8gaGvUo3rmMMWj1pMMnMeKB13NP49ugGc=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1445,7 +1445,7 @@
               "reproducible": true
             }
           },
-          "distroless_java_21_linux_amd64": {
+          "distroless_java21_linux_amd64": {
             "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
             "attributes": {
               "www_authenticate_challenges": {},
@@ -1454,23 +1454,23 @@
               "repository": "distroless/java21-debian12",
               "identifier": "sha256:b41ca849c90e111ed5a6d2431b474225535f266ac1b3902cd508718f160cea60",
               "platform": "linux/amd64",
-              "target_name": "distroless_java_21_linux_amd64",
+              "target_name": "distroless_java21_linux_amd64",
               "bazel_tags": []
             }
           },
-          "distroless_java_21": {
+          "distroless_java21": {
             "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
             "attributes": {
-              "target_name": "distroless_java_21",
+              "target_name": "distroless_java21",
               "www_authenticate_challenges": {},
               "scheme": "https",
               "registry": "gcr.io",
               "repository": "distroless/java21-debian12",
               "identifier": "sha256:b41ca849c90e111ed5a6d2431b474225535f266ac1b3902cd508718f160cea60",
               "platforms": {
-                "@@platforms//cpu:x86_64": "@distroless_java_21_linux_amd64"
+                "@@platforms//cpu:x86_64": "@distroless_java21_linux_amd64"
               },
-              "bzlmod_repository": "distroless_java_21",
+              "bzlmod_repository": "distroless_java21",
               "reproducible": true
             }
           },
@@ -1594,8 +1594,8 @@
             "distroless_cc_linux_amd64",
             "postgres_18_1",
             "postgres_18_1_linux_amd64",
-            "distroless_java_21",
-            "distroless_java_21_linux_amd64"
+            "distroless_java21",
+            "distroless_java21_linux_amd64"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",

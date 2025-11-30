@@ -1,5 +1,7 @@
 load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 kt_jvm_library(
     name = "ApplicationKt",
@@ -10,7 +12,7 @@ kt_jvm_library(
 )
 
 java_binary(
-    name = "Application",
+    name = "application",
     main_class = "io.lowkeylab.mindreadr.app.ApplicationKt",
     resource_strip_prefix = "mindreadr/src/main/resources",
     resources = ["//mindreadr/src/main/resources"],
@@ -18,6 +20,38 @@ java_binary(
         ":ApplicationKt",
         "@maven//:ch_qos_logback_logback_classic",
     ],
+)
+
+pkg_tar(
+    name = "app_layer",
+    srcs = [":application_deploy.jar"],
+    package_dir = "/app",
+)
+
+oci_image(
+    name = "app_image",
+    base = "@distroless_java21",
+    entrypoint = [
+        "java",
+        "-jar",
+        "/app/application_deploy.jar",
+    ],
+    tars = [":app_layer"],
+    visibility = ["//mindreadr:__pkg__"],
+)
+
+oci_load(
+    name = "load_app_image",
+    image = ":app_image",
+    repo_tags = ["lowkeylab/mindreadr:latest"],
+)
+
+oci_push(
+    name = "push_app_image",
+    image = ":app_image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/mindreadr_backend",
+    visibility = ["//mindreadr:__pkg__"],
 )
 
 alias(
