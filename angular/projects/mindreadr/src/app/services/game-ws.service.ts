@@ -64,7 +64,7 @@ export class GameWsService {
     };
 
     // Use a loosely typed socket for send flexibility, and narrow inbound stream separately
-    const socket: WebSocketSubject<any> = webSocket(config as WebSocketSubjectConfig<any>);
+    const socket: WebSocketSubject<any> = this.createSocket(config as WebSocketSubjectConfig<any>);
 
     const incoming$ = socket.asObservable() as Observable<ServerMessage>;
     const messages$ = incoming$.pipe(
@@ -128,5 +128,9 @@ export class GameWsService {
     const isSecure = window.location.protocol === 'https:';
     const base = `${isSecure ? 'wss' : 'ws'}://${window.location.host}`;
     return `${base}${httpish.startsWith('/') ? '' : '/'}${httpish}`;
+  }
+
+  private createSocket<T = any>(config: WebSocketSubjectConfig<T>): WebSocketSubject<T> {
+    return webSocket(config as WebSocketSubjectConfig<T>);
   }
 }
