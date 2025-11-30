@@ -49,14 +49,8 @@ class CalculateAllowedOriginsTest {
 
         val result = calculateAllowedOrigins(base, extra)
 
-        // Note: base entries are not trimmed in implementation, only extra is; keep behavior consistent
         assertEquals(
-            setOf(
-                " one.com ",
-                "two.com",
-                "three.com",
-                "four.com",
-            ),
+            setOf("one.com", "two.com", "three.com", "four.com"),
             result,
         )
     }
