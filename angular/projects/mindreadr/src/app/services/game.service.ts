@@ -58,4 +58,13 @@ export class GameService {
   getCompletedGamesCount(): Observable<number> {
     return this.getSummary().pipe(map((s) => s.completedGames));
   }
+
+  /**
+   * Fetches games filtered by backend status enum.
+   * Example: /games?status=WAITING_FOR_PLAYERS
+   */
+  getGamesByStatus(status: GameState): Observable<Game[]> {
+    const url = `${environment.API_BASE_URL}/games?status=${encodeURIComponent(status)}`;
+    return this.http.get<Game[]>(url);
+  }
 }
