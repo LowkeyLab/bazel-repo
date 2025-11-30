@@ -5,7 +5,7 @@
 
 @import 'tailwindcss';
 @plugin "daisyui" {
-    themes: cyberpunk --default, night --prefersdark;
+    themes: retro --default, synthwave --prefersdark;
 };
 
 @source "./app/**/*.html";
