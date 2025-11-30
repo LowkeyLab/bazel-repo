@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { StatusBadgeComponent } from './status-badge.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameWsService, GameDto, RoundDto } from '../services/game-ws.service';
 
@@ -12,7 +13,7 @@ interface Toast {
 @Component({
   selector: 'mindreadr-live-game',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StatusBadgeComponent],
   templateUrl: './live-game.component.html',
 })
 export class LiveGameComponent implements OnInit, OnDestroy {
@@ -124,19 +125,6 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     return Object.keys(obj) as Array<keyof T & string>;
   }
 
-  getStatusBadgeClass(state: string): string {
-    switch (state) {
-      case 'WAITING_FOR_PLAYERS':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'IN_PROGRESS':
-        return 'bg-emerald-100 text-emerald-700';
-      case 'COMPLETED':
-        return 'bg-blue-100 text-blue-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  }
-
   getStatusLabel(state: string): string {
     switch (state) {
       case 'WAITING_FOR_PLAYERS':
@@ -147,6 +135,34 @@ export class LiveGameComponent implements OnInit, OnDestroy {
         return 'Completed';
       default:
         return state;
+    }
+  }
+
+  /** Map game state to status type string */
+  getStatusType(state: string): 'success' | 'warning' | 'info' | 'error' | 'neutral' {
+    switch (state) {
+      case 'WAITING_FOR_PLAYERS':
+        return 'warning';
+      case 'IN_PROGRESS':
+        return 'info';
+      case 'COMPLETED':
+        return 'success';
+      case 'TERMINATED':
+        return 'error';
+      default:
+        return 'neutral';
+    }
+  }
+
+  /** Map termination state to status type */
+  getTerminationType(state: string): 'success' | 'error' | 'neutral' {
+    switch (state) {
+      case 'COMPLETED':
+        return 'success';
+      case 'TERMINATED':
+        return 'error';
+      default:
+        return 'neutral';
     }
   }
 

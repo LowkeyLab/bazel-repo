@@ -17,21 +17,32 @@
   </div>
   <header class="flex items-center justify-between">
     <div>
-      <h1 class="text-2xl font-bold">Game Live: {{ gameId() }}</h1>
+      <h1 class="text-2xl font-bold">Game ID: {{ gameId() }}</h1>
       @if (currentPlayer()) {
-        <p class="text-sm text-gray-600">Playing as: {{ getPlayerName(currentPlayer()) }}</p>
+        <p class="text-sm text-gray-600">
+          Playing as: <b>{{ getPlayerName(currentPlayer()) }}</b>
+        </p>
       }
     </div>
-    @if (terminated()) {
-      <span class="px-3 py-1 rounded bg-red-100 text-red-700">Terminated: {{ terminated() }}</span>
+    @if (terminated(); as termState) {
+      <mindreadr-status-badge
+        [type]="getTerminationType(termState)"
+        [label]="termState === 'COMPLETED' ? 'Completed' : 'Terminated'"
+      ></mindreadr-status-badge>
     } @else if (game(); as g) {
-      <span class="px-3 py-1 rounded" [class]="getStatusBadgeClass(g.state)">
-        {{ getStatusLabel(g.state) }}
-      </span>
+      <mindreadr-status-badge
+        [type]="getStatusType(g.state)"
+        [ping]="g.state === 'IN_PROGRESS'"
+        [label]="getStatusLabel(g.state)"
+      ></mindreadr-status-badge>
     } @else {
-      <span class="px-3 py-1 rounded bg-gray-100 text-gray-700">Connecting...</span>
+      <mindreadr-status-badge
+        type="neutral"
+        [ping]="true"
+        label="Connecting..."
+      ></mindreadr-status-badge>
     }
-    <button class="btn" (click)="leaveGame()">Leave</button>
+    <button class="btn btn-neutral" (click)="leaveGame()">Leave</button>
   </header>
 
   @if (error()) {

@@ -8,19 +8,10 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       "Courier New", monospace;
     --color-red-50: oklch(97.1% 0.013 17.38);
-    --color-red-100: oklch(93.6% 0.032 17.717);
     --color-red-200: oklch(88.5% 0.062 18.334);
     --color-red-700: oklch(50.5% 0.213 27.518);
     --color-amber-600: oklch(66.6% 0.179 58.318);
-    --color-yellow-100: oklch(97.3% 0.071 103.193);
-    --color-yellow-700: oklch(55.4% 0.135 66.442);
-    --color-emerald-100: oklch(95% 0.052 163.051);
-    --color-emerald-700: oklch(50.8% 0.118 165.612);
-    --color-blue-100: oklch(93.2% 0.032 255.585);
-    --color-blue-700: oklch(48.8% 0.243 264.376);
-    --color-gray-100: oklch(96.7% 0.003 264.542);
     --color-gray-600: oklch(44.6% 0.03 256.802);
-    --color-gray-700: oklch(37.3% 0.034 259.733);
     --color-black: #000;
     --spacing: 0.25rem;
     --container-2xl: 42rem;
@@ -42,6 +33,7 @@
     --font-weight-bold: 700;
     --tracking-tight: -0.025em;
     --animate-spin: spin 1s linear infinite;
+    --animate-ping: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
   }
@@ -1011,6 +1003,28 @@
       }
     }
   }
+  .badge {
+    @layer daisyui.l1.l2.l3 {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(0.25rem * 2);
+      border-radius: var(--radius-selector);
+      vertical-align: middle;
+      color: var(--badge-fg);
+      border: var(--border) solid var(--badge-color, var(--color-base-200));
+      font-size: 0.875rem;
+      width: fit-content;
+      padding-inline: calc(0.25rem * 3 - var(--border));
+      background-size: auto, calc(var(--noise) * 100%);
+      background-image: none, var(--fx-noise);
+      background-color: var(--badge-bg);
+      --badge-bg: var(--badge-color, var(--color-base-100));
+      --badge-fg: var(--color-base-content);
+      --size: calc(var(--size-selector, 0.25rem) * 6);
+      height: var(--size);
+    }
+  }
   .footer {
     @layer daisyui.l1.l2.l3 {
       display: grid;
@@ -1127,6 +1141,12 @@
   .hidden {
     display: none;
   }
+  .inline-flex {
+    display: inline-flex;
+  }
+  .inline-grid {
+    display: inline-grid;
+  }
   .h-10 {
     height: calc(var(--spacing) * 10);
   }
@@ -1155,6 +1175,9 @@
   }
   .flex-1 {
     flex: 1;
+  }
+  .animate-ping {
+    animation: var(--animate-ping);
   }
   .animate-spin {
     animation: var(--animate-spin);
@@ -1270,23 +1293,8 @@
   .bg-base-300 {
     background-color: var(--color-base-300);
   }
-  .bg-blue-100 {
-    background-color: var(--color-blue-100);
-  }
-  .bg-emerald-100 {
-    background-color: var(--color-emerald-100);
-  }
-  .bg-gray-100 {
-    background-color: var(--color-gray-100);
-  }
   .bg-red-50 {
     background-color: var(--color-red-50);
-  }
-  .bg-red-100 {
-    background-color: var(--color-red-100);
-  }
-  .bg-yellow-100 {
-    background-color: var(--color-yellow-100);
   }
   .loading-spinner {
     @layer daisyui.l1.l2 {
@@ -1299,14 +1307,8 @@
   .p-4 {
     padding: calc(var(--spacing) * 4);
   }
-  .px-3 {
-    padding-inline: calc(var(--spacing) * 3);
-  }
   .px-4 {
     padding-inline: calc(var(--spacing) * 4);
-  }
-  .py-1 {
-    padding-block: calc(var(--spacing) * 1);
   }
   .py-12 {
     padding-block: calc(var(--spacing) * 12);
@@ -1383,26 +1385,14 @@
   .text-base-content {
     color: var(--color-base-content);
   }
-  .text-blue-700 {
-    color: var(--color-blue-700);
-  }
-  .text-emerald-700 {
-    color: var(--color-emerald-700);
-  }
   .text-error {
     color: var(--color-error);
   }
   .text-gray-600 {
     color: var(--color-gray-600);
   }
-  .text-gray-700 {
-    color: var(--color-gray-700);
-  }
   .text-red-700 {
     color: var(--color-red-700);
-  }
-  .text-yellow-700 {
-    color: var(--color-yellow-700);
   }
   .italic {
     font-style: italic;
@@ -1454,10 +1444,21 @@
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
+  .btn-neutral {
+    @layer daisyui.l1.l2.l3 {
+      --btn-color: var(--color-neutral);
+      --btn-fg: var(--color-neutral-content);
+    }
+  }
   .btn-primary {
     @layer daisyui.l1.l2.l3 {
       --btn-color: var(--color-primary);
       --btn-fg: var(--color-primary-content);
+    }
+  }
+  .\*\:\[grid-area\:1\/1\] {
+    :is(& > *) {
+      grid-area: 1/1;
     }
   }
   .md\:grid-cols-2 {
@@ -1858,6 +1859,12 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
   }
 }
 @layer properties {
