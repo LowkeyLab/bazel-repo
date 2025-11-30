@@ -26,13 +26,14 @@ describe('GameSummaryComponent', () => {
     const finalGame: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      players: [],
-      rounds: [],
+      players: [{ name: 'Alice' }, { name: 'Bob' }],
+      rounds: [{ number: 1, guesses: { Alice: 'Sunflower', Bob: 'Sunflower' } }],
       state: 'COMPLETED',
     };
     const { comp } = createComponentWithNavState({ playerName: 'Alice', finalGame });
     expect(comp.getPlayerName({})).toBe('Alice');
     expect(comp.game()).toEqual(finalGame);
+    expect(comp.guessedWord()).toBe('Sunflower');
   });
 
   it('shows inline error and redirects when finalGame is missing', (done) => {

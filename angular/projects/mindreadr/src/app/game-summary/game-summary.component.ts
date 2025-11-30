@@ -56,6 +56,18 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
     return g ? g.rounds.length : 0;
   }
 
+  // Determine the guessed word to display in the header.
+  // Always uses the last guess from the latest round.
+  guessedWord(): string | null {
+    const g = this.game();
+    if (!g || g.rounds.length === 0) return null;
+    const latest = g.rounds[g.rounds.length - 1];
+    const entries = Object.values(latest.guesses ?? {});
+    if (entries.length === 0) return null;
+    const last = entries[entries.length - 1];
+    return String(last);
+  }
+
   objectKeys<T extends object>(obj: T): Array<keyof T & string> {
     return Object.keys(obj) as Array<keyof T & string>;
   }

@@ -4,7 +4,14 @@
       <h1 class="text-2xl font-bold">
         🎉 Congratulations, {{ currentPlayer() ? getPlayerName(currentPlayer()) : 'Player' }}!
       </h1>
-      <p class="text-sm opacity-80">You won the game.</p>
+      <p class="text-sm opacity-80">
+        @if (guessedWord(); as w) {
+          You both guessed <b>{{ w }}</b
+          >.
+        } @else {
+          You won the game.
+        }
+      </p>
       <div class="mt-2 text-xs opacity-70">Game ID: {{ gameId() }}</div>
     </div>
     <button class="btn btn-neutral" (click)="backToGames()">Back to Games</button>
