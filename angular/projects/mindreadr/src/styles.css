@@ -13,6 +13,7 @@
     --color-red-700: oklch(50.5% 0.213 27.518);
     --color-emerald-100: oklch(95% 0.052 163.051);
     --color-emerald-700: oklch(50.8% 0.118 165.612);
+    --color-gray-600: oklch(44.6% 0.03 256.802);
     --color-black: #000;
     --spacing: 0.25rem;
     --container-2xl: 42rem;
@@ -1265,6 +1266,9 @@
   }
   .text-error {
     color: var(--color-error);
+  }
+  .text-gray-600 {
+    color: var(--color-gray-600);
   }
   .text-red-700 {
     color: var(--color-red-700);

@@ -77,6 +77,7 @@ fun Application.configureGamesWs(gameService: GameService) {
                     this@webSocket.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID"))
                     return@webSocket
                 }
+            log.info("WebSocket connection requested for game ID: $gameIdParam")
             val gameId = GameId(gameIdParam)
 
             // Validate game exists

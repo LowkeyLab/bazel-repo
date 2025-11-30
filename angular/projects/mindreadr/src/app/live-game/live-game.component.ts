@@ -20,6 +20,7 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   terminated = signal<string | null>(null);
   guess = signal<string>('');
+  currentPlayer = signal<any | null>(null);
 
   private connection: ReturnType<GameWsService['connect']> | null = null;
   private subs: Array<{ unsubscribe: () => void }> = [];
@@ -37,6 +38,7 @@ export class LiveGameComponent implements OnInit, OnDestroy {
       conn.gameState$.subscribe((g) => this.game.set(g)),
       conn.errors$.subscribe((e) => this.error.set(e)),
       conn.terminated$.subscribe((reason) => this.terminated.set(reason)),
+      conn.playerJoined$.subscribe((player) => this.currentPlayer.set(player)),
     );
   }
 
