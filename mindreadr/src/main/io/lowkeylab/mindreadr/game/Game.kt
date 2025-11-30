@@ -1,6 +1,7 @@
 package io.lowkeylab.mindreadr.game
 
 import kotlinx.serialization.Serializable
+import java.util.Locale
 
 @JvmInline
 @Serializable
@@ -35,7 +36,20 @@ class Game(
         check(state == GameState.IN_PROGRESS) { "Cannot add guess. Game is in $state state." }
         val round = checkNotNull(currentRound) { "Cannot add guess. No current round." }
         if (round.guesses.containsKey(player)) return this
-        round.guesses[player] = guess
+        // Trim and reject empty / whitespace-only guesses
+        val trimmed = guess.trim()
+        check(trimmed.isNotEmpty()) { "Guess cannot be empty or whitespace." }
+        // Normalize guess to lowercase (locale-independent)
+        val normalized = trimmed.lowercase(Locale.ROOT)
+        // Build case-insensitive set of previously used guesses
+        val previouslyUsedGuesses =
+            rounds
+                .dropLast(1)
+                .flatMap { it.guesses.values }
+                .map { it.lowercase(Locale.ROOT) }
+                .toSet()
+        check(normalized !in previouslyUsedGuesses) { "Guess '$guess' has already been used (case-insensitive) in a previous round." }
+        round.guesses[player] = normalized
 
         if (round.guesses.size == players.size) {
             if (round.uniqueGuesses.size == 1) {
