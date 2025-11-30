@@ -1,6 +1,6 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
-load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
@@ -49,10 +49,21 @@ copy_to_bin(
     ),
 )
 
+js_library(
+    name = "canvas_confetti",
+    deps = [
+        "//angular:node_modules/@types/canvas-confetti",
+        "//angular:node_modules/canvas-confetti",
+    ],
+)
+
 ng_application(
     name = "mindreadr",
     ng_config = "//angular:ng-config",
     node_modules = "//angular:node_modules",
+    deps = [
+        ":canvas_confetti",
+    ],
 )
 
 ng_test(
@@ -62,4 +73,7 @@ ng_test(
     ng_config = "//angular:ng-config",
     node_modules = "//angular:node_modules",
     tags = ["no-remote-exec"],
+    deps = [
+        ":canvas_confetti",
+    ],
 )
