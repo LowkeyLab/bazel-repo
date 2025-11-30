@@ -291,6 +291,12 @@ sealed class OutgoingMessage {
     ) : OutgoingMessage()
 
     @Serializable
+    @SerialName("player_joined")
+    data class PlayerJoined(
+        val player: Player,
+    ) : OutgoingMessage()
+
+    @Serializable
     @SerialName("player_left")
     data class PlayerLeft(
         val player: Player,
