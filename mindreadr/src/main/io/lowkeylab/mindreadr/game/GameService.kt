@@ -15,6 +15,10 @@ class GameService(
 
     suspend fun getGameById(gameId: GameId): Game? = gameRepository.getGameById(gameId)
 
+    suspend fun countGamesByState(state: GameState): Long = gameRepository.countGamesByState(state)
+
+    suspend fun getGamesByState(state: GameState): List<Game> = gameRepository.getGamesByState(state)
+
     suspend fun addPlayerToGame(gameId: GameId): Player {
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
@@ -27,10 +31,11 @@ class GameService(
     suspend fun removePlayerFromGame(
         player: Player,
         gameId: GameId,
-    ) {
+    ): Game {
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
             game.removePlayer(player)
+            return game
         }
     }
 
@@ -42,6 +47,12 @@ class GameService(
         mutex.withLock {
             val game = requireNotNull(gameRepository.getGameById(gameId)) { "Game with id $gameId not found" }
             game.addGuess(player, guess)
+        }
+    }
+
+    suspend fun removeGame(gameId: GameId) {
+        mutex.withLock {
+            gameRepository.deleteGame(gameId)
         }
     }
 }

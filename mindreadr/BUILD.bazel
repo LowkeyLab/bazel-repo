@@ -2,3 +2,13 @@ alias(
     name = "mindreadr",
     actual = "//mindreadr/src/main/io/lowkeylab/mindreadr/app",
 )
+
+alias(
+    name = "image",
+    actual = "//mindreadr/src/main/io/lowkeylab/mindreadr/app:app_image",
+)
+
+alias(
+    name = "push_image",
+    actual = "//mindreadr/src/main/io/lowkeylab/mindreadr/app:push_app_image",
+)

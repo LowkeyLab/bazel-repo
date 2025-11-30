@@ -1,0 +1,142 @@
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { GameDto, RoundDto } from '../services/game.types';
+import confetti from 'canvas-confetti';
+
+@Component({
+  selector: 'mindreadr-game-summary',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './game-summary.component.html',
+})
+export class GameSummaryComponent implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  gameId = signal<string>('');
+  game = signal<GameDto | null>(null);
+  error = signal<string | null>(null);
+  currentPlayer = signal<any | null>(null);
+  private initialPlayerName: string | null = null;
+
+  // No websocket subscriptions for summary view
+
+  ngOnInit(): void {
+    // Read navigation extras state if available for faster initial render
+    const nav = this.router.currentNavigation ? this.router.currentNavigation() : null;
+    const state: any = nav?.extras?.state ?? history.state ?? {};
+    if (state?.playerName) {
+      this.initialPlayerName = state.playerName as string;
+      this.currentPlayer.set({ name: state.playerName });
+    }
+    if (state?.finalGame) {
+      this.game.set(state.finalGame as GameDto);
+    }
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) {
+      this.error.set('Missing game id');
+      return;
+    }
+    this.gameId.set(id);
+
+    // If no final game data was provided, show inline message then redirect.
+    if (!this.game()) {
+      this.error.set('Summary unavailable. Redirecting to games...');
+      setTimeout(() => this.router.navigate(['/games']), 1500);
+      return;
+    }
+
+    // Celebrate with a burst of confetti
+    this.fireConfetti();
+  }
+
+  ngOnDestroy(): void {
+    // Nothing to clean up; no subscriptions.
+  }
+
+  roundsCount(): number {
+    const g = this.game();
+    return g ? g.rounds.length : 0;
+  }
+
+  // Determine the guessed word to display in the header.
+  // Always uses the last guess from the latest round.
+  guessedWord(): string | null {
+    const g = this.game();
+    if (!g || g.rounds.length === 0) return null;
+    const latest = g.rounds[g.rounds.length - 1];
+    const entries = Object.values(latest.guesses ?? {});
+    if (entries.length === 0) return null;
+    const last = entries[entries.length - 1];
+    return String(last);
+  }
+
+  objectKeys<T extends object>(obj: T): Array<keyof T & string> {
+    return Object.keys(obj) as Array<keyof T & string>;
+  }
+
+  sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
+    return (rounds ?? []).slice().sort((a: RoundDto, b: RoundDto) => a.number - b.number);
+  }
+
+  sorted_player_name(guesses: Record<string, string> | undefined | null): string[] {
+    if (!guesses) return [];
+    return Object.keys(guesses).sort((a: string, b: string) => a.localeCompare(b));
+  }
+
+  sorted_player_names_from_players(players: GameDto['players']): string[] {
+    return players
+      .map((p) => p.name)
+      .filter((n) => n.length > 0)
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  sorted_player_names_for_round(game: GameDto, round: GameDto['rounds'][number]): string[] {
+    const names = this.sorted_player_names_from_players(game?.players ?? []);
+    return names.filter(
+      (n) => round?.guesses && Object.prototype.hasOwnProperty.call(round.guesses, n),
+    );
+  }
+
+  backToGames(): void {
+    this.router.navigate(['/games']);
+  }
+
+  getPlayerName(p: any): string {
+    // Prefer initial navigation-provided name for stability
+    if (this.initialPlayerName) return this.initialPlayerName;
+    return p?.name ?? 'Player';
+  }
+
+  // Canvas-based confetti effect
+  private fireConfetti(): void {
+    try {
+      // Simple, reliable burst using canvas-confetti
+      confetti({
+        particleCount: 140,
+        spread: 80,
+        startVelocity: 45,
+        scalar: 0.9,
+        ticks: 200,
+        origin: { y: 0.2 },
+      });
+
+      // Add a secondary burst from the sides for flair
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.4 },
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.4 },
+      });
+    } catch {
+      // No-op if canvas not available
+    }
+  }
+}

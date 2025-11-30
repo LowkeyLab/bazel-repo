@@ -1,0 +1,46 @@
+<div class="stats shadow">
+  <div class="stat">
+    <div class="stat-title">Active Games</div>
+    @if (loading()) {
+      <div class="stat-value">
+        <span class="loading loading-spinner loading-sm"></span>
+      </div>
+    } @else if (error()) {
+      <div class="stat-value text-error text-sm">Error</div>
+      <div class="stat-desc text-error">{{ error() }}</div>
+    } @else {
+      <div class="stat-value">{{ count() ?? 0 }}</div>
+      <div class="stat-desc">games in progress</div>
+    }
+  </div>
+
+  <div class="stat">
+    <div class="stat-title">Open Games</div>
+    @if (loading()) {
+      <div class="stat-value">
+        <span class="loading loading-spinner loading-sm"></span>
+      </div>
+    } @else if (error()) {
+      <div class="stat-value text-error text-sm">Error</div>
+      <div class="stat-desc text-error">{{ error() }}</div>
+    } @else {
+      <div class="stat-value">{{ openCount() ?? 0 }}</div>
+      <div class="stat-desc">waiting for players</div>
+    }
+  </div>
+
+  <div class="stat">
+    <div class="stat-title">Completed Games</div>
+    @if (loading()) {
+      <div class="stat-value">
+        <span class="loading loading-spinner loading-sm"></span>
+      </div>
+    } @else if (error()) {
+      <div class="stat-value text-error text-sm">Error</div>
+      <div class="stat-desc text-error">{{ error() }}</div>
+    } @else {
+      <div class="stat-value">{{ completedCount() ?? 0 }}</div>
+      <div class="stat-desc">games finished</div>
+    }
+  </div>
+</div>

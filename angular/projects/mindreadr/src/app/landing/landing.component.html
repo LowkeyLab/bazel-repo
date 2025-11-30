@@ -1,0 +1,24 @@
+<section class="hero mt-12">
+  <div class="hero-content flex-col max-w-2xl">
+    <h1 class="text-4xl font-bold tracking-tight">Mindreadr</h1>
+    <p class="opacity-70">A cooperative word-guessing game for two players.</p>
+
+    <div class="card w-full bg-base-100 shadow">
+      <div class="card-body">
+        <h2 class="card-title">How to Play</h2>
+        <ul class="list-disc pl-6 space-y-2">
+          <li>Both players think of any word and submit it.</li>
+          <li>See both words. Without chatting, each writes a new word that bridges the two.</li>
+          <li>Repeat the process, aiming to converge on the same word.</li>
+          <li>When both submit the exact same word in a round, you win!</li>
+        </ul>
+
+        <div class="card-actions mt-4">
+          <button class="btn btn-primary" routerLink="/games">Browse Games</button>
+        </div>
+      </div>
+    </div>
+
+    <mindreadr-games-count class="block mt-8"></mindreadr-games-count>
+  </div>
+</section>

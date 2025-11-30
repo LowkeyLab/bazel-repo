@@ -215,7 +215,7 @@ class GameTest {
         // Game is IN_PROGRESS
         game.removePlayer(player1)
 
-        // Game should be COMPLETED
+        // Game should have ended
         assertTrue(game.hasEnded())
     }
 
@@ -323,5 +323,103 @@ class GameTest {
 
         // Should still be in progress
         assertTrue(game.isInProgress())
+    }
+
+    @Test
+    fun `Game should forbid reusing a guess from a previous round`() {
+        val game = createGame(playerLimit = 2u)
+        game.addPlayer(player1)
+        game.addPlayer(player2)
+
+        // Round 1
+        game.addGuess(player1, "alpha")
+        game.addGuess(player2, "beta") // distinct -> new round created
+
+        // Round 2 - attempting to reuse "alpha"
+        assertFailsWith<IllegalStateException> { game.addGuess(player1, "alpha") }
+        // Valid new guess still works
+        game.addGuess(player1, "gamma")
+        game.addGuess(player2, "delta")
+    }
+
+    @Test
+    fun `Game should store guesses in lowercase and reject case-insensitive reuse`() {
+        val game = Game(GameId("case-test"), playerLimit = 2u)
+        val p1 = Player(PlayerName("Alice"))
+        val p2 = Player(PlayerName("Bob"))
+        game.addPlayer(p1)
+        game.addPlayer(p2)
+        // Round 1
+        game.addGuess(p1, "Apple")
+        game.addGuess(p2, "Banana")
+        // Verify stored lowercase
+        val round1 = game.getRounds().first()
+        assertEquals("apple", round1.guesses[p1])
+        assertEquals("banana", round1.guesses[p2])
+        // Round 2 started (distinct guesses)
+        // Attempt to reuse with different casing
+        assertFailsWith<IllegalStateException> { game.addGuess(p1, "APPLE") }
+        // New unique (case-insensitive) guess accepted
+        game.addGuess(p1, "Cherry")
+        game.addGuess(p2, "Date")
+        val round2 = game.getRounds()[1]
+        assertEquals("cherry", round2.guesses[p1])
+        assertEquals("date", round2.guesses[p2])
+    }
+
+    @Test
+    fun `addGuess should reject empty string`() {
+        val game = Game(GameId("empty-guess"), playerLimit = 2u)
+        val p1 = Player(PlayerName("A"))
+        val p2 = Player(PlayerName("B"))
+        game.addPlayer(p1)
+        game.addPlayer(p2)
+        assertFailsWith<IllegalStateException> { game.addGuess(p1, "") }
+        // Valid guess after failure
+        game.addGuess(p1, "value")
+        game.addGuess(p2, "other")
+        assertEquals(
+            2,
+            game
+                .getRounds()
+                .first()
+                .guesses.size,
+        )
+    }
+
+    @Test
+    fun `Game should store accented characters lowercase and enforce reuse case-insensitively`() {
+        val game = Game(GameId("accent-test"), playerLimit = 2u)
+        val p1 = Player(PlayerName("José"))
+        val p2 = Player(PlayerName("Zoë"))
+        game.addPlayer(p1)
+        game.addPlayer(p2)
+        game.addGuess(p1, "ÁRBOL") // Spanish for tree with accent
+        game.addGuess(p2, "café")
+        val round1 = game.getRounds().first()
+        assertEquals("árbol", round1.guesses[p1])
+        assertEquals("café", round1.guesses[p2])
+        // New round started because distinct
+        assertFailsWith<IllegalStateException> { game.addGuess(p1, "ÁRBOL") } // reuse different casing
+        game.addGuess(p1, "niño")
+        game.addGuess(p2, "jalapeño")
+        val round2 = game.getRounds()[1]
+        assertEquals("niño", round2.guesses[p1])
+        assertEquals("jalapeño", round2.guesses[p2])
+    }
+
+    @Test
+    fun `addGuess should reject whitespace-only string`() {
+        val game = Game(GameId("whitespace-guess"), playerLimit = 2u)
+        val p1 = Player(PlayerName("A"))
+        val p2 = Player(PlayerName("B"))
+        game.addPlayer(p1)
+        game.addPlayer(p2)
+        assertFailsWith<IllegalStateException> { game.addGuess(p1, "   \t \n ") }
+        game.addGuess(p1, "  spaced  ")
+        game.addGuess(p2, "trimMe")
+        val round = game.getRounds().first()
+        assertEquals("spaced", round.guesses[p1])
+        assertEquals("trimme", round.guesses[p2])
     }
 }

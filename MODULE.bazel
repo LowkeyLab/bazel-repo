@@ -190,6 +190,8 @@ maven.install(
         "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
         "io.ktor:ktor-server-cors-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-id-jvm:%s" % KTOR_VERSION,
+        "io.ktor:ktor-server-call-logging-jvm:%s" % KTOR_VERSION,
         # Database dependencies
         "com.h2database:h2:%s" % H2_VERSION,
         "org.jetbrains.exposed:exposed-core:%s" % EXPOSED_VERSION,
@@ -490,7 +492,31 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "distroless_cc", "distroless_cc_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
+oci_extension.pull(
+    name = "distroless_java21",
+    digest = "sha256:b41ca849c90e111ed5a6d2431b474225535f266ac1b3902cd508718f160cea60",
+    image = "gcr.io/distroless/java21-debian12",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+oci_extension.pull(
+    name = "distroless_node24",
+    digest = "sha256:1eb863ed9b3276bdff6030942999343fe287e7e50ddd8742d1d20668d1cb0ece",
+    image = "gcr.io/distroless/nodejs24-debian12",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+oci_extension.pull(
+    name = "alpine_caddy",
+    digest = "sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446",
+    image = "caddy",
+    platforms = [
+        "linux/amd64",
+    ],
+)
+use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution

@@ -1,0 +1,122 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
+load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
+load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
+load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+
+tailwindcss_bin.tailwindcss_binary(
+    name = "tailwindcss",
+    data = [
+        "//angular:node_modules/@tailwindcss/cli",
+        "//angular:node_modules/daisyui",
+        "//angular:node_modules/tailwindcss",
+    ] + glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+)
+
+js_run_binary(
+    name = "tailwindcss_runner",
+    srcs = [
+        "src/styles.source.css",
+    ],
+    outs = ["src/styles_generated.css"],
+    args = [
+        "--input",
+        "angular/projects/mindreadr/src/styles.source.css",
+        "--output",
+        "angular/projects/mindreadr/src/styles_generated.css",
+    ],
+    tool = ":tailwindcss",
+)
+
+write_source_files(
+    name = "write_styles_css",
+    files = {
+        "src/styles.css": ":tailwindcss_runner",
+    },
+)
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+        exclude = [
+            "src/styles.source.css",  # Don't include source in build
+        ],
+    ),
+)
+
+js_library(
+    name = "canvas_confetti",
+    deps = [
+        "//angular:node_modules/@types/canvas-confetti",
+        "//angular:node_modules/canvas-confetti",
+    ],
+)
+
+ng_application(
+    name = "mindreadr",
+    ng_config = "//angular:ng-config",
+    node_modules = "//angular:node_modules",
+    deps = [
+        ":canvas_confetti",
+    ],
+)
+
+ng_test(
+    name = "test",
+    size = "small",
+    srcs = [":srcs"],
+    ng_config = "//angular:ng-config",
+    node_modules = "//angular:node_modules",
+    tags = ["no-remote-exec"],
+    deps = [
+        ":canvas_confetti",
+    ],
+)
+
+pkg_tar(
+    name = "caddyfile_layer",
+    srcs = ["Caddyfile"],
+    package_dir = "/etc/caddy",
+)
+
+pkg_tar(
+    name = "frontend_layer",
+    srcs = [":mindreadr"],
+    package_dir = "/app",
+    strip_prefix = "dist",
+)
+
+oci_image(
+    name = "image",
+    base = "@alpine_caddy",
+    entrypoint = [
+        "caddy",
+        "run",
+        "--config",
+        "/etc/caddy/Caddyfile",
+    ],
+    tars = [
+        ":caddyfile_layer",
+        ":frontend_layer",
+    ],
+)
+
+oci_load(
+    name = "load_image",
+    image = ":image",
+    repo_tags = ["lowkeylab/mindreadr_frontend:latest"],
+)
+
+oci_push(
+    name = "push_image",
+    image = ":image",
+    repository = "ghcr.io/lowkeylab/mindreadr_frontend",
+    tags = ["latest"],
+)

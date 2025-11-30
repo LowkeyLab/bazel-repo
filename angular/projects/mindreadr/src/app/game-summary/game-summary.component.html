@@ -1,0 +1,70 @@
+<section class="max-w-3xl mx-auto mt-10 space-y-6">
+  <header class="flex flex-col gap-4 items-start md:flex-row md:items-center md:justify-between">
+    <div>
+      @if (game(); as g) {
+        <h1 class="text-xl md:text-2xl font-bold">
+          🎉 Congratulations,
+          {{ sorted_player_names_from_players(g.players).join(' and ') || 'both players' }}!
+        </h1>
+      } @else {
+        <h1 class="text-xl md:text-2xl font-bold">🎉 Congratulations, both players!</h1>
+      }
+      <p class="text-sm opacity-80">
+        @if (guessedWord(); as w) {
+          You both guessed <b>{{ w }}</b
+          >.
+        } @else {
+          You won the game.
+        }
+      </p>
+      <div class="mt-2 text-xs opacity-70">Game ID: {{ gameId() }}</div>
+    </div>
+    <button class="btn btn-neutral self-center md:self-auto" (click)="backToGames()">
+      Back to Games
+    </button>
+  </header>
+
+  @if (error()) {
+    <div class="alert alert-error">
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  @if (game(); as g) {
+    <div class="p-4 border rounded">
+      <p class="text-sm flex items-center gap-2">
+        <span class="text-xl">🏆</span>
+        <span>
+          You've come to an agreement in only
+          <b>{{ g.rounds.length }}</b>
+          {{ g.rounds.length === 1 ? 'round' : 'rounds' }}!
+        </span>
+      </p>
+    </div>
+
+    <div class="p-4 border rounded">
+      <h2 class="font-semibold mb-2">Your Guesses</h2>
+      @if (g.rounds.length === 0) {
+        <div class="opacity-70">No rounds recorded.</div>
+      } @else {
+        <ul class="space-y-3">
+          @for (r of sortedRounds(g.rounds); track r.number) {
+            <li class="border rounded p-3">
+              <div class="font-mono text-sm mb-2">Round #{{ r.number }}</div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                @for (entry of sorted_player_names_for_round(g, r); track entry) {
+                  <div class="flex items-start gap-2">
+                    <div class="font-semibold">{{ entry }}:</div>
+                    <div class="wrap-break-word">{{ r.guesses[entry] }}</div>
+                  </div>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  } @else {
+    <div class="opacity-70">Loading summary...</div>
+  }
+</section>

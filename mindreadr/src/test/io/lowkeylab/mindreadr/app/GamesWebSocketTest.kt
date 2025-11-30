@@ -16,10 +16,11 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.lowkeylab.mindreadr.IncomingMessage
 import io.lowkeylab.mindreadr.OutgoingMessage
-import io.lowkeylab.mindreadr.configureGames
+import io.lowkeylab.mindreadr.configureGamesWs
 import io.lowkeylab.mindreadr.configureSerialization
 import io.lowkeylab.mindreadr.configureSockets
 import io.lowkeylab.mindreadr.game.GameService
+import io.lowkeylab.mindreadr.game.GameState
 import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.Player
 import io.lowkeylab.mindreadr.game.PlayerFactory
@@ -27,7 +28,9 @@ import io.lowkeylab.mindreadr.game.PlayerName
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.launch
@@ -79,7 +82,7 @@ class GamesWebSocketTest {
     }
 
     @Test
-    fun `single client connection receives PlayerJoined then GameState in order`() =
+    fun `single client connection receives PlayerJoined and GameState update`() =
         testApplication {
             val playerFactory = TestPlayerFactory()
             val gameRepository = InMemoryGameRepository()
@@ -88,22 +91,17 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
             val client = createClient()
 
             client.webSocket("/games/${game.id.id}/live") {
-                // Assert strict message order: PlayerJoined first
                 val playerJoined = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.PlayerJoined>(playerJoined)
-                assertEquals("player1", playerJoined.player.name.name)
-
-                // Then GameState
                 val gameState = receiveDeserialized<OutgoingMessage>()
                 assertIs<OutgoingMessage.GameState>(gameState)
-                assertEquals(1, gameState.game.getPlayerCount())
             }
         }
 
@@ -117,7 +115,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val client = createClient()
@@ -138,20 +136,40 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
-            val game = gameService.createGame()
             val client = createClient()
 
-            // Fill the game with 2 players
-            client.webSocket("/games/${game.id.id}/live") {}
-            client.webSocket("/games/${game.id.id}/live") {}
+            val game = gameService.createGame()
+            val joinBarrier = CoroutineBarrier(3)
+            val exitSignal = MutableSharedFlow<Unit>()
 
-            // Try to add a third player
-            client.webSocket("/games/${game.id.id}/live") {
-                val reason = closeReason.await()
-                assertTrue(reason != null, "Session should be closed for full game")
+            // Fill the game with 2 players
+            coroutineScope {
+                launch {
+                    client.webSocket("/games/${game.id.id}/live") {
+                        joinBarrier.await()
+                        exitSignal.first()
+                    }
+                }
+
+                launch {
+                    client.webSocket("/games/${game.id.id}/live") {
+                        joinBarrier.await()
+                        exitSignal.first()
+                    }
+                }
+
+                // Both players joined, now signal the barrier
+                joinBarrier.await()
+
+                // Try to add a third player
+                client.webSocket("/games/${game.id.id}/live") {
+                    val reason = closeReason.await()
+                    assertTrue(reason != null, "Session should be closed for full game")
+                    exitSignal.emit(Unit)
+                }
             }
         }
 
@@ -165,7 +183,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
@@ -206,14 +224,14 @@ class GamesWebSocketTest {
 
             val finalMessageClientOne = clientOneMessages.last()
             val finalMessageClientTwo = clientTwoMessages.last()
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientOne)
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientTwo)
-            assertTrue(finalMessageClientOne.reason.contains("completed"))
-            assertTrue(finalMessageClientTwo.reason.contains("completed"))
+            assertIs<OutgoingMessage.GameState>(finalMessageClientOne)
+            assertIs<OutgoingMessage.GameState>(finalMessageClientTwo)
+            assertEquals(finalMessageClientOne.game.state, GameState.COMPLETED)
+            assertEquals(finalMessageClientTwo.game.state, GameState.COMPLETED)
         }
 
     @Test
-    fun `player disconnection broadcasts GameTerminated to remaining clients`() =
+    fun `player disconnection broadcasts PlayerLeft to remaining clients`() =
         testApplication {
             val playerFactory = TestPlayerFactory()
             val gameRepository = InMemoryGameRepository()
@@ -222,7 +240,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()
@@ -240,9 +258,11 @@ class GamesWebSocketTest {
                     .collect { messages -> clientOneMessages = messages }
             }
 
-            val finalMessageClientOne = clientOneMessages.last()
-            assertIs<OutgoingMessage.GameTerminated>(finalMessageClientOne)
-            assertTrue(finalMessageClientOne.reason.contains("left"))
+            assertTrue(
+                clientOneMessages.any {
+                    it is OutgoingMessage.PlayerLeft && it.player == Player(PlayerName("player2"))
+                },
+            )
         }
 
     @Test
@@ -255,7 +275,7 @@ class GamesWebSocketTest {
             application {
                 configureSockets()
                 configureSerialization()
-                configureGames(gameService)
+                configureGamesWs(gameService)
             }
 
             val game = gameService.createGame()

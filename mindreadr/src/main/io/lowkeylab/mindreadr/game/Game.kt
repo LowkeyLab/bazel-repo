@@ -1,6 +1,7 @@
 package io.lowkeylab.mindreadr.game
 
 import kotlinx.serialization.Serializable
+import java.util.Locale
 
 @JvmInline
 @Serializable
@@ -8,7 +9,6 @@ value class GameId(
     val id: String,
 )
 
-@Serializable
 class Game(
     val id: GameId,
     private val playerLimit: UInt = 2u,
@@ -36,7 +36,20 @@ class Game(
         check(state == GameState.IN_PROGRESS) { "Cannot add guess. Game is in $state state." }
         val round = checkNotNull(currentRound) { "Cannot add guess. No current round." }
         if (round.guesses.containsKey(player)) return this
-        round.guesses[player] = guess
+        // Trim and reject empty / whitespace-only guesses
+        val trimmed = guess.trim()
+        check(trimmed.isNotEmpty()) { "Guess cannot be empty or whitespace." }
+        // Normalize guess to lowercase (locale-independent)
+        val normalized = trimmed.lowercase(Locale.ROOT)
+        // Build case-insensitive set of previously used guesses
+        val previouslyUsedGuesses =
+            rounds
+                .dropLast(1)
+                .flatMap { it.guesses.values }
+                .map { it.lowercase(Locale.ROOT) }
+                .toSet()
+        check(normalized !in previouslyUsedGuesses) { "Guess '$guess' has already been used (case-insensitive) in a previous round." }
+        round.guesses[player] = normalized
 
         if (round.guesses.size == players.size) {
             if (round.uniqueGuesses.size == 1) {
@@ -52,14 +65,16 @@ class Game(
         check(state != GameState.COMPLETED) { "Cannot remove player. Game is in $state state." }
         players.remove(player)
         if (state == GameState.IN_PROGRESS) {
-            state = GameState.COMPLETED
+            state = GameState.TERMINATED
         }
         return this
     }
 
-    fun hasEnded(): Boolean = state == GameState.COMPLETED
+    fun hasEnded(): Boolean = state == GameState.COMPLETED || state == GameState.TERMINATED
 
     fun isInProgress(): Boolean = state == GameState.IN_PROGRESS
+
+    fun isWaitingForPlayers(): Boolean = state == GameState.WAITING_FOR_PLAYERS
 
     fun getPlayerCount(): Int = players.size
 
@@ -72,6 +87,14 @@ class Game(
         } else {
             null
         }
+
+    fun getPlayerLimit(): UInt = playerLimit
+
+    fun getPlayers(): List<Player> = players.toList()
+
+    fun getRounds(): List<Round> = rounds.toList()
+
+    fun getState(): GameState = state
 }
 
 @Serializable
@@ -88,4 +111,5 @@ enum class GameState {
     WAITING_FOR_PLAYERS,
     IN_PROGRESS,
     COMPLETED,
+    TERMINATED,
 }
