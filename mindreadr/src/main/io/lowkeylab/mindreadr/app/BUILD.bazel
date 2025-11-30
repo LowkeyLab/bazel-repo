@@ -33,6 +33,7 @@ oci_image(
     base = "@distroless_java21",
     entrypoint = [
         "java",
+        "-server",
         "-jar",
         "/app/application_deploy.jar",
     ],
