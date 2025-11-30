@@ -1,150 +1,86 @@
 # Bazel Monorepo
 
-A Bazel-based monorepo with Rust backend services and Angular frontend applications, using centralized dependency management.
+Central Bazel-based monorepo with Rust backend services and Angular frontend applications. This root `README.md` focuses on shared workflows. Project-specific details live in their own guides.
 
-## 📋 Table of Contents
+## Subproject Guides
 
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [NPM Projects](#-npm-projects)
-- [Rust Projects](#-rust-projects)
-- [Common Tasks](#common-tasks)
-- [License](#license)
+- Nicknamer Server: `nicknamer/README.md`
+- Angular Apps: `angular/AGENTS.md`
+- Monorepo Overview: `AGENTS.md`
 
-## 🎯 Overview
+## Prerequisites
 
-This monorepo uses Bazel for builds and supports:
+Install [Bazelisk](https://github.com/bazelbuild/bazelisk) (manages Bazel versions):
 
-- **Rust** - Backend services with Axum, SeaORM, and PostgreSQL
-
-## 📦 Prerequisites
-
-Install [Bazelisk](https://github.com/bazelbuild/bazelisk) (automatically manages Bazel versions):
-
-**On Linux:**
+Linux:
 
 ```bash
 sudo wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
 sudo chmod +x /usr/local/bin/bazel
 ```
 
-**On macOS:**
+macOS:
 
 ```bash
 brew install bazelisk
 ```
 
-**On Windows:**
+Windows (PowerShell):
 
 ```powershell
 choco install bazelisk
 ```
 
-Or manually install: **Bazel** 8.4.2+, **Docker**
+Node.js, PNPM, Rust and other toolchains are provisioned via Bazel under `tools/`; do not install them manually.
 
-**Note:** Node.js, PNPM, Rust, and other development tools are managed by Bazel through the `tools/` directory configuration. They do not need to be installed separately.
-
-## 🏁 Quick Start
+## Quick Start
 
 ```bash
-# Clone repository
 git clone https://github.com/LowkeyLab/bazel-repo.git
 cd bazel-repo
 
-# Install NPM dependencies (if working with frontend code)
+# (Optional) install NPM deps when touching frontend code
 bazel run @pnpm -- --dir $PWD install
 
-# Build all
+# Build everything
 bazel build //...
 
-# Run tests
+# Run all tests
 bazel test //...
 ```
 
----
-
-## 🦀 Rust Projects
-
-### Nicknamer Server
-
-Full-featured web service for managing names with authentication and REST API.
-
-**Location:** `nicknamer/`
-
-**Commands:**
-
-```bash
-# Start server with PostgreSQL
-bazel run //nicknamer:run_locally
-
-# Build binary
-bazel build //nicknamer/server/bin
-
-# Run tests
-bazel test //nicknamer/server/lib/tests:tests
-
-# Update snapshot tests
-INSTA_UPDATE=always bazel test //nicknamer/server/lib/tests:tests
-```
-
-**Tech Stack:** Axum, SeaORM, PostgreSQL, JWT, OpenAPI/Swagger, Askama Templates
-
-**Environment Variables:**
-
-- `DB_URL` - PostgreSQL connection string
-- `ADMIN_USERNAME` - Admin credentials
-- `ADMIN_PASSWORD` - Admin credentials
-- `JWT_SECRET` - JWT token signing secret
-
-📖 See [AGENTS.md](./AGENTS.md) for detailed documentation.
-
-### Managing Rust Dependencies
-
-**Modify dependencies:**
-
-1. Edit `Cargo.toml` in the relevant crate
-2. Regenerate Bazel files:
-
-   ```bash
-   CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
-   ```
-
----
-
-## Common Tasks
-
-### Building
+## Common Commands
 
 ```bash
 # Build everything
 bazel build //...
 
-# Build specific target
-bazel build //nicknamer/server/bin
-```
-
-### Testing
-
-```bash
 # Run all tests
 bazel test //...
 
-# Verbose output
-bazel test //... --test_output=all
+# Format code (Rust, BUILD files, etc.)
+bazel run format
+
+# Lint (Aspect CLI)
+bazel lint
+
+# Format only BUILD files
+bazel run //tools:buildifier
+
+# Keep going on failures for investigation
+bazel build //... --keep_going
+
+# Run arbitrary pnpm command
+bazel run @pnpm -- <args>
 ```
 
-### Docker Images
+## Repo Tooling
 
-```bash
-# Build Nicknamer image
-bazel build //nicknamer/server/bin:image
+- Centralized toolchain definitions under `tools/` (Rust, Node.js/PNPM, Angular CLI wrappers, formatters, linters).
+- Bazel manages reproducible builds and dependency pinning.
+- Use `MODULE.bazel` / `Cargo.toml` edits followed by repin steps for dependency changes (see project guides).
 
-# Push to registry
-bazel run //nicknamer/server/bin:push_image
-```
-
-### Troubleshooting
+## Troubleshooting
 
 ```bash
 # Clean build cache
@@ -156,38 +92,18 @@ CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
 # Reinstall NPM dependencies
 bazel run @pnpm -- --dir $PWD install
 
-# Verbose build output
+# Verbose failure output
 bazel build //... --verbose_failures
 ```
 
-### Development Tools
+For service-specific environment variables, runtime instructions, or database setup, consult the respective project guide listed above.
 
-Development tools are managed through Bazel in the `tools/` directory:
+## License
 
-```bash
-# Run pnpm commands
-bazel run @pnpm -- <pnpm-args>
+GNU Affero General Public License v3.0 (AGPLv3). See `LICENSE`.
 
-# Example: Install dependencies
-bazel run @pnpm -- --dir $PWD install
+## Further Documentation
 
-# Format code (Rust, BUILD files, etc.)
-bazel run format
-
-# Format BUILD files only
-bazel run //tools:buildifier
-
-# Run Angular CLI
-bazel run //tools:ng -- <ng-args>
-```
-
-## 📄 License
-
-GNU Affero General Public License v3.0 (AGPLv3) - See [LICENSE](./LICENSE)
-
----
-
-**Documentation:**
-
-- [AGENTS.md](./AGENTS.md) - Comprehensive project overview
-- [nicknamer/README.md](./nicknamer/README.md) - Nicknamer server details
+- Monorepo reference: `AGENTS.md`
+- Nicknamer service details: `nicknamer/README.md`
+- Angular workflows: `angular/AGENTS.md`
