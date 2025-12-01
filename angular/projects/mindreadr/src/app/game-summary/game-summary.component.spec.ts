@@ -26,7 +26,7 @@ describe('GameSummaryComponent', () => {
     const finalGame: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [{ name: 'Alice' }, { name: 'Bob' }],
       rounds: [{ number: 1, guesses: { Alice: 'Sunflower', Bob: 'Sunflower' } }],
       state: 'COMPLETED',
@@ -50,7 +50,7 @@ describe('GameSummaryComponent', () => {
     const finalGame: GameDto = {
       id: 'g2',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [{ name: 'Alice' }, { name: 'Bob' }],
       rounds: [
         { number: 2, guesses: { Bob: 'Tree', Alice: 'Tree' } },
@@ -70,7 +70,7 @@ describe('GameSummaryComponent', () => {
     const finalGame: GameDto = {
       id: 'g3',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [{ name: 'Bob' }, { name: 'Alice' }],
       rounds: [{ number: 1, guesses: { Bob: 'Moon', Alice: 'Moon' } }],
       state: 'COMPLETED',

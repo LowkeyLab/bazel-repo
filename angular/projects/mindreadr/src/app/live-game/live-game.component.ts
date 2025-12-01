@@ -212,16 +212,16 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     return !this.isRoundComplete(round, game);
   }
 
-  /** Calculate turns remaining */
-  getTurnsRemaining(game: GameDto): number {
+  /** Calculate rounds remaining */
+  getRoundsRemaining(game: GameDto): number {
     const currentRound = game.rounds.length > 0 ? game.rounds[game.rounds.length - 1].number : 0;
-    return Math.max(0, game.turnLimit - currentRound);
+    return Math.max(0, game.roundLimit - currentRound);
   }
 
-  /** Get color class based on turns remaining */
-  getTurnsRemainingColor(game: GameDto): string {
-    const remaining = this.getTurnsRemaining(game);
-    const total = game.turnLimit;
+  /** Get color class based on rounds remaining */
+  getRoundsRemainingColor(game: GameDto): string {
+    const remaining = this.getRoundsRemaining(game);
+    const total = game.roundLimit;
     const percentage = (remaining / total) * 100;
 
     if (percentage > 60) {

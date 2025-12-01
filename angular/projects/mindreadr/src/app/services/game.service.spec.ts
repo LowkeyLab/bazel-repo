@@ -45,7 +45,7 @@ describe('GameService', () => {
         id: 'G1',
         state: 'WAITING_FOR_PLAYERS',
         playerLimit: 2,
-        turnLimit: 10,
+        roundLimit: 10,
         players: [],
         rounds: [],
       },
@@ -53,7 +53,7 @@ describe('GameService', () => {
         id: 'G2',
         state: 'WAITING_FOR_PLAYERS',
         playerLimit: 2,
-        turnLimit: 10,
+        roundLimit: 10,
         players: [],
         rounds: [],
       },
@@ -72,9 +72,9 @@ describe('GameService', () => {
 
   it('getGamesByStatus should fetch /games?status=IN_PROGRESS', (done) => {
     const mockGames: GameDto[] = [
-      { id: 'IP1', state: 'IN_PROGRESS', playerLimit: 2, turnLimit: 10, players: [], rounds: [] },
-      { id: 'IP2', state: 'IN_PROGRESS', playerLimit: 2, turnLimit: 10, players: [], rounds: [] },
-      { id: 'IP3', state: 'IN_PROGRESS', playerLimit: 2, turnLimit: 10, players: [], rounds: [] },
+      { id: 'IP1', state: 'IN_PROGRESS', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
+      { id: 'IP2', state: 'IN_PROGRESS', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
+      { id: 'IP3', state: 'IN_PROGRESS', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
     ];
 
     service.getGamesByStatus('IN_PROGRESS').subscribe((games) => {
@@ -90,7 +90,7 @@ describe('GameService', () => {
 
   it('getGamesByStatus should fetch /games?status=COMPLETED', (done) => {
     const mockGames: GameDto[] = [
-      { id: 'C1', state: 'COMPLETED', playerLimit: 2, turnLimit: 10, players: [], rounds: [] },
+      { id: 'C1', state: 'COMPLETED', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
     ];
 
     service.getGamesByStatus('COMPLETED').subscribe((games) => {

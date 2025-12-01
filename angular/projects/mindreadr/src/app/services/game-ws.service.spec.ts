@@ -73,7 +73,7 @@ describe('GameWsService', () => {
       game: {
         id: 'g1',
         playerLimit: 5,
-        turnLimit: 10,
+        roundLimit: 10,
         players: [],
         rounds: [],
         state: 'IN_PROGRESS',
@@ -112,7 +112,7 @@ describe('GameWsService', () => {
       game: {
         id: 'g2',
         playerLimit: 5,
-        turnLimit: 10,
+        roundLimit: 10,
         players: [],
         rounds: [],
         state: 'COMPLETED',
@@ -135,7 +135,7 @@ describe('GameWsService', () => {
       game: {
         id: 'g3',
         playerLimit: 5,
-        turnLimit: 10,
+        roundLimit: 10,
         players: [],
         rounds: [],
         state: 'TERMINATED',

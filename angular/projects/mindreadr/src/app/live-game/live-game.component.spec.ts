@@ -35,7 +35,7 @@ describe('LiveGameComponent logic', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [p1, p2],
       rounds: [round],
       state: 'IN_PROGRESS',
@@ -57,7 +57,7 @@ describe('LiveGameComponent logic', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [p1, p2],
       rounds: [round],
       state: 'IN_PROGRESS',
@@ -79,7 +79,7 @@ describe('LiveGameComponent logic', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [p1, p2],
       rounds: [round],
       state: 'IN_PROGRESS',
@@ -137,7 +137,7 @@ describe('LiveGameComponent navigation', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [],
       rounds: [],
       state: 'COMPLETED',
@@ -155,11 +155,11 @@ describe('LiveGameComponent navigation', () => {
     });
   });
 
-  it('calculates turns remaining correctly', () => {
+  it('calculates rounds remaining correctly', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [],
       rounds: [
         { number: 1, guesses: {} },
@@ -169,26 +169,26 @@ describe('LiveGameComponent navigation', () => {
       state: 'IN_PROGRESS',
     };
     component.game.set(game);
-    expect(component.getTurnsRemaining(game)).toBe(7);
+    expect(component.getRoundsRemaining(game)).toBe(7);
   });
 
   it('returns correct color for high turns remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [],
       rounds: [{ number: 1, guesses: {} }],
       state: 'IN_PROGRESS',
     };
-    expect(component.getTurnsRemainingColor(game)).toBe('text-success');
+    expect(component.getRoundsRemainingColor(game)).toBe('text-success');
   });
 
   it('returns correct color for medium turns remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [],
       rounds: [
         { number: 1, guesses: {} },
@@ -199,14 +199,14 @@ describe('LiveGameComponent navigation', () => {
       ],
       state: 'IN_PROGRESS',
     };
-    expect(component.getTurnsRemainingColor(game)).toBe('text-warning');
+    expect(component.getRoundsRemainingColor(game)).toBe('text-warning');
   });
 
   it('returns correct color for low turns remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [],
       rounds: [
         { number: 1, guesses: {} },
@@ -220,14 +220,14 @@ describe('LiveGameComponent navigation', () => {
       ],
       state: 'IN_PROGRESS',
     };
-    expect(component.getTurnsRemainingColor(game)).toBe('text-error');
+    expect(component.getRoundsRemainingColor(game)).toBe('text-error');
   });
 
-  it('handles zero turns remaining', () => {
+  it('handles zero rounds remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 5,
+      roundLimit: 5,
       players: [],
       rounds: [
         { number: 1, guesses: {} },
@@ -238,18 +238,18 @@ describe('LiveGameComponent navigation', () => {
       ],
       state: 'IN_PROGRESS',
     };
-    expect(component.getTurnsRemaining(game)).toBe(0);
+    expect(component.getRoundsRemaining(game)).toBe(0);
   });
 
   it('handles game with no rounds yet', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
-      turnLimit: 10,
+      roundLimit: 10,
       players: [],
       rounds: [],
       state: 'IN_PROGRESS',
     };
-    expect(component.getTurnsRemaining(game)).toBe(10);
+    expect(component.getRoundsRemaining(game)).toBe(10);
   });
 });

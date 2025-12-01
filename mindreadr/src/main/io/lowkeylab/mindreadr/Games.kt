@@ -39,7 +39,7 @@ data class RoundDto(
 data class GameDto(
     val id: GameId,
     val playerLimit: UInt,
-    val turnLimit: UInt,
+    val roundLimit: UInt,
     val players: List<Player>,
     val rounds: List<RoundDto>,
     val state: GameState,
@@ -57,7 +57,7 @@ fun Game.toDto() =
     GameDto(
         id = id,
         playerLimit = getPlayerLimit(),
-        turnLimit = getTurnLimit(),
+        roundLimit = getRoundLimit(),
         players = getPlayers(),
         rounds =
             getRounds().map { r ->
