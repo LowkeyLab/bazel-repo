@@ -1,7 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService } from '../services/game.service';
-import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'mindreadr-games-count',
@@ -26,15 +25,11 @@ export class GamesCountComponent implements OnInit {
   fetchCounts() {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({
-      active: this.games.getGamesCount(),
-      open: this.games.getOpenGamesCount(),
-      completed: this.games.getCompletedGamesCount(),
-    }).subscribe({
-      next: ({ active, open, completed }) => {
-        this.count.set(active);
-        this.openCount.set(open);
-        this.completedCount.set(completed);
+    this.games.getSummary().subscribe({
+      next: ({ inProgressGames, waitingForPlayerGames, completedGames }) => {
+        this.count.set(inProgressGames);
+        this.openCount.set(waitingForPlayerGames);
+        this.completedCount.set(completedGames);
         this.loading.set(false);
       },
       error: (err) => {

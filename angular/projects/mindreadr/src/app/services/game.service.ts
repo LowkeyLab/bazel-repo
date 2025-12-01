@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { GameDto, GameState } from './game.types';
 
@@ -26,27 +26,6 @@ export class GameService {
   getSummary(): Observable<GameSummary> {
     const url = `${environment.API_BASE_URL}/games/summary`;
     return this.http.get<GameSummary>(url);
-  }
-
-  /**
-   * Returns the number of games that are currently in progress.
-   */
-  getGamesCount(): Observable<number> {
-    return this.getSummary().pipe(map((s) => s.inProgressGames));
-  }
-
-  /**
-   * Returns the number of games that are open for joining (waiting for players).
-   */
-  getOpenGamesCount(): Observable<number> {
-    return this.getSummary().pipe(map((s) => s.waitingForPlayerGames));
-  }
-
-  /**
-   * Returns the number of games that have completed.
-   */
-  getCompletedGamesCount(): Observable<number> {
-    return this.getSummary().pipe(map((s) => s.completedGames));
   }
 
   /**
