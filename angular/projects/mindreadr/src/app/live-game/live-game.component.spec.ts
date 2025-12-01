@@ -155,7 +155,7 @@ describe('LiveGameComponent navigation', () => {
     });
   });
 
-  it('navigates to timeout when game state becomes TERMINATED', () => {
+  it('navigates to timeout when game state becomes TERMINATED and reached round limit', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
@@ -173,11 +173,51 @@ describe('LiveGameComponent navigation', () => {
     });
   });
 
-  it('navigates to timeout when terminated with TERMINATED', () => {
+  it('does not navigate to timeout when TERMINATED but round limit not reached', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 5,
+      players: [{ name: 'Alice' }],
+      rounds: [{ number: 1, guesses: { Alice: 'Cat' } }],
+      state: 'TERMINATED',
+    };
+    gameState$.next(game);
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates to timeout when terminated with TERMINATED and round limit reached', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 3,
+      players: [{ name: 'Alice' }, { name: 'Bob' }],
+      rounds: [
+        { number: 1, guesses: { Alice: 'Cat', Bob: 'Dog' } },
+        { number: 2, guesses: { Alice: 'Bird', Bob: 'Fish' } },
+        { number: 3, guesses: { Alice: 'Tree', Bob: 'Plant' } },
+      ],
+      state: 'TERMINATED',
+    };
+    component.game.set(game);
     terminated$.next('TERMINATED');
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/timeout'], {
       state: jasmine.objectContaining({ playerName: 'Player' }),
     });
+  });
+
+  it('does not navigate to timeout when terminated with TERMINATED but round limit not reached', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 5,
+      players: [{ name: 'Alice' }],
+      rounds: [{ number: 1, guesses: { Alice: 'Cat' } }],
+      state: 'TERMINATED',
+    };
+    component.game.set(game);
+    terminated$.next('TERMINATED');
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 
   it('calculates rounds remaining correctly', () => {
