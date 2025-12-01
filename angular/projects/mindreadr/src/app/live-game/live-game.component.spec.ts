@@ -172,7 +172,7 @@ describe('LiveGameComponent navigation', () => {
     expect(component.getRoundsRemaining(game)).toBe(7);
   });
 
-  it('returns correct color for high turns remaining', () => {
+  it('returns correct color for high rounds remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
@@ -184,7 +184,7 @@ describe('LiveGameComponent navigation', () => {
     expect(component.getRoundsRemainingColor(game)).toBe('text-success');
   });
 
-  it('returns correct color for medium turns remaining', () => {
+  it('returns correct color for medium rounds remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
@@ -202,7 +202,7 @@ describe('LiveGameComponent navigation', () => {
     expect(component.getRoundsRemainingColor(game)).toBe('text-warning');
   });
 
-  it('returns correct color for low turns remaining', () => {
+  it('returns correct color for low rounds remaining', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
