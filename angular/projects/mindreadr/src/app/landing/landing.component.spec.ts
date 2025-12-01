@@ -1,4 +1,10 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  fakeAsync,
+  tick,
+  discardPeriodicTasks,
+} from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { LandingComponent } from './landing.component';
@@ -11,9 +17,9 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 // Mock GameService
 class MockGameService {
-  getGamesCount = jasmine.createSpy().and.returnValue(of(0));
-  getOpenGamesCount = jasmine.createSpy().and.returnValue(of(0));
-  getCompletedGamesCount = jasmine.createSpy().and.returnValue(of(0));
+  getSummary = jasmine
+    .createSpy()
+    .and.returnValue(of({ inProgressGames: 0, waitingForPlayerGames: 0, completedGames: 0 }));
 }
 
 describe('LandingComponent', () => {
@@ -57,18 +63,19 @@ describe('LandingComponent', () => {
     expect(button).toBeTruthy();
   });
 
-  it('should navigate to /games when Browse Games button is clicked', async () => {
+  it('should navigate to /games when Browse Games button is clicked', fakeAsync(() => {
     const compiled = fixture.nativeElement as HTMLElement;
     const button = compiled.querySelector('button.btn-primary') as HTMLButtonElement;
     expect(button).toBeTruthy();
 
     // Click the button
     button.click();
-    await fixture.whenStable();
+    tick(0);
 
     // Verify navigation occurred
     expect(location.path()).toBe('/games');
-  });
+    discardPeriodicTasks();
+  }));
 
   it('should display the component title', () => {
     const compiled = fixture.nativeElement as HTMLElement;

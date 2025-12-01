@@ -90,6 +90,8 @@ describe('GameService', () => {
     req.flush(mock);
   });
 
+  // Note: getSummary() intentionally does not cache responses; each subscription performs a request.
+
   it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', (done) => {
     const mockGames: GameDto[] = [
       { id: 'G1', state: 'WAITING_FOR_PLAYERS', playerLimit: 2, players: [], rounds: [] },
