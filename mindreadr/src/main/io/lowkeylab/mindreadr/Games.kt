@@ -77,7 +77,7 @@ fun Application.configureGamesWs(gameService: GameService) {
           call.parameters["id"]
               ?: run {
                 this@webSocket.close(
-                    CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID")
+                    CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Missing game ID"),
                 )
                 return@webSocket
               }
@@ -194,7 +194,7 @@ fun Application.configureGamesWs(gameService: GameService) {
                 .onFailure { e ->
                   // Per-client error message for bad input
                   sendSerialized<OutgoingMessage>(
-                      OutgoingMessage.Error("Invalid message format: ${e.message}")
+                      OutgoingMessage.Error("Invalid message format: ${e.message}"),
                   )
                 }
           }
@@ -216,7 +216,7 @@ fun Application.configureGamesWs(gameService: GameService) {
           }
         } else {
           log.info(
-              "Game $gameId not found during disconnect of player ${player.name.name}. Closing connections."
+              "Game $gameId not found during disconnect of player ${player.name.name}. Closing connections.",
           )
           terminationFlow.emit(Unit)
         }
@@ -234,8 +234,11 @@ fun Application.configureGames(gameService: GameService) {
           val state =
               when (status.lowercase()) {
                 "waiting_for_players" -> GameState.WAITING_FOR_PLAYERS
+
                 "in_progress" -> GameState.IN_PROGRESS
+
                 "completed" -> GameState.COMPLETED
+
                 else ->
                     return@get call.respond(HttpStatusCode.BadRequest, "Invalid status parameter")
               }
