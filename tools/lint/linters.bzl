@@ -4,6 +4,7 @@ load("@aspect_rules_lint//lint:buf.bzl", "lint_buf_aspect")
 load("@aspect_rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
 load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
 load("@aspect_rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
+load("@aspect_rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
 load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
 load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
 load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
@@ -42,6 +43,12 @@ pmd = lint_pmd_aspect(
 checkstyle = lint_checkstyle_aspect(
     binary = "@@//tools/lint:checkstyle",
     config = "@@//:checkstyle.xml",
+)
+
+ktlint = lint_ktlint_aspect(
+    binary = Label("@pinterest_ktlint//file"),
+    editorconfig = Label("//:.editorconfig"),
+    baseline_file = Label("//:.ktlint-baseline.xml"),
 )
 
 keep_sorted = lint_keep_sorted_aspect(

@@ -13,66 +13,64 @@ import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.Player
 import io.lowkeylab.mindreadr.game.PlayerFactory
 import io.lowkeylab.mindreadr.game.PlayerName
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
 
 class GamesSummaryTest {
-    // Simple test player factory to produce deterministic names
-    private class TestPlayerFactory : PlayerFactory {
-        private var idx = 0
+  // Simple test player factory to produce deterministic names
+  private class TestPlayerFactory : PlayerFactory {
+    private var idx = 0
 
-        override fun create(): Player {
-            idx += 1
-            return Player(PlayerName("player$idx"))
-        }
-
-        override fun removeName(name: PlayerName) { /* no-op */ }
+    override fun create(): Player {
+      idx += 1
+      return Player(PlayerName("player$idx"))
     }
 
-    @Test
-    fun `summaries reflect waiting, in-progress, and completed games`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
+    override fun removeName(name: PlayerName) {
+      /* no-op */
+    }
+  }
 
-            application {
-                configureSerialization()
-                configureGames(gameService)
-            }
+  @Test
+  fun `summaries reflect waiting, in-progress, and completed games`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
 
-            // Create games covering all states:
-            // 1) Waiting: a newly created game with 0 players
-            val waitingGame = gameService.createGame()
-            assertEquals(true, gameService.getGameById(waitingGame.id)!!.isWaitingForPlayers())
+    application {
+      configureSerialization()
+      configureGames(gameService)
+    }
 
-            // 2) In-progress: create game and add two players
-            val inProgressGame = gameService.createGame()
-            gameService.addPlayerToGame(inProgressGame.id)
-            gameService.addPlayerToGame(inProgressGame.id)
-            // Ensure game has transitioned to IN_PROGRESS by adding two players
-            assertEquals(true, gameService.getGameById(inProgressGame.id)!!.isInProgress())
+    // Create games covering all states:
+    // 1) Waiting: a newly created game with 0 players
+    val waitingGame = gameService.createGame()
+    assertEquals(true, gameService.getGameById(waitingGame.id)!!.isWaitingForPlayers())
 
-            // 3) Completed: create game, add two players, have them submit identical guesses
-            val completedGame = gameService.createGame()
-            val c1 = gameService.addPlayerToGame(completedGame.id)
-            val c2 = gameService.addPlayerToGame(completedGame.id)
-            gameService.addGuessToGame(c1, completedGame.id, "apple")
-            gameService.addGuessToGame(c2, completedGame.id, "apple")
-            // Verify completed state
-            assertEquals(true, gameService.getGameById(completedGame.id)!!.hasEnded())
+    // 2) In-progress: create game and add two players
+    val inProgressGame = gameService.createGame()
+    gameService.addPlayerToGame(inProgressGame.id)
+    gameService.addPlayerToGame(inProgressGame.id)
+    // Ensure game has transitioned to IN_PROGRESS by adding two players
+    assertEquals(true, gameService.getGameById(inProgressGame.id)!!.isInProgress())
 
-            // Configure client deserialization for JSON
-            val client =
-                createClient {
-                    install(ContentNegotiation) { json(Json) }
-                }
+    // 3) Completed: create game, add two players, have them submit identical guesses
+    val completedGame = gameService.createGame()
+    val c1 = gameService.addPlayerToGame(completedGame.id)
+    val c2 = gameService.addPlayerToGame(completedGame.id)
+    gameService.addGuessToGame(c1, completedGame.id, "apple")
+    gameService.addGuessToGame(c2, completedGame.id, "apple")
+    // Verify completed state
+    assertEquals(true, gameService.getGameById(completedGame.id)!!.hasEnded())
 
-            val responseSummary = client.get("/games/summary").body<GamesSummary>()
+    // Configure client deserialization for JSON
+    val client = createClient { install(ContentNegotiation) { json(Json) } }
 
-            assertEquals(1, responseSummary.waitingForPlayerGames)
-            assertEquals(1, responseSummary.inProgressGames)
-            assertEquals(1, responseSummary.completedGames)
-        }
+    val responseSummary = client.get("/games/summary").body<GamesSummary>()
+
+    assertEquals(1, responseSummary.waitingForPlayerGames)
+    assertEquals(1, responseSummary.inProgressGames)
+    assertEquals(1, responseSummary.completedGames)
+  }
 }

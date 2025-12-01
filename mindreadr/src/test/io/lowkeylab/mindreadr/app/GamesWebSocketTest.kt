@@ -25,6 +25,11 @@ import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.Player
 import io.lowkeylab.mindreadr.game.PlayerFactory
 import io.lowkeylab.mindreadr.game.PlayerName
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -37,278 +42,258 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class GamesWebSocketTest {
-    // Inner class for test player factory with incrementing names
-    private class TestPlayerFactory : PlayerFactory {
-        private val counter = AtomicInteger(0)
+  // Inner class for test player factory with incrementing names
+  private class TestPlayerFactory : PlayerFactory {
+    private val counter = AtomicInteger(0)
 
-        override fun create(): Player {
-            val count = counter.incrementAndGet()
-            return Player(PlayerName("player$count"))
-        }
-
-        override fun removeName(name: PlayerName) {
-            // No-op for tests
-        }
+    override fun create(): Player {
+      val count = counter.incrementAndGet()
+      return Player(PlayerName("player$count"))
     }
 
-    private class CoroutineBarrier(
-        val parties: Int,
-    ) {
-        private var count = 0
-        private val mutex = Mutex()
-        private var generation = CompletableDeferred<Unit>()
+    override fun removeName(name: PlayerName) {
+      // No-op for tests
+    }
+  }
 
-        suspend fun await() {
-            mutex.withLock {
-                count++
-                if (count == parties) {
-                    // Trip the barrier
-                    generation.complete(Unit)
-                    return
-                }
-            }
-            // Wait for the barrier to be tripped
-            generation.await()
+  private class CoroutineBarrier(
+      val parties: Int,
+  ) {
+    private var count = 0
+    private val mutex = Mutex()
+    private var generation = CompletableDeferred<Unit>()
+
+    suspend fun await() {
+      mutex.withLock {
+        count++
+        if (count == parties) {
+          // Trip the barrier
+          generation.complete(Unit)
+          return
         }
+      }
+      // Wait for the barrier to be tripped
+      generation.await()
+    }
+  }
+
+  @Test
+  fun `single client connection receives PlayerJoined and GameState update`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
+
+    application {
+      configureSockets()
+      configureSerialization()
+      configureGamesWs(gameService)
     }
 
-    @Test
-    fun `single client connection receives PlayerJoined and GameState update`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
+    val game = gameService.createGame()
+    val client = createClient()
 
-            application {
-                configureSockets()
-                configureSerialization()
-                configureGamesWs(gameService)
-            }
+    client.webSocket("/games/${game.id.id}/live") {
+      val playerJoined = receiveDeserialized<OutgoingMessage>()
+      assertIs<OutgoingMessage.PlayerJoined>(playerJoined)
+      val gameState = receiveDeserialized<OutgoingMessage>()
+      assertIs<OutgoingMessage.GameState>(gameState)
+    }
+  }
 
-            val game = gameService.createGame()
-            val client = createClient()
+  @Test
+  fun `connection to non-existent game closes session`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
 
-            client.webSocket("/games/${game.id.id}/live") {
-                val playerJoined = receiveDeserialized<OutgoingMessage>()
-                assertIs<OutgoingMessage.PlayerJoined>(playerJoined)
-                val gameState = receiveDeserialized<OutgoingMessage>()
-                assertIs<OutgoingMessage.GameState>(gameState)
-            }
+    application {
+      configureSockets()
+      configureSerialization()
+      configureGamesWs(gameService)
+    }
+
+    val client = createClient()
+
+    client.webSocket("/games/non-existent-game/live") {
+      val reason = closeReason.await()
+      assertTrue(reason != null, "Session should be closed")
+    }
+  }
+
+  @Test
+  fun `joining full game closes session`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
+
+    application {
+      configureSockets()
+      configureSerialization()
+      configureGamesWs(gameService)
+    }
+
+    val client = createClient()
+
+    val game = gameService.createGame()
+    val joinBarrier = CoroutineBarrier(3)
+    val exitSignal = MutableSharedFlow<Unit>()
+
+    // Fill the game with 2 players
+    coroutineScope {
+      launch {
+        client.webSocket("/games/${game.id.id}/live") {
+          joinBarrier.await()
+          exitSignal.first()
         }
+      }
 
-    @Test
-    fun `connection to non-existent game closes session`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
-
-            application {
-                configureSockets()
-                configureSerialization()
-                configureGamesWs(gameService)
-            }
-
-            val client = createClient()
-
-            client.webSocket("/games/non-existent-game/live") {
-                val reason = closeReason.await()
-                assertTrue(reason != null, "Session should be closed")
-            }
+      launch {
+        client.webSocket("/games/${game.id.id}/live") {
+          joinBarrier.await()
+          exitSignal.first()
         }
+      }
 
-    @Test
-    fun `joining full game closes session`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
+      // Both players joined, now signal the barrier
+      joinBarrier.await()
 
-            application {
-                configureSockets()
-                configureSerialization()
-                configureGamesWs(gameService)
-            }
+      // Try to add a third player
+      client.webSocket("/games/${game.id.id}/live") {
+        val reason = closeReason.await()
+        assertTrue(reason != null, "Session should be closed for full game")
+        exitSignal.emit(Unit)
+      }
+    }
+  }
 
-            val client = createClient()
+  @Test
+  fun `game completion when all submit identical guess`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
 
-            val game = gameService.createGame()
-            val joinBarrier = CoroutineBarrier(3)
-            val exitSignal = MutableSharedFlow<Unit>()
+    application {
+      configureSockets()
+      configureSerialization()
+      configureGamesWs(gameService)
+    }
 
-            // Fill the game with 2 players
-            coroutineScope {
-                launch {
-                    client.webSocket("/games/${game.id.id}/live") {
-                        joinBarrier.await()
-                        exitSignal.first()
-                    }
-                }
+    val game = gameService.createGame()
+    val client = createClient()
 
-                launch {
-                    client.webSocket("/games/${game.id.id}/live") {
-                        joinBarrier.await()
-                        exitSignal.first()
-                    }
-                }
+    var clientOneMessages = emptyList<OutgoingMessage>()
+    var clientTwoMessages = emptyList<OutgoingMessage>()
 
-                // Both players joined, now signal the barrier
-                joinBarrier.await()
+    coroutineScope {
+      val joinBarrier = CoroutineBarrier(2)
+      val clientOne = launch {
+        client.webSocket("/games/${game.id.id}/live") {
+          joinBarrier.await() // Ensure both clients connected
 
-                // Try to add a third player
-                client.webSocket("/games/${game.id.id}/live") {
-                    val reason = closeReason.await()
-                    assertTrue(reason != null, "Session should be closed for full game")
-                    exitSignal.emit(Unit)
-                }
-            }
+          sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
+
+          consumeMessagesAsFlow().collect { messages -> clientOneMessages = messages }
         }
+      }
 
-    @Test
-    fun `game completion when all submit identical guess`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
+      val clientTwo = launch {
+        client.webSocket("/games/${game.id.id}/live") {
+          joinBarrier.await() // Ensure both clients connected
 
-            application {
-                configureSockets()
-                configureSerialization()
-                configureGamesWs(gameService)
-            }
+          sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
-            val game = gameService.createGame()
-            val client = createClient()
-
-            var clientOneMessages = emptyList<OutgoingMessage>()
-            var clientTwoMessages = emptyList<OutgoingMessage>()
-
-            coroutineScope {
-                val joinBarrier = CoroutineBarrier(2)
-                val clientOne =
-                    launch {
-                        client.webSocket("/games/${game.id.id}/live") {
-                            joinBarrier.await() // Ensure both clients connected
-
-                            sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
-
-                            consumeMessagesAsFlow()
-                                .collect { messages -> clientOneMessages = messages }
-                        }
-                    }
-
-                val clientTwo =
-                    launch {
-                        client.webSocket("/games/${game.id.id}/live") {
-                            joinBarrier.await() // Ensure both clients connected
-
-                            sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
-
-                            consumeMessagesAsFlow()
-                                .collect { messages -> clientTwoMessages = messages }
-                        }
-                    }
-
-                clientOne.join()
-                clientTwo.join()
-            }
-
-            val finalMessageClientOne = clientOneMessages.last()
-            val finalMessageClientTwo = clientTwoMessages.last()
-            assertIs<OutgoingMessage.GameState>(finalMessageClientOne)
-            assertIs<OutgoingMessage.GameState>(finalMessageClientTwo)
-            assertEquals(GameState.COMPLETED, finalMessageClientOne.game.state)
-            assertEquals(GameState.COMPLETED, finalMessageClientTwo.game.state)
+          consumeMessagesAsFlow().collect { messages -> clientTwoMessages = messages }
         }
+      }
 
-    @Test
-    fun `player disconnection broadcasts PlayerLeft to remaining clients`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
+      clientOne.join()
+      clientTwo.join()
+    }
 
-            application {
-                configureSockets()
-                configureSerialization()
-                configureGamesWs(gameService)
-            }
+    val finalMessageClientOne = clientOneMessages.last()
+    val finalMessageClientTwo = clientTwoMessages.last()
+    assertIs<OutgoingMessage.GameState>(finalMessageClientOne)
+    assertIs<OutgoingMessage.GameState>(finalMessageClientTwo)
+    assertEquals(GameState.COMPLETED, finalMessageClientOne.game.state)
+    assertEquals(GameState.COMPLETED, finalMessageClientTwo.game.state)
+  }
 
-            val game = gameService.createGame()
-            val client = createClient()
+  @Test
+  fun `player disconnection broadcasts PlayerLeft to remaining clients`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
 
-            var clientOneMessages = emptyList<OutgoingMessage>()
+    application {
+      configureSockets()
+      configureSerialization()
+      configureGamesWs(gameService)
+    }
 
-            client.webSocket("/games/${game.id.id}/live") {
-                client.webSocket("/games/${game.id.id}/live") {
-                    // Client 2 disconnects
-                    close(CloseReason(CloseReason.Codes.NORMAL, "Test disconnect"))
-                }
+    val game = gameService.createGame()
+    val client = createClient()
 
-                consumeMessagesAsFlow()
-                    .collect { messages -> clientOneMessages = messages }
-            }
+    var clientOneMessages = emptyList<OutgoingMessage>()
 
-            assertTrue(
-                clientOneMessages.any {
-                    it is OutgoingMessage.PlayerLeft && it.player == Player(PlayerName("player2"))
-                },
-            )
-        }
+    client.webSocket("/games/${game.id.id}/live") {
+      client.webSocket("/games/${game.id.id}/live") {
+        // Client 2 disconnects
+        close(CloseReason(CloseReason.Codes.NORMAL, "Test disconnect"))
+      }
 
-    @Test
-    fun `invalid JSON message returns Error and continues`() =
-        testApplication {
-            val playerFactory = TestPlayerFactory()
-            val gameRepository = InMemoryGameRepository()
-            val gameService = GameService(playerFactory, gameRepository)
+      consumeMessagesAsFlow().collect { messages -> clientOneMessages = messages }
+    }
 
-            application {
-                configureSockets()
-                configureSerialization()
-                configureGamesWs(gameService)
-            }
+    assertTrue(
+        clientOneMessages.any {
+          it is OutgoingMessage.PlayerLeft && it.player == Player(PlayerName("player2"))
+        },
+    )
+  }
 
-            val game = gameService.createGame()
-            val client = createClient()
+  @Test
+  fun `invalid JSON message returns Error and continues`() = testApplication {
+    val playerFactory = TestPlayerFactory()
+    val gameRepository = InMemoryGameRepository()
+    val gameService = GameService(playerFactory, gameRepository)
 
-            client.webSocket("/games/${game.id.id}/live") {
-                incoming.receive() // PlayerJoined
-                incoming.receive() // GameState
+    application {
+      configureSockets()
+      configureSerialization()
+      configureGamesWs(gameService)
+    }
 
-                // Send invalid JSON
-                send(Frame.Text("{invalid json}"))
+    val game = gameService.createGame()
+    val client = createClient()
 
-                val error = receiveDeserialized<OutgoingMessage>()
-                assertIs<OutgoingMessage.Error>(error)
-                assertTrue(error.message.contains("Invalid message format"))
+    client.webSocket("/games/${game.id.id}/live") {
+      incoming.receive() // PlayerJoined
+      incoming.receive() // GameState
 
-                // Session should still be open, can continue
-                sendSerialized(IncomingMessage.SubmitGuess("banana"))
+      // Send invalid JSON
+      send(Frame.Text("{invalid json}"))
 
-                val secondError = receiveDeserialized<OutgoingMessage>()
-                assertIs<OutgoingMessage.Error>(secondError)
-            }
-        }
+      val error = receiveDeserialized<OutgoingMessage>()
+      assertIs<OutgoingMessage.Error>(error)
+      assertTrue(error.message.contains("Invalid message format"))
 
-    private fun ApplicationTestBuilder.createClient(): HttpClient =
-        createClient {
-            install(WebSockets) {
-                contentConverter = KotlinxWebsocketSerializationConverter(Json)
-            }
-        }
+      // Session should still be open, can continue
+      sendSerialized(IncomingMessage.SubmitGuess("banana"))
 
-    private fun DefaultClientWebSocketSession.consumeMessagesAsFlow(): Flow<List<OutgoingMessage>> =
-        incoming
-            .consumeAsFlow()
-            .map {
-                converter!!.deserialize<OutgoingMessage>(it)
-            }.scan(emptyList<OutgoingMessage>()) { acc, message -> acc + message }
+      val secondError = receiveDeserialized<OutgoingMessage>()
+      assertIs<OutgoingMessage.Error>(secondError)
+    }
+  }
+
+  private fun ApplicationTestBuilder.createClient(): HttpClient = createClient {
+    install(WebSockets) { contentConverter = KotlinxWebsocketSerializationConverter(Json) }
+  }
+
+  private fun DefaultClientWebSocketSession.consumeMessagesAsFlow(): Flow<List<OutgoingMessage>> =
+      incoming
+          .consumeAsFlow()
+          .map { converter!!.deserialize<OutgoingMessage>(it) }
+          .scan(emptyList<OutgoingMessage>()) { acc, message -> acc + message }
 }

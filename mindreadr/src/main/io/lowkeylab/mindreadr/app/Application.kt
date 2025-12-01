@@ -14,19 +14,19 @@ import io.lowkeylab.mindreadr.game.InMemoryGameRepository
 import io.lowkeylab.mindreadr.game.ResourcePlayerFactory
 
 fun main(args: Array<String>) {
-    EngineMain.main(args)
+  EngineMain.main(args)
 }
 
 fun Application.module() {
-    val playerFactory = ResourcePlayerFactory("adjectives.txt", "nouns.txt")
-    val gameRepository = InMemoryGameRepository()
-    val gameService = GameService(playerFactory, gameRepository)
+  val playerFactory = ResourcePlayerFactory("adjectives.txt", "nouns.txt")
+  val gameRepository = InMemoryGameRepository()
+  val gameService = GameService(playerFactory, gameRepository)
 
-    configureSecurity()
-    configureSockets()
-    configureSerialization()
-    configureRouting()
-    configureObservability()
-    configureGames(gameService)
-    configureGamesWs(gameService)
+  configureSecurity()
+  configureSockets()
+  configureSerialization()
+  configureRouting()
+  configureObservability()
+  configureGames(gameService)
+  configureGamesWs(gameService)
 }
