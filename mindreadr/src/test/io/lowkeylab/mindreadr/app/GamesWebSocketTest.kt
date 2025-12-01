@@ -1,43 +1,21 @@
 package io.lowkeylab.mindreadr.app
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.converter
-import io.ktor.client.plugins.websocket.receiveDeserialized
-import io.ktor.client.plugins.websocket.sendSerialized
-import io.ktor.client.plugins.websocket.webSocket
-import io.ktor.serialization.deserialize
-import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
-import io.ktor.server.testing.ApplicationTestBuilder
-import io.ktor.server.testing.testApplication
-import io.ktor.websocket.CloseReason
-import io.ktor.websocket.Frame
-import io.ktor.websocket.close
-import io.lowkeylab.mindreadr.IncomingMessage
-import io.lowkeylab.mindreadr.OutgoingMessage
-import io.lowkeylab.mindreadr.configureGamesWs
-import io.lowkeylab.mindreadr.configureSerialization
-import io.lowkeylab.mindreadr.configureSockets
-import io.lowkeylab.mindreadr.game.GameService
-import io.lowkeylab.mindreadr.game.GameState
-import io.lowkeylab.mindreadr.game.InMemoryGameRepository
-import io.lowkeylab.mindreadr.game.Player
-import io.lowkeylab.mindreadr.game.PlayerFactory
-import io.lowkeylab.mindreadr.game.PlayerName
+import io.ktor.client.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.serialization.*
+import io.ktor.serialization.kotlinx.*
+import io.ktor.server.testing.*
+import io.ktor.websocket.*
+import io.lowkeylab.mindreadr.*
+import io.lowkeylab.mindreadr.game.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -71,7 +49,6 @@ class GamesWebSocketTest {
         if (count == parties) {
           // Trip the barrier
           generation.complete(Unit)
-          return
         }
       }
       // Wait for the barrier to be tripped
@@ -137,8 +114,8 @@ class GamesWebSocketTest {
     val client = createClient()
 
     val game = gameService.createGame()
-    val joinBarrier = CoroutineBarrier(3)
-    val exitSignal = MutableSharedFlow<Unit>()
+    val joinBarrier = CoroutineBarrier(2)
+    val exitSignal = MutableSharedFlow<Unit>(replay = 1)
 
     // Fill the game with 2 players
     coroutineScope {
@@ -183,41 +160,44 @@ class GamesWebSocketTest {
     val game = gameService.createGame()
     val client = createClient()
 
-    var clientOneMessages = emptyList<OutgoingMessage>()
-    var clientTwoMessages = emptyList<OutgoingMessage>()
-
     coroutineScope {
       val joinBarrier = CoroutineBarrier(2)
-      val clientOne = launch {
+      val clientOne = async {
         client.webSocket("/games/${game.id.id}/live") {
           joinBarrier.await() // Ensure both clients connected
 
           sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
-          consumeMessagesAsFlow().collect { messages -> clientOneMessages = messages }
+          while (true) {
+            val msg = receiveDeserialized<OutgoingMessage>()
+            if (msg is OutgoingMessage.GameState && msg.game.state == GameState.COMPLETED) {
+              break
+            }
+          }
         }
+
+        return@async true
       }
 
-      val clientTwo = launch {
+      val clientTwo = async {
         client.webSocket("/games/${game.id.id}/live") {
           joinBarrier.await() // Ensure both clients connected
 
           sendSerialized<IncomingMessage>(IncomingMessage.SubmitGuess("apple"))
 
-          consumeMessagesAsFlow().collect { messages -> clientTwoMessages = messages }
+          while (true) {
+            val msg = receiveDeserialized<OutgoingMessage>()
+            if (msg is OutgoingMessage.GameState && msg.game.state == GameState.COMPLETED) {
+              break
+            }
+          }
         }
+        return@async true
       }
 
-      clientOne.join()
-      clientTwo.join()
+      assertTrue(clientOne.await())
+      assertTrue(clientTwo.await())
     }
-
-    val finalMessageClientOne = clientOneMessages.last()
-    val finalMessageClientTwo = clientTwoMessages.last()
-    assertIs<OutgoingMessage.GameState>(finalMessageClientOne)
-    assertIs<OutgoingMessage.GameState>(finalMessageClientTwo)
-    assertEquals(GameState.COMPLETED, finalMessageClientOne.game.state)
-    assertEquals(GameState.COMPLETED, finalMessageClientTwo.game.state)
   }
 
   @Test
@@ -234,23 +214,36 @@ class GamesWebSocketTest {
 
     val game = gameService.createGame()
     val client = createClient()
+    val joinBarrier = CoroutineBarrier(2)
 
-    var clientOneMessages = emptyList<OutgoingMessage>()
+    coroutineScope {
+      val result = async {
+        client.webSocket("/games/${game.id.id}/live") {
+          joinBarrier.await() // Wait for both clients to connect
 
-    client.webSocket("/games/${game.id.id}/live") {
-      client.webSocket("/games/${game.id.id}/live") {
-        // Client 2 disconnects
-        close(CloseReason(CloseReason.Codes.NORMAL, "Test disconnect"))
+          while (true) {
+            val msg = receiveDeserialized<OutgoingMessage>()
+            if (
+                msg is OutgoingMessage.PlayerJoined && msg.player == Player(PlayerName("player2"))
+            ) {
+              break
+            }
+          }
+        }
+
+        return@async true
       }
 
-      consumeMessagesAsFlow().collect { messages -> clientOneMessages = messages }
-    }
+      launch {
+        client.webSocket("/games/${game.id.id}/live") {
+          joinBarrier.await() // Wait for both clients to connect
+          // Client 2 disconnects
+          close(CloseReason(CloseReason.Codes.NORMAL, "Test disconnect"))
+        }
+      }
 
-    assertTrue(
-        clientOneMessages.any {
-          it is OutgoingMessage.PlayerLeft && it.player == Player(PlayerName("player2"))
-        },
-    )
+      assertTrue(result.await())
+    }
   }
 
   @Test

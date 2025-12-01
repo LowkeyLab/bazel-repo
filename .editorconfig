@@ -1,4 +1,5 @@
 [*.{kt,kts}]
+indent_size = 2
 ktlint_standard_indent = disabled
 ktlint_standard_string-template-indent = disabled
 ktlint_standard_function-signature = disabled
