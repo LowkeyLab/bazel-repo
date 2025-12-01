@@ -4,6 +4,11 @@ import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
+import { EMPTY } from 'rxjs';
+
+/** Polling interval for refreshing the games list (in milliseconds) */
+const POLLING_INTERVAL_MS = 1000;
 
 @Component({
   selector: 'mindreadr-games',
@@ -31,9 +36,21 @@ export class GamesComponent implements OnInit, OnDestroy {
   }
 
   private startPolling(): void {
-    this.pollingSubscription = interval(1000).subscribe(() => {
-      this.refreshGames();
-    });
+    this.pollingSubscription = interval(POLLING_INTERVAL_MS)
+      .pipe(
+        switchMap(() =>
+          this.gameService.getGamesByStatus('WAITING_FOR_PLAYERS').pipe(
+            catchError((err) => {
+              // Silently ignore refresh errors to avoid flickering
+              console.error('Error refreshing games', err);
+              return EMPTY;
+            }),
+          ),
+        ),
+      )
+      .subscribe((games) => {
+        this.games.set(games);
+      });
   }
 
   private stopPolling(): void {
@@ -41,19 +58,6 @@ export class GamesComponent implements OnInit, OnDestroy {
       this.pollingSubscription.unsubscribe();
       this.pollingSubscription = null;
     }
-  }
-
-  private refreshGames(): void {
-    // Silent refresh - don't show loading indicator
-    this.gameService.getGamesByStatus('WAITING_FOR_PLAYERS').subscribe({
-      next: (games) => {
-        this.games.set(games);
-      },
-      error: (err) => {
-        // Silently ignore refresh errors to avoid flickering
-        console.error('Error refreshing games', err);
-      },
-    });
   }
 
   fetchWaitingGames() {
