@@ -212,6 +212,27 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     return !this.isRoundComplete(round, game);
   }
 
+  /** Calculate rounds remaining */
+  getRoundsRemaining(game: GameDto): number {
+    const currentRound = game.rounds.length > 0 ? game.rounds[game.rounds.length - 1].number : 0;
+    return Math.max(0, game.roundLimit - currentRound);
+  }
+
+  /** Get color class based on rounds remaining */
+  getRoundsRemainingColor(game: GameDto): string {
+    const remaining = this.getRoundsRemaining(game);
+    const total = game.roundLimit;
+    const percentage = (remaining / total) * 100;
+
+    if (percentage > 60) {
+      return 'text-success'; // Green
+    } else if (percentage > 30) {
+      return 'text-warning'; // Yellow/Orange
+    } else {
+      return 'text-error'; // Red
+    }
+  }
+
   ngOnDestroy(): void {
     try {
       this.subs.forEach((s) => s.unsubscribe());

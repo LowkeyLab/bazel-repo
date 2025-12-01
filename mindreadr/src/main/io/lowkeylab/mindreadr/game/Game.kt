@@ -12,6 +12,7 @@ value class GameId(
 class Game(
     val id: GameId,
     private val playerLimit: UInt = 2u,
+    private val roundLimit: UInt = 10u,
     private val players: MutableList<Player> = mutableListOf(),
     private val rounds: MutableList<Round> = mutableListOf(),
     private var state: GameState = GameState.WAITING_FOR_PLAYERS,
@@ -54,6 +55,8 @@ class Game(
         if (round.guesses.size == players.size) {
             if (round.uniqueGuesses.size == 1) {
                 state = GameState.COMPLETED
+            } else if (round.number >= roundLimit) {
+                state = GameState.TERMINATED
             } else {
                 rounds.add(Round(number = round.number + 1u))
             }
@@ -89,6 +92,8 @@ class Game(
         }
 
     fun getPlayerLimit(): UInt = playerLimit
+
+    fun getRoundLimit(): UInt = roundLimit
 
     fun getPlayers(): List<Player> = players.toList()
 

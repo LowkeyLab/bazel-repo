@@ -15,6 +15,7 @@ export interface RoundDto {
 export interface GameDto {
   id: string;
   playerLimit: number;
+  roundLimit: number;
   players: Player[];
   rounds: RoundDto[];
   state: GameState;
