@@ -1294,11 +1294,17 @@
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
   }
+  .border-info {
+    border-color: var(--color-info);
+  }
   .border-primary\/40 {
     border-color: var(--color-primary);
     @supports (color: color-mix(in lab, red, red)) {
       border-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
     }
+  }
+  .border-warning {
+    border-color: var(--color-warning);
   }
   .border-t-primary {
     border-top-color: var(--color-primary);
@@ -1311,6 +1317,12 @@
   }
   .bg-base-300 {
     background-color: var(--color-base-300);
+  }
+  .bg-info\/10 {
+    background-color: var(--color-info);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-info) 10%, transparent);
+    }
   }
   .bg-warning\/10 {
     background-color: var(--color-warning);
