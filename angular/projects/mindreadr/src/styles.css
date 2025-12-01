@@ -16,6 +16,8 @@
     --text-xs--line-height: calc(1 / 0.75);
     --text-sm: 0.875rem;
     --text-sm--line-height: calc(1.25 / 0.875);
+    --text-base: 1rem;
+    --text-base--line-height: calc(1.5 / 1);
     --text-xl: 1.25rem;
     --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
@@ -1204,6 +1206,19 @@
   .list-disc {
     list-style-type: disc;
   }
+  .stats-vertical {
+    @layer daisyui.l1.l2 {
+      grid-auto-flow: row;
+      overflow-y: auto;
+      .stat:not(:last-child) {
+        border-inline-end: none;
+        border-block-end: var(--border) dashed currentColor;
+        @supports (color: color-mix(in lab, red, red)) {
+          border-block-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
+        }
+      }
+    }
+  }
   .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
@@ -1311,6 +1326,9 @@
   .pl-6 {
     padding-left: calc(var(--spacing) * 6);
   }
+  .text-center {
+    text-align: center;
+  }
   .font-mono {
     font-family: var(--font-mono);
   }
@@ -1321,10 +1339,6 @@
   .text-3xl {
     font-size: var(--text-3xl);
     line-height: var(--tw-leading, var(--text-3xl--line-height));
-  }
-  .text-4xl {
-    font-size: var(--text-4xl);
-    line-height: var(--tw-leading, var(--text-4xl--line-height));
   }
   .text-sm {
     font-size: var(--text-sm);
@@ -1456,6 +1470,31 @@
       grid-area: 1/1;
     }
   }
+  .md\:mt-12 {
+    @media (width >= 48rem) {
+      margin-top: calc(var(--spacing) * 12);
+    }
+  }
+  .md\:w-auto {
+    @media (width >= 48rem) {
+      width: auto;
+    }
+  }
+  .md\:stats-horizontal {
+    @media (width >= 48rem) {
+      @layer daisyui.l1.l2 {
+        grid-auto-flow: column;
+        overflow-x: auto;
+        .stat:not(:last-child) {
+          border-inline-end: var(--border) dashed currentColor;
+          @supports (color: color-mix(in lab, red, red)) {
+            border-inline-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
+          }
+          border-block-end: none;
+        }
+      }
+    }
+  }
   .md\:grid-cols-2 {
     @media (width >= 48rem) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1490,6 +1529,18 @@
     @media (width >= 48rem) {
       font-size: var(--text-2xl);
       line-height: var(--tw-leading, var(--text-2xl--line-height));
+    }
+  }
+  .md\:text-4xl {
+    @media (width >= 48rem) {
+      font-size: var(--text-4xl);
+      line-height: var(--tw-leading, var(--text-4xl--line-height));
+    }
+  }
+  .md\:text-base {
+    @media (width >= 48rem) {
+      font-size: var(--text-base);
+      line-height: var(--tw-leading, var(--text-base--line-height));
     }
   }
 }
