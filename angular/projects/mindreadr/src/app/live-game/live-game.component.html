@@ -1,4 +1,4 @@
-<section class="max-w-3xl mx-auto mt-10 space-y-6">
+<section class="max-w-3xl mx-auto mt-4 md:mt-10 px-4 sm:px-6 space-y-4 md:space-y-6">
   <!-- Toast notifications -->
   <div class="toast toast-top toast-center z-50">
     @for (toast of toasts(); track $index) {
@@ -15,34 +15,36 @@
       </div>
     }
   </div>
-  <header class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold">Game ID: {{ gameId() }}</h1>
+  <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex-1 min-w-0">
+      <h1 class="text-xl sm:text-2xl font-bold truncate">Game ID: {{ gameId() }}</h1>
       @if (currentPlayer()) {
-        <p class="text-sm text-secondary">
+        <p class="text-sm text-secondary truncate">
           Playing as: <b>{{ getPlayerName(currentPlayer()) }}</b>
         </p>
       }
     </div>
-    @if (terminated(); as termState) {
-      <mindreadr-status-badge
-        [type]="getTerminationType(termState)"
-        [label]="termState === 'COMPLETED' ? 'Completed' : 'Terminated'"
-      ></mindreadr-status-badge>
-    } @else if (game(); as g) {
-      <mindreadr-status-badge
-        [type]="getStatusType(g.state)"
-        [ping]="g.state === 'IN_PROGRESS'"
-        [label]="getStatusLabel(g.state)"
-      ></mindreadr-status-badge>
-    } @else {
-      <mindreadr-status-badge
-        type="neutral"
-        [ping]="true"
-        label="Connecting..."
-      ></mindreadr-status-badge>
-    }
-    <button class="btn btn-neutral" (click)="leaveGame()">Leave</button>
+    <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+      @if (terminated(); as termState) {
+        <mindreadr-status-badge
+          [type]="getTerminationType(termState)"
+          [label]="termState === 'COMPLETED' ? 'Completed' : 'Terminated'"
+        ></mindreadr-status-badge>
+      } @else if (game(); as g) {
+        <mindreadr-status-badge
+          [type]="getStatusType(g.state)"
+          [ping]="g.state === 'IN_PROGRESS'"
+          [label]="getStatusLabel(g.state)"
+        ></mindreadr-status-badge>
+      } @else {
+        <mindreadr-status-badge
+          type="neutral"
+          [ping]="true"
+          label="Connecting..."
+        ></mindreadr-status-badge>
+      }
+      <button class="btn btn-neutral btn-sm sm:btn-md" (click)="leaveGame()">Leave</button>
+    </div>
   </header>
 
   @if (error()) {
@@ -52,38 +54,38 @@
   }
 
   @if (game(); as g) {
-    <div class="p-4 border rounded">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="p-3 sm:p-4 border rounded">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <div>
-          <div class="text-sm opacity-70">State</div>
-          <div class="font-mono">{{ g.state }}</div>
+          <div class="text-xs sm:text-sm opacity-70">State</div>
+          <div class="font-mono text-sm sm:text-base">{{ g.state }}</div>
         </div>
         <div>
-          <div class="text-sm opacity-70">Players ({{ g.players.length }}/{{ g.playerLimit }})</div>
-          <ul class="list-disc list-inside text-sm">
+          <div class="text-xs sm:text-sm opacity-70">Players ({{ g.players.length }}/{{ g.playerLimit }})</div>
+          <ul class="list-disc list-inside text-xs sm:text-sm">
             @for (p of g.players; track $index) {
-              <li>{{ getPlayerName(p) }}</li>
+              <li class="truncate">{{ getPlayerName(p) }}</li>
             }
           </ul>
         </div>
-        <div>
-          <div class="text-sm opacity-70">Rounds</div>
-          <div class="font-mono">{{ g.rounds.length }}</div>
+        <div class="sm:col-span-2 lg:col-span-1">
+          <div class="text-xs sm:text-sm opacity-70">Rounds</div>
+          <div class="font-mono text-sm sm:text-base">{{ g.rounds.length }}</div>
         </div>
       </div>
     </div>
 
-    <div class="p-4 border rounded">
-      <h2 class="font-semibold mb-2">Latest Rounds</h2>
+    <div class="p-3 sm:p-4 border rounded">
+      <h2 class="font-semibold mb-2 text-base sm:text-lg">Latest Rounds</h2>
       @if (g.rounds.length === 0) {
-        <div class="opacity-70">No rounds yet.</div>
+        <div class="opacity-70 text-sm sm:text-base">No rounds yet.</div>
       } @else {
-        <ul class="space-y-3">
+        <ul class="space-y-2 sm:space-y-3">
           @for (r of g.rounds; track r.number) {
-            <li class="border rounded p-3">
-              <div class="font-mono text-sm mb-2">Round #{{ r.number }}</div>
+            <li class="border rounded p-2 sm:p-3">
+              <div class="font-mono text-xs sm:text-sm mb-2">Round #{{ r.number }}</div>
               @if (shouldHideGuesses(r, g)) {
-                <div class="text-sm italic opacity-70">
+                <div class="text-xs sm:text-sm italic opacity-70">
                   @if (waitingForOtherPlayer()) {
                     Waiting for other player's guess...
                   } @else {
@@ -94,11 +96,11 @@
                   Submitted: {{ objectKeys(r.guesses).length }}/{{ g.players.length }}
                 </div>
               } @else {
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   @for (entry of objectKeys(r.guesses); track entry) {
-                    <div class="flex items-start gap-2">
-                      <div class="font-semibold">{{ entry }}:</div>
-                      <div class="wrap-break-word">{{ r.guesses[entry] }}</div>
+                    <div class="flex items-start gap-2 text-sm sm:text-base">
+                      <div class="font-semibold truncate flex-shrink-0">{{ entry }}:</div>
+                      <div class="break-words min-w-0">{{ r.guesses[entry] }}</div>
                     </div>
                   }
                 </div>
@@ -109,17 +111,17 @@
       }
     </div>
   } @else {
-    <div class="opacity-70">Connecting to game...</div>
+    <div class="opacity-70 text-sm sm:text-base">Connecting to game...</div>
   }
   @if (waitingForOtherPlayer()) {
-    <div class="text-sm text-warning">
+    <div class="text-xs sm:text-sm text-warning px-2 py-1 rounded bg-warning/10">
       You have submitted your guess. Waiting for other player...
     </div>
   }
-  <form class="flex gap-2" (submit)="$event.preventDefault(); submitGuess()">
+  <form class="flex flex-col sm:flex-row gap-2 sm:gap-3" (submit)="$event.preventDefault(); submitGuess()">
     <input
       type="text"
-      class="input input-bordered flex-1"
+      class="input input-bordered flex-1 text-sm sm:text-base"
       placeholder="Type your guess"
       [ngModel]="guess()"
       (ngModelChange)="guess.set($event)"
@@ -127,7 +129,7 @@
       [disabled]="!!terminated() || waitingForOtherPlayer()"
     />
     <button
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto"
       type="submit"
       [disabled]="!!terminated() || waitingForOtherPlayer() || !guess().trim()"
     >
