@@ -79,6 +79,15 @@ export class LiveGameComponent implements OnInit, OnDestroy {
             },
           });
         }
+        // Redirect to timeout page when game terminated
+        if (g.state === 'TERMINATED') {
+          this.router.navigate([`/games/${this.gameId()}/timeout`], {
+            state: {
+              playerName: this.getPlayerName(this.currentPlayer()),
+              finalGame: g,
+            },
+          });
+        }
       }),
       conn.errors$.subscribe((e) => this.error.set(e)),
       conn.terminated$.subscribe((reason) => {
@@ -86,6 +95,15 @@ export class LiveGameComponent implements OnInit, OnDestroy {
         if (reason === 'COMPLETED') {
           const g = this.game();
           this.router.navigate([`/games/${this.gameId()}/summary`], {
+            state: {
+              playerName: this.getPlayerName(this.currentPlayer()),
+              finalGame: g ?? undefined,
+            },
+          });
+        }
+        if (reason === 'TERMINATED') {
+          const g = this.game();
+          this.router.navigate([`/games/${this.gameId()}/timeout`], {
             state: {
               playerName: this.getPlayerName(this.currentPlayer()),
               finalGame: g ?? undefined,

@@ -155,6 +155,31 @@ describe('LiveGameComponent navigation', () => {
     });
   });
 
+  it('navigates to timeout when game state becomes TERMINATED', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 2,
+      players: [{ name: 'Alice' }, { name: 'Bob' }],
+      rounds: [
+        { number: 1, guesses: { Alice: 'Cat', Bob: 'Dog' } },
+        { number: 2, guesses: { Alice: 'Bird', Bob: 'Fish' } },
+      ],
+      state: 'TERMINATED',
+    };
+    gameState$.next(game);
+    expect(router.navigate).toHaveBeenCalledWith(['/games/g1/timeout'], {
+      state: jasmine.objectContaining({ playerName: 'Player', finalGame: game }),
+    });
+  });
+
+  it('navigates to timeout when terminated with TERMINATED', () => {
+    terminated$.next('TERMINATED');
+    expect(router.navigate).toHaveBeenCalledWith(['/games/g1/timeout'], {
+      state: jasmine.objectContaining({ playerName: 'Player' }),
+    });
+  });
+
   it('calculates rounds remaining correctly', () => {
     const game: GameDto = {
       id: 'g1',
