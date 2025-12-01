@@ -22,6 +22,19 @@ java_binary(
     ],
 )
 
+java_binary(
+    name = "application_dev",
+    args = ["-config=application-dev.conf"],
+    main_class = "io.lowkeylab.mindreadr.app.ApplicationKt",
+    resource_strip_prefix = "mindreadr/src/main/resources",
+    resources = ["//mindreadr/src/main/resources"],
+    visibility = ["//mindreadr:__pkg__"],
+    runtime_deps = [
+        ":ApplicationKt",
+        "@maven//:ch_qos_logback_logback_classic",
+    ],
+)
+
 pkg_tar(
     name = "app_layer",
     srcs = [":application_deploy.jar"],
@@ -51,11 +64,5 @@ oci_push(
     image = ":app_image",
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/mindreadr_backend",
-    visibility = ["//mindreadr:__pkg__"],
-)
-
-alias(
-    name = "app",
-    actual = ":application",
     visibility = ["//mindreadr:__pkg__"],
 )

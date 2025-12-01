@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  API_BASE_URL: 'mindreadrbackend-production.up.railway.app',
+  API_BASE_URL: 'https://mindreadrbackend-production.up.railway.app',
 };
