@@ -56,7 +56,6 @@ export class GameTimeoutComponent implements OnInit, OnDestroy {
     return g ? g.rounds.length : 0;
   }
 
-
   sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
     return (rounds ?? []).slice().sort((a: RoundDto, b: RoundDto) => a.number - b.number);
   }
