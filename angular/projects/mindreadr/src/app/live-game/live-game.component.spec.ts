@@ -240,4 +240,16 @@ describe('LiveGameComponent navigation', () => {
     };
     expect(component.getTurnsRemaining(game)).toBe(0);
   });
+
+  it('handles game with no rounds yet', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      turnLimit: 10,
+      players: [],
+      rounds: [],
+      state: 'IN_PROGRESS',
+    };
+    expect(component.getTurnsRemaining(game)).toBe(10);
+  });
 });
