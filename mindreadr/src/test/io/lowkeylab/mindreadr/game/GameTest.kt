@@ -422,4 +422,67 @@ class GameTest {
         assertEquals("spaced", round.guesses[p1])
         assertEquals("trimme", round.guesses[p2])
     }
+
+    @Test
+    fun `Game should terminate when turn limit is reached`() {
+        val game = Game(GameId("limit-test"), playerLimit = 2u, turnLimit = 3u)
+        val p1 = Player(PlayerName("Alice"))
+        val p2 = Player(PlayerName("Bob"))
+        game.addPlayer(p1)
+        game.addPlayer(p2)
+
+        // Round 1: Different guesses
+        game.addGuess(p1, "apple")
+        game.addGuess(p2, "banana")
+        assertTrue(game.isInProgress())
+
+        // Round 2: Different guesses
+        game.addGuess(p1, "cherry")
+        game.addGuess(p2, "date")
+        assertTrue(game.isInProgress())
+
+        // Round 3: Different guesses - should reach turn limit and terminate
+        game.addGuess(p1, "elephant")
+        game.addGuess(p2, "fox")
+
+        // Game should be terminated after reaching turn limit
+        assertTrue(game.hasEnded())
+        assertEquals(GameState.TERMINATED, game.getState())
+        assertEquals(3, game.getRounds().size)
+    }
+
+    @Test
+    fun `Game should complete normally if players match before turn limit`() {
+        val game = Game(GameId("complete-before-limit"), playerLimit = 2u, turnLimit = 10u)
+        val p1 = Player(PlayerName("Alice"))
+        val p2 = Player(PlayerName("Bob"))
+        game.addPlayer(p1)
+        game.addPlayer(p2)
+
+        // Round 1: Different guesses
+        game.addGuess(p1, "apple")
+        game.addGuess(p2, "banana")
+
+        // Round 2: Same guess - should complete
+        game.addGuess(p1, "match")
+        game.addGuess(p2, "match")
+
+        // Game should be completed, not terminated
+        assertTrue(game.hasEnded())
+        assertEquals(GameState.COMPLETED, game.getState())
+        assertEquals(2, game.getRounds().size)
+        assertEquals("match", game.getFinalGuess())
+    }
+
+    @Test
+    fun `Game should use default turn limit of 10`() {
+        val game = Game(GameId("default-limit"), playerLimit = 2u)
+        assertEquals(10u, game.getTurnLimit())
+    }
+
+    @Test
+    fun `Game should allow custom turn limit`() {
+        val game = Game(GameId("custom-limit"), playerLimit = 2u, turnLimit = 5u)
+        assertEquals(5u, game.getTurnLimit())
+    }
 }

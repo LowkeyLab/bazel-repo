@@ -35,6 +35,7 @@ describe('LiveGameComponent logic', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
+      turnLimit: 10,
       players: [p1, p2],
       rounds: [round],
       state: 'IN_PROGRESS',
@@ -56,6 +57,7 @@ describe('LiveGameComponent logic', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
+      turnLimit: 10,
       players: [p1, p2],
       rounds: [round],
       state: 'IN_PROGRESS',
@@ -77,6 +79,7 @@ describe('LiveGameComponent logic', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
+      turnLimit: 10,
       players: [p1, p2],
       rounds: [round],
       state: 'IN_PROGRESS',
@@ -134,6 +137,7 @@ describe('LiveGameComponent navigation', () => {
     const game: GameDto = {
       id: 'g1',
       playerLimit: 2,
+      turnLimit: 10,
       players: [],
       rounds: [],
       state: 'COMPLETED',
@@ -149,5 +153,91 @@ describe('LiveGameComponent navigation', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/summary'], {
       state: jasmine.objectContaining({ playerName: 'Player' }),
     });
+  });
+
+  it('calculates turns remaining correctly', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      turnLimit: 10,
+      players: [],
+      rounds: [
+        { number: 1, guesses: {} },
+        { number: 2, guesses: {} },
+        { number: 3, guesses: {} },
+      ],
+      state: 'IN_PROGRESS',
+    };
+    component.game.set(game);
+    expect(component.getTurnsRemaining(game)).toBe(7);
+  });
+
+  it('returns correct color for high turns remaining', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      turnLimit: 10,
+      players: [],
+      rounds: [{ number: 1, guesses: {} }],
+      state: 'IN_PROGRESS',
+    };
+    expect(component.getTurnsRemainingColor(game)).toBe('text-success');
+  });
+
+  it('returns correct color for medium turns remaining', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      turnLimit: 10,
+      players: [],
+      rounds: [
+        { number: 1, guesses: {} },
+        { number: 2, guesses: {} },
+        { number: 3, guesses: {} },
+        { number: 4, guesses: {} },
+        { number: 5, guesses: {} },
+      ],
+      state: 'IN_PROGRESS',
+    };
+    expect(component.getTurnsRemainingColor(game)).toBe('text-warning');
+  });
+
+  it('returns correct color for low turns remaining', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      turnLimit: 10,
+      players: [],
+      rounds: [
+        { number: 1, guesses: {} },
+        { number: 2, guesses: {} },
+        { number: 3, guesses: {} },
+        { number: 4, guesses: {} },
+        { number: 5, guesses: {} },
+        { number: 6, guesses: {} },
+        { number: 7, guesses: {} },
+        { number: 8, guesses: {} },
+      ],
+      state: 'IN_PROGRESS',
+    };
+    expect(component.getTurnsRemainingColor(game)).toBe('text-error');
+  });
+
+  it('handles zero turns remaining', () => {
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      turnLimit: 5,
+      players: [],
+      rounds: [
+        { number: 1, guesses: {} },
+        { number: 2, guesses: {} },
+        { number: 3, guesses: {} },
+        { number: 4, guesses: {} },
+        { number: 5, guesses: {} },
+      ],
+      state: 'IN_PROGRESS',
+    };
+    expect(component.getTurnsRemaining(game)).toBe(0);
   });
 });
