@@ -39,56 +39,7 @@ describe('GameService', () => {
     req.flush(mock);
   });
 
-  it('getGamesCount should map to inProgressGames', (done) => {
-    const mock: GameSummary = {
-      waitingForPlayerGames: 0,
-      inProgressGames: 7,
-      completedGames: 1,
-    };
-
-    service.getGamesCount().subscribe((count) => {
-      expect(count).toBe(7);
-      done();
-    });
-
-    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
-    expect(req.request.method).toBe('GET');
-    req.flush(mock);
-  });
-
-  it('getOpenGamesCount should map to waitingForPlayerGames', (done) => {
-    const mock: GameSummary = {
-      waitingForPlayerGames: 5,
-      inProgressGames: 0,
-      completedGames: 0,
-    };
-
-    service.getOpenGamesCount().subscribe((count) => {
-      expect(count).toBe(5);
-      done();
-    });
-
-    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
-    expect(req.request.method).toBe('GET');
-    req.flush(mock);
-  });
-
-  it('getCompletedGamesCount should map to completedGames', (done) => {
-    const mock: GameSummary = {
-      waitingForPlayerGames: 0,
-      inProgressGames: 0,
-      completedGames: 9,
-    };
-
-    service.getCompletedGamesCount().subscribe((count) => {
-      expect(count).toBe(9);
-      done();
-    });
-
-    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
-    expect(req.request.method).toBe('GET');
-    req.flush(mock);
-  });
+  // Deprecated count helper tests removed. Components should consume getSummary() directly.
 
   it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', (done) => {
     const mockGames: GameDto[] = [
