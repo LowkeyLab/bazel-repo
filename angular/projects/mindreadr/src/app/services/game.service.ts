@@ -29,11 +29,6 @@ export class GameService {
   }
 
   /**
-   * Returns the number of games that are currently in progress.
-   */
-  // Deprecated count helpers removed; components should use getSummary() directly.
-
-  /**
    * Fetches games filtered by backend status enum.
    * Example: /games?status=WAITING_FOR_PLAYERS
    */
