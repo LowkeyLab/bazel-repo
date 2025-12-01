@@ -1,7 +1,7 @@
 package io.lowkeylab.mindreadr.game
 
 interface PlayerFactory {
-    fun create(): Player
+  fun create(): Player
 
-    fun removeName(name: PlayerName)
+  fun removeName(name: PlayerName)
 }

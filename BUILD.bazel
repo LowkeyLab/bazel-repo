@@ -32,6 +32,8 @@ exports_files(
         "gazelle_python.yaml",
         "pmd.xml",
         "pyproject.toml",
+        ".editorconfig",
+        ".ktlint-baseline.xml",
     ],
 )
 

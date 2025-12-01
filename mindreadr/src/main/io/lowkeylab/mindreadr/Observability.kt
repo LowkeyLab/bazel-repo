@@ -9,12 +9,10 @@ import io.ktor.server.plugins.callid.generate
 import io.ktor.server.plugins.calllogging.CallLogging
 
 fun Application.configureObservability() {
-    install(CallId) {
-        header(HttpHeaders.XRequestId)
-        generate(10, "abcde12345")
-    }
+  install(CallId) {
+    header(HttpHeaders.XRequestId)
+    generate(10, "abcde12345")
+  }
 
-    install(CallLogging) {
-        callIdMdc("call-id")
-    }
+  install(CallLogging) { callIdMdc("call-id") }
 }

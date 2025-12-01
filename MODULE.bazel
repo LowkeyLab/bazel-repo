@@ -46,6 +46,8 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 
 http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
 
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
 http_archive(
     name = "net_sourceforge_pmd",
     build_file_content = """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
@@ -66,12 +68,17 @@ http_jar(
     url = "https://github.com/google/google-java-format/releases/download/v1.17.0/google-java-format-1.17.0-all-deps.jar",
 )
 
-http_archive(
-    name = "ktlint",
-    build_file_content = """sh_binary(name = "ktlint", srcs = ["bin/ktlint"], visibility = ["//visibility:public"])""",
-    integrity = "sha256-1FO4NHWHJBVZ1YMQLBiZOm78fX0QZNGjgPiljrU6BnU=",
-    strip_prefix = "ktlint-1.7.1",
-    url = "https://github.com/pinterest/ktlint/releases/download/1.7.1/ktlint-1.7.1.zip",
+http_file(
+    name = "pinterest_ktlint",
+    executable = True,
+    sha256 = "a3fd620207d5c40da6ca789b95e7f823c54e854b7fade7f613e91096a3706d75",
+    url = "https://github.com/pinterest/ktlint/releases/download/1.8.0/ktlint",
+)
+
+http_jar(
+    name = "facebook_ktfmt",
+    sha256 = "a493271c137074436a133d72e9e323f91604c97e0c40555629ec39598efead54",
+    url = "https://github.com/facebook/ktfmt/releases/download/v0.59/ktfmt-0.59-with-dependencies.jar",
 )
 
 #########################

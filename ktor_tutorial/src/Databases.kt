@@ -4,9 +4,9 @@ import io.ktor.server.application.Application
 import org.jetbrains.exposed.sql.Database
 
 fun Application.configureDatabases() {
-    Database.connect(
-        "jdbc:postgresql://localhost:5432/ktor_tutorial_db",
-        user = "postgres",
-        password = "postgres",
-    )
+  Database.connect(
+      "jdbc:postgresql://localhost:5432/ktor_tutorial_db",
+      user = "postgres",
+      password = "postgres",
+  )
 }
