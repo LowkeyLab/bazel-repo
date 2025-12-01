@@ -43,7 +43,7 @@ export class GamesCountComponent implements OnInit, OnDestroy {
   }
 
   private startRefreshTimer() {
-    this.refreshSub = interval(1000)
+    this.refreshSub = interval(10_000)
       .pipe(
         exhaustMap(() =>
           this.games.getSummary().pipe(
