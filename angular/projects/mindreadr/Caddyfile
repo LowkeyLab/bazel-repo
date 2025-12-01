@@ -1,4 +1,4 @@
-localhost {
+:80 {
 	log
 	root * /app/browser
 	file_server
