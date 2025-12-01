@@ -28,10 +28,11 @@ internal fun calculateAllowedOrigins(
     base: List<String>,
     extra: String,
 ): Set<String> {
+    val trimmedBase = base.map { it.trim() }.filter { it.isNotEmpty() }
     val extraAllowedOrigins =
         extra
             .split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-    return (base + extraAllowedOrigins).toSet()
+    return (trimmedBase + extraAllowedOrigins).toSet()
 }
