@@ -1560,6 +1560,11 @@
       }
     }
   }
+  .sm\:self-auto {
+    @media (width >= 40rem) {
+      align-self: auto;
+    }
+  }
   .sm\:p-3 {
     @media (width >= 40rem) {
       padding: calc(var(--spacing) * 3);
@@ -1672,11 +1677,6 @@
         margin-block-start: calc(calc(var(--spacing) * 6) * var(--tw-space-y-reverse));
         margin-block-end: calc(calc(var(--spacing) * 6) * calc(1 - var(--tw-space-y-reverse)));
       }
-    }
-  }
-  .md\:self-auto {
-    @media (width >= 48rem) {
-      align-self: auto;
     }
   }
   .md\:text-2xl {
