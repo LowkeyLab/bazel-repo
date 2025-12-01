@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { GameService, GameSummary } from './game.service';
 import { GameDto } from '../services/game.types';
 import { environment } from '../../environments/environment';
+import { provideHttpClient } from '@angular/common/http';
 
 describe('GameService', () => {
   let service: GameService;
@@ -10,8 +11,7 @@ describe('GameService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [GameService],
+      providers: [GameService, provideHttpClient(), provideHttpClientTesting()],
     });
 
     service = TestBed.inject(GameService);
@@ -89,8 +89,6 @@ describe('GameService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(mock);
   });
-
-  // Note: getSummary() intentionally does not cache responses; each subscription performs a request.
 
   it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', (done) => {
     const mockGames: GameDto[] = [
