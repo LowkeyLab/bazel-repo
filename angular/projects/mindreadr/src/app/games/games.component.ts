@@ -1,8 +1,14 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
 import { Router } from '@angular/router';
+import { Subscription, interval } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
+import { EMPTY } from 'rxjs';
+
+/** Polling interval for refreshing the games list (in milliseconds) */
+const POLLING_INTERVAL_MS = 1000;
 
 @Component({
   selector: 'mindreadr-games',
@@ -10,9 +16,10 @@ import { Router } from '@angular/router';
   imports: [CommonModule],
   templateUrl: './games.component.html',
 })
-export class GamesComponent implements OnInit {
+export class GamesComponent implements OnInit, OnDestroy {
   private readonly gameService = inject(GameService);
   private readonly router = inject(Router);
+  private pollingSubscription: Subscription | null = null;
 
   // Signal holding currently open (waiting for players) games.
   games = signal<GameDto[]>([]);
@@ -21,6 +28,36 @@ export class GamesComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchWaitingGames();
+    this.startPolling();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  private startPolling(): void {
+    this.pollingSubscription = interval(POLLING_INTERVAL_MS)
+      .pipe(
+        switchMap(() =>
+          this.gameService.getGamesByStatus('WAITING_FOR_PLAYERS').pipe(
+            catchError((err) => {
+              // Silently ignore refresh errors to avoid flickering
+              console.error('Error refreshing games', err);
+              return EMPTY;
+            }),
+          ),
+        ),
+      )
+      .subscribe((games) => {
+        this.games.set(games);
+      });
+  }
+
+  private stopPolling(): void {
+    if (this.pollingSubscription) {
+      this.pollingSubscription.unsubscribe();
+      this.pollingSubscription = null;
+    }
   }
 
   fetchWaitingGames() {

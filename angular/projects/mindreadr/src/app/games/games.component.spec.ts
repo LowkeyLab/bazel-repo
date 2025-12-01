@@ -1,4 +1,10 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  fakeAsync,
+  tick,
+  discardPeriodicTasks,
+} from '@angular/core/testing';
 import { GamesComponent } from './games.component';
 import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
@@ -115,4 +121,79 @@ describe('GamesComponent', () => {
     component.joinGame('123');
     expect(router.navigate).toHaveBeenCalledWith(['/games', '123', 'live']);
   });
+
+  it('starts polling for games every 1 second after init', fakeAsync(() => {
+    gameService.getGamesByStatus.calls.reset();
+    gameService.getGamesByStatus.and.returnValue(of([{ id: 'game1' } as GameDto]));
+
+    fixture.detectChanges(); // triggers ngOnInit
+
+    // Initial fetch happens immediately
+    expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(1);
+
+    // After 1 second, polling should trigger another fetch
+    tick(1000);
+    expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(2);
+
+    // After another second, another fetch
+    tick(1000);
+    expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(3);
+
+    discardPeriodicTasks();
+  }));
+
+  it('stops polling when component is destroyed', fakeAsync(() => {
+    gameService.getGamesByStatus.calls.reset();
+    gameService.getGamesByStatus.and.returnValue(of([{ id: 'game1' } as GameDto]));
+
+    fixture.detectChanges(); // triggers ngOnInit
+
+    // Initial fetch + first poll
+    tick(1000);
+    expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(2);
+
+    // Destroy the component
+    component.ngOnDestroy();
+
+    // After another second, no more fetches should occur
+    tick(1000);
+    expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(2);
+
+    discardPeriodicTasks();
+  }));
+
+  it('updates games list when polling returns new data', fakeAsync(() => {
+    gameService.getGamesByStatus.and.returnValue(of([{ id: 'initial' } as GameDto]));
+    fixture.detectChanges(); // triggers ngOnInit
+    expect(component.games().length).toBe(1);
+    expect(component.games()[0].id).toBe('initial');
+
+    // Simulate new game appearing
+    gameService.getGamesByStatus.and.returnValue(
+      of([{ id: 'initial' } as GameDto, { id: 'new' } as GameDto]),
+    );
+    tick(1000);
+
+    expect(component.games().length).toBe(2);
+    expect(component.games()[1].id).toBe('new');
+
+    discardPeriodicTasks();
+  }));
+
+  it('silently handles polling errors without affecting displayed games', fakeAsync(() => {
+    gameService.getGamesByStatus.and.returnValue(of([{ id: 'game1' } as GameDto]));
+    fixture.detectChanges();
+    expect(component.games().length).toBe(1);
+    expect(component.error()).toBeNull();
+
+    // Make the next poll fail
+    gameService.getGamesByStatus.and.returnValue(throwError(() => new Error('network error')));
+    tick(1000);
+
+    // Games should still be displayed (no error shown for polling failures)
+    expect(component.games().length).toBe(1);
+    expect(component.error()).toBeNull();
+
+    discardPeriodicTasks();
+  }));
 });
