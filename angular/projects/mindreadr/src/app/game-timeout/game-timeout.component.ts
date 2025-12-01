@@ -56,19 +56,10 @@ export class GameTimeoutComponent implements OnInit, OnDestroy {
     return g ? g.rounds.length : 0;
   }
 
-  objectKeys<T extends object>(obj: T): Array<keyof T & string> {
-    return Object.keys(obj) as Array<keyof T & string>;
-  }
 
   sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
     return (rounds ?? []).slice().sort((a: RoundDto, b: RoundDto) => a.number - b.number);
   }
-
-  sorted_player_name(guesses: Record<string, string> | undefined | null): string[] {
-    if (!guesses) return [];
-    return Object.keys(guesses).sort((a: string, b: string) => a.localeCompare(b));
-  }
-
   sorted_player_names_from_players(players: GameDto['players']): string[] {
     return players
       .map((p) => p.name)

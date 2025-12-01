@@ -102,15 +102,7 @@ export class LiveGameComponent implements OnInit, OnDestroy {
           });
         }
         if (reason === 'TERMINATED') {
-          const g = this.game();
-          if (g && this.hasReachedRoundLimit(g)) {
-            this.router.navigate([`/games/${this.gameId()}/timeout`], {
-              state: {
-                playerName: this.getPlayerName(this.currentPlayer()),
-                finalGame: g ?? undefined,
-              },
-            });
-          }
+          // Navigation for round limit is handled in gameState$ subscription.
         }
       }),
       conn.playerJoined$.subscribe((player) => {
