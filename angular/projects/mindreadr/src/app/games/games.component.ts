@@ -1,8 +1,9 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
 import { Router } from '@angular/router';
+import { Subscription, interval } from 'rxjs';
 
 @Component({
   selector: 'mindreadr-games',
@@ -10,9 +11,10 @@ import { Router } from '@angular/router';
   imports: [CommonModule],
   templateUrl: './games.component.html',
 })
-export class GamesComponent implements OnInit {
+export class GamesComponent implements OnInit, OnDestroy {
   private readonly gameService = inject(GameService);
   private readonly router = inject(Router);
+  private pollingSubscription: Subscription | null = null;
 
   // Signal holding currently open (waiting for players) games.
   games = signal<GameDto[]>([]);
@@ -21,6 +23,37 @@ export class GamesComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchWaitingGames();
+    this.startPolling();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  private startPolling(): void {
+    this.pollingSubscription = interval(1000).subscribe(() => {
+      this.refreshGames();
+    });
+  }
+
+  private stopPolling(): void {
+    if (this.pollingSubscription) {
+      this.pollingSubscription.unsubscribe();
+      this.pollingSubscription = null;
+    }
+  }
+
+  private refreshGames(): void {
+    // Silent refresh - don't show loading indicator
+    this.gameService.getGamesByStatus('WAITING_FOR_PLAYERS').subscribe({
+      next: (games) => {
+        this.games.set(games);
+      },
+      error: (err) => {
+        // Silently ignore refresh errors to avoid flickering
+        console.error('Error refreshing games', err);
+      },
+    });
   }
 
   fetchWaitingGames() {
