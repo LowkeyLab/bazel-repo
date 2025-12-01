@@ -39,8 +39,6 @@ describe('GameService', () => {
     req.flush(mock);
   });
 
-  // Deprecated count helper tests removed. Components should consume getSummary() directly.
-
   it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', (done) => {
     const mockGames: GameDto[] = [
       { id: 'G1', state: 'WAITING_FOR_PLAYERS', playerLimit: 2, players: [], rounds: [] },
