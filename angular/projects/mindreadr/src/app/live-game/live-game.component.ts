@@ -79,6 +79,15 @@ export class LiveGameComponent implements OnInit, OnDestroy {
             },
           });
         }
+        // Redirect to timeout page when game terminated due to round limit
+        if (g.state === 'TERMINATED' && this.hasReachedRoundLimit(g)) {
+          this.router.navigate([`/games/${this.gameId()}/timeout`], {
+            state: {
+              playerName: this.getPlayerName(this.currentPlayer()),
+              finalGame: g,
+            },
+          });
+        }
       }),
       conn.errors$.subscribe((e) => this.error.set(e)),
       conn.terminated$.subscribe((reason) => {
@@ -91,6 +100,17 @@ export class LiveGameComponent implements OnInit, OnDestroy {
               finalGame: g ?? undefined,
             },
           });
+        }
+        if (reason === 'TERMINATED') {
+          const g = this.game();
+          if (g && this.hasReachedRoundLimit(g)) {
+            this.router.navigate([`/games/${this.gameId()}/timeout`], {
+              state: {
+                playerName: this.getPlayerName(this.currentPlayer()),
+                finalGame: g ?? undefined,
+              },
+            });
+          }
         }
       }),
       conn.playerJoined$.subscribe((player) => {
@@ -210,6 +230,13 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   /** Hide guesses until every player has submitted for that round. */
   shouldHideGuesses(round: RoundDto, game: GameDto): boolean {
     return !this.isRoundComplete(round, game);
+  }
+
+  /** Check if game has reached the round limit */
+  hasReachedRoundLimit(game: GameDto): boolean {
+    if (!game || game.rounds.length === 0) return false;
+    const lastRound = game.rounds[game.rounds.length - 1];
+    return lastRound.number >= game.roundLimit;
   }
 
   /** Calculate rounds remaining */
