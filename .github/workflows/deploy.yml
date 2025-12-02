@@ -42,7 +42,7 @@ jobs:
 
       - name: Install tools via bazel
         run: |
-          echo "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin" >> $GITHUB_PATH
+          bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
 
       - name: Log in to GHCR
         uses: docker/login-action@28fdb31ff34708d19615a74d67103ddc2ea9725c
