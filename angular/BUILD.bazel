@@ -2,10 +2,9 @@ load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
 
 # gazelle:kotlin disabled
+# gazelle:js disabled
 
 npm_link_all_packages()
-
-exports_files([".postcssrc.json"])
 
 ng_config(
     name = "ng-config",
