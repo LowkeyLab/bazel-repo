@@ -32,7 +32,7 @@ This project uses TailwindCSS v4 with DaisyUI components via a **Bazel-managed g
 1. **Source CSS** (`src/styles.source.css`): Contains `@import`, `@plugin`, and `@source` directives
 
    ```css
-   @import 'tailwindcss';
+   @import "tailwindcss";
    @plugin 'daisyui';
 
    @source "./app/**/*.html";

@@ -65,7 +65,9 @@ describe('Navbar', () => {
     expect(router.url).toBe('/games');
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const homeLink = compiled.querySelector('nav a[routerLink="/"]') as HTMLAnchorElement;
+    const homeLink = compiled.querySelector(
+      'nav a[routerLink="/"]',
+    ) as HTMLAnchorElement;
 
     homeLink.click();
     await fixture.whenStable();
@@ -80,7 +82,9 @@ describe('Navbar', () => {
     expect(router.url).toBe('/');
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const gamesLink = compiled.querySelector('nav a[routerLink="/games"]') as HTMLAnchorElement;
+    const gamesLink = compiled.querySelector(
+      'nav a[routerLink="/games"]',
+    ) as HTMLAnchorElement;
 
     gamesLink.click();
     await fixture.whenStable();
@@ -96,7 +100,9 @@ describe('Navbar', () => {
 
     // Click brand link
     const compiled = fixture.nativeElement as HTMLElement;
-    const brandLink = compiled.querySelector('a.btn-ghost') as HTMLAnchorElement;
+    const brandLink = compiled.querySelector(
+      'a.btn-ghost',
+    ) as HTMLAnchorElement;
     brandLink.click();
     await fixture.whenStable();
 
