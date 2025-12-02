@@ -16,12 +16,12 @@ buf = lint_buf_aspect(
 
 # Check ts_project and js_library sources, see https://eslint.org/
 eslint = lint_eslint_aspect(
-    binary = "@@//tools/lint:eslint",
+    binary = Label(":eslint"),
     # ESLint will resolve the configuration file by looking in the working directory first.
     # See https://eslint.org/docs/latest/use/configure/configuration-files#configuration-file-resolution
     # We must also include any other config files we expect eslint to be able to locate, e.g. tsconfigs
     configs = [
-        "@@//:eslintrc",
+        Label("//:eslintrc"),
     ],
 )
 

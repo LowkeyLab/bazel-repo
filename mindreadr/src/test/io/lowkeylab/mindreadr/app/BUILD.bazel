@@ -1,3 +1,4 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("//mindreadr/src/test/io/lowkeylab/mindreadr/app:rules.bzl", "http_test")
 
 http_test(name = "ApplicationTest")
@@ -7,3 +8,10 @@ http_test(name = "GamesHttpTest")
 http_test(name = "GamesWebSocketTest")
 
 http_test(name = "GamesSummaryTest")
+
+bzl_library(
+    name = "rules",
+    srcs = ["rules.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["//bzl:kotlin"],
+)
