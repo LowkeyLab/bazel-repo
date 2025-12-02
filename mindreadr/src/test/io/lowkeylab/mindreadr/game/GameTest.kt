@@ -415,6 +415,29 @@ class GameTest {
   }
 
   @Test
+  fun `addGuess should reject guesses with multiple words`() {
+    val game = Game(GameId("multi-word"), playerLimit = 2u)
+    val p1 = Player(PlayerName("A"))
+    val p2 = Player(PlayerName("B"))
+    game.addPlayer(p1)
+    game.addPlayer(p2)
+
+    // Test various multi-word patterns
+    assertFailsWith<IllegalStateException> { game.addGuess(p1, "hello world") }
+    assertFailsWith<IllegalStateException> { game.addGuess(p1, "two words") }
+    assertFailsWith<IllegalStateException> { game.addGuess(p1, "three word guess") }
+    assertFailsWith<IllegalStateException> { game.addGuess(p1, " spaced out ") }
+
+    // Valid single word should work
+    game.addGuess(p1, "singleword")
+    game.addGuess(p2, "valid")
+
+    val round = game.getRounds().first()
+    assertEquals("singleword", round.guesses[p1])
+    assertEquals("valid", round.guesses[p2])
+  }
+
+  @Test
   fun `Game should terminate when round limit is reached`() {
     val game = Game(GameId("limit-test"), playerLimit = 2u, roundLimit = 3u)
     val p1 = Player(PlayerName("Alice"))

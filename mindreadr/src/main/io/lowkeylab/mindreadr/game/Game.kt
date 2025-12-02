@@ -40,6 +40,8 @@ class Game(
     // Trim and reject empty / whitespace-only guesses
     val trimmed = guess.trim()
     check(trimmed.isNotEmpty()) { "Guess cannot be empty or whitespace." }
+    // Reject guesses containing spaces (must be a single word)
+    check(!trimmed.contains(' ')) { "Guess must be a single word without spaces." }
     // Normalize guess to lowercase (locale-independent)
     val normalized = trimmed.lowercase(Locale.ROOT)
     // Build case-insensitive set of previously used guesses
