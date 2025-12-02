@@ -1265,7 +1265,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_amd64"
             }
           },
@@ -1278,7 +1278,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_arm64"
             }
           },
@@ -1291,7 +1291,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_s390x"
             }
           },
@@ -1304,7 +1304,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_ppc64le"
             }
           },
@@ -1317,7 +1317,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "darwin_amd64"
             }
           },
@@ -1330,7 +1330,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "darwin_arm64"
             }
           },
@@ -1343,7 +1343,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "windows_amd64"
             }
           },
@@ -1356,7 +1356,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "windows_arm64"
             }
           },
