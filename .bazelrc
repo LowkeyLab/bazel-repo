@@ -3,6 +3,8 @@ import %workspace%/tools/preset.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
+run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
+
 # Disable skymeld; see https://github.com/bazelbuild/bazel/issues/23743
 # fixes src/main/tools/process-wrapper-legacy.cc:80: "execvp(external/++toolchains+coreutils_linux_amd64/coreutils, ...)": No such file or directory
 common --noexperimental_merged_skyframe_analysis_execution
