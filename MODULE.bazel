@@ -10,10 +10,6 @@ module(
 bazel_dep(name = "bazel_lib", version = "3.0.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.21.2")
 bazel_dep(name = "aspect_rules_lint", version = "1.10.2")
-bazel_dep(name = "aspect_rules_esbuild", version = "0.24.0")
-bazel_dep(name = "aspect_rules_js", version = "2.8.2")
-bazel_dep(name = "aspect_rules_swc", version = "2.5.0")
-bazel_dep(name = "aspect_rules_ts", version = "3.7.1")
 
 bazel_dep(name = "bazel_env.bzl", version = "0.5.0", dev_dependency = True)
 
@@ -22,6 +18,10 @@ bazel_dep(name = "bazelrc-preset.bzl", version = "1.6.0")
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
 bazel_dep(name = "rules_nodejs", version = "6.6.2")
+bazel_dep(name = "aspect_rules_js", version = "2.8.2")
+bazel_dep(name = "aspect_rules_swc", version = "2.5.0")
+bazel_dep(name = "aspect_rules_ts", version = "3.7.1")
+bazel_dep(name = "aspect_rules_esbuild", version = "0.24.0")
 bazel_dep(name = "rules_java", version = "9.1.0")
 bazel_dep(name = "rules_kotlin", version = "2.2.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
@@ -91,32 +91,20 @@ http_jar(
 )
 
 #########################
-# JavaScript and TypeScript
-# https://github.com/aspect-build/rules_js/tree/main/e2e/bzlmod
-# https://github.com/aspect-build/rules_ts/tree/main/e2e/bzlmod
-
-node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
-node.toolchain(
-    include_headers = True,
-    node_version = "24.9.0",
-)
-use_repo(node, "nodejs_toolchains")
+# JavaScript and pnpm package manager
 
 pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
 
-# Allows developers to get a local node_modules tree, using
-# bazel run -- @pnpm//:pnpm --dir $PWD install
+# Allows developers to run the same pnpm version that Bazel manages
+use_repo(pnpm, "pnpm")
+
 pnpm.pnpm(
     pnpm_version = "latest",
 )
-use_repo(pnpm, "pnpm")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
-    lifecycle_hooks_execution_requirements = {
-        "lmdb": ["no-remote-exec"],  # requires non-hermetic GLIBCXX_3.4.29 which is not found on remote executors but is available on host
-    },
     npmrc = "//:.npmrc",
     pnpm_lock = "//:pnpm-lock.yaml",
 )
@@ -129,6 +117,12 @@ rules_ts_ext = use_extension(
 )
 rules_ts_ext.deps()
 use_repo(rules_ts_ext, "npm_typescript")
+
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+node.toolchain(
+    node_version = "24.9.0",
+)
+use_repo(node, "nodejs_toolchains")
 
 #########################
 # Fetch tools

@@ -886,7 +886,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "gA7tPEdJXhskzPIEUxjX9IdDrM6+WjfbgXJ8Ez47umk=",
-        "usagesDigest": "rfe2DxIggi06YkV0/o4zIF9/Yq46b2JBAh3qhJUJ2zc=",
+        "usagesDigest": "/GYfGW/YJTxdvbJxg7mrnupwIs2mvv5pRlea16tWDy8=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -896,10 +896,10 @@
             "attributes": {
               "deps": {
                 "aspect_rules_lint": "1.10.2",
-                "aspect_rules_esbuild": "0.24.0",
                 "aspect_rules_js": "2.8.2",
                 "aspect_rules_swc": "2.5.0",
                 "aspect_rules_ts": "3.7.1",
+                "aspect_rules_esbuild": "0.24.0",
                 "aspect_tools_telemetry": "0.2.8"
               }
             }
@@ -1249,7 +1249,7 @@
     "@@rules_nodejs+//nodejs:extensions.bzl%node": {
       "general": {
         "bzlTransitiveDigest": "NwcLXHrbh2hoorA/Ybmcpjxsn/6avQmewDglodkDrgo=",
-        "usagesDigest": "wBTmtxHNp4KHUoGM4Ht6BdI3/PVrJS3u6DDAUz3puxA=",
+        "usagesDigest": "xHb5hxRb352VqLRuzvmztoV76T5WbsLbMxmUnEQXWMY=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1263,7 +1263,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_amd64"
             }
           },
@@ -1276,7 +1276,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_arm64"
             }
           },
@@ -1289,7 +1289,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_s390x"
             }
           },
@@ -1302,7 +1302,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "linux_ppc64le"
             }
           },
@@ -1315,7 +1315,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "darwin_amd64"
             }
           },
@@ -1328,7 +1328,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "darwin_arm64"
             }
           },
@@ -1341,7 +1341,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "windows_amd64"
             }
           },
@@ -1354,7 +1354,7 @@
                 "https://nodejs.org/dist/v{version}/{filename}"
               ],
               "node_version": "24.9.0",
-              "include_headers": true,
+              "include_headers": false,
               "platform": "windows_arm64"
             }
           },
