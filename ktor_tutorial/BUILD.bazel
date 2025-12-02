@@ -1,6 +1,8 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
 load("//bzl:kotlin.bzl", "kt_junit5_test")
 
+# gazelle:kotlin disabled
+
 kt_jvm_library(
     name = "ktor_tutorial_lib",
     srcs = glob(["src/**/*.kt"]),

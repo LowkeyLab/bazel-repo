@@ -1,3 +1,5 @@
+#gazelle:kotlin disabled
+
 alias(
     name = "mindreadr",
     actual = "//mindreadr/src/main/io/lowkeylab/mindreadr/app:application_dev",

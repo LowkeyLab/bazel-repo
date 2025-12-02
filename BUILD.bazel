@@ -5,6 +5,8 @@ load("@gazelle//:def.bzl", "gazelle")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
+# Gazelle Kotlin is too buggy at the moment to be enabled globally
+# gazelle:kotlin disabled
 # gazelle:js_npm_package_target_name pkg
 npm_link_all_packages(name = "node_modules")
 
