@@ -24,7 +24,8 @@ import { CommonModule } from '@angular/common';
   `,
 })
 export class StatusBadgeComponent {
-  @Input() type: 'success' | 'warning' | 'info' | 'error' | 'neutral' = 'neutral';
+  @Input() type: 'success' | 'warning' | 'info' | 'error' | 'neutral' =
+    'neutral';
   @Input() label = '';
   @Input() ping = false;
   /** Optional override for aria-label (defaults to label text) */

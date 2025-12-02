@@ -12,9 +12,15 @@ describe('LiveGameComponent logic', () => {
     TestBed.configureTestingModule({
       imports: [LiveGameComponent],
       providers: [
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => null } } },
+        },
         { provide: GameWsService, useValue: {} },
-        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+        {
+          provide: Router,
+          useValue: { navigate: jasmine.createSpy('navigate') },
+        },
       ],
     });
     const fixture = TestBed.createComponent(LiveGameComponent);
@@ -121,9 +127,15 @@ describe('LiveGameComponent navigation', () => {
     TestBed.configureTestingModule({
       imports: [LiveGameComponent],
       providers: [
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'g1' } } } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => 'g1' } } },
+        },
         { provide: GameWsService, useValue: { connect: () => mockConn } },
-        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+        {
+          provide: Router,
+          useValue: { navigate: jasmine.createSpy('navigate') },
+        },
       ],
     });
 
@@ -144,7 +156,10 @@ describe('LiveGameComponent navigation', () => {
     };
     gameState$.next(game);
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/summary'], {
-      state: jasmine.objectContaining({ playerName: 'Player', finalGame: game }),
+      state: jasmine.objectContaining({
+        playerName: 'Player',
+        finalGame: game,
+      }),
     });
   });
 
@@ -169,7 +184,10 @@ describe('LiveGameComponent navigation', () => {
     };
     gameState$.next(game);
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/timeout'], {
-      state: jasmine.objectContaining({ playerName: 'Player', finalGame: game }),
+      state: jasmine.objectContaining({
+        playerName: 'Player',
+        finalGame: game,
+      }),
     });
   });
 

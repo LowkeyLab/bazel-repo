@@ -58,7 +58,10 @@ export class LiveGameComponent implements OnInit, OnDestroy {
             g.players.forEach((p) => {
               const key = this.getPlayerIdentityKey(p);
               if (newlyAdded.includes(key)) {
-                this.showToast(`Player joined: ${this.getPlayerName(p)}`, 'info');
+                this.showToast(
+                  `Player joined: ${this.getPlayerName(p)}`,
+                  'info',
+                );
               }
             });
           }
@@ -121,7 +124,9 @@ export class LiveGameComponent implements OnInit, OnDestroy {
         this.showToast(`Player left: ${this.getPlayerName(player)}`, 'info');
         // Remove player from previous list so a rejoin later can trigger toast.
         const key = this.getPlayerIdentityKey(player);
-        this.previousPlayerKeys = this.previousPlayerKeys.filter((k) => k !== key);
+        this.previousPlayerKeys = this.previousPlayerKeys.filter(
+          (k) => k !== key,
+        );
       }),
     );
   }
@@ -173,7 +178,9 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   }
 
   /** Map game state to status type string */
-  getStatusType(state: string): 'success' | 'warning' | 'info' | 'error' | 'neutral' {
+  getStatusType(
+    state: string,
+  ): 'success' | 'warning' | 'info' | 'error' | 'neutral' {
     switch (state) {
       case 'WAITING_FOR_PLAYERS':
         return 'warning';
@@ -209,7 +216,10 @@ export class LiveGameComponent implements OnInit, OnDestroy {
 
   /** Whether a round has guesses from all currently present players */
   isRoundComplete(round: RoundDto, game: GameDto): boolean {
-    return Object.keys(round.guesses).length >= game.players.length && game.players.length > 0;
+    return (
+      Object.keys(round.guesses).length >= game.players.length &&
+      game.players.length > 0
+    );
   }
 
   /** Attempt to detect if the given player has already guessed in this round. */
@@ -241,7 +251,8 @@ export class LiveGameComponent implements OnInit, OnDestroy {
 
   /** Calculate rounds remaining */
   getRoundsRemaining(game: GameDto): number {
-    const currentRound = game.rounds.length > 0 ? game.rounds[game.rounds.length - 1].number : 0;
+    const currentRound =
+      game.rounds.length > 0 ? game.rounds[game.rounds.length - 1].number : 0;
     return Math.max(0, game.roundLimit - currentRound);
   }
 

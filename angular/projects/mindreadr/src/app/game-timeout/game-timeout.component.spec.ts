@@ -13,7 +13,10 @@ describe('GameTimeoutComponent', () => {
       imports: [GameTimeoutComponent],
       providers: [
         { provide: Router, useValue: routerSpy },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => id } } },
+        },
       ],
     });
     const fixture = TestBed.createComponent(GameTimeoutComponent);
@@ -34,7 +37,10 @@ describe('GameTimeoutComponent', () => {
       ],
       state: 'TERMINATED',
     };
-    const { comp } = createComponentWithNavState({ playerName: 'Alice', finalGame });
+    const { comp } = createComponentWithNavState({
+      playerName: 'Alice',
+      finalGame,
+    });
     expect(comp.getPlayerName({})).toBe('Alice');
     expect(comp.game()).toEqual(finalGame);
   });
@@ -61,7 +67,10 @@ describe('GameTimeoutComponent', () => {
       ],
       state: 'TERMINATED',
     };
-    const { fixture } = createComponentWithNavState({ playerName: 'Alice', finalGame });
+    const { fixture } = createComponentWithNavState({
+      playerName: 'Alice',
+      finalGame,
+    });
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
     const roundHeaders = Array.from(el.querySelectorAll('div.font-mono'));
     expect(roundHeaders.length).toBe(3);
@@ -79,11 +88,14 @@ describe('GameTimeoutComponent', () => {
       rounds: [{ number: 1, guesses: { Bob: 'Moon', Alice: 'Sun' } }],
       state: 'TERMINATED',
     };
-    const { fixture } = createComponentWithNavState({ playerName: 'Bob', finalGame });
+    const { fixture } = createComponentWithNavState({
+      playerName: 'Bob',
+      finalGame,
+    });
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
-    const guessLabels = Array.from(el.querySelectorAll('div.font-semibold')).map((n) =>
-      (n.textContent || '').replace(':', '').trim(),
-    );
+    const guessLabels = Array.from(
+      el.querySelectorAll('div.font-semibold'),
+    ).map((n) => (n.textContent || '').replace(':', '').trim());
     expect(guessLabels).toEqual(['Alice', 'Bob']);
   });
 
@@ -100,7 +112,10 @@ describe('GameTimeoutComponent', () => {
       ],
       state: 'TERMINATED',
     };
-    const { comp } = createComponentWithNavState({ playerName: 'Alice', finalGame });
+    const { comp } = createComponentWithNavState({
+      playerName: 'Alice',
+      finalGame,
+    });
     expect(comp.roundsCount()).toBe(3);
     const sorted = comp.sortedRounds(finalGame.rounds);
     expect(sorted.length).toBe(3);

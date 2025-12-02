@@ -19,7 +19,9 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 class MockGameService {
   getSummary = jasmine
     .createSpy()
-    .and.returnValue(of({ inProgressGames: 0, waitingForPlayerGames: 0, completedGames: 0 }));
+    .and.returnValue(
+      of({ inProgressGames: 0, waitingForPlayerGames: 0, completedGames: 0 }),
+    );
 }
 
 describe('LandingComponent', () => {
@@ -65,7 +67,9 @@ describe('LandingComponent', () => {
 
   it('should navigate to /games when Browse Games button is clicked', fakeAsync(() => {
     const compiled = fixture.nativeElement as HTMLElement;
-    const button = compiled.querySelector('button.btn-primary') as HTMLButtonElement;
+    const button = compiled.querySelector(
+      'button.btn-primary',
+    ) as HTMLButtonElement;
     expect(button).toBeTruthy();
 
     // Click the button
@@ -86,7 +90,9 @@ describe('LandingComponent', () => {
   it('should display the component description', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const description = compiled.querySelector('p.opacity-70');
-    expect(description?.textContent).toBe('A cooperative word-guessing game for two players.');
+    expect(description?.textContent).toBe(
+      'A cooperative word-guessing game for two players.',
+    );
   });
 
   it('should display the "How to Play" section', () => {

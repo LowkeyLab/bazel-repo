@@ -13,7 +13,10 @@ describe('GameSummaryComponent', () => {
       imports: [GameSummaryComponent],
       providers: [
         { provide: Router, useValue: routerSpy },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => id } } },
+        },
       ],
     });
     const fixture = TestBed.createComponent(GameSummaryComponent);
@@ -28,10 +31,15 @@ describe('GameSummaryComponent', () => {
       playerLimit: 2,
       roundLimit: 10,
       players: [{ name: 'Alice' }, { name: 'Bob' }],
-      rounds: [{ number: 1, guesses: { Alice: 'Sunflower', Bob: 'Sunflower' } }],
+      rounds: [
+        { number: 1, guesses: { Alice: 'Sunflower', Bob: 'Sunflower' } },
+      ],
       state: 'COMPLETED',
     };
-    const { comp } = createComponentWithNavState({ playerName: 'Alice', finalGame });
+    const { comp } = createComponentWithNavState({
+      playerName: 'Alice',
+      finalGame,
+    });
     expect(comp.getPlayerName({})).toBe('Alice');
     expect(comp.game()).toEqual(finalGame);
     expect(comp.guessedWord()).toBe('Sunflower');
@@ -58,7 +66,10 @@ describe('GameSummaryComponent', () => {
       ],
       state: 'COMPLETED',
     };
-    const { fixture } = createComponentWithNavState({ playerName: 'Alice', finalGame });
+    const { fixture } = createComponentWithNavState({
+      playerName: 'Alice',
+      finalGame,
+    });
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
     const roundHeaders = Array.from(el.querySelectorAll('div.font-mono'));
     expect(roundHeaders.length).toBe(2);
@@ -75,11 +86,14 @@ describe('GameSummaryComponent', () => {
       rounds: [{ number: 1, guesses: { Bob: 'Moon', Alice: 'Moon' } }],
       state: 'COMPLETED',
     };
-    const { fixture } = createComponentWithNavState({ playerName: 'Bob', finalGame });
+    const { fixture } = createComponentWithNavState({
+      playerName: 'Bob',
+      finalGame,
+    });
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
-    const guessLabels = Array.from(el.querySelectorAll('div.font-semibold')).map((n) =>
-      (n.textContent || '').replace(':', '').trim(),
-    );
+    const guessLabels = Array.from(
+      el.querySelectorAll('div.font-semibold'),
+    ).map((n) => (n.textContent || '').replace(':', '').trim());
     expect(guessLabels).toEqual(['Alice', 'Bob']);
   });
 });
