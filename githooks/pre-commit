@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-inside_work_tree=$(git rev-parse --is-inside-work-tree 2>/dev/null)
-
-# Encourage developers to setup githooks
-IFS='' read -r -d '' GITHOOKS_MSG <<"EOF"
-    cat <<EOF
-  It looks like the git config option core.hooksPath is not set.
-  This repository uses hooks stored in githooks/ to run tools such as formatters.
-  You can disable this warning by running:
-
-    echo "common --workspace_status_command=" >> ~/.bazelrc
-
-  To set up the hooks, please run:
-
-    git config core.hooksPath githooks
-EOF
-
-if [ "${inside_work_tree}" = "true" ] && [ "$EUID" -ne 0 ] && [ -z "$(git config core.hooksPath)" ]; then
-    echo >&2 "${GITHOOKS_MSG}"
-fi
+# Get staged files and format them
+git diff --cached --diff-filter=AM --name-only -z | xargs --null --no-run-if-empty bash -c '
+  if [ $# -gt 0 ]; then
+    echo "Formatting staged files: $@"
+    if [ -e "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format" ]; then
+      bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format "$@"
+    else
+      bazel run //:format -- "$@"
+    fi
+    
+    # Check if any of the staged files were modified by the formatter
+    if ! git diff --quiet -- "$@"; then
+      echo "❌ Some staged files were modified by the pre-commit hook."
+      echo "Please review and stage the changes before committing again."
+      git diff --stat -- "$@"
+      exit 1
+    fi
+  fi
+' _
