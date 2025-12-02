@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Bazel Lints
         run: |
-          aspect lint //...
+          timeout 10 aspect lint //...
 
       - name: Run Bazel tests
         run: |
