@@ -4,29 +4,29 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.59.0/buf-Linux-aarch64",
-        "sha256": "761f1833a945f6f6cda8deb67be94d2cf5f91a8b02d87f2025605ec79cc269a2",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Linux-aarch64",
+        "sha256": "37bfa47e6ede6ac1b78b3e3c93a0911b7c71d5bb9ed9c684dfc0164167619bc1",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.59.0/buf-Linux-x86_64",
-        "sha256": "d7462609e3814629c642ac10f0e7e27ec7e8e21d1dd75742f4434c31619e986b",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Linux-x86_64",
+        "sha256": "d82849eca790bacb5b8885a027f31bbfbfdf72b2d93bc82bda8cb2ca20e4faca",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.59.0/buf-Darwin-arm64",
-        "sha256": "71f060640b9f1a3fce43db31eb8e8faf714a3bfbbcb70617946bdeba3aadf56b",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Darwin-arm64",
+        "sha256": "b7878d0c88673e067c3a5ac60fabf133b29be71ae3a37598f2e99ee5d3c5fd22",
         "os": "macos",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.59.0/buf-Darwin-x86_64",
-        "sha256": "f385cb17bea5d8a90cea10fdd3b8c8c3168c6f65cbb54e2f63e680c8cdd97c6e",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Darwin-x86_64",
+        "sha256": "20323fa889d55893b67d402b714b04efe8916358ab29ccd2f70203439dc67b42",
         "os": "macos",
         "cpu": "x86_64"
       }
@@ -64,26 +64,54 @@
       }
     ]
   },
+  "caddy": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_arm64.tar.gz",
+        "file": "caddy",
+        "sha256": "3d6e959a05a184aaf58625c287d4218a238ea05578ffb33d03198a33cab456d3",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_amd64.tar.gz",
+        "file": "caddy",
+        "sha256": "5c218bc34c9197369263da7e9317a83acdbd80ef45d94dca5eff76e727c67cdd",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_mac_arm64.tar.gz",
+        "file": "caddy",
+        "sha256": "cc9ad20742ea7bfee5dd1d435d42ab7fcf8592294f9ec43bf08fd21cbe448bc4",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
   "docker-compose": {
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v2.40.2/docker-compose-linux-aarch64",
-        "sha256": "20e30dda8d0133895b7991bcfec1eb2c02f9d38c8de9e73669daf9fb83df49e6",
+        "url": "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-aarch64",
+        "sha256": "d26373b19e89160546d15407516cc59f453030d9bc5b43ba7faf16f7b4980137",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v2.40.2/docker-compose-linux-x86_64",
-        "sha256": "6c964d9655cd629ef43c5dc75d9612c2da319237debee54a7aef217e9f362b88",
+        "url": "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64",
+        "sha256": "dba9d98e1ba5bfe11d88c99b9bd32fc4a0624a30fafe68eea34d61a3e42fd372",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v2.40.2/docker-compose-darwin-aarch64",
-        "sha256": "cc3a8774fdadf65b53a12ef54b3e0e63f2267e1e843ebfa46c4976fc4f80b46b",
+        "url": "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-darwin-aarch64",
+        "sha256": "8cd7eb5f95bacb536cc407111662e2c205d67d9abfea5dcb8400be8418db60d1",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -93,22 +121,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.99+1859933/gazelle-linux_arm64_cgo",
-        "sha256": "5b5ded1d75a38581a03390662d702636d601ce348a05453c18086fe8351a22c2",
+        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.145+07dfa92/gazelle-linux_arm64_cgo",
+        "sha256": "acef120cb412e97c21e57007a660579fbbd40546a4475ac3a9475c87a59fafaf",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.99+1859933/gazelle-linux_amd64_cgo",
-        "sha256": "5a0dd88684c5467a6e18567bed9ce472cf21bb98af6f3a5666d15a33e58247db",
+        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.145+07dfa92/gazelle-linux_amd64_cgo",
+        "sha256": "774793632619d828014474e34a0a84b956ee17a9bd63709515d992eee8774449",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.99+1859933/gazelle-darwin_arm64_cgo",
-        "sha256": "70b73d2333d08938ba05222072b31d587b22e1d122837572078cd24dd1d13585",
+        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.145+07dfa92/gazelle-darwin_arm64_cgo",
+        "sha256": "5f27f352054d7fd718aea8520a6a3176040787acb72622cdbda3102d95b923d7",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -190,34 +218,6 @@
         "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_darwin_arm64.zip",
         "file": "terraform",
         "sha256": "168cfeb339dbbfea6be651573ec168e6ca08bab79a4fc0474681eee1e9a95de9",
-        "os": "macos",
-        "cpu": "arm64"
-      }
-    ]
-  },
-  "caddy": {
-    "binaries": [
-      {
-        "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_amd64.tar.gz",
-        "file": "caddy",
-        "sha256": "5c218bc34c9197369263da7e9317a83acdbd80ef45d94dca5eff76e727c67cdd",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_arm64.tar.gz",
-        "file": "caddy",
-        "sha256": "3d6e959a05a184aaf58625c287d4218a238ea05578ffb33d03198a33cab456d3",
-        "os": "linux",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_mac_arm64.tar.gz",
-        "file": "caddy",
-        "sha256": "cc9ad20742ea7bfee5dd1d435d42ab7fcf8592294f9ec43bf08fd21cbe448bc4",
         "os": "macos",
         "cpu": "arm64"
       }
