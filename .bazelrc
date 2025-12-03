@@ -48,7 +48,3 @@ build --repo_env=JAVA_HOME=../bazel_tools/jdk
 # should be last statement in this config so the user configuration is able to overwrite flags from
 # this file. See https://bazel.build/configure/best-practices#bazelrc-file.
 try-import %workspace%/user.bazelrc
-
-# Set Java language version to 21
-build --java_language_version=21
-build --java_runtime_version=remotejdk_21
