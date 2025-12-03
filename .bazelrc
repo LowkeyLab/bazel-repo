@@ -8,7 +8,7 @@ common --bes_backend=grpcs://remote.buildbuddy.io
 common --remote_cache=grpcs://remote.buildbuddy.io
 common --remote_cache_compression
 common --noslim_profile 
-common --experimental_profile_include_primary_output 
+common --experimental_profile_include_primary_output
 common --experimental_profile_include_target_label
 common:remote --remote_executor=grpcs://remote.buildbuddy.io
 common:remote-linux --config=remote
