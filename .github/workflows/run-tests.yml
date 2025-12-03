@@ -53,8 +53,8 @@ jobs:
 
       - name: Run Bazel Lints
         run: |
-          aspect lint //...
-
+          bazel lint //...
+          
       - name: Run Bazel tests
         run: |
           bazel test //...
