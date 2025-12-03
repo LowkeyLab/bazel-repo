@@ -54,7 +54,7 @@ jobs:
       - name: Run Bazel Lints
         run: |
           bazel lint //...
-          
+
       - name: Run Bazel tests
         run: |
           bazel test //...
