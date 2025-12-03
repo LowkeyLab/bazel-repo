@@ -12,7 +12,7 @@ load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
 
 # Check proto_library sources, see https://buf.build/docs/lint/overview
 buf = lint_buf_aspect(
-    config = "@@//:buf.yaml",
+    config = Label("//:buf.yaml"),
 )
 
 eslint = lint_eslint_aspect(
@@ -29,22 +29,22 @@ eslint_test = lint_test(aspect = eslint)
 
 ruff = lint_ruff_aspect(
     binary = "@multitool//tools/ruff",
-    configs = ["@@//:.ruff.toml"],
+    configs = [Label("//:.ruff.toml")],
 )
 
 shellcheck = lint_shellcheck_aspect(
     binary = "@multitool//tools/shellcheck",
-    config = "@@//:.shellcheckrc",
+    config = Label("//:.shellcheckrc"),
 )
 
 pmd = lint_pmd_aspect(
-    binary = "@@//tools/lint:pmd",
-    rulesets = ["@@//:pmd.xml"],
+    binary = Label("//tools/lint:pmd"),
+    rulesets = [Label("//:pmd.xml")],
 )
 
 checkstyle = lint_checkstyle_aspect(
-    binary = "@@//tools/lint:checkstyle",
-    config = "@@//:checkstyle.xml",
+    binary = Label("//tools/lint:checkstyle"),
+    config = Label("//:checkstyle.xml"),
 )
 
 ktlint = lint_ktlint_aspect(
