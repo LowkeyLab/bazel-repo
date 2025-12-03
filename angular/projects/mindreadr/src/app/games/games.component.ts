@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
 import { Router } from '@angular/router';
@@ -13,7 +13,7 @@ const POLLING_INTERVAL_MS = 1000;
 @Component({
   selector: 'mindreadr-games',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './games.component.html',
 })
 export class GamesComponent implements OnInit, OnDestroy {

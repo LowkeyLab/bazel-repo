@@ -1,11 +1,11 @@
 import { Component, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { GameService } from '../services/game.service';
 
 @Component({
   selector: 'mindreadr-games-count',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './games-count.component.html',
   styleUrls: ['./games-count.component.css'],
 })
