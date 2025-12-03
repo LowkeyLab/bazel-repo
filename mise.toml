@@ -1,5 +1,0 @@
-[tools]
-pre-commit = "4.5.0"
-
-[env]
-_.path = ["./.bin"] # Add local bin to PATH

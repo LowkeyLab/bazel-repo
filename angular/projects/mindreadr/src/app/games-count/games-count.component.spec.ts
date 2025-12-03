@@ -8,7 +8,9 @@ import { Component } from '@angular/core';
 class MockGameService {
   getSummary = jasmine
     .createSpy()
-    .and.returnValue(of({ inProgressGames: 5, waitingForPlayerGames: 3, completedGames: 2 }));
+    .and.returnValue(
+      of({ inProgressGames: 5, waitingForPlayerGames: 3, completedGames: 2 }),
+    );
 }
 
 // Host component for standalone test
@@ -49,7 +51,9 @@ describe('GamesCountComponent', () => {
   });
 
   it('should handle errors from either service', () => {
-    gameService.getSummary.and.returnValue(throwError(() => ({ message: 'fail' })));
+    gameService.getSummary.and.returnValue(
+      throwError(() => ({ message: 'fail' })),
+    );
     component.fetchCounts();
     expect(component.count()).toBeNull();
     expect(component.openCount()).toBeNull();

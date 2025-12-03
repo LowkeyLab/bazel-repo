@@ -5,44 +5,46 @@ load("@aspect_rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
 load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
 load("@aspect_rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
 load("@aspect_rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
+load("@aspect_rules_lint//lint:lint_test.bzl", "lint_test")
 load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
 load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
 load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
 
 # Check proto_library sources, see https://buf.build/docs/lint/overview
 buf = lint_buf_aspect(
-    config = "@@//:buf.yaml",
+    config = Label("//:buf.yaml"),
 )
 
-# Check ts_project and js_library sources, see https://eslint.org/
 eslint = lint_eslint_aspect(
-    binary = "@@//tools/lint:eslint",
-    # ESLint will resolve the configuration file by looking in the working directory first.
-    # See https://eslint.org/docs/latest/use/configure/configuration-files#configuration-file-resolution
-    # We must also include any other config files we expect eslint to be able to locate, e.g. tsconfigs
+    binary = Label(":eslint"),
+    # We trust that eslint will locate the correct configuration file for a given source file.
+    # See https://eslint.org/docs/latest/use/configure/configuration-files#cascading-and-hierarchy
     configs = [
-        "@@//:eslintrc",
+        Label("//:eslintrc"),
+        # if the repository has nested eslintrc files, they must be added here as well
     ],
 )
 
+eslint_test = lint_test(aspect = eslint)
+
 ruff = lint_ruff_aspect(
     binary = "@multitool//tools/ruff",
-    configs = ["@@//:.ruff.toml"],
+    configs = [Label("//:.ruff.toml")],
 )
 
 shellcheck = lint_shellcheck_aspect(
     binary = "@multitool//tools/shellcheck",
-    config = "@@//:.shellcheckrc",
+    config = Label("//:.shellcheckrc"),
 )
 
 pmd = lint_pmd_aspect(
-    binary = "@@//tools/lint:pmd",
-    rulesets = ["@@//:pmd.xml"],
+    binary = Label("//tools/lint:pmd"),
+    rulesets = [Label("//:pmd.xml")],
 )
 
 checkstyle = lint_checkstyle_aspect(
-    binary = "@@//tools/lint:checkstyle",
-    config = "@@//:checkstyle.xml",
+    binary = Label("//tools/lint:checkstyle"),
+    config = Label("//:checkstyle.xml"),
 )
 
 ktlint = lint_ktlint_aspect(

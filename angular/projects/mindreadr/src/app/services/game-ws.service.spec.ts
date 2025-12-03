@@ -81,14 +81,21 @@ describe('GameWsService', () => {
       },
     } as ServerMessage);
 
-    fake.incoming$.next({ type: 'player_joined', player: { name: 'Alice' } } as ServerMessage);
+    fake.incoming$.next({
+      type: 'player_joined',
+      player: { name: 'Alice' },
+    } as ServerMessage);
 
     fake.incoming$.next({ type: 'error', message: 'nope' } as ServerMessage);
 
     // Termination is covered by a dedicated test to avoid race conditions
 
-    await expectAsync(gameStateP).toBeResolvedTo(jasmine.objectContaining({ id: 'g1' }));
-    await expectAsync(playerJoinedP).toBeResolvedTo(jasmine.objectContaining({ name: 'Alice' }));
+    await expectAsync(gameStateP).toBeResolvedTo(
+      jasmine.objectContaining({ id: 'g1' }),
+    );
+    await expectAsync(playerJoinedP).toBeResolvedTo(
+      jasmine.objectContaining({ name: 'Alice' }),
+    );
     await expectAsync(errorP).toBeResolvedTo('nope');
   });
 
@@ -97,7 +104,9 @@ describe('GameWsService', () => {
     const conn = service.connect('game');
 
     conn.submitGuess('word');
-    expect(fake.sent).toEqual(jasmine.arrayContaining([{ type: 'submit_guess', guess: 'word' }]));
+    expect(fake.sent).toEqual(
+      jasmine.arrayContaining([{ type: 'submit_guess', guess: 'word' }]),
+    );
   });
 
   it('auto-closes the socket when terminated', async () => {

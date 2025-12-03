@@ -24,7 +24,9 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // Read navigation extras state if available for faster initial render
-    const nav = this.router.currentNavigation ? this.router.currentNavigation() : null;
+    const nav = this.router.currentNavigation
+      ? this.router.currentNavigation()
+      : null;
     const state: any = nav?.extras?.state ?? history.state ?? {};
     if (state?.playerName) {
       this.initialPlayerName = state.playerName as string;
@@ -77,12 +79,18 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   }
 
   sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
-    return (rounds ?? []).slice().sort((a: RoundDto, b: RoundDto) => a.number - b.number);
+    return (rounds ?? [])
+      .slice()
+      .sort((a: RoundDto, b: RoundDto) => a.number - b.number);
   }
 
-  sorted_player_name(guesses: Record<string, string> | undefined | null): string[] {
+  sorted_player_name(
+    guesses: Record<string, string> | undefined | null,
+  ): string[] {
     if (!guesses) return [];
-    return Object.keys(guesses).sort((a: string, b: string) => a.localeCompare(b));
+    return Object.keys(guesses).sort((a: string, b: string) =>
+      a.localeCompare(b),
+    );
   }
 
   sorted_player_names_from_players(players: GameDto['players']): string[] {
@@ -92,10 +100,15 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
       .sort((a, b) => a.localeCompare(b));
   }
 
-  sorted_player_names_for_round(game: GameDto, round: GameDto['rounds'][number]): string[] {
+  sorted_player_names_for_round(
+    game: GameDto,
+    round: GameDto['rounds'][number],
+  ): string[] {
     const names = this.sorted_player_names_from_players(game?.players ?? []);
     return names.filter(
-      (n) => round?.guesses && Object.prototype.hasOwnProperty.call(round.guesses, n),
+      (n) =>
+        round?.guesses &&
+        Object.prototype.hasOwnProperty.call(round.guesses, n),
     );
   }
 

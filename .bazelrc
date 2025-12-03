@@ -3,8 +3,11 @@ import %workspace%/tools/preset.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
-# Placeholder for your actual stamping logic
-build --workspace_status_command='echo BUILD_VERSION v1.2.3'
+run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
+
+# Disable skymeld; see https://github.com/bazelbuild/bazel/issues/23743
+# fixes src/main/tools/process-wrapper-legacy.cc:80: "execvp(external/++toolchains+coreutils_linux_amd64/coreutils, ...)": No such file or directory
+common --noexperimental_merged_skyframe_analysis_execution
 
 # for speed, passes an argument `--skipLibCheck` to *every* spawn of tsc
 common --@aspect_rules_ts//ts:skipLibCheck=always
@@ -12,12 +15,18 @@ common --@aspect_rules_ts//ts:skipLibCheck=always
 # TODO(alex): change to SWC by default
 common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 
+# rules_python is working to enable this default to avoid dependency on a system interpreter
+# See https://github.com/bazel-contrib/rules_python/issues/3187
+# NB: some tools run py_binary targets even if the user didn't select to add Python to their project
+common --@rules_python//python/config_settings:bootstrap_impl=script
+
 # To stamp release builds, run with
 # --config=release
 common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 
-# Allow resolving protoc from a pre-built toolchain
-common --incompatible_enable_proto_toolchain_resolution
+common --workspace_status_command=githooks/check-config.sh
+
+common:lint --aspects=//tools/lint:linters.bzl%ktlint,//tools/lint:linters.bzl%buf,//tools/lint:linters.bzl%checkstyle,//tools/lint:linters.bzl%eslint,//tools/lint:linters.bzl%shellcheck,//tools/lint:linters.bzl%ruff,//tools/lint:linters.bzl%pmd
 
 # Don't depend on a JAVA_HOME pointing at a system JDK
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445

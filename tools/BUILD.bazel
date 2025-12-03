@@ -4,11 +4,11 @@ load("@bazelrc-preset.bzl", "bazelrc_preset")
 load("@multitool//:tools.bzl", MULTITOOLS = "TOOLS")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
-load("@toolchains_protoc//protoc:flags.bzl", "PROTOC_TOOLCHAIN_FLAGS")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 bazelrc_preset(
     name = "preset",
-    extra_presets = PROTOC_TOOLCHAIN_FLAGS,
+    doc_link_template = "https://registry.build/flag/bazel?filter={flag}",
 )
 
 npm_link_all_packages(name = "node_modules")
@@ -28,12 +28,19 @@ bazel_env(
     toolchains = {
         "nodejs": "@nodejs_toolchains//:resolved_toolchain",
         "jdk": "@rules_java//toolchains:current_host_java_runtime",
+        "prettier": "//tools/format:prettier",
     },
     tools = {
         "buildifier": "@buildifier_prebuilt//:buildifier",
         "jar": "$(JAVABASE)/bin/jar",
+        "format": "//tools/format:format",
         "java": "$(JAVA)",
         "node": "$(NODE_PATH)",
         "pnpm": "@pnpm",
     } | LOCAL_TOOLS | MULTITOOLS,
+)
+
+sh_binary(
+    name = "workspace_status",
+    srcs = ["workspace_status.sh"],
 )

@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { GameService, GameSummary } from './game.service';
 import { GameDto } from '../services/game.types';
 import { environment } from '../../environments/environment';
@@ -65,16 +68,39 @@ describe('GameService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games?status=WAITING_FOR_PLAYERS`);
+    const req = httpMock.expectOne(
+      `${environment.API_BASE_URL}/games?status=WAITING_FOR_PLAYERS`,
+    );
     expect(req.request.method).toBe('GET');
     req.flush(mockGames);
   });
 
   it('getGamesByStatus should fetch /games?status=IN_PROGRESS', (done) => {
     const mockGames: GameDto[] = [
-      { id: 'IP1', state: 'IN_PROGRESS', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
-      { id: 'IP2', state: 'IN_PROGRESS', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
-      { id: 'IP3', state: 'IN_PROGRESS', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
+      {
+        id: 'IP1',
+        state: 'IN_PROGRESS',
+        playerLimit: 2,
+        roundLimit: 10,
+        players: [],
+        rounds: [],
+      },
+      {
+        id: 'IP2',
+        state: 'IN_PROGRESS',
+        playerLimit: 2,
+        roundLimit: 10,
+        players: [],
+        rounds: [],
+      },
+      {
+        id: 'IP3',
+        state: 'IN_PROGRESS',
+        playerLimit: 2,
+        roundLimit: 10,
+        players: [],
+        rounds: [],
+      },
     ];
 
     service.getGamesByStatus('IN_PROGRESS').subscribe((games) => {
@@ -83,14 +109,23 @@ describe('GameService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games?status=IN_PROGRESS`);
+    const req = httpMock.expectOne(
+      `${environment.API_BASE_URL}/games?status=IN_PROGRESS`,
+    );
     expect(req.request.method).toBe('GET');
     req.flush(mockGames);
   });
 
   it('getGamesByStatus should fetch /games?status=COMPLETED', (done) => {
     const mockGames: GameDto[] = [
-      { id: 'C1', state: 'COMPLETED', playerLimit: 2, roundLimit: 10, players: [], rounds: [] },
+      {
+        id: 'C1',
+        state: 'COMPLETED',
+        playerLimit: 2,
+        roundLimit: 10,
+        players: [],
+        rounds: [],
+      },
     ];
 
     service.getGamesByStatus('COMPLETED').subscribe((games) => {
@@ -100,7 +135,9 @@ describe('GameService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(`${environment.API_BASE_URL}/games?status=COMPLETED`);
+    const req = httpMock.expectOne(
+      `${environment.API_BASE_URL}/games?status=COMPLETED`,
+    );
     expect(req.request.method).toBe('GET');
     req.flush(mockGames);
   });

@@ -14,8 +14,12 @@ import { Router } from '@angular/router';
 
 // Mock GameService with spies
 class MockGameService {
-  createGame = jasmine.createSpy().and.returnValue(of({ id: 'new-game' } as GameDto));
-  getGamesByStatus = jasmine.createSpy().and.returnValue(of([{ id: 'g1' } as GameDto]));
+  createGame = jasmine
+    .createSpy()
+    .and.returnValue(of({ id: 'new-game' } as GameDto));
+  getGamesByStatus = jasmine
+    .createSpy()
+    .and.returnValue(of([{ id: 'g1' } as GameDto]));
 }
 
 // Optional host for template mounting scenarios
@@ -36,7 +40,10 @@ describe('GamesComponent', () => {
       imports: [GamesComponent],
       providers: [
         { provide: GameService, useClass: MockGameService },
-        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+        {
+          provide: Router,
+          useValue: { navigate: jasmine.createSpy('navigate') },
+        },
       ],
     }).compileComponents();
 
@@ -52,14 +59,18 @@ describe('GamesComponent', () => {
   it('fetches waiting games on init and sets state', () => {
     gameService.getGamesByStatus.and.returnValue(of([{ id: 'a' } as GameDto]));
     fixture.detectChanges();
-    expect(gameService.getGamesByStatus).toHaveBeenCalledWith('WAITING_FOR_PLAYERS');
+    expect(gameService.getGamesByStatus).toHaveBeenCalledWith(
+      'WAITING_FOR_PLAYERS',
+    );
     expect(component.games().length).toBe(1);
     expect(component.loading()).toBeFalse();
     expect(component.error()).toBeNull();
   });
 
   it('handles error when fetching games', () => {
-    gameService.getGamesByStatus.and.returnValue(throwError(() => new Error('boom')));
+    gameService.getGamesByStatus.and.returnValue(
+      throwError(() => new Error('boom')),
+    );
     component.fetchWaitingGames();
     expect(component.error()).toBe('Failed to load games');
     expect(component.loading()).toBeFalse();
@@ -70,7 +81,9 @@ describe('GamesComponent', () => {
     fixture.detectChanges();
     component.loading.set(true);
     fixture.detectChanges();
-    const spinner = fixture.nativeElement.querySelector('[aria-label="Loading open games"]');
+    const spinner = fixture.nativeElement.querySelector(
+      '[aria-label="Loading open games"]',
+    );
     expect(spinner).toBeTruthy();
   });
 
@@ -106,12 +119,16 @@ describe('GamesComponent', () => {
     gameService.createGame.calls.reset();
 
     gameService.createGame.and.returnValue(of({ id: 'created' } as GameDto));
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'created' } as GameDto]));
+    gameService.getGamesByStatus.and.returnValue(
+      of([{ id: 'created' } as GameDto]),
+    );
 
     component.createNewGame();
 
     expect(gameService.createGame).toHaveBeenCalled();
-    expect(gameService.getGamesByStatus).toHaveBeenCalledWith('WAITING_FOR_PLAYERS');
+    expect(gameService.getGamesByStatus).toHaveBeenCalledWith(
+      'WAITING_FOR_PLAYERS',
+    );
     expect(component.loading()).toBeFalse();
     expect(component.games().length).toBe(1);
   });
@@ -124,7 +141,9 @@ describe('GamesComponent', () => {
 
   it('starts polling for games every 1 second after init', fakeAsync(() => {
     gameService.getGamesByStatus.calls.reset();
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'game1' } as GameDto]));
+    gameService.getGamesByStatus.and.returnValue(
+      of([{ id: 'game1' } as GameDto]),
+    );
 
     fixture.detectChanges(); // triggers ngOnInit
 
@@ -144,7 +163,9 @@ describe('GamesComponent', () => {
 
   it('stops polling when component is destroyed', fakeAsync(() => {
     gameService.getGamesByStatus.calls.reset();
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'game1' } as GameDto]));
+    gameService.getGamesByStatus.and.returnValue(
+      of([{ id: 'game1' } as GameDto]),
+    );
 
     fixture.detectChanges(); // triggers ngOnInit
 
@@ -163,7 +184,9 @@ describe('GamesComponent', () => {
   }));
 
   it('updates games list when polling returns new data', fakeAsync(() => {
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'initial' } as GameDto]));
+    gameService.getGamesByStatus.and.returnValue(
+      of([{ id: 'initial' } as GameDto]),
+    );
     fixture.detectChanges(); // triggers ngOnInit
     expect(component.games().length).toBe(1);
     expect(component.games()[0].id).toBe('initial');
@@ -181,13 +204,17 @@ describe('GamesComponent', () => {
   }));
 
   it('silently handles polling errors without affecting displayed games', fakeAsync(() => {
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'game1' } as GameDto]));
+    gameService.getGamesByStatus.and.returnValue(
+      of([{ id: 'game1' } as GameDto]),
+    );
     fixture.detectChanges();
     expect(component.games().length).toBe(1);
     expect(component.error()).toBeNull();
 
     // Make the next poll fail
-    gameService.getGamesByStatus.and.returnValue(throwError(() => new Error('network error')));
+    gameService.getGamesByStatus.and.returnValue(
+      throwError(() => new Error('network error')),
+    );
     tick(1000);
 
     // Games should still be displayed (no error shown for polling failures)
