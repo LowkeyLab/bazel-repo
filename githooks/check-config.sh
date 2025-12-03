@@ -3,7 +3,6 @@ inside_work_tree=$(git rev-parse --is-inside-work-tree 2>/dev/null)
 
 # Encourage developers to setup githooks
 IFS='' read -r -d '' GITHOOKS_MSG <<"EOF"
-    cat <<EOF
   It looks like the git config option core.hooksPath is not set.
   This repository uses hooks stored in githooks/ to run tools such as formatters.
   You can disable this warning by running:
