@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameDto, RoundDto } from '../services/game.types';
 import confetti from 'canvas-confetti';
@@ -7,7 +7,7 @@ import confetti from 'canvas-confetti';
 @Component({
   selector: 'mindreadr-game-summary',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './game-summary.component.html',
 })
 export class GameSummaryComponent implements OnInit, OnDestroy {

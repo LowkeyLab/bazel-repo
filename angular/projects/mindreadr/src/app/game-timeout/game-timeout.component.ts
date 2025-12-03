@@ -1,12 +1,12 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameDto, RoundDto } from '../services/game.types';
 
 @Component({
   selector: 'mindreadr-game-timeout',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './game-timeout.component.html',
 })
 export class GameTimeoutComponent implements OnInit, OnDestroy {
