@@ -1,7 +1,20 @@
 # Import bazelrc presets
 import %workspace%/tools/preset.bazelrc
+try-import %workspace%/tools/java21.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
+common --bes_results_url=https://app.buildbuddy.io/invocation/
+common --bes_backend=grpcs://remote.buildbuddy.io
+common --remote_cache=grpcs://remote.buildbuddy.io
+common --remote_cache_compression
+common --noslim_profile 
+common --experimental_profile_include_primary_output 
+common --experimental_profile_include_target_label
+common:remote --remote_executor=grpcs://remote.buildbuddy.io
+common:remote-linux --config=remote
+common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
+common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
+common:remote-linux --jobs=50
 
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
@@ -29,7 +42,7 @@ common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 
 common --workspace_status_command=githooks/check-config.sh
 
-common:lint --aspects=//tools/lint:linters.bzl%ktlint,//tools/lint:linters.bzl%buf,//tools/lint:linters.bzl%checkstyle,//tools/lint:linters.bzl%eslint,//tools/lint:linters.bzl%shellcheck,//tools/lint:linters.bzl%ruff,//tools/lint:linters.bzl%pmd
+common:lint --aspects=//tools/lint:linters.bzl%ktlint,//tools/lint:linters.bzl%checkstyle,//tools/lint:linters.bzl%eslint,//tools/lint:linters.bzl%shellcheck,//tools/lint:linters.bzl%ruff,//tools/lint:linters.bzl%pmd
 
 # Don't depend on a JAVA_HOME pointing at a system JDK
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
@@ -44,16 +57,3 @@ try-import %workspace%/user.bazelrc
 # Set Java language version to 21
 build --java_language_version=21
 build --java_runtime_version=remotejdk_21
-
-common --bes_results_url=https://app.buildbuddy.io/invocation/
-common --bes_backend=grpcs://remote.buildbuddy.io
-common --remote_cache=grpcs://remote.buildbuddy.io
-common --remote_cache_compression
-common --noslim_profile 
-common --experimental_profile_include_primary_output 
-common --experimental_profile_include_target_label
-common:remote --remote_executor=grpcs://remote.buildbuddy.io
-common:remote-linux --config=remote
-common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
-common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
-common:remote-linux --jobs=50

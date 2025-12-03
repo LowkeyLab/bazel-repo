@@ -5,12 +5,10 @@ load("@multitool//:tools.bzl", MULTITOOLS = "TOOLS")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@toolchains_protoc//protoc:flags.bzl", "PROTOC_TOOLCHAIN_FLAGS")
 
 bazelrc_preset(
     name = "preset",
     doc_link_template = "https://registry.build/flag/bazel?filter={flag}",
-    extra_presets = PROTOC_TOOLCHAIN_FLAGS,
 )
 
 npm_link_all_packages(name = "node_modules")

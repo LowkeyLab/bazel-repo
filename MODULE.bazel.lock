@@ -360,8 +360,6 @@
     "https://bcr.bazel.build/modules/toolchain_utils/1.0.2/source.json": "88769ec576dddacafd8cca4631812cf8eead89f10a29d9405d9f7a553de6bf87",
     "https://bcr.bazel.build/modules/toolchains_buildbuddy/0.0.4/MODULE.bazel": "735f0ed45a0334971a61157432127380ae9ce285aea6d489565cb81c7a4cf487",
     "https://bcr.bazel.build/modules/toolchains_buildbuddy/0.0.4/source.json": "a5b69ff999ea39cf89df03cb5c174ae6fd621d7a1a7e4bd6be302ff9f2910695",
-    "https://bcr.bazel.build/modules/toolchains_protoc/0.6.0/MODULE.bazel": "bb8da2b2ccee5fde3142d237afe049239da114b56dd4a566fadeb937a30b33b4",
-    "https://bcr.bazel.build/modules/toolchains_protoc/0.6.0/source.json": "7617b931b9de333cada607ad11c74f3770fe7231e56f2166eb12181365cf1278",
     "https://bcr.bazel.build/modules/upb/0.0.0-20220923-a547704/MODULE.bazel": "7298990c00040a0e2f121f6c32544bab27d4452f80d9ce51349b1a28f3005c43",
     "https://bcr.bazel.build/modules/upb/0.0.0-20230516-61a97ef/MODULE.bazel": "c0df5e35ad55e264160417fd0875932ee3c9dda63d9fccace35ac62f45e1b6f9",
     "https://bcr.bazel.build/modules/yq.bzl/0.1.1/MODULE.bazel": "9039681f9bcb8958ee2c87ffc74bdafba9f4369096a2b5634b88abc0eaefa072",
@@ -1224,7 +1222,7 @@
     "@@rules_buf+//buf:extensions.bzl%buf": {
       "general": {
         "bzlTransitiveDigest": "nziVPz62Pjv2JecWM9NXmhpU/OjKhPz1MT9++4ObLUw=",
-        "usagesDigest": "UGjOltiqc4dcE5QjUBkJy5A4Rwepx+KfDukbHRFftk0=",
+        "usagesDigest": "vxN6C2h72rUERbAmd1476FWpxdxo1NhYoY5JSFXJT3g=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1232,8 +1230,8 @@
           "rules_buf_toolchains": {
             "repoRuleId": "@@rules_buf+//buf/internal:toolchain.bzl%buf_download_releases",
             "attributes": {
-              "version": "v1.34.0",
-              "sha256": "8d39d81ae5400061bbbb9ce8c2196f039ba04257e9ef5f82de06480a9c5748e0"
+              "version": "v1.47.2",
+              "sha256": "1b37b75dc0a777a0cba17fa2604bc9906e55bb4c578823d8b7a8fe3fc9fe4439"
             }
           }
         },

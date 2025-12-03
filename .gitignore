@@ -46,3 +46,6 @@ lerna-debug.log*
 
 # Generated files
 genhtml/
+
+# User specific files
+user.bazelrc
