@@ -164,6 +164,11 @@ export class LiveGameComponent implements OnInit, OnDestroy {
     return Object.keys(obj) as Array<keyof T & string>;
   }
 
+  /** Get rounds in reverse order (most recent first) */
+  getReversedRounds(rounds: RoundDto[]): RoundDto[] {
+    return [...rounds].reverse();
+  }
+
   getStatusLabel(state: string): string {
     switch (state) {
       case 'WAITING_FOR_PLAYERS':
