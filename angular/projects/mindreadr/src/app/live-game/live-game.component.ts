@@ -1,4 +1,11 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StatusBadgeComponent } from './status-badge.component';
@@ -30,6 +37,12 @@ export class LiveGameComponent implements OnInit, OnDestroy {
   currentPlayer = signal<any | null>(null);
 
   toasts = signal<Toast[]>([]);
+
+  // Computed signal for reversed rounds (most recent first)
+  reversedRounds = computed(() => {
+    const g = this.game();
+    return g ? [...g.rounds].reverse() : [];
+  });
 
   private connection: ReturnType<GameWsService['connect']> | null = null;
   private subs: Array<{ unsubscribe: () => void }> = [];

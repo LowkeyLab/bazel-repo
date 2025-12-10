@@ -83,13 +83,37 @@
       </div>
     </div>
 
+    @if (waitingForOtherPlayer()) {
+      <div class="text-xs sm:text-sm text-warning px-2 py-1 rounded bg-warning/10">
+        You have submitted your guess. Waiting for other player...
+      </div>
+    }
+    <form class="flex flex-col sm:flex-row gap-2 sm:gap-3" (submit)="$event.preventDefault(); submitGuess()">
+      <input
+        type="text"
+        class="input input-bordered flex-1 text-sm sm:text-base"
+        placeholder="Type your guess"
+        [ngModel]="guess()"
+        (ngModelChange)="guess.set($event)"
+        name="guess"
+        [disabled]="!!terminated() || waitingForOtherPlayer()"
+      />
+      <button
+        class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto"
+        type="submit"
+        [disabled]="!!terminated() || waitingForOtherPlayer() || !guess().trim()"
+      >
+        Submit
+      </button>
+    </form>
+
     <div class="p-3 sm:p-4 border rounded">
       <h2 class="font-semibold mb-2 text-base sm:text-lg">Latest Rounds</h2>
       @if (g.rounds.length === 0) {
         <div class="opacity-70 text-sm sm:text-base">No rounds yet.</div>
       } @else {
         <ul class="space-y-2 sm:space-y-3">
-          @for (r of g.rounds; track r.number) {
+          @for (r of reversedRounds(); track r.number) {
             <li class="border rounded p-2 sm:p-3">
               <div class="font-mono text-xs sm:text-sm mb-2">Round #{{ r.number }}</div>
               @if (shouldHideGuesses(r, g)) {
@@ -121,27 +145,4 @@
   } @else {
     <div class="opacity-70 text-sm sm:text-base">Connecting to game...</div>
   }
-  @if (waitingForOtherPlayer()) {
-    <div class="text-xs sm:text-sm text-warning px-2 py-1 rounded bg-warning/10">
-      You have submitted your guess. Waiting for other player...
-    </div>
-  }
-  <form class="flex flex-col sm:flex-row gap-2 sm:gap-3" (submit)="$event.preventDefault(); submitGuess()">
-    <input
-      type="text"
-      class="input input-bordered flex-1 text-sm sm:text-base"
-      placeholder="Type your guess"
-      [ngModel]="guess()"
-      (ngModelChange)="guess.set($event)"
-      name="guess"
-      [disabled]="!!terminated() || waitingForOtherPlayer()"
-    />
-    <button
-      class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto"
-      type="submit"
-      [disabled]="!!terminated() || waitingForOtherPlayer() || !guess().trim()"
-    >
-      Submit
-    </button>
-  </form>
 </section>
