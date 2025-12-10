@@ -97,6 +97,88 @@ describe('LiveGameComponent logic', () => {
     expect(component.shouldHideGuesses(round, game)).toBeFalse();
     expect(component.waitingForOtherPlayer()).toBeFalse();
   });
+
+  it('returns empty array for reversedRounds when game is null', () => {
+    component.game.set(null);
+    expect(component.reversedRounds()).toEqual([]);
+  });
+
+  it('returns reversed rounds in correct order (most recent first)', () => {
+    const rounds: RoundDto[] = [
+      { number: 1, guesses: { Alice: 'Cat' } },
+      { number: 2, guesses: { Alice: 'Dog' } },
+      { number: 3, guesses: { Alice: 'Bird' } },
+    ];
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 10,
+      players: [{ name: 'Alice' }],
+      rounds: rounds,
+      state: 'IN_PROGRESS',
+    };
+    component.game.set(game);
+
+    const reversed = component.reversedRounds();
+    expect(reversed.length).toBe(3);
+    expect(reversed[0].number).toBe(3);
+    expect(reversed[1].number).toBe(2);
+    expect(reversed[2].number).toBe(1);
+  });
+
+  it('updates reversedRounds when game state changes', () => {
+    const game1: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 10,
+      players: [{ name: 'Alice' }],
+      rounds: [{ number: 1, guesses: { Alice: 'Cat' } }],
+      state: 'IN_PROGRESS',
+    };
+    component.game.set(game1);
+
+    expect(component.reversedRounds().length).toBe(1);
+    expect(component.reversedRounds()[0].number).toBe(1);
+
+    // Update game with more rounds
+    const game2: GameDto = {
+      ...game1,
+      rounds: [
+        { number: 1, guesses: { Alice: 'Cat' } },
+        { number: 2, guesses: { Alice: 'Dog' } },
+      ],
+    };
+    component.game.set(game2);
+
+    expect(component.reversedRounds().length).toBe(2);
+    expect(component.reversedRounds()[0].number).toBe(2);
+    expect(component.reversedRounds()[1].number).toBe(1);
+  });
+
+  it('does not mutate original rounds array', () => {
+    const rounds: RoundDto[] = [
+      { number: 1, guesses: { Alice: 'Cat' } },
+      { number: 2, guesses: { Alice: 'Dog' } },
+    ];
+    const game: GameDto = {
+      id: 'g1',
+      playerLimit: 2,
+      roundLimit: 10,
+      players: [{ name: 'Alice' }],
+      rounds: rounds,
+      state: 'IN_PROGRESS',
+    };
+    component.game.set(game);
+
+    const reversed = component.reversedRounds();
+
+    // Original rounds should remain unchanged
+    expect(game.rounds[0].number).toBe(1);
+    expect(game.rounds[1].number).toBe(2);
+    // Reversed should be opposite
+    expect(reversed[0].number).toBe(2);
+    expect(reversed[1].number).toBe(1);
+  });
 });
 
 describe('LiveGameComponent navigation', () => {
