@@ -17,12 +17,12 @@ bazel_dep(name = "aspect_rules_ts", version = "3.7.1")
 
 bazel_dep(name = "bazel_env.bzl", version = "0.5.0", dev_dependency = True)
 
-bazel_dep(name = "bazelrc-preset.bzl", version = "1.7.0")
+bazel_dep(name = "bazelrc-preset.bzl", version = "1.8.0")
 
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
 bazel_dep(name = "rules_nodejs", version = "6.6.2")
-bazel_dep(name = "rules_java", version = "9.2.0")
+bazel_dep(name = "rules_java", version = "9.3.0")
 bazel_dep(name = "rules_kotlin", version = "2.2.1")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.1")
@@ -505,7 +505,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "alpine_caddy",
-    digest = "sha256:cef7fe17d4df3b0843eae25bed319d6140b1a7bb13ccef076f5f1783d5bca9b1",
+    digest = "sha256:dedfbbeb703b2ce9ff4a98fc06aa9c7c7d9a42f0b7d778738c1dd3ef11dcc767",
     image = "caddy",
     platforms = [
         "linux/amd64",
@@ -517,7 +517,3 @@ use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_
 # BuildBuddy Remote Execution
 buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbuddy")
 buildbuddy.platform(buildbuddy_container_image = "UBUNTU22_04_IMAGE")
-
-register_toolchains(
-    "@toolchains_buildbuddy//toolchains/cc:ubuntu_gcc_x86_64",
-)
