@@ -98,7 +98,7 @@ importers:
         version: 24.10.3
       daisyui:
         specifier: ^5.5.5
-        version: 5.5.8
+        version: 5.5.13
       jasmine-core:
         specifier: ~5.13.0
         version: 5.13.0
@@ -2060,8 +2060,8 @@ packages:
   custom-event@1.0.1:
     resolution: {integrity: sha512-GAj5FOq0Hd+RsCGVJxZuKaIDXDf3h6GQoNEjFgbLLI/trgtavwUbSnZ5pVfg27DVCaWjIohryS0JFwIJyT2cMg==}
 
-  daisyui@5.5.8:
-    resolution: {integrity: sha512-6psL9jIEOFOw68V10j/BKCWcRgx8dh81mmNxShr+g7HDM6UHNoPharlp9zq/PQkHNuGU1ZQsajR3HgpvavbRKQ==}
+  daisyui@5.5.13:
+    resolution: {integrity: sha512-Y1tHPzxU3a/MsArjQ5Bw4DaOnC1IsT9O+M9Wz2NwCw08vuCGhM+xx3ScWfL6IS4YiJXZHh73qNK9GhBWMRKY6Q==}
 
   date-format@4.0.14:
     resolution: {integrity: sha512-39BOQLs9ZjKh0/patS9nrT8wc3ioX3/eA/zgbKNopnF2wCqJEoxywwwElATYvRsXdnOxA/OQeQoFZ3rFjVajhg==}
@@ -5777,7 +5777,7 @@ snapshots:
 
   custom-event@1.0.1: {}
 
-  daisyui@5.5.8: {}
+  daisyui@5.5.13: {}
 
   date-format@4.0.14: {}
 
