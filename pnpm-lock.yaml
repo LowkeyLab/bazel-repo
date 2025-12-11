@@ -4,6 +4,96 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@angular/build':
+      specifier: ^21.0.1
+      version: 21.0.3
+    '@angular/cli':
+      specifier: ^21.0.3
+      version: 21.0.3
+    '@angular/common':
+      specifier: ^21.0.3
+      version: 21.0.4
+    '@angular/compiler':
+      specifier: ^21.0.3
+      version: 21.0.4
+    '@angular/compiler-cli':
+      specifier: ^21.0.2
+      version: 21.0.4
+    '@angular/core':
+      specifier: ^21.0.3
+      version: 21.0.4
+    '@angular/forms':
+      specifier: ^21.0.3
+      version: 21.0.4
+    '@angular/platform-browser':
+      specifier: ^21.0.3
+      version: 21.0.4
+    '@angular/router':
+      specifier: ^21.0.3
+      version: 21.0.4
+    '@tailwindcss/cli':
+      specifier: ^4.1.17
+      version: 4.1.18
+    '@tailwindcss/postcss':
+      specifier: ^4.1.17
+      version: 4.1.18
+    '@types/canvas-confetti':
+      specifier: ^1.9.0
+      version: 1.9.0
+    '@types/jasmine':
+      specifier: ~5.1.0
+      version: 5.1.13
+    '@types/node':
+      specifier: ^24
+      version: 24.10.3
+    canvas-confetti:
+      specifier: ^1.9.4
+      version: 1.9.4
+    daisyui:
+      specifier: ^5.5.5
+      version: 5.5.13
+    jasmine-core:
+      specifier: ~5.13.0
+      version: 5.13.0
+    karma:
+      specifier: ~6.4.0
+      version: 6.4.4
+    karma-chrome-launcher:
+      specifier: ~3.2.0
+      version: 3.2.0
+    karma-coverage:
+      specifier: ~2.2.0
+      version: 2.2.1
+    karma-jasmine:
+      specifier: ~5.1.0
+      version: 5.1.0
+    karma-jasmine-html-reporter:
+      specifier: ~2.1.0
+      version: 2.1.0
+    postcss:
+      specifier: ^8.5.3
+      version: 8.5.6
+    postcss-cli:
+      specifier: ^11.0.1
+      version: 11.0.1
+    rxjs:
+      specifier: ~7.8.0
+      version: 7.8.2
+    tailwindcss:
+      specifier: ^4.1.17
+      version: 4.1.18
+    tslib:
+      specifier: ^2.3.0
+      version: 2.8.1
+    typescript:
+      specifier: ~5.9.2
+      version: 5.9.3
+    zone.js:
+      specifier: ~0.16.0
+      version: 0.16.0
+
 importers:
 
   .:
@@ -39,98 +129,98 @@ importers:
   angular:
     dependencies:
       '@angular/common':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2)
       '@angular/compiler':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4
       '@angular/core':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0)
       '@angular/forms':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4(@angular/common@21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2))(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(@angular/platform-browser@21.0.4(@angular/common@21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2))(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0)))(@standard-schema/spec@1.0.0)(rxjs@7.8.2)
       '@angular/platform-browser':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4(@angular/common@21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2))(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))
       '@angular/router':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4(@angular/common@21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2))(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(@angular/platform-browser@21.0.4(@angular/common@21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2))(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0)))(rxjs@7.8.2)
       canvas-confetti:
-        specifier: ^1.9.4
+        specifier: 'catalog:'
         version: 1.9.4
       rxjs:
-        specifier: ~7.8.0
+        specifier: 'catalog:'
         version: 7.8.2
       tailwindcss:
-        specifier: ^4.1.17
+        specifier: 'catalog:'
         version: 4.1.18
       tslib:
-        specifier: ^2.3.0
+        specifier: 'catalog:'
         version: 2.8.1
       zone.js:
-        specifier: ~0.16.0
+        specifier: 'catalog:'
         version: 0.16.0
     devDependencies:
       '@angular/build':
-        specifier: ^21.0.1
+        specifier: 'catalog:'
         version: 21.0.3(@angular/compiler-cli@21.0.4(@angular/compiler@21.0.4)(typescript@5.9.3))(@angular/compiler@21.0.4)(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(@angular/platform-browser@21.0.4(@angular/common@21.0.4(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0))(rxjs@7.8.2))(@angular/core@21.0.4(@angular/compiler@21.0.4)(rxjs@7.8.2)(zone.js@0.16.0)))(@types/node@24.10.3)(chokidar@4.0.3)(jiti@2.6.1)(karma@6.4.4)(lightningcss@1.30.2)(postcss@8.5.6)(tailwindcss@4.1.18)(tslib@2.8.1)(typescript@5.9.3)(yaml@2.8.1)
       '@angular/cli':
-        specifier: ^21.0.1
+        specifier: 'catalog:'
         version: 21.0.3(@types/node@24.10.3)(chokidar@4.0.3)
       '@angular/compiler-cli':
-        specifier: ^21.0.2
+        specifier: 'catalog:'
         version: 21.0.4(@angular/compiler@21.0.4)(typescript@5.9.3)
       '@tailwindcss/cli':
-        specifier: ^4.1.17
+        specifier: 'catalog:'
         version: 4.1.18
       '@tailwindcss/postcss':
-        specifier: ^4.1.17
+        specifier: 'catalog:'
         version: 4.1.18
       '@types/canvas-confetti':
-        specifier: ^1.9.0
+        specifier: 'catalog:'
         version: 1.9.0
       '@types/jasmine':
-        specifier: ~5.1.0
+        specifier: 'catalog:'
         version: 5.1.13
       '@types/node':
-        specifier: ^24
+        specifier: 'catalog:'
         version: 24.10.3
       daisyui:
-        specifier: ^5.5.5
+        specifier: 'catalog:'
         version: 5.5.13
       jasmine-core:
-        specifier: ~5.13.0
+        specifier: 'catalog:'
         version: 5.13.0
       karma:
-        specifier: ~6.4.0
+        specifier: 'catalog:'
         version: 6.4.4
       karma-chrome-launcher:
-        specifier: ~3.2.0
+        specifier: 'catalog:'
         version: 3.2.0
       karma-coverage:
-        specifier: ~2.2.0
+        specifier: 'catalog:'
         version: 2.2.1
       karma-jasmine:
-        specifier: ~5.1.0
+        specifier: 'catalog:'
         version: 5.1.0(karma@6.4.4)
       karma-jasmine-html-reporter:
-        specifier: ~2.1.0
+        specifier: 'catalog:'
         version: 2.1.0(jasmine-core@5.13.0)(karma-jasmine@5.1.0(karma@6.4.4))(karma@6.4.4)
       postcss:
-        specifier: ^8.5.3
+        specifier: 'catalog:'
         version: 8.5.6
       postcss-cli:
-        specifier: ^11.0.1
+        specifier: 'catalog:'
         version: 11.0.1(jiti@2.6.1)(postcss@8.5.6)
       typescript:
-        specifier: ~5.9.2
+        specifier: 'catalog:'
         version: 5.9.3
 
   tools:
     devDependencies:
       '@angular/cli':
-        specifier: ^21.0.0
+        specifier: 'catalog:'
         version: 21.0.3(@types/node@24.10.3)(chokidar@4.0.3)
 
 packages:
@@ -393,11 +483,6 @@ packages:
   '@babel/helpers@7.28.4':
     resolution: {integrity: sha512-HFN59MmQXGHVyYadKLVumYsA9dBFun/ldYxipEjzA4196jpLZd8UjEEBLkbEkvfYreDqJhZxYAWFPtrfhNpj4w==}
     engines: {node: '>=6.9.0'}
-
-  '@babel/parser@7.28.4':
-    resolution: {integrity: sha512-yZbBqeM6TkpP9du/I2pUZnJsRMGGvOuIrhjzC1AwHwW+6he4mni6Bp/m8ijn0iOuZuPI2BfkCoSRunpyjnrQKg==}
-    engines: {node: '>=6.0.0'}
-    hasBin: true
 
   '@babel/parser@7.28.5':
     resolution: {integrity: sha512-KKBU1VGYR7ORr3At5HAtUQ+TV3SzRCXmA/8OdDZiLDBIZxVyzXuztPjfLd3BV1PRAQGCMWWSHYhL0F8d5uHBDQ==}
@@ -4338,10 +4423,6 @@ snapshots:
       '@babel/template': 7.27.2
       '@babel/types': 7.28.5
 
-  '@babel/parser@7.28.4':
-    dependencies:
-      '@babel/types': 7.28.5
-
   '@babel/parser@7.28.5':
     dependencies:
       '@babel/types': 7.28.5
@@ -6454,7 +6535,7 @@ snapshots:
   istanbul-lib-instrument@5.2.1:
     dependencies:
       '@babel/core': 7.28.5
-      '@babel/parser': 7.28.4
+      '@babel/parser': 7.28.5
       '@istanbuljs/schema': 0.1.3
       istanbul-lib-coverage: 3.2.2
       semver: 6.3.1
@@ -6463,7 +6544,7 @@ snapshots:
 
   istanbul-lib-instrument@6.0.3:
     dependencies:
-      '@babel/core': 7.28.4
+      '@babel/core': 7.28.5
       '@babel/parser': 7.28.5
       '@istanbuljs/schema': 0.1.3
       istanbul-lib-coverage: 3.2.2

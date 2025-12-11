@@ -1,6 +1,6 @@
 {
   "private": true,
   "devDependencies": {
-    "@angular/cli": "^21.0.0"
+    "@angular/cli": "catalog:"
   }
 }
