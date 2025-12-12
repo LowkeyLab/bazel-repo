@@ -1,6 +1,7 @@
 {
   "private": true,
   "devDependencies": {
-    "@angular/cli": "catalog:"
+    "@angular/cli": "catalog:",
+    "astro": "catalog:"
   }
 }
