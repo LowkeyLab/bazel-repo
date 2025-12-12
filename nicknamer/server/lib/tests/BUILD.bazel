@@ -14,6 +14,8 @@ rust_test_suite(
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
+        "test.dockerNetwork": "bridge",
+        "test.enable-dockerd-tcp": "true",
     },
     shared_srcs = glob(["common/**"]),
     tags = ["requires-network"],
