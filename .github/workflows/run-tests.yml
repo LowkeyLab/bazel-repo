@@ -18,7 +18,7 @@ env:
 
 jobs:
   ci:
-    runs-on: ubuntu-22.04 # glibc version 2.36 is required for base distroless image
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
