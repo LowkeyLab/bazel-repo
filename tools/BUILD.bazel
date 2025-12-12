@@ -35,6 +35,7 @@ LOCAL_TOOLS = {
 
 bazel_env(
     name = "bazel_env",
+    tags = ["no-remote-exec"],
     toolchains = {
         "nodejs": "@nodejs_toolchains//:resolved_toolchain",
         "jdk": "@rules_java//toolchains:current_host_java_runtime",
