@@ -14,8 +14,6 @@ on:
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
-    # Use the same runner as your CI to ensure compatibility
-    # glibc version 2.36 is required for base distroless image
     runs-on: ubuntu-latest
 
     # Set the permissions to the lowest permissions possible needed for your steps.
