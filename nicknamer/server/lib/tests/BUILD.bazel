@@ -2,37 +2,35 @@ load("@rules_rust//rust:defs.bzl", "rust_test_suite")
 
 package(default_visibility = ["//nicknamer"])
 
-# rust_test_suite(
-#     name = "tests",
-#     size = "small",
-#     srcs = glob(["*.rs"]),
-#     data = glob(["snapshots/**/*.snap"]),
-#     env = {
-#         "INSTA_UPDATE": "no",
-#         "INSTA_WORKSPACE_ROOT": ".",
-#     },
-#     exec_properties = {
-#         "test.workload-isolation-type": "firecracker",
-#         "test.init-dockerd": "true",
-#         "test.dockerNetwork": "bridge",
-#         "test.enable-dockerd-tcp": "true",
-#     },
-#     shared_srcs = glob(["common/**"]),
-#     tags = ["requires-network"],
-#     deps = [
-#         "//nicknamer/migration/lib",
-#         "//nicknamer/server/lib",
-#         "@crates//:anyhow",
-#         "@crates//:askama",
-#         "@crates//:axum",
-#         "@crates//:insta",
-#         "@crates//:sea-orm",
-#         "@crates//:serde",
-#         "@crates//:serde_json",
-#         "@crates//:testcontainers-modules",
-#         "@crates//:tokio",
-#         "@crates//:tower",
-#         "@crates//:tracing-subscriber",
-#         "@rules_rust//tools/runfiles",
-#     ],
-# )
+rust_test_suite(
+    name = "tests",
+    size = "small",
+    srcs = glob(["*.rs"]),
+    data = glob(["snapshots/**/*.snap"]),
+    env = {
+        "INSTA_UPDATE": "no",
+        "INSTA_WORKSPACE_ROOT": ".",
+    },
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    shared_srcs = glob(["common/**"]),
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "@crates//:anyhow",
+        "@crates//:askama",
+        "@crates//:axum",
+        "@crates//:insta",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+        "@crates//:tracing-subscriber",
+        "@rules_rust//tools/runfiles",
+    ],
+)
