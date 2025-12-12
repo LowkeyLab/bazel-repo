@@ -22,6 +22,7 @@ eslint = lint_eslint_aspect(
     configs = [
         Label("//:eslintrc"),
         # if the repository has nested eslintrc files, they must be added here as well
+        Label("//personal_website:eslintrc"),
     ],
 )
 

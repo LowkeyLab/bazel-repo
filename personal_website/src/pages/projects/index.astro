@@ -1,0 +1,157 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import ProjectCard from "../../components/ProjectCard.astro";
+import CallToAction from "../../components/CallToAction.astro";
+import dummyImage from "../../assets/dummy.png";
+import { getCollection } from "astro:content";
+
+// Get all projects from the collection
+const projects = await getCollection("projects");
+
+// Sort by featured projects first
+const sortedProjects = projects.sort((a, b) => {
+  if (a.data.featured && !b.data.featured) return -1;
+  if (!a.data.featured && b.data.featured) return 1;
+  return a.data.title.localeCompare(b.data.title);
+});
+
+// Count frequency of each tag
+const tagFrequency = projects
+  .flatMap((project) => project.data.tags)
+  .reduce(
+    (acc, tag) => {
+      acc[tag] = (acc[tag] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+// Extract all unique tags and sort by frequency (most used first)
+const allTags = [
+  ...new Set(projects.flatMap((project) => project.data.tags)),
+].sort((a, b) => tagFrequency[b] - tagFrequency[a]);
+---
+
+<Layout
+  title="Projects | Tim Tran"
+  description="Projects and work by Tim Tran - Software Engineer"
+  activeItem="projects"
+>
+  <header class="mb-12 text-center">
+    <h1 class="text-4xl font-bold text-base-content mb-3">My Projects</h1>
+    <p class="text-xl text-base-content/80 max-w-3xl mx-auto">
+      Writings about what I do in my spare time
+    </p>
+  </header>
+
+  <!-- Filter/Category section -->
+  <div class="flex justify-center mb-10 flex-wrap gap-2">
+    <button class="tag-filter btn btn-sm btn-active" data-tag="all">All</button>
+    {
+      allTags.map((tag) => (
+        <button class="tag-filter btn btn-sm" data-tag={tag}>
+          {tag}
+        </button>
+      ))
+    }
+  </div>
+
+  <!-- Projects Grid -->
+  <div
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    id="projects-grid"
+  >
+    {
+      sortedProjects.map((project) => (
+        <div class="project-card" data-tags={project.data.tags.join(",")}>
+          <ProjectCard
+            title={project.data.title}
+            description={project.data.description}
+            tags={project.data.tags}
+            image={project.data.cover || dummyImage}
+            imageAlt="Project cover"
+            links={project.data.links}
+            slug={project.id}
+          />
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- Call to Action -->
+  <CallToAction />
+</Layout>
+
+<script is:inline>
+  // Function to initialize and set up project tag filtering
+  function initProjectFiltering() {
+    const filterButtons = document.querySelectorAll(".tag-filter");
+    const projectCards = document.querySelectorAll(".project-card");
+
+    // Reset any previous active state that might have been preserved
+    const activeTag = sessionStorage.getItem("activeProjectTag") || "all";
+
+    // First remove active class from all buttons
+    filterButtons.forEach((btn) => btn.classList.remove("btn-active"));
+
+    // Then find and activate the correct button
+    const buttonToActivate = Array.from(filterButtons).find(
+      (btn) => btn.getAttribute("data-tag") === activeTag
+    );
+
+    if (buttonToActivate) {
+      buttonToActivate.classList.add("btn-active");
+
+      // Apply the filtering based on the stored tag
+      applyTagFilter(activeTag, projectCards);
+    } else {
+      // If no matching button (unlikely), activate "All"
+      const allButton = Array.from(filterButtons).find(
+        (btn) => btn.getAttribute("data-tag") === "all"
+      );
+      if (allButton) {
+        allButton.classList.add("btn-active");
+      }
+    }
+
+    // Add click event listener to each filter button
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const selectedTag = button.getAttribute("data-tag") || "all";
+
+        // Store the active tag in sessionStorage for persistence across view transitions
+        sessionStorage.setItem("activeProjectTag", selectedTag);
+
+        // Update active button styles
+        filterButtons.forEach((btn) => btn.classList.remove("btn-active"));
+        button.classList.add("btn-active");
+
+        // Apply the filtering
+        applyTagFilter(selectedTag, projectCards);
+      });
+    });
+  }
+
+  /**
+   * Apply filtering based on selected tag
+   * @param {string} selectedTag - The tag to filter by
+   * @param {NodeListOf<Element>} projectCards - Collection of project card elements
+   */
+  function applyTagFilter(selectedTag, projectCards) {
+    projectCards.forEach((card) => {
+      const cardTags = card.getAttribute("data-tags")?.split(",") || [];
+
+      if (selectedTag === "all" || cardTags.includes(selectedTag)) {
+        card.classList.remove("hidden");
+      } else {
+        card.classList.add("hidden");
+      }
+    });
+  }
+
+  // Initialize on first page load
+  document.addEventListener("DOMContentLoaded", initProjectFiltering);
+
+  // Re-initialize after view transitions
+  document.addEventListener("astro:page-load", initProjectFiltering);
+</script>

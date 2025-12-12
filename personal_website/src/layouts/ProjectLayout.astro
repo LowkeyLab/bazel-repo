@@ -1,0 +1,109 @@
+---
+import Layout from "./Layout.astro";
+import TagBadges from "../components/TagBadges.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  projectData: {
+    title: string;
+    description: string;
+    tags: string[];
+    links: {
+      github?: string;
+      demo?: string;
+      website?: string;
+    };
+  };
+  activeItem?: "home" | "projects" | "contact";
+}
+
+const {
+  title,
+  description,
+  projectData,
+  activeItem = "projects",
+} = Astro.props;
+---
+
+<Layout title={title} description={description} activeItem={activeItem}>
+  <div class="mb-8">
+    <a href="/projects" class="btn btn-ghost btn-sm">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="w-5 h-5"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"></path>
+      </svg>
+      Back to Projects
+    </a>
+  </div>
+
+  <!-- Project Header -->
+  <div class="card bg-base-100 shadow-xl mb-8">
+    <div class="card-body">
+      <h1 class="text-4xl font-bold text-primary mb-4">
+        {projectData.title}
+      </h1>
+
+      <TagBadges tags={projectData.tags} size="md" className="mb-4" />
+
+      <p class="text-xl mb-6">{projectData.description}</p>
+
+      <div class="flex gap-3">
+        {
+          projectData.links.github && (
+            <a
+              href={projectData.links.github}
+              target="_blank"
+              rel="noreferrer"
+              class="btn btn-outline"
+            >
+              GitHub Repo
+            </a>
+          )
+        }
+
+        {
+          projectData.links.demo && (
+            <a
+              href={projectData.links.demo}
+              target="_blank"
+              rel="noreferrer"
+              class="btn btn-outline"
+            >
+              Live Demo
+            </a>
+          )
+        }
+
+        {
+          projectData.links.website && (
+            <a
+              href={projectData.links.website}
+              target="_blank"
+              rel="noreferrer"
+              class="btn btn-outline"
+            >
+              Website
+            </a>
+          )
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Content -->
+  <div
+    class="prose lg:prose-lg max-w-none bg-base-100 p-8 rounded-lg shadow-md"
+  >
+    <slot />
+  </div>
+</Layout>

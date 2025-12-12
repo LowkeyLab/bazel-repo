@@ -1,0 +1,199 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import TagBadges from "../../components/TagBadges.astro";
+import CallToAction from "../../components/CallToAction.astro";
+
+// Professional skills organized by category
+const skills = {
+  languages: ["Java", "Kotlin", "TypeScript", "JavaScript", "SQL", "Python"],
+  frameworks: ["Spring Boot", "Hibernate", "JUnit", "React", "Flink"],
+  tools: ["Git", "Maven", "Gradle", "Docker", "Jenkins"],
+  databases: ["PostgreSQL", "Comdb2"],
+  concepts: [
+    "Microservices",
+    "RESTful APIs",
+    "CI/CD",
+    "Test-Driven Development",
+    "Domain-Driven Design",
+  ],
+};
+---
+
+<Layout
+  title="Work Experience | Tim Tran"
+  description="Professional experience and skills of Tim Tran - Software Engineer"
+  activeItem="work"
+>
+  <header class="mb-12 text-center">
+    <h1 class="text-4xl font-bold text-base-content mb-3">Work Experience</h1>
+    <p class="text-xl text-base-content/80 max-w-3xl mx-auto">
+      Writings about what I've pushed to production
+    </p>
+  </header>
+
+  <!-- Current Role -->
+  <div class="card bg-base-100 shadow-xl mb-12">
+    <div class="card-body">
+      <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6"
+      >
+        <div>
+          <h2 class="text-3xl font-bold text-primary">Bloomberg LP</h2>
+          <p class="text-xl">Software Engineer</p>
+        </div>
+        <div class="badge badge-lg">Current</div>
+      </div>
+
+      <p class="mb-6">
+        At Bloomberg, I'm deeply immersed in the Java ecosystem, working on
+        high-performance, mission-critical financial software applications. I
+        collaborate with a team of engineers to develop and maintain robust
+        systems that process vast amounts of financial data and support critical
+        business operations.
+      </p>
+
+      <h3 class="text-xl font-semibold mb-2">Core Responsibilities:</h3>
+      <ul class="list-disc pl-6 mb-6 space-y-2">
+        <li>
+          Design and implement JVM-based solutions for complex financial data
+          processing systems
+        </li>
+        <li>
+          Optimize application performance for handling large-scale, real-time
+          market data
+        </li>
+        <li>
+          Develop and maintain microservices within Bloomberg's expansive tech
+          ecosystem
+        </li>
+        <li>
+          Collaborate on API design and implementation for internal and external
+          services
+        </li>
+        <li>Participate in code reviews and technical design discussions</li>
+        <li>
+          Work within agile development methodologies to deliver features and
+          improvements
+        </li>
+      </ul>
+
+      <h3 class="text-xl font-semibold mb-2">Technologies Used:</h3>
+      <TagBadges
+        tags={[
+          "Java",
+          "Spring Boot",
+          "Microservices",
+          "RESTful APIs",
+          "Kafka",
+          "PostgreSQL",
+          "JUnit",
+          "Gradle",
+        ]}
+        size="md"
+        className="mb-6"
+      />
+
+      <div class="divider"></div>
+
+      <h3 class="text-xl font-semibold mb-4">Projects I've Worked On</h3>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="card bg-base-200">
+          <div class="card-body">
+            <h4 class="card-title">Core Java Infrastructure</h4>
+            <p>
+              I'm a leading member of a group of 30 people who maintain the core
+              JVM libraries at Bloomberg. We maintain libraries that are used by
+              thousands of developers at the core of Bloomberg. <br />
+
+              My slice is usually build systems and CI pipelines, where I
+              maintain the Gradle and Maven builds of the libraries. I also
+              provide help for teams looking to migrate into the JVM ecosystem. <br
+              />
+
+              Recently, I've been working on streamlining code generation for
+              Bloomberg's proprietary RPC protocol. This involves generating
+              Kotlin code, as well as implementing a Kotlin codec for the
+              protocol. This would eliminate Bloomberg's reliance on many
+              external dependencies, which has caused migration issues in the
+              past.
+            </p>
+          </div>
+        </div>
+        <div class="card bg-base-200">
+          <div class="card-body">
+            <h4 class="card-title">Model Driven Architecture Platform</h4>
+            <p>
+              Many teams at Bloomberg developed in silos. This means that each
+              team developed their own model of the same financial concepts. In
+              the modern era, many clients are interested in using Bloomberg as
+              a provider for all of their financial data. This means that we
+              need to have a single source of well-defined data models, both for
+              our clients and for our internal teams. <br />
+
+              We're building a platform that allows teams to define their data
+              on a UI, then have code artifacts generated based on those models.
+              We provide the messaging schemas, the database schemas, and a
+              mapping between them. The ultimate goal is for developers to
+              simplify business logic development, communicate using the same
+              format, and have unified data storage. <br />
+            </p>
+          </div>
+        </div>
+        <div class="card bg-base-200">
+          <div class="card-body">
+            <h4 class="card-title">Indication of Interest (IOI) pipeline</h4>
+            <p>
+              My first ever project at Bloomberg. The team wanted to migrate
+              their legacy end-of-day C++ pipeline to a more real-time
+              aggregation system. I was tasked with building a proof of concept
+              utilizing Flink. <br />
+              I set up the build, CI/CD, and Kubernetes deployment. I also ported
+              the existing business logic to Flink, first using Java and then Kotlin.
+              <br />
+              The project was a success, and the team is deploying more and more
+              of their data pipelines using Flink and Kotlin.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Technical Skills -->
+  <div class="card bg-base-100 shadow-xl mb-12">
+    <div class="card-body">
+      <h2 class="text-2xl font-bold text-primary mb-6">Technical Skills</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Languages</h3>
+          <TagBadges tags={skills.languages} size="md" />
+        </div>
+
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Frameworks</h3>
+          <TagBadges tags={skills.frameworks} size="md" />
+        </div>
+
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Tools</h3>
+          <TagBadges tags={skills.tools} size="md" />
+        </div>
+
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Databases</h3>
+          <TagBadges tags={skills.databases} size="md" />
+        </div>
+
+        <div class="md:col-span-2">
+          <h3 class="text-xl font-semibold mb-2">Concepts</h3>
+          <TagBadges tags={skills.concepts} size="md" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call to Action -->
+  <CallToAction />
+</Layout>

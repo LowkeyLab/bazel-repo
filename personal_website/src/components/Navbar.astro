@@ -1,0 +1,102 @@
+---
+import ThemeToggle from "./ThemeToggle.astro";
+
+interface Props {
+  activeItem?: "home" | "projects" | "work" | "contact";
+}
+
+const { activeItem = "home" } = Astro.props;
+
+// Helper function to determine if an item is active
+const isActive = (item: string) => activeItem === item;
+---
+
+<nav class="navbar bg-base-100 shadow-sm sticky top-0 z-30 w-full">
+  <div class="container mx-auto px-4 flex justify-between">
+    <!-- Logo and mobile hamburger menu in navbar-start -->
+    <div class="navbar-start">
+      <!-- Hamburger menu for small screens -->
+      <div class="dropdown lg:hidden">
+        <div tabindex="0" class="btn btn-ghost">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h8m-8 6h16"></path>
+          </svg>
+        </div>
+        <ul
+          tabindex="0"
+          class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
+        >
+          <li>
+            <a class={isActive("home") ? "menu-active" : ""} href="/">Home</a>
+          </li>
+          <li>
+            <a
+              class={isActive("projects") ? "menu-active" : ""}
+              href="/projects">Projects</a
+            >
+          </li>
+          <li>
+            <a class={isActive("work") ? "menu-active" : ""} href="/work"
+              >Work</a
+            >
+          </li>
+          <li>
+            <a
+              href="mailto:timdttran2000@gmail.com"
+              target="_blank"
+              rel="noreferrer">Email</a
+            >
+          </li>
+        </ul>
+      </div>
+
+      <!-- Logo - now moved inside navbar-start but after the dropdown -->
+      <a href="/" class="text-xl font-semibold text-primary">Tim's Corner</a>
+    </div>
+
+    <!-- Only desktop navigation in navbar-center -->
+    <div class="navbar-center">
+      <!-- Desktop navigation links -->
+      <div class="hidden lg:flex">
+        <ul class="menu menu-horizontal px-1">
+          <li>
+            <a class={isActive("home") ? "menu-active" : ""} href="/">Home</a>
+          </li>
+          <li>
+            <a
+              class={isActive("projects") ? "menu-active" : ""}
+              href="/projects">Projects</a
+            >
+          </li>
+          <li>
+            <a class={isActive("work") ? "menu-active" : ""} href="/work"
+              >Work</a
+            >
+          </li>
+          <li>
+            <a
+              href="mailto:timdttran2000@gmail.com"
+              target="_blank"
+              rel="noreferrer">Email</a
+            >
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Theme toggle in navbar-end -->
+    <div class="navbar-end">
+      <ThemeToggle />
+    </div>
+  </div>
+</nav>
