@@ -40,10 +40,6 @@ jobs:
         run: |
           cat $GITHUB_WORKSPACE/.github/workflows/ci.bazelrc >> ~/.bazelrc
 
-      - name: Install tools via bazel
-        run: |
-          bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
-
       - name: Log in to GHCR
         uses: docker/login-action@28fdb31ff34708d19615a74d67103ddc2ea9725c
         with:
