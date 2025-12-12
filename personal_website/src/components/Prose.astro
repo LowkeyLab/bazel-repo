@@ -1,0 +1,14 @@
+---
+// Optional props for customization
+interface Props {
+  class?: string;
+}
+
+const { class: additionalClasses = "" } = Astro.props;
+---
+
+<div
+  class={`prose dark:prose-invert lg:prose-lg max-w-none w-full ${additionalClasses}`}
+>
+  <slot />
+</div>

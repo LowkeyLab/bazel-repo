@@ -5,15 +5,16 @@
   "description": "Bazel monorepo",
   "// dependencies": "in the root package, only dependencies for monorepo-wide tooling should appear",
   "devDependencies": {
+    "@astrojs/check": "catalog:",
     "@eslint/js": "catalog:",
-    "@types/node": "catalog:",
     "@tsconfig/strictest": "catalog:",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "stylelint": "catalog:",
     "tsconfig-to-swcconfig": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
-    "stylelint": "catalog:"
+    "typescript-eslint": "catalog:"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

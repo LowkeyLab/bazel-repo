@@ -14,7 +14,6 @@ common:remote --remote_executor=grpcs://remote.buildbuddy.io
 common:remote-linux --config=remote
 common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
-common:remote-linux --extra_toolchains=@toolchains_buildbuddy//toolchains/cc:ubuntu_gcc_x86_64
 common:remote-linux --jobs=50
 # Ignore lockfile in CI
 common:ci --lockfile_mode="off"

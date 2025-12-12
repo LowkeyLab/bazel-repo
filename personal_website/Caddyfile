@@ -1,0 +1,5 @@
+:80 {
+	log
+	root * /app
+	file_server
+}

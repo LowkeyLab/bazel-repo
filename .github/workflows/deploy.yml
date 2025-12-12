@@ -40,10 +40,6 @@ jobs:
         run: |
           cat $GITHUB_WORKSPACE/.github/workflows/ci.bazelrc >> ~/.bazelrc
 
-      - name: Install tools via bazel
-        run: |
-          bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
-
       - name: Log in to GHCR
         uses: docker/login-action@28fdb31ff34708d19615a74d67103ddc2ea9725c
         with:
@@ -59,3 +55,6 @@ jobs:
 
       - name: Push Mindreadr Frontend Image
         run: bazel run --compilation_mode=opt //angular/projects/mindreadr:push_image
+      
+      - name: Push Personal Website Image
+        run: bazel run --compilation_mode=opt //personal_website:push_image
