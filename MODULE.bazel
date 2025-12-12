@@ -473,8 +473,8 @@ use_repo(crate, "crates")
 oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci_extension.pull(
     name = "distroless_cc",
-    digest = "sha256:0c8eac8ea42a167255d03c3ba6dfad2989c15427ed93d16c53ef9706ea4691df",
-    image = "gcr.io/distroless/cc-debian12",
+    digest = "sha256:43fc7a7004c4cdb27aac60b3e95c87130cf47823f72d25d42ed0f9b503f1d184",
+    image = "gcr.io/distroless/cc-debian13",
     platforms = [
         "linux/amd64",
     ],
@@ -489,16 +489,16 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_java21",
-    digest = "sha256:ed87b011df38601c55503cb24a0d136fed216aeb3bcd57925719488d93d236f4",
-    image = "gcr.io/distroless/java21-debian12",
+    digest = "sha256:c0f56167a6393d00bbbab6a45d282c43f678fd6a7f9a8f84ce034ff2f581ba0f",
+    image = "gcr.io/distroless/java21-debian13",
     platforms = [
         "linux/amd64",
     ],
 )
 oci_extension.pull(
     name = "distroless_node24",
-    digest = "sha256:cdf42f994cee425970f30a0d0e37112dcc800737dde7bba50415612702b399af",
-    image = "gcr.io/distroless/nodejs24-debian12",
+    digest = "sha256:484fc5087efc6a00cfea027a3c3807e4bb8ff7be6ae81df8cc5f0b65fc76282e",
+    image = "gcr.io/distroless/nodejs24-debian13",
     platforms = [
         "linux/amd64",
     ],
@@ -516,4 +516,4 @@ use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_
 ###########################
 # BuildBuddy Remote Execution
 buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbuddy")
-buildbuddy.platform(buildbuddy_container_image = "UBUNTU22_04_IMAGE")
+buildbuddy.platform(buildbuddy_container_image = "UBUNTU24_04_IMAGE")

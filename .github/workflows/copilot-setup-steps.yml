@@ -16,7 +16,7 @@ jobs:
   copilot-setup-steps:
     # Use the same runner as your CI to ensure compatibility
     # glibc version 2.36 is required for base distroless image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     # Set the permissions to the lowest permissions possible needed for your steps.
     # Copilot will be given its own token for its operations.

@@ -18,7 +18,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-22.04 # glibc version 2.36 is required for base distroless image
+    runs-on: ubuntu-latest # glibc version 2.36 is required for base distroless image
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v6
