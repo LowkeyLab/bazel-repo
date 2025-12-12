@@ -516,4 +516,4 @@ use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_
 ###########################
 # BuildBuddy Remote Execution
 buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbuddy")
-buildbuddy.platform(buildbuddy_container_image = "UBUNTU24_04_IMAGE")
+buildbuddy.platform(container_image = "docker://tacascer/rbe-image:latest")
