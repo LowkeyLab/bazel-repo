@@ -59,3 +59,6 @@ jobs:
 
       - name: Push Mindreadr Frontend Image
         run: bazel run --compilation_mode=opt //angular/projects/mindreadr:push_image
+      
+      - name: Push Personal Website Image
+        run: bazel run --compilation_mode=opt //personal_website:push_image

@@ -102,13 +102,13 @@ oci_image(
 )
 
 oci_load(
-    name = "load_app_image",
+    name = "load_image",
     image = ":image",
     repo_tags = ["lowkeylab/personal_website:latest"],
 )
 
 oci_push(
-    name = "push_app_image",
+    name = "push_image",
     image = ":image",
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/personal_website",
