@@ -16,12 +16,6 @@ Project-specific commands and notes for the Mindreadr Angular application.
   bazel test //angular/projects/mindreadr:test
   ```
 
-- Generate Tailwind CSS (writes `src/styles.css`):
-
-  ```bash
-  bazel run //angular/projects/mindreadr:write_styles_css
-  ```
-
 - Serve locally via Angular CLI:
 
   ```bash
@@ -30,7 +24,6 @@ Project-specific commands and notes for the Mindreadr Angular application.
 
 ## Notes
 
-- Tailwind sources are in `src/styles.source.css`; the build writes to `src/styles_generated.css` and copies to `src/styles.css`.
 - Install dependencies from the repo root:
 
   ```bash
