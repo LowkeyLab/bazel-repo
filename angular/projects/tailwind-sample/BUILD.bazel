@@ -1,46 +1,9 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
-load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("@npm//angular:@tailwindcss/cli/package_json.bzl", tailwindcss_bin = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
-
-tailwindcss_bin.tailwindcss_binary(
-    name = "tailwindcss",
-    data = [
-        "//angular:node_modules/@tailwindcss/cli",
-        "//angular:node_modules/daisyui",
-        "//angular:node_modules/tailwindcss",
-    ] + glob([
-        "src/**/*.html",
-        "src/**/*.ts",
-    ]),
-)
-
-js_run_binary(
-    name = "tailwindcss_runner",
-    srcs = [
-        "src/styles.source.css",
-    ],
-    outs = ["src/styles_generated.css"],
-    args = [
-        "--input",
-        "angular/projects/tailwind-sample/src/styles.source.css",
-        "--output",
-        "angular/projects/tailwind-sample/src/styles_generated.css",
-    ],
-    tool = ":tailwindcss",
-)
-
-write_source_files(
-    name = "write_styles_css",
-    files = {
-        "src/styles.css": ":tailwindcss_runner",
-    },
-)
 
 copy_to_bin(
     name = "srcs",
@@ -48,15 +11,23 @@ copy_to_bin(
         ["src/**/*"],
         exclude = [
             "dist/",
-            "src/styles.source.css",  # Don't include source in build
         ],
     ),
 )
+
+TAILWIND_DEPS = [
+    "//angular:node_modules/@tailwindcss/postcss",
+    "//angular:node_modules/daisyui",
+    "//angular:node_modules/postcss",
+    "//angular:node_modules/tailwindcss",
+    "//angular:postcssrc",
+]
 
 ng_application(
     name = "tailwind-sample",
     ng_config = "//angular:ng-config",
     node_modules = "//angular:node_modules",
+    deps = TAILWIND_DEPS,
 )
 
 ng_test(
@@ -66,4 +37,5 @@ ng_test(
     ng_config = "//angular:ng-config",
     node_modules = "//angular:node_modules",
     tags = ["no-remote-exec"],
+    deps = TAILWIND_DEPS,
 )
