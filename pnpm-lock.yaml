@@ -63,6 +63,9 @@ catalogs:
     '@types/jasmine':
       specifier: ~5.1.0
       version: 5.1.13
+    '@types/node':
+      specifier: ^24.10.3
+      version: 24.10.4
     '@typescript-eslint/parser':
       specifier: ^8.29.0
       version: 8.49.0
@@ -72,9 +75,6 @@ catalogs:
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
-    daisyui:
-      specifier: ^5.5.5
-      version: 5.5.13
     eslint:
       specifier: ^9.39.1
       version: 9.39.2
@@ -233,7 +233,7 @@ importers:
         version: 24.10.4
       daisyui:
         specifier: 'catalog:'
-        version: 5.5.13
+        version: 5.5.14
       jasmine-core:
         specifier: 'catalog:'
         version: 5.13.0
@@ -291,7 +291,7 @@ importers:
         version: 8.49.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       daisyui:
         specifier: 'catalog:'
-        version: 5.5.13
+        version: 5.5.14
       eslint:
         specifier: 'catalog:'
         version: 9.39.2(jiti@2.6.1)
@@ -2653,8 +2653,8 @@ packages:
   custom-event@1.0.1:
     resolution: {integrity: sha512-GAj5FOq0Hd+RsCGVJxZuKaIDXDf3h6GQoNEjFgbLLI/trgtavwUbSnZ5pVfg27DVCaWjIohryS0JFwIJyT2cMg==}
 
-  daisyui@5.5.13:
-    resolution: {integrity: sha512-Y1tHPzxU3a/MsArjQ5Bw4DaOnC1IsT9O+M9Wz2NwCw08vuCGhM+xx3ScWfL6IS4YiJXZHh73qNK9GhBWMRKY6Q==}
+  daisyui@5.5.14:
+    resolution: {integrity: sha512-L47rvw7I7hK68TA97VB8Ee0woHew+/ohR6Lx6Ah/krfISOqcG4My7poNpX5Mo5/ytMxiR40fEaz6njzDi7cuSg==}
 
   date-format@4.0.14:
     resolution: {integrity: sha512-39BOQLs9ZjKh0/patS9nrT8wc3ioX3/eA/zgbKNopnF2wCqJEoxywwwElATYvRsXdnOxA/OQeQoFZ3rFjVajhg==}
@@ -7723,7 +7723,7 @@ snapshots:
 
   custom-event@1.0.1: {}
 
-  daisyui@5.5.13: {}
+  daisyui@5.5.14: {}
 
   date-format@4.0.14: {}
 
