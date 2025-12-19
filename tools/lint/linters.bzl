@@ -9,6 +9,7 @@ load("@aspect_rules_lint//lint:lint_test.bzl", "lint_test")
 load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
 load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
 load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
+load("@aspect_rules_lint//lint:stylelint.bzl", "lint_stylelint_aspect")
 
 # Check proto_library sources, see https://buf.build/docs/lint/overview
 buf = lint_buf_aspect(
@@ -56,4 +57,9 @@ ktlint = lint_ktlint_aspect(
 
 keep_sorted = lint_keep_sorted_aspect(
     binary = Label("@com_github_google_keep_sorted//:keep-sorted"),
+)
+
+stylelint = lint_stylelint_aspect(
+    binary = Label("//tools/lint:stylelint"),
+    config = Label("//:stylelintrc"),
 )

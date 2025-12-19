@@ -52,6 +52,15 @@ js_library(
     deps = [],
 )
 
+js_library(
+    name = "stylelintrc",
+    srcs = ["stylelint.config.mjs"],
+    visibility = ["//tools/lint:__pkg__"],
+    deps = [
+        ":node_modules/stylelint",
+    ],
+)
+
 # Gazelle configuration
 # gazelle:exclude githooks/*
 gazelle(
