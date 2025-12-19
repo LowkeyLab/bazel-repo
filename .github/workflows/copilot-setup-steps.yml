@@ -30,10 +30,8 @@ jobs:
           bazelrc: |
             common --config=ci
             common --compilation_mode=dbg
-            build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Install tools via bazel
         run: |
           bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
