@@ -22,7 +22,6 @@ jobs:
           # Avoid downloading Bazel every time.
           bazelisk-cache: true
           bazelrc: |
-            common --config=ci
             common --compilation_mode=opt
             build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
             test --test_env=XDG_CACHE_HOME
