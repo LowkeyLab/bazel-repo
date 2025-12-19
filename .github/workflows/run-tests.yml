@@ -21,15 +21,13 @@ jobs:
         with:
           # Avoid downloading Bazel every time.
           bazelisk-cache: true
-      - name: Copy API key to root .bazelrc
-        run: |
-          echo "=== Adding BuildBuddy API key to .bazelrc ==="
-          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+          bazelrc: |
+            common --config=ci
+            common --compilation_mode=opt
+            build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
+            test --test_env=XDG_CACHE_HOME
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-      - name: Put ci.bazelrc contents into ~/.bazelrc
-        run: |
-          cat $GITHUB_WORKSPACE/.github/workflows/ci.bazelrc >> ~/.bazelrc
       - name: Log in to Docker Hub
         uses: docker/login-action@6862ffc5ab2cdb4405cf318a62a6f4c066e2298b
         with:
