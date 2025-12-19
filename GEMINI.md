@@ -88,6 +88,7 @@ The project uses `aspect_rules_lint` to enforce quality. Key linters include:
 - **Python:** `ruff`
 - **Shell:** `shellcheck`
 - **Protobuf:** `buf`
+- **Go:** `nogo`
 
 ### Git Hooks
 
