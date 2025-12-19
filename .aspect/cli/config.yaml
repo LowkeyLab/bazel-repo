@@ -18,3 +18,4 @@ lint:
     - //tools/lint:linters.bzl%ruff
     - //tools/lint:linters.bzl%pmd
     - //tools/lint:linters.bzl%ktlint
+    - //tools/lint:linters.bzl%keep_sorted

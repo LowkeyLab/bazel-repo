@@ -15,6 +15,9 @@ common:remote-linux --config=remote
 common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --jobs=50
+
+# For keep-sorted
+common --experimental_isolated_extension_usages
 # Ignore lockfile in CI
 common:ci --lockfile_mode="off"
 # Docs: https://registry.build/flag/bazel?filter=lockfile_mode
