@@ -37,11 +37,5 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push Nicknamer Server Image
-        run: bazel run --compilation_mode=opt //nicknamer/server:push_image
-      - name: Push Mindreadr Server Image
-        run: bazel run --compilation_mode=opt //mindreadr:push_image
-      - name: Push Mindreadr Frontend Image
-        run: bazel run --compilation_mode=opt //angular/projects/mindreadr:push_image
-      - name: Push Personal Website Image
-        run: bazel run --compilation_mode=opt //personal_website:push_image
+      - name: Push All Images
+        run: bazel query 'kind("oci_push rule", //...)' | xargs -n 1 bazel run --compilation_mode=opt
