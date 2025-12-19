@@ -3,10 +3,12 @@
  * The @source directives tell TailwindCSS which files to scan for utility classes.
  */
 
-@import 'tailwindcss';
+@import "tailwindcss";
 @plugin "daisyui" {
-    themes: retro --default, synthwave --prefersdark;
-};
+  themes:
+    retro --default,
+    synthwave --prefersdark;
+}
 
 @source "./app/**/*.html";
 @source "./app/**/*.ts";

@@ -49,12 +49,15 @@ java_binary(
 # any files in the repository regardless of language.
 format_multirun(
     name = "format",
+    css = ":prettier",
     go = "@aspect_rules_lint//format:gofumpt",
+    html = ":prettier",
     java = ":java-format",
     javascript = ":prettier",
     kotlin = ":ktfmt",
     markdown = ":prettier",
     python = "@aspect_rules_lint//format:ruff",
     rust = "@rules_rust//tools/upstream_wrapper:rustfmt",
+    shell = "@aspect_rules_lint//format:shfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
 )

@@ -1,12 +1,22 @@
 <section class="max-w-2xl mx-auto mt-6 sm:mt-12 px-4 sm:px-6">
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+  <div
+    class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4"
+  >
     <h1 class="text-2xl sm:text-3xl font-bold">Open Games</h1>
-    <button class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto" (click)="createNewGame()" [disabled]="loading()">
+    <button
+      class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto"
+      (click)="createNewGame()"
+      [disabled]="loading()"
+    >
       Create Game
     </button>
   </div>
   @if (loading()) {
-    <div class="flex justify-center py-12" aria-live="polite" aria-label="Loading open games">
+    <div
+      class="flex justify-center py-12"
+      aria-live="polite"
+      aria-label="Loading open games"
+    >
       <div
         class="h-10 w-10 border-4 border-primary/40 border-t-primary rounded-full animate-spin"
       ></div>
@@ -15,14 +25,25 @@
     @if (games().length) {
       <ul>
         @for (game of games(); track game.id) {
-          <li class="mb-4 p-3 sm:p-4 border rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <span class="font-mono text-sm sm:text-base truncate">ID: {{ game.id }}</span>
-            <button class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto" (click)="joinGame(game.id)">Join</button>
+          <li
+            class="mb-4 p-3 sm:p-4 border rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+          >
+            <span class="font-mono text-sm sm:text-base truncate"
+              >ID: {{ game.id }}</span
+            >
+            <button
+              class="btn btn-primary btn-sm sm:btn-md w-full sm:w-auto"
+              (click)="joinGame(game.id)"
+            >
+              Join
+            </button>
           </li>
         }
       </ul>
     } @else {
-      <p class="opacity-70 text-sm sm:text-base">No open games at the moment.</p>
+      <p class="opacity-70 text-sm sm:text-base">
+        No open games at the moment.
+      </p>
     }
   }
 </section>

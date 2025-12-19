@@ -9,8 +9,8 @@ COMPOSE_FILE="nicknamer/compose.yaml"
 
 # Function to clean up containers on exit
 cleanup() {
-  echo "--- Shutting down Docker Compose services ---"
-  docker compose -f "$COMPOSE_FILE" down
+	echo "--- Shutting down Docker Compose services ---"
+	docker compose -f "$COMPOSE_FILE" down
 }
 
 # Use `trap` to ensure the cleanup function is called when the script exits,
@@ -24,10 +24,9 @@ docker compose -f "$COMPOSE_FILE" up -d
 # often not robust enough. Here we poll until Postgres is ready.
 echo "--- Waiting for Postgres to be ready ---"
 until docker exec -it "$(docker compose -f "$COMPOSE_FILE" ps -q postgres)" pg_isready -U user; do
-  echo "Postgres is not ready yet. Waiting..."
-  sleep 2
+	echo "Postgres is not ready yet. Waiting..."
+	sleep 2
 done
-
 
 echo "--- Starting the application ---"
 # Set sensitive credentials as environment variables
