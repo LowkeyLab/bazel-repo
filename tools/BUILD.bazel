@@ -47,6 +47,8 @@ bazel_env(
         "java": "$(JAVA)",
         "node": "$(NODE_PATH)",
         "pnpm": "@pnpm",
+        "go": "@rules_go//go",
+        "scaffold": "@com_github_hay_kot_scaffold//:scaffold",
     } | LOCAL_TOOLS | MULTITOOLS,
 )
 

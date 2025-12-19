@@ -53,6 +53,7 @@ js_library(
 )
 
 # Gazelle configuration
+# gazelle:exclude githooks/*
 gazelle(
     name = "gazelle",
     env = {
@@ -61,6 +62,7 @@ gazelle(
             "proto",
             "kotlin",
             "js",
+            "go",
         ]),
     },
     gazelle = "@multitool//tools/gazelle",
