@@ -60,4 +60,5 @@ format_multirun(
     rust = "@rules_rust//tools/upstream_wrapper:rustfmt",
     shell = "@aspect_rules_lint//format:shfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
+    yaml = "@aspect_rules_lint//format:yamlfmt",
 )
