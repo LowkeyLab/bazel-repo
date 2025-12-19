@@ -96,22 +96,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-aarch64",
-        "sha256": "d26373b19e89160546d15407516cc59f453030d9bc5b43ba7faf16f7b4980137",
+        "url": "https://github.com/docker/compose/releases/download/v5.0.1/docker-compose-linux-aarch64",
+        "sha256": "e3b36491a75f92c35ebfbbe6e4741bd2429664edf3971427983d67c0b21e7d1d",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64",
-        "sha256": "dba9d98e1ba5bfe11d88c99b9bd32fc4a0624a30fafe68eea34d61a3e42fd372",
+        "url": "https://github.com/docker/compose/releases/download/v5.0.1/docker-compose-linux-x86_64",
+        "sha256": "cdc1df64412ed009312afbc044b3625144d06c07736e2f7a77fb0460531b9327",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-darwin-aarch64",
-        "sha256": "8cd7eb5f95bacb536cc407111662e2c205d67d9abfea5dcb8400be8418db60d1",
+        "url": "https://github.com/docker/compose/releases/download/v5.0.1/docker-compose-darwin-aarch64",
+        "sha256": "74ddfae9ca673e11babe45b0945fe825c0fb1f16e56f9772b4ee7a2a9d00bf19",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -121,22 +121,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.145+07dfa92/gazelle-linux_arm64_cgo",
-        "sha256": "acef120cb412e97c21e57007a660579fbbd40546a4475ac3a9475c87a59fafaf",
+        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.147+7666d01/gazelle-linux_arm64_cgo",
+        "sha256": "d84cabd87d6ddc939b8d5d8b8ea465f79dfd9097bbe8abfc42dda06d210bd744",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.145+07dfa92/gazelle-linux_amd64_cgo",
-        "sha256": "774793632619d828014474e34a0a84b956ee17a9bd63709515d992eee8774449",
+        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.147+7666d01/gazelle-linux_amd64_cgo",
+        "sha256": "564b7d0aaa67de99444e0b26e44c5b27b9880b9ec8c6218f683951e4ec9d1f58",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.145+07dfa92/gazelle-darwin_arm64_cgo",
-        "sha256": "5f27f352054d7fd718aea8520a6a3176040787acb72622cdbda3102d95b923d7",
+        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.147+7666d01/gazelle-darwin_arm64_cgo",
+        "sha256": "47b5960b3bc20012ae969c8d0e7ec8e4d811a0e4e5f3b1912f9af6841c350d79",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -146,22 +146,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.27.0/ibazel_linux_arm64",
-        "sha256": "c890c17287f81f0bbb4bf42a7484636ce581c5d71acc5e7446c9f7d106d71568",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_linux_arm64",
+        "sha256": "85ef4c7a9a1429e1b3d17ba4f6702e61acb24e5510d006e1fd99d0de4bcd07c0",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.27.0/ibazel_linux_amd64",
-        "sha256": "7f819e1876bb71cfced7c56ccdb2a0d85fe5b88c732da87a9c267de7f807df2c",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_linux_amd64",
+        "sha256": "17d412c34afeba69f9d05b6d1ea44848ffd4fdc18ebcd1f524b3699d1de0630e",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.27.0/ibazel_darwin_arm64",
-        "sha256": "49135983b52efd5c1448921f7af488b0e9229777a1cda4f53fb1892e8640e104",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_darwin_arm64",
+        "sha256": "5dddbfe170ab2063d1517fea526b27731893ed561c78776c9bea20b4caafa11e",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -195,34 +195,6 @@
       }
     ]
   },
-  "terraform": {
-    "binaries": [
-      {
-        "kind": "archive",
-        "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_linux_arm64.zip",
-        "file": "terraform",
-        "sha256": "193ce269aafd5c44f359cd73a75c5cc7aaab924eb5c3601784c1873575828ec7",
-        "os": "linux",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_linux_amd64.zip",
-        "file": "terraform",
-        "sha256": "e52520cf6d677155e69a8fcfe64054891f4d991802b0d36d4c8b670d60a7e899",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_darwin_arm64.zip",
-        "file": "terraform",
-        "sha256": "168cfeb339dbbfea6be651573ec168e6ca08bab79a4fc0474681eee1e9a95de9",
-        "os": "macos",
-        "cpu": "arm64"
-      }
-    ]
-  },
   "starpls": {
     "binaries": [
       {
@@ -246,6 +218,34 @@
         "url": "https://github.com/withered-magic/starpls/releases/download/v0.1.22/starpls-darwin-arm64.tar.gz",
         "file": "starpls",
         "sha256": "15320c409f55f50ac052221a29eed269a3278ed67de7c5b2462f58bfae07a3fa",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "terraform": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_linux_arm64.zip",
+        "file": "terraform",
+        "sha256": "193ce269aafd5c44f359cd73a75c5cc7aaab924eb5c3601784c1873575828ec7",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_linux_amd64.zip",
+        "file": "terraform",
+        "sha256": "e52520cf6d677155e69a8fcfe64054891f4d991802b0d36d4c8b670d60a7e899",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_darwin_arm64.zip",
+        "file": "terraform",
+        "sha256": "168cfeb339dbbfea6be651573ec168e6ca08bab79a4fc0474681eee1e9a95de9",
         "os": "macos",
         "cpu": "arm64"
       }

@@ -29,7 +29,6 @@ jobs:
           bazelisk-cache: true
           bazelrc: |
             common --config=ci
-            common --compilation_mode=dbg
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
       - name: Install tools via bazel

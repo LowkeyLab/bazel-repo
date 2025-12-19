@@ -26,7 +26,6 @@ jobs:
             common --config=ci
             common --compilation_mode=opt
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-            test --test_env=XDG_CACHE_HOME
       - name: Log in to GHCR
         uses: docker/login-action@6862ffc5ab2cdb4405cf318a62a6f4c066e2298b
         with:

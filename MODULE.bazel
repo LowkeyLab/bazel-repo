@@ -276,8 +276,9 @@ maven.artifact(
 use_repo(maven, "maven")
 
 register_toolchains("//:kotlin_toolchain")
-# --- Rust Configuration ---
 
+#########################
+# Rust
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
