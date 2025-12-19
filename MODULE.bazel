@@ -276,8 +276,9 @@ maven.artifact(
 use_repo(maven, "maven")
 
 register_toolchains("//:kotlin_toolchain")
-# --- Rust Configuration ---
 
+#########################
+# Rust
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
@@ -483,6 +484,12 @@ go_deps.from_file(go_mod = "//:go.mod")
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
 use_repo(go_deps, "com_github_hay_kot_scaffold", "io_nmyk_cowsay")
+
+#########################
+# Keep Sorted
+keep_sorted_deps = use_extension("@gazelle//:extensions.bzl", "go_deps", isolate = True)
+keep_sorted_deps.from_file(go_mod = "@aspect_rules_lint//lint/keep-sorted:go.mod")
+use_repo(keep_sorted_deps, "com_github_google_keep_sorted")
 
 ##########################
 # Container images

@@ -1,56 +1,39 @@
 name: Bazel Tests
-
 permissions:
   contents: read
   pull-requests: write
   packages: write
   attestations: write
   id-token: write
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 env:
   MISE_EXPERIMENTAL: true
-
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - uses: bazel-contrib/setup-bazel@43d7d5ceab59a307da44fc7585faa2a2fff4f88d
         with:
           # Avoid downloading Bazel every time.
           bazelisk-cache: true
-
-      - name: Copy API key to root .bazelrc
-        run: |
-          echo "=== Adding BuildBuddy API key to .bazelrc ==="
-          echo "build --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
-
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-
-      - name: Put ci.bazelrc contents into ~/.bazelrc
-        run: |
-          cat $GITHUB_WORKSPACE/.github/workflows/ci.bazelrc >> ~/.bazelrc
-
+          bazelrc: |
+            common --config=ci
+            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            test --test_env=XDG_CACHE_HOME
       - name: Log in to Docker Hub
         uses: docker/login-action@6862ffc5ab2cdb4405cf318a62a6f4c066e2298b
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
-
       - name: Run Bazel Lints
         run: |
           bazel lint //...
-
       - name: Run Bazel tests
         run: |
           bazel test //...

@@ -6,7 +6,7 @@ test_context: render_login_page_with_homepage_button_when_user_logged_in
 status: 200
 headers: {}
 html_body:
-  - "<!DOCTYPE html>"
+  - "<!doctype html>"
   - "<html lang=\"en\" data-theme=\"light\">"
   - "  <head>"
   - "    <title>Login - Nicknamer</title>"

@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       # This is the command Docker will run inside the container.
-      test: [ "CMD-SHELL", "pg_isready -U user -d nicknamer" ]
+      test: ["CMD-SHELL", "pg_isready -U user -d nicknamer"]
       # How often to run the check.
       interval: 10s
       # How long to wait for the check to return.
@@ -21,6 +21,5 @@ services:
       retries: 5
       # Optional: Time to wait before starting the first check.
       start_period: 10s
-
 volumes:
   postgres_data:

@@ -7,7 +7,7 @@ status: 200
 headers:
   content-type: text/html; charset=utf-8
 html_body:
-  - "<!DOCTYPE html>"
+  - "<!doctype html>"
   - "<html lang=\"en\" data-theme=\"light\">"
   - "  <head>"
   - "    <title>Nicknamer</title>"

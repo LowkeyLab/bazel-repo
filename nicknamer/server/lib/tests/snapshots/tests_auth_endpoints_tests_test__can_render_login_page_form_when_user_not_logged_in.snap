@@ -6,7 +6,7 @@ test_context: render_login_page_form_when_user_not_logged_in
 status: 200
 headers: {}
 html_body:
-  - "<!DOCTYPE html>"
+  - "<!doctype html>"
   - "<html lang=\"en\" data-theme=\"light\">"
   - "  <head>"
   - "    <title>Login - Nicknamer</title>"

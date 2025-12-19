@@ -3,12 +3,15 @@
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+load("@npm//:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@rules_go//go:def.bzl", "TOOLS_NOGO", "nogo")
 load("@rules_java//java:defs.bzl", "java_binary")
 
 package(default_visibility = ["//:__subpackages__"])
 
 eslint_bin.eslint_binary(name = "eslint")
+
+stylelint_bin.stylelint_binary(name = "stylelint")
 
 java_binary(
     name = "pmd",

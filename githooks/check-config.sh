@@ -15,5 +15,5 @@ IFS='' read -r -d '' GITHOOKS_MSG <<"EOF"
 EOF
 
 if [ "${inside_work_tree}" = "true" ] && [ "$EUID" -ne 0 ] && [ -z "$(git config core.hooksPath)" ]; then
-    echo >&2 "${GITHOOKS_MSG}"
+	echo >&2 "${GITHOOKS_MSG}"
 fi

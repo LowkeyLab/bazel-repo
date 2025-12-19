@@ -1,20 +1,33 @@
-<section class="max-w-3xl mx-auto mt-4 md:mt-10 px-4 sm:px-6 space-y-4 md:space-y-6">
-  <header class="flex flex-col gap-4 items-start md:flex-row md:items-center md:justify-between">
+<section
+  class="max-w-3xl mx-auto mt-4 md:mt-10 px-4 sm:px-6 space-y-4 md:space-y-6"
+>
+  <header
+    class="flex flex-col gap-4 items-start md:flex-row md:items-center md:justify-between"
+  >
     <div class="flex-1 min-w-0">
       @if (game(); as g) {
         <h1 class="text-xl md:text-2xl font-bold">
           ⏰ Time's Up,
-          {{ sorted_player_names_from_players(g.players).join(' and ') || 'both players' }}!
+          {{
+            sorted_player_names_from_players(g.players).join(" and ") ||
+              "both players"
+          }}!
         </h1>
       } @else {
         <h1 class="text-xl md:text-2xl font-bold">⏰ Time's Up!</h1>
       }
       <p class="text-sm opacity-80">
-        You couldn't agree on a word within the turn limit. Don't give up — try again!
+        You couldn't agree on a word within the turn limit. Don't give up — try
+        again!
       </p>
-      <div class="mt-2 text-xs opacity-70 truncate">Game ID: {{ gameId() }}</div>
+      <div class="mt-2 text-xs opacity-70 truncate">
+        Game ID: {{ gameId() }}
+      </div>
     </div>
-    <button class="btn btn-primary btn-sm sm:btn-md self-center sm:self-auto flex-shrink-0" (click)="tryAgain()">
+    <button
+      class="btn btn-primary btn-sm sm:btn-md self-center sm:self-auto flex-shrink-0"
+      (click)="tryAgain()"
+    >
       Try Again
     </button>
   </header>
@@ -32,8 +45,8 @@
         <span>
           You used all
           <b>{{ g.rounds.length }}</b>
-          {{ g.rounds.length === 1 ? 'round' : 'rounds' }} without agreeing on a word.
-          Better luck next time!
+          {{ g.rounds.length === 1 ? "round" : "rounds" }} without agreeing on a
+          word. Better luck next time!
         </span>
       </p>
     </div>
@@ -46,12 +59,21 @@
         <ul class="space-y-2 sm:space-y-3">
           @for (r of sortedRounds(g.rounds); track r.number) {
             <li class="border rounded p-2 sm:p-3">
-              <div class="font-mono text-xs sm:text-sm mb-2">Round #{{ r.number }}</div>
+              <div class="font-mono text-xs sm:text-sm mb-2">
+                Round #{{ r.number }}
+              </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                @for (entry of sorted_player_names_for_round(g, r); track entry) {
+                @for (
+                  entry of sorted_player_names_for_round(g, r);
+                  track entry
+                ) {
                   <div class="flex items-start gap-2 text-sm sm:text-base">
-                    <div class="font-semibold truncate flex-shrink-0">{{ entry }}:</div>
-                    <div class="break-words min-w-0">{{ r.guesses[entry] }}</div>
+                    <div class="font-semibold truncate flex-shrink-0">
+                      {{ entry }}:
+                    </div>
+                    <div class="break-words min-w-0">
+                      {{ r.guesses[entry] }}
+                    </div>
                   </div>
                 }
               </div>
@@ -65,7 +87,8 @@
       <p class="text-xs sm:text-sm flex items-center gap-2">
         <span class="text-lg sm:text-xl">💡</span>
         <span>
-          <b>Tip:</b> Communication and creative thinking are key. Start a new game and try different approaches!
+          <b>Tip:</b> Communication and creative thinking are key. Start a new
+          game and try different approaches!
         </span>
       </p>
     </div>
