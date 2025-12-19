@@ -15,15 +15,17 @@ This is a polyglot monorepo powered by **Bazel**, containing full-stack applicat
 | **Nicknamer**            | API Service | Rust, Axum, SeaORM          | `nicknamer/`                  | `nicknamer/README.md`              |
 | **Personal Website**     | Static Site | Astro, Tailwind, TypeScript | `personal_website/`           | `personal_website/package.json`    |
 | **Ktor Tutorial**        | Demo        | Kotlin, Ktor                | `ktor_tutorial/`              | `ktor_tutorial/src/Application.kt` |
+| **Cowsay**               | Demo        | Go                          | `cowsay/cmd/hello/`           | `cowsay/cmd/hello/main.go`         |
 
 ### Key Technologies
 
 - **Build System:** `Bazel` (v8+) via `Bazelisk`.
 - **Package Management:**
-  - **Bazel:** Manages workspace-level toolchains (Rust, Java/Kotlin, Node.js).
+  - **Bazel:** Manages workspace-level toolchains (Rust, Java/Kotlin, Node.js, Go).
   - **PNPM:** Manages Node.js dependencies (via `pnpm-lock.yaml` and Bazel rules).
   - **Cargo:** Manages Rust crates (via `MODULE.bazel` and `crates.bzl` mechanism).
   - **Maven:** Manages JVM dependencies (via `MODULE.bazel`).
+  - **Go Modules:** Manages Go dependencies (via `go.mod` and `MODULE.bazel`).
 
 ## Building & Running
 
@@ -69,6 +71,10 @@ This is a polyglot monorepo powered by **Bazel**, containing full-stack applicat
 #### Personal Website (Astro)
 
 - **Dev Server:** `cd personal_website && pnpm dev` (or via Bazel if configured)
+
+#### Cowsay (Go Demo)
+
+- **Run Server:** `bazel run //cowsay/cmd/hello:hello`
 
 ## Development Conventions
 
