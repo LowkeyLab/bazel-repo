@@ -84,13 +84,13 @@ describe('LandingComponent', () => {
   it('should display the component title', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const title = compiled.querySelector('h1');
-    expect(title?.textContent).toBe('Mindreadr');
+    expect(title?.textContent?.trim()).toBe('Mindreadr');
   });
 
   it('should display the component description', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const description = compiled.querySelector('p.opacity-70');
-    expect(description?.textContent).toBe(
+    expect(description?.textContent?.trim()).toBe(
       'A cooperative word-guessing game for two players.',
     );
   });

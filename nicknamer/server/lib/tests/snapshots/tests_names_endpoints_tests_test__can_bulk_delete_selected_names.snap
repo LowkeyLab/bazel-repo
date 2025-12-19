@@ -93,7 +93,7 @@ html_body:
   - ""
   - "  function updateDeleteButton() {"
   - "    const checkboxes = document.querySelectorAll("
-  - "      'input[name=\"selected_ids\"]:checked'"
+  - "      'input[name=\"selected_ids\"]:checked',"
   - "    );"
   - "    const deleteBtn = document.getElementById(\"delete-selected-btn\");"
   - "    deleteBtn.disabled = checkboxes.length === 0;"
