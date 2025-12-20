@@ -69,9 +69,17 @@ Angular's tooling (with its CLI) is also top-notch. Its focus on automated refac
 
 Bazel is notorious for being hard to use. I've yet to see someone picking Bazel as their build system without having worked with it previously (e.g. at Google, or Uber, etc.)
 
-Since it's a build system designed for monorepos, the open source ecosystem is very small. However, if you are looking to start your Bazel journey, I can recommend some resources that should be enough to build whatever code you're writing.
+Since it's a build system designed for monorepos, the open source ecosystem is very small. If you are looking to start your Bazel journey, I will recommend some resources that should be enough to build whatever code you're writing.
 
-I'll list some resources that aren't just the Bazel [documentation](https://bazel.build/docs) that I found extremely helpful:
+Once I've ironed out all the quirks (and there were many), I can safely say that Bazel's caching is extremely good. I've since migrated all of my personal projects (yes, everything you see on this site) onto the same Bazel repo.
+
+I've also dabbled in [remote build execution](https://bazel.build/remote/rbe) (RBE). For a while, I was able to run my tests in parallel, taking only 10 seconds (!) to run all the tests of all my personal projects.
+
+However, some C/C++ toolchain incompatibility cropped up, and I had to give up on RBE to continue running my tests 😿. Maybe one day Bazel's C/C++ [toolchain support](https://bazel.build/extending/toolchains) will provide a seamless experience for setting up RBE. For now, I'll just have to settle for the remote build cache.
+
+#### Useful Resources
+
+Some resources that aren't just the Bazel [documentation](https://bazel.build/docs) that I found extremely helpful:
 
 - [The Bazel 101 series](https://www.youtube.com/watch?v=LMsTPYO0jTU&list=PLLU28e_DRwdswrrZaNqnFFm9OawpxN4CB) will give you a better understanding of Bazel than the built-in tutorials.
 - [Rules Lint](https://github.com/aspect-build/rules_lint) allows you to set up unified linting and formatting for your (mono)repo.
