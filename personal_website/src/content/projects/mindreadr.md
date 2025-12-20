@@ -71,7 +71,7 @@ Bazel is notorious for being hard to use. I've yet to see someone picking Bazel 
 
 Since it's a build system designed for monorepos, the open source ecosystem is very small. If you are looking to start your Bazel journey, I will recommend some resources that should be enough to build whatever code you're writing.
 
-Once I've ironed out all the quirks (and there were many), I can safely say that Bazel's caching is extremely good. I've since migrated all of my personal projects (yes, everything you see on this site) onto the same Bazel repo.
+Once I've ironed out all the kinks (and there were many), I can safely say that Bazel's caching is extremely good. I've since migrated all of my personal projects (yes, everything you see on this site) onto the same Bazel repo.
 
 I've also dabbled in [remote build execution](https://bazel.build/remote/rbe) (RBE). For a while, I was able to run my tests in parallel, taking only 10 seconds (!) to run all the tests of all my personal projects.
 
