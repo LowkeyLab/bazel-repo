@@ -62,8 +62,6 @@ js_library(
 # gazelle:exclude personal_website/*
 # gazelle:exclude tools/*
 # gazelle:exclude angular/*
-# gazelle:exclude ktor_tutorial/*
-# gazelle:exclude mindreadr/*
 gazelle(
     name = "gazelle",
     env = {
