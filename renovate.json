@@ -10,5 +10,6 @@
         "executionMode": "update"
       }
     }
-  ]
+  ],
+  "postUpdateOptions": ["gomodTidy"]
 }
