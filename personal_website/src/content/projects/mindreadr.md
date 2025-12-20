@@ -11,14 +11,15 @@ links:
 
 ## Overview
 
-Mindreadr is a cooperative multiplayer game where two players try to reach "semantic synchronicity" by coming up with the same word as each other.
+Mindreadr is a cooperative multiplayer game where two players try to arrive at the same word as each other.
 
-This is a rewrite of [guess-the-word](./guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommisioned by someone else (looking at you, Supabase).
+This is a rewrite of [guess-the-word](./guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommisioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
 
 ## Features
 
-- WebSockets for real-time communication between players.
-- Responsive frontend that works seamlessly on desktop and mobile.
+- Create rooms and play with friends.
+- Real-time communication between players.
+- Beautiful UI on desktop and mobile.
 
 ## Tech Stack
 
