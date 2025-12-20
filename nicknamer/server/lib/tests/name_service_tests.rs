@@ -1,7 +1,6 @@
 use nicknamer_server::entities::name;
 use nicknamer_server::name::NameService;
 use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait};
-use testcontainers_modules::{postgres, testcontainers};
 
 mod common;
 
@@ -1036,7 +1035,7 @@ async fn can_update_name_by_discord_server_with_special_characters() {
     let discord_id = 444555666u64;
     let server_id = "special-server!@#$%";
     let original_name = "Original Name";
-    let created_name = name_service
+    let _ = name_service
         .create_name(discord_id, original_name.to_string(), server_id.to_string())
         .await
         .expect("Failed to create name");
@@ -1064,7 +1063,7 @@ async fn can_update_name_by_discord_server_different_servers() {
     let server2_id = "server-2";
 
     // Create names for the same discord_id in different servers
-    let name1 = name_service
+    let _ = name_service
         .create_name(discord_id, "Name1".to_string(), server1_id.to_string())
         .await
         .expect("Failed to create name in server1");
