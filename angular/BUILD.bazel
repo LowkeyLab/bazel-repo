@@ -18,5 +18,7 @@ ng_config(
 js_library(
     name = "postcssrc",
     srcs = [".postcssrc.json"],
+    # prevent conflicting actions when linting
+    tags = ["no-lint"],
     visibility = ["//angular:__subpackages__"],
 )

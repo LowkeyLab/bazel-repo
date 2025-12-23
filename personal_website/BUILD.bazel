@@ -27,6 +27,8 @@ BUILD_DEPS = [":node_modules/" + d for d in [
 js_library(
     name = "eslintrc",
     srcs = ["eslint.config.js"],
+    # prevent conflicting actions when linting
+    tags = ["no-lint"],
     visibility = ["//:__subpackages__"],
     deps = [
         ":node_modules/eslint-plugin-astro",

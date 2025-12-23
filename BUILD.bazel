@@ -34,6 +34,8 @@ exports_files(
 js_library(
     name = "eslintrc",
     srcs = ["eslint.config.mjs"],
+    # prevent conflicting actions when linting
+    tags = ["no-lint"],
     visibility = ["//:__subpackages__"],
     deps = [
         ":node_modules/@eslint/js",
@@ -44,6 +46,8 @@ js_library(
 js_library(
     name = "prettierrc",
     srcs = ["prettier.config.cjs"],
+    # prevent conflicting actions when linting
+    tags = ["no-lint"],
     visibility = ["//tools/format:__pkg__"],
     deps = [],
 )
@@ -51,6 +55,8 @@ js_library(
 js_library(
     name = "stylelintrc",
     srcs = ["stylelint.config.mjs"],
+    # prevent conflicting actions when linting
+    tags = ["no-lint"],
     visibility = ["//tools/lint:__pkg__"],
     deps = [
         ":node_modules/stylelint",
