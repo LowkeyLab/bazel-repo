@@ -45,7 +45,7 @@ js_library(
 
 js_library(
     name = "prettierrc",
-    srcs = ["prettier.config.cjs"],
+    srcs = ["prettier.config.mjs"],
     # prevent conflicting actions when linting
     tags = ["no-lint"],
     visibility = ["//tools/format:__pkg__"],
