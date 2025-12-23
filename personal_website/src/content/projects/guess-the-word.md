@@ -6,7 +6,6 @@ tags: ["Node.js", "WebSocket", "Svelte", "Tailwind", "Postgres"]
 featured: false
 links:
   github: "https://github.com/LowkeyLab/guess-the-word"
-  demo: "https://guess-the-word-frontend-production.up.railway.app/"
 ---
 
 ## Overview
