@@ -483,7 +483,7 @@ go_deps.from_file(go_mod = "//:go.mod")
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
-use_repo(go_deps, "com_github_hay_kot_scaffold", "io_nmyk_cowsay")
+use_repo(go_deps, "com_github_go_delve_delve", "com_github_hay_kot_scaffold", "io_nmyk_cowsay", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
 
 #########################
 # Keep Sorted
