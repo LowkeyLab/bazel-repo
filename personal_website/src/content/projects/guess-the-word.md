@@ -51,3 +51,7 @@ The server talks to [Supabase](https://supabase.com/), an open-source [Firebase]
 Games are created by making an entry in the `Games` table, and only events from authenticated users can trigger the server to create it. After a game ends, the entry is deleted.
 
 Originally, the plan was to store finished games and then run some kind of analytics on them. I quickly realized that not enough people would be playing the game, so any kind of analytics generated would be overkill. Maybe one day I'll get around to it.
+
+## Notes
+
+This project has since been rewritten as [mindreadr](/projects/mindreadr).
