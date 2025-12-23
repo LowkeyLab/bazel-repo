@@ -48,6 +48,9 @@ bazel_env(
         "pnpm": "@pnpm",
         "go": "@rules_go//go",
         "scaffold": "@com_github_hay_kot_scaffold//:scaffold",
+        "gopls": "@org_golang_x_tools_gopls//:gopls",
+        "dlv": "@com_github_go_delve_delve//cmd/dlv:dlv",
+        "govulncheck": "@org_golang_x_vuln//cmd/govulncheck:govulncheck",
         "prettier": "//tools/format:prettier",
     } | LOCAL_TOOLS | MULTITOOLS,
 )
