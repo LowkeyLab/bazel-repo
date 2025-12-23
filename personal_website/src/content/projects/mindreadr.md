@@ -13,7 +13,7 @@ links:
 
 Mindreadr is a cooperative multiplayer game where two players try to arrive at the same word as each other.
 
-This is a rewrite of [guess-the-word](./guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommisioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
+This is a rewrite of [guess-the-word](/projects/guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommisioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
 
 ## Features
 
