@@ -1,7 +1,7 @@
 /**
  * @see https://prettier.io/docs/en/configuration.html
  */
-const config = {
+export default {
   tabWidth: 2,
   plugins: [
     // Add plugins here using a require() statement.
@@ -9,6 +9,3 @@ const config = {
     // up the filesystem from this file, rather than from the location where prettier interprets it.
   ],
 };
-
-// eslint-disable-next-line no-undef
-module.exports = config;
