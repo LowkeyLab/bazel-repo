@@ -24,8 +24,9 @@ go_test(
         "circle_test.go",
         "service_test.go",
     ],
-    data = ["//predix/internal/sql:schema.sql"],
+    data = ["//predix/internal/sql:schema.sql"],  # keep
     tags = [
+        # keep
         "local",
         "requires-network",
     ],

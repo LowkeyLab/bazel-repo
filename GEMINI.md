@@ -59,6 +59,9 @@ This is a polyglot monorepo powered by **Bazel**, containing full-stack applicat
   bazel run gazelle
   ```
 
+- **Manual BUILD changes:**
+  When manually adding attributes to `BUILD.bazel` files (like `data` or `tags`), append a `# keep` comment to the line to prevent Gazelle from overwriting it.
+
 - **Add Go Dependencies:**
   Run `go get` to update `go.mod`, then `bazel mod tidy` to synchronize `MODULE.bazel`.
   ```bash
