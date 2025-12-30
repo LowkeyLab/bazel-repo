@@ -1,4 +1,4 @@
-package contest
+package repository
 
 import (
 	"context"
@@ -9,25 +9,26 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
-// PostgresRepository is a PostgreSQL implementation of the Repository interface.
-type PostgresRepository struct {
+// Postgres is a PostgreSQL implementation of the Repository interface.
+type Postgres struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-// NewPostgresRepository creates a new PostgresRepository.
-func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
-	return &PostgresRepository{
+// NewPostgres creates a new Postgres repository.
+func NewPostgres(pool *pgxpool.Pool) *Postgres {
+	return &Postgres{
 		pool:    pool,
 		queries: db.New(pool),
 	}
 }
 
 // Save persists a Contest with its options and predictions to the database.
-func (r *PostgresRepository) Save(ctx context.Context, contest *Contest) error {
+func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -38,22 +39,22 @@ func (r *PostgresRepository) Save(ctx context.Context, contest *Contest) error {
 
 	// Save contest
 	_, err = qtx.CreateContest(ctx, db.CreateContestParams{
-		ID:        uuid.UUID(contest.ID),
-		CircleID:  uuid.UUID(contest.CircleID),
-		CreatorID: uuid.UUID(contest.CreatorID),
-		Question:  contest.Question,
-		Status:    string(contest.Status),
-		CreatedAt: pgtype.Timestamp{Time: contest.CreatedAt, Valid: true},
-		ExpiresAt: pgtype.Timestamp{Time: contest.ExpiresAt, Valid: true},
+		ID:        uuid.UUID(c.ID),
+		CircleID:  uuid.UUID(c.CircleID),
+		CreatorID: uuid.UUID(c.CreatorID),
+		Question:  c.Question,
+		Status:    string(c.Status),
+		CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
+		ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to save contest: %w", err)
 	}
 
 	// Save options
-	for _, option := range contest.Options {
+	for _, option := range c.Options {
 		err = qtx.CreateOption(ctx, db.CreateOptionParams{
-			ContestID: uuid.UUID(contest.ID),
+			ContestID: uuid.UUID(c.ID),
 			OptionID:  int32(option.ID),
 			Text:      option.Text,
 		})
@@ -63,9 +64,9 @@ func (r *PostgresRepository) Save(ctx context.Context, contest *Contest) error {
 	}
 
 	// Save predictions
-	for _, prediction := range contest.Predictions {
+	for _, prediction := range c.Predictions {
 		_, err = qtx.CreatePrediction(ctx, db.CreatePredictionParams{
-			ContestID: uuid.UUID(contest.ID),
+			ContestID: uuid.UUID(c.ID),
 			UserID:    uuid.UUID(prediction.UserID),
 			OptionID:  int32(prediction.OptionID),
 			Clout:     int32(prediction.Clout),
@@ -77,11 +78,11 @@ func (r *PostgresRepository) Save(ctx context.Context, contest *Contest) error {
 	}
 
 	// Update result if resolved
-	if contest.Status == StatusResolved && contest.ResultOptionID != nil {
+	if c.Status == contest.StatusResolved && c.ResultOptionID != nil {
 		err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
-			ID:             uuid.UUID(contest.ID),
-			Status:         string(contest.Status),
-			ResultOptionID: pgtype.Int4{Int32: int32(*contest.ResultOptionID), Valid: true},
+			ID:             uuid.UUID(c.ID),
+			Status:         string(c.Status),
+			ResultOptionID: pgtype.Int4{Int32: int32(*c.ResultOptionID), Valid: true},
 		})
 		if err != nil {
 			return fmt.Errorf("failed to update contest status: %w", err)
@@ -96,7 +97,7 @@ func (r *PostgresRepository) Save(ctx context.Context, contest *Contest) error {
 }
 
 // FindByID retrieves a Contest with all its options and predictions by ID.
-func (r *PostgresRepository) FindByID(ctx context.Context, id ID) (*Contest, error) {
+func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contest, error) {
 	dbContest, err := r.queries.GetContest(ctx, uuid.UUID(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find contest by id: %w", err)
@@ -108,9 +109,9 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id ID) (*Contest, err
 		return nil, fmt.Errorf("failed to load contest options: %w", err)
 	}
 
-	options := make(map[int]*Option)
+	options := make(map[int]*contest.Option)
 	for _, dbOption := range dbOptions {
-		options[int(dbOption.OptionID)] = &Option{
+		options[int(dbOption.OptionID)] = &contest.Option{
 			ID:   int(dbOption.OptionID),
 			Text: dbOption.Text,
 		}
@@ -122,9 +123,9 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id ID) (*Contest, err
 		return nil, fmt.Errorf("failed to load contest predictions: %w", err)
 	}
 
-	predictions := make([]*Prediction, len(dbPredictions))
+	predictions := make([]*contest.Prediction, len(dbPredictions))
 	for i, dbPrediction := range dbPredictions {
-		predictions[i] = &Prediction{
+		predictions[i] = &contest.Prediction{
 			UserID:    user.ID(dbPrediction.UserID),
 			OptionID:  int(dbPrediction.OptionID),
 			Clout:     int(dbPrediction.Clout),
@@ -139,14 +140,14 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id ID) (*Contest, err
 		resultOptionID = &val
 	}
 
-	return &Contest{
-		ID:             ID(dbContest.ID),
+	return &contest.Contest{
+		ID:             contest.ID(dbContest.ID),
 		CircleID:       circle.ID(dbContest.CircleID),
 		CreatorID:      user.ID(dbContest.CreatorID),
 		Question:       dbContest.Question,
 		Options:        options,
 		Predictions:    predictions,
-		Status:         Status(dbContest.Status),
+		Status:         contest.Status(dbContest.Status),
 		ResultOptionID: resultOptionID,
 		CreatedAt:      dbContest.CreatedAt.Time,
 		ExpiresAt:      dbContest.ExpiresAt.Time,
@@ -154,13 +155,13 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id ID) (*Contest, err
 }
 
 // FindByCircleID retrieves all Contests for a given Circle.
-func (r *PostgresRepository) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*Contest, error) {
+func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
 	dbContests, err := r.queries.ListContestsByCircle(ctx, uuid.UUID(circleID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find contests by circle id: %w", err)
 	}
 
-	contests := make([]*Contest, len(dbContests))
+	contests := make([]*contest.Contest, len(dbContests))
 	for i, dbContest := range dbContests {
 		// Load options
 		dbOptions, err := r.queries.ListContestOptions(ctx, dbContest.ID)
@@ -168,9 +169,9 @@ func (r *PostgresRepository) FindByCircleID(ctx context.Context, circleID circle
 			return nil, fmt.Errorf("failed to load contest options: %w", err)
 		}
 
-		options := make(map[int]*Option)
+		options := make(map[int]*contest.Option)
 		for _, dbOption := range dbOptions {
-			options[int(dbOption.OptionID)] = &Option{
+			options[int(dbOption.OptionID)] = &contest.Option{
 				ID:   int(dbOption.OptionID),
 				Text: dbOption.Text,
 			}
@@ -182,9 +183,9 @@ func (r *PostgresRepository) FindByCircleID(ctx context.Context, circleID circle
 			return nil, fmt.Errorf("failed to load contest predictions: %w", err)
 		}
 
-		predictions := make([]*Prediction, len(dbPredictions))
+		predictions := make([]*contest.Prediction, len(dbPredictions))
 		for j, dbPrediction := range dbPredictions {
-			predictions[j] = &Prediction{
+			predictions[j] = &contest.Prediction{
 				UserID:    user.ID(dbPrediction.UserID),
 				OptionID:  int(dbPrediction.OptionID),
 				Clout:     int(dbPrediction.Clout),
@@ -199,14 +200,14 @@ func (r *PostgresRepository) FindByCircleID(ctx context.Context, circleID circle
 			resultOptionID = &val
 		}
 
-		contests[i] = &Contest{
-			ID:             ID(dbContest.ID),
+		contests[i] = &contest.Contest{
+			ID:             contest.ID(dbContest.ID),
 			CircleID:       circle.ID(dbContest.CircleID),
 			CreatorID:      user.ID(dbContest.CreatorID),
 			Question:       dbContest.Question,
 			Options:        options,
 			Predictions:    predictions,
-			Status:         Status(dbContest.Status),
+			Status:         contest.Status(dbContest.Status),
 			ResultOptionID: resultOptionID,
 			CreatedAt:      dbContest.CreatedAt.Time,
 			ExpiresAt:      dbContest.ExpiresAt.Time,

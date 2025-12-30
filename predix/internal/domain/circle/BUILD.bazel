@@ -4,8 +4,6 @@ go_library(
     name = "circle",
     srcs = [
         "circle.go",
-        "postgres_repository.go",
-        "repository.go",
         "service.go",
     ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle",

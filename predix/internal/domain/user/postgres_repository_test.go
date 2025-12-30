@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 )
 
 func TestPostgresRepository_Save(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := repository.NewPostgres(pool)
 
 	u, err := user.New("Alice", "alice@example.com")
 	if err != nil {
@@ -25,7 +26,7 @@ func TestPostgresRepository_Save(t *testing.T) {
 
 func TestPostgresRepository_FindByID(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := repository.NewPostgres(pool)
 
 	// Create and save user
 	u, _ := user.New("Bob", "bob@example.com")
@@ -53,7 +54,7 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 
 func TestPostgresRepository_FindByEmail(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := repository.NewPostgres(pool)
 
 	// Create and save user
 	u, _ := user.New("Charlie", "charlie@example.com")

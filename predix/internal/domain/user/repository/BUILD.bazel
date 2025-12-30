@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "repository",
+    srcs = [
+        "postgres.go",
+        "repository.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/db",
+        "//predix/internal/domain/user",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
