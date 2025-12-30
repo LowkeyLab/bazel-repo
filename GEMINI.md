@@ -54,8 +54,15 @@ This is a polyglot monorepo powered by **Bazel**, containing full-stack applicat
 
 - **Generate/Update BUILD files (Gazelle):**
   Run this command before writing `BUILD` files manually, especially for Go, TypeScript, and Proto.
+
   ```bash
   bazel run gazelle
+  ```
+
+- **Add Go Dependencies:**
+  Run `go get` to update `go.mod`, then `bazel mod tidy` to synchronize `MODULE.bazel`.
+  ```bash
+  go get <package_path> && bazel mod tidy
   ```
 
 ### Project-Specific Workflows

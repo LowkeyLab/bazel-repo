@@ -56,6 +56,11 @@ bazel run format
 # Run this BEFORE writing BUILD files manually.
 bazel run gazelle
 
+# Add Go dependencies
+# 1. Update go.mod: go get <package>
+# 2. Update MODULE.bazel: bazel mod tidy
+go get <package> && bazel mod tidy
+
 # Run linters (Aspect CLI)
 bazel lint
 
