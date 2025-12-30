@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "http",
+    srcs = ["server.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/transport/http",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//predix/internal/core/application",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)
