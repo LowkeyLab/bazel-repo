@@ -20,6 +20,10 @@ go_test(
     name = "service_test",
     srcs = ["service_test.go"],
     data = ["//predix/db/sql:schema.sql"],
+    tags = [
+        "local",
+        "requires-network",
+    ],
     deps = [
         ":service",
         "//predix/domain/circle",
