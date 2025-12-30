@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "inmemory",
+    srcs = [
+        "circle_repository.go",
+        "prediction_repository.go",
+        "user_repository.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/infrastructure/inmemory",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//predix/domain/circle",
+        "//predix/domain/prediction",
+        "//predix/domain/user",
+    ],
+)

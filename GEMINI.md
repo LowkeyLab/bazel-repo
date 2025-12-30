@@ -50,6 +50,14 @@ This is a polyglot monorepo powered by **Bazel**, containing full-stack applicat
   bazel lint
   ```
 
+### Bazel Maintenance
+
+- **Generate/Update BUILD files (Gazelle):**
+  Run this command before writing `BUILD` files manually, especially for Go, TypeScript, and Proto.
+  ```bash
+  bazel run gazelle
+  ```
+
 ### Project-Specific Workflows
 
 #### Mindreadr (Kotlin Backend)

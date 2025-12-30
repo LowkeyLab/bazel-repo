@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "prediction",
+    srcs = [
+        "prediction.go",
+        "repository.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/domain/prediction",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//predix/domain/circle",
+        "@com_github_google_uuid//:uuid",
+    ],
+)

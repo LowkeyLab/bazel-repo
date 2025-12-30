@@ -52,6 +52,10 @@ bazel test //...
 # Format all code (Rust, BUILD files, etc.)
 bazel run format
 
+# Run gazelle to generate/update BUILD files (Go, TS, Proto)
+# Run this BEFORE writing BUILD files manually.
+bazel run gazelle
+
 # Run linters (Aspect CLI)
 bazel lint
 

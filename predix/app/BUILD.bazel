@@ -5,6 +5,10 @@ go_library(
     srcs = ["main.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
+    deps = [
+        "//predix/core/application",
+        "//predix/infrastructure/inmemory",
+    ],
 )
 
 go_binary(
