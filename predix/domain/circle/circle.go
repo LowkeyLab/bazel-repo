@@ -22,8 +22,8 @@ type Circle struct {
 
 // Member represents a user within a specific Circle.
 type Member struct {
-	UserID  user.ID
-	Balance int // Clout
+	UserID user.ID
+	Clout  int
 }
 
 // New creates a new Circle with the creator as the first member.
@@ -53,8 +53,8 @@ func New(name string, creatorID user.ID) (*Circle, error) {
 func (c *Circle) AddMember(userID user.ID) {
 	if _, exists := c.Members[userID]; !exists {
 		c.Members[userID] = &Member{
-			UserID:  userID,
-			Balance: 1000, // Initial Clout
+			UserID: userID,
+			Clout:  1000, // Initial Clout
 		}
 	}
 }

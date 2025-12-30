@@ -1,12 +1,12 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "prediction",
+    name = "contest",
     srcs = [
-        "prediction.go",
+        "contest.go",
         "repository.go",
     ],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/domain/prediction",
+    importpath = "github.com/lowkeylab/bazel-repo/predix/domain/contest",
     visibility = ["//visibility:public"],
     deps = [
         "//predix/domain/circle",
@@ -16,10 +16,10 @@ go_library(
 )
 
 go_test(
-    name = "prediction_test",
-    srcs = ["prediction_test.go"],
+    name = "contest_test",
+    srcs = ["contest_test.go"],
     deps = [
-        ":prediction",
+        ":contest",
         "//predix/domain/circle",
         "//predix/domain/user",
         "@com_github_google_uuid//:uuid",

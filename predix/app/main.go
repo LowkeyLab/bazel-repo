@@ -16,10 +16,10 @@ func main() {
 	// 1. Initialize Infrastructure
 	userRepo := inmemory.NewUserRepository()
 	circleRepo := inmemory.NewCircleRepository()
-	predictionRepo := inmemory.NewPredictionRepository()
+	contestRepo := inmemory.NewContestRepository()
 
 	// 2. Initialize Application Service
-	svc := application.NewService(userRepo, circleRepo, predictionRepo)
+	svc := application.NewService(userRepo, circleRepo, contestRepo)
 
 	// 3. Scenario
 
@@ -49,8 +49,8 @@ func main() {
 	}
 	fmt.Printf("Bob joined the circle\n")
 
-	// Alice creates a prediction
-	p, err := svc.CreatePrediction(ctx,
+	// Alice creates a contest
+	contest, err := svc.CreateContest(ctx,
 		c.ID.String(),
 		alice.ID.String(),
 		"Who will win the game?",
@@ -60,25 +60,25 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Created Prediction: %s\n", p.Question)
+	fmt.Printf("Created Contest: %s\n", contest.Question)
 
 	// Find option IDs
 	var optionA int
-	for id, opt := range p.Options {
+	for id, opt := range contest.Options {
 		if opt.Text == "Team A" {
 			optionA = id
 		}
 	}
 
-	// Bob bets on Team A
-	if err := svc.PlaceBet(ctx, p.ID.String(), bob.ID.String(), optionA, 50); err != nil {
+	// Bob predicts Team A
+	if err := svc.Predict(ctx, contest.ID.String(), bob.ID.String(), optionA, 50); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Bob placed a bet on Team A\n")
+	fmt.Printf("Bob predicted Team A\n")
 
 	// Alice resolves (Team A wins)
-	if err := svc.ResolvePrediction(ctx, p.ID.String(), optionA); err != nil {
+	if err := svc.ResolveContest(ctx, contest.ID.String(), optionA); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Prediction resolved! Winner: Team A\n")
+	fmt.Printf("Contest resolved! Winner: Team A\n")
 }

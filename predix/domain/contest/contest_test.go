@@ -1,4 +1,4 @@
-package prediction_test
+package contest_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/domain/prediction"
+	"github.com/lowkeylab/bazel-repo/predix/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/domain/user"
 )
 
@@ -16,16 +16,16 @@ func TestNew(t *testing.T) {
 	expiresAt := time.Now().Add(1 * time.Hour)
 	options := []string{"Yes", "No"}
 
-	p, err := prediction.New(circleID, creatorID, "Will it rain?", options, expiresAt)
+	c, err := contest.New(circleID, creatorID, "Will it rain?", options, expiresAt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if p.Status != prediction.StatusOpen {
-		t.Errorf("expected status Open, got %s", p.Status)
+	if c.Status != contest.StatusOpen {
+		t.Errorf("expected status Open, got %s", c.Status)
 	}
-	if len(p.Options) != 2 {
-		t.Errorf("expected 2 options, got %d", len(p.Options))
+	if len(c.Options) != 2 {
+		t.Errorf("expected 2 options, got %d", len(c.Options))
 	}
 }
 
@@ -34,38 +34,38 @@ func TestNew_Validation(t *testing.T) {
 	creatorID := user.ID(uuid.New())
 	expiresAt := time.Now().Add(1 * time.Hour)
 
-	_, err := prediction.New(circleID, creatorID, "Q?", []string{"One"}, expiresAt)
+	_, err := contest.New(circleID, creatorID, "Q?", []string{"One"}, expiresAt)
 	if err == nil {
 		t.Error("expected error for less than 2 options")
 	}
 }
 
-func TestPlaceBet(t *testing.T) {
+func TestPredict(t *testing.T) {
 	circleID := circle.ID(uuid.New())
 	creatorID := user.ID(uuid.New())
 	expiresAt := time.Now().Add(1 * time.Hour)
-	p, _ := prediction.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
+	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
 
 	betterID := user.ID(uuid.New())
 
 	// Find valid option ID (it's 1 or 2 based on logic)
 	var optionID int
-	for id := range p.Options {
+	for id := range c.Options {
 		optionID = id
 		break
 	}
 
-	err := p.PlaceBet(betterID, optionID, 100)
+	err := c.Predict(betterID, optionID, 100)
 	if err != nil {
-		t.Fatalf("unexpected error placing bet: %v", err)
+		t.Fatalf("unexpected error making prediction: %v", err)
 	}
 
-	if len(p.Bets) != 1 {
-		t.Errorf("expected 1 bet, got %d", len(p.Bets))
+	if len(c.Predictions) != 1 {
+		t.Errorf("expected 1 prediction, got %d", len(c.Predictions))
 	}
 
 	// Invalid option
-	err = p.PlaceBet(betterID, 999, 100)
+	err = c.Predict(betterID, 999, 100)
 	if err == nil {
 		t.Error("expected error for invalid option")
 	}
@@ -75,30 +75,30 @@ func TestResolve(t *testing.T) {
 	circleID := circle.ID(uuid.New())
 	creatorID := user.ID(uuid.New())
 	expiresAt := time.Now().Add(1 * time.Hour)
-	p, _ := prediction.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
+	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
 
 	// Find valid option ID
 	var optionID int
-	for id := range p.Options {
+	for id := range c.Options {
 		optionID = id
 		break
 	}
 
-	err := p.Resolve(optionID)
+	err := c.Resolve(optionID)
 	if err != nil {
 		t.Fatalf("unexpected error resolving: %v", err)
 	}
 
-	if p.Status != prediction.StatusResolved {
-		t.Errorf("expected status Resolved, got %s", p.Status)
+	if c.Status != contest.StatusResolved {
+		t.Errorf("expected status Resolved, got %s", c.Status)
 	}
-	if *p.ResultOptionID != optionID {
-		t.Errorf("expected result option %d, got %d", optionID, *p.ResultOptionID)
+	if *c.ResultOptionID != optionID {
+		t.Errorf("expected result option %d, got %d", optionID, *c.ResultOptionID)
 	}
 
 	// Already resolved
-	err = p.Resolve(optionID)
+	err = c.Resolve(optionID)
 	if err == nil {
-		t.Error("expected error resolving already resolved prediction")
+		t.Error("expected error resolving already resolved contest")
 	}
 }

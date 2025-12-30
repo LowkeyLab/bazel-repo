@@ -4,14 +4,14 @@ go_library(
     name = "inmemory",
     srcs = [
         "circle_repository.go",
-        "prediction_repository.go",
+        "contest_repository.go",
         "user_repository.go",
     ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/infrastructure/inmemory",
     visibility = ["//visibility:public"],
     deps = [
         "//predix/domain/circle",
-        "//predix/domain/prediction",
+        "//predix/domain/contest",
         "//predix/domain/user",
     ],
 )

@@ -1,4 +1,4 @@
-package prediction
+package contest
 
 import (
 	"errors"
@@ -9,10 +9,10 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/domain/user"
 )
 
-// ID represents the unique identifier for a Prediction.
+// ID represents the unique identifier for a Contest.
 type ID uuid.UUID
 
-// Status represents the state of a prediction.
+// Status represents the state of a contest.
 type Status string
 
 const (
@@ -21,37 +21,37 @@ const (
 	StatusResolved Status = "RESOLVED"
 )
 
-// Prediction represents an event users can bet on.
-type Prediction struct {
+// Contest represents an event users can predict on.
+type Contest struct {
 	ID             ID
 	CircleID       circle.ID
 	CreatorID      user.ID
 	Question       string
 	Options        map[int]*Option // Keyed by Option ID
-	Bets           []*Bet
+	Predictions    []*Prediction
 	Status         Status
 	ResultOptionID *int // ID of the winning option
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
 }
 
-// Option represents a choice in the prediction.
+// Option represents a choice in the contest.
 type Option struct {
 	ID   int
 	Text string
 }
 
-// Bet represents a wager by a user on a specific option.
-type Bet struct {
+// Prediction represents a wager by a user on a specific option.
+type Prediction struct {
 	ID        string
 	UserID    user.ID
 	OptionID  int
-	Amount    int
+	Clout     int
 	Timestamp time.Time
 }
 
-// New creates a new Prediction.
-func New(circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Prediction, error) {
+// New creates a new Contest.
+func New(circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Contest, error) {
 	if len(options) < 2 {
 		return nil, errors.New("at least two options are required")
 	}
@@ -67,7 +67,7 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 		optionMap[optID] = &Option{ID: optID, Text: text}
 	}
 
-	return &Prediction{
+	return &Contest{
 		ID:        ID(id),
 		CircleID:  circleID,
 		CreatorID: creatorID,
@@ -79,40 +79,40 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 	}, nil
 }
 
-// PlaceBet adds a bet to the prediction.
-func (p *Prediction) PlaceBet(userID user.ID, optionID int, amount int) error {
-	if p.Status != StatusOpen {
-		return errors.New("prediction is not open for betting")
+// Predict adds a prediction to the contest.
+func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
+	if c.Status != StatusOpen {
+		return errors.New("contest is not open for predictions")
 	}
-	if _, ok := p.Options[optionID]; !ok {
+	if _, ok := c.Options[optionID]; !ok {
 		return errors.New("invalid option")
 	}
-	if amount <= 0 {
-		return errors.New("bet amount must be positive")
+	if clout <= 0 {
+		return errors.New("prediction clout must be positive")
 	}
 
-	bet := &Bet{
+	prediction := &Prediction{
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		OptionID:  optionID,
-		Amount:    amount,
+		Clout:     clout,
 		Timestamp: time.Now(),
 	}
-	p.Bets = append(p.Bets, bet)
+	c.Predictions = append(c.Predictions, prediction)
 	return nil
 }
 
-// Resolve marks the prediction as resolved and determines the winner.
-func (p *Prediction) Resolve(winningOptionID int) error {
-	if p.Status == StatusResolved {
-		return errors.New("prediction is already resolved")
+// Resolve marks the contest as resolved and determines the winner.
+func (c *Contest) Resolve(winningOptionID int) error {
+	if c.Status == StatusResolved {
+		return errors.New("contest is already resolved")
 	}
-	if _, ok := p.Options[winningOptionID]; !ok {
+	if _, ok := c.Options[winningOptionID]; !ok {
 		return errors.New("invalid winning option")
 	}
 
-	p.ResultOptionID = &winningOptionID
-	p.Status = StatusResolved
+	c.ResultOptionID = &winningOptionID
+	c.Status = StatusResolved
 	return nil
 }
 

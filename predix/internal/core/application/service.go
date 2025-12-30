@@ -6,21 +6,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/domain/prediction"
+	"github.com/lowkeylab/bazel-repo/predix/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/domain/user"
 )
 
 type Service struct {
-	users       user.Repository
-	circles     circle.Repository
-	predictions prediction.Repository
+	users    user.Repository
+	circles  circle.Repository
+	contests contest.Repository
 }
 
-func NewService(u user.Repository, c circle.Repository, p prediction.Repository) *Service {
+func NewService(u user.Repository, c circle.Repository, co contest.Repository) *Service {
 	return &Service{
-		users:       u,
-		circles:     c,
-		predictions: p,
+		users:    u,
+		circles:  c,
+		contests: co,
 	}
 }
 
@@ -71,7 +71,7 @@ func (s *Service) JoinCircle(ctx context.Context, userID, inviteCode string) err
 	return s.circles.Save(ctx, c)
 }
 
-func (s *Service) CreatePrediction(ctx context.Context, circleIDStr, creatorID, question string, options []string, expiresAt time.Time) (*prediction.Prediction, error) {
+func (s *Service) CreateContest(ctx context.Context, circleIDStr, creatorID, question string, options []string, expiresAt time.Time) (*contest.Contest, error) {
 	circleUUID, err := parseUUID(circleIDStr)
 	if err != nil {
 		return nil, err
@@ -82,18 +82,18 @@ func (s *Service) CreatePrediction(ctx context.Context, circleIDStr, creatorID, 
 		return nil, err
 	}
 
-	p, err := prediction.New(circle.ID(circleUUID), user.ID(creatorUUID), question, options, expiresAt)
+	c, err := contest.New(circle.ID(circleUUID), user.ID(creatorUUID), question, options, expiresAt)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.predictions.Save(ctx, p); err != nil {
+	if err := s.contests.Save(ctx, c); err != nil {
 		return nil, err
 	}
-	return p, nil
+	return c, nil
 }
 
-func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID string, optionID int, amount int) error {
-	predUUID, err := parseUUID(predictionIDStr)
+func (s *Service) Predict(ctx context.Context, contestIDStr, userID string, optionID int, clout int) error {
+	contestUUID, err := parseUUID(contestIDStr)
 	if err != nil {
 		return err
 	}
@@ -103,47 +103,39 @@ func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID string, 
 		return err
 	}
 
-	p, err := s.predictions.FindByID(ctx, prediction.ID(predUUID))
+	c, err := s.contests.FindByID(ctx, contest.ID(contestUUID))
 	if err != nil {
 		return err
 	}
 
-	if err := p.PlaceBet(user.ID(userUUID), optionID, amount); err != nil {
+	if err := c.Predict(user.ID(userUUID), optionID, clout); err != nil {
 		return err
 	}
-
 	// Update user balance in circle (omitted for brevity, requires transaction/coordination)
-	// For MVP, we assume infinite credit or separate validation
 
-	return s.predictions.Save(ctx, p)
+	return s.contests.Save(ctx, c)
 }
 
-func (s *Service) ResolvePrediction(ctx context.Context, predictionIDStr string, winningOptionID int) error {
-	predUUID, err := parseUUID(predictionIDStr)
+func (s *Service) ResolveContest(ctx context.Context, contestIDStr string, winningOptionID int) error {
+	contestUUID, err := parseUUID(contestIDStr)
 	if err != nil {
 		return err
 	}
 
-	p, err := s.predictions.FindByID(ctx, prediction.ID(predUUID))
+	c, err := s.contests.FindByID(ctx, contest.ID(contestUUID))
 	if err != nil {
 		return err
 	}
 
-	if err := p.Resolve(winningOptionID); err != nil {
+	if err := c.Resolve(winningOptionID); err != nil {
 		return err
 	}
 
 	// Calculate payouts (omitted for brevity)
 
-	return s.predictions.Save(ctx, p)
+	return s.contests.Save(ctx, c)
 }
 
 func parseUUID(s string) (uuid.UUID, error) {
-	// Placeholder for actual UUID parsing if we were using the google/uuid package directly here
-	// But our domain uses typed IDs.
-	// Since the input is string, we should probably just return the ID if valid.
-	// The google/uuid package is imported in domain, let's just cast for now or rely on string parsing in a real app.
-	// For this exercise, I'll assume valid UUID strings.
-	// Wait, I need to actually import uuid to parse it.
 	return uuid.Parse(s)
 }

@@ -59,8 +59,8 @@ func TestAddMember(t *testing.T) {
 	if !ok {
 		t.Fatal("new member not found")
 	}
-	if member.Balance != 1000 {
-		t.Errorf("expected initial balance 1000, got %d", member.Balance)
+	if member.Clout != 1000 {
+		t.Errorf("expected initial clout 1000, got %d", member.Clout)
 	}
 
 	// Test adding existing member (should be idempotent / no-op for existing)

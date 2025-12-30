@@ -12,8 +12,8 @@ func TestCreateCircle(t *testing.T) {
 	ctx := context.Background()
 	userRepo := inmemory.NewUserRepository()
 	circleRepo := inmemory.NewCircleRepository()
-	predictionRepo := inmemory.NewPredictionRepository()
-	svc := application.NewService(userRepo, circleRepo, predictionRepo)
+	contestRepo := inmemory.NewContestRepository()
+	svc := application.NewService(userRepo, circleRepo, contestRepo)
 
 	// Create user first
 	u, err := svc.CreateUser(ctx, "Test User", "test@example.com")
