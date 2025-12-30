@@ -54,14 +54,14 @@ func TestContestService_CreateContest(t *testing.T) {
 
 	// 2. Apply Schema
 	// Try to find the schema file relative to the test file
-	schemaPath := "../../db/sql/schema.sql"
+	schemaPath := "../sql/schema.sql"
 	schemaContent, err := os.ReadFile(schemaPath)
 	if err != nil {
 		// Fallback for running from root or different context
-		schemaPath = "predix/db/sql/schema.sql"
+		schemaPath = "predix/internal/sql/schema.sql"
 		schemaContent, err = os.ReadFile(schemaPath)
 	}
-	require.NoError(t, err, "could not read schema file from %s or %s", "../../db/sql/schema.sql", "predix/db/sql/schema.sql")
+	require.NoError(t, err, "could not read schema file from %s or %s", "../sql/schema.sql", "predix/internal/sql/schema.sql")
 
 	_, err = pool.Exec(ctx, string(schemaContent))
 	require.NoError(t, err)
