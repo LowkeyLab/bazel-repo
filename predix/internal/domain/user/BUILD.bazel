@@ -15,21 +15,6 @@ go_library(
 go_test(
     name = "user_test",
     size = "small",
-    srcs = [
-        "postgres_repository_test.go",
-        "user_test.go",
-    ],
-    data = [
-        "//predix/internal/sql:schema.sql",
-    ],
-    tags = [
-        # keep
-        "requires-docker",
-        "requires-network",
-    ],
-    deps = [
-        ":user",
-        "//predix/internal/domain/user/repository",
-        "//predix/internal/testutil",
-    ],
+    srcs = ["user_test.go"],
+    deps = [":user"],
 )

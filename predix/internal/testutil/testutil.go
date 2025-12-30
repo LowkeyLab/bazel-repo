@@ -65,9 +65,14 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 		schemaPath = "predix/internal/sql/schema.sql"
 		schemaContent, err = os.ReadFile(schemaPath)
 		if err != nil {
-			// Try absolute path from workspace root
-			schemaPath = "../../../internal/sql/schema.sql"
+			// Try from repository subdirectory
+			schemaPath = "../../../sql/schema.sql"
 			schemaContent, err = os.ReadFile(schemaPath)
+			if err != nil {
+				// Try absolute path from workspace root
+				schemaPath = "../../../../internal/sql/schema.sql"
+				schemaContent, err = os.ReadFile(schemaPath)
+			}
 		}
 	}
 	if err != nil {

@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "repository",
@@ -13,5 +13,24 @@ go_library(
         "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_test(
+    name = "repository_test",
+    size = "small",
+    srcs = ["postgres_test.go"],
+    data = [
+        "//predix/internal/sql:schema.sql",
+    ],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":repository",
+        "//predix/internal/domain/user",
+        "//predix/internal/testutil",
     ],
 )
