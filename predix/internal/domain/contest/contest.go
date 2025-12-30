@@ -43,7 +43,6 @@ type Option struct {
 
 // Prediction represents a wager by a user on a specific option.
 type Prediction struct {
-	ID        string
 	UserID    user.ID
 	OptionID  int
 	Clout     int
@@ -92,7 +91,6 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 	}
 
 	prediction := &Prediction{
-		ID:        uuid.New().String(),
 		UserID:    userID,
 		OptionID:  optionID,
 		Clout:     clout,

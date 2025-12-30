@@ -40,7 +40,6 @@ type Option struct {
 }
 
 type Prediction struct {
-	ID        uuid.UUID        `json:"id"`
 	ContestID uuid.UUID        `json:"contest_id"`
 	UserID    uuid.UUID        `json:"user_id"`
 	OptionID  int32            `json:"option_id"`

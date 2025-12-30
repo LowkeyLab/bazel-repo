@@ -93,7 +93,6 @@ func (s *Service) Predict(ctx context.Context, contestID ID, userID user.ID, opt
 	}
 
 	_, err = qtx.CreatePrediction(ctx, db.CreatePredictionParams{
-		ID:        uuid.New(),
 		ContestID: uuid.UUID(contestID),
 		UserID:    uuid.UUID(userID),
 		OptionID:  int32(optionID),

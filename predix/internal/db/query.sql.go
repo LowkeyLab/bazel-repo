@@ -115,13 +115,12 @@ func (q *Queries) CreateOption(ctx context.Context, arg CreateOptionParams) erro
 }
 
 const createPrediction = `-- name: CreatePrediction :one
-INSERT INTO predictions (id, contest_id, user_id, option_id, clout, created_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, contest_id, user_id, option_id, clout, created_at
+INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING contest_id, user_id, option_id, clout, created_at
 `
 
 type CreatePredictionParams struct {
-	ID        uuid.UUID        `json:"id"`
 	ContestID uuid.UUID        `json:"contest_id"`
 	UserID    uuid.UUID        `json:"user_id"`
 	OptionID  int32            `json:"option_id"`
@@ -131,7 +130,6 @@ type CreatePredictionParams struct {
 
 func (q *Queries) CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error) {
 	row := q.db.QueryRow(ctx, createPrediction,
-		arg.ID,
 		arg.ContestID,
 		arg.UserID,
 		arg.OptionID,
@@ -140,7 +138,6 @@ func (q *Queries) CreatePrediction(ctx context.Context, arg CreatePredictionPara
 	)
 	var i Prediction
 	err := row.Scan(
-		&i.ID,
 		&i.ContestID,
 		&i.UserID,
 		&i.OptionID,
@@ -304,7 +301,7 @@ func (q *Queries) ListContestOptions(ctx context.Context, contestID uuid.UUID) (
 }
 
 const listContestPredictions = `-- name: ListContestPredictions :many
-SELECT id, contest_id, user_id, option_id, clout, created_at FROM predictions
+SELECT contest_id, user_id, option_id, clout, created_at FROM predictions
 WHERE contest_id = $1
 `
 
@@ -318,7 +315,6 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID uuid.UUI
 	for rows.Next() {
 		var i Prediction
 		if err := rows.Scan(
-			&i.ID,
 			&i.ContestID,
 			&i.UserID,
 			&i.OptionID,

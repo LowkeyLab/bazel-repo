@@ -37,11 +37,11 @@ CREATE TABLE options (
 );
 
 CREATE TABLE predictions (
-    id UUID PRIMARY KEY,
     contest_id UUID NOT NULL REFERENCES contests(id),
     user_id UUID NOT NULL REFERENCES users(id),
     option_id INT NOT NULL,
     clout INT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (contest_id, user_id, option_id),
     FOREIGN KEY (contest_id, option_id) REFERENCES options(contest_id, option_id)
 );

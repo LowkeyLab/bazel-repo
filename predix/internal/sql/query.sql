@@ -55,8 +55,8 @@ SELECT * FROM options
 WHERE contest_id = $1;
 
 -- name: CreatePrediction :one
-INSERT INTO predictions (id, contest_id, user_id, option_id, clout, created_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: ListContestPredictions :many
