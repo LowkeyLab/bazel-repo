@@ -7,7 +7,7 @@ go_library(
         "prediction_repository.go",
         "user_repository.go",
     ],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/infrastructure/inmemory",
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/infrastructure/inmemory",
     visibility = ["//visibility:public"],
     deps = [
         "//predix/domain/circle",

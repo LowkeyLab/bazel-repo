@@ -10,6 +10,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//predix/domain/circle",
+        "//predix/domain/user",
         "@com_github_google_uuid//:uuid",
     ],
 )

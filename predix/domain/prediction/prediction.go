@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/domain/user"
 )
 
 // ID represents the unique identifier for a Prediction.
@@ -24,7 +25,7 @@ const (
 type Prediction struct {
 	ID             ID
 	CircleID       circle.ID
-	CreatorID      string
+	CreatorID      user.ID
 	Question       string
 	Options        map[string]*Option // Keyed by Option ID
 	Bets           []*Bet
@@ -43,14 +44,14 @@ type Option struct {
 // Bet represents a wager by a user on a specific option.
 type Bet struct {
 	ID        string
-	UserID    string
+	UserID    user.ID
 	OptionID  string
 	Amount    int
 	Timestamp time.Time
 }
 
 // New creates a new Prediction.
-func New(circleID circle.ID, creatorID, question string, options []string, expiresAt time.Time) (*Prediction, error) {
+func New(circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Prediction, error) {
 	if len(options) < 2 {
 		return nil, errors.New("at least two options are required")
 	}
@@ -79,7 +80,7 @@ func New(circleID circle.ID, creatorID, question string, options []string, expir
 }
 
 // PlaceBet adds a bet to the prediction.
-func (p *Prediction) PlaceBet(userID, optionID string, amount int) error {
+func (p *Prediction) PlaceBet(userID user.ID, optionID string, amount int) error {
 	if p.Status != StatusOpen {
 		return errors.New("prediction is not open for betting")
 	}

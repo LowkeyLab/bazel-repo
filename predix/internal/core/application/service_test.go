@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/lowkeylab/bazel-repo/predix/core/application"
-	"github.com/lowkeylab/bazel-repo/predix/infrastructure/inmemory"
+	"github.com/lowkeylab/bazel-repo/predix/internal/core/application"
+	"github.com/lowkeylab/bazel-repo/predix/internal/infrastructure/inmemory"
 )
 
 func TestCreateCircle(t *testing.T) {
@@ -31,7 +31,7 @@ func TestCreateCircle(t *testing.T) {
 		t.Errorf("expected circle name 'Test Circle', got '%s'", c.Name)
 	}
 
-	if _, ok := c.Members[u.ID.String()]; !ok {
+	if _, ok := c.Members[u.ID]; !ok {
 		t.Error("creator should be a member of the circle")
 	}
 }

@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "application",
     srcs = ["service.go"],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/core/application",
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/core/application",
     visibility = ["//visibility:public"],
     deps = [
         "//predix/domain/circle",
@@ -18,6 +18,6 @@ go_test(
     srcs = ["service_test.go"],
     deps = [
         ":application",
-        "//predix/infrastructure/inmemory",
+        "//predix/internal/infrastructure/inmemory",
     ],
 )

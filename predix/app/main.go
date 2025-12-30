@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/lowkeylab/bazel-repo/predix/core/application"
-	"github.com/lowkeylab/bazel-repo/predix/infrastructure/inmemory"
+	"github.com/lowkeylab/bazel-repo/predix/internal/core/application"
+	"github.com/lowkeylab/bazel-repo/predix/internal/infrastructure/inmemory"
 )
 
 func main() {

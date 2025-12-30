@@ -41,11 +41,12 @@ func (s *Service) CreateCircle(ctx context.Context, name, creatorID string) (*ci
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.users.FindByID(ctx, user.ID(creatorUUID)); err != nil {
+	uID := user.ID(creatorUUID)
+	if _, err := s.users.FindByID(ctx, uID); err != nil {
 		return nil, err
 	}
 
-	c, err := circle.New(name, creatorID)
+	c, err := circle.New(name, uID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,12 +57,17 @@ func (s *Service) CreateCircle(ctx context.Context, name, creatorID string) (*ci
 }
 
 func (s *Service) JoinCircle(ctx context.Context, userID, inviteCode string) error {
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return err
+	}
+
 	c, err := s.circles.FindByInviteCode(ctx, inviteCode)
 	if err != nil {
 		return err
 	}
 
-	c.AddMember(userID)
+	c.AddMember(user.ID(userUUID))
 	return s.circles.Save(ctx, c)
 }
 
@@ -70,8 +76,13 @@ func (s *Service) CreatePrediction(ctx context.Context, circleIDStr, creatorID, 
 	if err != nil {
 		return nil, err
 	}
+	
+	creatorUUID, err := parseUUID(creatorID)
+	if err != nil {
+		return nil, err
+	}
 
-	p, err := prediction.New(circle.ID(circleUUID), creatorID, question, options, expiresAt)
+	p, err := prediction.New(circle.ID(circleUUID), user.ID(creatorUUID), question, options, expiresAt)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +97,18 @@ func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID, optionI
 	if err != nil {
 		return err
 	}
+	
+	userUUID, err := parseUUID(userID)
+	if err != nil {
+		return err
+	}
 
 	p, err := s.predictions.FindByID(ctx, prediction.ID(predUUID))
 	if err != nil {
 		return err
 	}
 
-	if err := p.PlaceBet(userID, optionID, amount); err != nil {
+	if err := p.PlaceBet(user.ID(userUUID), optionID, amount); err != nil {
 		return err
 	}
 
@@ -101,7 +117,6 @@ func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID, optionI
 
 	return s.predictions.Save(ctx, p)
 }
-
 func (s *Service) ResolvePrediction(ctx context.Context, predictionIDStr, winningOptionID string) error {
 	predUUID, err := parseUUID(predictionIDStr)
 	if err != nil {

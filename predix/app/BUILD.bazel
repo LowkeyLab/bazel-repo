@@ -6,8 +6,8 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
     deps = [
-        "//predix/core/application",
-        "//predix/infrastructure/inmemory",
+        "//predix/internal/core/application",
+        "//predix/internal/infrastructure/inmemory",
     ],
 )
 

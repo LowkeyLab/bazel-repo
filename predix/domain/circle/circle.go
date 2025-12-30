@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lowkeylab/bazel-repo/predix/domain/user"
 )
 
 // ID represents the unique identifier for a Circle.
@@ -15,18 +16,18 @@ type Circle struct {
 	ID         ID
 	Name       string
 	InviteCode string
-	Members    map[string]*Member // Keyed by User ID
+	Members    map[user.ID]*Member // Keyed by User ID
 	CreatedAt  time.Time
 }
 
 // Member represents a user within a specific Circle.
 type Member struct {
-	UserID  string
+	UserID  user.ID
 	Balance int // Clout
 }
 
 // New creates a new Circle with the creator as the first member.
-func New(name string, creatorID string) (*Circle, error) {
+func New(name string, creatorID user.ID) (*Circle, error) {
 	if name == "" {
 		return nil, errors.New("circle name cannot be empty")
 	}
@@ -40,7 +41,7 @@ func New(name string, creatorID string) (*Circle, error) {
 		ID:         ID(id),
 		Name:       name,
 		InviteCode: generateInviteCode(),
-		Members:    make(map[string]*Member),
+		Members:    make(map[user.ID]*Member),
 		CreatedAt:  time.Now(),
 	}
 
@@ -49,7 +50,7 @@ func New(name string, creatorID string) (*Circle, error) {
 }
 
 // AddMember adds a user to the circle with an initial balance.
-func (c *Circle) AddMember(userID string) {
+func (c *Circle) AddMember(userID user.ID) {
 	if _, exists := c.Members[userID]; !exists {
 		c.Members[userID] = &Member{
 			UserID:  userID,
