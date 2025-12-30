@@ -5,21 +5,40 @@ go_library(
     srcs = [
         "circle.go",
         "repository.go",
+        "service.go",
     ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle",
     visibility = ["//visibility:public"],
     deps = [
+        "//predix/internal/db",
         "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
 
 go_test(
     name = "circle_test",
-    srcs = ["circle_test.go"],
+    srcs = [
+        "circle_test.go",
+        "service_test.go",
+    ],
+    data = ["//predix/internal/sql:schema.sql"],
+    tags = [
+        "local",
+        "requires-network",
+    ],
     deps = [
         ":circle",
+        "//predix/internal/db",
         "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
+        "@com_github_jackc_pgx_v5//pgxpool",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@com_github_testcontainers_testcontainers_go//:testcontainers-go",
+        "@com_github_testcontainers_testcontainers_go//wait",
+        "@com_github_testcontainers_testcontainers_go_modules_postgres//:postgres",
     ],
 )
