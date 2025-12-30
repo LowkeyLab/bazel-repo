@@ -503,9 +503,9 @@ oci_extension.pull(
     ],
 )
 oci_extension.pull(
-    name = "postgres_18_1",
-    digest = "sha256:b13e60a97e0c8d918e8c4d9a68dc356b13f53b3a2655a46a15af67f7b097dd4f",
-    image = "postgres:18.1",
+    name = "postgres_18",
+    digest = "sha256:8a8bf9298b66169b43bb20a68c36852c9f917e3b5a6807afa343b636d760ef21",
+    image = "postgres:18",
     platforms = [
         "linux/amd64",
     ],
@@ -534,7 +534,7 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
+use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "postgres_18", "postgres_18_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution

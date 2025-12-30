@@ -6,11 +6,11 @@ go_library(
         "contest.go",
         "repository.go",
     ],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/domain/contest",
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest",
     visibility = ["//visibility:public"],
     deps = [
-        "//predix/domain/circle",
-        "//predix/domain/user",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
     ],
 )
@@ -20,8 +20,8 @@ go_test(
     srcs = ["contest_test.go"],
     deps = [
         ":contest",
-        "//predix/domain/circle",
-        "//predix/domain/user",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
     ],
 )

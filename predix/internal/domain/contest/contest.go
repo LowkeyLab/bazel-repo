@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 // ID represents the unique identifier for a Contest.

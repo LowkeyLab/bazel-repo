@@ -3,7 +3,7 @@ package contest
 import (
 	"context"
 
-	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 )
 
 // Repository defines the interface for persisting Contest entities.

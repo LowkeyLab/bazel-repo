@@ -6,10 +6,10 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/service",
     visibility = ["//predix:__subpackages__"],
     deps = [
-        "//predix/domain/circle",
-        "//predix/domain/contest",
-        "//predix/domain/user",
         "//predix/internal/db",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest",
+        "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgtype",
         "@com_github_jackc_pgx_v5//pgxpool",
@@ -22,13 +22,14 @@ go_test(
     data = ["//predix/db/sql:schema.sql"],
     # keep
     tags = [
+        "local",
         "requires-network",
     ],
     deps = [
         ":service",
-        "//predix/domain/circle",
-        "//predix/domain/user",
         "//predix/internal/db",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgtype",
         "@com_github_jackc_pgx_v5//pgxpool",

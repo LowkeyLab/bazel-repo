@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/domain/contest"
-	"github.com/lowkeylab/bazel-repo/predix/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/service"
 )
 

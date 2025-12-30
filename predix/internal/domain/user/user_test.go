@@ -3,7 +3,7 @@ package user_test
 import (
 	"testing"
 
-	"github.com/lowkeylab/bazel-repo/predix/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 func TestNew(t *testing.T) {

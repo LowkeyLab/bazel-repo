@@ -6,7 +6,7 @@ go_library(
         "repository.go",
         "user.go",
     ],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/domain/user",
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_google_uuid//:uuid",
