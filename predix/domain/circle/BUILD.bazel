@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "circle",
@@ -9,6 +9,16 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/domain/circle",
     visibility = ["//visibility:public"],
     deps = [
+        "//predix/domain/user",
+        "@com_github_google_uuid//:uuid",
+    ],
+)
+
+go_test(
+    name = "circle_test",
+    srcs = ["circle_test.go"],
+    deps = [
+        ":circle",
         "//predix/domain/user",
         "@com_github_google_uuid//:uuid",
     ],

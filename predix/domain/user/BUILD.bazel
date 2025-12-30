@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "user",
@@ -11,4 +11,10 @@ go_library(
     deps = [
         "@com_github_google_uuid//:uuid",
     ],
+)
+
+go_test(
+    name = "user_test",
+    srcs = ["user_test.go"],
+    deps = [":user"],
 )

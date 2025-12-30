@@ -27,17 +27,17 @@ type Prediction struct {
 	CircleID       circle.ID
 	CreatorID      user.ID
 	Question       string
-	Options        map[string]*Option // Keyed by Option ID
+	Options        map[int]*Option // Keyed by Option ID
 	Bets           []*Bet
 	Status         Status
-	ResultOptionID *string // ID of the winning option
+	ResultOptionID *int // ID of the winning option
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
 }
 
 // Option represents a choice in the prediction.
 type Option struct {
-	ID   string
+	ID   int
 	Text string
 }
 
@@ -45,7 +45,7 @@ type Option struct {
 type Bet struct {
 	ID        string
 	UserID    user.ID
-	OptionID  string
+	OptionID  int
 	Amount    int
 	Timestamp time.Time
 }
@@ -61,9 +61,9 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 		return nil, err
 	}
 
-	optionMap := make(map[string]*Option)
-	for _, text := range options {
-		optID := uuid.New().String()
+	optionMap := make(map[int]*Option)
+	for i, text := range options {
+		optID := i + 1
 		optionMap[optID] = &Option{ID: optID, Text: text}
 	}
 
@@ -80,7 +80,7 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 }
 
 // PlaceBet adds a bet to the prediction.
-func (p *Prediction) PlaceBet(userID user.ID, optionID string, amount int) error {
+func (p *Prediction) PlaceBet(userID user.ID, optionID int, amount int) error {
 	if p.Status != StatusOpen {
 		return errors.New("prediction is not open for betting")
 	}
@@ -103,7 +103,7 @@ func (p *Prediction) PlaceBet(userID user.ID, optionID string, amount int) error
 }
 
 // Resolve marks the prediction as resolved and determines the winner.
-func (p *Prediction) Resolve(winningOptionID string) error {
+func (p *Prediction) Resolve(winningOptionID int) error {
 	if p.Status == StatusResolved {
 		return errors.New("prediction is already resolved")
 	}

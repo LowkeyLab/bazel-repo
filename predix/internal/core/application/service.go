@@ -76,7 +76,7 @@ func (s *Service) CreatePrediction(ctx context.Context, circleIDStr, creatorID, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	creatorUUID, err := parseUUID(creatorID)
 	if err != nil {
 		return nil, err
@@ -92,12 +92,12 @@ func (s *Service) CreatePrediction(ctx context.Context, circleIDStr, creatorID, 
 	return p, nil
 }
 
-func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID, optionID string, amount int) error {
+func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID string, optionID int, amount int) error {
 	predUUID, err := parseUUID(predictionIDStr)
 	if err != nil {
 		return err
 	}
-	
+
 	userUUID, err := parseUUID(userID)
 	if err != nil {
 		return err
@@ -117,7 +117,8 @@ func (s *Service) PlaceBet(ctx context.Context, predictionIDStr, userID, optionI
 
 	return s.predictions.Save(ctx, p)
 }
-func (s *Service) ResolvePrediction(ctx context.Context, predictionIDStr, winningOptionID string) error {
+
+func (s *Service) ResolvePrediction(ctx context.Context, predictionIDStr string, winningOptionID int) error {
 	predUUID, err := parseUUID(predictionIDStr)
 	if err != nil {
 		return err

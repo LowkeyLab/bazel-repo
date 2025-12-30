@@ -63,7 +63,7 @@ func main() {
 	fmt.Printf("Created Prediction: %s\n", p.Question)
 
 	// Find option IDs
-	var optionA string
+	var optionA int
 	for id, opt := range p.Options {
 		if opt.Text == "Team A" {
 			optionA = id
