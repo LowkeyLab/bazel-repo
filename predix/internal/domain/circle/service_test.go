@@ -27,7 +27,7 @@ func TestCircleService_CreateCircle(t *testing.T) {
 
 	// 1. Start Postgres Container
 	pgContainer, err := postgres.Run(ctx,
-		"postgres:16-alpine",
+		"postgres:18",
 		postgres.WithDatabase("predix"),
 		postgres.WithUsername("user"),
 		postgres.WithPassword("password"),

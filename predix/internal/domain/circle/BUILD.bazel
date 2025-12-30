@@ -20,14 +20,18 @@ go_library(
 
 go_test(
     name = "circle_test",
+    size = "small",
     srcs = [
         "circle_test.go",
         "service_test.go",
     ],
-    data = ["//predix/internal/sql:schema.sql"],  # keep
+    data = [
+        "//predix/internal/sql:schema.sql",
+        "@postgres_18",
+    ],
     tags = [
         # keep
-        "local",
+        "requires-docker",
         "requires-network",
     ],
     deps = [
