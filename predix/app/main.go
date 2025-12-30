@@ -1,23 +1,33 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lowkeylab/bazel-repo/predix/internal/core/application"
-	"github.com/lowkeylab/bazel-repo/predix/internal/infrastructure/inmemory"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lowkeylab/bazel-repo/predix/internal/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/transport/http"
 )
 
 func main() {
 	// 1. Initialize Infrastructure
-	userRepo := inmemory.NewUserRepository()
-	circleRepo := inmemory.NewCircleRepository()
-	contestRepo := inmemory.NewContestRepository()
+	// DB
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "postgres://user:password@localhost:5432/predix?sslmode=disable"
+	}
+
+	pool, err := pgxpool.New(context.Background(), connStr)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v", err)
+	}
+	defer pool.Close()
 
 	// 2. Initialize Application Service
-	svc := application.NewService(userRepo, circleRepo, contestRepo)
+	svc := service.NewContestService(pool)
 
 	// 3. Initialize HTTP Transport
 	handler := http.NewHandler(svc)

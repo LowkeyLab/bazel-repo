@@ -1,4 +1,4 @@
-package core
+package service
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/domain/user"
-	"github.com/lowkeylab/bazel-repo/predix/internal/core/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 )
 
 type ContestService struct {
@@ -73,4 +73,64 @@ func (s *ContestService) CreateContest(ctx context.Context, circleID circle.ID, 
 	}
 
 	return c, nil
+}
+
+func (s *ContestService) Predict(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := s.queries.WithTx(tx)
+
+	c, err := qtx.GetContest(ctx, uuid.UUID(contestID))
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.Status != string(contest.StatusOpen) {
+		return fmt.Errorf("contest is not open")
+	}
+
+	_, err = qtx.CreatePrediction(ctx, db.CreatePredictionParams{
+		ID:        uuid.New(),
+		ContestID: uuid.UUID(contestID),
+		UserID:    uuid.UUID(userID),
+		OptionID:  int32(optionID),
+		Clout:     int32(clout),
+		CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create prediction: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
+}
+
+func (s *ContestService) ResolveContest(ctx context.Context, contestID contest.ID, winningOptionID int) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := s.queries.WithTx(tx)
+
+	err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
+		ID:             uuid.UUID(contestID),
+		Status:         string(contest.StatusResolved),
+		ResultOptionID: pgtype.Int4{Int32: int32(winningOptionID), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update contest status: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }

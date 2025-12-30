@@ -6,7 +6,11 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/transport/http",
     visibility = ["//visibility:public"],
     deps = [
-        "//predix/internal/core/application",
+        "//predix/domain/circle",
+        "//predix/domain/contest",
+        "//predix/domain/user",
+        "//predix/internal/service",
         "@com_github_gin_gonic_gin//:gin",
+        "@com_github_google_uuid//:uuid",
     ],
 )

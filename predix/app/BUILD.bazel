@@ -6,10 +6,10 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
     deps = [
-        "//predix/internal/core/application",
-        "//predix/internal/infrastructure/inmemory",
+        "//predix/internal/service",
         "//predix/internal/transport/http",
         "@com_github_gin_gonic_gin//:gin",
+        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
 

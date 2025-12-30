@@ -1,15 +1,15 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "core",
+    name = "service",
     srcs = ["service.go"],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/core",
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/service",
     visibility = ["//predix:__subpackages__"],
     deps = [
         "//predix/domain/circle",
         "//predix/domain/contest",
         "//predix/domain/user",
-        "//predix/internal/core/db",
+        "//predix/internal/db",
         "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgtype",
         "@com_github_jackc_pgx_v5//pgxpool",
@@ -17,16 +17,14 @@ go_library(
 )
 
 go_test(
-    name = "core_test",
+    name = "service_test",
     srcs = ["service_test.go"],
-    data = ["//predix/sql:schema.sql"],
-    # keep
-    tags = ["requires-network"],
+    data = ["//predix/db/sql:schema.sql"],
     deps = [
-        ":core",
+        ":service",
         "//predix/domain/circle",
         "//predix/domain/user",
-        "//predix/internal/core/db",
+        "//predix/internal/db",
         "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgtype",
         "@com_github_jackc_pgx_v5//pgxpool",

@@ -5,14 +5,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lowkeylab/bazel-repo/predix/internal/core/application"
+	"github.com/google/uuid"
+	"github.com/lowkeylab/bazel-repo/predix/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/domain/contest"
+	"github.com/lowkeylab/bazel-repo/predix/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/service"
 )
 
 type Handler struct {
-	svc *application.Service
+	svc *service.ContestService
 }
 
-func NewHandler(svc *application.Service) *Handler {
+func NewHandler(svc *service.ContestService) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -48,15 +52,27 @@ func (h *Handler) createContest(c *gin.Context) {
 		return
 	}
 
-	contest, err := h.svc.CreateContest(c.Request.Context(), req.CircleID, req.CreatorID, req.Question, req.Options, expiresAt)
+	circleID, err := uuid.Parse(req.CircleID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid circle_id"})
+		return
+	}
+
+	creatorID, err := uuid.Parse(req.CreatorID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid creator_id"})
+		return
+	}
+
+	contestObj, err := h.svc.CreateContest(c.Request.Context(), circle.ID(circleID), user.ID(creatorID), req.Question, req.Options, expiresAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, createContestResponse{
-		ID:       contest.ID.String(),
-		Question: contest.Question,
+		ID:       contestObj.ID.String(),
+		Question: contestObj.Question,
 	})
 }
 
@@ -67,9 +83,15 @@ type predictRequest struct {
 }
 
 func (h *Handler) predict(c *gin.Context) {
-	contestID := c.Param("id")
-	if contestID == "" {
+	contestIDStr := c.Param("id")
+	if contestIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing contest id"})
+		return
+	}
+
+	contestID, err := uuid.Parse(contestIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid contest id"})
 		return
 	}
 
@@ -79,7 +101,13 @@ func (h *Handler) predict(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.Predict(c.Request.Context(), contestID, req.UserID, req.OptionID, req.Clout)
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	err = h.svc.Predict(c.Request.Context(), contest.ID(contestID), user.ID(userID), req.OptionID, req.Clout)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -93,9 +121,15 @@ type resolveContestRequest struct {
 }
 
 func (h *Handler) resolveContest(c *gin.Context) {
-	contestID := c.Param("id")
-	if contestID == "" {
+	contestIDStr := c.Param("id")
+	if contestIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing contest id"})
+		return
+	}
+
+	contestID, err := uuid.Parse(contestIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid contest id"})
 		return
 	}
 
@@ -105,7 +139,7 @@ func (h *Handler) resolveContest(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.ResolveContest(c.Request.Context(), contestID, req.WinningOptionID)
+	err = h.svc.ResolveContest(c.Request.Context(), contest.ID(contestID), req.WinningOptionID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
