@@ -1,4 +1,4 @@
-package service_test
+package contest_test
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
-	"github.com/lowkeylab/bazel-repo/predix/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -20,7 +20,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestContestService_CreateContest(t *testing.T) {
+func TestService_CreateContest(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -53,15 +53,14 @@ func TestContestService_CreateContest(t *testing.T) {
 	defer pool.Close()
 
 	// 2. Apply Schema
-	// Try to find the schema file relative to the test file
-	schemaPath := "../sql/schema.sql"
+	schemaPath := "../../sql/schema.sql"
 	schemaContent, err := os.ReadFile(schemaPath)
 	if err != nil {
 		// Fallback for running from root or different context
 		schemaPath = "predix/internal/sql/schema.sql"
 		schemaContent, err = os.ReadFile(schemaPath)
 	}
-	require.NoError(t, err, "could not read schema file from %s or %s", "../sql/schema.sql", "predix/internal/sql/schema.sql")
+	require.NoError(t, err, "could not read schema file from %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql")
 
 	_, err = pool.Exec(ctx, string(schemaContent))
 	require.NoError(t, err)
@@ -88,7 +87,7 @@ func TestContestService_CreateContest(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Test Service
-	svc := service.NewContestService(pool)
+	svc := contest.NewService(pool)
 
 	opts := []string{"Yes", "No", "Maybe"}
 	expiresAt := time.Now().Add(24 * time.Hour)

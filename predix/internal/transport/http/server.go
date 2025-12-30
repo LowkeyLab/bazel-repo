@@ -9,14 +9,13 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
-	"github.com/lowkeylab/bazel-repo/predix/internal/service"
 )
 
 type Handler struct {
-	svc *service.ContestService
+	svc *contest.Service
 }
 
-func NewHandler(svc *service.ContestService) *Handler {
+func NewHandler(svc *contest.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
