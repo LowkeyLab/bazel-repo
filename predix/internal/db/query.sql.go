@@ -250,6 +250,18 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, name, email FROM users
+WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(&i.ID, &i.Name, &i.Email)
+	return i, err
+}
+
 const listCircleMembers = `-- name: ListCircleMembers :many
 SELECT circle_id, user_id, clout FROM circle_members
 WHERE circle_id = $1
@@ -320,6 +332,41 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID uuid.UUI
 			&i.OptionID,
 			&i.Clout,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContestsByCircle = `-- name: ListContestsByCircle :many
+SELECT id, circle_id, creator_id, question, status, result_option_id, created_at, expires_at FROM contests
+WHERE circle_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListContestsByCircle(ctx context.Context, circleID uuid.UUID) ([]Contest, error) {
+	rows, err := q.db.Query(ctx, listContestsByCircle, circleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Contest
+	for rows.Next() {
+		var i Contest
+		if err := rows.Scan(
+			&i.ID,
+			&i.CircleID,
+			&i.CreatorID,
+			&i.Question,
+			&i.Status,
+			&i.ResultOptionID,
+			&i.CreatedAt,
+			&i.ExpiresAt,
 		); err != nil {
 			return nil, err
 		}

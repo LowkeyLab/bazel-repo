@@ -4,6 +4,7 @@ go_library(
     name = "circle",
     srcs = [
         "circle.go",
+        "postgres_repository.go",
         "repository.go",
         "service.go",
     ],

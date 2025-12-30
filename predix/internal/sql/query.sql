@@ -7,6 +7,10 @@ RETURNING *;
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUserByEmail :one
+SELECT * FROM users
+WHERE email = $1 LIMIT 1;
+
 -- name: CreateCircle :one
 INSERT INTO circles (id, name, invite_code, created_at)
 VALUES ($1, $2, $3, $4)
@@ -62,3 +66,8 @@ RETURNING *;
 -- name: ListContestPredictions :many
 SELECT * FROM predictions
 WHERE contest_id = $1;
+
+-- name: ListContestsByCircle :many
+SELECT * FROM contests
+WHERE circle_id = $1
+ORDER BY created_at DESC;

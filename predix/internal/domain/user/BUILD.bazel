@@ -3,19 +3,36 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "user",
     srcs = [
+        "postgres_repository.go",
         "repository.go",
         "user.go",
     ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user",
     visibility = ["//visibility:public"],
     deps = [
+        "//predix/internal/db",
         "@com_github_google_uuid//:uuid",
+        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
 
 go_test(
     name = "user_test",
     size = "small",
-    srcs = ["user_test.go"],
-    deps = [":user"],
+    srcs = [
+        "postgres_repository_test.go",
+        "user_test.go",
+    ],
+    data = [
+        "//predix/internal/sql:schema.sql",
+    ],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":user",
+        "//predix/internal/testutil",
+    ],
 )

@@ -22,9 +22,11 @@ type Querier interface {
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
 	GetContest(ctx context.Context, id uuid.UUID) (Contest, error)
 	GetUser(ctx context.Context, id uuid.UUID) (User, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
 	ListCircleMembers(ctx context.Context, circleID uuid.UUID) ([]CircleMember, error)
 	ListContestOptions(ctx context.Context, contestID uuid.UUID) ([]Option, error)
 	ListContestPredictions(ctx context.Context, contestID uuid.UUID) ([]Prediction, error)
+	ListContestsByCircle(ctx context.Context, circleID uuid.UUID) ([]Contest, error)
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
 }
 
