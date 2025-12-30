@@ -28,7 +28,6 @@ go_test(
     ],
     data = [
         "//predix/internal/sql:schema.sql",
-        "@postgres_18",
     ],
     tags = [
         # keep
