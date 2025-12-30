@@ -250,5 +250,25 @@
         "cpu": "arm64"
       }
     ]
+  },
+  "sqlc": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_linux_amd64.tar.gz",
+        "file": "sqlc",
+        "sha256": "468aecee071bfe55e97fcbcac52ea0208eeca444f67736f3b8f0f3d6a106132e",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_darwin_arm64.tar.gz",
+        "file": "sqlc",
+        "sha256": "ff18793b97715d08dde364446f43082a06da87b7797b9ec79ef2b31aeb0894e5",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
   }
 }
