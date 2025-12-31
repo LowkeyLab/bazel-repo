@@ -19,7 +19,10 @@ go_library(
 go_test(
     name = "repository_test",
     size = "small",
-    srcs = ["postgres_test.go"],
+    srcs = [
+        "memory_test.go",
+        "postgres_test.go",
+    ],
     data = [
         "//predix/internal/sql:schema.sql",
     ],
@@ -32,5 +35,7 @@ go_test(
         ":repository",
         "//predix/internal/domain/user",
         "//predix/internal/testutil",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
     ],
 )

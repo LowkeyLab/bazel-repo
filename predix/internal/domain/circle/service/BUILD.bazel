@@ -9,7 +9,6 @@ go_library(
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/user",
-        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
 

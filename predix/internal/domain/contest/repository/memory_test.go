@@ -1,0 +1,219 @@
+package repository_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMemoryRepository_SaveContest(t *testing.T) {
+	repo := repository.NewMemory()
+
+	c, err := contest.New(
+		[]circle.ID{1},
+		user.ID(1),
+		"Test question?",
+		[]string{"Yes", "No"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+
+	// Save should succeed
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+	assert.NotZero(t, c.ID)
+}
+
+func TestMemoryRepository_SaveContestNil(t *testing.T) {
+	repo := repository.NewMemory()
+
+	err := repo.Save(context.Background(), nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be nil")
+}
+
+func TestMemoryRepository_FindByID(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Create and save contest
+	c, err := contest.New(
+		[]circle.ID{1, 2},
+		user.ID(1),
+		"Will it rain?",
+		[]string{"Yes", "No", "Maybe"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+
+	// Find by ID
+	found, err := repo.FindByID(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, c.ID, found.ID)
+	assert.Equal(t, c.Question, found.Question)
+	assert.Equal(t, c.CreatorID, found.CreatorID)
+	assert.Equal(t, c.Status, found.Status)
+	assert.ElementsMatch(t, c.CircleIDs, found.CircleIDs)
+	assert.Len(t, found.Options, 3)
+	assert.Empty(t, found.Predictions)
+}
+
+func TestMemoryRepository_FindByIDNotFound(t *testing.T) {
+	repo := repository.NewMemory()
+
+	_, err := repo.FindByID(context.Background(), 999)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestMemoryRepository_FindByCircleID(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Create contests with different circles
+	c1, err := contest.New(
+		[]circle.ID{1, 2},
+		user.ID(1),
+		"Question 1?",
+		[]string{"A", "B"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c1)
+	require.NoError(t, err)
+
+	c2, err := contest.New(
+		[]circle.ID{2, 3},
+		user.ID(1),
+		"Question 2?",
+		[]string{"X", "Y"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c2)
+	require.NoError(t, err)
+
+	c3, err := contest.New(
+		[]circle.ID{3},
+		user.ID(1),
+		"Question 3?",
+		[]string{"M", "N"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c3)
+	require.NoError(t, err)
+
+	// Find by circle ID 2
+	contests, err := repo.FindByCircleID(context.Background(), 2)
+	require.NoError(t, err)
+	assert.Len(t, contests, 2)
+
+	// Find by circle ID 3
+	contests, err = repo.FindByCircleID(context.Background(), 3)
+	require.NoError(t, err)
+	assert.Len(t, contests, 2)
+
+	// Find by circle ID 1
+	contests, err = repo.FindByCircleID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Len(t, contests, 1)
+
+	// Find by non-existent circle
+	contests, err = repo.FindByCircleID(context.Background(), 999)
+	require.NoError(t, err)
+	assert.Empty(t, contests)
+}
+
+func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Create and save contest
+	c, err := contest.New(
+		[]circle.ID{1},
+		user.ID(1),
+		"Question?",
+		[]string{"A", "B"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+
+	originalID := c.ID
+
+	// Add a prediction
+	err = c.Predict(user.ID(2), 1, 100)
+	require.NoError(t, err)
+
+	// Save again
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+	assert.Equal(t, originalID, c.ID)
+
+	// Retrieve and verify prediction was saved
+	found, err := repo.FindByID(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Len(t, found.Predictions, 1)
+	assert.Equal(t, user.ID(2), found.Predictions[0].UserID)
+	assert.Equal(t, 1, found.Predictions[0].OptionID)
+	assert.Equal(t, 100, found.Predictions[0].Clout)
+}
+
+func TestMemoryRepository_DeepCopy(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Create and save contest
+	c, err := contest.New(
+		[]circle.ID{1},
+		user.ID(1),
+		"Question?",
+		[]string{"A", "B"},
+		time.Now().Add(24*time.Hour),
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+
+	// Retrieve and modify
+	found1, err := repo.FindByID(context.Background(), c.ID)
+	require.NoError(t, err)
+	found1.Question = "Modified Question?"
+
+	// Retrieve again and verify original is unchanged
+	found2, err := repo.FindByID(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Question?", found2.Question)
+}
+
+func TestMemoryRepository_Concurrency(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Test concurrent saves
+	done := make(chan bool, 10)
+	for i := 0; i < 10; i++ {
+		go func(idx int) {
+			c, _ := contest.New(
+				[]circle.ID{circle.ID(idx + 1)},
+				user.ID(1),
+				"Question?",
+				[]string{"A", "B"},
+				time.Now().Add(24*time.Hour),
+			)
+			_ = repo.Save(context.Background(), c)
+			done <- true
+		}(i)
+	}
+
+	// Wait for all goroutines
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+}
