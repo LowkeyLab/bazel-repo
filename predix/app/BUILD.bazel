@@ -10,6 +10,7 @@ go_library(
         "//predix/internal/domain/circle/service",
         "//predix/internal/domain/contest/rest",
         "//predix/internal/domain/contest/service",
+        "//predix/internal/healthcheck",
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],

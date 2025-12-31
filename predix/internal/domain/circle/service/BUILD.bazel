@@ -15,7 +15,7 @@ go_library(
 
 go_test(
     name = "service_test",
-    size = "small",
+    timeout = "short",
     srcs = ["service_test.go"],
     data = [
         "//predix/internal/sql:schema.sql",

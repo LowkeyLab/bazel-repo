@@ -10,6 +10,7 @@ go_library(
 
 go_test(
     name = "healthcheck_test",
+    timeout = "short",
     srcs = ["healthcheck_test.go"],
     embed = [":healthcheck"],
     deps = ["@com_github_gin_gonic_gin//:gin"],
