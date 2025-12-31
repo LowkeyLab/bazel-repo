@@ -8,8 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	circlerest "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/rest"
+	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	contestrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/rest"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
-	"github.com/lowkeylab/bazel-repo/predix/internal/transport/http"
 )
 
 func main() {
@@ -26,13 +28,18 @@ func main() {
 	}
 	defer pool.Close()
 
-	// 2. Initialize Application Service
-	svc := contestservice.NewService(pool)
+	// 2. Initialize Application Services
+	circleSvc := circleservice.NewService(pool)
+	contestSvc := contestservice.NewService(pool)
 
-	// 3. Initialize HTTP Transport
-	handler := http.NewHandler(svc)
+	// 3. Initialize HTTP Handlers
+	circleHandler := circlerest.NewHandler(circleSvc)
+	contestHandler := contestrest.NewHandler(contestSvc)
+
+	// 4. Setup HTTP Router
 	r := gin.Default()
-	handler.RegisterRoutes(r)
+	circleHandler.RegisterRoutes(r)
+	contestHandler.RegisterRoutes(r)
 
 	fmt.Println("Predix service starting on :8080...")
 	if err := r.Run(":8080"); err != nil {
