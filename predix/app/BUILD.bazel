@@ -17,7 +17,7 @@ go_library(
         "//predix/internal/domain/user/rest",
         "//predix/internal/domain/user/service",
         "//predix/internal/healthcheck",
-        "@com_github_gin_contrib_cors//:go_default_library",
+        "@com_github_gin_contrib_cors//:cors",
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],

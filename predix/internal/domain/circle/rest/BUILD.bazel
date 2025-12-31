@@ -29,6 +29,7 @@ go_test(
         "requires-network",
     ],
     deps = [
+        "//predix/internal/auth",
         "//predix/internal/db",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/circle/service",

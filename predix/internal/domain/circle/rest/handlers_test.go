@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -31,7 +30,7 @@ type circleResponseBody struct {
 	} `json:"members"`
 }
 
-func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service, *db.Queries, *auth.Manager) {
+func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service, *db.Queries) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -39,14 +38,13 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 	repo := repository.NewPostgres(pool)
 	svc := service.NewService(repo)
 	handler := NewHandler(svc)
-	authManager := auth.NewManager("test-secret", time.Hour)
 
 	r := gin.New()
 	authGroup := r.Group("/")
-	authGroup.Use(authManager.Middleware())
+	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)
 
-	return r, pool, svc, db.New(pool), authManager
+	return r, pool, svc, db.New(pool)
 }
 
 func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
@@ -65,23 +63,15 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	return user.ID(result.ID)
 }
 
-func bearerToken(t *testing.T, manager *auth.Manager, u *user.User) string {
-	t.Helper()
-	token, err := manager.GenerateToken(u)
-	require.NoError(t, err)
-	return "Bearer " + token
-}
-
 func TestCreateCircleHandler(t *testing.T) {
-	router, pool, _, queries, authManager := setupTestRouter(t)
+	router, pool, _, queries := setupTestRouter(t)
 
 	creatorID := createTestUser(t, pool, "alice")
-	token := bearerToken(t, authManager, &user.User{ID: creatorID, Username: "alice"})
 
 	body := `{"name":"Study Group"}`
 	req := httptest.NewRequest(http.MethodPost, "/circles", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", token)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -108,11 +98,10 @@ func TestCreateCircleHandler(t *testing.T) {
 }
 
 func TestAddMemberHandler(t *testing.T) {
-	router, pool, svc, queries, authManager := setupTestRouter(t)
+	router, pool, svc, queries := setupTestRouter(t)
 
 	creatorID := createTestUser(t, pool, "bob")
 	joinerID := createTestUser(t, pool, "charlie")
-	creatorToken := bearerToken(t, authManager, &user.User{ID: creatorID, Username: "bob"})
 
 	ctx := context.Background()
 	createdCircle, err := svc.CreateCircle(ctx, "Readers", creatorID)
@@ -121,7 +110,7 @@ func TestAddMemberHandler(t *testing.T) {
 	body := fmt.Sprintf(`{"user_id":%d}`, joinerID)
 	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/circles/%d/members", createdCircle.ID), bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", creatorToken)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -136,7 +125,7 @@ func TestAddMemberHandler(t *testing.T) {
 	assert.Equal(t, int32(1000), memberRecord.Clout)
 
 	getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/circles/%d", createdCircle.ID), nil)
-	getReq.Header.Set("Authorization", creatorToken)
+	getReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 	getResp := httptest.NewRecorder()
 	router.ServeHTTP(getResp, getReq)
 
@@ -149,13 +138,12 @@ func TestAddMemberHandler(t *testing.T) {
 }
 
 func TestGetCircle_NotFound(t *testing.T) {
-	router, pool, _, _, authManager := setupTestRouter(t)
+	router, pool, _, _ := setupTestRouter(t)
 
 	userID := createTestUser(t, pool, "dana")
-	token := bearerToken(t, authManager, &user.User{ID: userID, Username: "dana"})
 
 	req := httptest.NewRequest(http.MethodGet, "/circles/99999", nil)
-	req.Header.Set("Authorization", token)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
 	resp := httptest.NewRecorder()
 
 	router.ServeHTTP(resp, req)

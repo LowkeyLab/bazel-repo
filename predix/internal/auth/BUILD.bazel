@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "auth",
-    srcs = ["auth.go"],
+    srcs = [
+        "auth.go",
+        "test_middleware.go",
+    ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/auth",
     visibility = ["//predix:__subpackages__"],
     deps = [
