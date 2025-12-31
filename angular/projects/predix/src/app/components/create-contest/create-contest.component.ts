@@ -1,0 +1,262 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  signal,
+  inject,
+} from '@angular/core';
+import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ContestService } from '../../services/contest.service';
+
+@Component({
+  selector: 'app-create-contest',
+  imports: [FormsModule],
+  template: `
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+      <div class="mb-6">
+        <button class="btn btn-ghost btn-sm" (click)="goBack()">← Back</button>
+      </div>
+
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h1 class="card-title text-3xl mb-6">Create New Contest</h1>
+
+          <form (submit)="onSubmit($event)">
+            <div class="form-control w-full mb-4">
+              <label class="label">
+                <span class="label-text">Question</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Who will win the Mario Kart tournament?"
+                class="input input-bordered w-full"
+                [(ngModel)]="question"
+                name="question"
+                required
+              />
+              <label class="label">
+                <span class="label-text-alt"
+                  >What are you making predictions about?</span
+                >
+              </label>
+            </div>
+
+            <div class="form-control w-full mb-4">
+              <label class="label">
+                <span class="label-text">Circle IDs (comma-separated)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="1,2,3"
+                class="input input-bordered w-full"
+                [(ngModel)]="circleIdsInput"
+                name="circleIds"
+                required
+              />
+              <label class="label">
+                <span class="label-text-alt"
+                  >Which circles can participate?</span
+                >
+              </label>
+            </div>
+
+            <div class="form-control w-full mb-4">
+              <label class="label">
+                <span class="label-text">Your User ID</span>
+              </label>
+              <input
+                type="number"
+                placeholder="1"
+                class="input input-bordered w-full"
+                [(ngModel)]="creatorId"
+                name="creatorId"
+                required
+              />
+            </div>
+
+            <div class="divider">Options</div>
+
+            @for (option of options(); track $index) {
+              <div class="form-control w-full mb-2">
+                <div class="input-group">
+                  <input
+                    type="text"
+                    [placeholder]="'Option ' + ($index + 1)"
+                    class="input input-bordered w-full"
+                    [(ngModel)]="option.value"
+                    [name]="'option' + $index"
+                    required
+                  />
+                  @if (options().length > 2) {
+                    <button
+                      type="button"
+                      class="btn btn-square btn-error"
+                      (click)="removeOption($index)"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            <button
+              type="button"
+              class="btn btn-sm btn-outline mb-4"
+              (click)="addOption()"
+            >
+              + Add Option
+            </button>
+
+            <div class="form-control w-full mb-4">
+              <label class="label">
+                <span class="label-text">Expires At</span>
+              </label>
+              <input
+                type="datetime-local"
+                class="input input-bordered w-full"
+                [(ngModel)]="expiresAt"
+                name="expiresAt"
+                required
+              />
+              <label class="label">
+                <span class="label-text-alt"
+                  >When should predictions close?</span
+                >
+              </label>
+            </div>
+
+            @if (error()) {
+              <div class="alert alert-error mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="stroke-current shrink-0 h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>{{ error() }}</span>
+              </div>
+            }
+
+            <div class="card-actions justify-end">
+              <button type="button" class="btn btn-ghost" (click)="goBack()">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                [disabled]="loading()"
+              >
+                @if (loading()) {
+                  <span class="loading loading-spinner"></span>
+                }
+                Create Contest
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class CreateContestComponent {
+  private readonly router = inject(Router);
+  private readonly contestService = inject(ContestService);
+
+  protected question = '';
+  protected circleIdsInput = '';
+  protected creatorId = 1;
+  protected expiresAt = '';
+  protected readonly options = signal([{ value: '' }, { value: '' }]);
+  protected readonly loading = signal(false);
+  protected readonly error = signal('');
+
+  protected addOption(): void {
+    this.options.update((opts) => [...opts, { value: '' }]);
+  }
+
+  protected removeOption(index: number): void {
+    this.options.update((opts) => opts.filter((_, i) => i !== index));
+  }
+
+  protected onSubmit(event: Event): void {
+    event.preventDefault();
+
+    // Validate
+    if (!this.question.trim()) {
+      this.error.set('Question is required');
+      return;
+    }
+
+    const circleIds = this.circleIdsInput
+      .split(',')
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
+
+    if (circleIds.length === 0) {
+      this.error.set('At least one circle ID is required');
+      return;
+    }
+
+    const optionTexts = this.options()
+      .map((opt) => opt.value.trim())
+      .filter((text) => text.length > 0);
+
+    if (optionTexts.length < 2) {
+      this.error.set('At least 2 options are required');
+      return;
+    }
+
+    if (!this.expiresAt) {
+      this.error.set('Expiration date is required');
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.contestService
+      .createContest({
+        circle_ids: circleIds,
+        creator_id: this.creatorId,
+        question: this.question,
+        options: optionTexts,
+        expires_at: new Date(this.expiresAt).toISOString(),
+      })
+      .subscribe({
+        next: (contest) => {
+          this.loading.set(false);
+          this.router.navigate(['/contests', contest.id]);
+        },
+        error: (err) => {
+          this.loading.set(false);
+          this.error.set(err.error?.error || 'Failed to create contest');
+        },
+      });
+  }
+
+  protected goBack(): void {
+    this.router.navigate(['/contests']);
+  }
+}

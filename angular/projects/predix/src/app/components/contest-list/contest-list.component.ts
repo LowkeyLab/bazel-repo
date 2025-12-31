@@ -1,0 +1,115 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  signal,
+  inject,
+} from '@angular/core';
+import { Router } from '@angular/router';
+import { ContestService } from '../../services/contest.service';
+import type { Contest } from '../../models/contest.model';
+import { DatePipe } from '@angular/common';
+
+@Component({
+  selector: 'app-contest-list',
+  imports: [DatePipe],
+  template: `
+    <div class="container mx-auto px-4 py-8">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Active Contests</h1>
+        <button class="btn btn-primary" (click)="createContest()">
+          Create Contest
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="flex justify-center">
+          <span class="loading loading-spinner loading-lg"></span>
+        </div>
+      } @else if (contests().length === 0) {
+        <div class="alert alert-info">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            class="stroke-current shrink-0 w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
+          </svg>
+          <span
+            >No active contests. Create your first contest to get started!</span
+          >
+        </div>
+      } @else {
+        <div class="grid gap-4">
+          @for (contest of contests(); track contest.id) {
+            <div
+              class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+              (click)="viewContest(contest.id)"
+            >
+              <div class="card-body">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                    <h2 class="card-title text-2xl mb-2">
+                      {{ contest.question }}
+                    </h2>
+                    <p class="text-sm text-gray-500 mb-3">
+                      Expires {{ contest.expires_at | date: 'short' }}
+                    </p>
+                    <div class="flex gap-2 flex-wrap mb-2">
+                      @for (option of contest.options; track option.id) {
+                        <div class="badge badge-outline">{{ option.text }}</div>
+                      }
+                    </div>
+                  </div>
+                  <div class="flex flex-col items-end gap-2">
+                    <div
+                      class="badge"
+                      [class.badge-success]="contest.status === 'OPEN'"
+                      [class.badge-warning]="contest.status === 'CLOSED'"
+                      [class.badge-info]="contest.status === 'RESOLVED'"
+                    >
+                      {{ contest.status }}
+                    </div>
+                  </div>
+                </div>
+                <div class="card-actions justify-between items-center">
+                  <span class="text-sm text-gray-600"
+                    >{{ contest.predictions.length }} predictions</span
+                  >
+                  <span class="text-sm font-bold"
+                    >{{ getTotalClout(contest) }} clout in pool</span
+                  >
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class ContestListComponent {
+  private readonly router = inject(Router);
+  private readonly contestService = inject(ContestService);
+
+  protected readonly contests = signal<Contest[]>([]);
+  protected readonly loading = signal(false);
+
+  createContest(): void {
+    this.router.navigate(['/contests/new']);
+  }
+
+  viewContest(id: number): void {
+    this.router.navigate(['/contests', id]);
+  }
+
+  protected getTotalClout(contest: Contest): number {
+    return contest.predictions.reduce((sum, pred) => sum + pred.clout, 0);
+  }
+}
