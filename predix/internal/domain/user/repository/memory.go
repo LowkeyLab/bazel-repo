@@ -10,18 +10,18 @@ import (
 
 // Memory is an in-memory implementation of the Repository interface.
 type Memory struct {
-	mu       sync.RWMutex
-	users    map[user.ID]*user.User
-	emailIdx map[string]user.ID
-	nextID   user.ID
+	mu      sync.RWMutex
+	users   map[user.ID]*user.User
+	nameIdx map[string]user.ID
+	nextID  user.ID
 }
 
 // NewMemory creates a new in-memory user repository.
 func NewMemory() *Memory {
 	return &Memory{
-		users:    make(map[user.ID]*user.User),
-		emailIdx: make(map[string]user.ID),
-		nextID:   1,
+		users:   make(map[user.ID]*user.User),
+		nameIdx: make(map[string]user.ID),
+		nextID:  1,
 	}
 }
 
@@ -40,20 +40,20 @@ func (r *Memory) Save(ctx context.Context, u *user.User) error {
 		r.nextID++
 	}
 
-	// Check if email already exists (for a different user)
-	if existingID, exists := r.emailIdx[u.Email]; exists && existingID != u.ID {
-		return fmt.Errorf("user with email %s already exists", u.Email)
+	// Check if username already exists (for a different user)
+	if existingID, exists := r.nameIdx[u.Username]; exists && existingID != u.ID {
+		return fmt.Errorf("user with username %s already exists", u.Username)
 	}
 
 	// Store user
 	userCopy := &user.User{
-		ID:    u.ID,
-		Name:  u.Name,
-		Email: u.Email,
+		ID:           u.ID,
+		Username:     u.Username,
+		PasswordHash: u.PasswordHash,
 	}
 
 	r.users[u.ID] = userCopy
-	r.emailIdx[u.Email] = u.ID
+	r.nameIdx[u.Username] = u.ID
 
 	return nil
 }
@@ -65,33 +65,33 @@ func (r *Memory) FindByID(ctx context.Context, id user.ID) (*user.User, error) {
 
 	u, exists := r.users[id]
 	if !exists {
-		return nil, fmt.Errorf("user not found with id: %d", id)
+		return nil, fmt.Errorf("%w: id %d", ErrNotFound, id)
 	}
 
 	// Return a copy to avoid external mutations
 	return &user.User{
-		ID:    u.ID,
-		Name:  u.Name,
-		Email: u.Email,
+		ID:           u.ID,
+		Username:     u.Username,
+		PasswordHash: u.PasswordHash,
 	}, nil
 }
 
-// FindByEmail retrieves a User by email address.
-func (r *Memory) FindByEmail(ctx context.Context, email string) (*user.User, error) {
+// FindByUsername retrieves a User by username.
+func (r *Memory) FindByUsername(ctx context.Context, username string) (*user.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	id, exists := r.emailIdx[email]
+	id, exists := r.nameIdx[username]
 	if !exists {
-		return nil, fmt.Errorf("user not found with email: %s", email)
+		return nil, fmt.Errorf("%w: username %s", ErrNotFound, username)
 	}
 
 	u := r.users[id]
 
 	// Return a copy to avoid external mutations
 	return &user.User{
-		ID:    u.ID,
-		Name:  u.Name,
-		Email: u.Email,
+		ID:           u.ID,
+		Username:     u.Username,
+		PasswordHash: u.PasswordHash,
 	}, nil
 }

@@ -59,15 +59,16 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 	return r, pool, svc, db.New(pool)
 }
 
-func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
+func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	t.Helper()
 
 	ctx := context.Background()
 	q := db.New(pool)
+	passwordHash := "hash"
 
 	result, err := q.CreateUser(ctx, db.CreateUserParams{
-		Name:  name,
-		Email: email,
+		Username:     username,
+		PasswordHash: passwordHash,
 	})
 	require.NoError(t, err)
 
@@ -99,7 +100,7 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID u
 func TestCreateContestHandler(t *testing.T) {
 	router, pool, _, queries := setupTestRouter(t)
 
-	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
+	creatorID := createTestUser(t, pool, "alice")
 	circleID := createTestCircle(t, pool, "Study Group", creatorID)
 
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -137,8 +138,8 @@ func TestCreateContestHandler(t *testing.T) {
 func TestMakePredictionHandler(t *testing.T) {
 	router, pool, svc, queries := setupTestRouter(t)
 
-	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
-	predictorID := createTestUser(t, pool, "Charlie", "charlie@example.com")
+	creatorID := createTestUser(t, pool, "bob")
+	predictorID := createTestUser(t, pool, "charlie")
 	circleID := createTestCircle(t, pool, "Sports Fans", creatorID)
 
 	ctx := context.Background()
@@ -171,7 +172,7 @@ func TestMakePredictionHandler(t *testing.T) {
 func TestResolveContestHandler(t *testing.T) {
 	router, pool, svc, queries := setupTestRouter(t)
 
-	creatorID := createTestUser(t, pool, "David", "david@example.com")
+	creatorID := createTestUser(t, pool, "david")
 	circleID := createTestCircle(t, pool, "Predictors", creatorID)
 
 	ctx := context.Background()
@@ -198,7 +199,7 @@ func TestResolveContestHandler(t *testing.T) {
 func TestGetContest(t *testing.T) {
 	router, pool, svc, _ := setupTestRouter(t)
 
-	creatorID := createTestUser(t, pool, "Eve", "eve@example.com")
+	creatorID := createTestUser(t, pool, "eve")
 	circleID := createTestCircle(t, pool, "Test Circle", creatorID)
 
 	ctx := context.Background()

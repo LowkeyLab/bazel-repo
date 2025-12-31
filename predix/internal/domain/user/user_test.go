@@ -7,19 +7,19 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	name := "Alice"
-	email := "alice@example.com"
+	username := "alice"
+	passwordHash := "hash"
 
-	u, err := user.New(name, email)
+	u, err := user.New(username, passwordHash)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if u.Name != name {
-		t.Errorf("expected name %q, got %q", name, u.Name)
+	if u.Username != username {
+		t.Errorf("expected username %q, got %q", username, u.Username)
 	}
-	if u.Email != email {
-		t.Errorf("expected email %q, got %q", email, u.Email)
+	if u.PasswordHash != passwordHash {
+		t.Errorf("expected password hash %q, got %q", passwordHash, u.PasswordHash)
 	}
 	if u.ID != 0 {
 		t.Errorf("expected ID to be 0 (unassigned), got %d", u.ID)

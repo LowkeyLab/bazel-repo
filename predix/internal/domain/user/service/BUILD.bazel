@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "service",
+    srcs = ["service.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/domain/user",
+        "//predix/internal/domain/user/repository",
+        "@org_golang_x_crypto//bcrypt",
+    ],
+)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -25,15 +26,14 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 // RegisterRoutes registers circle routes on the provided router.
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
+func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/circles", h.createCircle)
 	r.POST("/circles/:id/members", h.addMember)
 	r.GET("/circles/:id", h.getCircle)
 }
 
 type createCircleRequest struct {
-	Name      string `json:"name"`
-	CreatorID int32  `json:"creator_id"`
+	Name string `json:"name"`
 }
 
 type memberResponse struct {
@@ -55,7 +55,13 @@ func (h *Handler) createCircle(c *gin.Context) {
 		return
 	}
 
-	newCircle, err := h.svc.CreateCircle(c.Request.Context(), req.Name, user.ID(req.CreatorID))
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	newCircle, err := h.svc.CreateCircle(c.Request.Context(), req.Name, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

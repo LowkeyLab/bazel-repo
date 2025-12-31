@@ -15,15 +15,16 @@ import (
 )
 
 // createTestUser creates a test user in the database
-func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
+func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	t.Helper()
 
 	ctx := context.Background()
 	q := db.New(pool)
+	passwordHash := "hash"
 
 	result, err := q.CreateUser(ctx, db.CreateUserParams{
-		Name:  name,
-		Email: email,
+		Username:     username,
+		PasswordHash: passwordHash,
 	})
 	require.NoError(t, err)
 
@@ -39,7 +40,7 @@ func TestCreateCircle(t *testing.T) {
 	q := db.New(pool)
 
 	// Create a user to be the circle creator
-	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
+	creatorID := createTestUser(t, pool, "alice")
 
 	// Test: Create a circle
 	c, err := svc.CreateCircle(ctx, "Book Club", creatorID)
@@ -69,7 +70,7 @@ func TestCreateCircle_WithEmptyName(t *testing.T) {
 	repo := repository.NewPostgres(pool)
 	svc := service.NewService(repo)
 
-	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
+	creatorID := createTestUser(t, pool, "bob")
 
 	// Test: Create circle with empty name should fail
 	c, err := svc.CreateCircle(ctx, "", creatorID)

@@ -1,5 +1,5 @@
 -- name: CreateUser :one
-INSERT INTO users (name, email)
+INSERT INTO users (username, password_hash)
 VALUES ($1, $2)
 RETURNING *;
 
@@ -7,9 +7,9 @@ RETURNING *;
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
--- name: GetUserByEmail :one
+-- name: GetUserByUsername :one
 SELECT * FROM users
-WHERE email = $1 LIMIT 1;
+WHERE username = $1 LIMIT 1;
 
 -- name: CreateCircle :one
 INSERT INTO circles (name, created_at)

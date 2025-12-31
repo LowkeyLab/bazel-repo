@@ -6,6 +6,7 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/rest",
     visibility = ["//predix:__subpackages__"],
     deps = [
+        "//predix/internal/auth",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/service",
         "//predix/internal/domain/user",

@@ -12,6 +12,7 @@ go_library(
     deps = [
         "//predix/internal/db",
         "//predix/internal/domain/user",
+        "@com_github_jackc_pgx_v5//:pgx",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )

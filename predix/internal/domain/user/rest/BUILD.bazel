@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "rest",
+    srcs = ["handlers.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/rest",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/auth",
+        "//predix/internal/domain/user",
+        "//predix/internal/domain/user/service",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)

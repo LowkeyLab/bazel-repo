@@ -19,15 +19,16 @@ import (
 )
 
 // createTestUser creates a test user in the database
-func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
+func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	t.Helper()
 
 	ctx := context.Background()
 	q := db.New(pool)
+	passwordHash := "hash"
 
 	result, err := q.CreateUser(ctx, db.CreateUserParams{
-		Name:  name,
-		Email: email,
+		Username:     username,
+		PasswordHash: passwordHash,
 	})
 	require.NoError(t, err)
 
@@ -59,7 +60,7 @@ func TestCreateContest(t *testing.T) {
 	q := db.New(pool)
 
 	// Setup: Create user and circle
-	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
+	creatorID := createTestUser(t, pool, "alice")
 	circleID := createTestCircle(t, pool, "Book Club")
 	otherCircleID := createTestCircle(t, pool, "New Ideas")
 
@@ -98,7 +99,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 	repo := repository.NewPostgres(pool)
 	svc := service.NewService(repo)
 
-	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
+	creatorID := createTestUser(t, pool, "bob")
 	circleID := createTestCircle(t, pool, "Test Circle")
 
 	t.Run("empty question", func(t *testing.T) {
@@ -161,7 +162,7 @@ func TestPredict(t *testing.T) {
 	q := db.New(pool)
 
 	// Setup: Create user, circle, and contest
-	userID := createTestUser(t, pool, "Charlie", "charlie@example.com")
+	userID := createTestUser(t, pool, "Charlie")
 	circleID := createTestCircle(t, pool, "Predictions Circle")
 
 	opts := []string{"Option A", "Option B"}
@@ -191,7 +192,7 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 	q := db.New(pool)
 
 	// Setup: Create user, circle, and contest
-	userID := createTestUser(t, pool, "Diana", "diana@example.com")
+	userID := createTestUser(t, pool, "Diana")
 	circleID := createTestCircle(t, pool, "Test Circle")
 
 	opts := []string{"Option A", "Option B"}
@@ -222,7 +223,7 @@ func TestResolveContest(t *testing.T) {
 	q := db.New(pool)
 
 	// Setup: Create user, circle, and contest
-	userID := createTestUser(t, pool, "Eve", "eve@example.com")
+	userID := createTestUser(t, pool, "Eve")
 	circleID := createTestCircle(t, pool, "Resolution Circle")
 
 	opts := []string{"Outcome A", "Outcome B"}

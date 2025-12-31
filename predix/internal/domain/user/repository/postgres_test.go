@@ -13,7 +13,7 @@ func TestPostgresRepository_Save(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
 
-	u, err := user.New("Alice", "alice@example.com")
+	u, err := user.New("alice", "hash1")
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 	repo := repository.NewPostgres(pool)
 
 	// Create and save user
-	u, _ := user.New("Bob", "bob@example.com")
+	u, _ := user.New("bob", "hash2")
 	err := repo.Save(context.Background(), u)
 	if err != nil {
 		t.Fatalf("failed to save user: %v", err)
@@ -44,35 +44,32 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 	if found.ID != u.ID {
 		t.Errorf("expected ID %v, got %v", u.ID, found.ID)
 	}
-	if found.Name != u.Name {
-		t.Errorf("expected name %v, got %v", u.Name, found.Name)
-	}
-	if found.Email != u.Email {
-		t.Errorf("expected email %v, got %v", u.Email, found.Email)
+	if found.Username != u.Username {
+		t.Errorf("expected username %v, got %v", u.Username, found.Username)
 	}
 }
 
-func TestPostgresRepository_FindByEmail(t *testing.T) {
+func TestPostgresRepository_FindByUsername(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
 
 	// Create and save user
-	u, _ := user.New("Charlie", "charlie@example.com")
+	u, _ := user.New("charlie", "hash3")
 	err := repo.Save(context.Background(), u)
 	if err != nil {
 		t.Fatalf("failed to save user: %v", err)
 	}
 
-	// Find by email
-	found, err := repo.FindByEmail(context.Background(), u.Email)
+	// Find by username
+	found, err := repo.FindByUsername(context.Background(), u.Username)
 	if err != nil {
-		t.Fatalf("failed to find user by email: %v", err)
+		t.Fatalf("failed to find user by username: %v", err)
 	}
 
 	if found.ID != u.ID {
 		t.Errorf("expected ID %v, got %v", u.ID, found.ID)
 	}
-	if found.Email != u.Email {
-		t.Errorf("expected email %v, got %v", u.Email, found.Email)
+	if found.Username != u.Username {
+		t.Errorf("expected username %v, got %v", u.Username, found.Username)
 	}
 }

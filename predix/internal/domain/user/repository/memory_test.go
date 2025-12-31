@@ -13,7 +13,7 @@ import (
 func TestMemoryRepository_Save(t *testing.T) {
 	repo := repository.NewMemory()
 
-	u, err := user.New("Alice", "alice@example.com")
+	u, err := user.New("alice", "hash1")
 	require.NoError(t, err)
 
 	// Save should succeed
@@ -21,8 +21,8 @@ func TestMemoryRepository_Save(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotZero(t, u.ID)
 
-	// Save with duplicate email should fail
-	u2, err := user.New("Bob", "alice@example.com")
+	// Save with duplicate username should fail
+	u2, err := user.New("alice", "hash2")
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), u2)
 	assert.Error(t, err)
@@ -41,7 +41,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 	repo := repository.NewMemory()
 
 	// Create and save user
-	u, err := user.New("Bob", "bob@example.com")
+	u, err := user.New("bob", "hash")
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), u)
 	require.NoError(t, err)
@@ -50,8 +50,8 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 	found, err := repo.FindByID(context.Background(), u.ID)
 	require.NoError(t, err)
 	assert.Equal(t, u.ID, found.ID)
-	assert.Equal(t, u.Name, found.Name)
-	assert.Equal(t, u.Email, found.Email)
+	assert.Equal(t, u.Username, found.Username)
+	assert.Equal(t, u.PasswordHash, found.PasswordHash)
 }
 
 func TestMemoryRepository_FindByIDNotFound(t *testing.T) {
@@ -62,26 +62,26 @@ func TestMemoryRepository_FindByIDNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestMemoryRepository_FindByEmail(t *testing.T) {
+func TestMemoryRepository_FindByUsername(t *testing.T) {
 	repo := repository.NewMemory()
 
 	// Create and save user
-	u, err := user.New("Charlie", "charlie@example.com")
+	u, err := user.New("charlie", "hash")
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), u)
 	require.NoError(t, err)
 
-	// Find by email
-	found, err := repo.FindByEmail(context.Background(), u.Email)
+	// Find by username
+	found, err := repo.FindByUsername(context.Background(), u.Username)
 	require.NoError(t, err)
 	assert.Equal(t, u.ID, found.ID)
-	assert.Equal(t, u.Email, found.Email)
+	assert.Equal(t, u.Username, found.Username)
 }
 
-func TestMemoryRepository_FindByEmailNotFound(t *testing.T) {
+func TestMemoryRepository_FindByUsernameNotFound(t *testing.T) {
 	repo := repository.NewMemory()
 
-	_, err := repo.FindByEmail(context.Background(), "notfound@example.com")
+	_, err := repo.FindByUsername(context.Background(), "missing")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -93,7 +93,7 @@ func TestMemoryRepository_Concurrency(t *testing.T) {
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
-			u, _ := user.New("User", "user"+string(rune('0'+idx))+"@example.com")
+			u, _ := user.New("user"+string(rune('0'+idx)), "hash")
 			_ = repo.Save(context.Background(), u)
 			done <- true
 		}(i)
