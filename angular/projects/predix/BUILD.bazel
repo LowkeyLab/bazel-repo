@@ -11,7 +11,7 @@ copy_to_bin(
 ng_application(
     name = "predix",
     tailwindcss = True,
-    zonejs = True,
+    zonejs = False,
     deps = [
         "//angular:node_modules/daisyui",
     ],
@@ -22,7 +22,7 @@ ng_test(
     srcs = [":srcs"],
     karma = True,
     tailwindcss = True,
-    zonejs = True,
+    zonejs = False,
     deps = [
         "//angular:node_modules/daisyui",
     ],
