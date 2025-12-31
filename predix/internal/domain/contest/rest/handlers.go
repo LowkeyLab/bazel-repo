@@ -9,10 +9,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 // Handler wires contest HTTP endpoints.
@@ -26,7 +26,7 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 // RegisterRoutes registers contest routes on the provided router.
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
+func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/contests", h.createContest)
 	r.POST("/contests/:id/predictions", h.makePrediction)
 	r.POST("/contests/:id/resolve", h.resolveContest)
@@ -35,7 +35,6 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 type createContestRequest struct {
 	CircleIDs []int32   `json:"circle_ids"`
-	CreatorID int32     `json:"creator_id"`
 	Question  string    `json:"question"`
 	Options   []string  `json:"options"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -73,6 +72,12 @@ func (h *Handler) createContest(c *gin.Context) {
 		return
 	}
 
+	creatorID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
 	circleIDs := make([]circle.ID, len(req.CircleIDs))
 	for i, id := range req.CircleIDs {
 		circleIDs[i] = circle.ID(id)
@@ -81,7 +86,7 @@ func (h *Handler) createContest(c *gin.Context) {
 	newContest, err := h.svc.CreateContest(
 		c.Request.Context(),
 		circleIDs,
-		user.ID(req.CreatorID),
+		creatorID,
 		req.Question,
 		req.Options,
 		req.ExpiresAt,
@@ -95,14 +100,19 @@ func (h *Handler) createContest(c *gin.Context) {
 }
 
 type makePredictionRequest struct {
-	UserID   int32 `json:"user_id"`
-	OptionID int   `json:"option_id"`
-	Clout    int   `json:"clout"`
+	OptionID int `json:"option_id"`
+	Clout    int `json:"clout"`
 }
 
 func (h *Handler) makePrediction(c *gin.Context) {
 	contestID, ok := parseContestID(c)
 	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
 		return
 	}
 
@@ -112,7 +122,7 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.Predict(c.Request.Context(), contestID, user.ID(req.UserID), req.OptionID, req.Clout)
+	err := h.svc.Predict(c.Request.Context(), contestID, userID, req.OptionID, req.Clout)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
