@@ -77,10 +77,10 @@ func main() {
 
 	userHandler.RegisterRoutes(r)
 
-	authenticated := r.Group("/")
-	authenticated.Use(authManager.Middleware())
-	circleHandler.RegisterRoutes(authenticated)
-	contestHandler.RegisterRoutes(authenticated)
+	protected := r.Group("/protected")
+	protected.Use(authManager.Middleware())
+	circleHandler.RegisterRoutes(protected)
+	contestHandler.RegisterRoutes(protected)
 	healthcheck.RegisterRoutes(r)
 
 	fmt.Println("Predix service starting on :8080...")

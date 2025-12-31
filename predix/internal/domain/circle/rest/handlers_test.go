@@ -40,7 +40,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 	handler := NewHandler(svc)
 
 	r := gin.New()
-	authGroup := r.Group("/")
+	authGroup := r.Group("/protected")
 	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)
 
@@ -69,7 +69,7 @@ func TestCreateCircleHandler(t *testing.T) {
 	creatorID := createTestUser(t, pool, "alice")
 
 	body := `{"name":"Study Group"}`
-	req := httptest.NewRequest(http.MethodPost, "/circles", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/protected/circles", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
@@ -108,7 +108,7 @@ func TestAddMemberHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	body := fmt.Sprintf(`{"user_id":%d}`, joinerID)
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/circles/%d/members", createdCircle.ID), bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/members", createdCircle.ID), bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
@@ -124,7 +124,7 @@ func TestAddMemberHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int32(1000), memberRecord.Clout)
 
-	getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/circles/%d", createdCircle.ID), nil)
+	getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
 	getReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 	getResp := httptest.NewRecorder()
 	router.ServeHTTP(getResp, getReq)
@@ -142,7 +142,7 @@ func TestGetCircle_NotFound(t *testing.T) {
 
 	userID := createTestUser(t, pool, "dana")
 
-	req := httptest.NewRequest(http.MethodGet, "/circles/99999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected/circles/99999", nil)
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
 	resp := httptest.NewRecorder()
 

@@ -55,7 +55,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 	handler := NewHandler(svc)
 
 	r := gin.New()
-	authGroup := r.Group("/")
+	authGroup := r.Group("/protected")
 	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)
 
@@ -115,7 +115,7 @@ func TestCreateContestHandler(t *testing.T) {
 		"expires_at": "%s"
 	}`, circleID, expiresAt.Format(time.RFC3339))
 
-	req := httptest.NewRequest(http.MethodPost, "/contests", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
@@ -155,7 +155,7 @@ func TestMakePredictionHandler(t *testing.T) {
 		"clout": 100
 	}`)
 
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", predictorID))
 
@@ -184,7 +184,7 @@ func TestResolveContestHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	body := `{"winning_option_id": 1}`
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
@@ -211,7 +211,7 @@ func TestGetContest(t *testing.T) {
 	createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, expiresAt)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/contests/%d", createdContest.ID), nil)
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d", createdContest.ID), nil)
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 	resp := httptest.NewRecorder()
 
@@ -232,7 +232,7 @@ func TestGetContest_NotFound(t *testing.T) {
 
 	userID := createTestUser(t, pool, "frank")
 
-	req := httptest.NewRequest(http.MethodGet, "/contests/99999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected/contests/99999", nil)
 	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
 	resp := httptest.NewRecorder()
 
@@ -245,7 +245,7 @@ func TestCreateContest_InvalidRequest(t *testing.T) {
 	router, _, _, _ := setupTestRouter(t)
 
 	body := `{"invalid": "data"}`
-	req := httptest.NewRequest(http.MethodPost, "/contests", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, "1")
 
@@ -259,7 +259,7 @@ func TestMakePrediction_ContestNotFound(t *testing.T) {
 	router, _, _, _ := setupTestRouter(t)
 
 	body := `{"option_id": 1, "clout": 100}`
-	req := httptest.NewRequest(http.MethodPost, "/contests/99999/predictions", bytes.NewBufferString(body))
+	req := httptest.NewRequest(http.MethodPost, "/protected/contests/99999/predictions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(auth.TestUserIDHeader, "1")
 
