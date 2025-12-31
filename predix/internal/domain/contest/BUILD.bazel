@@ -4,7 +4,7 @@ go_library(
     name = "contest",
     srcs = ["contest.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest",
-    visibility = ["//visibility:public"],
+    visibility = ["//predix:__subpackages__"],
     deps = [
         "//predix/internal/domain/circle",
         "//predix/internal/domain/user",
