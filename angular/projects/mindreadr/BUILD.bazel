@@ -1,9 +1,8 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
-load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
 
 copy_to_bin(
     name = "srcs",
@@ -20,31 +19,22 @@ js_library(
     ],
 )
 
-TAILWIND_DEPS = [
-    "//angular:node_modules/@tailwindcss/postcss",
-    "//angular:node_modules/daisyui",
-    "//angular:node_modules/postcss",
-    "//angular:node_modules/tailwindcss",
-    "//angular:postcssrc",
-]
-
 ng_application(
     name = "mindreadr",
-    ng_config = "//angular:ng-config",
-    node_modules = "//angular:node_modules",
-    deps = TAILWIND_DEPS + [
+    tailwindcss = True,
+    zonejs = True,
+    deps = [
         ":canvas_confetti",
     ],
 )
 
 ng_test(
     name = "test",
-    size = "small",
     srcs = [":srcs"],
-    ng_config = "//angular:ng-config",
-    node_modules = "//angular:node_modules",
-    tags = ["no-remote-exec"],
-    deps = TAILWIND_DEPS + [
+    karma = True,
+    tailwindcss = True,
+    zonejs = True,
+    deps = [
         ":canvas_confetti",
     ],
 )
