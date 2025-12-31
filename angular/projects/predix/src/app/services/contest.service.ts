@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 import type {
   Contest,
   CreateContestRequest,
@@ -13,7 +14,7 @@ import type {
 })
 export class ContestService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/contests';
+  private readonly apiUrl = `${environment.apiUrl}/contests`;
 
   createContest(request: CreateContestRequest): Observable<Contest> {
     return this.http.post<Contest>(this.apiUrl, request);

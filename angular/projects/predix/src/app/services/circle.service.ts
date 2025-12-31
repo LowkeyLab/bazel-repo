@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 import type {
   Circle,
   CreateCircleRequest,
@@ -12,7 +13,7 @@ import type {
 })
 export class CircleService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/circles';
+  private readonly apiUrl = `${environment.apiUrl}/circles`;
 
   createCircle(request: CreateCircleRequest): Observable<Circle> {
     return this.http.post<Circle>(this.apiUrl, request);
