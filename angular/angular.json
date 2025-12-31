@@ -294,9 +294,17 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test",
+          "builder": "@angular/build:karma",
           "options": {
-            "browsers": "ChromeHeadlessNoSandbox"
+            "browsers": "ChromeHeadlessNoSandbox",
+            "tsConfig": "projects/predix/tsconfig.spec.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/predix/public"
+              }
+            ],
+            "styles": ["projects/predix/src/styles.css"]
           }
         }
       }
