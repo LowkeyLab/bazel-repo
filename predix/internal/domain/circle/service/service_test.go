@@ -18,14 +18,17 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestCircleService_CreateCircle(t *testing.T) {
+// setupTestDB creates a PostgreSQL container and returns a connection pool
+func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	ctx := context.Background()
 
-	// 1. Start Postgres Container
+	// Start Postgres Container
 	pgContainer, err := postgres.Run(ctx,
 		"postgres:18",
 		postgres.WithDatabase("predix"),
@@ -37,20 +40,14 @@ func TestCircleService_CreateCircle(t *testing.T) {
 				WithStartupTimeout(5*time.Second)),
 	)
 	require.NoError(t, err)
-	defer func() {
-		if err := pgContainer.Terminate(ctx); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
-		}
-	}()
 
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	require.NoError(t, err)
 
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
-	defer pool.Close()
 
-	// 2. Apply Schema
+	// Apply Schema
 	schemaPath := "../../sql/schema.sql"
 	schemaContent, err := os.ReadFile(schemaPath)
 	if err != nil {
@@ -61,41 +58,103 @@ func TestCircleService_CreateCircle(t *testing.T) {
 			schemaContent, err = os.ReadFile(schemaPath)
 		}
 	}
-	require.NoError(t, err, "could not read schema file from %s or %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql", "../../../sql/schema.sql")
+	require.NoError(t, err, "could not read schema file")
 
 	_, err = pool.Exec(ctx, string(schemaContent))
 	require.NoError(t, err)
 
+	// Return cleanup function
+	cleanup := func() {
+		pool.Close()
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	}
+
+	return pool, cleanup
+}
+
+// createTestUser creates a test user in the database
+func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
+	t.Helper()
+
+	ctx := context.Background()
 	q := db.New(pool)
 
-	// Create User (Creator)
 	userID := uuid.New()
-	_, err = q.CreateUser(ctx, db.CreateUserParams{
+	_, err := q.CreateUser(ctx, db.CreateUserParams{
 		ID:    userID,
-		Name:  "Circle Creator",
-		Email: "creator@example.com",
+		Name:  name,
+		Email: email,
 	})
 	require.NoError(t, err)
 
-	// Test Service
-	svc := service.NewService(pool)
+	return user.ID(userID)
+}
 
-	c, err := svc.CreateCircle(ctx, "My New Circle", user.ID(userID))
+func TestCreateCircle(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+	q := db.New(pool)
+
+	// Create a user to be the circle creator
+	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
+
+	// Test: Create a circle
+	c, err := svc.CreateCircle(ctx, "Book Club", creatorID)
 	require.NoError(t, err)
 	assert.NotNil(t, c)
-	assert.Equal(t, "My New Circle", c.Name)
+	assert.Equal(t, "Book Club", c.Name)
 	assert.NotEmpty(t, c.InviteCode)
+	assert.Len(t, c.Members, 1)
 
-	// Verify in DB
+	// Verify in database
 	dbCircle, err := q.GetCircle(ctx, uuid.UUID(c.ID))
 	require.NoError(t, err)
-	assert.Equal(t, "My New Circle", dbCircle.Name)
+	assert.Equal(t, "Book Club", dbCircle.Name)
 
-	// Verify Member
+	// Verify creator is a member with initial clout
 	dbMember, err := q.GetCircleMember(ctx, db.GetCircleMemberParams{
 		CircleID: uuid.UUID(c.ID),
-		UserID:   uuid.UUID(userID),
+		UserID:   uuid.UUID(creatorID),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, int32(1000), dbMember.Clout)
+}
+
+func TestCreateCircle_WithEmptyName(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+
+	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
+
+	// Test: Create circle with empty name should fail
+	c, err := svc.CreateCircle(ctx, "", creatorID)
+	assert.Error(t, err)
+	assert.Nil(t, c)
+}
+
+func TestCreateCircle_GeneratesUniqueInviteCodes(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+
+	creatorID := createTestUser(t, pool, "Charlie", "charlie@example.com")
+
+	// Test: Create multiple circles and verify unique invite codes
+	circle1, err := svc.CreateCircle(ctx, "Circle 1", creatorID)
+	require.NoError(t, err)
+
+	circle2, err := svc.CreateCircle(ctx, "Circle 2", creatorID)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, circle1.InviteCode, circle2.InviteCode)
 }

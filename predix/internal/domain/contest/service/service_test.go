@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/stretchr/testify/assert"
@@ -20,14 +21,17 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestService_CreateContest(t *testing.T) {
+// setupTestDB creates a PostgreSQL container and returns a connection pool
+func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
+	t.Helper()
+
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	ctx := context.Background()
 
-	// 1. Start Postgres Container
+	// Start Postgres Container
 	pgContainer, err := postgres.Run(ctx,
 		"postgres:16-alpine",
 		postgres.WithDatabase("predix"),
@@ -39,24 +43,17 @@ func TestService_CreateContest(t *testing.T) {
 				WithStartupTimeout(5*time.Second)),
 	)
 	require.NoError(t, err)
-	defer func() {
-		if err := pgContainer.Terminate(ctx); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
-		}
-	}()
 
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	require.NoError(t, err)
 
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
-	defer pool.Close()
 
-	// 2. Apply Schema
+	// Apply Schema
 	schemaPath := "../../sql/schema.sql"
 	schemaContent, err := os.ReadFile(schemaPath)
 	if err != nil {
-		// Fallback for running from root or different context
 		schemaPath = "predix/internal/sql/schema.sql"
 		schemaContent, err = os.ReadFile(schemaPath)
 		if err != nil {
@@ -64,50 +61,200 @@ func TestService_CreateContest(t *testing.T) {
 			schemaContent, err = os.ReadFile(schemaPath)
 		}
 	}
-	require.NoError(t, err, "could not read schema file from %s or %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql", "../../../sql/schema.sql")
+	require.NoError(t, err, "could not read schema file")
 
 	_, err = pool.Exec(ctx, string(schemaContent))
 	require.NoError(t, err)
 
-	// 3. Setup Dependencies (User, Circle)
-	// We need to create a user and a circle first because of foreign keys.
+	// Return cleanup function
+	cleanup := func() {
+		pool.Close()
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Logf("failed to terminate container: %s", err)
+		}
+	}
+
+	return pool, cleanup
+}
+
+// createTestUser creates a test user in the database
+func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
+	t.Helper()
+
+	ctx := context.Background()
 	q := db.New(pool)
 
 	userID := uuid.New()
-	_, err = q.CreateUser(ctx, db.CreateUserParams{
+	_, err := q.CreateUser(ctx, db.CreateUserParams{
 		ID:    userID,
-		Name:  "Test User",
-		Email: "test@example.com",
+		Name:  name,
+		Email: email,
 	})
 	require.NoError(t, err)
 
+	return user.ID(userID)
+}
+
+// createTestCircle creates a test circle in the database
+func createTestCircle(t *testing.T, pool *pgxpool.Pool, name, inviteCode string) circle.ID {
+	t.Helper()
+
+	ctx := context.Background()
+	q := db.New(pool)
+
 	circleID := uuid.New()
-	_, err = q.CreateCircle(ctx, db.CreateCircleParams{
+	_, err := q.CreateCircle(ctx, db.CreateCircleParams{
 		ID:         circleID,
-		Name:       "Test Circle",
-		InviteCode: "TEST12",
+		Name:       name,
+		InviteCode: inviteCode,
 		CreatedAt:  pgtype.Timestamp{Time: time.Now(), Valid: true},
 	})
 	require.NoError(t, err)
 
-	// 4. Test Service
-	svc := service.NewService(pool)
+	return circle.ID(circleID)
+}
 
+func TestCreateContest(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+	q := db.New(pool)
+
+	// Setup: Create user and circle
+	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
+	circleID := createTestCircle(t, pool, "Book Club", "BOOK01")
+
+	// Test: Create a contest
 	opts := []string{"Yes", "No", "Maybe"}
 	expiresAt := time.Now().Add(24 * time.Hour)
 
-	c, err := svc.CreateContest(ctx, circle.ID(circleID), user.ID(userID), "Is this working?", opts, expiresAt)
+	c, err := svc.CreateContest(ctx, circleID, creatorID, "Should we read this book?", opts, expiresAt)
 	require.NoError(t, err)
 	assert.NotNil(t, c)
-	assert.Equal(t, "Is this working?", c.Question)
+	assert.Equal(t, "Should we read this book?", c.Question)
+	assert.Equal(t, contest.StatusOpen, c.Status)
 	assert.Len(t, c.Options, 3)
 
-	// Verify in DB
+	// Verify in database
 	dbContest, err := q.GetContest(ctx, uuid.UUID(c.ID))
 	require.NoError(t, err)
-	assert.Equal(t, "Is this working?", dbContest.Question)
+	assert.Equal(t, "Should we read this book?", dbContest.Question)
+	assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
 
+	// Verify options
 	dbOptions, err := q.ListContestOptions(ctx, uuid.UUID(c.ID))
 	require.NoError(t, err)
 	assert.Len(t, dbOptions, 3)
+}
+
+func TestCreateContest_WithInvalidData(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+
+	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
+	circleID := createTestCircle(t, pool, "Test Circle", "TEST01")
+
+	t.Run("not enough options", func(t *testing.T) {
+		opts := []string{"Yes"}
+		expiresAt := time.Now().Add(24 * time.Hour)
+
+		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
+		assert.Error(t, err)
+		assert.Nil(t, c)
+	})
+}
+
+func TestPredict(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+	q := db.New(pool)
+
+	// Setup: Create user, circle, and contest
+	userID := createTestUser(t, pool, "Charlie", "charlie@example.com")
+	circleID := createTestCircle(t, pool, "Predictions Circle", "PRED01")
+
+	opts := []string{"Option A", "Option B"}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	c, err := svc.CreateContest(ctx, circleID, userID, "What will happen?", opts, expiresAt)
+	require.NoError(t, err)
+
+	// Test: Make a prediction (option IDs start at 1)
+	err = svc.Predict(ctx, c.ID, userID, 1, 100)
+	require.NoError(t, err)
+
+	// Verify prediction in database
+	predictions, err := q.ListContestPredictions(ctx, uuid.UUID(c.ID))
+	require.NoError(t, err)
+	assert.Len(t, predictions, 1)
+	assert.Equal(t, uuid.UUID(userID), predictions[0].UserID)
+	assert.Equal(t, int32(1), predictions[0].OptionID)
+	assert.Equal(t, int32(100), predictions[0].Clout)
+}
+
+func TestPredict_ContestNotOpen(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+	q := db.New(pool)
+
+	// Setup: Create user, circle, and contest
+	userID := createTestUser(t, pool, "Diana", "diana@example.com")
+	circleID := createTestCircle(t, pool, "Test Circle", "TEST02")
+
+	opts := []string{"Option A", "Option B"}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	c, err := svc.CreateContest(ctx, circleID, userID, "Test question?", opts, expiresAt)
+	require.NoError(t, err)
+
+	// Manually close the contest
+	err = q.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
+		ID:             uuid.UUID(c.ID),
+		Status:         "CLOSED",
+		ResultOptionID: pgtype.Int4{Valid: false},
+	})
+	require.NoError(t, err)
+
+	// Test: Try to predict on closed contest
+	err = svc.Predict(ctx, c.ID, userID, 1, 100)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not open")
+}
+
+func TestResolveContest(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	svc := service.NewService(pool)
+	q := db.New(pool)
+
+	// Setup: Create user, circle, and contest
+	userID := createTestUser(t, pool, "Eve", "eve@example.com")
+	circleID := createTestCircle(t, pool, "Resolution Circle", "RSOL01")
+
+	opts := []string{"Outcome A", "Outcome B"}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	c, err := svc.CreateContest(ctx, circleID, userID, "What is the outcome?", opts, expiresAt)
+	require.NoError(t, err)
+
+	// Test: Resolve the contest
+	err = svc.ResolveContest(ctx, c.ID, 1)
+	require.NoError(t, err)
+
+	// Verify in database
+	dbContest, err := q.GetContest(ctx, uuid.UUID(c.ID))
+	require.NoError(t, err)
+	assert.Equal(t, "RESOLVED", dbContest.Status)
+	assert.True(t, dbContest.ResultOptionID.Valid)
+	assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
 }
