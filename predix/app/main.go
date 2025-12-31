@@ -12,6 +12,7 @@ import (
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	contestrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/rest"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/healthcheck"
 )
 
 func main() {
@@ -40,6 +41,7 @@ func main() {
 	r := gin.Default()
 	circleHandler.RegisterRoutes(r)
 	contestHandler.RegisterRoutes(r)
+	healthcheck.RegisterRoutes(r)
 
 	fmt.Println("Predix service starting on :8080...")
 	if err := r.Run(":8080"); err != nil {
