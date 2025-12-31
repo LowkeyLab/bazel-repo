@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -58,25 +59,13 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	})
 
 	// Apply Schema
-	schemaPath := "../../sql/schema.sql"
+	schemaPath, err := runfiles.Rlocation("predix/internal/sql/schema.sql")
+	if err != nil {
+		t.Fatalf("Could not find schema file: %v\n", err)
+	}
 	schemaContent, err := os.ReadFile(schemaPath)
 	if err != nil {
-		// Try from root
-		schemaPath = "predix/internal/sql/schema.sql"
-		schemaContent, err = os.ReadFile(schemaPath)
-		if err != nil {
-			// Try from repository subdirectory
-			schemaPath = "../../../sql/schema.sql"
-			schemaContent, err = os.ReadFile(schemaPath)
-			if err != nil {
-				// Try absolute path from workspace root
-				schemaPath = "../../../../internal/sql/schema.sql"
-				schemaContent, err = os.ReadFile(schemaPath)
-			}
-		}
-	}
-	if err != nil {
-		t.Fatalf("could not read schema file: %v", err)
+		t.Fatalf("Could not read schema file: %v\n", err)
 	}
 
 	_, err = pool.Exec(ctx, string(schemaContent))
