@@ -10,11 +10,21 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
+type CircleRepository = repository.Repository
+
 type Service struct {
 	repo repository.Repository
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
+// NewService creates a service with a repository interface.
+func NewService(repo CircleRepository) *Service {
+	return &Service{
+		repo: repo,
+	}
+}
+
+// NewServiceWithPool creates a service with a PostgreSQL pool (backward compatible).
+func NewServiceWithPool(pool *pgxpool.Pool) *Service {
 	return &Service{
 		repo: repository.NewPostgres(pool),
 	}

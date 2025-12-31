@@ -31,6 +31,7 @@ go_test(
         "//predix/internal/db",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/contest",
+        "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",
         "//predix/internal/testutil",
         "@com_github_jackc_pgx_v5//pgtype",

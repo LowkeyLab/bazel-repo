@@ -28,6 +28,7 @@ go_test(
     deps = [
         ":service",
         "//predix/internal/db",
+        "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/user",
         "//predix/internal/testutil",
         "@com_github_jackc_pgx_v5//pgxpool",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
@@ -33,7 +34,8 @@ func TestCreateCircle(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 	q := db.New(pool)
 
 	// Create a user to be the circle creator
@@ -64,7 +66,8 @@ func TestCreateCircle_WithEmptyName(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 
 	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
 

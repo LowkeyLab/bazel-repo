@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
@@ -33,7 +34,8 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 	gin.SetMode(gin.TestMode)
 
 	pool := testutil.SetupTestDB(t)
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 	handler := NewHandler(svc)
 
 	r := gin.New()

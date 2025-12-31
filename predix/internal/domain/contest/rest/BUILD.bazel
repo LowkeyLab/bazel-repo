@@ -31,6 +31,7 @@ go_test(
     deps = [
         "//predix/internal/db",
         "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/contest/service",
         "//predix/internal/domain/user",
         "//predix/internal/testutil",

@@ -10,6 +10,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
@@ -53,7 +54,8 @@ func TestCreateContest(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 	q := db.New(pool)
 
 	// Setup: Create user and circle
@@ -93,7 +95,8 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 
 	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
 	circleID := createTestCircle(t, pool, "Test Circle")
@@ -153,7 +156,8 @@ func TestPredict(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 	q := db.New(pool)
 
 	// Setup: Create user, circle, and contest
@@ -182,7 +186,8 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 	q := db.New(pool)
 
 	// Setup: Create user, circle, and contest
@@ -212,7 +217,8 @@ func TestResolveContest(t *testing.T) {
 	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
-	svc := service.NewService(pool)
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
 	q := db.New(pool)
 
 	// Setup: Create user, circle, and contest
