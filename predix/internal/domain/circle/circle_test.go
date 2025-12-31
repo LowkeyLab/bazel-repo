@@ -38,9 +38,60 @@ func TestNew(t *testing.T) {
 
 func TestNew_EmptyName(t *testing.T) {
 	creatorID := user.ID(uuid.New())
-	_, err := circle.New("", creatorID)
+	c, err := circle.New("", creatorID)
 	if err == nil {
 		t.Error("expected error for empty name, got nil")
+	}
+	if c != nil {
+		t.Error("expected nil circle on error")
+	}
+	expectedErr := "circle name cannot be empty"
+	if err.Error() != expectedErr {
+		t.Errorf("expected error %q, got %q", expectedErr, err.Error())
+	}
+}
+
+func TestNew_ValidNames(t *testing.T) {
+	creatorID := user.ID(uuid.New())
+
+	tests := []struct {
+		name       string
+		circleName string
+	}{
+		{
+			name:       "simple name",
+			circleName: "Book Club",
+		},
+		{
+			name:       "name with numbers",
+			circleName: "Team 42",
+		},
+		{
+			name:       "name with special chars",
+			circleName: "Friends & Family",
+		},
+		{
+			name:       "long name",
+			circleName: "The Super Awesome Amazing Friends Circle",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := circle.New(tt.circleName, creatorID)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if c == nil {
+				t.Fatal("expected non-nil circle")
+			}
+			if c.Name != tt.circleName {
+				t.Errorf("expected name %q, got %q", tt.circleName, c.Name)
+			}
+			if len(c.InviteCode) == 0 {
+				t.Error("expected non-empty invite code")
+			}
+		})
 	}
 }
 

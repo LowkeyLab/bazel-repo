@@ -51,8 +51,25 @@ type Prediction struct {
 
 // New creates a new Contest.
 func New(circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Contest, error) {
+	if question == "" {
+		return nil, errors.New("contest question cannot be empty")
+	}
+
 	if len(options) < 2 {
 		return nil, errors.New("at least two options are required")
+	}
+
+	// Validate all options are non-empty
+	for i, opt := range options {
+		if opt == "" {
+			return nil, errors.New("option text cannot be empty")
+		}
+		// Check for duplicate options
+		for j := i + 1; j < len(options); j++ {
+			if opt == options[j] {
+				return nil, errors.New("duplicate options are not allowed")
+			}
+		}
 	}
 
 	id, err := uuid.NewRandom()

@@ -98,6 +98,16 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
 	circleID := createTestCircle(t, pool, "Test Circle", "TEST01")
 
+	t.Run("empty question", func(t *testing.T) {
+		opts := []string{"Yes", "No"}
+		expiresAt := time.Now().Add(24 * time.Hour)
+
+		c, err := svc.CreateContest(ctx, circleID, creatorID, "", opts, expiresAt)
+		assert.Error(t, err)
+		assert.Nil(t, c)
+		assert.Contains(t, err.Error(), "question cannot be empty")
+	})
+
 	t.Run("not enough options", func(t *testing.T) {
 		opts := []string{"Yes"}
 		expiresAt := time.Now().Add(24 * time.Hour)
@@ -105,6 +115,27 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
 		assert.Error(t, err)
 		assert.Nil(t, c)
+		assert.Contains(t, err.Error(), "at least two options")
+	})
+
+	t.Run("empty option text", func(t *testing.T) {
+		opts := []string{"Yes", ""}
+		expiresAt := time.Now().Add(24 * time.Hour)
+
+		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
+		assert.Error(t, err)
+		assert.Nil(t, c)
+		assert.Contains(t, err.Error(), "option text cannot be empty")
+	})
+
+	t.Run("duplicate options", func(t *testing.T) {
+		opts := []string{"Yes", "No", "Yes"}
+		expiresAt := time.Now().Add(24 * time.Hour)
+
+		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
+		assert.Error(t, err)
+		assert.Nil(t, c)
+		assert.Contains(t, err.Error(), "duplicate options")
 	})
 }
 
