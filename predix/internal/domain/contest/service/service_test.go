@@ -2,7 +2,6 @@ package service_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -14,68 +13,10 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
-
-// setupTestDB creates a PostgreSQL container and returns a connection pool
-func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
-	t.Helper()
-
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-
-	ctx := context.Background()
-
-	// Start Postgres Container
-	pgContainer, err := postgres.Run(ctx,
-		"postgres:16-alpine",
-		postgres.WithDatabase("predix"),
-		postgres.WithUsername("user"),
-		postgres.WithPassword("password"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(5*time.Second)),
-	)
-	require.NoError(t, err)
-
-	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
-	require.NoError(t, err)
-
-	pool, err := pgxpool.New(ctx, connStr)
-	require.NoError(t, err)
-
-	// Apply Schema
-	schemaPath := "../../sql/schema.sql"
-	schemaContent, err := os.ReadFile(schemaPath)
-	if err != nil {
-		schemaPath = "predix/internal/sql/schema.sql"
-		schemaContent, err = os.ReadFile(schemaPath)
-		if err != nil {
-			schemaPath = "../../../sql/schema.sql"
-			schemaContent, err = os.ReadFile(schemaPath)
-		}
-	}
-	require.NoError(t, err, "could not read schema file")
-
-	_, err = pool.Exec(ctx, string(schemaContent))
-	require.NoError(t, err)
-
-	// Return cleanup function
-	cleanup := func() {
-		pool.Close()
-		if err := pgContainer.Terminate(ctx); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	}
-
-	return pool, cleanup
-}
 
 // createTestUser creates a test user in the database
 func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
@@ -115,8 +56,7 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name, inviteCode string)
 }
 
 func TestCreateContest(t *testing.T) {
-	pool, cleanup := setupTestDB(t)
-	defer cleanup()
+	pool := testutil.SetupTestDB(t, "")
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -150,8 +90,7 @@ func TestCreateContest(t *testing.T) {
 }
 
 func TestCreateContest_WithInvalidData(t *testing.T) {
-	pool, cleanup := setupTestDB(t)
-	defer cleanup()
+	pool := testutil.SetupTestDB(t, "")
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -170,8 +109,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 }
 
 func TestPredict(t *testing.T) {
-	pool, cleanup := setupTestDB(t)
-	defer cleanup()
+	pool := testutil.SetupTestDB(t, "")
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -200,8 +138,7 @@ func TestPredict(t *testing.T) {
 }
 
 func TestPredict_ContestNotOpen(t *testing.T) {
-	pool, cleanup := setupTestDB(t)
-	defer cleanup()
+	pool := testutil.SetupTestDB(t, "")
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -231,8 +168,7 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 }
 
 func TestResolveContest(t *testing.T) {
-	pool, cleanup := setupTestDB(t)
-	defer cleanup()
+	pool := testutil.SetupTestDB(t, "")
 
 	ctx := context.Background()
 	svc := service.NewService(pool)

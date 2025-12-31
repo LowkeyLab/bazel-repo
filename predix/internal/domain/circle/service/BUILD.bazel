@@ -31,12 +31,10 @@ go_test(
         ":service",
         "//predix/internal/db",
         "//predix/internal/domain/user",
+        "//predix/internal/testutil",
         "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgxpool",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
-        "@com_github_testcontainers_testcontainers_go//:testcontainers-go",
-        "@com_github_testcontainers_testcontainers_go//wait",
-        "@com_github_testcontainers_testcontainers_go_modules_postgres//:postgres",
     ],
 )
