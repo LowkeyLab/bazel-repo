@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
@@ -22,13 +21,6 @@ type Service struct {
 func NewService(repo ContestRepository) *Service {
 	return &Service{
 		repo: repo,
-	}
-}
-
-// NewServiceWithPool creates a service with a PostgreSQL pool (backward compatible).
-func NewServiceWithPool(pool *pgxpool.Pool) *Service {
-	return &Service{
-		repo: repository.NewPostgres(pool),
 	}
 }
 
