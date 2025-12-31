@@ -1,0 +1,8 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+bzl_library(
+    name = "ng",
+    srcs = ["ng.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_angular//src/architect"],
+)

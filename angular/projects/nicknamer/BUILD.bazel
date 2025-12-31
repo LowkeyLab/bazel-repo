@@ -1,6 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
-load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
@@ -15,15 +14,12 @@ copy_to_bin(
 
 ng_application(
     name = "nicknamer",
-    ng_config = "//angular:ng-config",
-    node_modules = "//angular:node_modules",
+    zonejs = True,
 )
 
 ng_test(
     name = "test",
-    size = "small",
     srcs = [":srcs"],
-    ng_config = "//angular:ng-config",
-    node_modules = "//angular:node_modules",
-    tags = ["no-remote-exec"],
+    karma = True,
+    zonejs = True,
 )
