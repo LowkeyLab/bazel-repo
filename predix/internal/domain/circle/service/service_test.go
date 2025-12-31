@@ -33,7 +33,7 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.I
 }
 
 func TestCreateCircle(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -65,7 +65,7 @@ func TestCreateCircle(t *testing.T) {
 }
 
 func TestCreateCircle_WithEmptyName(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -79,7 +79,7 @@ func TestCreateCircle_WithEmptyName(t *testing.T) {
 }
 
 func TestCreateCircle_GeneratesUniqueInviteCodes(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)

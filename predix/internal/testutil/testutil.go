@@ -15,7 +15,7 @@ import (
 
 // SetupTestDB starts a PostgreSQL container, applies the schema, and returns a connection pool.
 // If schemaPath is empty, it will use runfiles to locate the schema.
-func SetupTestDB(t *testing.T, schemaPath string) *pgxpool.Pool {
+func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
 	if testing.Short() {
@@ -60,7 +60,7 @@ func SetupTestDB(t *testing.T, schemaPath string) *pgxpool.Pool {
 	})
 
 	// Apply Schema
-	schemaContent, err := readSchemaFile(schemaPath)
+	schemaContent, err := readSchemaFile()
 	if err != nil {
 		t.Fatalf("could not read schema file: %v", err)
 	}
@@ -74,40 +74,17 @@ func SetupTestDB(t *testing.T, schemaPath string) *pgxpool.Pool {
 }
 
 // readSchemaFile tries to read the schema file from the provided path or using runfiles
-func readSchemaFile(schemaPath string) ([]byte, error) {
-	// If a specific path is provided, try it first
-	if schemaPath != "" {
-		content, err := os.ReadFile(schemaPath)
-		if err == nil {
-			return content, nil
-		}
-	}
-
+func readSchemaFile() ([]byte, error) {
 	// Try using Bazel runfiles
 	rloc, err := runfiles.Rlocation("_main/predix/internal/sql/schema.sql")
-	if err == nil {
-		content, err := os.ReadFile(rloc)
-		if err == nil {
-			return content, nil
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	// Fallback: try common relative paths
-	paths := []string{
-		"predix/internal/sql/schema.sql",
-		"../../sql/schema.sql",
-		"../../../sql/schema.sql",
-		"../../../../internal/sql/schema.sql",
+	content, err := os.ReadFile(rloc)
+	if err != nil {
+		return nil, err
 	}
 
-	var lastErr error
-	for _, path := range paths {
-		content, err := os.ReadFile(path)
-		if err == nil {
-			return content, nil
-		}
-		lastErr = err
-	}
-
-	return nil, lastErr
+	return content, nil
 }

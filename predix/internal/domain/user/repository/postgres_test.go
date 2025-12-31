@@ -10,7 +10,7 @@ import (
 )
 
 func TestPostgresRepository_Save(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
 
 	u, err := user.New("Alice", "alice@example.com")
@@ -25,7 +25,7 @@ func TestPostgresRepository_Save(t *testing.T) {
 }
 
 func TestPostgresRepository_FindByID(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
 
 	// Create and save user
@@ -53,7 +53,7 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 }
 
 func TestPostgresRepository_FindByEmail(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
 
 	// Create and save user

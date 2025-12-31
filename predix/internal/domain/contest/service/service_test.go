@@ -56,7 +56,7 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name, inviteCode string)
 }
 
 func TestCreateContest(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -90,7 +90,7 @@ func TestCreateContest(t *testing.T) {
 }
 
 func TestCreateContest_WithInvalidData(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -109,7 +109,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 }
 
 func TestPredict(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -138,7 +138,7 @@ func TestPredict(t *testing.T) {
 }
 
 func TestPredict_ContestNotOpen(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
@@ -168,7 +168,7 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 }
 
 func TestResolveContest(t *testing.T) {
-	pool := testutil.SetupTestDB(t, "")
+	pool := testutil.SetupTestDB(t)
 
 	ctx := context.Background()
 	svc := service.NewService(pool)
