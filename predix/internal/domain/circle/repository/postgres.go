@@ -66,6 +66,24 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	return nil
 }
 
+// AddMember persists a single member to an existing circle.
+func (r *Postgres) AddMember(ctx context.Context, circleID circle.ID, member *circle.Member) error {
+	if member == nil {
+		return fmt.Errorf("member cannot be nil")
+	}
+
+	err := r.queries.AddCircleMember(ctx, db.AddCircleMemberParams{
+		CircleID: int32(circleID),
+		UserID:   int32(member.UserID),
+		Clout:    int32(member.Clout),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to save circle member: %w", err)
+	}
+
+	return nil
+}
+
 // FindByID retrieves a Circle and its members by ID.
 func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error) {
 	dbCircle, err := r.queries.GetCircle(ctx, int32(id))

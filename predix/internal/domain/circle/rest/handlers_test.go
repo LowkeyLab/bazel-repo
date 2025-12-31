@@ -1,0 +1,140 @@
+package rest
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type circleResponseBody struct {
+	ID      int32  `json:"id"`
+	Name    string `json:"name"`
+	Members []struct {
+		UserID int32 `json:"user_id"`
+		Clout  int   `json:"clout"`
+	} `json:"members"`
+}
+
+func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service, *db.Queries) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	pool := testutil.SetupTestDB(t)
+	svc := service.NewService(pool)
+	handler := NewHandler(svc)
+
+	r := gin.New()
+	handler.RegisterRoutes(r)
+
+	return r, pool, svc, db.New(pool)
+}
+
+func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.ID {
+	t.Helper()
+
+	ctx := context.Background()
+	q := db.New(pool)
+
+	result, err := q.CreateUser(ctx, db.CreateUserParams{
+		Name:  name,
+		Email: email,
+	})
+	require.NoError(t, err)
+
+	return user.ID(result.ID)
+}
+
+func TestCreateCircleHandler(t *testing.T) {
+	router, pool, _, queries := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
+
+	body := fmt.Sprintf(`{"name":"Study Group","creator_id":%d}`, creatorID)
+	req := httptest.NewRequest(http.MethodPost, "/circles", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusCreated, resp.Code)
+
+	var payload circleResponseBody
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+	assert.Equal(t, "Study Group", payload.Name)
+	assert.Len(t, payload.Members, 1)
+	assert.Equal(t, int32(creatorID), payload.Members[0].UserID)
+
+	ctx := context.Background()
+	dbCircle, err := queries.GetCircle(ctx, payload.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Study Group", dbCircle.Name)
+
+	dbMember, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
+		CircleID: payload.ID,
+		UserID:   int32(creatorID),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int32(1000), dbMember.Clout)
+}
+
+func TestAddMemberHandler(t *testing.T) {
+	router, pool, svc, queries := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "Bob", "bob@example.com")
+	joinerID := createTestUser(t, pool, "Charlie", "charlie@example.com")
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Readers", creatorID)
+	require.NoError(t, err)
+
+	body := fmt.Sprintf(`{"user_id":%d}`, joinerID)
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/circles/%d/members", createdCircle.ID), bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusCreated, resp.Code)
+
+	memberRecord, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
+		CircleID: int32(createdCircle.ID),
+		UserID:   int32(joinerID),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int32(1000), memberRecord.Clout)
+
+	getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/circles/%d", createdCircle.ID), nil)
+	getResp := httptest.NewRecorder()
+	router.ServeHTTP(getResp, getReq)
+
+	require.Equal(t, http.StatusOK, getResp.Code)
+	var circlePayload circleResponseBody
+	require.NoError(t, json.Unmarshal(getResp.Body.Bytes(), &circlePayload))
+
+	assert.Equal(t, createdCircle.Name, circlePayload.Name)
+	assert.Len(t, circlePayload.Members, 2)
+}
+
+func TestGetCircle_NotFound(t *testing.T) {
+	router, _, _, _ := setupTestRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/circles/99999", nil)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusNotFound, resp.Code)
+}

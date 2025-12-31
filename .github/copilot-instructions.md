@@ -290,14 +290,14 @@ bazel version
 
 ## When Making Changes
 
+- **Formatting:** Always run `bazel run format` to format all code before sharing or committing changes.
 - **Minimal changes**: Only modify what's necessary to address the issue
 - **Follow conventions**: Check existing patterns in similar code
 - **Use Bazel**: Prefer Bazel commands over native tooling
-- **Format first**: Run `bazel run format` before committing
 - **Test thoroughly**: Run relevant tests after each significant change
 - **Update tests**: Modify or add tests when behavior changes
 - **Verify builds**: Ensure `bazel build //...` succeeds
-- **Update BUILD files**: Run `bazel run gazelle` after adding new files (Go/TS/Proto)
+- **Update BUILD files**: Always run `bazel run gazelle` after adding or moving code to regenerate BUILD files before manual edits
 - **Keep comments**: Add `# keep` to BUILD file lines that shouldn't be auto-modified
 
 ## Security Best Practices

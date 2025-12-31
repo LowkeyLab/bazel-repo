@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
@@ -33,4 +34,28 @@ func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.
 	}
 
 	return c, nil
+}
+
+func (s *Service) AddMember(ctx context.Context, circleID circle.ID, userID user.ID) error {
+	current, err := s.repo.FindByID(ctx, circleID)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	if _, exists := current.Members[userID]; exists {
+		return nil
+	}
+
+	current.AddMember(userID)
+	member := current.Members[userID]
+
+	if err := s.repo.AddMember(ctx, circleID, member); err != nil {
+		return fmt.Errorf("failed to add member: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) GetCircle(ctx context.Context, id circle.ID) (*circle.Circle, error) {
+	return s.repo.FindByID(ctx, id)
 }
