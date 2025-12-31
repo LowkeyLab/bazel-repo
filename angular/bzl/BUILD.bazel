@@ -4,5 +4,8 @@ bzl_library(
     name = "ng",
     srcs = ["ng.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_angular//src/architect"],
+    deps = [
+        "@rules_angular//src/architect:ng_application",
+        "@rules_angular//src/architect:ng_test",
+    ],
 )
