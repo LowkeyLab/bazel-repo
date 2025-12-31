@@ -29,6 +29,7 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	result, err := q.CreateUser(ctx, db.CreateUserParams{
 		Username:     username,
 		PasswordHash: passwordHash,
+		Role:         db.UserRoleMember,
 	})
 	require.NoError(t, err)
 

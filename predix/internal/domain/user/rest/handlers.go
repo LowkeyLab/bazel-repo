@@ -33,6 +33,7 @@ type loginRequest struct {
 type userResponse struct {
 	ID       int32  `json:"id"`
 	Username string `json:"username"`
+	Role     string `json:"role"`
 }
 
 type loginResponse struct {
@@ -69,5 +70,6 @@ func toUserResponse(u *user.User) userResponse {
 	return userResponse{
 		ID:       int32(u.ID),
 		Username: u.Username,
+		Role:     string(u.Role),
 	}
 }

@@ -145,20 +145,26 @@ func (q *Queries) CreatePrediction(ctx context.Context, arg CreatePredictionPara
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password_hash)
-VALUES ($1, $2)
-RETURNING id, username, password_hash
+INSERT INTO users (username, password_hash, role)
+VALUES ($1, $2, $3)
+RETURNING id, username, password_hash, role
 `
 
 type CreateUserParams struct {
-	Username     string `json:"username"`
-	PasswordHash string `json:"password_hash"`
+	Username     string   `json:"username"`
+	PasswordHash string   `json:"password_hash"`
+	Role         UserRole `json:"role"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.PasswordHash, arg.Role)
 	var i User
-	err := row.Scan(&i.ID, &i.Username, &i.PasswordHash)
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+	)
 	return i, err
 }
 
@@ -212,26 +218,36 @@ func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, username, password_hash FROM users
+SELECT id, username, password_hash, role FROM users
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
-	err := row.Scan(&i.ID, &i.Username, &i.PasswordHash)
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash FROM users
+SELECT id, username, password_hash, role FROM users
 WHERE username = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByUsername, username)
 	var i User
-	err := row.Scan(&i.ID, &i.Username, &i.PasswordHash)
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+	)
 	return i, err
 }
 

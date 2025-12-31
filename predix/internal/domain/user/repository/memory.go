@@ -50,6 +50,7 @@ func (r *Memory) Save(ctx context.Context, u *user.User) error {
 		ID:           u.ID,
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
+		Role:         u.Role,
 	}
 
 	r.users[u.ID] = userCopy
@@ -73,6 +74,7 @@ func (r *Memory) FindByID(ctx context.Context, id user.ID) (*user.User, error) {
 		ID:           u.ID,
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
+		Role:         u.Role,
 	}, nil
 }
 
@@ -93,5 +95,6 @@ func (r *Memory) FindByUsername(ctx context.Context, username string) (*user.Use
 		ID:           u.ID,
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
+		Role:         u.Role,
 	}, nil
 }

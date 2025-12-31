@@ -20,6 +20,7 @@ func TestMemoryRepository_Save(t *testing.T) {
 	err = repo.Save(context.Background(), u)
 	require.NoError(t, err)
 	assert.NotZero(t, u.ID)
+	assert.Equal(t, user.RoleMember, u.Role)
 
 	// Save with duplicate username should fail
 	u2, err := user.New("alice", "hash2")
@@ -52,6 +53,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 	assert.Equal(t, u.ID, found.ID)
 	assert.Equal(t, u.Username, found.Username)
 	assert.Equal(t, u.PasswordHash, found.PasswordHash)
+	assert.Equal(t, user.RoleMember, found.Role)
 }
 
 func TestMemoryRepository_FindByIDNotFound(t *testing.T) {
@@ -76,6 +78,7 @@ func TestMemoryRepository_FindByUsername(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, u.ID, found.ID)
 	assert.Equal(t, u.Username, found.Username)
+	assert.Equal(t, u.Role, found.Role)
 }
 
 func TestMemoryRepository_FindByUsernameNotFound(t *testing.T) {

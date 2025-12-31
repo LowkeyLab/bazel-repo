@@ -1,7 +1,10 @@
+CREATE TYPE user_role AS ENUM ('member', 'admin');
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL
+    password_hash TEXT NOT NULL,
+    role user_role NOT NULL DEFAULT 'member'
 );
 
 CREATE TABLE circles (

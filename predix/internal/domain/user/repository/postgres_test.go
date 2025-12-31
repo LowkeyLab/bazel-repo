@@ -47,6 +47,9 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 	if found.Username != u.Username {
 		t.Errorf("expected username %v, got %v", u.Username, found.Username)
 	}
+	if found.Role != u.Role {
+		t.Errorf("expected role %v, got %v", u.Role, found.Role)
+	}
 }
 
 func TestPostgresRepository_FindByUsername(t *testing.T) {
@@ -71,5 +74,8 @@ func TestPostgresRepository_FindByUsername(t *testing.T) {
 	}
 	if found.Username != u.Username {
 		t.Errorf("expected username %v, got %v", u.Username, found.Username)
+	}
+	if found.Role != u.Role {
+		t.Errorf("expected role %v, got %v", u.Role, found.Role)
 	}
 }

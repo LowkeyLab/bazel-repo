@@ -24,4 +24,7 @@ func TestNew(t *testing.T) {
 	if u.ID != 0 {
 		t.Errorf("expected ID to be 0 (unassigned), got %d", u.ID)
 	}
+	if u.Role != user.RoleMember {
+		t.Errorf("expected role to default to %q, got %q", user.RoleMember, u.Role)
+	}
 }
