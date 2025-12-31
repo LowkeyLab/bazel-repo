@@ -1,0 +1,32 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@rules_angular//src/architect:ng_application.bzl", "ng_application")
+load("@rules_angular//src/architect:ng_test.bzl", "ng_test")
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+    ),
+)
+
+TAILWIND_DEPS = [
+    "//angular:node_modules/daisyui",
+    "//angular:node_modules/tailwindcss",
+]
+
+ng_application(
+    name = "predix",
+    ng_config = "//angular:ng-config",
+    node_modules = "//angular:node_modules",
+    deps = TAILWIND_DEPS,
+)
+
+ng_test(
+    name = "test",
+    size = "small",
+    srcs = [":srcs"],
+    ng_config = "//angular:ng-config",
+    node_modules = "//angular:node_modules",
+    tags = ["no-remote-exec"],
+    deps = TAILWIND_DEPS,
+)

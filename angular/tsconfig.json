@@ -34,6 +34,12 @@
     },
     {
       "path": "./projects/mindreadr/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/predix/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/predix/tsconfig.spec.json"
     }
   ]
 }

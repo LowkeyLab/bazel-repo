@@ -30,7 +30,6 @@
     "@angular/router": "catalog:",
     "canvas-confetti": "catalog:",
     "rxjs": "catalog:",
-    "tailwindcss": "catalog:",
     "tslib": "catalog:",
     "zone.js": "catalog:"
   },
@@ -45,6 +44,7 @@
     "@types/node": "catalog:",
     "daisyui": "catalog:",
     "jasmine-core": "catalog:",
+    "jsdom": "^27.1.0",
     "karma": "catalog:",
     "karma-chrome-launcher": "catalog:",
     "karma-coverage": "catalog:",
@@ -52,6 +52,8 @@
     "karma-jasmine-html-reporter": "catalog:",
     "postcss": "catalog:",
     "postcss-cli": "catalog:",
-    "typescript": "catalog:"
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
