@@ -145,16 +145,26 @@ func (h *Handler) resolveContest(c *gin.Context) {
 		return
 	}
 
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
 	var req resolveContestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
-	err := h.svc.ResolveContest(c.Request.Context(), contestID, req.WinningOptionID)
+	err := h.svc.ResolveContest(c.Request.Context(), contestID, userID, req.WinningOptionID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		if errors.Is(err, service.ErrNotContestCreator) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

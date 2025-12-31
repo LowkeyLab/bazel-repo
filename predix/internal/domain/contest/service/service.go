@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 )
 
 type ContestRepository = repository.Repository
+
+var ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
 
 type Service struct {
 	repo repository.Repository
@@ -62,11 +65,15 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user
 	return nil
 }
 
-func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, winningOptionID int) error {
+func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
 	// Load contest from repository
 	c, err := s.repo.FindByID(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CreatorID != resolverID {
+		return ErrNotContestCreator
 	}
 
 	// Use domain method to resolve

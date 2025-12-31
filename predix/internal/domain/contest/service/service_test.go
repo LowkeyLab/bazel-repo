@@ -232,7 +232,7 @@ func TestResolveContest(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test: Resolve the contest
-	err = svc.ResolveContest(ctx, c.ID, 1)
+	err = svc.ResolveContest(ctx, c.ID, userID, 1)
 	require.NoError(t, err)
 
 	// Verify in database
@@ -241,4 +241,30 @@ func TestResolveContest(t *testing.T) {
 	assert.Equal(t, "RESOLVED", dbContest.Status)
 	assert.True(t, dbContest.ResultOptionID.Valid)
 	assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
+}
+
+func TestResolveContest_OnlyCreatorCanResolve(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	svc := service.NewService(repo)
+	q := db.New(pool)
+
+	creatorID := createTestUser(t, pool, "Grace")
+	nonCreatorID := createTestUser(t, pool, "Henry")
+	circleID := createTestCircle(t, pool, "Ownership Circle")
+
+	opts := []string{"Outcome A", "Outcome B"}
+	expiresAt := time.Now().Add(24 * time.Hour)
+	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Which team wins?", opts, expiresAt)
+	require.NoError(t, err)
+
+	err = svc.ResolveContest(ctx, c.ID, nonCreatorID, 1)
+	assert.ErrorIs(t, err, service.ErrNotContestCreator)
+
+	dbContest, err := q.GetContest(ctx, int32(c.ID))
+	require.NoError(t, err)
+	assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
+	assert.False(t, dbContest.ResultOptionID.Valid)
 }

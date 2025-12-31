@@ -200,6 +200,34 @@ func TestResolveContestHandler(t *testing.T) {
 	assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
 }
 
+func TestResolveContestHandler_OnlyCreatorCanResolve(t *testing.T) {
+	router, pool, svc, queries := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "isabel")
+	nonCreatorID := createTestUser(t, pool, "jack")
+	circleID := createTestCircle(t, pool, "Guarded Circle", creatorID)
+
+	ctx := context.Background()
+	expiresAt := time.Now().Add(24 * time.Hour)
+	createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Resolve?", []string{"Yes", "No"}, expiresAt)
+	require.NoError(t, err)
+
+	body := `{"winning_option_id": 1}`
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", nonCreatorID))
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusForbidden, resp.Code)
+
+	dbContest, err := queries.GetContest(ctx, int32(createdContest.ID))
+	require.NoError(t, err)
+	assert.Equal(t, "OPEN", dbContest.Status)
+	assert.False(t, dbContest.ResultOptionID.Valid)
+}
+
 func TestGetContest(t *testing.T) {
 	router, pool, svc, _ := setupTestRouter(t)
 
