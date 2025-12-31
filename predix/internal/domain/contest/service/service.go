@@ -22,9 +22,9 @@ func NewService(pool *pgxpool.Pool) *Service {
 	}
 }
 
-func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*contest.Contest, error) {
+func (s *Service) CreateContest(ctx context.Context, circleIDs []circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*contest.Contest, error) {
 	// Create domain entity (validation happens here)
-	c, err := contest.New(circleID, creatorID, question, options, expiresAt)
+	c, err := contest.New(circleIDs, creatorID, question, options, expiresAt)
 	if err != nil {
 		return nil, err
 	}

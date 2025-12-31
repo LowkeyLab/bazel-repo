@@ -19,13 +19,18 @@ CREATE TABLE circle_members (
 
 CREATE TABLE contests (
     id SERIAL PRIMARY KEY,
-    circle_id INT NOT NULL REFERENCES circles(id),
     creator_id INT NOT NULL REFERENCES users(id),
     question TEXT NOT NULL,
     status TEXT NOT NULL,
     result_option_id INT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE contest_circles (
+    contest_id INT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
+    circle_id INT NOT NULL REFERENCES circles(id),
+    PRIMARY KEY (contest_id, circle_id)
 );
 
 CREATE TABLE options (

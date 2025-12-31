@@ -27,6 +27,21 @@ func (q *Queries) AddCircleMember(ctx context.Context, arg AddCircleMemberParams
 	return err
 }
 
+const addContestCircle = `-- name: AddContestCircle :exec
+INSERT INTO contest_circles (contest_id, circle_id)
+VALUES ($1, $2)
+`
+
+type AddContestCircleParams struct {
+	ContestID int32 `json:"contest_id"`
+	CircleID  int32 `json:"circle_id"`
+}
+
+func (q *Queries) AddContestCircle(ctx context.Context, arg AddContestCircleParams) error {
+	_, err := q.db.Exec(ctx, addContestCircle, arg.ContestID, arg.CircleID)
+	return err
+}
+
 const createCircle = `-- name: CreateCircle :one
 INSERT INTO circles (name, created_at)
 VALUES ($1, $2)
@@ -46,13 +61,12 @@ func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Cir
 }
 
 const createContest = `-- name: CreateContest :one
-INSERT INTO contests (circle_id, creator_id, question, status, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, circle_id, creator_id, question, status, result_option_id, created_at, expires_at
+INSERT INTO contests (creator_id, question, status, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, creator_id, question, status, result_option_id, created_at, expires_at
 `
 
 type CreateContestParams struct {
-	CircleID  int32            `json:"circle_id"`
 	CreatorID int32            `json:"creator_id"`
 	Question  string           `json:"question"`
 	Status    string           `json:"status"`
@@ -62,7 +76,6 @@ type CreateContestParams struct {
 
 func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error) {
 	row := q.db.QueryRow(ctx, createContest,
-		arg.CircleID,
 		arg.CreatorID,
 		arg.Question,
 		arg.Status,
@@ -72,7 +85,6 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 	var i Contest
 	err := row.Scan(
 		&i.ID,
-		&i.CircleID,
 		&i.CreatorID,
 		&i.Question,
 		&i.Status,
@@ -180,7 +192,7 @@ func (q *Queries) GetCircleMember(ctx context.Context, arg GetCircleMemberParams
 }
 
 const getContest = `-- name: GetContest :one
-SELECT id, circle_id, creator_id, question, status, result_option_id, created_at, expires_at FROM contests
+SELECT id, creator_id, question, status, result_option_id, created_at, expires_at FROM contests
 WHERE id = $1 LIMIT 1
 `
 
@@ -189,7 +201,6 @@ func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 	var i Contest
 	err := row.Scan(
 		&i.ID,
-		&i.CircleID,
 		&i.CreatorID,
 		&i.Question,
 		&i.Status,
@@ -239,6 +250,31 @@ func (q *Queries) ListCircleMembers(ctx context.Context, circleID int32) ([]Circ
 	for rows.Next() {
 		var i CircleMember
 		if err := rows.Scan(&i.CircleID, &i.UserID, &i.Clout); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listContestCircles = `-- name: ListContestCircles :many
+SELECT contest_id, circle_id FROM contest_circles
+WHERE contest_id = $1
+`
+
+func (q *Queries) ListContestCircles(ctx context.Context, contestID int32) ([]ContestCircle, error) {
+	rows, err := q.db.Query(ctx, listContestCircles, contestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ContestCircle
+	for rows.Next() {
+		var i ContestCircle
+		if err := rows.Scan(&i.ContestID, &i.CircleID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -306,8 +342,10 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID int32) (
 }
 
 const listContestsByCircle = `-- name: ListContestsByCircle :many
-SELECT id, circle_id, creator_id, question, status, result_option_id, created_at, expires_at FROM contests
-WHERE circle_id = $1
+SELECT c.id, c.creator_id, c.question, c.status, c.result_option_id, c.created_at, c.expires_at
+FROM contests c
+JOIN contest_circles cc ON cc.contest_id = c.id
+WHERE cc.circle_id = $1
 ORDER BY created_at DESC
 `
 
@@ -322,7 +360,6 @@ func (q *Queries) ListContestsByCircle(ctx context.Context, circleID int32) ([]C
 		var i Contest
 		if err := rows.Scan(
 			&i.ID,
-			&i.CircleID,
 			&i.CreatorID,
 			&i.Question,
 			&i.Status,

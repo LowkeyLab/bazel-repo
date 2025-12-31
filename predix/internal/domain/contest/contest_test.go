@@ -15,7 +15,7 @@ func TestNew(t *testing.T) {
 	expiresAt := time.Now().Add(1 * time.Hour)
 	options := []string{"Yes", "No"}
 
-	c, err := contest.New(circleID, creatorID, "Will it rain?", options, expiresAt)
+	c, err := contest.New([]circle.ID{circleID}, creatorID, "Will it rain?", options, expiresAt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestNew_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := contest.New(circleID, creatorID, tt.question, tt.options, expiresAt)
+			c, err := contest.New([]circle.ID{circleID}, creatorID, tt.question, tt.options, expiresAt)
 			if err == nil {
 				t.Errorf("expected error containing %q, got nil", tt.wantErr)
 			} else if err.Error() != tt.wantErr {
@@ -115,7 +115,7 @@ func TestNew_ValidContest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := contest.New(circleID, creatorID, tt.question, tt.options, expiresAt)
+			c, err := contest.New([]circle.ID{circleID}, creatorID, tt.question, tt.options, expiresAt)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -136,7 +136,7 @@ func TestPredict(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
-	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
+	c, _ := contest.New([]circle.ID{circleID}, creatorID, "Q?", []string{"A", "B"}, expiresAt)
 
 	betterID := user.ID(1)
 
@@ -167,7 +167,7 @@ func TestResolve(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
-	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
+	c, _ := contest.New([]circle.ID{circleID}, creatorID, "Q?", []string{"A", "B"}, expiresAt)
 
 	// Find valid option ID
 	var optionID int

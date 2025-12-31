@@ -43,7 +43,6 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	if isNew {
 		// Create new contest
 		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
-			CircleID:  int32(c.CircleID),
 			CreatorID: int32(c.CreatorID),
 			Question:  c.Question,
 			Status:    string(c.Status),
@@ -56,6 +55,12 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 
 		// Update contest with generated ID
 		c.ID = contest.ID(result.ID)
+
+		for _, circleID := range c.CircleIDs {
+			if err := qtx.AddContestCircle(ctx, db.AddContestCircleParams{ContestID: int32(c.ID), CircleID: int32(circleID)}); err != nil {
+				return fmt.Errorf("failed to save contest circle: %w", err)
+			}
+		}
 
 		// Save options (only on creation)
 		for _, option := range c.Options {
@@ -158,9 +163,19 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		resultOptionID = &val
 	}
 
+	circleLinks, err := r.queries.ListContestCircles(ctx, int32(id))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load contest circles: %w", err)
+	}
+
+	circles := make([]circle.ID, len(circleLinks))
+	for i, link := range circleLinks {
+		circles[i] = circle.ID(link.CircleID)
+	}
+
 	return &contest.Contest{
 		ID:             contest.ID(dbContest.ID),
-		CircleID:       circle.ID(dbContest.CircleID),
+		CircleIDs:      circles,
 		CreatorID:      user.ID(dbContest.CreatorID),
 		Question:       dbContest.Question,
 		Options:        options,
@@ -218,9 +233,19 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 			resultOptionID = &val
 		}
 
+		circleLinks, err := r.queries.ListContestCircles(ctx, dbContest.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load contest circles: %w", err)
+		}
+
+		circles := make([]circle.ID, len(circleLinks))
+		for j, link := range circleLinks {
+			circles[j] = circle.ID(link.CircleID)
+		}
+
 		contests[i] = &contest.Contest{
 			ID:             contest.ID(dbContest.ID),
-			CircleID:       circle.ID(dbContest.CircleID),
+			CircleIDs:      circles,
 			CreatorID:      user.ID(dbContest.CreatorID),
 			Question:       dbContest.Question,
 			Options:        options,

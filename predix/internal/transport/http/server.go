@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 }
 
 type createContestRequest struct {
-	CircleID  int32    `json:"circle_id"`
+	CircleIDs []int32  `json:"circle_ids"`
 	CreatorID int32    `json:"creator_id"`
 	Question  string   `json:"question"`
 	Options   []string `json:"options"`
@@ -52,7 +52,12 @@ func (h *Handler) createContest(c *gin.Context) {
 		return
 	}
 
-	contestObj, err := h.svc.CreateContest(c.Request.Context(), circle.ID(req.CircleID), user.ID(req.CreatorID), req.Question, req.Options, expiresAt)
+	circleIDs := make([]circle.ID, len(req.CircleIDs))
+	for i, id := range req.CircleIDs {
+		circleIDs[i] = circle.ID(id)
+	}
+
+	contestObj, err := h.svc.CreateContest(c.Request.Context(), circleIDs, user.ID(req.CreatorID), req.Question, req.Options, expiresAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

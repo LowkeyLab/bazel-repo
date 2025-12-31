@@ -22,13 +22,17 @@ type CircleMember struct {
 
 type Contest struct {
 	ID             int32            `json:"id"`
-	CircleID       int32            `json:"circle_id"`
 	CreatorID      int32            `json:"creator_id"`
 	Question       string           `json:"question"`
 	Status         string           `json:"status"`
 	ResultOptionID pgtype.Int4      `json:"result_option_id"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 	ExpiresAt      pgtype.Timestamp `json:"expires_at"`
+}
+
+type ContestCircle struct {
+	ContestID int32 `json:"contest_id"`
+	CircleID  int32 `json:"circle_id"`
 }
 
 type Option struct {

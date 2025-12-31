@@ -23,7 +23,7 @@ const (
 // Contest represents an event users can predict on.
 type Contest struct {
 	ID             ID
-	CircleID       circle.ID
+	CircleIDs      []circle.ID
 	CreatorID      user.ID
 	Question       string
 	Options        map[int]*Option // Keyed by Option ID
@@ -49,7 +49,24 @@ type Prediction struct {
 }
 
 // New creates a new Contest.
-func New(circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Contest, error) {
+func New(circleIDs []circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Contest, error) {
+	if len(circleIDs) == 0 {
+		return nil, errors.New("at least one circle is required")
+	}
+
+	uniqueCircles := make([]circle.ID, 0, len(circleIDs))
+	circleSeen := make(map[circle.ID]struct{})
+	for _, cid := range circleIDs {
+		if cid == 0 {
+			return nil, errors.New("circle id must be positive")
+		}
+		if _, exists := circleSeen[cid]; exists {
+			continue
+		}
+		circleSeen[cid] = struct{}{}
+		uniqueCircles = append(uniqueCircles, cid)
+	}
+
 	if question == "" {
 		return nil, errors.New("contest question cannot be empty")
 	}
@@ -79,7 +96,7 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 
 	return &Contest{
 		ID:        0, // ID will be set by database
-		CircleID:  circleID,
+		CircleIDs: uniqueCircles,
 		CreatorID: creatorID,
 		Question:  question,
 		Options:   optionMap,

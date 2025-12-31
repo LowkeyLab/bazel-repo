@@ -33,13 +33,21 @@ SELECT * FROM circle_members
 WHERE circle_id = $1;
 
 -- name: CreateContest :one
-INSERT INTO contests (circle_id, creator_id, question, status, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO contests (creator_id, question, status, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
+
+-- name: AddContestCircle :exec
+INSERT INTO contest_circles (contest_id, circle_id)
+VALUES ($1, $2);
 
 -- name: GetContest :one
 SELECT * FROM contests
 WHERE id = $1 LIMIT 1;
+
+-- name: ListContestCircles :many
+SELECT * FROM contest_circles
+WHERE contest_id = $1;
 
 -- name: UpdateContestStatus :exec
 UPDATE contests
@@ -64,6 +72,8 @@ SELECT * FROM predictions
 WHERE contest_id = $1;
 
 -- name: ListContestsByCircle :many
-SELECT * FROM contests
-WHERE circle_id = $1
+SELECT c.*
+FROM contests c
+JOIN contest_circles cc ON cc.contest_id = c.id
+WHERE cc.circle_id = $1
 ORDER BY created_at DESC;

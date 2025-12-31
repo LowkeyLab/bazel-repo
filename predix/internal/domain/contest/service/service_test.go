@@ -59,23 +59,29 @@ func TestCreateContest(t *testing.T) {
 	// Setup: Create user and circle
 	creatorID := createTestUser(t, pool, "Alice", "alice@example.com")
 	circleID := createTestCircle(t, pool, "Book Club")
+	otherCircleID := createTestCircle(t, pool, "New Ideas")
 
 	// Test: Create a contest
 	opts := []string{"Yes", "No", "Maybe"}
 	expiresAt := time.Now().Add(24 * time.Hour)
 
-	c, err := svc.CreateContest(ctx, circleID, creatorID, "Should we read this book?", opts, expiresAt)
+	c, err := svc.CreateContest(ctx, []circle.ID{circleID, otherCircleID}, creatorID, "Should we read this book?", opts, expiresAt)
 	require.NoError(t, err)
 	assert.NotNil(t, c)
 	assert.Equal(t, "Should we read this book?", c.Question)
 	assert.Equal(t, contest.StatusOpen, c.Status)
 	assert.Len(t, c.Options, 3)
+	assert.ElementsMatch(t, []circle.ID{circleID, otherCircleID}, c.CircleIDs)
 
 	// Verify in database
 	dbContest, err := q.GetContest(ctx, int32(c.ID))
 	require.NoError(t, err)
 	assert.Equal(t, "Should we read this book?", dbContest.Question)
 	assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
+
+	circleLinks, err := q.ListContestCircles(ctx, int32(c.ID))
+	require.NoError(t, err)
+	assert.Len(t, circleLinks, 2)
 
 	// Verify options
 	dbOptions, err := q.ListContestOptions(ctx, int32(c.ID))
@@ -96,7 +102,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 		opts := []string{"Yes", "No"}
 		expiresAt := time.Now().Add(24 * time.Hour)
 
-		c, err := svc.CreateContest(ctx, circleID, creatorID, "", opts, expiresAt)
+		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "", opts, expiresAt)
 		assert.Error(t, err)
 		assert.Nil(t, c)
 		assert.Contains(t, err.Error(), "question cannot be empty")
@@ -106,7 +112,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 		opts := []string{"Yes"}
 		expiresAt := time.Now().Add(24 * time.Hour)
 
-		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
+		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
 		assert.Error(t, err)
 		assert.Nil(t, c)
 		assert.Contains(t, err.Error(), "at least two options")
@@ -116,7 +122,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 		opts := []string{"Yes", ""}
 		expiresAt := time.Now().Add(24 * time.Hour)
 
-		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
+		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
 		assert.Error(t, err)
 		assert.Nil(t, c)
 		assert.Contains(t, err.Error(), "option text cannot be empty")
@@ -126,10 +132,20 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 		opts := []string{"Yes", "No", "Yes"}
 		expiresAt := time.Now().Add(24 * time.Hour)
 
-		c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt)
+		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
 		assert.Error(t, err)
 		assert.Nil(t, c)
 		assert.Contains(t, err.Error(), "duplicate options")
+	})
+
+	t.Run("no circles", func(t *testing.T) {
+		opts := []string{"Yes", "No"}
+		expiresAt := time.Now().Add(24 * time.Hour)
+
+		c, err := svc.CreateContest(ctx, []circle.ID{}, creatorID, "Valid question?", opts, expiresAt)
+		assert.Error(t, err)
+		assert.Nil(t, c)
+		assert.Contains(t, err.Error(), "at least one circle")
 	})
 }
 
@@ -146,7 +162,7 @@ func TestPredict(t *testing.T) {
 
 	opts := []string{"Option A", "Option B"}
 	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, circleID, userID, "What will happen?", opts, expiresAt)
+	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What will happen?", opts, expiresAt)
 	require.NoError(t, err)
 
 	// Test: Make a prediction (option IDs start at 1)
@@ -175,7 +191,7 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 
 	opts := []string{"Option A", "Option B"}
 	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, circleID, userID, "Test question?", opts, expiresAt)
+	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "Test question?", opts, expiresAt)
 	require.NoError(t, err)
 
 	// Manually close the contest
@@ -205,7 +221,7 @@ func TestResolveContest(t *testing.T) {
 
 	opts := []string{"Outcome A", "Outcome B"}
 	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, circleID, userID, "What is the outcome?", opts, expiresAt)
+	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What is the outcome?", opts, expiresAt)
 	require.NoError(t, err)
 
 	// Test: Resolve the contest
