@@ -1,0 +1,43 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "rest",
+    srcs = ["handlers.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/rest",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest",
+        "//predix/internal/domain/contest/service",
+        "//predix/internal/domain/user",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_jackc_pgx_v5//:pgx",
+    ],
+)
+
+go_test(
+    name = "rest_test",
+    size = "small",
+    srcs = ["handlers_test.go"],
+    data = [
+        "//predix/internal/sql:schema.sql",
+    ],
+    embed = [":rest"],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        "//predix/internal/db",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest/service",
+        "//predix/internal/domain/user",
+        "//predix/internal/testutil",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

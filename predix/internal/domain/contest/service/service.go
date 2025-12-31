@@ -81,3 +81,7 @@ func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, winn
 
 	return nil
 }
+
+func (s *Service) GetContest(ctx context.Context, id contest.ID) (*contest.Contest, error) {
+	return s.repo.FindByID(ctx, id)
+}
