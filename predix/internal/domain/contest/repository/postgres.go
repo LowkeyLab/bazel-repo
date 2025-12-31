@@ -28,6 +28,7 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 }
 
 // Save persists a Contest with its options and predictions to the database.
+// It handles both creation and updates.
 func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -37,34 +38,63 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 
 	qtx := r.queries.WithTx(tx)
 
-	// Save contest
-	_, err = qtx.CreateContest(ctx, db.CreateContestParams{
-		ID:        uuid.UUID(c.ID),
-		CircleID:  uuid.UUID(c.CircleID),
-		CreatorID: uuid.UUID(c.CreatorID),
-		Question:  c.Question,
-		Status:    string(c.Status),
-		CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-		ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to save contest: %w", err)
-	}
+	// Check if contest exists
+	_, err = qtx.GetContest(ctx, uuid.UUID(c.ID))
+	isNew := err != nil
 
-	// Save options
-	for _, option := range c.Options {
-		err = qtx.CreateOption(ctx, db.CreateOptionParams{
-			ContestID: uuid.UUID(c.ID),
-			OptionID:  int32(option.ID),
-			Text:      option.Text,
+	if isNew {
+		// Create new contest
+		_, err = qtx.CreateContest(ctx, db.CreateContestParams{
+			ID:        uuid.UUID(c.ID),
+			CircleID:  uuid.UUID(c.CircleID),
+			CreatorID: uuid.UUID(c.CreatorID),
+			Question:  c.Question,
+			Status:    string(c.Status),
+			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
+			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 		})
 		if err != nil {
-			return fmt.Errorf("failed to save option: %w", err)
+			return fmt.Errorf("failed to save contest: %w", err)
+		}
+
+		// Save options (only on creation)
+		for _, option := range c.Options {
+			err = qtx.CreateOption(ctx, db.CreateOptionParams{
+				ContestID: uuid.UUID(c.ID),
+				OptionID:  int32(option.ID),
+				Text:      option.Text,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to save option: %w", err)
+			}
+		}
+	} else {
+		// Update existing contest status
+		resultOptionID := pgtype.Int4{Valid: false}
+		if c.ResultOptionID != nil {
+			resultOptionID = pgtype.Int4{Int32: int32(*c.ResultOptionID), Valid: true}
+		}
+
+		err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
+			ID:             uuid.UUID(c.ID),
+			Status:         string(c.Status),
+			ResultOptionID: resultOptionID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update contest: %w", err)
 		}
 	}
 
-	// Save predictions
-	for _, prediction := range c.Predictions {
+	// Save new predictions (compare with existing to avoid duplicates)
+	existingPredictionCount := 0
+	if !isNew {
+		existingPredictions, _ := qtx.ListContestPredictions(ctx, uuid.UUID(c.ID))
+		existingPredictionCount = len(existingPredictions)
+	}
+
+	// Only save predictions that are new
+	for i := existingPredictionCount; i < len(c.Predictions); i++ {
+		prediction := c.Predictions[i]
 		_, err = qtx.CreatePrediction(ctx, db.CreatePredictionParams{
 			ContestID: uuid.UUID(c.ID),
 			UserID:    uuid.UUID(prediction.UserID),
@@ -74,18 +104,6 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to save prediction: %w", err)
-		}
-	}
-
-	// Update result if resolved
-	if c.Status == contest.StatusResolved && c.ResultOptionID != nil {
-		err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
-			ID:             uuid.UUID(c.ID),
-			Status:         string(c.Status),
-			ResultOptionID: pgtype.Int4{Int32: int32(*c.ResultOptionID), Valid: true},
-		})
-		if err != nil {
-			return fmt.Errorf("failed to update contest status: %w", err)
 		}
 	}
 
