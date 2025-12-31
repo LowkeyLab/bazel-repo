@@ -1,4 +1,4 @@
-package contest_test
+package service_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,8 +59,12 @@ func TestService_CreateContest(t *testing.T) {
 		// Fallback for running from root or different context
 		schemaPath = "predix/internal/sql/schema.sql"
 		schemaContent, err = os.ReadFile(schemaPath)
+		if err != nil {
+			schemaPath = "../../../sql/schema.sql"
+			schemaContent, err = os.ReadFile(schemaPath)
+		}
 	}
-	require.NoError(t, err, "could not read schema file from %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql")
+	require.NoError(t, err, "could not read schema file from %s or %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql", "../../../sql/schema.sql")
 
 	_, err = pool.Exec(ctx, string(schemaContent))
 	require.NoError(t, err)
@@ -87,7 +91,7 @@ func TestService_CreateContest(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. Test Service
-	svc := contest.NewService(pool)
+	svc := service.NewService(pool)
 
 	opts := []string{"Yes", "No", "Maybe"}
 	expiresAt := time.Now().Add(24 * time.Hour)

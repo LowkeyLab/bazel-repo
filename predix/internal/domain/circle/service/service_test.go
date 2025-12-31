@@ -1,4 +1,4 @@
-package circle_test
+package service_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,8 +56,12 @@ func TestCircleService_CreateCircle(t *testing.T) {
 	if err != nil {
 		schemaPath = "predix/internal/sql/schema.sql"
 		schemaContent, err = os.ReadFile(schemaPath)
+		if err != nil {
+			schemaPath = "../../../sql/schema.sql"
+			schemaContent, err = os.ReadFile(schemaPath)
+		}
 	}
-	require.NoError(t, err, "could not read schema file from %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql")
+	require.NoError(t, err, "could not read schema file from %s or %s or %s", "../../sql/schema.sql", "predix/internal/sql/schema.sql", "../../../sql/schema.sql")
 
 	_, err = pool.Exec(ctx, string(schemaContent))
 	require.NoError(t, err)
@@ -74,7 +78,7 @@ func TestCircleService_CreateCircle(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test Service
-	svc := circle.NewService(pool)
+	svc := service.NewService(pool)
 
 	c, err := svc.CreateCircle(ctx, "My New Circle", user.ID(userID))
 	require.NoError(t, err)

@@ -8,14 +8,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 type Handler struct {
-	svc *contest.Service
+	svc *contestservice.Service
 }
 
-func NewHandler(svc *contest.Service) *Handler {
+func NewHandler(svc *contestservice.Service) *Handler {
 	return &Handler{svc: svc}
 }
 

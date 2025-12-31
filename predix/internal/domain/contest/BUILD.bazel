@@ -2,29 +2,20 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "contest",
-    srcs = [
-        "contest.go",
-        "service.go",
-    ],
+    srcs = ["contest.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest",
     visibility = ["//visibility:public"],
     deps = [
-        "//predix/internal/db",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
-        "@com_github_jackc_pgx_v5//pgtype",
-        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
 
 go_test(
     name = "contest_test",
     size = "small",
-    srcs = [
-        "contest_test.go",
-        "service_test.go",
-    ],
+    srcs = ["contest_test.go"],
     data = [
         "//predix/internal/sql:schema.sql",
     ],
@@ -35,16 +26,8 @@ go_test(
     ],
     deps = [
         ":contest",
-        "//predix/internal/db",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/user",
         "@com_github_google_uuid//:uuid",
-        "@com_github_jackc_pgx_v5//pgtype",
-        "@com_github_jackc_pgx_v5//pgxpool",
-        "@com_github_stretchr_testify//assert",
-        "@com_github_stretchr_testify//require",
-        "@com_github_testcontainers_testcontainers_go//:testcontainers-go",
-        "@com_github_testcontainers_testcontainers_go//wait",
-        "@com_github_testcontainers_testcontainers_go_modules_postgres//:postgres",
     ],
 )

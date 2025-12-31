@@ -1,4 +1,4 @@
-package contest
+package service
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
@@ -25,9 +26,9 @@ func NewService(pool *pgxpool.Pool) *Service {
 	}
 }
 
-func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Contest, error) {
+func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*contest.Contest, error) {
 	// 1. Create domain entity (validation logic is here)
-	c, err := New(circleID, creatorID, question, options, expiresAt)
+	c, err := contest.New(circleID, creatorID, question, options, expiresAt)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creator
 	return c, nil
 }
 
-func (s *Service) Predict(ctx context.Context, contestID ID, userID user.ID, optionID int, clout int) error {
+func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -88,7 +89,7 @@ func (s *Service) Predict(ctx context.Context, contestID ID, userID user.ID, opt
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	if c.Status != string(StatusOpen) {
+	if c.Status != string(contest.StatusOpen) {
 		return fmt.Errorf("contest is not open")
 	}
 
@@ -109,7 +110,7 @@ func (s *Service) Predict(ctx context.Context, contestID ID, userID user.ID, opt
 	return nil
 }
 
-func (s *Service) ResolveContest(ctx context.Context, contestID ID, winningOptionID int) error {
+func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, winningOptionID int) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -120,7 +121,7 @@ func (s *Service) ResolveContest(ctx context.Context, contestID ID, winningOptio
 
 	err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
 		ID:             uuid.UUID(contestID),
-		Status:         string(StatusResolved),
+		Status:         string(contest.StatusResolved),
 		ResultOptionID: pgtype.Int4{Int32: int32(winningOptionID), Valid: true},
 	})
 	if err != nil {

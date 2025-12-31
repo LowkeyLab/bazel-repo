@@ -1,4 +1,4 @@
-package circle
+package service
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
@@ -23,9 +24,9 @@ func NewService(pool *pgxpool.Pool) *Service {
 	}
 }
 
-func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.ID) (*Circle, error) {
+func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.ID) (*circle.Circle, error) {
 	// Domain logic
-	c, err := New(name, creatorID)
+	c, err := circle.New(name, creatorID)
 	if err != nil {
 		return nil, err
 	}

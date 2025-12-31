@@ -2,9 +2,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "user",
-    srcs = [
-        "user.go",
-    ],
+    srcs = ["user.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user",
     visibility = ["//visibility:public"],
     deps = [

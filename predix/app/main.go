@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/transport/http"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	defer pool.Close()
 
 	// 2. Initialize Application Service
-	svc := contest.NewService(pool)
+	svc := contestservice.NewService(pool)
 
 	// 3. Initialize HTTP Transport
 	handler := http.NewHandler(svc)
