@@ -1,9 +1,7 @@
 package user
 
-import "github.com/google/uuid"
-
 // ID represents the unique identifier for a User.
-type ID uuid.UUID
+type ID int32
 
 // User represents a user of the Predix platform.
 type User struct {
@@ -12,19 +10,11 @@ type User struct {
 	Email string
 }
 
-// New creates a new User.
+// New creates a new User without an ID (will be assigned by database).
 func New(name, email string) (*User, error) {
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
-	}
 	return &User{
-		ID:    ID(id),
+		ID:    0, // ID will be set by database
 		Name:  name,
 		Email: email,
 	}, nil
-}
-
-func (id ID) String() string {
-	return uuid.UUID(id).String()
 }

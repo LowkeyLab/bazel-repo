@@ -13,7 +13,6 @@ go_library(
         "//predix/internal/domain/circle",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/user",
-        "@com_github_google_uuid//:uuid",
         "@com_github_jackc_pgx_v5//pgtype",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],

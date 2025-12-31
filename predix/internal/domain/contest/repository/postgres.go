@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
@@ -38,16 +37,14 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 
 	qtx := r.queries.WithTx(tx)
 
-	// Check if contest exists
-	_, err = qtx.GetContest(ctx, uuid.UUID(c.ID))
-	isNew := err != nil
+	// Check if contest exists (ID will be 0 for new contests)
+	isNew := c.ID == 0
 
 	if isNew {
 		// Create new contest
-		_, err = qtx.CreateContest(ctx, db.CreateContestParams{
-			ID:        uuid.UUID(c.ID),
-			CircleID:  uuid.UUID(c.CircleID),
-			CreatorID: uuid.UUID(c.CreatorID),
+		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
+			CircleID:  int32(c.CircleID),
+			CreatorID: int32(c.CreatorID),
 			Question:  c.Question,
 			Status:    string(c.Status),
 			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
@@ -57,10 +54,13 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			return fmt.Errorf("failed to save contest: %w", err)
 		}
 
+		// Update contest with generated ID
+		c.ID = contest.ID(result.ID)
+
 		// Save options (only on creation)
 		for _, option := range c.Options {
 			err = qtx.CreateOption(ctx, db.CreateOptionParams{
-				ContestID: uuid.UUID(c.ID),
+				ContestID: int32(c.ID),
 				OptionID:  int32(option.ID),
 				Text:      option.Text,
 			})
@@ -76,7 +76,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		}
 
 		err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
-			ID:             uuid.UUID(c.ID),
+			ID:             int32(c.ID),
 			Status:         string(c.Status),
 			ResultOptionID: resultOptionID,
 		})
@@ -88,7 +88,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	// Save new predictions (compare with existing to avoid duplicates)
 	existingPredictionCount := 0
 	if !isNew {
-		existingPredictions, _ := qtx.ListContestPredictions(ctx, uuid.UUID(c.ID))
+		existingPredictions, _ := qtx.ListContestPredictions(ctx, int32(c.ID))
 		existingPredictionCount = len(existingPredictions)
 	}
 
@@ -96,8 +96,8 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	for i := existingPredictionCount; i < len(c.Predictions); i++ {
 		prediction := c.Predictions[i]
 		_, err = qtx.CreatePrediction(ctx, db.CreatePredictionParams{
-			ContestID: uuid.UUID(c.ID),
-			UserID:    uuid.UUID(prediction.UserID),
+			ContestID: int32(c.ID),
+			UserID:    int32(prediction.UserID),
 			OptionID:  int32(prediction.OptionID),
 			Clout:     int32(prediction.Clout),
 			CreatedAt: pgtype.Timestamp{Time: prediction.Timestamp, Valid: true},
@@ -116,13 +116,13 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 
 // FindByID retrieves a Contest with all its options and predictions by ID.
 func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contest, error) {
-	dbContest, err := r.queries.GetContest(ctx, uuid.UUID(id))
+	dbContest, err := r.queries.GetContest(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find contest by id: %w", err)
 	}
 
 	// Load options
-	dbOptions, err := r.queries.ListContestOptions(ctx, uuid.UUID(id))
+	dbOptions, err := r.queries.ListContestOptions(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load contest options: %w", err)
 	}
@@ -136,7 +136,7 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 	}
 
 	// Load predictions
-	dbPredictions, err := r.queries.ListContestPredictions(ctx, uuid.UUID(id))
+	dbPredictions, err := r.queries.ListContestPredictions(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load contest predictions: %w", err)
 	}
@@ -174,7 +174,7 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 
 // FindByCircleID retrieves all Contests for a given Circle.
 func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
-	dbContests, err := r.queries.ListContestsByCircle(ctx, uuid.UUID(circleID))
+	dbContests, err := r.queries.ListContestsByCircle(ctx, int32(circleID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find contests by circle id: %w", err)
 	}

@@ -5,27 +5,26 @@
 package db
 
 import (
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Circle struct {
-	ID         uuid.UUID        `json:"id"`
+	ID         int32            `json:"id"`
 	Name       string           `json:"name"`
 	InviteCode string           `json:"invite_code"`
 	CreatedAt  pgtype.Timestamp `json:"created_at"`
 }
 
 type CircleMember struct {
-	CircleID uuid.UUID `json:"circle_id"`
-	UserID   uuid.UUID `json:"user_id"`
-	Clout    int32     `json:"clout"`
+	CircleID int32 `json:"circle_id"`
+	UserID   int32 `json:"user_id"`
+	Clout    int32 `json:"clout"`
 }
 
 type Contest struct {
-	ID             uuid.UUID        `json:"id"`
-	CircleID       uuid.UUID        `json:"circle_id"`
-	CreatorID      uuid.UUID        `json:"creator_id"`
+	ID             int32            `json:"id"`
+	CircleID       int32            `json:"circle_id"`
+	CreatorID      int32            `json:"creator_id"`
 	Question       string           `json:"question"`
 	Status         string           `json:"status"`
 	ResultOptionID pgtype.Int4      `json:"result_option_id"`
@@ -34,21 +33,21 @@ type Contest struct {
 }
 
 type Option struct {
-	ContestID uuid.UUID `json:"contest_id"`
-	OptionID  int32     `json:"option_id"`
-	Text      string    `json:"text"`
+	ContestID int32  `json:"contest_id"`
+	OptionID  int32  `json:"option_id"`
+	Text      string `json:"text"`
 }
 
 type Prediction struct {
-	ContestID uuid.UUID        `json:"contest_id"`
-	UserID    uuid.UUID        `json:"user_id"`
+	ContestID int32            `json:"contest_id"`
+	UserID    int32            `json:"user_id"`
 	OptionID  int32            `json:"option_id"`
 	Clout     int32            `json:"clout"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 type User struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name"`
-	Email string    `json:"email"`
+	ID    int32  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }

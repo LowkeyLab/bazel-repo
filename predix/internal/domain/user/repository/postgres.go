@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -26,20 +25,21 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 
 // Save persists a User to the database.
 func (r *Postgres) Save(ctx context.Context, u *user.User) error {
-	_, err := r.queries.CreateUser(ctx, db.CreateUserParams{
-		ID:    uuid.UUID(u.ID),
+	result, err := r.queries.CreateUser(ctx, db.CreateUserParams{
 		Name:  u.Name,
 		Email: u.Email,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to save user: %w", err)
 	}
+	// Update the user with the generated ID
+	u.ID = user.ID(result.ID)
 	return nil
 }
 
 // FindByID retrieves a User by its ID.
 func (r *Postgres) FindByID(ctx context.Context, id user.ID) (*user.User, error) {
-	dbUser, err := r.queries.GetUser(ctx, uuid.UUID(id))
+	dbUser, err := r.queries.GetUser(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user by id: %w", err)
 	}

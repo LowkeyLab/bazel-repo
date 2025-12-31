@@ -3,13 +3,12 @@ package circle_test
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 func TestNew(t *testing.T) {
-	creatorID := user.ID(uuid.New())
+	creatorID := user.ID(1)
 	name := "Test Circle"
 
 	c, err := circle.New(name, creatorID)
@@ -20,8 +19,8 @@ func TestNew(t *testing.T) {
 	if c.Name != name {
 		t.Errorf("expected name %q, got %q", name, c.Name)
 	}
-	if c.ID.String() == "" {
-		t.Error("expected valid ID")
+	if c.ID != 0 {
+		t.Errorf("expected ID to be 0 (unassigned), got %d", c.ID)
 	}
 	if len(c.Members) != 1 {
 		t.Errorf("expected 1 member, got %d", len(c.Members))
@@ -32,12 +31,12 @@ func TestNew(t *testing.T) {
 		t.Fatal("creator not found in members")
 	}
 	if member.UserID != creatorID {
-		t.Errorf("expected member ID %s, got %s", creatorID, member.UserID)
+		t.Errorf("expected member ID %d, got %d", creatorID, member.UserID)
 	}
 }
 
 func TestNew_EmptyName(t *testing.T) {
-	creatorID := user.ID(uuid.New())
+	creatorID := user.ID(1)
 	c, err := circle.New("", creatorID)
 	if err == nil {
 		t.Error("expected error for empty name, got nil")
@@ -52,7 +51,7 @@ func TestNew_EmptyName(t *testing.T) {
 }
 
 func TestNew_ValidNames(t *testing.T) {
-	creatorID := user.ID(uuid.New())
+	creatorID := user.ID(1)
 
 	tests := []struct {
 		name       string
@@ -96,10 +95,10 @@ func TestNew_ValidNames(t *testing.T) {
 }
 
 func TestAddMember(t *testing.T) {
-	creatorID := user.ID(uuid.New())
+	creatorID := user.ID(1)
 	c, _ := circle.New("Test Circle", creatorID)
 
-	newUserID := user.ID(uuid.New())
+	newUserID := user.ID(2)
 	c.AddMember(newUserID)
 
 	if len(c.Members) != 2 {

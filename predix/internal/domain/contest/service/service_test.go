@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
@@ -25,15 +24,13 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.I
 	ctx := context.Background()
 	q := db.New(pool)
 
-	userID := uuid.New()
-	_, err := q.CreateUser(ctx, db.CreateUserParams{
-		ID:    userID,
+	result, err := q.CreateUser(ctx, db.CreateUserParams{
 		Name:  name,
 		Email: email,
 	})
 	require.NoError(t, err)
 
-	return user.ID(userID)
+	return user.ID(result.ID)
 }
 
 // createTestCircle creates a test circle in the database
@@ -43,16 +40,14 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name, inviteCode string)
 	ctx := context.Background()
 	q := db.New(pool)
 
-	circleID := uuid.New()
-	_, err := q.CreateCircle(ctx, db.CreateCircleParams{
-		ID:         circleID,
+	result, err := q.CreateCircle(ctx, db.CreateCircleParams{
 		Name:       name,
 		InviteCode: inviteCode,
 		CreatedAt:  pgtype.Timestamp{Time: time.Now(), Valid: true},
 	})
 	require.NoError(t, err)
 
-	return circle.ID(circleID)
+	return circle.ID(result.ID)
 }
 
 func TestCreateContest(t *testing.T) {
@@ -78,13 +73,13 @@ func TestCreateContest(t *testing.T) {
 	assert.Len(t, c.Options, 3)
 
 	// Verify in database
-	dbContest, err := q.GetContest(ctx, uuid.UUID(c.ID))
+	dbContest, err := q.GetContest(ctx, int32(c.ID))
 	require.NoError(t, err)
 	assert.Equal(t, "Should we read this book?", dbContest.Question)
 	assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
 
 	// Verify options
-	dbOptions, err := q.ListContestOptions(ctx, uuid.UUID(c.ID))
+	dbOptions, err := q.ListContestOptions(ctx, int32(c.ID))
 	require.NoError(t, err)
 	assert.Len(t, dbOptions, 3)
 }
@@ -160,10 +155,10 @@ func TestPredict(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify prediction in database
-	predictions, err := q.ListContestPredictions(ctx, uuid.UUID(c.ID))
+	predictions, err := q.ListContestPredictions(ctx, int32(c.ID))
 	require.NoError(t, err)
 	assert.Len(t, predictions, 1)
-	assert.Equal(t, uuid.UUID(userID), predictions[0].UserID)
+	assert.Equal(t, int32(userID), predictions[0].UserID)
 	assert.Equal(t, int32(1), predictions[0].OptionID)
 	assert.Equal(t, int32(100), predictions[0].Clout)
 }
@@ -186,7 +181,7 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 
 	// Manually close the contest
 	err = q.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
-		ID:             uuid.UUID(c.ID),
+		ID:             int32(c.ID),
 		Status:         "CLOSED",
 		ResultOptionID: pgtype.Int4{Valid: false},
 	})
@@ -219,7 +214,7 @@ func TestResolveContest(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify in database
-	dbContest, err := q.GetContest(ctx, uuid.UUID(c.ID))
+	dbContest, err := q.GetContest(ctx, int32(c.ID))
 	require.NoError(t, err)
 	assert.Equal(t, "RESOLVED", dbContest.Status)
 	assert.True(t, dbContest.ResultOptionID.Valid)

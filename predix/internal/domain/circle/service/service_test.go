@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
@@ -21,15 +20,13 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, name, email string) user.I
 	ctx := context.Background()
 	q := db.New(pool)
 
-	userID := uuid.New()
-	_, err := q.CreateUser(ctx, db.CreateUserParams{
-		ID:    userID,
+	result, err := q.CreateUser(ctx, db.CreateUserParams{
 		Name:  name,
 		Email: email,
 	})
 	require.NoError(t, err)
 
-	return user.ID(userID)
+	return user.ID(result.ID)
 }
 
 func TestCreateCircle(t *testing.T) {
@@ -51,14 +48,14 @@ func TestCreateCircle(t *testing.T) {
 	assert.Len(t, c.Members, 1)
 
 	// Verify in database
-	dbCircle, err := q.GetCircle(ctx, uuid.UUID(c.ID))
+	dbCircle, err := q.GetCircle(ctx, int32(c.ID))
 	require.NoError(t, err)
 	assert.Equal(t, "Book Club", dbCircle.Name)
 
 	// Verify creator is a member with initial clout
 	dbMember, err := q.GetCircleMember(ctx, db.GetCircleMemberParams{
-		CircleID: uuid.UUID(c.ID),
-		UserID:   uuid.UUID(creatorID),
+		CircleID: int32(c.ID),
+		UserID:   int32(creatorID),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, int32(1000), dbMember.Clout)

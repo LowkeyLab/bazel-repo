@@ -2,14 +2,14 @@ package circle
 
 import (
 	"errors"
+	"math/rand"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 // ID represents the unique identifier for a Circle.
-type ID uuid.UUID
+type ID int32
 
 // Circle represents a private group of friends.
 type Circle struct {
@@ -32,13 +32,8 @@ func New(name string, creatorID user.ID) (*Circle, error) {
 		return nil, errors.New("circle name cannot be empty")
 	}
 
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-
 	c := &Circle{
-		ID:         ID(id),
+		ID:         0, // ID will be set by database
 		Name:       name,
 		InviteCode: generateInviteCode(),
 		Members:    make(map[user.ID]*Member),
@@ -62,9 +57,10 @@ func (c *Circle) AddMember(userID user.ID) {
 // generateInviteCode generates a random string for invitations.
 // In a real app, this would ensure uniqueness.
 func generateInviteCode() string {
-	return uuid.New().String()[:8]
-}
-
-func (id ID) String() string {
-	return uuid.UUID(id).String()
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 8)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(b)
 }

@@ -1,6 +1,6 @@
 -- name: CreateUser :one
-INSERT INTO users (id, name, email)
-VALUES ($1, $2, $3)
+INSERT INTO users (name, email)
+VALUES ($1, $2)
 RETURNING *;
 
 -- name: GetUser :one
@@ -12,8 +12,8 @@ SELECT * FROM users
 WHERE email = $1 LIMIT 1;
 
 -- name: CreateCircle :one
-INSERT INTO circles (id, name, invite_code, created_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO circles (name, invite_code, created_at)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetCircle :one
@@ -37,8 +37,8 @@ SELECT * FROM circle_members
 WHERE circle_id = $1;
 
 -- name: CreateContest :one
-INSERT INTO contests (id, circle_id, creator_id, question, status, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO contests (circle_id, creator_id, question, status, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetContest :one

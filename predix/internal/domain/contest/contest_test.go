@@ -4,15 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 func TestNew(t *testing.T) {
-	circleID := circle.ID(uuid.New())
-	creatorID := user.ID(uuid.New())
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
 	options := []string{"Yes", "No"}
 
@@ -30,8 +29,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestNew_Validation(t *testing.T) {
-	circleID := circle.ID(uuid.New())
-	creatorID := user.ID(uuid.New())
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
 
 	tests := []struct {
@@ -88,8 +87,8 @@ func TestNew_Validation(t *testing.T) {
 }
 
 func TestNew_ValidContest(t *testing.T) {
-	circleID := circle.ID(uuid.New())
-	creatorID := user.ID(uuid.New())
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
 
 	tests := []struct {
@@ -134,12 +133,12 @@ func TestNew_ValidContest(t *testing.T) {
 }
 
 func TestPredict(t *testing.T) {
-	circleID := circle.ID(uuid.New())
-	creatorID := user.ID(uuid.New())
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
 	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
 
-	betterID := user.ID(uuid.New())
+	betterID := user.ID(1)
 
 	// Find valid option ID (it's 1 or 2 based on logic)
 	var optionID int
@@ -165,8 +164,8 @@ func TestPredict(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	circleID := circle.ID(uuid.New())
-	creatorID := user.ID(uuid.New())
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
 	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt)
 

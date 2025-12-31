@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
@@ -37,8 +36,7 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	qtx := r.queries.WithTx(tx)
 
 	// Save circle
-	_, err = qtx.CreateCircle(ctx, db.CreateCircleParams{
-		ID:         uuid.UUID(c.ID),
+	result, err := qtx.CreateCircle(ctx, db.CreateCircleParams{
 		Name:       c.Name,
 		InviteCode: c.InviteCode,
 		CreatedAt:  pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
@@ -47,11 +45,14 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 		return fmt.Errorf("failed to save circle: %w", err)
 	}
 
+	// Update circle with generated ID
+	c.ID = circle.ID(result.ID)
+
 	// Save members
 	for _, member := range c.Members {
 		err = qtx.AddCircleMember(ctx, db.AddCircleMemberParams{
-			CircleID: uuid.UUID(c.ID),
-			UserID:   uuid.UUID(member.UserID),
+			CircleID: int32(c.ID),
+			UserID:   int32(member.UserID),
 			Clout:    int32(member.Clout),
 		})
 		if err != nil {
@@ -68,13 +69,13 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 
 // FindByID retrieves a Circle and its members by ID.
 func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error) {
-	dbCircle, err := r.queries.GetCircle(ctx, uuid.UUID(id))
+	dbCircle, err := r.queries.GetCircle(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find circle by id: %w", err)
 	}
 
 	// Load members
-	dbMembers, err := r.queries.ListCircleMembers(ctx, uuid.UUID(id))
+	dbMembers, err := r.queries.ListCircleMembers(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load circle members: %w", err)
 	}

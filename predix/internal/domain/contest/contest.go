@@ -4,13 +4,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 // ID represents the unique identifier for a Contest.
-type ID uuid.UUID
+type ID int32
 
 // Status represents the state of a contest.
 type Status string
@@ -72,11 +71,6 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 		}
 	}
 
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-
 	optionMap := make(map[int]*Option)
 	for i, text := range options {
 		optID := i + 1
@@ -84,7 +78,7 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 	}
 
 	return &Contest{
-		ID:        ID(id),
+		ID:        0, // ID will be set by database
 		CircleID:  circleID,
 		CreatorID: creatorID,
 		Question:  question,
@@ -129,8 +123,4 @@ func (c *Contest) Resolve(winningOptionID int) error {
 	c.ResultOptionID = &winningOptionID
 	c.Status = StatusResolved
 	return nil
-}
-
-func (id ID) String() string {
-	return uuid.UUID(id).String()
 }

@@ -21,7 +21,7 @@ func TestNew(t *testing.T) {
 	if u.Email != email {
 		t.Errorf("expected email %q, got %q", email, u.Email)
 	}
-	if u.ID.String() == "" {
-		t.Error("expected valid ID, got empty string")
+	if u.ID != 0 {
+		t.Errorf("expected ID to be 0 (unassigned), got %d", u.ID)
 	}
 }

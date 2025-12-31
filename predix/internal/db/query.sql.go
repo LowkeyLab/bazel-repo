@@ -8,7 +8,6 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,9 +17,9 @@ VALUES ($1, $2, $3)
 `
 
 type AddCircleMemberParams struct {
-	CircleID uuid.UUID `json:"circle_id"`
-	UserID   uuid.UUID `json:"user_id"`
-	Clout    int32     `json:"clout"`
+	CircleID int32 `json:"circle_id"`
+	UserID   int32 `json:"user_id"`
+	Clout    int32 `json:"clout"`
 }
 
 func (q *Queries) AddCircleMember(ctx context.Context, arg AddCircleMemberParams) error {
@@ -29,25 +28,19 @@ func (q *Queries) AddCircleMember(ctx context.Context, arg AddCircleMemberParams
 }
 
 const createCircle = `-- name: CreateCircle :one
-INSERT INTO circles (id, name, invite_code, created_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO circles (name, invite_code, created_at)
+VALUES ($1, $2, $3)
 RETURNING id, name, invite_code, created_at
 `
 
 type CreateCircleParams struct {
-	ID         uuid.UUID        `json:"id"`
 	Name       string           `json:"name"`
 	InviteCode string           `json:"invite_code"`
 	CreatedAt  pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Circle, error) {
-	row := q.db.QueryRow(ctx, createCircle,
-		arg.ID,
-		arg.Name,
-		arg.InviteCode,
-		arg.CreatedAt,
-	)
+	row := q.db.QueryRow(ctx, createCircle, arg.Name, arg.InviteCode, arg.CreatedAt)
 	var i Circle
 	err := row.Scan(
 		&i.ID,
@@ -59,15 +52,14 @@ func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Cir
 }
 
 const createContest = `-- name: CreateContest :one
-INSERT INTO contests (id, circle_id, creator_id, question, status, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO contests (circle_id, creator_id, question, status, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, circle_id, creator_id, question, status, result_option_id, created_at, expires_at
 `
 
 type CreateContestParams struct {
-	ID        uuid.UUID        `json:"id"`
-	CircleID  uuid.UUID        `json:"circle_id"`
-	CreatorID uuid.UUID        `json:"creator_id"`
+	CircleID  int32            `json:"circle_id"`
+	CreatorID int32            `json:"creator_id"`
 	Question  string           `json:"question"`
 	Status    string           `json:"status"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
@@ -76,7 +68,6 @@ type CreateContestParams struct {
 
 func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error) {
 	row := q.db.QueryRow(ctx, createContest,
-		arg.ID,
 		arg.CircleID,
 		arg.CreatorID,
 		arg.Question,
@@ -104,9 +95,9 @@ VALUES ($1, $2, $3)
 `
 
 type CreateOptionParams struct {
-	ContestID uuid.UUID `json:"contest_id"`
-	OptionID  int32     `json:"option_id"`
-	Text      string    `json:"text"`
+	ContestID int32  `json:"contest_id"`
+	OptionID  int32  `json:"option_id"`
+	Text      string `json:"text"`
 }
 
 func (q *Queries) CreateOption(ctx context.Context, arg CreateOptionParams) error {
@@ -121,8 +112,8 @@ RETURNING contest_id, user_id, option_id, clout, created_at
 `
 
 type CreatePredictionParams struct {
-	ContestID uuid.UUID        `json:"contest_id"`
-	UserID    uuid.UUID        `json:"user_id"`
+	ContestID int32            `json:"contest_id"`
+	UserID    int32            `json:"user_id"`
 	OptionID  int32            `json:"option_id"`
 	Clout     int32            `json:"clout"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
@@ -148,19 +139,18 @@ func (q *Queries) CreatePrediction(ctx context.Context, arg CreatePredictionPara
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, name, email)
-VALUES ($1, $2, $3)
+INSERT INTO users (name, email)
+VALUES ($1, $2)
 RETURNING id, name, email
 `
 
 type CreateUserParams struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name"`
-	Email string    `json:"email"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Name, arg.Email)
+	row := q.db.QueryRow(ctx, createUser, arg.Name, arg.Email)
 	var i User
 	err := row.Scan(&i.ID, &i.Name, &i.Email)
 	return i, err
@@ -171,7 +161,7 @@ SELECT id, name, invite_code, created_at FROM circles
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetCircle(ctx context.Context, id uuid.UUID) (Circle, error) {
+func (q *Queries) GetCircle(ctx context.Context, id int32) (Circle, error) {
 	row := q.db.QueryRow(ctx, getCircle, id)
 	var i Circle
 	err := row.Scan(
@@ -206,8 +196,8 @@ WHERE circle_id = $1 AND user_id = $2 LIMIT 1
 `
 
 type GetCircleMemberParams struct {
-	CircleID uuid.UUID `json:"circle_id"`
-	UserID   uuid.UUID `json:"user_id"`
+	CircleID int32 `json:"circle_id"`
+	UserID   int32 `json:"user_id"`
 }
 
 func (q *Queries) GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error) {
@@ -222,7 +212,7 @@ SELECT id, circle_id, creator_id, question, status, result_option_id, created_at
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetContest(ctx context.Context, id uuid.UUID) (Contest, error) {
+func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 	row := q.db.QueryRow(ctx, getContest, id)
 	var i Contest
 	err := row.Scan(
@@ -243,7 +233,7 @@ SELECT id, name, email FROM users
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
+func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
 	err := row.Scan(&i.ID, &i.Name, &i.Email)
@@ -267,7 +257,7 @@ SELECT circle_id, user_id, clout FROM circle_members
 WHERE circle_id = $1
 `
 
-func (q *Queries) ListCircleMembers(ctx context.Context, circleID uuid.UUID) ([]CircleMember, error) {
+func (q *Queries) ListCircleMembers(ctx context.Context, circleID int32) ([]CircleMember, error) {
 	rows, err := q.db.Query(ctx, listCircleMembers, circleID)
 	if err != nil {
 		return nil, err
@@ -292,7 +282,7 @@ SELECT contest_id, option_id, text FROM options
 WHERE contest_id = $1
 `
 
-func (q *Queries) ListContestOptions(ctx context.Context, contestID uuid.UUID) ([]Option, error) {
+func (q *Queries) ListContestOptions(ctx context.Context, contestID int32) ([]Option, error) {
 	rows, err := q.db.Query(ctx, listContestOptions, contestID)
 	if err != nil {
 		return nil, err
@@ -317,7 +307,7 @@ SELECT contest_id, user_id, option_id, clout, created_at FROM predictions
 WHERE contest_id = $1
 `
 
-func (q *Queries) ListContestPredictions(ctx context.Context, contestID uuid.UUID) ([]Prediction, error) {
+func (q *Queries) ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error) {
 	rows, err := q.db.Query(ctx, listContestPredictions, contestID)
 	if err != nil {
 		return nil, err
@@ -349,7 +339,7 @@ WHERE circle_id = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListContestsByCircle(ctx context.Context, circleID uuid.UUID) ([]Contest, error) {
+func (q *Queries) ListContestsByCircle(ctx context.Context, circleID int32) ([]Contest, error) {
 	rows, err := q.db.Query(ctx, listContestsByCircle, circleID)
 	if err != nil {
 		return nil, err
@@ -385,7 +375,7 @@ WHERE id = $1
 `
 
 type UpdateContestStatusParams struct {
-	ID             uuid.UUID   `json:"id"`
+	ID             int32       `json:"id"`
 	Status         string      `json:"status"`
 	ResultOptionID pgtype.Int4 `json:"result_option_id"`
 }

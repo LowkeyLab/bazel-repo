@@ -6,8 +6,6 @@ package db
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
 type Querier interface {
@@ -17,16 +15,16 @@ type Querier interface {
 	CreateOption(ctx context.Context, arg CreateOptionParams) error
 	CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	GetCircle(ctx context.Context, id uuid.UUID) (Circle, error)
+	GetCircle(ctx context.Context, id int32) (Circle, error)
 	GetCircleByInviteCode(ctx context.Context, inviteCode string) (Circle, error)
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
-	GetContest(ctx context.Context, id uuid.UUID) (Contest, error)
-	GetUser(ctx context.Context, id uuid.UUID) (User, error)
+	GetContest(ctx context.Context, id int32) (Contest, error)
+	GetUser(ctx context.Context, id int32) (User, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
-	ListCircleMembers(ctx context.Context, circleID uuid.UUID) ([]CircleMember, error)
-	ListContestOptions(ctx context.Context, contestID uuid.UUID) ([]Option, error)
-	ListContestPredictions(ctx context.Context, contestID uuid.UUID) ([]Prediction, error)
-	ListContestsByCircle(ctx context.Context, circleID uuid.UUID) ([]Contest, error)
+	ListCircleMembers(ctx context.Context, circleID int32) ([]CircleMember, error)
+	ListContestOptions(ctx context.Context, contestID int32) ([]Option, error)
+	ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error)
+	ListContestsByCircle(ctx context.Context, circleID int32) ([]Contest, error)
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
 }
 
