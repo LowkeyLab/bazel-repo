@@ -2,7 +2,6 @@ package circle
 
 import (
 	"errors"
-	"math/rand"
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -13,11 +12,10 @@ type ID int32
 
 // Circle represents a private group of friends.
 type Circle struct {
-	ID         ID
-	Name       string
-	InviteCode string
-	Members    map[user.ID]*Member // Keyed by User ID
-	CreatedAt  time.Time
+	ID        ID
+	Name      string
+	Members   map[user.ID]*Member // Keyed by User ID
+	CreatedAt time.Time
 }
 
 // Member represents a user within a specific Circle.
@@ -33,11 +31,10 @@ func New(name string, creatorID user.ID) (*Circle, error) {
 	}
 
 	c := &Circle{
-		ID:         0, // ID will be set by database
-		Name:       name,
-		InviteCode: generateInviteCode(),
-		Members:    make(map[user.ID]*Member),
-		CreatedAt:  time.Now(),
+		ID:        0, // ID will be set by database
+		Name:      name,
+		Members:   make(map[user.ID]*Member),
+		CreatedAt: time.Now(),
 	}
 
 	c.AddMember(creatorID)
@@ -52,15 +49,4 @@ func (c *Circle) AddMember(userID user.ID) {
 			Clout:  1000, // Initial Clout
 		}
 	}
-}
-
-// generateInviteCode generates a random string for invitations.
-// In a real app, this would ensure uniqueness.
-func generateInviteCode() string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, 8)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(b)
 }

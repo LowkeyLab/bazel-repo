@@ -28,26 +28,20 @@ func (q *Queries) AddCircleMember(ctx context.Context, arg AddCircleMemberParams
 }
 
 const createCircle = `-- name: CreateCircle :one
-INSERT INTO circles (name, invite_code, created_at)
-VALUES ($1, $2, $3)
-RETURNING id, name, invite_code, created_at
+INSERT INTO circles (name, created_at)
+VALUES ($1, $2)
+RETURNING id, name, created_at
 `
 
 type CreateCircleParams struct {
-	Name       string           `json:"name"`
-	InviteCode string           `json:"invite_code"`
-	CreatedAt  pgtype.Timestamp `json:"created_at"`
+	Name      string           `json:"name"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Circle, error) {
-	row := q.db.QueryRow(ctx, createCircle, arg.Name, arg.InviteCode, arg.CreatedAt)
+	row := q.db.QueryRow(ctx, createCircle, arg.Name, arg.CreatedAt)
 	var i Circle
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.InviteCode,
-		&i.CreatedAt,
-	)
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
 	return i, err
 }
 
@@ -157,36 +151,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getCircle = `-- name: GetCircle :one
-SELECT id, name, invite_code, created_at FROM circles
+SELECT id, name, created_at FROM circles
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetCircle(ctx context.Context, id int32) (Circle, error) {
 	row := q.db.QueryRow(ctx, getCircle, id)
 	var i Circle
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.InviteCode,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const getCircleByInviteCode = `-- name: GetCircleByInviteCode :one
-SELECT id, name, invite_code, created_at FROM circles
-WHERE invite_code = $1 LIMIT 1
-`
-
-func (q *Queries) GetCircleByInviteCode(ctx context.Context, inviteCode string) (Circle, error) {
-	row := q.db.QueryRow(ctx, getCircleByInviteCode, inviteCode)
-	var i Circle
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.InviteCode,
-		&i.CreatedAt,
-	)
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
 	return i, err
 }
 

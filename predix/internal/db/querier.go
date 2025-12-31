@@ -16,7 +16,6 @@ type Querier interface {
 	CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetCircle(ctx context.Context, id int32) (Circle, error)
-	GetCircleByInviteCode(ctx context.Context, inviteCode string) (Circle, error)
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
 	GetContest(ctx context.Context, id int32) (Contest, error)
 	GetUser(ctx context.Context, id int32) (User, error)

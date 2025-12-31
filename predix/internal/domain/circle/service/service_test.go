@@ -44,7 +44,6 @@ func TestCreateCircle(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, c)
 	assert.Equal(t, "Book Club", c.Name)
-	assert.NotEmpty(t, c.InviteCode)
 	assert.Len(t, c.Members, 1)
 
 	// Verify in database
@@ -73,22 +72,4 @@ func TestCreateCircle_WithEmptyName(t *testing.T) {
 	c, err := svc.CreateCircle(ctx, "", creatorID)
 	assert.Error(t, err)
 	assert.Nil(t, c)
-}
-
-func TestCreateCircle_GeneratesUniqueInviteCodes(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-
-	ctx := context.Background()
-	svc := service.NewService(pool)
-
-	creatorID := createTestUser(t, pool, "Charlie", "charlie@example.com")
-
-	// Test: Create multiple circles and verify unique invite codes
-	circle1, err := svc.CreateCircle(ctx, "Circle 1", creatorID)
-	require.NoError(t, err)
-
-	circle2, err := svc.CreateCircle(ctx, "Circle 2", creatorID)
-	require.NoError(t, err)
-
-	assert.NotEqual(t, circle1.InviteCode, circle2.InviteCode)
 }

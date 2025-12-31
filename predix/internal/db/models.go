@@ -9,10 +9,9 @@ import (
 )
 
 type Circle struct {
-	ID         int32            `json:"id"`
-	Name       string           `json:"name"`
-	InviteCode string           `json:"invite_code"`
-	CreatedAt  pgtype.Timestamp `json:"created_at"`
+	ID        int32            `json:"id"`
+	Name      string           `json:"name"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 type CircleMember struct {

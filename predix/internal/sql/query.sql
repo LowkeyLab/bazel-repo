@@ -12,17 +12,13 @@ SELECT * FROM users
 WHERE email = $1 LIMIT 1;
 
 -- name: CreateCircle :one
-INSERT INTO circles (name, invite_code, created_at)
-VALUES ($1, $2, $3)
+INSERT INTO circles (name, created_at)
+VALUES ($1, $2)
 RETURNING *;
 
 -- name: GetCircle :one
 SELECT * FROM circles
 WHERE id = $1 LIMIT 1;
-
--- name: GetCircleByInviteCode :one
-SELECT * FROM circles
-WHERE invite_code = $1 LIMIT 1;
 
 -- name: AddCircleMember :exec
 INSERT INTO circle_members (circle_id, user_id, clout)

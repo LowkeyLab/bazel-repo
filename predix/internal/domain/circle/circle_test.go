@@ -87,9 +87,6 @@ func TestNew_ValidNames(t *testing.T) {
 			if c.Name != tt.circleName {
 				t.Errorf("expected name %q, got %q", tt.circleName, c.Name)
 			}
-			if len(c.InviteCode) == 0 {
-				t.Error("expected non-empty invite code")
-			}
 		})
 	}
 }

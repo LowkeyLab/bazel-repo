@@ -37,9 +37,8 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 
 	// Save circle
 	result, err := qtx.CreateCircle(ctx, db.CreateCircleParams{
-		Name:       c.Name,
-		InviteCode: c.InviteCode,
-		CreatedAt:  pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
+		Name:      c.Name,
+		CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to save circle: %w", err)
@@ -90,41 +89,9 @@ func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, 
 	}
 
 	return &circle.Circle{
-		ID:         circle.ID(dbCircle.ID),
-		Name:       dbCircle.Name,
-		InviteCode: dbCircle.InviteCode,
-		CreatedAt:  dbCircle.CreatedAt.Time,
-		Members:    members,
-	}, nil
-}
-
-// FindByInviteCode retrieves a Circle by its invite code.
-func (r *Postgres) FindByInviteCode(ctx context.Context, code string) (*circle.Circle, error) {
-	dbCircle, err := r.queries.GetCircleByInviteCode(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find circle by invite code: %w", err)
-	}
-
-	// Load members
-	dbMembers, err := r.queries.ListCircleMembers(ctx, dbCircle.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load circle members: %w", err)
-	}
-
-	members := make(map[user.ID]*circle.Member)
-	for _, dbMember := range dbMembers {
-		userID := user.ID(dbMember.UserID)
-		members[userID] = &circle.Member{
-			UserID: userID,
-			Clout:  int(dbMember.Clout),
-		}
-	}
-
-	return &circle.Circle{
-		ID:         circle.ID(dbCircle.ID),
-		Name:       dbCircle.Name,
-		InviteCode: dbCircle.InviteCode,
-		CreatedAt:  dbCircle.CreatedAt.Time,
-		Members:    members,
+		ID:        circle.ID(dbCircle.ID),
+		Name:      dbCircle.Name,
+		CreatedAt: dbCircle.CreatedAt.Time,
+		Members:   members,
 	}, nil
 }

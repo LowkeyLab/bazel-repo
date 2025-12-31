@@ -7,7 +7,6 @@ CREATE TABLE users (
 CREATE TABLE circles (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    invite_code TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
