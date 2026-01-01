@@ -6,25 +6,28 @@
 
 ## 👥 Core Concept: Circles
 
-The app is organized into **Circles**—private, invite-only spaces. Everything (balances, predictions, and leaderboards) is scoped to the specific group.
+The app is organized into **Circles**—private, invite-only spaces. Everything (Clout balances, contests, and leaderboards) is scoped to the specific group.
 
 ### 1. Circle Management
 
 - **Private Circles:** Create a Circle (e.g., "The Sunday Football Crew") and generate a unique invite code.
-- **Join via Code:** Friends join by entering the code, instantly seeing the group's active bets.
-- **Circle-Specific Ledger:** Every user has a unique "Clout" balance per circle to keep the stakes fair and contained.
+- **Join via Code:** Friends join by entering the code, instantly seeing the Circle's open Contests.
+- **Members + Clout Ledger:** Each Member in a Circle has a Clout balance (starts at 1000 on join) tracked per-circle, not globally.
+- **Creators:** The Circle Creator is recorded (CreatorID) and remains the Circle owner for admin actions.
 
-### 2. Friend-Group Predictions
+### 2. Contests and Predictions
 
-- **Micro-Wagers:** Tailored for small-scale events (e.g., _"Will Jason finish his drink in under a minute?"_ or _"Who will win the Mario Kart tournament?"_).
-- **The "Jury" Resolution:** To prevent bias, the Circle Creator or a majority vote of members resolves the outcome.
-- **Dynamic Odds:** The payout is automatically calculated based on the "Pool" (if 1 person bets against 5, their payout is much higher).
+- **Contests:** A Contest is a question with multiple Options, created by a user and scoped to one or more Circles. Domain status: OPEN → RESOLVED (CLOSED is reserved for future pause states).
+- **Options:** Contest options are enumerated choices (Option IDs) that members can stake on.
+- **Predictions:** A Prediction records a member's stake of Clout on an Option at a timestamp. Clout must be positive; invalid options are rejected.
+- **Resolution:** The Contest Creator resolves a Contest by marking the winning Option; the result is stored as ResultOptionID.
+- **Lifecycle:** Contests capture created/expiry timestamps so clients can close prediction windows when expired.
 
 ### 3. Social Interaction
 
-- **The "Trash Talk" Ticker:** A live comment feed for each prediction where friends can post gifs, images, or messages as the event unfolds.
-- **Activity Heatmap:** See which friends are the most active "instigators" (creating polls) vs. "sharks" (winning the most Clout).
-- **Direct Challenges:** Send a 1v1 "Snap-Bet" to a specific friend that only they can see and accept.
+- **The "Trash Talk" Ticker:** A live comment feed for each Contest where friends can post gifs, images, or messages as the event unfolds.
+- **Activity Heatmap:** See which friends are the most active "instigators" (creating Contests) vs. "sharks" (winning the most Clout).
+- **Direct Challenges:** Send a 1v1 Contest invite (Snap-Bet) to a specific friend that only they can see and accept.
 
 ### 4. Group Rankings (The "Local" Leaderboard)
 
