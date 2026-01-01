@@ -19,38 +19,47 @@ import { AuthService } from '../../services/auth.service';
       </div>
 
       <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <h1 class="card-title text-3xl mb-6">Create New Circle</h1>
+        <div class="card-body space-y-6">
+          <h1 class="card-title text-3xl">Create New Circle</h1>
 
-          <form (submit)="onSubmit($event)">
-            <div class="form-control w-full mb-4">
-              <label class="label">
-                <span class="label-text">Circle Name</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Sunday Football Crew"
-                class="input input-bordered w-full"
-                [(ngModel)]="circleName"
-                name="circleName"
-                required
-              />
-              <label class="label">
-                <span class="label-text-alt"
-                  >Choose a fun name for your circle</span
+          <form (submit)="onSubmit($event)" class="space-y-4">
+            <div class="space-y-2">
+              <span class="label-text text-sm">Circle name</span>
+              <label
+                class="input input-bordered flex items-center gap-3"
+                aria-label="Circle name"
+              >
+                <svg
+                  class="h-[1em] opacity-60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
+                  <g
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <circle cx="12" cy="8" r="4"></circle>
+                    <path d="M5 20a7 7 0 0 1 14 0"></path>
+                  </g>
+                </svg>
+                <input
+                  type="text"
+                  class="grow"
+                  placeholder="Sunday Football Crew"
+                  [(ngModel)]="circleName"
+                  name="circleName"
+                  autocomplete="organization"
+                  required
+                />
               </label>
-            </div>
-
-            <div class="alert alert-info mb-4">
-              <span>
-                Circles are created as the logged-in user
-                {{ auth.currentUser()?.username || '' }}.
-              </span>
             </div>
 
             @if (error()) {
-              <div class="alert alert-error mb-4">
+              <div class="alert alert-error">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   class="stroke-current shrink-0 h-6 w-6"
@@ -68,7 +77,7 @@ import { AuthService } from '../../services/auth.service';
               </div>
             }
 
-            <div class="card-actions justify-end">
+            <div class="card-actions justify-end pt-2">
               <button type="button" class="btn btn-ghost" (click)="goBack()">
                 Cancel
               </button>

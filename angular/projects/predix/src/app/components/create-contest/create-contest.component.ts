@@ -19,49 +19,90 @@ import { AuthService } from '../../services/auth.service';
       </div>
 
       <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <h1 class="card-title text-3xl mb-6">Create New Contest</h1>
+        <div class="card-body space-y-6">
+          <h1 class="card-title text-3xl">Create New Contest</h1>
 
-          <form (submit)="onSubmit($event)">
-            <div class="form-control w-full mb-4">
-              <label class="label">
-                <span class="label-text">Contest question</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Who will win the Mario Kart tournament?"
-                class="input input-bordered w-full"
-                [(ngModel)]="question"
-                name="question"
-                required
-              />
-              <label class="label">
-                <span class="label-text-alt"
-                  >What are you making predictions about?</span
+          <form (submit)="onSubmit($event)" class="space-y-5">
+            <div class="space-y-2">
+              <span class="label-text text-sm">Contest question</span>
+              <label
+                class="input input-bordered flex items-center gap-3"
+                aria-label="Contest question"
+              >
+                <svg
+                  class="h-[1em] opacity-60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
+                  <g
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M4 5h16M4 12h8M4 19h6"></path>
+                  </g>
+                </svg>
+                <input
+                  type="text"
+                  class="grow"
+                  placeholder="Who will win the Mario Kart tournament?"
+                  [(ngModel)]="question"
+                  name="question"
+                  required
+                />
               </label>
+              <p class="text-xs text-secondary">
+                What are you making predictions about?
+              </p>
             </div>
 
-            <div class="form-control w-full mb-4">
-              <label class="label">
-                <span class="label-text">Circle IDs (comma-separated)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="1,2,3"
-                class="input input-bordered w-full"
-                [(ngModel)]="circleIdsInput"
-                name="circleIds"
-                required
-              />
-              <label class="label">
-                <span class="label-text-alt"
-                  >Scope this Contest to the Circles that can stake Clout.</span
+            <div class="space-y-2">
+              <span class="label-text text-sm"
+                >Circle IDs (comma-separated)</span
+              >
+              <label
+                class="input input-bordered flex items-center gap-3"
+                aria-label="Circle IDs"
+              >
+                <svg
+                  class="h-[1em] opacity-60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
+                  <g
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <circle cx="7" cy="7" r="3"></circle>
+                    <circle cx="17" cy="7" r="3"></circle>
+                    <path
+                      d="M4 17c1.3-2 3.7-3 6-3s4.7 1 6 3M14 17l3-3 3 3"
+                    ></path>
+                  </g>
+                </svg>
+                <input
+                  type="text"
+                  class="grow"
+                  placeholder="1,2,3"
+                  [(ngModel)]="circleIdsInput"
+                  name="circleIds"
+                  required
+                />
+                <span class="badge badge-neutral badge-xs">Required</span>
               </label>
+              <p class="text-xs text-secondary">
+                Scope this contest to the circles allowed to stake Clout.
+              </p>
             </div>
 
-            <div class="alert alert-info mb-4">
+            <div class="alert alert-info">
               <span>
                 Contests are created as
                 {{ auth.currentUser()?.username || 'your account' }}.
@@ -70,22 +111,54 @@ import { AuthService } from '../../services/auth.service';
 
             <div class="divider">Options</div>
 
-            @for (option of options(); track $index) {
-              <div class="form-control w-full mb-2">
-                <div class="input-group">
-                  <input
-                    type="text"
-                    [placeholder]="'Option ' + ($index + 1)"
-                    class="input input-bordered w-full"
-                    [(ngModel)]="option.value"
-                    [name]="'option' + $index"
-                    required
-                  />
+            <div class="space-y-3">
+              @for (option of options(); track $index) {
+                <div class="flex gap-2 items-stretch">
+                  <label
+                    class="input input-bordered flex items-center gap-3 flex-1"
+                    [attr.aria-label]="'Option ' + ($index + 1)"
+                  >
+                    <svg
+                      class="h-[1em] opacity-60"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <g
+                        stroke-linejoin="round"
+                        stroke-linecap="round"
+                        stroke-width="2"
+                        fill="none"
+                        stroke="currentColor"
+                      >
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <text
+                          x="12"
+                          y="16"
+                          text-anchor="middle"
+                          font-size="10"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          {{ $index + 1 }}
+                        </text>
+                      </g>
+                    </svg>
+                    <input
+                      type="text"
+                      class="grow"
+                      [placeholder]="'Option ' + ($index + 1)"
+                      [(ngModel)]="option.value"
+                      [name]="'option' + $index"
+                      required
+                    />
+                  </label>
                   @if (options().length > 2) {
                     <button
                       type="button"
-                      class="btn btn-square btn-error"
+                      class="btn btn-square btn-ghost"
                       (click)="removeOption($index)"
+                      aria-label="Remove option"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -93,6 +166,7 @@ import { AuthService } from '../../services/auth.service';
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
+                        aria-hidden="true"
                       >
                         <path
                           stroke-linecap="round"
@@ -104,37 +178,55 @@ import { AuthService } from '../../services/auth.service';
                     </button>
                   }
                 </div>
-              </div>
-            }
+              }
+            </div>
 
             <button
               type="button"
-              class="btn btn-sm btn-outline mb-4"
+              class="btn btn-sm btn-outline"
               (click)="addOption()"
             >
               + Add Option
             </button>
 
-            <div class="form-control w-full mb-4">
-              <label class="label">
-                <span class="label-text">Expires At</span>
-              </label>
-              <input
-                type="datetime-local"
-                class="input input-bordered w-full"
-                [(ngModel)]="expiresAt"
-                name="expiresAt"
-                required
-              />
-              <label class="label">
-                <span class="label-text-alt"
-                  >When should predictions close?</span
+            <div class="space-y-2">
+              <span class="label-text text-sm">Expires at</span>
+              <label
+                class="input input-bordered flex items-center gap-3"
+                aria-label="Expires at"
+              >
+                <svg
+                  class="h-[1em] opacity-60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
+                  <g
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 3"></path>
+                  </g>
+                </svg>
+                <input
+                  type="datetime-local"
+                  class="grow"
+                  [(ngModel)]="expiresAt"
+                  name="expiresAt"
+                  required
+                />
               </label>
+              <p class="text-xs text-secondary">
+                When should predictions close?
+              </p>
             </div>
 
             @if (error()) {
-              <div class="alert alert-error mb-4">
+              <div class="alert alert-error">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   class="stroke-current shrink-0 h-6 w-6"
@@ -152,7 +244,7 @@ import { AuthService } from '../../services/auth.service';
               </div>
             }
 
-            <div class="card-actions justify-end">
+            <div class="card-actions justify-end pt-2">
               <button type="button" class="btn btn-ghost" (click)="goBack()">
                 Cancel
               </button>
