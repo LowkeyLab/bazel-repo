@@ -22,7 +22,7 @@ type Querier interface {
 	GetContest(ctx context.Context, id int32) (Contest, error)
 	GetUser(ctx context.Context, id int32) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
-	ListCircleMembers(ctx context.Context, circleID int32) ([]CircleMember, error)
+	ListCircleMembers(ctx context.Context, circleID int32) ([]ListCircleMembersRow, error)
 	ListContestCircles(ctx context.Context, contestID int32) ([]ContestCircle, error)
 	ListContestOptions(ctx context.Context, contestID int32) ([]Option, error)
 	ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error)

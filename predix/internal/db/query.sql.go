@@ -273,20 +273,34 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const listCircleMembers = `-- name: ListCircleMembers :many
-SELECT circle_id, user_id, clout FROM circle_members
-WHERE circle_id = $1
+SELECT cm.circle_id, cm.user_id, cm.clout, u.username
+FROM circle_members cm
+JOIN users u ON u.id = cm.user_id
+WHERE cm.circle_id = $1
 `
 
-func (q *Queries) ListCircleMembers(ctx context.Context, circleID int32) ([]CircleMember, error) {
+type ListCircleMembersRow struct {
+	CircleID int32  `json:"circle_id"`
+	UserID   int32  `json:"user_id"`
+	Clout    int32  `json:"clout"`
+	Username string `json:"username"`
+}
+
+func (q *Queries) ListCircleMembers(ctx context.Context, circleID int32) ([]ListCircleMembersRow, error) {
 	rows, err := q.db.Query(ctx, listCircleMembers, circleID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []CircleMember
+	var items []ListCircleMembersRow
 	for rows.Next() {
-		var i CircleMember
-		if err := rows.Scan(&i.CircleID, &i.UserID, &i.Clout); err != nil {
+		var i ListCircleMembersRow
+		if err := rows.Scan(
+			&i.CircleID,
+			&i.UserID,
+			&i.Clout,
+			&i.Username,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

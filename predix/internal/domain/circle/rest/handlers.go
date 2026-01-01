@@ -39,8 +39,9 @@ type createCircleRequest struct {
 }
 
 type memberResponse struct {
-	UserID int32 `json:"user_id"`
-	Clout  int   `json:"clout"`
+	UserID   int32  `json:"user_id"`
+	Username string `json:"username"`
+	Clout    int    `json:"clout"`
 }
 
 type circleResponse struct {
@@ -69,7 +70,14 @@ func (h *Handler) createCircle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, toCircleResponse(newCircle))
+	// Fetch with usernames for response
+	enriched, err := h.svc.GetCircleWithUsernames(c.Request.Context(), newCircle.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, toEnrichedCircleResponse(enriched))
 }
 
 func (h *Handler) listUserCircles(c *gin.Context) {
@@ -79,7 +87,7 @@ func (h *Handler) listUserCircles(c *gin.Context) {
 		return
 	}
 
-	circles, err := h.svc.ListUserCircles(c.Request.Context(), userID)
+	circles, err := h.svc.ListUserCirclesWithUsernames(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -87,7 +95,7 @@ func (h *Handler) listUserCircles(c *gin.Context) {
 
 	responses := make([]circleResponse, len(circles))
 	for i, circ := range circles {
-		responses[i] = toCircleResponse(circ)
+		responses[i] = toEnrichedCircleResponse(circ)
 	}
 
 	c.JSON(http.StatusOK, responses)
@@ -128,7 +136,7 @@ func (h *Handler) getCircle(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetCircle(c.Request.Context(), circleID)
+	result, err := h.svc.GetCircleWithUsernames(c.Request.Context(), circleID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
@@ -138,7 +146,7 @@ func (h *Handler) getCircle(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toCircleResponse(result))
+	c.JSON(http.StatusOK, toEnrichedCircleResponse(result))
 }
 
 func (h *Handler) deleteCircle(c *gin.Context) {
@@ -186,13 +194,14 @@ func parseCircleID(c *gin.Context) (circle.ID, bool) {
 	return circle.ID(parsed), true
 }
 
-func toCircleResponse(circ *circle.Circle) circleResponse {
-	members := make([]memberResponse, 0, len(circ.Members))
-	for _, m := range circ.Members {
-		members = append(members, memberResponse{
-			UserID: int32(m.UserID),
-			Clout:  m.Clout,
-		})
+func toEnrichedCircleResponse(enriched *service.EnrichedCircle) circleResponse {
+	members := make([]memberResponse, len(enriched.Members))
+	for i, m := range enriched.Members {
+		members[i] = memberResponse{
+			UserID:   int32(m.UserID),
+			Username: m.Username,
+			Clout:    m.Clout,
+		}
 	}
 
 	sort.Slice(members, func(i, j int) bool {
@@ -200,9 +209,9 @@ func toCircleResponse(circ *circle.Circle) circleResponse {
 	})
 
 	return circleResponse{
-		ID:        int32(circ.ID),
-		Name:      circ.Name,
-		CreatedAt: circ.CreatedAt,
+		ID:        int32(enriched.ID),
+		Name:      enriched.Name,
+		CreatedAt: enriched.CreatedAt,
 		Members:   members,
 	}
 }

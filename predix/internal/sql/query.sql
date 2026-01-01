@@ -29,8 +29,10 @@ SELECT * FROM circle_members
 WHERE circle_id = $1 AND user_id = $2 LIMIT 1;
 
 -- name: ListCircleMembers :many
-SELECT * FROM circle_members
-WHERE circle_id = $1;
+SELECT cm.*, u.username
+FROM circle_members cm
+JOIN users u ON u.id = cm.user_id
+WHERE cm.circle_id = $1;
 
 -- name: ListUserCircles :many
 SELECT c.id, c.name, c.creator_id, c.created_at

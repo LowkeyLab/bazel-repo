@@ -7,6 +7,7 @@ export interface Circle {
 
 export interface CircleMember {
   user_id: number;
+  username: string;
   clout: number;
 }
 

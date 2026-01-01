@@ -40,7 +40,7 @@ import { DatePipe } from '@angular/common';
               <table class="table">
                 <thead>
                   <tr>
-                    <th>User ID</th>
+                    <th>Username</th>
                     <th>💎 Clout</th>
                     <th></th>
                   </tr>
@@ -48,7 +48,9 @@ import { DatePipe } from '@angular/common';
                 <tbody>
                   @for (member of circle.members; track member.user_id) {
                     <tr>
-                      <td>{{ member.user_id }}</td>
+                      <td>
+                        <div class="font-semibold">{{ member.username }}</div>
+                      </td>
                       <td>
                         <div class="badge badge-primary">
                           {{ member.clout }}

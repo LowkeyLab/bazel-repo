@@ -212,3 +212,211 @@ func TestListUserCircles_EmptyList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, circles, 0)
 }
+
+func TestGetCircleWithUsernames(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	// Create users
+	creatorID := createTestUser(t, pool, "creator_alice")
+	member1ID := createTestUser(t, pool, "member_bob")
+	member2ID := createTestUser(t, pool, "member_charlie")
+
+	// Create circle
+	circle, err := svc.CreateCircle(ctx, "Movie Club", creatorID)
+	require.NoError(t, err)
+
+	// Add members
+	err = svc.AddMember(ctx, circle.ID, member1ID)
+	require.NoError(t, err)
+	err = svc.AddMember(ctx, circle.ID, member2ID)
+	require.NoError(t, err)
+
+	// Get enriched circle
+	enriched, err := svc.GetCircleWithUsernames(ctx, circle.ID)
+	require.NoError(t, err)
+	assert.NotNil(t, enriched)
+	assert.Equal(t, "Movie Club", enriched.Name)
+	assert.Equal(t, circle.ID, enriched.ID)
+	assert.Equal(t, creatorID, enriched.CreatorID)
+	assert.Len(t, enriched.Members, 3)
+
+	// Verify all members have usernames
+	usernames := make(map[string]bool)
+	for _, m := range enriched.Members {
+		assert.NotEmpty(t, m.Username, "member %d should have username", m.UserID)
+		assert.Equal(t, 1000, m.Clout, "member should have initial clout")
+		usernames[m.Username] = true
+	}
+
+	assert.True(t, usernames["creator_alice"])
+	assert.True(t, usernames["member_bob"])
+	assert.True(t, usernames["member_charlie"])
+}
+
+func TestGetCircleWithUsernames_CircleNotFound(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	// Try to get non-existent circle
+	enriched, err := svc.GetCircleWithUsernames(ctx, 99999)
+	assert.Error(t, err)
+	assert.Nil(t, enriched)
+}
+
+func TestListUserCirclesWithUsernames(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	// Create users
+	user1ID := createTestUser(t, pool, "user_one")
+	user2ID := createTestUser(t, pool, "user_two")
+	user3ID := createTestUser(t, pool, "user_three")
+
+	// Create circles
+	circle1, err := svc.CreateCircle(ctx, "Tech Circle", user1ID)
+	require.NoError(t, err)
+
+	circle2, err := svc.CreateCircle(ctx, "Sports Circle", user1ID)
+	require.NoError(t, err)
+
+	// Create a third circle for user2 (to ensure user1 doesn't see it)
+	_, err = svc.CreateCircle(ctx, "Art Circle", user2ID)
+	require.NoError(t, err)
+
+	// Add user2 to circle1
+	err = svc.AddMember(ctx, circle1.ID, user2ID)
+	require.NoError(t, err)
+
+	// Add user3 to circle2
+	err = svc.AddMember(ctx, circle2.ID, user3ID)
+	require.NoError(t, err)
+
+	// Get enriched circles for user1
+	enrichedCircles, err := svc.ListUserCirclesWithUsernames(ctx, user1ID)
+	require.NoError(t, err)
+	assert.Len(t, enrichedCircles, 2)
+
+	// Verify each circle has enriched member data
+	for _, ec := range enrichedCircles {
+		assert.NotEmpty(t, ec.Name)
+		assert.NotEmpty(t, ec.Members)
+
+		// All members should have usernames
+		for _, m := range ec.Members {
+			assert.NotEmpty(t, m.Username, "member %d in circle %s should have username", m.UserID, ec.Name)
+			assert.Greater(t, m.Clout, 0)
+		}
+	}
+
+	// Find Tech Circle and verify members
+	var techCircle *service.EnrichedCircle
+	for _, ec := range enrichedCircles {
+		if ec.Name == "Tech Circle" {
+			techCircle = ec
+			break
+		}
+	}
+	require.NotNil(t, techCircle)
+	assert.Len(t, techCircle.Members, 2) // user1 (creator) and user2 (added)
+
+	// Verify usernames are present
+	usernames := make(map[string]bool)
+	for _, m := range techCircle.Members {
+		usernames[m.Username] = true
+	}
+	assert.True(t, usernames["user_one"])
+	assert.True(t, usernames["user_two"])
+
+	// Find Sports Circle and verify members
+	var sportsCircle *service.EnrichedCircle
+	for _, ec := range enrichedCircles {
+		if ec.Name == "Sports Circle" {
+			sportsCircle = ec
+			break
+		}
+	}
+	require.NotNil(t, sportsCircle)
+	assert.Len(t, sportsCircle.Members, 2) // user1 (creator) and user3 (added)
+
+	usernames = make(map[string]bool)
+	for _, m := range sportsCircle.Members {
+		usernames[m.Username] = true
+	}
+	assert.True(t, usernames["user_one"])
+	assert.True(t, usernames["user_three"])
+}
+
+func TestListUserCirclesWithUsernames_EmptyList(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	userID := createTestUser(t, pool, "isolated_user")
+
+	// User with no circles should return empty list
+	enrichedCircles, err := svc.ListUserCirclesWithUsernames(ctx, userID)
+	require.NoError(t, err)
+	assert.Len(t, enrichedCircles, 0)
+}
+
+func TestListUserCirclesWithUsernames_MultipleMembers(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	// Create users
+	creatorID := createTestUser(t, pool, "circle_creator")
+	member1ID := createTestUser(t, pool, "member_alpha")
+	member2ID := createTestUser(t, pool, "member_beta")
+	member3ID := createTestUser(t, pool, "member_gamma")
+
+	// Create circle with multiple members
+	circle, err := svc.CreateCircle(ctx, "Big Circle", creatorID)
+	require.NoError(t, err)
+
+	err = svc.AddMember(ctx, circle.ID, member1ID)
+	require.NoError(t, err)
+	err = svc.AddMember(ctx, circle.ID, member2ID)
+	require.NoError(t, err)
+	err = svc.AddMember(ctx, circle.ID, member3ID)
+	require.NoError(t, err)
+
+	// Get enriched circles for creator
+	enrichedCircles, err := svc.ListUserCirclesWithUsernames(ctx, creatorID)
+	require.NoError(t, err)
+	assert.Len(t, enrichedCircles, 1)
+
+	enriched := enrichedCircles[0]
+	assert.Equal(t, "Big Circle", enriched.Name)
+	assert.Len(t, enriched.Members, 4)
+
+	// Verify all usernames are present and correct
+	usernames := make(map[string]user.ID)
+	for _, m := range enriched.Members {
+		usernames[m.Username] = m.UserID
+	}
+
+	assert.Equal(t, creatorID, usernames["circle_creator"])
+	assert.Equal(t, member1ID, usernames["member_alpha"])
+	assert.Equal(t, member2ID, usernames["member_beta"])
+	assert.Equal(t, member3ID, usernames["member_gamma"])
+}
