@@ -15,7 +15,7 @@ import { AuthService } from '../../services/auth.service';
   template: `
     <div class="container mx-auto px-4 py-8 max-w-2xl">
       <div class="mb-6">
-        <button class="btn btn-ghost btn-sm" (click)="goBack()">← Back</button>
+        <button class="btn btn-ghost" (click)="goBack()">← Back</button>
       </div>
 
       <div class="card bg-base-100 shadow-xl">
