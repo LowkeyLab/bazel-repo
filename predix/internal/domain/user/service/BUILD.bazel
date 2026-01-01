@@ -16,9 +16,16 @@ go_test(
     name = "service_test",
     timeout = "short",
     srcs = ["service_test.go"],
+    data = ["//predix/internal/sql:schema.sql"],
     embed = [":service"],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
     deps = [
         "//predix/internal/domain/user",
         "//predix/internal/domain/user/repository",
+        "//predix/internal/testutil",
     ],
 )

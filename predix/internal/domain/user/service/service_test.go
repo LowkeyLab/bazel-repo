@@ -7,10 +7,11 @@ import (
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
+	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 )
 
 func TestLoginSuccess(t *testing.T) {
-	svc := NewService(repository.NewMemory())
+	svc := newPostgresService(t)
 	ctx := context.Background()
 
 	created, err := svc.Register(ctx, "alice", "pass123")
@@ -29,7 +30,7 @@ func TestLoginSuccess(t *testing.T) {
 }
 
 func TestLoginUnknownUser(t *testing.T) {
-	svc := NewService(repository.NewMemory())
+	svc := newPostgresService(t)
 	ctx := context.Background()
 
 	_, err := svc.Login(ctx, "missing", "pass123")
@@ -46,7 +47,7 @@ func TestLoginUnknownUser(t *testing.T) {
 }
 
 func TestLoginWrongPassword(t *testing.T) {
-	svc := NewService(repository.NewMemory())
+	svc := newPostgresService(t)
 	ctx := context.Background()
 
 	if _, err := svc.Register(ctx, "alice", "pass123"); err != nil {
@@ -59,7 +60,7 @@ func TestLoginWrongPassword(t *testing.T) {
 }
 
 func TestRegisterDuplicate(t *testing.T) {
-	svc := NewService(repository.NewMemory())
+	svc := newPostgresService(t)
 	ctx := context.Background()
 
 	if _, err := svc.Register(ctx, "alice", "pass123"); err != nil {
@@ -74,7 +75,7 @@ func TestRegisterDuplicate(t *testing.T) {
 }
 
 func TestRegisterTrimsInput(t *testing.T) {
-	svc := NewService(repository.NewMemory())
+	svc := newPostgresService(t)
 	ctx := context.Background()
 
 	u, err := svc.Register(ctx, "  bob  ", "  secret  ")
@@ -91,4 +92,11 @@ func TestRegisterTrimsInput(t *testing.T) {
 	if u.Role != user.RoleMember {
 		t.Fatalf("expected default role %q, got %q", user.RoleMember, u.Role)
 	}
+}
+
+func newPostgresService(t *testing.T) *Service {
+	t.Helper()
+
+	pool := testutil.SetupTestDB(t)
+	return NewService(repository.NewPostgres(pool))
 }
