@@ -25,7 +25,7 @@ import { AuthService } from '../../services/auth.service';
           <form (submit)="onSubmit($event)">
             <div class="form-control w-full mb-4">
               <label class="label">
-                <span class="label-text">Question</span>
+                <span class="label-text">Contest question</span>
               </label>
               <input
                 type="text"
@@ -56,7 +56,7 @@ import { AuthService } from '../../services/auth.service';
               />
               <label class="label">
                 <span class="label-text-alt"
-                  >Which circles can participate?</span
+                  >Scope this Contest to the Circles that can stake Clout.</span
                 >
               </label>
             </div>

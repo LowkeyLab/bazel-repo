@@ -6,7 +6,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
-import type { Contest } from '../../models/contest.model';
+import type { Contest, ContestStatus } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 
 @Component({
@@ -15,7 +15,7 @@ import { DatePipe } from '@angular/common';
   template: `
     <div class="container mx-auto px-4 py-8">
       <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Active Contests</h1>
+        <h1 class="text-3xl font-bold">Contests in Your Circles</h1>
         <button class="btn btn-primary" (click)="createContest()">
           Create Contest
         </button>
@@ -40,9 +40,10 @@ import { DatePipe } from '@angular/common';
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             ></path>
           </svg>
-          <span
-            >No active contests. Create your first contest to get started!</span
-          >
+          <span>
+            No open Contests yet. Create one to let members stake Clout in your
+            Circles.
+          </span>
         </div>
       } @else {
         <div class="grid gap-4">
@@ -58,7 +59,7 @@ import { DatePipe } from '@angular/common';
                       {{ contest.question }}
                     </h2>
                     <p class="text-sm text-secondary mb-3">
-                      Expires {{ contest.expires_at | date: 'short' }}
+                      Predictions close {{ contest.expires_at | date: 'short' }}
                     </p>
                     <div class="flex gap-2 flex-wrap mb-2">
                       @for (option of contest.options; track option.id) {
@@ -70,10 +71,10 @@ import { DatePipe } from '@angular/common';
                     <div
                       class="badge"
                       [class.badge-success]="contest.status === 'OPEN'"
-                      [class.badge-warning]="contest.status === 'CLOSED'"
+                      [class.badge-neutral]="contest.status === 'CLOSED'"
                       [class.badge-info]="contest.status === 'RESOLVED'"
                     >
-                      {{ contest.status }}
+                      {{ statusLabels[contest.status] }}
                     </div>
                   </div>
                 </div>
@@ -82,7 +83,7 @@ import { DatePipe } from '@angular/common';
                     >{{ contest.predictions.length }} predictions</span
                   >
                   <span class="text-sm font-bold"
-                    >{{ getTotalClout(contest) }} clout in pool</span
+                    >{{ getTotalClout(contest) }} Clout staked</span
                   >
                 </div>
               </div>
@@ -100,6 +101,11 @@ export class ContestListComponent {
 
   protected readonly contests = signal<Contest[]>([]);
   protected readonly loading = signal(false);
+  protected readonly statusLabels: Record<ContestStatus, string> = {
+    OPEN: 'Open',
+    CLOSED: 'Closed (paused)',
+    RESOLVED: 'Resolved',
+  };
 
   createContest(): void {
     this.router.navigate(['/contests/new']);

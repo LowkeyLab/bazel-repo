@@ -16,13 +16,13 @@ import { AuthService } from '../../services/auth.service';
       <section class="hero py-16 px-4">
         <div class="max-w-6xl mx-auto grid gap-12 md:grid-cols-2 items-center">
           <div class="space-y-6">
-            <div class="badge badge-primary badge-lg">Private Circle</div>
             <h1 class="text-4xl md:text-5xl font-bold leading-tight">
               Prediction battles built for your inner circle
             </h1>
             <p class="text-lg text-secondary">
-              Predix lets friends, roommates, and coworkers wager Clout on the
-              micro-moments you actually care about—inside invite-only Circles.
+              Stake Clout on Contests inside invite-only Circles. Your crew
+              writes the questions, sets the Options, and keeps the bragging
+              rights local.
             </p>
             <div class="flex flex-wrap gap-3">
               <a class="btn btn-primary" [routerLink]="primaryCta()">
@@ -34,8 +34,8 @@ import { AuthService } from '../../services/auth.service';
             </div>
             <div class="flex flex-wrap gap-2 text-sm text-secondary">
               <span class="badge badge-outline">Invite-only Circles</span>
-              <span class="badge badge-outline">Clout pools</span>
-              <span class="badge badge-outline">Creator-led resolution</span>
+              <span class="badge badge-outline">Circle Clout ledgers</span>
+              <span class="badge badge-outline">Creator resolves Contests</span>
               <span class="badge badge-outline">Live trash talk</span>
             </div>
           </div>
@@ -48,10 +48,13 @@ import { AuthService } from '../../services/auth.service';
                 >
                   <li>Create a Circle and share the invite code.</li>
                   <li>
-                    Spin up friendly predictions with dynamic Clout pools.
+                    Spin up Contests with Options and Clout stakes scoped to
+                    your Circles.
                   </li>
-                  <li>Resolve outcomes with the Circle creator or a vote.</li>
-                  <li>Climb the local leaderboard and earn bragging rights.</li>
+                  <li>
+                    Contest creator resolves by selecting the winning Option.
+                  </li>
+                  <li>Climb the local leaderboard on Circle Clout.</li>
                 </ul>
               </div>
             </div>
@@ -116,18 +119,18 @@ export class HomeComponent {
 
   protected readonly highlights = [
     {
-      title: 'Private circles',
-      copy: 'Invite-only Circles keep wagers, balances, and leaderboards contained to your crew.',
+      title: 'Circle-first',
+      copy: 'Invite-only Circles keep Contests, Clout ledgers, and leaderboards contained to your crew.',
       emoji: '🔒',
     },
     {
-      title: 'Dynamic Clout pools',
-      copy: 'Underdogs earn more when the odds are stacked—every prediction balances the pot.',
+      title: 'Clout stakes',
+      copy: 'Members start with Circle Clout and stake it on Options—odds shift as predictions land.',
       emoji: '💥',
     },
     {
       title: 'Social energy',
-      copy: 'Trash talk ticker, weekly recap cards, and challenges keep friends coming back.',
+      copy: 'Trash talk ticker, recap cards, and 1v1 challenges keep Contests lively.',
       emoji: '🎉',
     },
   ];

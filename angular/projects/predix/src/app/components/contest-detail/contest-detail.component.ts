@@ -7,7 +7,11 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
-import type { Contest, ContestOption } from '../../models/contest.model';
+import type {
+  Contest,
+  ContestOption,
+  ContestStatus,
+} from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -35,12 +39,17 @@ import { AuthService } from '../../services/auth.service';
               <div
                 class="badge badge-lg"
                 [class.badge-success]="contest.status === 'OPEN'"
-                [class.badge-warning]="contest.status === 'CLOSED'"
+                [class.badge-neutral]="contest.status === 'CLOSED'"
                 [class.badge-info]="contest.status === 'RESOLVED'"
               >
-                {{ contest.status }}
+                {{ statusLabels[contest.status] }}
               </div>
             </div>
+
+            <p class="text-sm text-secondary mb-2">
+              Contest creator resolves by selecting the winning Option; CLOSED
+              is reserved for paused prediction windows.
+            </p>
 
             <div class="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -56,8 +65,8 @@ import { AuthService } from '../../services/auth.service';
                 </p>
               </div>
               <div>
-                <p class="text-sm text-secondary">Total Pool</p>
-                <p class="font-semibold">{{ getTotalClout(contest) }} clout</p>
+                <p class="text-sm text-secondary">Clout staked</p>
+                <p class="font-semibold">{{ getTotalClout(contest) }} Clout</p>
               </div>
               <div>
                 <p class="text-sm text-secondary">Predictions</p>
@@ -112,7 +121,7 @@ import { AuthService } from '../../services/auth.service';
                         </div>
                       </div>
                       <div class="stat">
-                        <div class="stat-title">Total Clout</div>
+                        <div class="stat-title">Clout staked</div>
                         <div class="stat-value text-2xl">
                           {{ getCloutForOption(contest, option.id) }}
                         </div>
@@ -211,6 +220,11 @@ export class ContestDetailComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly predictionLoading = signal(false);
   protected readonly predictionError = signal('');
+  protected readonly statusLabels: Record<ContestStatus, string> = {
+    OPEN: 'Open',
+    CLOSED: 'Closed (paused)',
+    RESOLVED: 'Resolved',
+  };
 
   protected selectedOptionId: number | null = null;
   protected cloutAmount = 10;

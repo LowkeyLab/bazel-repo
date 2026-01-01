@@ -39,7 +39,10 @@ import type { Circle } from '../../models/circle.model';
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             ></path>
           </svg>
-          <span>No circles yet. Create your first circle to get started!</span>
+          <span>
+            No Circles yet. Create one to start a Circle Clout ledger for your
+            crew (members start with 1000 Clout).
+          </span>
         </div>
       } @else {
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -55,7 +58,7 @@ import type { Circle } from '../../models/circle.model';
                 </p>
                 <div class="card-actions justify-end">
                   <div class="badge badge-outline">
-                    {{ getTotalClout(circle) }} total clout
+                    {{ getTotalClout(circle) }} Circle Clout
                   </div>
                 </div>
               </div>
