@@ -57,7 +57,7 @@ import { DatePipe } from '@angular/common';
                     <h2 class="card-title text-2xl mb-2">
                       {{ contest.question }}
                     </h2>
-                    <p class="text-sm text-gray-500 mb-3">
+                    <p class="text-sm text-secondary mb-3">
                       Expires {{ contest.expires_at | date: 'short' }}
                     </p>
                     <div class="flex gap-2 flex-wrap mb-2">
@@ -78,7 +78,7 @@ import { DatePipe } from '@angular/common';
                   </div>
                 </div>
                 <div class="card-actions justify-between items-center">
-                  <span class="text-sm text-gray-600"
+                  <span class="text-sm text-secondary"
                     >{{ contest.predictions.length }} predictions</span
                   >
                   <span class="text-sm font-bold"

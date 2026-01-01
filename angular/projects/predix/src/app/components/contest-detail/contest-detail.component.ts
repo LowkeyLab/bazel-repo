@@ -44,23 +44,23 @@ import { AuthService } from '../../services/auth.service';
 
             <div class="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <p class="text-sm text-gray-500">Created</p>
+                <p class="text-sm text-secondary">Created</p>
                 <p class="font-semibold">
                   {{ contest.created_at | date: 'short' }}
                 </p>
               </div>
               <div>
-                <p class="text-sm text-gray-500">Expires</p>
+                <p class="text-sm text-secondary">Expires</p>
                 <p class="font-semibold">
                   {{ contest.expires_at | date: 'short' }}
                 </p>
               </div>
               <div>
-                <p class="text-sm text-gray-500">Total Pool</p>
+                <p class="text-sm text-secondary">Total Pool</p>
                 <p class="font-semibold">{{ getTotalClout(contest) }} clout</p>
               </div>
               <div>
-                <p class="text-sm text-gray-500">Predictions</p>
+                <p class="text-sm text-secondary">Predictions</p>
                 <p class="font-semibold">{{ contest.predictions.length }}</p>
               </div>
             </div>

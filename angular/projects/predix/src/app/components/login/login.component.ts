@@ -20,12 +20,12 @@ import { AuthService } from '../../services/auth.service';
           <div class="flex items-center gap-2">
             <span class="text-2xl">🏟️</span>
             <div>
-              <p class="text-sm text-gray-500">Welcome to</p>
+              <p class="text-sm text-secondary">Welcome to</p>
               <h1 class="text-3xl font-bold">Predix</h1>
             </div>
           </div>
 
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-secondary">
             Sign in to create circles, open contests, and make predictions.
           </p>
 
@@ -78,7 +78,7 @@ import { AuthService } from '../../services/auth.service';
             </div>
           </form>
 
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-secondary">
             Tip: use any username/password to create a new account on first
             login.
           </p>

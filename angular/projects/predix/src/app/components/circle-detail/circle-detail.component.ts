@@ -29,7 +29,7 @@ import { DatePipe } from '@angular/common';
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body">
             <h1 class="card-title text-4xl mb-4">{{ circle.name }}</h1>
-            <p class="text-sm text-gray-500">
+            <p class="text-sm text-secondary">
               Created {{ circle.created_at | date: 'medium' }}
             </p>
 

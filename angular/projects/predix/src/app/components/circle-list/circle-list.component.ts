@@ -50,7 +50,7 @@ import type { Circle } from '../../models/circle.model';
             >
               <div class="card-body">
                 <h2 class="card-title">{{ circle.name }}</h2>
-                <p class="text-sm text-gray-500">
+                <p class="text-sm text-secondary">
                   {{ circle.members.length }} members
                 </p>
                 <div class="card-actions justify-end">

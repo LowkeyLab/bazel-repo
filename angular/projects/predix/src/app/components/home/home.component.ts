@@ -20,7 +20,7 @@ import { AuthService } from '../../services/auth.service';
             <h1 class="text-4xl md:text-5xl font-bold leading-tight">
               Prediction battles built for your inner circle
             </h1>
-            <p class="text-lg text-gray-600">
+            <p class="text-lg text-secondary">
               Predix lets friends, roommates, and coworkers wager Clout on the
               micro-moments you actually care about—inside invite-only Circles.
             </p>
@@ -32,7 +32,7 @@ import { AuthService } from '../../services/auth.service';
                 {{ secondaryLabel() }}
               </a>
             </div>
-            <div class="flex flex-wrap gap-2 text-sm text-gray-500">
+            <div class="flex flex-wrap gap-2 text-sm text-secondary">
               <span class="badge badge-outline">Invite-only Circles</span>
               <span class="badge badge-outline">Clout pools</span>
               <span class="badge badge-outline">Creator-led resolution</span>
@@ -43,7 +43,9 @@ import { AuthService } from '../../services/auth.service';
             <div class="card bg-base-100 shadow-xl">
               <div class="card-body space-y-3">
                 <h2 class="card-title">How it works</h2>
-                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                <ul
+                  class="list-disc list-inside space-y-2 text-base-content/80"
+                >
                   <li>Create a Circle and share the invite code.</li>
                   <li>
                     Spin up friendly predictions with dynamic Clout pools.
@@ -56,9 +58,9 @@ import { AuthService } from '../../services/auth.service';
             <div class="grid md:grid-cols-2 gap-4">
               <div class="card bg-base-100 shadow">
                 <div class="card-body">
-                  <p class="text-sm text-gray-500">For friend groups</p>
+                  <p class="text-sm text-secondary">For friend groups</p>
                   <h3 class="text-xl font-semibold">Sunday Football Crew</h3>
-                  <p class="text-sm text-gray-600">
+                  <p class="text-sm text-secondary">
                     Who calls the plays? Predict the outcomes that actually
                     matter to your crew.
                   </p>
@@ -66,9 +68,9 @@ import { AuthService } from '../../services/auth.service';
               </div>
               <div class="card bg-base-100 shadow">
                 <div class="card-body">
-                  <p class="text-sm text-gray-500">For roommates</p>
+                  <p class="text-sm text-secondary">For roommates</p>
                   <h3 class="text-xl font-semibold">Dish Duty Showdown</h3>
-                  <p class="text-sm text-gray-600">
+                  <p class="text-sm text-secondary">
                     Bet Clout on chores, dares, and daily moments with stakes
                     everyone can laugh about.
                   </p>
@@ -86,7 +88,7 @@ import { AuthService } from '../../services/auth.service';
               <div class="card-body space-y-2">
                 <div class="text-3xl">{{ highlight.emoji }}</div>
                 <h3 class="text-xl font-semibold">{{ highlight.title }}</h3>
-                <p class="text-sm text-gray-600">{{ highlight.copy }}</p>
+                <p class="text-sm text-secondary">{{ highlight.copy }}</p>
               </div>
             </div>
           }
