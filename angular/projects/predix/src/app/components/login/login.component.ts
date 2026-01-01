@@ -6,13 +6,13 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule],
   template: `
     <div class="min-h-screen flex items-center justify-center bg-base-200 px-4">
       <div class="card w-full max-w-md bg-base-100 shadow-xl">
