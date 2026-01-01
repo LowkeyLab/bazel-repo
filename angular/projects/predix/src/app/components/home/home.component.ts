@@ -120,7 +120,7 @@ export class HomeComponent {
     {
       title: 'Clout stakes',
       copy: 'Members start with some Clout and stake it on Options—odds shift as predictions land.',
-      emoji: '💥',
+      emoji: '💎',
     },
     {
       title: 'Social energy',
