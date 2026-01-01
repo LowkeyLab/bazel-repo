@@ -24,10 +24,10 @@ import { AuthService } from '../../services/auth.service';
 
           <form (submit)="onSubmit($event)" class="space-y-5">
             <div class="space-y-2">
-              <span class="label-text text-sm">Contest question</span>
+              <span class="label-text text-sm">Subject</span>
               <label
                 class="input input-bordered flex items-center gap-3"
-                aria-label="Contest question"
+                aria-label="Subject"
               >
                 <svg
                   class="h-[1em] opacity-60"
@@ -100,13 +100,6 @@ import { AuthService } from '../../services/auth.service';
               <p class="text-xs text-secondary">
                 Scope this contest to the circles allowed to stake Clout.
               </p>
-            </div>
-
-            <div class="alert alert-info">
-              <span>
-                Contests are created as
-                {{ auth.currentUser()?.username || 'your account' }}.
-              </span>
             </div>
 
             <div class="divider">Options</div>
