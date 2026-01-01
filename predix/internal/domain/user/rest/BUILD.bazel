@@ -24,3 +24,16 @@ go_test(
         "@com_github_gin_gonic_gin//:gin",
     ],
 )
+
+go_test(
+    name = "rest_test",
+    timeout = "short",
+    srcs = ["handlers_test.go"],
+    embed = [":rest"],
+    deps = [
+        "//predix/internal/auth",
+        "//predix/internal/domain/user/repository",
+        "//predix/internal/domain/user/service",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)
