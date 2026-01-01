@@ -22,13 +22,6 @@ type Manager struct {
 
 // NewManager constructs a Manager with the provided secret and token TTL.
 func NewManager(secret string, ttl time.Duration) *Manager {
-	if secret == "" {
-		secret = "dev-secret"
-	}
-	if ttl <= 0 {
-		ttl = 24 * time.Hour
-	}
-
 	return &Manager{secret: []byte(secret), ttl: ttl}
 }
 
@@ -62,7 +55,7 @@ func (m *Manager) ParseToken(raw string) (user.ID, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return m.secret, nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return 0, fmt.Errorf("invalid token: %w", err)
 	}

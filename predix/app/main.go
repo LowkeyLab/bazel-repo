@@ -27,14 +27,20 @@ import (
 func main() {
 	// 1. Initialize Infrastructure
 	// Determine whether to use in-memory or PostgreSQL repositories
-	useInMemory := strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true"
+	devMode := strings.ToLower(os.Getenv("DEV_MODE")) == "true"
+	jwtSecret := os.Getenv("JWT_SECRET")
+
+	if devMode {
+		fmt.Println("Running in development mode with in-memory storage.")
+		jwtSecret = "dev-secret"
+	}
 
 	// 2. Initialize Repositories
 	var userRepo userrepo.Repository
 	var contestRepo contestrepo.Repository
 	var circleRepo circlerepo.Repository
 
-	if useInMemory {
+	if devMode {
 		fmt.Println("Using in-memory repositories...")
 		circleRepo = circlerepo.NewMemory()
 		contestRepo = contestrepo.NewMemory()
@@ -65,7 +71,7 @@ func main() {
 	userSvc := userservice.NewService(userRepo)
 
 	// 3. Initialize HTTP Handlers
-	authManager := auth.NewManager(os.Getenv("JWT_SECRET"), 24*time.Hour)
+	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc)
 	contestHandler := contestrest.NewHandler(contestSvc)
 	userHandler := userrest.NewHandler(userSvc, authManager)
