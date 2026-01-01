@@ -83,7 +83,7 @@ import { DatePipe } from '@angular/common';
                     >{{ contest.predictions.length }} predictions</span
                   >
                   <span class="text-sm font-bold"
-                    >{{ getTotalClout(contest) }} Clout staked</span
+                    >💎 {{ getTotalClout(contest) }} Clout staked</span
                   >
                 </div>
               </div>

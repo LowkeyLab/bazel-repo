@@ -59,7 +59,7 @@ import type { Circle } from '../../models/circle.model';
                 </p>
                 <div class="card-actions justify-end">
                   <div class="badge badge-outline">
-                    {{ getTotalClout(circle) }} Circle Clout
+                    💎 {{ getTotalClout(circle) }} Circle Clout
                   </div>
                 </div>
               </div>

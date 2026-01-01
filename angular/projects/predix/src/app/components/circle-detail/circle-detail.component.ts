@@ -41,7 +41,7 @@ import { DatePipe } from '@angular/common';
                 <thead>
                   <tr>
                     <th>User ID</th>
-                    <th>Clout</th>
+                    <th>💎 Clout</th>
                     <th></th>
                   </tr>
                 </thead>
