@@ -1,6 +1,17 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core';
+import {
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
+
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -10,5 +21,14 @@ import { provideHttpClient, withFetch } from '@angular/common/http';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  protected readonly title = signal('predix');
+  private readonly router = inject(Router);
+  protected readonly auth = inject(AuthService);
+  protected readonly isAuthenticated = computed(() =>
+    this.auth.isAuthenticated(),
+  );
+
+  protected logout(): void {
+    this.auth.logout();
+    this.router.navigate(['/login']);
+  }
 }

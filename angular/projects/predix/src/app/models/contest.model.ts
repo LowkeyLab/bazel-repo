@@ -27,18 +27,16 @@ export interface Prediction {
 
 export interface CreateContestRequest {
   circle_ids: number[];
-  creator_id: number;
   question: string;
   options: string[];
   expires_at: string;
 }
 
 export interface MakePredictionRequest {
-  user_id: number;
   option_id: number;
   clout: number;
 }
 
 export interface ResolveContestRequest {
-  option_id: number;
+  winning_option_id: number;
 }

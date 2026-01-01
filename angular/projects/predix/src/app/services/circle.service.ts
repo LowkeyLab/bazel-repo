@@ -13,7 +13,7 @@ import type {
 })
 export class CircleService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}/circles`;
+  private readonly apiUrl = `${environment.apiUrl}/protected/circles`;
 
   createCircle(request: CreateCircleRequest): Observable<Circle> {
     return this.http.post<Circle>(this.apiUrl, request);

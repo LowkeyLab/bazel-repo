@@ -7,6 +7,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CircleService } from '../../services/circle.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-create-circle',
@@ -41,23 +42,11 @@ import { CircleService } from '../../services/circle.service';
               </label>
             </div>
 
-            <div class="form-control w-full mb-4">
-              <label class="label">
-                <span class="label-text">Your User ID</span>
-              </label>
-              <input
-                type="number"
-                placeholder="1"
-                class="input input-bordered w-full"
-                [(ngModel)]="creatorId"
-                name="creatorId"
-                required
-              />
-              <label class="label">
-                <span class="label-text-alt"
-                  >You'll be the creator of this circle</span
-                >
-              </label>
+            <div class="alert alert-info mb-4">
+              <span>
+                Circles are created as the logged-in user
+                {{ auth.currentUser()?.username || '' }}.
+              </span>
             </div>
 
             @if (error()) {
@@ -104,9 +93,9 @@ import { CircleService } from '../../services/circle.service';
 export class CreateCircleComponent {
   private readonly router = inject(Router);
   private readonly circleService = inject(CircleService);
+  protected readonly auth = inject(AuthService);
 
   protected circleName = '';
-  protected creatorId = 1;
   protected readonly loading = signal(false);
   protected readonly error = signal('');
 
@@ -124,7 +113,6 @@ export class CreateCircleComponent {
     this.circleService
       .createCircle({
         name: this.circleName,
-        creator_id: this.creatorId,
       })
       .subscribe({
         next: (circle) => {

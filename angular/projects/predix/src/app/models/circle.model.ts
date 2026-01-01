@@ -12,7 +12,6 @@ export interface CircleMember {
 
 export interface CreateCircleRequest {
   name: string;
-  creator_id: number;
 }
 
 export interface AddMemberRequest {

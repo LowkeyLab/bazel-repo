@@ -10,6 +10,7 @@ import { ContestService } from '../../services/contest.service';
 import type { Contest, ContestOption } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-contest-detail',
@@ -127,20 +128,14 @@ import { FormsModule } from '@angular/forms';
 
               <h2 class="text-2xl font-bold mb-4">Make a Prediction</h2>
               <form (submit)="onSubmit($event)">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div class="form-control">
-                    <label class="label">
-                      <span class="label-text">Your User ID</span>
-                    </label>
-                    <input
-                      type="number"
-                      class="input input-bordered"
-                      [(ngModel)]="userId"
-                      name="userId"
-                      required
-                    />
-                  </div>
+                <div class="alert alert-info mb-4">
+                  <span>
+                    Predictions are placed as
+                    {{ auth.currentUser()?.username || 'your account' }}.
+                  </span>
+                </div>
 
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="form-control">
                     <label class="label">
                       <span class="label-text">Choose Option</span>
@@ -151,11 +146,11 @@ import { FormsModule } from '@angular/forms';
                       name="optionId"
                       required
                     >
-                      <option [value]="null" disabled selected>
+                      <option [ngValue]="null" disabled selected>
                         Select option
                       </option>
                       @for (option of contest.options; track option.id) {
-                        <option [value]="option.id">{{ option.text }}</option>
+                        <option [ngValue]="option.id">{{ option.text }}</option>
                       }
                     </select>
                   </div>
@@ -210,13 +205,13 @@ export class ContestDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly contestService = inject(ContestService);
+  protected readonly auth = inject(AuthService);
 
   protected readonly contest = signal<Contest | null>(null);
   protected readonly loading = signal(true);
   protected readonly predictionLoading = signal(false);
   protected readonly predictionError = signal('');
 
-  protected userId = 1;
   protected selectedOptionId: number | null = null;
   protected cloutAmount = 10;
 
@@ -255,7 +250,6 @@ export class ContestDetailComponent implements OnInit {
 
     this.contestService
       .makePrediction(contestId, {
-        user_id: this.userId,
         option_id: this.selectedOptionId,
         clout: this.cloutAmount,
       })

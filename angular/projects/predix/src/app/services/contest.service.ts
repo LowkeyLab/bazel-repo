@@ -14,7 +14,7 @@ import type {
 })
 export class ContestService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}/contests`;
+  private readonly apiUrl = `${environment.apiUrl}/protected/contests`;
 
   createContest(request: CreateContestRequest): Observable<Contest> {
     return this.http.post<Contest>(this.apiUrl, request);

@@ -7,6 +7,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ContestService } from '../../services/contest.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-create-contest',
@@ -60,18 +61,11 @@ import { ContestService } from '../../services/contest.service';
               </label>
             </div>
 
-            <div class="form-control w-full mb-4">
-              <label class="label">
-                <span class="label-text">Your User ID</span>
-              </label>
-              <input
-                type="number"
-                placeholder="1"
-                class="input input-bordered w-full"
-                [(ngModel)]="creatorId"
-                name="creatorId"
-                required
-              />
+            <div class="alert alert-info mb-4">
+              <span>
+                Contests are created as
+                {{ auth.currentUser()?.username || 'your account' }}.
+              </span>
             </div>
 
             <div class="divider">Options</div>
@@ -183,10 +177,10 @@ import { ContestService } from '../../services/contest.service';
 export class CreateContestComponent {
   private readonly router = inject(Router);
   private readonly contestService = inject(ContestService);
+  protected readonly auth = inject(AuthService);
 
   protected question = '';
   protected circleIdsInput = '';
-  protected creatorId = 1;
   protected expiresAt = '';
   protected readonly options = signal([{ value: '' }, { value: '' }]);
   protected readonly loading = signal(false);
@@ -239,7 +233,6 @@ export class CreateContestComponent {
     this.contestService
       .createContest({
         circle_ids: circleIds,
-        creator_id: this.creatorId,
         question: this.question,
         options: optionTexts,
         expires_at: new Date(this.expiresAt).toISOString(),
