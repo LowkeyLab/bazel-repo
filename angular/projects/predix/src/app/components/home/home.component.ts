@@ -16,7 +16,7 @@ import { AuthService } from '../../services/auth.service';
       <section class="hero py-16 px-4">
         <div class="max-w-6xl mx-auto grid gap-12 md:grid-cols-2 items-center">
           <div class="space-y-6">
-            <div class="badge badge-primary badge-lg">Private Circle Arena</div>
+            <div class="badge badge-primary badge-lg">Private Circle</div>
             <h1 class="text-4xl md:text-5xl font-bold leading-tight">
               Prediction battles built for your inner circle
             </h1>
@@ -116,7 +116,7 @@ export class HomeComponent {
 
   protected readonly highlights = [
     {
-      title: 'Private arenas',
+      title: 'Private circles',
       copy: 'Invite-only Circles keep wagers, balances, and leaderboards contained to your crew.',
       emoji: '🔒',
     },

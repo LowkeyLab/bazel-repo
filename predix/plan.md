@@ -10,7 +10,7 @@ The app is organized into **Circles**—private, invite-only spaces. Everything 
 
 ### 1. Circle Management
 
-- **Private Arenas:** Create a Circle (e.g., "The Sunday Football Crew") and generate a unique invite code.
+- **Private Circles:** Create a Circle (e.g., "The Sunday Football Crew") and generate a unique invite code.
 - **Join via Code:** Friends join by entering the code, instantly seeing the group's active bets.
 - **Circle-Specific Ledger:** Every user has a unique "Clout" balance per circle to keep the stakes fair and contained.
 
