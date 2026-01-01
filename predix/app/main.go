@@ -30,18 +30,16 @@ func main() {
 	useInMemory := strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true"
 
 	// 2. Initialize Repositories
-	var circleSvc *circleservice.Service
-	var contestSvc *contestservice.Service
-	var userSvc *userservice.Service
+	var userRepo userrepo.Repository
+	var contestRepo contestrepo.Repository
+	var circleRepo circlerepo.Repository
 
 	if useInMemory {
 		fmt.Println("Using in-memory repositories...")
-		circleRepo := circlerepo.NewMemory()
-		contestRepo := contestrepo.NewMemory()
-		userRepo := userrepo.NewMemory()
-		circleSvc = circleservice.NewService(circleRepo, userRepo)
-		contestSvc = contestservice.NewService(contestRepo)
-		userSvc = userservice.NewService(userRepo)
+		circleRepo = circlerepo.NewMemory()
+		contestRepo = contestrepo.NewMemory()
+		userRepo = userrepo.NewMemory()
+
 	} else {
 		fmt.Println("Using PostgreSQL repositories...")
 		// DB
@@ -56,13 +54,15 @@ func main() {
 		}
 		defer pool.Close()
 
-		circleRepo := circlerepo.NewPostgres(pool)
-		contestRepo := contestrepo.NewPostgres(pool)
-		userRepo := userrepo.NewPostgres(pool)
-		circleSvc = circleservice.NewService(circleRepo, userRepo)
-		contestSvc = contestservice.NewService(contestRepo)
-		userSvc = userservice.NewService(userRepo)
+		circleRepo = circlerepo.NewPostgres(pool)
+		contestRepo = contestrepo.NewPostgres(pool)
+		userRepo = userrepo.NewPostgres(pool)
+
 	}
+
+	circleSvc := circleservice.NewService(circleRepo, userRepo)
+	contestSvc := contestservice.NewService(contestRepo)
+	userSvc := userservice.NewService(userRepo)
 
 	// 3. Initialize HTTP Handlers
 	authManager := auth.NewManager(os.Getenv("JWT_SECRET"), 24*time.Hour)
@@ -73,7 +73,14 @@ func main() {
 	// 4. Setup HTTP Router
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:4200"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	userHandler.RegisterRoutes(r)
 
