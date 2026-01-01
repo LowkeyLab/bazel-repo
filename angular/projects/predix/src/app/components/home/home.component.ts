@@ -45,15 +45,10 @@ import { AuthService } from '../../services/auth.service';
                 <ul
                   class="list-disc list-inside space-y-2 text-base-content/80"
                 >
-                  <li>Create a Circle and share the invite code.</li>
-                  <li>
-                    Spin up Contests with Options and Clout stakes scoped to
-                    your Circles.
-                  </li>
-                  <li>
-                    Contest creator resolves by selecting the winning Option.
-                  </li>
-                  <li>Climb the local leaderboard on Circle Clout.</li>
+                  <li>Create a Circle and invite your crew.</li>
+                  <li>Spin up Contests for your Circle.</li>
+                  <li>Creator decides the winning Option.</li>
+                  <li>Climb your local leaderboard.</li>
                 </ul>
               </div>
             </div>
@@ -118,13 +113,13 @@ export class HomeComponent {
 
   protected readonly highlights = [
     {
-      title: 'Circle-first',
+      title: 'Friends-first',
       copy: 'Invite-only Circles keep Contests, Clout ledgers, and leaderboards contained to your crew.',
       emoji: '🔒',
     },
     {
       title: 'Clout stakes',
-      copy: 'Members start with Circle Clout and stake it on Options—odds shift as predictions land.',
+      copy: 'Members start with some Clout and stake it on Options—odds shift as predictions land.',
       emoji: '💥',
     },
     {
