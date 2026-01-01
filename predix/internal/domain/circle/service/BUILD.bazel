@@ -9,6 +9,7 @@ go_library(
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/user",
+        "//predix/internal/domain/user/repository",
     ],
 )
 
@@ -29,7 +30,9 @@ go_test(
         "//predix/internal/db",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/user",
+        "//predix/internal/domain/user/repository",
         "//predix/internal/testutil",
+        "@com_github_jackc_pgx_v5//:pgx",
         "@com_github_jackc_pgx_v5//pgxpool",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",

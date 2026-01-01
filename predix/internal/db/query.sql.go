@@ -43,20 +43,26 @@ func (q *Queries) AddContestCircle(ctx context.Context, arg AddContestCirclePara
 }
 
 const createCircle = `-- name: CreateCircle :one
-INSERT INTO circles (name, created_at)
-VALUES ($1, $2)
-RETURNING id, name, created_at
+INSERT INTO circles (name, creator_id, created_at)
+VALUES ($1, $2, $3)
+RETURNING id, name, creator_id, created_at
 `
 
 type CreateCircleParams struct {
 	Name      string           `json:"name"`
+	CreatorID int32            `json:"creator_id"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Circle, error) {
-	row := q.db.QueryRow(ctx, createCircle, arg.Name, arg.CreatedAt)
+	row := q.db.QueryRow(ctx, createCircle, arg.Name, arg.CreatorID, arg.CreatedAt)
 	var i Circle
-	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatorID,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -168,15 +174,30 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteCircle = `-- name: DeleteCircle :exec
+DELETE FROM circles
+WHERE id = $1
+`
+
+func (q *Queries) DeleteCircle(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteCircle, id)
+	return err
+}
+
 const getCircle = `-- name: GetCircle :one
-SELECT id, name, created_at FROM circles
+SELECT id, name, creator_id, created_at FROM circles
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetCircle(ctx context.Context, id int32) (Circle, error) {
 	row := q.db.QueryRow(ctx, getCircle, id)
 	var i Circle
-	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatorID,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 

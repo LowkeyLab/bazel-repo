@@ -56,6 +56,7 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 type Circle struct {
 	ID        int32            `json:"id"`
 	Name      string           `json:"name"`
+	CreatorID int32            `json:"creator_id"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 

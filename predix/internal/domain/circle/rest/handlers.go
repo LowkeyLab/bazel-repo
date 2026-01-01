@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/circles", h.createCircle)
 	r.POST("/circles/:id/members", h.addMember)
 	r.GET("/circles/:id", h.getCircle)
+	r.DELETE("/circles/:id", h.deleteCircle)
 }
 
 type createCircleRequest struct {
@@ -116,6 +117,35 @@ func (h *Handler) getCircle(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, toCircleResponse(result))
+}
+
+func (h *Handler) deleteCircle(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	err := h.svc.DeleteCircle(c.Request.Context(), circleID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
+			return
+		}
+		if errors.Is(err, service.ErrNotCircleOwner) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func parseCircleID(c *gin.Context) (circle.ID, bool) {

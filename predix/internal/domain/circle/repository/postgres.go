@@ -38,6 +38,7 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	// Save circle
 	result, err := qtx.CreateCircle(ctx, db.CreateCircleParams{
 		Name:      c.Name,
+		CreatorID: int32(c.CreatorID),
 		CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
 	})
 	if err != nil {
@@ -109,7 +110,17 @@ func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, 
 	return &circle.Circle{
 		ID:        circle.ID(dbCircle.ID),
 		Name:      dbCircle.Name,
+		CreatorID: user.ID(dbCircle.CreatorID),
 		CreatedAt: dbCircle.CreatedAt.Time,
 		Members:   members,
 	}, nil
+}
+
+// Delete removes a circle and its related data.
+func (r *Postgres) Delete(ctx context.Context, id circle.ID) error {
+	if err := r.queries.DeleteCircle(ctx, int32(id)); err != nil {
+		return fmt.Errorf("failed to delete circle: %w", err)
+	}
+
+	return nil
 }

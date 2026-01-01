@@ -43,6 +43,7 @@ func (r *Memory) Save(ctx context.Context, c *circle.Circle) error {
 	circleCopy := &circle.Circle{
 		ID:        c.ID,
 		Name:      c.Name,
+		CreatorID: c.CreatorID,
 		CreatedAt: c.CreatedAt,
 		Members:   make(map[user.ID]*circle.Member),
 	}
@@ -72,6 +73,7 @@ func (r *Memory) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, er
 	circleCopy := &circle.Circle{
 		ID:        c.ID,
 		Name:      c.Name,
+		CreatorID: c.CreatorID,
 		CreatedAt: c.CreatedAt,
 		Members:   make(map[user.ID]*circle.Member),
 	}
@@ -105,5 +107,18 @@ func (r *Memory) AddMember(ctx context.Context, circleID circle.ID, member *circ
 		Clout:  member.Clout,
 	}
 
+	return nil
+}
+
+// Delete removes a circle and its members from memory.
+func (r *Memory) Delete(ctx context.Context, circleID circle.ID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, exists := r.circles[circleID]; !exists {
+		return fmt.Errorf("circle not found with id: %d", circleID)
+	}
+
+	delete(r.circles, circleID)
 	return nil
 }

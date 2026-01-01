@@ -37,7 +37,7 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 }
 
 // createTestCircle creates a test circle in the database
-func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string) circle.ID {
+func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID user.ID) circle.ID {
 	t.Helper()
 
 	ctx := context.Background()
@@ -45,6 +45,7 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string) circle.ID {
 
 	result, err := q.CreateCircle(ctx, db.CreateCircleParams{
 		Name:      name,
+		CreatorID: int32(creatorID),
 		CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
 	})
 	require.NoError(t, err)
@@ -62,8 +63,8 @@ func TestCreateContest(t *testing.T) {
 
 	// Setup: Create user and circle
 	creatorID := createTestUser(t, pool, "alice")
-	circleID := createTestCircle(t, pool, "Book Club")
-	otherCircleID := createTestCircle(t, pool, "New Ideas")
+	circleID := createTestCircle(t, pool, "Book Club", creatorID)
+	otherCircleID := createTestCircle(t, pool, "New Ideas", creatorID)
 
 	// Test: Create a contest
 	opts := []string{"Yes", "No", "Maybe"}
@@ -101,7 +102,7 @@ func TestCreateContest_WithInvalidData(t *testing.T) {
 	svc := service.NewService(repo)
 
 	creatorID := createTestUser(t, pool, "bob")
-	circleID := createTestCircle(t, pool, "Test Circle")
+	circleID := createTestCircle(t, pool, "Test Circle", creatorID)
 
 	t.Run("empty question", func(t *testing.T) {
 		opts := []string{"Yes", "No"}
@@ -164,7 +165,7 @@ func TestPredict(t *testing.T) {
 
 	// Setup: Create user, circle, and contest
 	userID := createTestUser(t, pool, "Charlie")
-	circleID := createTestCircle(t, pool, "Predictions Circle")
+	circleID := createTestCircle(t, pool, "Predictions Circle", userID)
 
 	opts := []string{"Option A", "Option B"}
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -194,7 +195,7 @@ func TestPredict_ContestNotOpen(t *testing.T) {
 
 	// Setup: Create user, circle, and contest
 	userID := createTestUser(t, pool, "Diana")
-	circleID := createTestCircle(t, pool, "Test Circle")
+	circleID := createTestCircle(t, pool, "Test Circle", userID)
 
 	opts := []string{"Option A", "Option B"}
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -225,7 +226,7 @@ func TestResolveContest(t *testing.T) {
 
 	// Setup: Create user, circle, and contest
 	userID := createTestUser(t, pool, "Eve")
-	circleID := createTestCircle(t, pool, "Resolution Circle")
+	circleID := createTestCircle(t, pool, "Resolution Circle", userID)
 
 	opts := []string{"Outcome A", "Outcome B"}
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -254,7 +255,7 @@ func TestResolveContest_OnlyCreatorCanResolve(t *testing.T) {
 
 	creatorID := createTestUser(t, pool, "Grace")
 	nonCreatorID := createTestUser(t, pool, "Henry")
-	circleID := createTestCircle(t, pool, "Ownership Circle")
+	circleID := createTestCircle(t, pool, "Ownership Circle", creatorID)
 
 	opts := []string{"Outcome A", "Outcome B"}
 	expiresAt := time.Now().Add(24 * time.Hour)

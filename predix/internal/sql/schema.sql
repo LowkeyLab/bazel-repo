@@ -10,11 +10,12 @@ CREATE TABLE users (
 CREATE TABLE circles (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
+    creator_id INT NOT NULL REFERENCES users(id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE circle_members (
-    circle_id INT NOT NULL REFERENCES circles(id),
+    circle_id INT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
     user_id INT NOT NULL REFERENCES users(id),
     clout INT NOT NULL DEFAULT 1000,
     PRIMARY KEY (circle_id, user_id)
@@ -32,7 +33,7 @@ CREATE TABLE contests (
 
 CREATE TABLE contest_circles (
     contest_id INT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
-    circle_id INT NOT NULL REFERENCES circles(id),
+    circle_id INT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
     PRIMARY KEY (contest_id, circle_id)
 );
 

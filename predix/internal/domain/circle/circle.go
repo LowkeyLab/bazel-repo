@@ -14,6 +14,7 @@ type ID int32
 type Circle struct {
 	ID        ID
 	Name      string
+	CreatorID user.ID
 	Members   map[user.ID]*Member // Keyed by User ID
 	CreatedAt time.Time
 }
@@ -29,10 +30,14 @@ func New(name string, creatorID user.ID) (*Circle, error) {
 	if name == "" {
 		return nil, errors.New("circle name cannot be empty")
 	}
+	if creatorID == 0 {
+		return nil, errors.New("creator id must be positive")
+	}
 
 	c := &Circle{
 		ID:        0, // ID will be set by database
 		Name:      name,
+		CreatorID: creatorID,
 		Members:   make(map[user.ID]*Member),
 		CreatedAt: time.Now(),
 	}

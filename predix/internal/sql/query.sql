@@ -12,12 +12,12 @@ SELECT * FROM users
 WHERE username = $1 LIMIT 1;
 
 -- name: CreateCircle :one
-INSERT INTO circles (name, created_at)
-VALUES ($1, $2)
+INSERT INTO circles (name, creator_id, created_at)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetCircle :one
-SELECT * FROM circles
+SELECT id, name, creator_id, created_at FROM circles
 WHERE id = $1 LIMIT 1;
 
 -- name: AddCircleMember :exec
@@ -31,6 +31,10 @@ WHERE circle_id = $1 AND user_id = $2 LIMIT 1;
 -- name: ListCircleMembers :many
 SELECT * FROM circle_members
 WHERE circle_id = $1;
+
+-- name: DeleteCircle :exec
+DELETE FROM circles
+WHERE id = $1;
 
 -- name: CreateContest :one
 INSERT INTO contests (creator_id, question, status, created_at, expires_at)

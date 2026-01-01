@@ -2,25 +2,31 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 )
 
 type CircleRepository = repository.Repository
 
 type Service struct {
-	repo repository.Repository
+	circleRepo repository.Repository
+	userRepo   userrepo.Repository
 }
 
 // NewService creates a service with a repository interface.
-func NewService(repo CircleRepository) *Service {
+func NewService(circleRepo CircleRepository, userRepo userrepo.Repository) *Service {
 	return &Service{
-		repo: repo,
+		circleRepo: circleRepo,
+		userRepo:   userRepo,
 	}
 }
+
+var ErrNotCircleOwner = errors.New("only the circle creator or an admin can delete this circle")
 
 func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.ID) (*circle.Circle, error) {
 	// Create domain entity (validation happens here)
@@ -30,7 +36,7 @@ func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.
 	}
 
 	// Persist using repository
-	err = s.repo.Save(ctx, c)
+	err = s.circleRepo.Save(ctx, c)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +45,7 @@ func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.
 }
 
 func (s *Service) AddMember(ctx context.Context, circleID circle.ID, userID user.ID) error {
-	current, err := s.repo.FindByID(ctx, circleID)
+	current, err := s.circleRepo.FindByID(ctx, circleID)
 	if err != nil {
 		return fmt.Errorf("failed to get circle: %w", err)
 	}
@@ -51,7 +57,7 @@ func (s *Service) AddMember(ctx context.Context, circleID circle.ID, userID user
 	current.AddMember(userID)
 	member := current.Members[userID]
 
-	if err := s.repo.AddMember(ctx, circleID, member); err != nil {
+	if err := s.circleRepo.AddMember(ctx, circleID, member); err != nil {
 		return fmt.Errorf("failed to add member: %w", err)
 	}
 
@@ -59,5 +65,27 @@ func (s *Service) AddMember(ctx context.Context, circleID circle.ID, userID user
 }
 
 func (s *Service) GetCircle(ctx context.Context, id circle.ID) (*circle.Circle, error) {
-	return s.repo.FindByID(ctx, id)
+	return s.circleRepo.FindByID(ctx, id)
+}
+
+func (s *Service) DeleteCircle(ctx context.Context, id circle.ID, requesterID user.ID) error {
+	circ, err := s.circleRepo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	requester, err := s.userRepo.FindByID(ctx, requesterID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if circ.CreatorID != requesterID && requester.Role != user.RoleAdmin {
+		return ErrNotCircleOwner
+	}
+
+	if err := s.circleRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete circle: %w", err)
+	}
+
+	return nil
 }

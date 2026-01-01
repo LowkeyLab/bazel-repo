@@ -87,6 +87,7 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID u
 
 	result, err := q.CreateCircle(ctx, db.CreateCircleParams{
 		Name:      name,
+		CreatorID: int32(creatorID),
 		CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
 	})
 	require.NoError(t, err)

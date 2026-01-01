@@ -39,7 +39,7 @@ func main() {
 		circleRepo := circlerepo.NewMemory()
 		contestRepo := contestrepo.NewMemory()
 		userRepo := userrepo.NewMemory()
-		circleSvc = circleservice.NewService(circleRepo)
+		circleSvc = circleservice.NewService(circleRepo, userRepo)
 		contestSvc = contestservice.NewService(contestRepo)
 		userSvc = userservice.NewService(userRepo)
 	} else {
@@ -59,7 +59,7 @@ func main() {
 		circleRepo := circlerepo.NewPostgres(pool)
 		contestRepo := contestrepo.NewPostgres(pool)
 		userRepo := userrepo.NewPostgres(pool)
-		circleSvc = circleservice.NewService(circleRepo)
+		circleSvc = circleservice.NewService(circleRepo, userRepo)
 		contestSvc = contestservice.NewService(contestRepo)
 		userSvc = userservice.NewService(userRepo)
 	}

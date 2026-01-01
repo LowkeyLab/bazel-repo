@@ -10,12 +10,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +38,8 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 
 	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
 	handler := NewHandler(svc)
 
 	r := gin.New()
@@ -48,6 +51,10 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 }
 
 func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
+	return createUserWithRole(t, pool, username, db.UserRoleMember)
+}
+
+func createUserWithRole(t *testing.T, pool *pgxpool.Pool, username string, role db.UserRole) user.ID {
 	t.Helper()
 
 	ctx := context.Background()
@@ -57,7 +64,7 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	result, err := q.CreateUser(ctx, db.CreateUserParams{
 		Username:     username,
 		PasswordHash: passwordHash,
-		Role:         db.UserRoleMember,
+		Role:         role,
 	})
 	require.NoError(t, err)
 
@@ -136,6 +143,66 @@ func TestAddMemberHandler(t *testing.T) {
 
 	assert.Equal(t, createdCircle.Name, circlePayload.Name)
 	assert.Len(t, circlePayload.Members, 2)
+}
+
+func TestDeleteCircle_ByCreator(t *testing.T) {
+	router, pool, svc, queries := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "creator")
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Writers", creatorID)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusNoContent, resp.Code)
+	_, err = queries.GetCircle(ctx, int32(createdCircle.ID))
+	assert.ErrorIs(t, err, pgx.ErrNoRows)
+}
+
+func TestDeleteCircle_ByAdmin(t *testing.T) {
+	router, pool, svc, queries := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "creator")
+	adminID := createUserWithRole(t, pool, "admin", db.UserRoleAdmin)
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Chess", creatorID)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", adminID))
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusNoContent, resp.Code)
+	_, err = queries.GetCircle(ctx, int32(createdCircle.ID))
+	assert.ErrorIs(t, err, pgx.ErrNoRows)
+}
+
+func TestDeleteCircle_Forbidden(t *testing.T) {
+	router, pool, svc, _ := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "creator")
+	memberID := createTestUser(t, pool, "member")
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Gamers", creatorID)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", memberID))
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusForbidden, resp.Code)
 }
 
 func TestGetCircle_NotFound(t *testing.T) {
