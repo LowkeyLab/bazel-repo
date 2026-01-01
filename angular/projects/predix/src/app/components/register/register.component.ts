@@ -12,27 +12,28 @@ import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-register',
   imports: [FormsModule, RouterLink],
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-base-200 px-4">
+    <div
+      class="min-h-screen flex items-center justify-center bg-base-200 px-4 py-10"
+    >
       <div class="card w-full max-w-md bg-base-100 shadow-xl">
-        <div class="card-body space-y-4">
+        <div class="card-body space-y-6">
           <div class="flex items-center gap-2">
-            <span class="text-2xl">🏟️</span>
+            <span class="text-2xl">✨</span>
             <div>
-              <p class="text-sm text-secondary">Welcome to</p>
-              <h1 class="text-3xl font-bold">Predix</h1>
+              <h1 class="text-3xl font-bold">Join Predix</h1>
             </div>
           </div>
 
-          <p class="text-sm text-secondary">
-            Sign in to create circles, open contests, and make predictions. New
-            here?
-            <a class="link" routerLink="/register">Create an account</a>.
+          <p class="text-sm text-secondary leading-relaxed">
+            Claim your handle, start a Circle, and launch your first contest.
+            Already have an account?
+            <a class="link" routerLink="/login">Sign in</a>.
           </p>
 
-          <form (submit)="onSubmit($event)" class="space-y-3">
+          <form (submit)="onSubmit($event)" class="space-y-4">
             <div class="space-y-2">
               <span class="label-text text-sm">Username</span>
               <label
@@ -96,9 +97,46 @@ import { AuthService } from '../../services/auth.service';
                   class="grow"
                   [(ngModel)]="password"
                   name="password"
-                  autocomplete="current-password"
+                  autocomplete="new-password"
                   required
                   placeholder="••••••••"
+                />
+                <span class="badge badge-neutral badge-xs">Min 6 chars</span>
+              </label>
+            </div>
+
+            <div class="space-y-2">
+              <span class="label-text text-sm">Confirm password</span>
+              <label
+                class="input input-bordered flex items-center gap-3"
+                aria-label="Confirm password"
+              >
+                <svg
+                  class="h-[1em] opacity-60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <g
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <rect x="4" y="11" width="16" height="9" rx="2"></rect>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                    <path d="m9.5 15.5 2 2 3-3"></path>
+                  </g>
+                </svg>
+                <input
+                  type="password"
+                  class="grow"
+                  [(ngModel)]="confirm"
+                  name="confirm"
+                  autocomplete="new-password"
+                  required
+                  placeholder="Re-enter password"
                 />
               </label>
             </div>
@@ -109,7 +147,7 @@ import { AuthService } from '../../services/auth.service';
               </div>
             }
 
-            <div class="card-actions justify-end">
+            <div class="card-actions justify-end pt-2">
               <button
                 type="submit"
                 class="btn btn-primary"
@@ -118,28 +156,24 @@ import { AuthService } from '../../services/auth.service';
                 @if (loading()) {
                   <span class="loading loading-spinner"></span>
                 }
-                Sign in
+                Create account
               </button>
             </div>
           </form>
-
-          <p class="text-xs text-secondary">
-            Tip: accounts are created via the register flow—then come back to
-            sign in.
-          </p>
         </div>
       </div>
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LoginComponent implements OnInit {
+export class RegisterComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
   protected username = '';
   protected password = '';
+  protected confirm = '';
   protected readonly loading = signal(false);
   protected readonly error = signal('');
 
@@ -154,9 +188,20 @@ export class LoginComponent implements OnInit {
 
     const username = this.username.trim();
     const password = this.password.trim();
+    const confirm = this.confirm.trim();
 
-    if (!username || !password) {
-      this.error.set('Username and password are required');
+    if (!username || !password || !confirm) {
+      this.error.set('All fields are required');
+      return;
+    }
+
+    if (password.length < 6) {
+      this.error.set('Password must be at least 6 characters');
+      return;
+    }
+
+    if (password !== confirm) {
+      this.error.set('Passwords must match');
       return;
     }
 
@@ -164,14 +209,12 @@ export class LoginComponent implements OnInit {
     this.error.set('');
 
     this.auth
-      .login(username, password)
+      .register(username, password)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: () => this.redirect(),
         error: (err) => {
-          const message =
-            err?.error?.error ||
-            'Login failed. Please check your credentials and try again.';
+          const message = err?.error?.error ?? 'Registration failed';
           this.error.set(message);
         },
       });

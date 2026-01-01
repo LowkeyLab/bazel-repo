@@ -24,7 +24,10 @@
         <button class="btn btn-sm" (click)="logout()">Logout</button>
       </div>
       } @else {
-      <a class="btn btn-primary btn-sm" routerLink="/login">Login</a>
+      <div class="flex items-center gap-2">
+        <a class="btn btn-ghost btn-sm" routerLink="/login">Login</a>
+        <a class="btn btn-primary btn-sm" routerLink="/register">Register</a>
+      </div>
       }
     </div>
   </div>

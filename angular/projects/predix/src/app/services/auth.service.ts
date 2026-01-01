@@ -35,13 +35,16 @@ export class AuthService {
         username,
         password,
       })
-      .pipe(
-        tap((res) => {
-          this.currentUserSignal.set(res.user);
-          this.tokenSignal.set(res.token);
-          localStorage.setItem(this.storageKey, JSON.stringify(res));
-        }),
-      );
+      .pipe(tap((res) => this.persistSession(res)));
+  }
+
+  register(username: string, password: string): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(`${environment.apiUrl}/register`, {
+        username,
+        password,
+      })
+      .pipe(tap((res) => this.persistSession(res)));
   }
 
   logout(): void {
@@ -60,11 +63,16 @@ export class AuthService {
 
     try {
       const parsed = JSON.parse(raw) as LoginResponse;
-      this.currentUserSignal.set(parsed.user);
-      this.tokenSignal.set(parsed.token);
+      this.persistSession(parsed);
     } catch (err) {
       console.error('Failed to restore session', err);
       localStorage.removeItem(this.storageKey);
     }
+  }
+
+  private persistSession(res: LoginResponse): void {
+    this.currentUserSignal.set(res.user);
+    this.tokenSignal.set(res.token);
+    localStorage.setItem(this.storageKey, JSON.stringify(res));
   }
 }

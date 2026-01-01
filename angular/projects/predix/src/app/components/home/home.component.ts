@@ -99,16 +99,16 @@ export class HomeComponent {
   private readonly auth = inject(AuthService);
 
   protected readonly primaryCta = computed(() =>
-    this.auth.isAuthenticated() ? '/circles' : '/login',
+    this.auth.isAuthenticated() ? '/circles' : '/register',
   );
   protected readonly secondaryCta = computed(() =>
     this.auth.isAuthenticated() ? '/contests' : '/login',
   );
   protected readonly primaryLabel = computed(() =>
-    this.auth.isAuthenticated() ? 'Open your circles' : 'Sign in to start',
+    this.auth.isAuthenticated() ? 'Open your circles' : 'Create your account',
   );
   protected readonly secondaryLabel = computed(() =>
-    this.auth.isAuthenticated() ? 'Browse contests' : 'Preview contests',
+    this.auth.isAuthenticated() ? 'Browse contests' : 'Sign in to preview',
   );
 
   protected readonly highlights = [
