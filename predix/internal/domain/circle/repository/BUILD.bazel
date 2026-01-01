@@ -20,6 +20,7 @@ go_library(
 
 go_test(
     name = "repository_test",
+    timeout = "short",
     srcs = ["memory_test.go"],
     deps = [
         ":repository",

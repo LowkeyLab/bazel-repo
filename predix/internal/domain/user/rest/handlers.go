@@ -22,6 +22,7 @@ func NewHandler(svc *service.Service, tokens *auth.Manager) *Handler {
 
 // RegisterRoutes registers user-related routes on the provided router.
 func (h *Handler) RegisterRoutes(r gin.IRoutes) {
+	r.POST("/register", h.register)
 	r.POST("/login", h.login)
 }
 
@@ -39,6 +40,31 @@ type userResponse struct {
 type loginResponse struct {
 	Token string       `json:"token"`
 	User  userResponse `json:"user"`
+}
+
+func (h *Handler) register(c *gin.Context) {
+	var req loginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	u, err := h.svc.Register(c.Request.Context(), req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := h.tokens.GenerateToken(u)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, loginResponse{
+		Token: token,
+		User:  toUserResponse(u),
+	})
 }
 
 func (h *Handler) login(c *gin.Context) {

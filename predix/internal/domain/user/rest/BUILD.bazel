@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "rest",
@@ -8,6 +8,18 @@ go_library(
     deps = [
         "//predix/internal/auth",
         "//predix/internal/domain/user",
+        "//predix/internal/domain/user/service",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)
+
+go_test(
+    name = "handlers_test",
+    timeout = "short",
+    srcs = ["handlers_test.go"],
+    embed = [":rest"],
+    deps = [
+        "//predix/internal/domain/user/repository",
         "//predix/internal/domain/user/service",
         "@com_github_gin_gonic_gin//:gin",
     ],
