@@ -414,6 +414,39 @@ func (q *Queries) ListContestsByCircle(ctx context.Context, circleID int32) ([]C
 	return items, nil
 }
 
+const listUserCircles = `-- name: ListUserCircles :many
+SELECT c.id, c.name, c.creator_id, c.created_at
+FROM circles c
+JOIN circle_members cm ON cm.circle_id = c.id
+WHERE cm.user_id = $1
+ORDER BY c.created_at DESC
+`
+
+func (q *Queries) ListUserCircles(ctx context.Context, userID int32) ([]Circle, error) {
+	rows, err := q.db.Query(ctx, listUserCircles, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Circle
+	for rows.Next() {
+		var i Circle
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatorID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateContestStatus = `-- name: UpdateContestStatus :exec
 UPDATE contests
 SET status = $2, result_option_id = $3

@@ -57,6 +57,45 @@ func TestMemoryRepository_FindByIDNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
+func TestMemoryRepository_FindByUserID(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Create and save multiple circles
+	c1, err := circle.New("Book Club", user.ID(1))
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c1)
+	require.NoError(t, err)
+
+	c2, err := circle.New("Movie Club", user.ID(1))
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c2)
+	require.NoError(t, err)
+
+	// Add user 2 to circle 1
+	member := &circle.Member{
+		UserID: user.ID(2),
+		Clout:  100,
+	}
+	err = repo.AddMember(context.Background(), c1.ID, member)
+	require.NoError(t, err)
+
+	// User 1 should have 2 circles
+	circles1, err := repo.FindByUserID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Len(t, circles1, 2)
+
+	// User 2 should have 1 circle
+	circles2, err := repo.FindByUserID(context.Background(), 2)
+	require.NoError(t, err)
+	assert.Len(t, circles2, 1)
+	assert.Equal(t, c1.ID, circles2[0].ID)
+
+	// User 3 should have 0 circles
+	circles3, err := repo.FindByUserID(context.Background(), 3)
+	require.NoError(t, err)
+	assert.Len(t, circles3, 0)
+}
+
 func TestMemoryRepository_AddMember(t *testing.T) {
 	repo := repository.NewMemory()
 

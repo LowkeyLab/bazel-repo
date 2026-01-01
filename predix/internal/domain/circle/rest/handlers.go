@@ -28,6 +28,7 @@ func NewHandler(svc *service.Service) *Handler {
 // RegisterRoutes registers circle routes on the provided router.
 func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/circles", h.createCircle)
+	r.GET("/circles", h.listUserCircles)
 	r.POST("/circles/:id/members", h.addMember)
 	r.GET("/circles/:id", h.getCircle)
 	r.DELETE("/circles/:id", h.deleteCircle)
@@ -69,6 +70,27 @@ func (h *Handler) createCircle(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, toCircleResponse(newCircle))
+}
+
+func (h *Handler) listUserCircles(c *gin.Context) {
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	circles, err := h.svc.ListUserCircles(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	responses := make([]circleResponse, len(circles))
+	for i, circ := range circles {
+		responses[i] = toCircleResponse(circ)
+	}
+
+	c.JSON(http.StatusOK, responses)
 }
 
 type addMemberRequest struct {

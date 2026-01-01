@@ -218,3 +218,87 @@ func TestGetCircle_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, resp.Code)
 }
+
+func TestListUserCircles(t *testing.T) {
+	router, pool, svc, _ := setupTestRouter(t)
+
+	// Create users and circles
+	user1ID := createTestUser(t, pool, "user1")
+	user2ID := createTestUser(t, pool, "user2")
+
+	ctx := context.Background()
+	circle1, err := svc.CreateCircle(ctx, "Book Club", user1ID)
+	require.NoError(t, err)
+
+	_, err = svc.CreateCircle(ctx, "Movie Night", user1ID)
+	require.NoError(t, err)
+
+	// Add user2 to circle1
+	err = svc.AddMember(ctx, circle1.ID, user2ID)
+	require.NoError(t, err)
+
+	// User1 should see both circles
+	req := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", user1ID))
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusOK, resp.Code)
+	var circles []circleResponseBody
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &circles))
+
+	assert.Len(t, circles, 2)
+
+	// Check that both circles are present
+	circleNames := map[string]bool{}
+	for _, c := range circles {
+		circleNames[c.Name] = true
+	}
+	assert.True(t, circleNames["Book Club"])
+	assert.True(t, circleNames["Movie Night"])
+
+	// User2 should only see circle1
+	req2 := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
+	req2.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", user2ID))
+	resp2 := httptest.NewRecorder()
+
+	router.ServeHTTP(resp2, req2)
+
+	require.Equal(t, http.StatusOK, resp2.Code)
+	var circles2 []circleResponseBody
+	require.NoError(t, json.Unmarshal(resp2.Body.Bytes(), &circles2))
+
+	assert.Len(t, circles2, 1)
+	assert.Equal(t, "Book Club", circles2[0].Name)
+}
+
+func TestListUserCircles_Empty(t *testing.T) {
+	router, pool, _, _ := setupTestRouter(t)
+
+	userID := createTestUser(t, pool, "lonely")
+
+	req := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusOK, resp.Code)
+	var circles []circleResponseBody
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &circles))
+
+	assert.Len(t, circles, 0)
+}
+
+func TestListUserCircles_Unauthorized(t *testing.T) {
+	router, _, _, _ := setupTestRouter(t)
+
+	// Request without user ID header
+	req := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusUnauthorized, resp.Code)
+}

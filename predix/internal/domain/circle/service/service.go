@@ -68,6 +68,15 @@ func (s *Service) GetCircle(ctx context.Context, id circle.ID) (*circle.Circle, 
 	return s.circleRepo.FindByID(ctx, id)
 }
 
+func (s *Service) ListUserCircles(ctx context.Context, userID user.ID) ([]*circle.Circle, error) {
+	circles, err := s.circleRepo.FindByUserID(ctx, int32(userID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list user circles: %w", err)
+	}
+
+	return circles, nil
+}
+
 func (s *Service) DeleteCircle(ctx context.Context, id circle.ID, requesterID user.ID) error {
 	circ, err := s.circleRepo.FindByID(ctx, id)
 	if err != nil {

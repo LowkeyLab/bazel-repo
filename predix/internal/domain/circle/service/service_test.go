@@ -147,3 +147,68 @@ func TestDeleteCircle_ForbiddenForMember(t *testing.T) {
 	_, err = repo.FindByID(ctx, circleObj.ID)
 	require.NoError(t, err)
 }
+
+func TestListUserCircles(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	// Create users
+	user1ID := createTestUser(t, pool, "user1")
+	user2ID := createTestUser(t, pool, "user2")
+
+	// Create circles
+	circle1, err := svc.CreateCircle(ctx, "Circle 1", user1ID)
+	require.NoError(t, err)
+
+	circle2, err := svc.CreateCircle(ctx, "Circle 2", user1ID)
+	require.NoError(t, err)
+
+	circle3, err := svc.CreateCircle(ctx, "Circle 3", user2ID)
+	require.NoError(t, err)
+
+	// Add user2 to circle1
+	err = svc.AddMember(ctx, circle1.ID, user2ID)
+	require.NoError(t, err)
+
+	// User1 should have 2 circles
+	circles1, err := svc.ListUserCircles(ctx, user1ID)
+	require.NoError(t, err)
+	assert.Len(t, circles1, 2)
+	circleIDs1 := map[int32]bool{}
+	for _, c := range circles1 {
+		circleIDs1[int32(c.ID)] = true
+	}
+	assert.True(t, circleIDs1[int32(circle1.ID)])
+	assert.True(t, circleIDs1[int32(circle2.ID)])
+
+	// User2 should have 2 circles (circle3 and circle1 where added as member)
+	circles2, err := svc.ListUserCircles(ctx, user2ID)
+	require.NoError(t, err)
+	assert.Len(t, circles2, 2)
+	circleIDs2 := map[int32]bool{}
+	for _, c := range circles2 {
+		circleIDs2[int32(c.ID)] = true
+	}
+	assert.True(t, circleIDs2[int32(circle1.ID)])
+	assert.True(t, circleIDs2[int32(circle3.ID)])
+}
+
+func TestListUserCircles_EmptyList(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+
+	ctx := context.Background()
+	repo := repository.NewPostgres(pool)
+	userRepo := userrepo.NewPostgres(pool)
+	svc := service.NewService(repo, userRepo)
+
+	userID := createTestUser(t, pool, "lonely_user")
+
+	// User with no circles should return empty list
+	circles, err := svc.ListUserCircles(ctx, userID)
+	require.NoError(t, err)
+	assert.Len(t, circles, 0)
+}

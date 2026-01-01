@@ -27,6 +27,7 @@ type Querier interface {
 	ListContestOptions(ctx context.Context, contestID int32) ([]Option, error)
 	ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error)
 	ListContestsByCircle(ctx context.Context, circleID int32) ([]Contest, error)
+	ListUserCircles(ctx context.Context, userID int32) ([]Circle, error)
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
 }
 

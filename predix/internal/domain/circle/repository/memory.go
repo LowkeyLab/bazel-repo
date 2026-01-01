@@ -88,6 +88,39 @@ func (r *Memory) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, er
 	return circleCopy, nil
 }
 
+// FindByUserID retrieves all circles for a given user.
+func (r *Memory) FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var userCircles []*circle.Circle
+
+	for _, c := range r.circles {
+		// Check if user is a member of this circle
+		if _, isMember := c.Members[user.ID(userID)]; isMember {
+			// Deep copy to avoid external mutations
+			circleCopy := &circle.Circle{
+				ID:        c.ID,
+				Name:      c.Name,
+				CreatorID: c.CreatorID,
+				CreatedAt: c.CreatedAt,
+				Members:   make(map[user.ID]*circle.Member),
+			}
+
+			for memberUserID, member := range c.Members {
+				circleCopy.Members[memberUserID] = &circle.Member{
+					UserID: member.UserID,
+					Clout:  member.Clout,
+				}
+			}
+
+			userCircles = append(userCircles, circleCopy)
+		}
+	}
+
+	return userCircles, nil
+}
+
 // AddMember persists a single member to an existing circle.
 func (r *Memory) AddMember(ctx context.Context, circleID circle.ID, member *circle.Member) error {
 	if member == nil {

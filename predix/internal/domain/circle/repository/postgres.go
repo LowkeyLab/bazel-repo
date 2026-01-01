@@ -116,6 +116,42 @@ func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, 
 	}, nil
 }
 
+// FindByUserID retrieves all circles for a given user, ordered by creation date.
+func (r *Postgres) FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error) {
+	dbCircles, err := r.queries.ListUserCircles(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find circles by user id: %w", err)
+	}
+
+	var circles []*circle.Circle
+	for _, dbCircle := range dbCircles {
+		// Load members for each circle
+		dbMembers, err := r.queries.ListCircleMembers(ctx, dbCircle.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load circle members for circle %d: %w", dbCircle.ID, err)
+		}
+
+		members := make(map[user.ID]*circle.Member)
+		for _, dbMember := range dbMembers {
+			memberUserID := user.ID(dbMember.UserID)
+			members[memberUserID] = &circle.Member{
+				UserID: memberUserID,
+				Clout:  int(dbMember.Clout),
+			}
+		}
+
+		circles = append(circles, &circle.Circle{
+			ID:        circle.ID(dbCircle.ID),
+			Name:      dbCircle.Name,
+			CreatorID: user.ID(dbCircle.CreatorID),
+			CreatedAt: dbCircle.CreatedAt.Time,
+			Members:   members,
+		})
+	}
+
+	return circles, nil
+}
+
 // Delete removes a circle and its related data.
 func (r *Postgres) Delete(ctx context.Context, id circle.ID) error {
 	if err := r.queries.DeleteCircle(ctx, int32(id)); err != nil {

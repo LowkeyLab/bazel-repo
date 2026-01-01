@@ -32,6 +32,13 @@ WHERE circle_id = $1 AND user_id = $2 LIMIT 1;
 SELECT * FROM circle_members
 WHERE circle_id = $1;
 
+-- name: ListUserCircles :many
+SELECT c.id, c.name, c.creator_id, c.created_at
+FROM circles c
+JOIN circle_members cm ON cm.circle_id = c.id
+WHERE cm.user_id = $1
+ORDER BY c.created_at DESC;
+
 -- name: DeleteCircle :exec
 DELETE FROM circles
 WHERE id = $1;
