@@ -19,6 +19,10 @@ export class CircleService {
     return this.http.post<Circle>(this.apiUrl, request);
   }
 
+  listUserCircles(): Observable<Circle[]> {
+    return this.http.get<Circle[]>(this.apiUrl);
+  }
+
   getCircle(id: number): Observable<Circle> {
     return this.http.get<Circle>(`${this.apiUrl}/${id}`);
   }

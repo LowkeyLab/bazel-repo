@@ -3,6 +3,7 @@ import {
   Component,
   signal,
   inject,
+  OnInit,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
@@ -70,12 +71,30 @@ import type { Circle } from '../../models/circle.model';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CircleListComponent {
+export class CircleListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly circleService = inject(CircleService);
 
   protected readonly circles = signal<Circle[]>([]);
   protected readonly loading = signal(false);
+
+  ngOnInit(): void {
+    this.loadCircles();
+  }
+
+  private loadCircles(): void {
+    this.loading.set(true);
+    this.circleService.listUserCircles().subscribe({
+      next: (circles) => {
+        this.circles.set(circles);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load circles:', err);
+        this.loading.set(false);
+      },
+    });
+  }
 
   createCircle(): void {
     this.router.navigate(['/circles/new']);
