@@ -1,11 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  ActivatedRoute,
-  Router,
-  RouterLink,
-  convertToParamMap,
-} from '@angular/router';
-import { RouterTestingModule } from '@angular/router/testing';
+import { provideRouter, Router } from '@angular/router';
+import { provideLocationMocks } from '@angular/common/testing';
 import { of } from 'rxjs';
 
 import { RegisterComponent } from './register.component';
@@ -15,7 +10,7 @@ describe('RegisterComponent', () => {
   let fixture: ComponentFixture<RegisterComponent>;
   let component: RegisterComponent;
   let auth: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
+  let router: Router;
 
   beforeEach(async () => {
     auth = jasmine.createSpyObj<AuthService>('AuthService', [
@@ -29,26 +24,19 @@ describe('RegisterComponent', () => {
     auth.isAuthenticated.and.returnValue(false);
     auth.register.and.returnValue(of(loginResponse));
 
-    router = jasmine.createSpyObj<Router>('Router', ['navigateByUrl']);
-
     await TestBed.configureTestingModule({
-      imports: [
-        RegisterComponent,
-        RouterTestingModule.withRoutes([]),
-        RouterLink,
-      ],
+      imports: [RegisterComponent],
       providers: [
+        provideRouter([]),
+        provideLocationMocks(),
         { provide: AuthService, useValue: auth },
-        { provide: Router, useValue: router },
-        {
-          provide: ActivatedRoute,
-          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
-        },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RegisterComponent);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl');
     fixture.detectChanges();
   });
 
@@ -57,11 +45,13 @@ describe('RegisterComponent', () => {
   });
 
   it('submits registration and redirects', () => {
-    component.username = 'alice';
-    component.password = 'secret123';
-    component.confirm = 'secret123';
+    // Type assertion to access protected properties in tests
+    const comp = component as any;
+    comp.username = 'alice';
+    comp.password = 'secret123';
+    comp.confirm = 'secret123';
 
-    component.onSubmit(new Event('submit'));
+    comp.onSubmit(new Event('submit'));
 
     expect(auth.register).toHaveBeenCalledWith('alice', 'secret123');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/circles');

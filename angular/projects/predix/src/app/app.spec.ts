@@ -1,13 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideLocationMocks } from '@angular/common/testing';
 import { App } from './app';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), provideHttpClient(withFetch())],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(withFetch()),
+        provideLocationMocks(),
+      ],
     }).compileComponents();
   });
 
