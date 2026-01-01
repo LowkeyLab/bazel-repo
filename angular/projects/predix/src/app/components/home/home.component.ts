@@ -35,7 +35,6 @@ import { AuthService } from '../../services/auth.service';
             <div class="flex flex-wrap gap-2 text-sm text-secondary">
               <span class="badge badge-outline">Invite-only Circles</span>
               <span class="badge badge-outline">Circle Clout ledgers</span>
-              <span class="badge badge-outline">Creator resolves Contests</span>
               <span class="badge badge-outline">Live trash talk</span>
             </div>
           </div>
