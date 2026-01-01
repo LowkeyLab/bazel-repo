@@ -13,6 +13,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 )
 
 type loginResponseBody struct {
@@ -29,7 +30,8 @@ func setupRouter(t *testing.T) (*gin.Engine, *auth.Manager, *service.Service) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	repo := repository.NewMemory()
+	pool := testutil.SetupTestDB(t)
+	repo := repository.NewPostgres(pool)
 	svc := service.NewService(repo)
 	tokens := auth.NewManager("test-secret", time.Hour)
 
