@@ -30,4 +30,8 @@ export class CircleService {
   addMember(circleId: number, request: AddMemberRequest): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/${circleId}/members`, request);
   }
+
+  joinCircle(circleId: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${circleId}/join`, {});
+  }
 }

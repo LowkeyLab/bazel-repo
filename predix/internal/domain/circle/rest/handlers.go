@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/circles", h.createCircle)
 	r.GET("/circles", h.listUserCircles)
 	r.POST("/circles/:id/members", h.addMember)
+	r.POST("/circles/:id/join", h.joinCircle)
 	r.GET("/circles/:id", h.getCircle)
 	r.DELETE("/circles/:id", h.deleteCircle)
 }
@@ -124,6 +125,31 @@ func (h *Handler) addMember(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusCreated)
+}
+
+func (h *Handler) joinCircle(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	err := h.svc.JoinCircle(c.Request.Context(), circleID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

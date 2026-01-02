@@ -9,6 +9,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
 import type { Circle } from '../../models/circle.model';
 import { DatePipe } from '@angular/common';
+import { DOCUMENT } from '@angular/common';
 
 @Component({
   selector: 'app-circle-detail',
@@ -32,6 +33,34 @@ import { DatePipe } from '@angular/common';
             <p class="text-sm text-secondary">
               Created {{ circle.created_at | date: 'medium' }}
             </p>
+
+            <div class="divider"></div>
+
+            <div class="mb-6">
+              <h2 class="text-2xl font-bold mb-2">Invite Link</h2>
+              <p class="text-sm text-secondary mb-3">
+                Share this link with others to invite them to join this circle
+              </p>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  readonly
+                  [value]="getJoinLink(circle.id)"
+                  class="input input-bordered flex-1 font-mono text-sm"
+                  #joinLinkInput
+                />
+                <button
+                  class="btn btn-primary"
+                  (click)="copyJoinLink(circle.id)"
+                >
+                  @if (linkCopied()) {
+                    ✓ Copied!
+                  } @else {
+                    📋 Copy
+                  }
+                </button>
+              </div>
+            </div>
 
             <div class="divider"></div>
 
@@ -94,9 +123,11 @@ export class CircleDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly circleService = inject(CircleService);
+  private readonly document = inject(DOCUMENT);
 
   protected readonly circle = signal<Circle | null>(null);
   protected readonly loading = signal(true);
+  protected readonly linkCopied = signal(false);
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -128,5 +159,18 @@ export class CircleDetailComponent implements OnInit {
 
   protected getMaxClout(circle: Circle): number {
     return Math.max(...circle.members.map((m) => m.clout));
+  }
+
+  protected getJoinLink(circleId: number): string {
+    const origin = this.document.location.origin;
+    return `${origin}/circles/${circleId}/join`;
+  }
+
+  protected copyJoinLink(circleId: number): void {
+    const link = this.getJoinLink(circleId);
+    navigator.clipboard.writeText(link).then(() => {
+      this.linkCopied.set(true);
+      setTimeout(() => this.linkCopied.set(false), 2000);
+    });
   }
 }

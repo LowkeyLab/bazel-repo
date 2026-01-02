@@ -38,6 +38,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'circles/:id/join',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/join-circle/join-circle.component').then(
+        (m) => m.JoinCircleComponent,
+      ),
+  },
+  {
     path: 'circles/:id',
     canActivate: [authGuard],
     loadComponent: () =>

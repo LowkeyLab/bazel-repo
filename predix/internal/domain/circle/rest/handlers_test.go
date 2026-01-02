@@ -302,3 +302,113 @@ func TestListUserCircles_Unauthorized(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, resp.Code)
 }
+
+func TestJoinCircle_Success(t *testing.T) {
+	router, pool, svc, queries := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "creator")
+	joinerID := createTestUser(t, pool, "joiner")
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Open Circle", creatorID)
+	require.NoError(t, err)
+
+	// Joiner joins the circle
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/join", createdCircle.ID), nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", joinerID))
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusCreated, resp.Code)
+
+	// Verify the joiner is now a member
+	memberRecord, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
+		CircleID: int32(createdCircle.ID),
+		UserID:   int32(joinerID),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int32(1000), memberRecord.Clout)
+
+	// Verify circle has 2 members
+	getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
+	getReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+	getResp := httptest.NewRecorder()
+	router.ServeHTTP(getResp, getReq)
+
+	require.Equal(t, http.StatusOK, getResp.Code)
+	var circlePayload circleResponseBody
+	require.NoError(t, json.Unmarshal(getResp.Body.Bytes(), &circlePayload))
+
+	assert.Equal(t, createdCircle.Name, circlePayload.Name)
+	assert.Len(t, circlePayload.Members, 2)
+}
+
+func TestJoinCircle_AlreadyMember(t *testing.T) {
+	router, pool, svc, _ := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "creator")
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Exclusive Circle", creatorID)
+	require.NoError(t, err)
+
+	// Creator tries to join their own circle
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/join", createdCircle.ID), nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+
+	var errorResp map[string]string
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &errorResp))
+	assert.Contains(t, errorResp["error"], "already a member")
+}
+
+func TestJoinCircle_CircleNotFound(t *testing.T) {
+	router, pool, _, _ := setupTestRouter(t)
+
+	userID := createTestUser(t, pool, "user")
+
+	req := httptest.NewRequest(http.MethodPost, "/protected/circles/99999/join", nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusNotFound, resp.Code)
+}
+
+func TestJoinCircle_Unauthorized(t *testing.T) {
+	router, pool, svc, _ := setupTestRouter(t)
+
+	creatorID := createTestUser(t, pool, "creator")
+
+	ctx := context.Background()
+	createdCircle, err := svc.CreateCircle(ctx, "Private Circle", creatorID)
+	require.NoError(t, err)
+
+	// Request without user ID header
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/join", createdCircle.ID), nil)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusUnauthorized, resp.Code)
+}
+
+func TestJoinCircle_InvalidCircleID(t *testing.T) {
+	router, pool, _, _ := setupTestRouter(t)
+
+	userID := createTestUser(t, pool, "user")
+
+	req := httptest.NewRequest(http.MethodPost, "/protected/circles/invalid/join", nil)
+	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+}

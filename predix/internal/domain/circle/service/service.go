@@ -81,6 +81,27 @@ func (s *Service) AddMember(ctx context.Context, circleID circle.ID, userID user
 	return nil
 }
 
+// JoinCircle allows a user to join a circle themselves.
+func (s *Service) JoinCircle(ctx context.Context, circleID circle.ID, userID user.ID) error {
+	current, err := s.circleRepo.FindByID(ctx, circleID)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	if _, exists := current.Members[userID]; exists {
+		return errors.New("user is already a member of this circle")
+	}
+
+	current.AddMember(userID)
+	member := current.Members[userID]
+
+	if err := s.circleRepo.AddMember(ctx, circleID, member); err != nil {
+		return fmt.Errorf("failed to join circle: %w", err)
+	}
+
+	return nil
+}
+
 // GetCircleWithUsernames retrieves a circle and enriches member data with usernames.
 func (s *Service) GetCircleWithUsernames(ctx context.Context, id circle.ID) (*EnrichedCircle, error) {
 	circ, err := s.circleRepo.FindByID(ctx, id)
