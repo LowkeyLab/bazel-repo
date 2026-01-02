@@ -12,7 +12,7 @@ import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
-  selector: 'app-login',
+  selector: 'login',
   imports: [FormsModule, RouterLink],
   template: `
     <div class="min-h-screen flex items-center justify-center bg-base-200 px-4">

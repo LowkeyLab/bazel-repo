@@ -12,7 +12,7 @@ import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
-  selector: 'app-register',
+  selector: 'register',
   imports: [FormsModule, RouterLink],
   template: `
     <div

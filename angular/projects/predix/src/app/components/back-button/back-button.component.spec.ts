@@ -57,7 +57,7 @@ describe('BackButtonComponent', () => {
       selector: 'app-test-wrapper',
       standalone: true,
       imports: [BackButtonComponent],
-      template: '<app-back-button [label]="customLabel" />',
+      template: '<back-button [label]="customLabel" />',
     })
     class TestWrapperComponent {
       customLabel = 'Go Back';
@@ -90,7 +90,7 @@ describe('BackButtonComponent', () => {
       selector: 'app-test-wrapper',
       standalone: true,
       imports: [BackButtonComponent],
-      template: '<app-back-button [link]="targetLink" />',
+      template: '<back-button [link]="targetLink" />',
     })
     class TestWrapperComponent {
       targetLink = '/contests';
@@ -116,7 +116,7 @@ describe('BackButtonComponent', () => {
       selector: 'app-test-wrapper',
       standalone: true,
       imports: [BackButtonComponent],
-      template: '<app-back-button [link]="targetLink" />',
+      template: '<back-button [link]="targetLink" />',
     })
     class TestWrapperComponent {
       targetLink = ['/contests', 'list'];

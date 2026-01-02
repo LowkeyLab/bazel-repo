@@ -10,7 +10,7 @@ import type { Contest, ContestStatus } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 
 @Component({
-  selector: 'app-contest-list',
+  selector: 'contest-list',
   imports: [DatePipe],
   template: `
     <div class="container mx-auto px-4 py-8">

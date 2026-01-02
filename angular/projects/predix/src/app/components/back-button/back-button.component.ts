@@ -4,7 +4,7 @@ import { Location } from '@angular/common';
 import { inject } from '@angular/core';
 
 @Component({
-  selector: 'app-back-button',
+  selector: 'back-button',
   template: `
     <button class="btn btn-ghost" (click)="navigateBack()">
       ← {{ label() }}

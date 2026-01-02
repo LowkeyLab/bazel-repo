@@ -14,7 +14,7 @@ import { DOCUMENT } from '@angular/common';
 import { BackButtonComponent } from '../back-button/back-button.component';
 
 @Component({
-  selector: 'app-circle-detail',
+  selector: 'circle-detail',
   imports: [DatePipe, BackButtonComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
@@ -24,7 +24,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
         </div>
       } @else if (circle(); as circle) {
         <div class="mb-6">
-          <app-back-button [link]="'/circles'" [label]="'Back'" />
+          <back-button [link]="'/circles'" [label]="'Back'" />
         </div>
 
         <div class="card bg-base-100 shadow-xl">

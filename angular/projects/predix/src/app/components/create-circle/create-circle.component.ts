@@ -11,12 +11,12 @@ import { AuthService } from '../../services/auth.service';
 import { BackButtonComponent } from '../back-button/back-button.component';
 
 @Component({
-  selector: 'app-create-circle',
+  selector: 'create-circle',
   imports: [FormsModule, BackButtonComponent],
   template: `
     <div class="container mx-auto px-4 py-8 max-w-2xl">
       <div class="mb-6">
-        <app-back-button [link]="'/circles'" />
+        <back-button [link]="'/circles'" />
       </div>
 
       <div class="card bg-base-100 shadow-xl">

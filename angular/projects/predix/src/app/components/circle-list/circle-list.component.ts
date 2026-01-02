@@ -10,7 +10,7 @@ import { CircleService } from '../../services/circle.service';
 import type { Circle } from '../../models/circle.model';
 
 @Component({
-  selector: 'app-circle-list',
+  selector: 'circle-list',
   imports: [],
   template: `
     <div class="container mx-auto px-4 py-8">

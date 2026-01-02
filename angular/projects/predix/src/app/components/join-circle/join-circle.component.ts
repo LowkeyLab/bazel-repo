@@ -9,7 +9,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
 
 @Component({
-  selector: 'app-join-circle',
+  selector: 'join-circle',
   imports: [],
   template: `
     <div class="container mx-auto px-4 py-8">

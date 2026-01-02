@@ -9,7 +9,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
-  selector: 'app-home',
+  selector: 'home',
   imports: [RouterLink],
   template: `
     <div class="bg-base-200">
