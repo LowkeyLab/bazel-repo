@@ -3,8 +3,9 @@ import {
   Component,
   signal,
   inject,
+  OnInit,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ContestService } from '../../services/contest.service';
 import { AuthService } from '../../services/auth.service';
@@ -60,12 +61,10 @@ import { AuthService } from '../../services/auth.service';
             </div>
 
             <div class="space-y-2">
-              <span class="label-text text-sm"
-                >Circle IDs (comma-separated)</span
-              >
+              <span class="label-text text-sm">Circle</span>
               <label
                 class="input input-bordered flex items-center gap-3"
-                aria-label="Circle IDs"
+                aria-label="Circle"
               >
                 <svg
                   class="h-[1em] opacity-60"
@@ -90,9 +89,9 @@ import { AuthService } from '../../services/auth.service';
                 <input
                   type="text"
                   class="grow"
-                  placeholder="1,2,3"
-                  [(ngModel)]="circleIdsInput"
-                  name="circleIds"
+                  placeholder="Circle name"
+                  [(ngModel)]="circleName"
+                  name="circleName"
                   required
                 />
                 <span class="badge badge-neutral badge-xs">Required</span>
@@ -259,17 +258,31 @@ import { AuthService } from '../../services/auth.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CreateContestComponent {
+export class CreateContestComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly contestService = inject(ContestService);
   protected readonly auth = inject(AuthService);
 
   protected question = '';
-  protected circleIdsInput = '';
+  protected circleName = '';
+  protected circleId: number | null = null;
   protected expiresAt = '';
   protected readonly options = signal([{ value: '' }, { value: '' }]);
   protected readonly loading = signal(false);
   protected readonly error = signal('');
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    const name = this.route.snapshot.queryParamMap.get('circleName');
+
+    if (id) {
+      this.circleId = Number(id);
+    }
+    if (name) {
+      this.circleName = name;
+    }
+  }
 
   protected addOption(): void {
     this.options.update((opts) => [...opts, { value: '' }]);
@@ -288,13 +301,8 @@ export class CreateContestComponent {
       return;
     }
 
-    const circleIds = this.circleIdsInput
-      .split(',')
-      .map((id) => parseInt(id.trim(), 10))
-      .filter((id) => !isNaN(id));
-
-    if (circleIds.length === 0) {
-      this.error.set('At least one circle ID is required');
+    if (!this.circleName.trim()) {
+      this.error.set('Circle is required');
       return;
     }
 
@@ -314,6 +322,8 @@ export class CreateContestComponent {
 
     this.loading.set(true);
     this.error.set('');
+
+    const circleIds = this.circleId ? [this.circleId] : [];
 
     this.contestService
       .createContest({
@@ -335,6 +345,10 @@ export class CreateContestComponent {
   }
 
   protected goBack(): void {
-    this.router.navigate(['/contests']);
+    if (this.circleId) {
+      this.router.navigate(['/circles', this.circleId]);
+    } else {
+      this.router.navigate(['/contests']);
+    }
   }
 }

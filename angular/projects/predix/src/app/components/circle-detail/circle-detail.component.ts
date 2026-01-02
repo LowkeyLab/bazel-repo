@@ -99,7 +99,15 @@ import { DOCUMENT } from '@angular/common';
         </div>
 
         <div class="mt-8">
-          <h2 class="text-2xl font-bold mb-4">Contests</h2>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold">Contests</h2>
+            <button
+              class="btn btn-primary btn-sm"
+              (click)="createContest(circle.name)"
+            >
+              + Create Contest
+            </button>
+          </div>
           <div class="alert alert-info">
             <span>Contest list coming soon...</span>
           </div>
@@ -144,6 +152,12 @@ export class CircleDetailComponent implements OnInit {
 
   protected goBack(): void {
     this.router.navigate(['/circles']);
+  }
+
+  protected createContest(circleName: string): void {
+    this.router.navigate(['/circles', this.circle()?.id, 'contest', 'new'], {
+      queryParams: { circleName },
+    });
   }
 
   protected addMember(): void {

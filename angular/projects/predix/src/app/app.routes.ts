@@ -46,6 +46,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'circles/:id/contest/new',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/create-contest/create-contest.component').then(
+        (m) => m.CreateContestComponent,
+      ),
+  },
+  {
     path: 'circles/:id',
     canActivate: [authGuard],
     loadComponent: () =>
