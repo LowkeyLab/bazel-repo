@@ -65,7 +65,7 @@ import { AuthService } from '../../services/auth.service';
                 </p>
               </div>
               <div>
-                <p class="text-sm text-secondary">Clout staked</p>
+                <p class="text-sm text-secondary">Total Staked</p>
                 <p class="font-semibold">
                   💎 {{ getTotalClout(contest) }} Clout
                 </p>
