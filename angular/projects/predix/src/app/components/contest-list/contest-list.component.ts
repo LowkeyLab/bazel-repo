@@ -14,12 +14,7 @@ import { DatePipe } from '@angular/common';
   imports: [DatePipe],
   template: `
     <div class="container mx-auto px-4 py-8">
-      <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Contests in Your Circles</h1>
-        <button class="btn btn-primary" (click)="createContest()">
-          Create Contest
-        </button>
-      </div>
+      <h1 class="text-3xl font-bold mb-6">Contests in Your Circles</h1>
 
       @if (loading()) {
         <div class="flex justify-center">
@@ -41,8 +36,7 @@ import { DatePipe } from '@angular/common';
             ></path>
           </svg>
           <span>
-            No open Contests yet. Create one to let members stake Clout in your
-            Circles.
+            No contests in your circles yet. Go to a circle to create a contest!
           </span>
         </div>
       } @else {
@@ -106,10 +100,6 @@ export class ContestListComponent {
     CLOSED: 'Closed (paused)',
     RESOLVED: 'Resolved',
   };
-
-  createContest(): void {
-    this.router.navigate(['/contests/new']);
-  }
 
   viewContest(id: number): void {
     this.router.navigate(['/contests', id]);
