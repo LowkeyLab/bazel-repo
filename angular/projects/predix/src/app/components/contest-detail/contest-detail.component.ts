@@ -7,11 +7,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
-import type {
-  Contest,
-  ContestOption,
-  ContestStatus,
-} from '../../models/contest.model';
+import type { Contest, ContestStatus } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -27,9 +23,7 @@ import { AuthService } from '../../services/auth.service';
         </div>
       } @else if (contest(); as contest) {
         <div class="mb-6">
-          <button class="btn btn-ghost btn-sm" (click)="goBack()">
-            ← Back
-          </button>
+          <button class="btn btn-ghost" (click)="goBack()">← Back</button>
         </div>
 
         <div class="card bg-base-100 shadow-xl mb-6">
