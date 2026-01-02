@@ -7,6 +7,7 @@ import type {
   CreateCircleRequest,
   AddMemberRequest,
 } from '../models/circle.model';
+import type { Contest } from '../models/contest.model';
 
 @Injectable({
   providedIn: 'root',
@@ -25,6 +26,10 @@ export class CircleService {
 
   getCircle(id: number): Observable<Circle> {
     return this.http.get<Circle>(`${this.apiUrl}/${id}`);
+  }
+
+  getCircleContests(id: number): Observable<Contest[]> {
+    return this.http.get<Contest[]>(`${this.apiUrl}/${id}/contests`);
   }
 
   addMember(circleId: number, request: AddMemberRequest): Observable<void> {

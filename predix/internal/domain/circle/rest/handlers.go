@@ -13,17 +13,20 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 // Handler wires circle HTTP endpoints.
 type Handler struct {
-	svc *service.Service
+	svc        *service.Service
+	contestSvc *contestservice.Service
 }
 
 // NewHandler constructs a circle REST handler.
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *service.Service, contestSvc *contestservice.Service) *Handler {
+	return &Handler{svc: svc, contestSvc: contestSvc}
 }
 
 // RegisterRoutes registers circle routes on the provided router.
@@ -33,6 +36,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/circles/:id/members", h.addMember)
 	r.POST("/circles/:id/join", h.joinCircle)
 	r.GET("/circles/:id", h.getCircle)
+	r.GET("/circles/:id/contests", h.getCircleContests)
 	r.DELETE("/circles/:id", h.deleteCircle)
 }
 
@@ -51,6 +55,31 @@ type circleResponse struct {
 	Name      string           `json:"name"`
 	CreatedAt time.Time        `json:"created_at"`
 	Members   []memberResponse `json:"members"`
+}
+
+type optionResponse struct {
+	ID   int    `json:"id"`
+	Text string `json:"text"`
+}
+
+type predictionResponse struct {
+	UserID    int32     `json:"user_id"`
+	OptionID  int       `json:"option_id"`
+	Clout     int       `json:"clout"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type contestResponse struct {
+	ID             int32                `json:"id"`
+	CircleIDs      []int32              `json:"circle_ids"`
+	CreatorID      int32                `json:"creator_id"`
+	Question       string               `json:"question"`
+	Options        []optionResponse     `json:"options"`
+	Predictions    []predictionResponse `json:"predictions"`
+	Status         string               `json:"status"`
+	ResultOptionID *int                 `json:"result_option_id,omitempty"`
+	CreatedAt      time.Time            `json:"created_at"`
+	ExpiresAt      time.Time            `json:"expires_at"`
 }
 
 func (h *Handler) createCircle(c *gin.Context) {
@@ -195,6 +224,28 @@ func (h *Handler) getCircle(c *gin.Context) {
 	c.JSON(http.StatusOK, toEnrichedCircleResponse(result))
 }
 
+func (h *Handler) getCircleContests(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	contests, err := h.contestSvc.GetContestsByCircleID(c.Request.Context(), circleID)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "failed to get circle contests", "circle_id", circleID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	responses := make([]contestResponse, len(contests))
+	for i, cont := range contests {
+		responses[i] = toContestResponse(cont)
+	}
+
+	slog.DebugContext(c.Request.Context(), "circle contests retrieved", "circle_id", circleID, "count", len(contests))
+	c.JSON(http.StatusOK, responses)
+}
+
 func (h *Handler) deleteCircle(c *gin.Context) {
 	circleID, ok := parseCircleID(c)
 	if !ok {
@@ -266,5 +317,46 @@ func toEnrichedCircleResponse(enriched *service.EnrichedCircle) circleResponse {
 		Name:      enriched.Name,
 		CreatedAt: enriched.CreatedAt,
 		Members:   members,
+	}
+}
+
+func toContestResponse(cont *contest.Contest) contestResponse {
+	circleIDs := make([]int32, len(cont.CircleIDs))
+	for i, id := range cont.CircleIDs {
+		circleIDs[i] = int32(id)
+	}
+
+	options := make([]optionResponse, 0, len(cont.Options))
+	for _, opt := range cont.Options {
+		options = append(options, optionResponse{
+			ID:   opt.ID,
+			Text: opt.Text,
+		})
+	}
+	sort.Slice(options, func(i, j int) bool {
+		return options[i].ID < options[j].ID
+	})
+
+	predictions := make([]predictionResponse, len(cont.Predictions))
+	for i, pred := range cont.Predictions {
+		predictions[i] = predictionResponse{
+			UserID:    int32(pred.UserID),
+			OptionID:  pred.OptionID,
+			Clout:     pred.Clout,
+			Timestamp: pred.Timestamp,
+		}
+	}
+
+	return contestResponse{
+		ID:             int32(cont.ID),
+		CircleIDs:      circleIDs,
+		CreatorID:      int32(cont.CreatorID),
+		Question:       cont.Question,
+		Options:        options,
+		Predictions:    predictions,
+		Status:         string(cont.Status),
+		ResultOptionID: cont.ResultOptionID,
+		CreatedAt:      cont.CreatedAt,
+		ExpiresAt:      cont.ExpiresAt,
 	}
 }

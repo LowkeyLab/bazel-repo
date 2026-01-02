@@ -79,7 +79,7 @@ func main() {
 
 	// 3. Initialize HTTP Handlers
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
-	circleHandler := circlerest.NewHandler(circleSvc)
+	circleHandler := circlerest.NewHandler(circleSvc, contestSvc)
 	contestHandler := contestrest.NewHandler(contestSvc)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 

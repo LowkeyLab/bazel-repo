@@ -8,6 +8,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
 import type { Circle } from '../../models/circle.model';
+import type { Contest } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { DOCUMENT } from '@angular/common';
 
@@ -108,9 +109,44 @@ import { DOCUMENT } from '@angular/common';
               + Create Contest
             </button>
           </div>
-          <div class="alert alert-info">
-            <span>Contest list coming soon...</span>
-          </div>
+          @if (loadingContests()) {
+            <div class="flex justify-center">
+              <span class="loading loading-spinner loading-lg"></span>
+            </div>
+          } @else if (contests().length === 0) {
+            <div class="alert alert-info">
+              <span>No contests in this circle yet.</span>
+            </div>
+          } @else {
+            <div class="grid gap-4">
+              @for (contest of contests(); track contest.id) {
+                <div
+                  class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+                  (click)="viewContest(contest.id)"
+                >
+                  <div class="card-body">
+                    <h3 class="card-title text-lg">{{ contest.question }}</h3>
+                    <p class="text-sm text-secondary">
+                      Expires {{ contest.expires_at | date: 'short' }}
+                    </p>
+                    <div class="flex gap-2 flex-wrap">
+                      @for (option of contest.options; track option.id) {
+                        <div class="badge badge-outline">{{ option.text }}</div>
+                      }
+                    </div>
+                    <div class="card-actions justify-between items-center mt-2">
+                      <span class="text-sm text-secondary"
+                        >{{ contest.predictions.length }} predictions</span
+                      >
+                      <div class="badge badge-primary">
+                        {{ contest.status }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
         </div>
       } @else {
         <div class="alert alert-error">
@@ -129,12 +165,15 @@ export class CircleDetailComponent implements OnInit {
 
   protected readonly circle = signal<Circle | null>(null);
   protected readonly loading = signal(true);
+  protected readonly contests = signal<Contest[]>([]);
+  protected readonly loadingContests = signal(false);
   protected readonly linkCopied = signal(false);
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (id) {
       this.loadCircle(id);
+      this.loadContests(id);
     }
   }
 
@@ -150,8 +189,25 @@ export class CircleDetailComponent implements OnInit {
     });
   }
 
+  private loadContests(circleId: number): void {
+    this.loadingContests.set(true);
+    this.circleService.getCircleContests(circleId).subscribe({
+      next: (contests) => {
+        this.contests.set(contests);
+        this.loadingContests.set(false);
+      },
+      error: () => {
+        this.loadingContests.set(false);
+      },
+    });
+  }
+
   protected goBack(): void {
     this.router.navigate(['/circles']);
+  }
+
+  protected viewContest(id: number): void {
+    this.router.navigate(['/contests', id]);
   }
 
   protected createContest(circleName: string): void {

@@ -94,3 +94,7 @@ func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, reso
 func (s *Service) GetContest(ctx context.Context, id contest.ID) (*contest.Contest, error) {
 	return s.repo.FindByID(ctx, id)
 }
+
+func (s *Service) GetContestsByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
+	return s.repo.FindByCircleID(ctx, circleID)
+}
