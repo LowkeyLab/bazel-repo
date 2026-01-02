@@ -95,12 +95,6 @@ import { DOCUMENT } from '@angular/common';
                 </tbody>
               </table>
             </div>
-
-            <div class="card-actions justify-end mt-4">
-              <button class="btn btn-primary" (click)="addMember()">
-                Add Member
-              </button>
-            </div>
           </div>
         </div>
 
