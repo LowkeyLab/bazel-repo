@@ -92,7 +92,7 @@ import { AuthService } from '../../services/auth.service';
                   placeholder="Circle name"
                   [(ngModel)]="circleName"
                   name="circleName"
-                  required
+                  disabled
                 />
                 <span class="badge badge-neutral badge-xs">Required</span>
               </label>
