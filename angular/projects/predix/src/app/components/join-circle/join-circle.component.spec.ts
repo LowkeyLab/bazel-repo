@@ -3,7 +3,6 @@ import { JoinCircleComponent } from './join-circle.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
 import { of, throwError } from 'rxjs';
-import { signal } from '@angular/core';
 
 describe('JoinCircleComponent', () => {
   let component: JoinCircleComponent;
