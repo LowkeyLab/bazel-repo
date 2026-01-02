@@ -15,6 +15,14 @@ The app is organized into **Circles**—private, invite-only spaces. Everything 
 - **Members + Clout Ledger:** Each Member in a Circle has a Clout balance (starts at 1000 on join) tracked per-circle, not globally.
 - **Creators:** The Circle Creator is recorded (CreatorID) and remains the Circle owner for admin actions.
 
+### 1.1 Spontaneous Contests
+
+- **Spontaneous Contests:** Users can initiate quick, informal contests within their Circles, allowing for immediate engagement on current events or challenges.
+- **Quick Setup:** A simple interface for creating spontaneous contests that require minimal setup, encouraging more frequent participation.
+- **Instant Notifications:** Members receive real-time notifications for new spontaneous contests, ensuring they can join in the fun without delay.
+- **Clout Stakes:** Members can wager varying amounts of Clout on these spontaneous contests, fostering a dynamic contest environment.
+- **Resolution Process:** Similar to regular contests, spontaneous contests can be resolved by the creator or through community voting, adding a layer of social interaction.
+
 ### 2. Contests and Predictions
 
 - **Contests:** A Contest is a question with multiple Options, created by a user and scoped to one or more Circles. Domain status: OPEN → RESOLVED (CLOSED is reserved for future pause states).
