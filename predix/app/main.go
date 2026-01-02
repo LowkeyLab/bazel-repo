@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -25,13 +24,20 @@ import (
 )
 
 func main() {
+	// 0. Initialize Logger
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	logger := slog.New(logHandler)
+	slog.SetDefault(logger)
+
 	// 1. Initialize Infrastructure
 	// Determine whether to use in-memory or PostgreSQL repositories
 	devMode := strings.ToLower(os.Getenv("DEV_MODE")) == "true"
 	jwtSecret := os.Getenv("JWT_SECRET")
 
 	if devMode {
-		fmt.Println("Running in development mode with in-memory storage.")
+		slog.Info("Running in development mode with in-memory storage")
 		jwtSecret = "dev-secret"
 	}
 
@@ -41,13 +47,13 @@ func main() {
 	var circleRepo circlerepo.Repository
 
 	if devMode {
-		fmt.Println("Using in-memory repositories...")
+		slog.Info("Using in-memory repositories")
 		circleRepo = circlerepo.NewMemory()
 		contestRepo = contestrepo.NewMemory()
 		userRepo = userrepo.NewMemory()
 
 	} else {
-		fmt.Println("Using PostgreSQL repositories...")
+		slog.Info("Using PostgreSQL repositories")
 		// DB
 		connStr := os.Getenv("DATABASE_URL")
 		if connStr == "" {
@@ -56,7 +62,8 @@ func main() {
 
 		pool, err := pgxpool.New(context.Background(), connStr)
 		if err != nil {
-			log.Fatalf("Unable to connect to database: %v", err)
+			slog.Error("unable to connect to database", "error", err)
+			os.Exit(1)
 		}
 		defer pool.Close()
 
@@ -96,8 +103,9 @@ func main() {
 	contestHandler.RegisterRoutes(protected)
 	healthcheck.RegisterRoutes(r)
 
-	fmt.Println("Predix service starting on :8080...")
+	slog.Info("Predix service starting", "address", ":8080")
 	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("failed to run server: %v", err)
+		slog.Error("server exited", "error", err)
+		os.Exit(1)
 	}
 }
