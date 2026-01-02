@@ -11,10 +11,11 @@ import type { Circle } from '../../models/circle.model';
 import type { Contest } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { DOCUMENT } from '@angular/common';
+import { BackButtonComponent } from '../back-button/back-button.component';
 
 @Component({
   selector: 'app-circle-detail',
-  imports: [DatePipe],
+  imports: [DatePipe, BackButtonComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
       @if (loading()) {
@@ -23,9 +24,7 @@ import { DOCUMENT } from '@angular/common';
         </div>
       } @else if (circle(); as circle) {
         <div class="mb-6">
-          <button class="btn btn-ghost btn-sm" (click)="goBack()">
-            ← Back
-          </button>
+          <app-back-button [link]="'/circles'" [label]="'Back'" />
         </div>
 
         <div class="card bg-base-100 shadow-xl">
@@ -200,10 +199,6 @@ export class CircleDetailComponent implements OnInit {
         this.loadingContests.set(false);
       },
     });
-  }
-
-  protected goBack(): void {
-    this.router.navigate(['/circles']);
   }
 
   protected viewContest(id: number): void {

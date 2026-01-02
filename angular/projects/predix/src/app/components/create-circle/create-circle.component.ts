@@ -8,14 +8,15 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CircleService } from '../../services/circle.service';
 import { AuthService } from '../../services/auth.service';
+import { BackButtonComponent } from '../back-button/back-button.component';
 
 @Component({
   selector: 'app-create-circle',
-  imports: [FormsModule],
+  imports: [FormsModule, BackButtonComponent],
   template: `
     <div class="container mx-auto px-4 py-8 max-w-2xl">
       <div class="mb-6">
-        <button class="btn btn-ghost" (click)="goBack()">← Back</button>
+        <app-back-button [link]="'/circles'" />
       </div>
 
       <div class="card bg-base-100 shadow-xl">
@@ -78,7 +79,11 @@ import { AuthService } from '../../services/auth.service';
             }
 
             <div class="card-actions justify-end pt-2">
-              <button type="button" class="btn btn-ghost" (click)="goBack()">
+              <button
+                type="button"
+                class="btn btn-ghost"
+                (click)="navigateBack()"
+              >
                 Cancel
               </button>
               <button
@@ -135,7 +140,7 @@ export class CreateCircleComponent {
       });
   }
 
-  protected goBack(): void {
+  protected navigateBack(): void {
     this.router.navigate(['/circles']);
   }
 }

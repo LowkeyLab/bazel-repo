@@ -173,21 +173,6 @@ describe('CircleDetailComponent', () => {
       expect(mockRouter.navigate).toHaveBeenCalledWith(['/contests', 1]);
     });
   });
-
-  describe('goBack', () => {
-    beforeEach(() => {
-      mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
-      fixture.detectChanges();
-    });
-
-    it('should navigate back to circles list', () => {
-      component['goBack']();
-
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['/circles']);
-    });
-  });
-
   describe('createContest', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));

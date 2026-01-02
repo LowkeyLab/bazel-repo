@@ -11,10 +11,11 @@ import type { Contest, ContestStatus } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
+import { BackButtonComponent } from '../back-button/back-button.component';
 
 @Component({
   selector: 'app-contest-detail',
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, BackButtonComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
       @if (loading()) {
@@ -23,7 +24,7 @@ import { AuthService } from '../../services/auth.service';
         </div>
       } @else if (contest(); as contest) {
         <div class="mb-6">
-          <button class="btn btn-ghost" (click)="goBack()">← Back</button>
+          <app-back-button [link]="'/contests'" />
         </div>
 
         <div class="card bg-base-100 shadow-xl mb-6">
@@ -279,10 +280,6 @@ export class ContestDetailComponent implements OnInit {
           );
         },
       });
-  }
-
-  protected goBack(): void {
-    this.router.navigate(['/contests']);
   }
 
   protected getTotalClout(contest: Contest): number {

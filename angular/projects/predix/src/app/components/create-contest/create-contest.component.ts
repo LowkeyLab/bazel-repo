@@ -9,14 +9,15 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ContestService } from '../../services/contest.service';
 import { AuthService } from '../../services/auth.service';
+import { BackButtonComponent } from '../back-button/back-button.component';
 
 @Component({
   selector: 'app-create-contest',
-  imports: [FormsModule],
+  imports: [FormsModule, BackButtonComponent],
   template: `
     <div class="container mx-auto px-4 py-8 max-w-3xl">
       <div class="mb-6">
-        <button class="btn btn-ghost btn-sm" (click)="goBack()">← Back</button>
+        <app-back-button [link]="getBackLink()" />
       </div>
 
       <div class="card bg-base-100 shadow-xl">
@@ -237,7 +238,11 @@ import { AuthService } from '../../services/auth.service';
             }
 
             <div class="card-actions justify-end pt-2">
-              <button type="button" class="btn btn-ghost" (click)="goBack()">
+              <button
+                type="button"
+                class="btn btn-ghost"
+                (click)="navigateBack()"
+              >
                 Cancel
               </button>
               <button
@@ -344,11 +349,15 @@ export class CreateContestComponent implements OnInit {
       });
   }
 
-  protected goBack(): void {
+  protected getBackLink(): string | string[] {
     if (this.circleId) {
-      this.router.navigate(['/circles', this.circleId]);
-    } else {
-      this.router.navigate(['/contests']);
+      return ['/circles', this.circleId];
     }
+    return '/contests';
+  }
+
+  protected navigateBack(): void {
+    const link = this.getBackLink();
+    this.router.navigate(Array.isArray(link) ? link : [link]);
   }
 }
