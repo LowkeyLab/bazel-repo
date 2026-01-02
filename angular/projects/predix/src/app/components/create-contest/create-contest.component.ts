@@ -351,7 +351,7 @@ export class CreateContestComponent implements OnInit {
 
   protected getBackLink(): string | string[] {
     if (this.circleId) {
-      return ['/circles', this.circleId];
+      return ['/circles', `${this.circleId}`];
     }
     return '/contests';
   }
