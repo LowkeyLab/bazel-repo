@@ -13,7 +13,6 @@ describe('CircleDetailComponent', () => {
   let mockCircleService: jasmine.SpyObj<CircleService>;
   let mockRouter: jasmine.SpyObj<Router>;
   let mockActivatedRoute: Partial<ActivatedRoute>;
-  let mockDocument: Partial<Document>;
 
   const mockCircle: Circle = {
     id: 1,
