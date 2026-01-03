@@ -183,6 +183,45 @@ import { BackButtonComponent } from '../back-button/back-button.component';
             </button>
 
             <div class="space-y-2">
+              <span class="label-text text-sm">Minimum Stake</span>
+              <label
+                class="input input-bordered flex items-center gap-3"
+                aria-label="Minimum stake"
+              >
+                <svg
+                  class="h-[1em] opacity-60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <g
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M12 3L4 8v8l8 5 8-5V8z"></path>
+                    <path d="M8 11l4 2 4-2"></path>
+                  </g>
+                </svg>
+                <select
+                  class="grow select select-ghost"
+                  [(ngModel)]="selectedMinStake"
+                  name="minStake"
+                >
+                  @for (stake of minStakeOptions; track stake) {
+                    <option [ngValue]="stake">{{ stake }} Clout</option>
+                  }
+                </select>
+                <span class="badge badge-neutral badge-xs">Required</span>
+              </label>
+              <p class="text-xs text-secondary">
+                Choose the smallest amount someone can stake on this contest.
+              </p>
+            </div>
+
+            <div class="space-y-2">
               <span class="label-text text-sm">Expires at</span>
               <label
                 class="input input-bordered flex items-center gap-3"
@@ -273,6 +312,8 @@ export class CreateContestComponent implements OnInit {
   protected circleName = '';
   protected circleId: number | null = null;
   protected expiresAt = '';
+  protected readonly minStakeOptions = [10, 100, 1000];
+  protected selectedMinStake = this.minStakeOptions[0];
   protected readonly options = signal([{ value: '' }, { value: '' }]);
   protected readonly loading = signal(false);
   protected readonly error = signal('');
@@ -325,6 +366,11 @@ export class CreateContestComponent implements OnInit {
       return;
     }
 
+    if (!this.minStakeOptions.includes(this.selectedMinStake)) {
+      this.error.set('Select a minimum stake');
+      return;
+    }
+
     this.loading.set(true);
     this.error.set('');
 
@@ -335,6 +381,7 @@ export class CreateContestComponent implements OnInit {
         circle_ids: circleIds,
         question: this.question,
         options: optionTexts,
+        min_stake: this.selectedMinStake,
         expires_at: new Date(this.expiresAt).toISOString(),
       })
       .subscribe({

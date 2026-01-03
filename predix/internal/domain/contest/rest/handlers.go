@@ -38,6 +38,7 @@ type createContestRequest struct {
 	CircleIDs []int32   `json:"circle_ids"`
 	Question  string    `json:"question"`
 	Options   []string  `json:"options"`
+	MinStake  int       `json:"min_stake"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
@@ -61,6 +62,7 @@ type contestResponse struct {
 	Options        []optionResponse     `json:"options"`
 	Predictions    []predictionResponse `json:"predictions"`
 	Status         string               `json:"status"`
+	MinStake       int                  `json:"min_stake"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
 	ExpiresAt      time.Time            `json:"expires_at"`
@@ -93,6 +95,7 @@ func (h *Handler) createContest(c *gin.Context) {
 		req.Question,
 		req.Options,
 		req.ExpiresAt,
+		req.MinStake,
 	)
 	if err != nil {
 		slog.WarnContext(c.Request.Context(), "failed to create contest", "creator_id", creatorID, "question", req.Question, "circles", len(req.CircleIDs), "error", err)
@@ -265,6 +268,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		Options:        options,
 		Predictions:    predictions,
 		Status:         string(cont.Status),
+		MinStake:       cont.MinStake,
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
 		ExpiresAt:      cont.ExpiresAt,

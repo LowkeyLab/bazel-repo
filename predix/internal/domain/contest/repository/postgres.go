@@ -46,6 +46,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			CreatorID: int32(c.CreatorID),
 			Question:  c.Question,
 			Status:    string(c.Status),
+			MinStake:  int32(c.MinStake),
 			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
 			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 		})
@@ -173,6 +174,11 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		circles[i] = circle.ID(link.CircleID)
 	}
 
+	minStake := int(dbContest.MinStake)
+	if minStake == 0 {
+		minStake = defaultMinStake
+	}
+
 	return &contest.Contest{
 		ID:             contest.ID(dbContest.ID),
 		CircleIDs:      circles,
@@ -181,6 +187,7 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		Options:        options,
 		Predictions:    predictions,
 		Status:         contest.Status(dbContest.Status),
+		MinStake:       minStake,
 		ResultOptionID: resultOptionID,
 		CreatedAt:      dbContest.CreatedAt.Time,
 		ExpiresAt:      dbContest.ExpiresAt.Time,
@@ -243,6 +250,11 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 			circles[j] = circle.ID(link.CircleID)
 		}
 
+		minStake := int(dbContest.MinStake)
+		if minStake == 0 {
+			minStake = defaultMinStake
+		}
+
 		contests[i] = &contest.Contest{
 			ID:             contest.ID(dbContest.ID),
 			CircleIDs:      circles,
@@ -251,6 +263,7 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 			Options:        options,
 			Predictions:    predictions,
 			Status:         contest.Status(dbContest.Status),
+			MinStake:       minStake,
 			ResultOptionID: resultOptionID,
 			CreatedAt:      dbContest.CreatedAt.Time,
 			ExpiresAt:      dbContest.ExpiresAt.Time,

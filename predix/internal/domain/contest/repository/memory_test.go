@@ -22,6 +22,7 @@ func TestMemoryRepository_SaveContest(t *testing.T) {
 		"Test question?",
 		[]string{"Yes", "No"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 
@@ -49,6 +50,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 		"Will it rain?",
 		[]string{"Yes", "No", "Maybe"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), c)
@@ -84,6 +86,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 		"Question 1?",
 		[]string{"A", "B"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), c1)
@@ -95,6 +98,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 		"Question 2?",
 		[]string{"X", "Y"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), c2)
@@ -106,6 +110,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 		"Question 3?",
 		[]string{"M", "N"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), c3)
@@ -142,6 +147,7 @@ func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
 		"Question?",
 		[]string{"A", "B"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), c)
@@ -177,6 +183,7 @@ func TestMemoryRepository_DeepCopy(t *testing.T) {
 		"Question?",
 		[]string{"A", "B"},
 		time.Now().Add(24*time.Hour),
+		10,
 	)
 	require.NoError(t, err)
 	err = repo.Save(context.Background(), c)
@@ -206,6 +213,7 @@ func TestMemoryRepository_Concurrency(t *testing.T) {
 				"Question?",
 				[]string{"A", "B"},
 				time.Now().Add(24*time.Hour),
+				10,
 			)
 			_ = repo.Save(context.Background(), c)
 			done <- true

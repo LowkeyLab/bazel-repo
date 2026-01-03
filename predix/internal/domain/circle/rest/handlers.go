@@ -77,6 +77,7 @@ type contestResponse struct {
 	Options        []optionResponse     `json:"options"`
 	Predictions    []predictionResponse `json:"predictions"`
 	Status         string               `json:"status"`
+	MinStake       int                  `json:"min_stake"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
 	ExpiresAt      time.Time            `json:"expires_at"`
@@ -355,6 +356,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		Options:        options,
 		Predictions:    predictions,
 		Status:         string(cont.Status),
+		MinStake:       cont.MinStake,
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
 		ExpiresAt:      cont.ExpiresAt,

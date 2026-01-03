@@ -40,11 +40,17 @@ func (r *Memory) Save(ctx context.Context, c *contest.Contest) error {
 	}
 
 	// Deep copy the contest to avoid external mutations
+	minStake := c.MinStake
+	if minStake == 0 {
+		minStake = defaultMinStake
+	}
+
 	contestCopy := &contest.Contest{
 		ID:             c.ID,
 		CreatorID:      c.CreatorID,
 		Question:       c.Question,
 		Status:         c.Status,
+		MinStake:       minStake,
 		CreatedAt:      c.CreatedAt,
 		ExpiresAt:      c.ExpiresAt,
 		CircleIDs:      make([]circle.ID, len(c.CircleIDs)),
@@ -86,11 +92,17 @@ func (r *Memory) FindByID(ctx context.Context, id contest.ID) (*contest.Contest,
 	}
 
 	// Deep copy to avoid external mutations
+	minStake := c.MinStake
+	if minStake == 0 {
+		minStake = defaultMinStake
+	}
+
 	contestCopy := &contest.Contest{
 		ID:             c.ID,
 		CreatorID:      c.CreatorID,
 		Question:       c.Question,
 		Status:         c.Status,
+		MinStake:       minStake,
 		CreatedAt:      c.CreatedAt,
 		ExpiresAt:      c.ExpiresAt,
 		CircleIDs:      make([]circle.ID, len(c.CircleIDs)),
@@ -132,11 +144,17 @@ func (r *Memory) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*con
 		for _, cid := range c.CircleIDs {
 			if cid == circleID {
 				// Deep copy before adding
+				minStake := c.MinStake
+				if minStake == 0 {
+					minStake = defaultMinStake
+				}
+
 				contestCopy := &contest.Contest{
 					ID:             c.ID,
 					CreatorID:      c.CreatorID,
 					Question:       c.Question,
 					Status:         c.Status,
+					MinStake:       minStake,
 					CreatedAt:      c.CreatedAt,
 					ExpiresAt:      c.ExpiresAt,
 					CircleIDs:      make([]circle.ID, len(c.CircleIDs)),

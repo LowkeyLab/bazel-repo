@@ -66,6 +66,10 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                 </p>
               </div>
               <div>
+                <p class="text-sm text-secondary">Minimum Stake</p>
+                <p class="font-semibold">💎 {{ contest.min_stake }} Clout</p>
+              </div>
+              <div>
                 <p class="text-sm text-secondary">Predictions</p>
                 <p class="font-semibold">{{ contest.predictions.length }}</p>
               </div>
@@ -170,9 +174,12 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                       class="input input-bordered"
                       [(ngModel)]="cloutAmount"
                       name="clout"
-                      min="1"
+                      [min]="contest.min_stake"
                       required
                     />
+                    <p class="text-xs text-secondary mt-1">
+                      Minimum stake: {{ contest.min_stake }} Clout
+                    </p>
                   </div>
                 </div>
 
@@ -237,6 +244,7 @@ export class ContestDetailComponent implements OnInit {
     this.contestService.getContest(id).subscribe({
       next: (contest) => {
         this.contest.set(contest);
+        this.cloutAmount = contest.min_stake;
         this.loading.set(false);
       },
       error: () => {
@@ -254,7 +262,15 @@ export class ContestDetailComponent implements OnInit {
     }
 
     const contestId = this.contest()?.id;
-    if (!contestId) return;
+    const contest = this.contest();
+    if (!contestId || !contest) return;
+
+    if (this.cloutAmount < contest.min_stake) {
+      this.predictionError.set(
+        `Minimum stake is ${contest.min_stake} Clout for this contest`,
+      );
+      return;
+    }
 
     this.predictionLoading.set(true);
     this.predictionError.set('');
@@ -271,7 +287,7 @@ export class ContestDetailComponent implements OnInit {
           this.loadContest(contestId);
           // Reset form
           this.selectedOptionId = null;
-          this.cloutAmount = 10;
+          this.cloutAmount = contest.min_stake;
         },
         error: (err) => {
           this.predictionLoading.set(false);

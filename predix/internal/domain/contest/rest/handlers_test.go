@@ -29,6 +29,7 @@ type contestResponseBody struct {
 	CircleIDs []int32 `json:"circle_ids"`
 	CreatorID int32   `json:"creator_id"`
 	Question  string  `json:"question"`
+	MinStake  int     `json:"min_stake"`
 	Options   []struct {
 		ID   int    `json:"id"`
 		Text string `json:"text"`
@@ -119,6 +120,7 @@ func TestContestHandlers(t *testing.T) {
 				"circle_ids": [%d],
 				"question": "Who will win the Super Bowl?",
 				"options": ["Team A", "Team B"],
+				"min_stake": 100,
 				"expires_at": "%s"
 			}`, circleID, expiresAt.Format(time.RFC3339))
 
@@ -137,12 +139,40 @@ func TestContestHandlers(t *testing.T) {
 			assert.Len(t, payload.Options, 2)
 			assert.Equal(t, "OPEN", payload.Status)
 			assert.Equal(t, int32(creatorID), payload.CreatorID)
+			assert.Equal(t, 100, payload.MinStake)
 			assert.Contains(t, payload.CircleIDs, int32(circleID))
 
 			ctx := context.Background()
 			dbContest, err := queries.GetContest(ctx, payload.ID)
 			require.NoError(t, err)
 			assert.Equal(t, "Who will win the Super Bowl?", dbContest.Question)
+		})
+
+		t.Run("CreateContestHandler_InvalidMinStake", func(t *testing.T) {
+			router, _, _ := build(t)
+
+			creatorID := createTestUser(t, pool, "alice-invalid")
+			circleID := createTestCircle(t, pool, "Validation Circle", creatorID)
+
+			expiresAt := time.Now().Add(24 * time.Hour)
+
+			body := fmt.Sprintf(`{
+				"circle_ids": [%d],
+				"question": "Invalid stake?",
+				"options": ["Team A", "Team B"],
+				"min_stake": 5,
+				"expires_at": "%s"
+			}`, circleID, expiresAt.Format(time.RFC3339))
+
+			req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+
+			require.Equal(t, http.StatusBadRequest, resp.Code)
+			assert.Contains(t, resp.Body.String(), "min stake must be one of")
 		})
 
 		t.Run("MakePredictionHandler", func(t *testing.T) {
@@ -154,7 +184,7 @@ func TestContestHandlers(t *testing.T) {
 
 			ctx := context.Background()
 			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Who wins?", []string{"Option A", "Option B"}, expiresAt)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Who wins?", []string{"Option A", "Option B"}, expiresAt, 0)
 			require.NoError(t, err)
 
 			body := fmt.Sprintf(`{
@@ -187,7 +217,7 @@ func TestContestHandlers(t *testing.T) {
 
 			ctx := context.Background()
 			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Test Question?", []string{"Yes", "No"}, expiresAt)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Test Question?", []string{"Yes", "No"}, expiresAt, 0)
 			require.NoError(t, err)
 
 			body := `{"winning_option_id": 1}`
@@ -216,7 +246,7 @@ func TestContestHandlers(t *testing.T) {
 
 			ctx := context.Background()
 			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Resolve?", []string{"Yes", "No"}, expiresAt)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Resolve?", []string{"Yes", "No"}, expiresAt, 0)
 			require.NoError(t, err)
 
 			body := `{"winning_option_id": 1}`
@@ -243,7 +273,7 @@ func TestContestHandlers(t *testing.T) {
 
 			ctx := context.Background()
 			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, expiresAt)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, expiresAt, 0)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d", createdContest.ID), nil)
@@ -260,6 +290,7 @@ func TestContestHandlers(t *testing.T) {
 			assert.Equal(t, "Will it rain?", payload.Question)
 			assert.Len(t, payload.Options, 3)
 			assert.Equal(t, "OPEN", payload.Status)
+			assert.Equal(t, 10, payload.MinStake)
 		})
 
 		t.Run("GetContest_NotFound", func(t *testing.T) {

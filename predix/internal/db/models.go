@@ -71,6 +71,7 @@ type Contest struct {
 	CreatorID      int32            `json:"creator_id"`
 	Question       string           `json:"question"`
 	Status         string           `json:"status"`
+	MinStake       int32            `json:"min_stake"`
 	ResultOptionID pgtype.Int4      `json:"result_option_id"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 	ExpiresAt      pgtype.Timestamp `json:"expires_at"`

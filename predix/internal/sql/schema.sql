@@ -26,6 +26,7 @@ CREATE TABLE contests (
     creator_id INT NOT NULL REFERENCES users(id),
     question TEXT NOT NULL,
     status TEXT NOT NULL,
+    min_stake INT NOT NULL DEFAULT 10 CHECK (min_stake IN (10, 100, 1000)),
     result_option_id INT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMP NOT NULL

@@ -425,7 +425,7 @@ func TestCircleHandlers(t *testing.T) {
 			expiresAt := time.Now().Add(24 * time.Hour)
 			circleIDs := []circle.ID{testCircle.ID}
 
-			contest, err := contestSvc.CreateContest(ctx, circleIDs, creatorID, "Test Question?", contestOptions, expiresAt)
+			contest, err := contestSvc.CreateContest(ctx, circleIDs, creatorID, "Test Question?", contestOptions, expiresAt, 100)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests", testCircle.ID), nil)
@@ -442,6 +442,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.Len(t, contests, 1)
 			assert.Equal(t, int32(contest.ID), contests[0].ID)
 			assert.Equal(t, "Test Question?", contests[0].Question)
+			assert.Equal(t, 100, contests[0].MinStake)
 			assert.Len(t, contests[0].Options, 2)
 		})
 

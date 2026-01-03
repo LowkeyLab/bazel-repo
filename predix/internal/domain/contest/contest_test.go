@@ -15,7 +15,7 @@ func TestNew(t *testing.T) {
 	expiresAt := time.Now().Add(1 * time.Hour)
 	options := []string{"Yes", "No"}
 
-	c, err := contest.New([]circle.ID{circleID}, creatorID, "Will it rain?", options, expiresAt)
+	c, err := contest.New([]circle.ID{circleID}, creatorID, "Will it rain?", options, expiresAt, 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,6 +37,7 @@ func TestNew_Validation(t *testing.T) {
 		name     string
 		question string
 		options  []string
+		minStake int
 		wantErr  string
 	}{
 		{
@@ -69,11 +70,18 @@ func TestNew_Validation(t *testing.T) {
 			options:  []string{"", ""},
 			wantErr:  "option text cannot be empty",
 		},
+		{
+			name:     "invalid min stake",
+			question: "Valid question?",
+			options:  []string{"Yes", "No"},
+			minStake: 5,
+			wantErr:  "min stake must be one of 10, 100, or 1000",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := contest.New([]circle.ID{circleID}, creatorID, tt.question, tt.options, expiresAt)
+			c, err := contest.New([]circle.ID{circleID}, creatorID, tt.question, tt.options, expiresAt, tt.minStake)
 			if err == nil {
 				t.Errorf("expected error containing %q, got nil", tt.wantErr)
 			} else if err.Error() != tt.wantErr {
@@ -95,6 +103,7 @@ func TestNew_ValidContest(t *testing.T) {
 		name     string
 		question string
 		options  []string
+		minStake int
 	}{
 		{
 			name:     "two options",
@@ -111,16 +120,28 @@ func TestNew_ValidContest(t *testing.T) {
 			question: "What's your favorite?",
 			options:  []string{"Option One", "Option Two", "Option Three"},
 		},
+		{
+			name:     "explicit min stake 100",
+			question: "Pick one",
+			options:  []string{"Option One", "Option Two"},
+			minStake: 100,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := contest.New([]circle.ID{circleID}, creatorID, tt.question, tt.options, expiresAt)
+			c, err := contest.New([]circle.ID{circleID}, creatorID, tt.question, tt.options, expiresAt, tt.minStake)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
 			if c == nil {
 				t.Fatal("expected non-nil contest")
+			}
+			if tt.minStake == 0 && c.MinStake != 10 {
+				t.Errorf("expected default min stake 10, got %d", c.MinStake)
+			}
+			if tt.minStake != 0 && c.MinStake != tt.minStake {
+				t.Errorf("expected min stake %d, got %d", tt.minStake, c.MinStake)
 			}
 			if c.Question != tt.question {
 				t.Errorf("expected question %q, got %q", tt.question, c.Question)
@@ -136,7 +157,10 @@ func TestPredict(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
-	c, _ := contest.New([]circle.ID{circleID}, creatorID, "Q?", []string{"A", "B"}, expiresAt)
+	c, err := contest.New([]circle.ID{circleID}, creatorID, "Q?", []string{"A", "B"}, expiresAt, 100)
+	if err != nil {
+		t.Fatalf("unexpected error creating contest: %v", err)
+	}
 
 	betterID := user.ID(1)
 
@@ -147,7 +171,7 @@ func TestPredict(t *testing.T) {
 		break
 	}
 
-	err := c.Predict(betterID, optionID, 100)
+	err = c.Predict(betterID, optionID, 100)
 	if err != nil {
 		t.Fatalf("unexpected error making prediction: %v", err)
 	}
@@ -161,13 +185,18 @@ func TestPredict(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for invalid option")
 	}
+
+	err = c.Predict(betterID, optionID, 10)
+	if err == nil {
+		t.Fatal("expected error for clout below min stake")
+	}
 }
 
 func TestResolve(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
 	expiresAt := time.Now().Add(1 * time.Hour)
-	c, _ := contest.New([]circle.ID{circleID}, creatorID, "Q?", []string{"A", "B"}, expiresAt)
+	c, _ := contest.New([]circle.ID{circleID}, creatorID, "Q?", []string{"A", "B"}, expiresAt, 10)
 
 	// Find valid option ID
 	var optionID int

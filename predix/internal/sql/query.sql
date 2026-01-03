@@ -46,8 +46,8 @@ DELETE FROM circles
 WHERE id = $1;
 
 -- name: CreateContest :one
-INSERT INTO contests (creator_id, question, status, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO contests (creator_id, question, status, min_stake, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: AddContestCircle :exec

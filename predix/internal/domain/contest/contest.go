@@ -2,6 +2,7 @@ package contest
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
@@ -29,9 +30,20 @@ type Contest struct {
 	Options        map[int]*Option // Keyed by Option ID
 	Predictions    []*Prediction
 	Status         Status
+	MinStake       int
 	ResultOptionID *int // ID of the winning option
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
+}
+
+const (
+	minStakeDefault = 10
+)
+
+var allowedMinStakes = map[int]struct{}{
+	10:   {},
+	100:  {},
+	1000: {},
 }
 
 // Option represents a choice in the contest.
@@ -49,7 +61,7 @@ type Prediction struct {
 }
 
 // New creates a new Contest.
-func New(circleIDs []circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*Contest, error) {
+func New(circleIDs []circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time, minStake int) (*Contest, error) {
 	if len(circleIDs) == 0 {
 		return nil, errors.New("at least one circle is required")
 	}
@@ -73,6 +85,11 @@ func New(circleIDs []circle.ID, creatorID user.ID, question string, options []st
 
 	if len(options) < 2 {
 		return nil, errors.New("at least two options are required")
+	}
+
+	normalizedMinStake, err := normalizeMinStake(minStake)
+	if err != nil {
+		return nil, err
 	}
 
 	// Validate all options are non-empty
@@ -101,6 +118,7 @@ func New(circleIDs []circle.ID, creatorID user.ID, question string, options []st
 		Question:  question,
 		Options:   optionMap,
 		Status:    StatusOpen,
+		MinStake:  normalizedMinStake,
 		CreatedAt: time.Now(),
 		ExpiresAt: expiresAt,
 	}, nil
@@ -116,6 +134,9 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 	}
 	if clout <= 0 {
 		return errors.New("prediction clout must be positive")
+	}
+	if clout < c.MinStake {
+		return fmt.Errorf("prediction clout must be at least %d", c.MinStake)
 	}
 
 	prediction := &Prediction{
@@ -140,4 +161,16 @@ func (c *Contest) Resolve(winningOptionID int) error {
 	c.ResultOptionID = &winningOptionID
 	c.Status = StatusResolved
 	return nil
+}
+
+func normalizeMinStake(minStake int) (int, error) {
+	if minStake == 0 {
+		return minStakeDefault, nil
+	}
+
+	if _, ok := allowedMinStakes[minStake]; ok {
+		return minStake, nil
+	}
+
+	return 0, fmt.Errorf("min stake must be one of 10, 100, or 1000")
 }

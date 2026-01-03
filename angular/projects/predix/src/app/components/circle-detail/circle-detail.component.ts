@@ -137,6 +137,9 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                       <span class="text-sm text-secondary"
                         >{{ contest.predictions.length }} predictions</span
                       >
+                      <span class="text-sm text-secondary"
+                        >Min stake: {{ contest.min_stake }} Clout</span
+                      >
                       <div class="badge badge-primary">
                         {{ contest.status }}
                       </div>

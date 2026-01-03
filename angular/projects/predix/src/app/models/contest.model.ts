@@ -8,6 +8,7 @@ export interface Contest {
   options: ContestOption[];
   predictions: Prediction[];
   status: ContestStatus;
+  min_stake: number;
   result_option_id?: number;
   created_at: string;
   expires_at: string;
@@ -29,6 +30,7 @@ export interface CreateContestRequest {
   circle_ids: number[];
   question: string;
   options: string[];
+  min_stake: number;
   expires_at: string;
 }
 

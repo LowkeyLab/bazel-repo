@@ -27,9 +27,9 @@ func NewService(repo ContestRepository) *Service {
 	}
 }
 
-func (s *Service) CreateContest(ctx context.Context, circleIDs []circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time) (*contest.Contest, error) {
+func (s *Service) CreateContest(ctx context.Context, circleIDs []circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time, minStake int) (*contest.Contest, error) {
 	// Create domain entity (validation happens here)
-	c, err := contest.New(circleIDs, creatorID, question, options, expiresAt)
+	c, err := contest.New(circleIDs, creatorID, question, options, expiresAt, minStake)
 	if err != nil {
 		return nil, err
 	}
