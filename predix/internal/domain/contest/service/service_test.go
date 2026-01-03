@@ -53,220 +53,190 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID u
 	return circle.ID(result.ID)
 }
 
-func TestCreateContest(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
+func TestContestService(t *testing.T) {
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		ctx := context.Background()
 
-	ctx := context.Background()
-	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
-	q := db.New(pool)
+		build := func(t *testing.T) (*service.Service, *db.Queries) {
+			testutil.ResetTables(t, pool)
+			repo := repository.NewPostgres(pool)
+			return service.NewService(repo), db.New(pool)
+		}
 
-	// Setup: Create user and circle
-	creatorID := createTestUser(t, pool, "alice")
-	circleID := createTestCircle(t, pool, "Book Club", creatorID)
-	otherCircleID := createTestCircle(t, pool, "New Ideas", creatorID)
+		t.Run("CreateContest", func(t *testing.T) {
+			svc, q := build(t)
 
-	// Test: Create a contest
-	opts := []string{"Yes", "No", "Maybe"}
-	expiresAt := time.Now().Add(24 * time.Hour)
+			creatorID := createTestUser(t, pool, "alice")
+			circleID := createTestCircle(t, pool, "Book Club", creatorID)
+			otherCircleID := createTestCircle(t, pool, "New Ideas", creatorID)
 
-	c, err := svc.CreateContest(ctx, []circle.ID{circleID, otherCircleID}, creatorID, "Should we read this book?", opts, expiresAt)
-	require.NoError(t, err)
-	assert.NotNil(t, c)
-	assert.Equal(t, "Should we read this book?", c.Question)
-	assert.Equal(t, contest.StatusOpen, c.Status)
-	assert.Len(t, c.Options, 3)
-	assert.ElementsMatch(t, []circle.ID{circleID, otherCircleID}, c.CircleIDs)
+			opts := []string{"Yes", "No", "Maybe"}
+			expiresAt := time.Now().Add(24 * time.Hour)
 
-	// Verify in database
-	dbContest, err := q.GetContest(ctx, int32(c.ID))
-	require.NoError(t, err)
-	assert.Equal(t, "Should we read this book?", dbContest.Question)
-	assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
+			c, err := svc.CreateContest(ctx, []circle.ID{circleID, otherCircleID}, creatorID, "Should we read this book?", opts, expiresAt)
+			require.NoError(t, err)
+			assert.NotNil(t, c)
+			assert.Equal(t, "Should we read this book?", c.Question)
+			assert.Equal(t, contest.StatusOpen, c.Status)
+			assert.Len(t, c.Options, 3)
+			assert.ElementsMatch(t, []circle.ID{circleID, otherCircleID}, c.CircleIDs)
 
-	circleLinks, err := q.ListContestCircles(ctx, int32(c.ID))
-	require.NoError(t, err)
-	assert.Len(t, circleLinks, 2)
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "Should we read this book?", dbContest.Question)
+			assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
 
-	// Verify options
-	dbOptions, err := q.ListContestOptions(ctx, int32(c.ID))
-	require.NoError(t, err)
-	assert.Len(t, dbOptions, 3)
-}
+			circleLinks, err := q.ListContestCircles(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Len(t, circleLinks, 2)
 
-func TestCreateContest_WithInvalidData(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
+			dbOptions, err := q.ListContestOptions(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Len(t, dbOptions, 3)
+		})
 
-	ctx := context.Background()
-	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
+		t.Run("CreateContest_WithInvalidData", func(t *testing.T) {
+			svc, _ := build(t)
 
-	creatorID := createTestUser(t, pool, "bob")
-	circleID := createTestCircle(t, pool, "Test Circle", creatorID)
+			creatorID := createTestUser(t, pool, "bob")
+			circleID := createTestCircle(t, pool, "Test Circle", creatorID)
 
-	t.Run("empty question", func(t *testing.T) {
-		opts := []string{"Yes", "No"}
-		expiresAt := time.Now().Add(24 * time.Hour)
+			t.Run("empty question", func(t *testing.T) {
+				opts := []string{"Yes", "No"}
+				expiresAt := time.Now().Add(24 * time.Hour)
 
-		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "", opts, expiresAt)
-		assert.Error(t, err)
-		assert.Nil(t, c)
-		assert.Contains(t, err.Error(), "question cannot be empty")
+				c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "", opts, expiresAt)
+				assert.Error(t, err)
+				assert.Nil(t, c)
+				assert.Contains(t, err.Error(), "question cannot be empty")
+			})
+
+			t.Run("not enough options", func(t *testing.T) {
+				opts := []string{"Yes"}
+				expiresAt := time.Now().Add(24 * time.Hour)
+
+				c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
+				assert.Error(t, err)
+				assert.Nil(t, c)
+				assert.Contains(t, err.Error(), "at least two options")
+			})
+
+			t.Run("empty option text", func(t *testing.T) {
+				opts := []string{"Yes", ""}
+				expiresAt := time.Now().Add(24 * time.Hour)
+
+				c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
+				assert.Error(t, err)
+				assert.Nil(t, c)
+				assert.Contains(t, err.Error(), "option text cannot be empty")
+			})
+
+			t.Run("duplicate options", func(t *testing.T) {
+				opts := []string{"Yes", "No", "Yes"}
+				expiresAt := time.Now().Add(24 * time.Hour)
+
+				c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
+				assert.Error(t, err)
+				assert.Nil(t, c)
+				assert.Contains(t, err.Error(), "duplicate options")
+			})
+
+			t.Run("no circles", func(t *testing.T) {
+				opts := []string{"Yes", "No"}
+				expiresAt := time.Now().Add(24 * time.Hour)
+
+				c, err := svc.CreateContest(ctx, []circle.ID{}, creatorID, "Valid question?", opts, expiresAt)
+				assert.Error(t, err)
+				assert.Nil(t, c)
+				assert.Contains(t, err.Error(), "at least one circle")
+			})
+		})
+
+		t.Run("Predict", func(t *testing.T) {
+			svc, q := build(t)
+
+			userID := createTestUser(t, pool, "Charlie")
+			circleID := createTestCircle(t, pool, "Predictions Circle", userID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What will happen?", opts, expiresAt)
+			require.NoError(t, err)
+
+			err = svc.Predict(ctx, c.ID, userID, 1, 100)
+			require.NoError(t, err)
+
+			predictions, err := q.ListContestPredictions(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Len(t, predictions, 1)
+			assert.Equal(t, int32(userID), predictions[0].UserID)
+			assert.Equal(t, int32(1), predictions[0].OptionID)
+			assert.Equal(t, int32(100), predictions[0].Clout)
+		})
+
+		t.Run("Predict_ContestNotOpen", func(t *testing.T) {
+			svc, q := build(t)
+
+			userID := createTestUser(t, pool, "Diana")
+			circleID := createTestCircle(t, pool, "Test Circle", userID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "Test question?", opts, expiresAt)
+			require.NoError(t, err)
+
+			err = q.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
+				ID:             int32(c.ID),
+				Status:         "CLOSED",
+				ResultOptionID: pgtype.Int4{Valid: false},
+			})
+			require.NoError(t, err)
+
+			err = svc.Predict(ctx, c.ID, userID, 1, 100)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "not open")
+		})
+
+		t.Run("ResolveContest", func(t *testing.T) {
+			svc, q := build(t)
+
+			userID := createTestUser(t, pool, "Eve")
+			circleID := createTestCircle(t, pool, "Resolution Circle", userID)
+
+			opts := []string{"Outcome A", "Outcome B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What is the outcome?", opts, expiresAt)
+			require.NoError(t, err)
+
+			err = svc.ResolveContest(ctx, c.ID, userID, 1)
+			require.NoError(t, err)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "RESOLVED", dbContest.Status)
+			assert.True(t, dbContest.ResultOptionID.Valid)
+			assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
+		})
+
+		t.Run("ResolveContest_OnlyCreatorCanResolve", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Grace")
+			nonCreatorID := createTestUser(t, pool, "Henry")
+			circleID := createTestCircle(t, pool, "Ownership Circle", creatorID)
+
+			opts := []string{"Outcome A", "Outcome B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Which team wins?", opts, expiresAt)
+			require.NoError(t, err)
+
+			err = svc.ResolveContest(ctx, c.ID, nonCreatorID, 1)
+			assert.ErrorIs(t, err, service.ErrNotContestCreator)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
+			assert.False(t, dbContest.ResultOptionID.Valid)
+		})
 	})
-
-	t.Run("not enough options", func(t *testing.T) {
-		opts := []string{"Yes"}
-		expiresAt := time.Now().Add(24 * time.Hour)
-
-		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
-		assert.Error(t, err)
-		assert.Nil(t, c)
-		assert.Contains(t, err.Error(), "at least two options")
-	})
-
-	t.Run("empty option text", func(t *testing.T) {
-		opts := []string{"Yes", ""}
-		expiresAt := time.Now().Add(24 * time.Hour)
-
-		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
-		assert.Error(t, err)
-		assert.Nil(t, c)
-		assert.Contains(t, err.Error(), "option text cannot be empty")
-	})
-
-	t.Run("duplicate options", func(t *testing.T) {
-		opts := []string{"Yes", "No", "Yes"}
-		expiresAt := time.Now().Add(24 * time.Hour)
-
-		c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Valid question?", opts, expiresAt)
-		assert.Error(t, err)
-		assert.Nil(t, c)
-		assert.Contains(t, err.Error(), "duplicate options")
-	})
-
-	t.Run("no circles", func(t *testing.T) {
-		opts := []string{"Yes", "No"}
-		expiresAt := time.Now().Add(24 * time.Hour)
-
-		c, err := svc.CreateContest(ctx, []circle.ID{}, creatorID, "Valid question?", opts, expiresAt)
-		assert.Error(t, err)
-		assert.Nil(t, c)
-		assert.Contains(t, err.Error(), "at least one circle")
-	})
-}
-
-func TestPredict(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-
-	ctx := context.Background()
-	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
-	q := db.New(pool)
-
-	// Setup: Create user, circle, and contest
-	userID := createTestUser(t, pool, "Charlie")
-	circleID := createTestCircle(t, pool, "Predictions Circle", userID)
-
-	opts := []string{"Option A", "Option B"}
-	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What will happen?", opts, expiresAt)
-	require.NoError(t, err)
-
-	// Test: Make a prediction (option IDs start at 1)
-	err = svc.Predict(ctx, c.ID, userID, 1, 100)
-	require.NoError(t, err)
-
-	// Verify prediction in database
-	predictions, err := q.ListContestPredictions(ctx, int32(c.ID))
-	require.NoError(t, err)
-	assert.Len(t, predictions, 1)
-	assert.Equal(t, int32(userID), predictions[0].UserID)
-	assert.Equal(t, int32(1), predictions[0].OptionID)
-	assert.Equal(t, int32(100), predictions[0].Clout)
-}
-
-func TestPredict_ContestNotOpen(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-
-	ctx := context.Background()
-	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
-	q := db.New(pool)
-
-	// Setup: Create user, circle, and contest
-	userID := createTestUser(t, pool, "Diana")
-	circleID := createTestCircle(t, pool, "Test Circle", userID)
-
-	opts := []string{"Option A", "Option B"}
-	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "Test question?", opts, expiresAt)
-	require.NoError(t, err)
-
-	// Manually close the contest
-	err = q.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
-		ID:             int32(c.ID),
-		Status:         "CLOSED",
-		ResultOptionID: pgtype.Int4{Valid: false},
-	})
-	require.NoError(t, err)
-
-	// Test: Try to predict on closed contest
-	err = svc.Predict(ctx, c.ID, userID, 1, 100)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not open")
-}
-
-func TestResolveContest(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-
-	ctx := context.Background()
-	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
-	q := db.New(pool)
-
-	// Setup: Create user, circle, and contest
-	userID := createTestUser(t, pool, "Eve")
-	circleID := createTestCircle(t, pool, "Resolution Circle", userID)
-
-	opts := []string{"Outcome A", "Outcome B"}
-	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What is the outcome?", opts, expiresAt)
-	require.NoError(t, err)
-
-	// Test: Resolve the contest
-	err = svc.ResolveContest(ctx, c.ID, userID, 1)
-	require.NoError(t, err)
-
-	// Verify in database
-	dbContest, err := q.GetContest(ctx, int32(c.ID))
-	require.NoError(t, err)
-	assert.Equal(t, "RESOLVED", dbContest.Status)
-	assert.True(t, dbContest.ResultOptionID.Valid)
-	assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
-}
-
-func TestResolveContest_OnlyCreatorCanResolve(t *testing.T) {
-	pool := testutil.SetupTestDB(t)
-
-	ctx := context.Background()
-	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
-	q := db.New(pool)
-
-	creatorID := createTestUser(t, pool, "Grace")
-	nonCreatorID := createTestUser(t, pool, "Henry")
-	circleID := createTestCircle(t, pool, "Ownership Circle", creatorID)
-
-	opts := []string{"Outcome A", "Outcome B"}
-	expiresAt := time.Now().Add(24 * time.Hour)
-	c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Which team wins?", opts, expiresAt)
-	require.NoError(t, err)
-
-	err = svc.ResolveContest(ctx, c.ID, nonCreatorID, 1)
-	assert.ErrorIs(t, err, service.ErrNotContestCreator)
-
-	dbContest, err := q.GetContest(ctx, int32(c.ID))
-	require.NoError(t, err)
-	assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
-	assert.False(t, dbContest.ResultOptionID.Valid)
 }

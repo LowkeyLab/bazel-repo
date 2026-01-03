@@ -27,5 +27,6 @@ go_test(
         "//predix/internal/domain/user",
         "//predix/internal/domain/user/repository",
         "//predix/internal/testutil",
+        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )

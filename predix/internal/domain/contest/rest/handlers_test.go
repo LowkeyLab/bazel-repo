@@ -45,11 +45,9 @@ type contestResponseBody struct {
 	ExpiresAt      time.Time `json:"expires_at"`
 }
 
-func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service, *db.Queries) {
+func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Service, *db.Queries) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-
-	pool := testutil.SetupTestDB(t)
 	repo := repository.NewPostgres(pool)
 	svc := service.NewService(repo)
 	handler := NewHandler(svc)
@@ -59,7 +57,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool, *service.Service
 	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)
 
-	return r, pool, svc, db.New(pool)
+	return r, svc, db.New(pool)
 }
 
 func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
@@ -102,199 +100,208 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID u
 	return circle.ID(result.ID)
 }
 
-func TestCreateContestHandler(t *testing.T) {
-	router, pool, _, queries := setupTestRouter(t)
+func TestContestHandlers(t *testing.T) {
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		build := func(t *testing.T) (*gin.Engine, *service.Service, *db.Queries) {
+			testutil.ResetTables(t, pool)
+			return setupTestRouter(t, pool)
+		}
 
-	creatorID := createTestUser(t, pool, "alice")
-	circleID := createTestCircle(t, pool, "Study Group", creatorID)
+		t.Run("CreateContestHandler", func(t *testing.T) {
+			router, _, queries := build(t)
 
-	expiresAt := time.Now().Add(24 * time.Hour)
+			creatorID := createTestUser(t, pool, "alice")
+			circleID := createTestCircle(t, pool, "Study Group", creatorID)
 
-	body := fmt.Sprintf(`{
-		"circle_ids": [%d],
-		"question": "Who will win the Super Bowl?",
-		"options": ["Team A", "Team B"],
-		"expires_at": "%s"
-	}`, circleID, expiresAt.Format(time.RFC3339))
+			expiresAt := time.Now().Add(24 * time.Hour)
 
-	req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			body := fmt.Sprintf(`{
+				"circle_ids": [%d],
+				"question": "Who will win the Super Bowl?",
+				"options": ["Team A", "Team B"],
+				"expires_at": "%s"
+			}`, circleID, expiresAt.Format(time.RFC3339))
 
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+			req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
-	require.Equal(t, http.StatusCreated, resp.Code)
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
 
-	var payload contestResponseBody
-	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
-	assert.Equal(t, "Who will win the Super Bowl?", payload.Question)
-	assert.Len(t, payload.Options, 2)
-	assert.Equal(t, "OPEN", payload.Status)
-	assert.Equal(t, int32(creatorID), payload.CreatorID)
-	assert.Contains(t, payload.CircleIDs, int32(circleID))
+			require.Equal(t, http.StatusCreated, resp.Code)
 
-	ctx := context.Background()
-	dbContest, err := queries.GetContest(ctx, payload.ID)
-	require.NoError(t, err)
-	assert.Equal(t, "Who will win the Super Bowl?", dbContest.Question)
-}
+			var payload contestResponseBody
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+			assert.Equal(t, "Who will win the Super Bowl?", payload.Question)
+			assert.Len(t, payload.Options, 2)
+			assert.Equal(t, "OPEN", payload.Status)
+			assert.Equal(t, int32(creatorID), payload.CreatorID)
+			assert.Contains(t, payload.CircleIDs, int32(circleID))
 
-func TestMakePredictionHandler(t *testing.T) {
-	router, pool, svc, queries := setupTestRouter(t)
+			ctx := context.Background()
+			dbContest, err := queries.GetContest(ctx, payload.ID)
+			require.NoError(t, err)
+			assert.Equal(t, "Who will win the Super Bowl?", dbContest.Question)
+		})
 
-	creatorID := createTestUser(t, pool, "bob")
-	predictorID := createTestUser(t, pool, "charlie")
-	circleID := createTestCircle(t, pool, "Sports Fans", creatorID)
+		t.Run("MakePredictionHandler", func(t *testing.T) {
+			router, svc, queries := build(t)
 
-	ctx := context.Background()
-	expiresAt := time.Now().Add(24 * time.Hour)
-	createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Who wins?", []string{"Option A", "Option B"}, expiresAt)
-	require.NoError(t, err)
+			creatorID := createTestUser(t, pool, "bob")
+			predictorID := createTestUser(t, pool, "charlie")
+			circleID := createTestCircle(t, pool, "Sports Fans", creatorID)
 
-	body := fmt.Sprintf(`{
-		"option_id": 1,
-		"clout": 100
-	}`)
+			ctx := context.Background()
+			expiresAt := time.Now().Add(24 * time.Hour)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Who wins?", []string{"Option A", "Option B"}, expiresAt)
+			require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", predictorID))
+			body := fmt.Sprintf(`{
+				"option_id": 1,
+				"clout": 100
+			}`)
 
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", predictorID))
 
-	require.Equal(t, http.StatusCreated, resp.Code)
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
 
-	dbPredictions, err := queries.ListContestPredictions(ctx, int32(createdContest.ID))
-	require.NoError(t, err)
-	assert.Len(t, dbPredictions, 1)
-	assert.Equal(t, int32(predictorID), dbPredictions[0].UserID)
-	assert.Equal(t, int32(1), dbPredictions[0].OptionID)
-	assert.Equal(t, int32(100), dbPredictions[0].Clout)
-}
+			require.Equal(t, http.StatusCreated, resp.Code)
 
-func TestResolveContestHandler(t *testing.T) {
-	router, pool, svc, queries := setupTestRouter(t)
+			dbPredictions, err := queries.ListContestPredictions(ctx, int32(createdContest.ID))
+			require.NoError(t, err)
+			assert.Len(t, dbPredictions, 1)
+			assert.Equal(t, int32(predictorID), dbPredictions[0].UserID)
+			assert.Equal(t, int32(1), dbPredictions[0].OptionID)
+			assert.Equal(t, int32(100), dbPredictions[0].Clout)
+		})
 
-	creatorID := createTestUser(t, pool, "david")
-	circleID := createTestCircle(t, pool, "Predictors", creatorID)
+		t.Run("ResolveContestHandler", func(t *testing.T) {
+			router, svc, queries := build(t)
 
-	ctx := context.Background()
-	expiresAt := time.Now().Add(24 * time.Hour)
-	createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Test Question?", []string{"Yes", "No"}, expiresAt)
-	require.NoError(t, err)
+			creatorID := createTestUser(t, pool, "david")
+			circleID := createTestCircle(t, pool, "Predictors", creatorID)
 
-	body := `{"winning_option_id": 1}`
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			ctx := context.Background()
+			expiresAt := time.Now().Add(24 * time.Hour)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Test Question?", []string{"Yes", "No"}, expiresAt)
+			require.NoError(t, err)
 
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+			body := `{"winning_option_id": 1}`
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 
-	require.Equal(t, http.StatusOK, resp.Code)
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
 
-	dbContest, err := queries.GetContest(ctx, int32(createdContest.ID))
-	require.NoError(t, err)
-	assert.Equal(t, "RESOLVED", dbContest.Status)
-	require.True(t, dbContest.ResultOptionID.Valid)
-	assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
-}
+			require.Equal(t, http.StatusOK, resp.Code)
 
-func TestResolveContestHandler_OnlyCreatorCanResolve(t *testing.T) {
-	router, pool, svc, queries := setupTestRouter(t)
+			dbContest, err := queries.GetContest(ctx, int32(createdContest.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "RESOLVED", dbContest.Status)
+			require.True(t, dbContest.ResultOptionID.Valid)
+			assert.Equal(t, int32(1), dbContest.ResultOptionID.Int32)
+		})
 
-	creatorID := createTestUser(t, pool, "isabel")
-	nonCreatorID := createTestUser(t, pool, "jack")
-	circleID := createTestCircle(t, pool, "Guarded Circle", creatorID)
+		t.Run("ResolveContestHandler_OnlyCreatorCanResolve", func(t *testing.T) {
+			router, svc, queries := build(t)
 
-	ctx := context.Background()
-	expiresAt := time.Now().Add(24 * time.Hour)
-	createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Resolve?", []string{"Yes", "No"}, expiresAt)
-	require.NoError(t, err)
+			creatorID := createTestUser(t, pool, "isabel")
+			nonCreatorID := createTestUser(t, pool, "jack")
+			circleID := createTestCircle(t, pool, "Guarded Circle", creatorID)
 
-	body := `{"winning_option_id": 1}`
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", nonCreatorID))
+			ctx := context.Background()
+			expiresAt := time.Now().Add(24 * time.Hour)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Resolve?", []string{"Yes", "No"}, expiresAt)
+			require.NoError(t, err)
 
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+			body := `{"winning_option_id": 1}`
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/resolve", createdContest.ID), bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", nonCreatorID))
 
-	require.Equal(t, http.StatusForbidden, resp.Code)
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
 
-	dbContest, err := queries.GetContest(ctx, int32(createdContest.ID))
-	require.NoError(t, err)
-	assert.Equal(t, "OPEN", dbContest.Status)
-	assert.False(t, dbContest.ResultOptionID.Valid)
-}
+			require.Equal(t, http.StatusForbidden, resp.Code)
 
-func TestGetContest(t *testing.T) {
-	router, pool, svc, _ := setupTestRouter(t)
+			dbContest, err := queries.GetContest(ctx, int32(createdContest.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "OPEN", dbContest.Status)
+			assert.False(t, dbContest.ResultOptionID.Valid)
+		})
 
-	creatorID := createTestUser(t, pool, "eve")
-	circleID := createTestCircle(t, pool, "Test Circle", creatorID)
+		t.Run("GetContest", func(t *testing.T) {
+			router, svc, _ := build(t)
 
-	ctx := context.Background()
-	expiresAt := time.Now().Add(24 * time.Hour)
-	createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, expiresAt)
-	require.NoError(t, err)
+			creatorID := createTestUser(t, pool, "eve")
+			circleID := createTestCircle(t, pool, "Test Circle", creatorID)
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d", createdContest.ID), nil)
-	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
-	resp := httptest.NewRecorder()
+			ctx := context.Background()
+			expiresAt := time.Now().Add(24 * time.Hour)
+			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, expiresAt)
+			require.NoError(t, err)
 
-	router.ServeHTTP(resp, req)
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d", createdContest.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp := httptest.NewRecorder()
 
-	require.Equal(t, http.StatusOK, resp.Code)
+			router.ServeHTTP(resp, req)
 
-	var payload contestResponseBody
-	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
-	assert.Equal(t, int32(createdContest.ID), payload.ID)
-	assert.Equal(t, "Will it rain?", payload.Question)
-	assert.Len(t, payload.Options, 3)
-	assert.Equal(t, "OPEN", payload.Status)
-}
+			require.Equal(t, http.StatusOK, resp.Code)
 
-func TestGetContest_NotFound(t *testing.T) {
-	router, pool, _, _ := setupTestRouter(t)
+			var payload contestResponseBody
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+			assert.Equal(t, int32(createdContest.ID), payload.ID)
+			assert.Equal(t, "Will it rain?", payload.Question)
+			assert.Len(t, payload.Options, 3)
+			assert.Equal(t, "OPEN", payload.Status)
+		})
 
-	userID := createTestUser(t, pool, "frank")
+		t.Run("GetContest_NotFound", func(t *testing.T) {
+			router, _, _ := build(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected/contests/99999", nil)
-	req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
-	resp := httptest.NewRecorder()
+			userID := createTestUser(t, pool, "frank")
 
-	router.ServeHTTP(resp, req)
+			req := httptest.NewRequest(http.MethodGet, "/protected/contests/99999", nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+			resp := httptest.NewRecorder()
 
-	assert.Equal(t, http.StatusNotFound, resp.Code)
-}
+			router.ServeHTTP(resp, req)
 
-func TestCreateContest_InvalidRequest(t *testing.T) {
-	router, _, _, _ := setupTestRouter(t)
+			assert.Equal(t, http.StatusNotFound, resp.Code)
+		})
 
-	body := `{"invalid": "data"}`
-	req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(auth.TestUserIDHeader, "1")
+		t.Run("CreateContest_InvalidRequest", func(t *testing.T) {
+			router, _, _ := build(t)
 
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+			body := `{"invalid": "data"}`
+			req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, "1")
 
-	assert.Equal(t, http.StatusBadRequest, resp.Code)
-}
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
 
-func TestMakePrediction_ContestNotFound(t *testing.T) {
-	router, _, _, _ := setupTestRouter(t)
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+		})
 
-	body := `{"option_id": 1, "clout": 100}`
-	req := httptest.NewRequest(http.MethodPost, "/protected/contests/99999/predictions", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(auth.TestUserIDHeader, "1")
+		t.Run("MakePrediction_ContestNotFound", func(t *testing.T) {
+			router, _, _ := build(t)
 
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+			body := `{"option_id": 1, "clout": 100}`
+			req := httptest.NewRequest(http.MethodPost, "/protected/contests/99999/predictions", bytes.NewBufferString(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, "1")
 
-	assert.Equal(t, http.StatusNotFound, resp.Code)
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusNotFound, resp.Code)
+		})
+	})
 }

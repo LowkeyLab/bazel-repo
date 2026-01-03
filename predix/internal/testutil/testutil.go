@@ -73,6 +73,26 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
+// WithTestDB starts the Postgres container once for a group of subtests.
+// Call ResetTables at the start of each subtest to isolate data.
+func WithTestDB(t *testing.T, fn func(t *testing.T, pool *pgxpool.Pool)) {
+	t.Helper()
+
+	pool := SetupTestDB(t)
+	fn(t, pool)
+}
+
+// ResetTables truncates all application tables while keeping the container alive.
+func ResetTables(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+
+	ctx := context.Background()
+	_, err := pool.Exec(ctx, `TRUNCATE TABLE predictions, options, contest_circles, contests, circle_members, circles, users RESTART IDENTITY CASCADE`)
+	if err != nil {
+		t.Fatalf("failed to reset tables: %v", err)
+	}
+}
+
 // readSchemaFile tries to read the schema file from the provided path or using runfiles
 func readSchemaFile() ([]byte, error) {
 	// Try using Bazel runfiles
