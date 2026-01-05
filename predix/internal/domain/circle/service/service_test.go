@@ -386,5 +386,87 @@ func TestCircleService(t *testing.T) {
 			require.Len(t, updatedContest.Predictions, 1)
 			assert.Equal(t, 120, updatedContest.Predictions[0].Clout)
 		})
+
+		t.Run("ResolveContestAndCalculatePayouts", func(t *testing.T) {
+			svc, _, _, q := setup(t)
+
+			creatorID := createTestUser(t, pool, "creator_resolve")
+			winnerID := createTestUser(t, pool, "winner")
+			loserID := createTestUser(t, pool, "loser")
+
+			circleObj, err := svc.CreateCircle(ctx, "Betting Circle", creatorID)
+			require.NoError(t, err)
+
+			err = svc.AddMember(ctx, circleObj.ID, winnerID)
+			require.NoError(t, err)
+			err = svc.AddMember(ctx, circleObj.ID, loserID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Who wins?", []string{"A", "B"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			// Winner bets 100 on Option 1
+			err = svc.Predict(ctx, contestObj.ID, winnerID, 1, 100)
+			require.NoError(t, err)
+
+			// Loser bets 200 on Option 2
+			err = svc.Predict(ctx, contestObj.ID, loserID, 2, 200)
+			require.NoError(t, err)
+
+			// Resolve with Option 1 as winner
+			payouts, err := svc.ResolveContestAndCalculatePayouts(ctx, contestObj.ID, creatorID, 1)
+			require.NoError(t, err)
+
+			// Validate Contest State
+			updatedContest, err := svc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusResolved, updatedContest.Status)
+			assert.NotNil(t, updatedContest.ResultOptionID)
+			assert.Equal(t, 1, *updatedContest.ResultOptionID)
+
+			// Validate Payouts
+			// Losing pot = 200. Rake 10% = 20. Distributable = 180.
+			// Winner share = 100 + (100 * 180 / 100) = 280.
+			assert.Len(t, payouts, 1)
+			assert.Equal(t, 280, payouts[winnerID])
+
+			// Verify that the contest in DB is actually updated
+			dbContest, err := q.GetContest(ctx, int32(contestObj.ID))
+			require.NoError(t, err)
+			assert.Equal(t, string(contest.StatusResolved), string(dbContest.Status))
+		})
+
+		t.Run("ResolveContestAndCalculatePayouts_Unauthorized", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, pool, "creator_auth")
+			otherID := createTestUser(t, pool, "other_user")
+
+			circleObj, err := svc.CreateCircle(ctx, "Auth Circle", creatorID)
+			require.NoError(t, err)
+			err = svc.AddMember(ctx, circleObj.ID, otherID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, contestObj.ID, otherID, 1)
+			assert.ErrorIs(t, err, service.ErrNotContestCreator)
+		})
+
+		t.Run("ResolveContestAndCalculatePayouts_InvalidOption", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, pool, "creator_opt")
+			circleObj, err := svc.CreateCircle(ctx, "Opt Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, contestObj.ID, creatorID, 99)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid winning option")
+		})
 	})
 }
