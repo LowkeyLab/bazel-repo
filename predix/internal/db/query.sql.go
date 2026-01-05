@@ -52,21 +52,21 @@ func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Cir
 }
 
 const createContest = `-- name: CreateContest :one
-INSERT INTO contests (circle_id, creator_id, question, status, min_stake, consumption_rate, created_at, closes_at, duration)
+INSERT INTO contests (circle_id, creator_id, question, status, min_stake, house_rake, created_at, closes_at, duration)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, circle_id, creator_id, question, status, min_stake, consumption_rate, result_option_id, created_at, closes_at, duration
+RETURNING id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration
 `
 
 type CreateContestParams struct {
-	CircleID        int32            `json:"circle_id"`
-	CreatorID       int32            `json:"creator_id"`
-	Question        string           `json:"question"`
-	Status          string           `json:"status"`
-	MinStake        int32            `json:"min_stake"`
-	ConsumptionRate pgtype.Numeric   `json:"consumption_rate"`
-	CreatedAt       pgtype.Timestamp `json:"created_at"`
-	ClosesAt        pgtype.Timestamp `json:"closes_at"`
-	Duration        string           `json:"duration"`
+	CircleID  int32            `json:"circle_id"`
+	CreatorID int32            `json:"creator_id"`
+	Question  string           `json:"question"`
+	Status    string           `json:"status"`
+	MinStake  int32            `json:"min_stake"`
+	HouseRake pgtype.Numeric   `json:"house_rake"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ClosesAt  pgtype.Timestamp `json:"closes_at"`
+	Duration  string           `json:"duration"`
 }
 
 func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error) {
@@ -76,7 +76,7 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 		arg.Question,
 		arg.Status,
 		arg.MinStake,
-		arg.ConsumptionRate,
+		arg.HouseRake,
 		arg.CreatedAt,
 		arg.ClosesAt,
 		arg.Duration,
@@ -89,7 +89,7 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 		&i.Question,
 		&i.Status,
 		&i.MinStake,
-		&i.ConsumptionRate,
+		&i.HouseRake,
 		&i.ResultOptionID,
 		&i.CreatedAt,
 		&i.ClosesAt,
@@ -182,7 +182,7 @@ func (q *Queries) DeleteCircle(ctx context.Context, id int32) error {
 }
 
 const findExpiredContests = `-- name: FindExpiredContests :many
-SELECT id, circle_id, creator_id, question, status, min_stake, consumption_rate, result_option_id, created_at, closes_at, duration FROM contests
+SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration FROM contests
 WHERE status IN ('OPEN', 'LOCKED')
   AND closes_at <= NOW()
 `
@@ -203,7 +203,7 @@ func (q *Queries) FindExpiredContests(ctx context.Context) ([]Contest, error) {
 			&i.Question,
 			&i.Status,
 			&i.MinStake,
-			&i.ConsumptionRate,
+			&i.HouseRake,
 			&i.ResultOptionID,
 			&i.CreatedAt,
 			&i.ClosesAt,
@@ -254,7 +254,7 @@ func (q *Queries) GetCircleMember(ctx context.Context, arg GetCircleMemberParams
 }
 
 const getContest = `-- name: GetContest :one
-SELECT id, circle_id, creator_id, question, status, min_stake, consumption_rate, result_option_id, created_at, closes_at, duration FROM contests
+SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration FROM contests
 WHERE id = $1 LIMIT 1
 `
 
@@ -268,7 +268,7 @@ func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 		&i.Question,
 		&i.Status,
 		&i.MinStake,
-		&i.ConsumptionRate,
+		&i.HouseRake,
 		&i.ResultOptionID,
 		&i.CreatedAt,
 		&i.ClosesAt,
@@ -407,7 +407,7 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID int32) (
 }
 
 const listContestsByCircle = `-- name: ListContestsByCircle :many
-SELECT c.id, c.circle_id, c.creator_id, c.question, c.status, c.min_stake, c.consumption_rate, c.result_option_id, c.created_at, c.closes_at, c.duration
+SELECT c.id, c.circle_id, c.creator_id, c.question, c.status, c.min_stake, c.house_rake, c.result_option_id, c.created_at, c.closes_at, c.duration
 FROM contests c
 WHERE c.circle_id = $1
 ORDER BY created_at DESC
@@ -429,7 +429,7 @@ func (q *Queries) ListContestsByCircle(ctx context.Context, circleID int32) ([]C
 			&i.Question,
 			&i.Status,
 			&i.MinStake,
-			&i.ConsumptionRate,
+			&i.HouseRake,
 			&i.ResultOptionID,
 			&i.CreatedAt,
 			&i.ClosesAt,

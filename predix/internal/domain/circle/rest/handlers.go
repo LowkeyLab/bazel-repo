@@ -83,7 +83,7 @@ type contestResponse struct {
 	Status         string               `json:"status"`
 	MinStake       int                  `json:"min_stake"`
 	TotalPot       int                  `json:"total_pot"`
-	CloutConsumed  int                  `json:"clout_consumed"`
+	HouseRake      int                  `json:"house_rake"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
 	ClosesAt       time.Time            `json:"closes_at"`
@@ -120,7 +120,7 @@ type payoutRecord struct {
 type payoutBreakdownResponse struct {
 	Winners          []payoutRecord `json:"winners"`
 	TotalPot         int            `json:"total_pot"`
-	CloutConsumed    int            `json:"clout_consumed"`
+	HouseRake        int            `json:"house_rake"`
 	DistributablePot int            `json:"distributable_pot"`
 	TotalDistributed int            `json:"total_distributed"`
 }
@@ -642,7 +642,7 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 
 	// Build response
 	totalPot := cont.CalculatePot()
-	cloutConsumed := cont.CalculateConsumedClout()
+	houseRake := cont.CalculateHouseRakeClout()
 	distributablePot := cont.CalculateRemainingPot()
 	totalDistributed := 0
 
@@ -660,7 +660,7 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 	response := payoutBreakdownResponse{
 		Winners:          winners,
 		TotalPot:         totalPot,
-		CloutConsumed:    cloutConsumed,
+		HouseRake:        houseRake,
 		DistributablePot: distributablePot,
 		TotalDistributed: totalDistributed,
 	}
@@ -774,7 +774,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		Status:         string(cont.Status),
 		MinStake:       cont.MinStake,
 		TotalPot:       cont.CalculatePot(),
-		CloutConsumed:  cont.CalculateConsumedClout(),
+		HouseRake:      cont.CalculateHouseRakeClout(),
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
 		ClosesAt:       cont.ClosesAt,

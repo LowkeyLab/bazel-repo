@@ -89,16 +89,16 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                 @if (contest.status === 'RESOLVED') {
                   <div>
                     <p class="text-sm text-secondary">
-                      Clout Consumed (10% of Losers)
+                      House Rake (10% of Losers)
                     </p>
                     <p class="font-semibold text-lg text-warning">
-                      💎 {{ contest.clout_consumed }} Clout
+                      💎 {{ contest.house_rake }} Clout
                     </p>
                   </div>
                   <div>
                     <p class="text-sm text-secondary">Distributable Pot</p>
                     <p class="font-semibold text-lg text-success">
-                      💎 {{ contest.total_pot - contest.clout_consumed }} Clout
+                      💎 {{ contest.total_pot - contest.house_rake }} Clout
                     </p>
                   </div>
                 }
@@ -142,7 +142,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                     <p class="text-sm text-secondary mb-4">
                       Winners receive their original stake plus their
                       proportional share of the losing stakes (minus 10% house
-                      fee).
+                      rake).
                     </p>
                     <div class="grid grid-cols-2 gap-4 mb-6">
                       <div>
@@ -153,10 +153,10 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                       </div>
                       <div>
                         <p class="text-sm text-secondary">
-                          Clout Consumed (10% of Losers)
+                          House Rake (10% of Losers)
                         </p>
                         <p class="font-semibold text-lg text-warning">
-                          💎 {{ breakdown.clout_consumed }} Clout
+                          💎 {{ breakdown.house_rake }} Clout
                         </p>
                       </div>
                       <div>
@@ -441,7 +441,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
             <p class="text-sm text-secondary mb-4">
               Select the winning option. This action is final and cannot be
               undone. Winners will receive their stake plus their proportional
-              share of 90% of the pot (10% is consumed as a house fee).
+              share of 90% of the pot (10% is taken as a house rake).
             </p>
 
             <div class="form-control mb-4">

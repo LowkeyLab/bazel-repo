@@ -503,7 +503,7 @@ func TestPayoutIntegration(t *testing.T) {
 		router.ServeHTTP(resp, req)
 		require.Equal(t, http.StatusOK, resp.Code)
 
-		// 6. Verify Contest Detail Response (Check Clout Consumed)
+		// 6. Verify Contest Detail Response (Check House Rake)
 		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d", circ.ID, cont.ID), nil)
 		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
 		resp = httptest.NewRecorder()
@@ -517,7 +517,7 @@ func TestPayoutIntegration(t *testing.T) {
 		// Losing Stakes = 100
 		// Burn = 10% of 100 = 10
 		assert.Equal(t, 200, contestResp.TotalPot)
-		assert.Equal(t, 10, contestResp.CloutConsumed, "HTTP response should show 10 clout consumed (10% of losing stake)")
+		assert.Equal(t, 10, contestResp.HouseRake, "HTTP response should show 10 house rake (10% of losing stake)")
 
 		// 7. Verify Payout Breakdown Response
 		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d/payout-breakdown", circ.ID, cont.ID), nil)
@@ -530,7 +530,7 @@ func TestPayoutIntegration(t *testing.T) {
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &breakdownResp))
 
 		assert.Equal(t, 200, breakdownResp.TotalPot)
-		assert.Equal(t, 10, breakdownResp.CloutConsumed)
+		assert.Equal(t, 10, breakdownResp.HouseRake)
 		assert.Equal(t, 190, breakdownResp.DistributablePot)
 
 		// Verify Winner Payout

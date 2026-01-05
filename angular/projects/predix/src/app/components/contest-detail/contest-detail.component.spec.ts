@@ -41,7 +41,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     result_option_id: 2,
     min_stake: 10,
     total_pot: 300,
-    clout_consumed: 30,
+    house_rake: 30,
     created_at: '2024-01-01T00:00:00Z',
     closes_at: '2024-01-02T00:00:00Z',
     duration: '1d',
@@ -63,7 +63,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       },
     ],
     total_pot: 300,
-    clout_consumed: 30,
+    house_rake: 30,
     distributable_pot: 270,
     total_distributed: 570,
   };
@@ -198,7 +198,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       expect(breakdown?.total_pot).toBe(300);
-      expect(breakdown?.clout_consumed).toBe(30);
+      expect(breakdown?.house_rake).toBe(30);
       expect(breakdown?.distributable_pot).toBe(270);
       expect(breakdown?.total_distributed).toBe(570);
     });
@@ -234,8 +234,8 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       expect(breakdown!.total_distributed).toBe(570);
-      // Total pot - consumed = distributable
-      expect(breakdown!.total_pot - breakdown!.clout_consumed).toBe(
+      // Total pot - house rake = distributable
+      expect(breakdown!.total_pot - breakdown!.house_rake).toBe(
         breakdown!.distributable_pot,
       );
     });
@@ -373,7 +373,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
           },
         ],
         total_pot: 300,
-        clout_consumed: 30,
+        house_rake: 30,
         distributable_pot: 270,
         total_distributed: 570,
       };
@@ -399,7 +399,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
           { user_id: 5, stake: 50, share: 25, total: 75 },
         ],
         total_pot: 200,
-        clout_consumed: 20,
+        house_rake: 20,
         distributable_pot: 180,
         total_distributed: 300,
       };
@@ -420,7 +420,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       const zeroStakeBreakdown: PayoutBreakdown = {
         winners: [{ user_id: 2, stake: 0, share: 0, total: 0 }],
         total_pot: 0,
-        clout_consumed: 0,
+        house_rake: 0,
         distributable_pot: 0,
         total_distributed: 0,
       };
@@ -438,8 +438,8 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
   });
 
-  describe('Consumption Rate Verification', () => {
-    it('should verify 10% consumption rate is applied correctly', () => {
+  describe('House Rake Verification', () => {
+    it('should verify 10% house rake is applied correctly', () => {
       mockContestService.getContest.and.returnValue(of(mockResolvedContest));
       mockContestService.getPayoutBreakdown.and.returnValue(
         of(mockPayoutBreakdown),
@@ -450,7 +450,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       const expectedConsumed = Math.floor(breakdown!.total_pot * 0.1);
-      expect(breakdown!.clout_consumed).toBe(expectedConsumed);
+      expect(breakdown!.house_rake).toBe(expectedConsumed);
     });
 
     it('should verify 90% distributable rate is applied correctly', () => {
@@ -464,7 +464,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       const expectedDistributable =
-        breakdown!.total_pot - breakdown!.clout_consumed;
+        breakdown!.total_pot - breakdown!.house_rake;
       expect(breakdown!.distributable_pot).toBe(expectedDistributable);
     });
 
@@ -478,7 +478,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
-      const sum = breakdown!.clout_consumed + breakdown!.distributable_pot;
+      const sum = breakdown!.house_rake + breakdown!.distributable_pot;
       expect(sum).toBe(breakdown!.total_pot);
     });
   });
@@ -504,7 +504,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       status: 'OPEN',
       min_stake: 100,
       total_pot: 500,
-      clout_consumed: 50,
+      house_rake: 50,
       created_at: '2024-01-01T00:00:00Z',
       closes_at: '2024-01-02T00:00:00Z',
       duration: '1d',

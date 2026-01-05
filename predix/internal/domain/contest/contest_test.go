@@ -358,7 +358,7 @@ func TestCalculateWinnerPayouts(t *testing.T) {
 	// Total Pot = 200
 	// Winning Stake = 100
 	// Losing Stake = 100
-	// Consumption Rate = 0.10 (Default)
+	// House Rake = 0.10 (Default)
 	// Burn = 100 * 0.10 = 10
 	// Distributable from Losers = 100 - 10 = 90
 	// Winner Payout = Original Stake (100) + Share (1.0) * Distributable (90) = 190
@@ -368,8 +368,8 @@ func TestCalculateWinnerPayouts(t *testing.T) {
 	assert.Equal(t, 0, payouts[loserID], "Loser should receive 0")
 
 	// Verify Pot Calculations
-	assert.Equal(t, 10, c.CalculateConsumedClout(), "Consumed clout should be 10% of losing stake (100 * 0.10)")
-	assert.Equal(t, 190, c.CalculateRemainingPot(), "Remaining pot should be Total (200) - Consumed (10)")
+	assert.Equal(t, 10, c.CalculateHouseRakeClout(), "House rake clout should be 10% of losing stake (100 * 0.10)")
+	assert.Equal(t, 190, c.CalculateRemainingPot(), "Remaining pot should be Total (200) - House Rake (10)")
 }
 
 func TestCalculateWinnerPayouts_MultipleWinners(t *testing.T) {

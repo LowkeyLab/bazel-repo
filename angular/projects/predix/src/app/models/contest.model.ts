@@ -10,21 +10,21 @@ export interface Contest {
   status: ContestStatus;
   min_stake: number;
   total_pot: number;
-  clout_consumed: number;
+  house_rake: number;
   result_option_id?: number;
   created_at: string;
   closes_at: string;
   duration: string;
 }
 
-// Computed field: 90% of total pot after 10% consumption
+// Computed field: 90% of total pot after 10% house rake
 export function getDistributableClout(contest: Contest): number {
-  return contest.total_pot - contest.clout_consumed;
+  return contest.total_pot - contest.house_rake;
 }
 
 // Computed field: 10% of total pot (house fee)
-export function getConsumedClout(contest: Contest): number {
-  return contest.clout_consumed;
+export function getHouseRakeClout(contest: Contest): number {
+  return contest.house_rake;
 }
 
 export interface ContestOption {
@@ -66,7 +66,7 @@ export interface PayoutRecord {
 export interface PayoutBreakdown {
   winners: PayoutRecord[];
   total_pot: number;
-  clout_consumed: number;
+  house_rake: number;
   distributable_pot: number;
   total_distributed: number;
 }

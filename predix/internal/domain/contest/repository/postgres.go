@@ -44,15 +44,15 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	if isNew {
 		// Create new contest
 		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
-			CircleID:        int32(c.CircleID),
-			CreatorID:       int32(c.CreatorID),
-			Question:        c.Question,
-			Status:          string(c.Status),
-			MinStake:        int32(c.MinStake),
-			ConsumptionRate: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
-			CreatedAt:       pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-			ClosesAt:        pgtype.Timestamp{Time: c.ClosesAt, Valid: true},
-			Duration:        c.Duration,
+			CircleID:  int32(c.CircleID),
+			CreatorID: int32(c.CreatorID),
+			Question:  c.Question,
+			Status:    string(c.Status),
+			MinStake:  int32(c.MinStake),
+			HouseRake: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
+			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
+			ClosesAt:  pgtype.Timestamp{Time: c.ClosesAt, Valid: true},
+			Duration:  c.Duration,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to save contest: %w", err)
@@ -157,32 +157,32 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		minStake = defaultMinStake
 	}
 
-	// Parse consumption rate from pgtype.Numeric
-	consumptionRate := 0.10 // default
-	if dbContest.ConsumptionRate.Valid {
+	// Parse house rake from pgtype.Numeric
+	houseRake := 0.10 // default
+	if dbContest.HouseRake.Valid {
 		// Convert Numeric to string then parse - stored as percentage (10.00 = 10%)
-		numStr := dbContest.ConsumptionRate.Int.String()
+		numStr := dbContest.HouseRake.Int.String()
 		if len(numStr) > 0 {
 			// Simple conversion: if stored as 1000 with exp -2, that's 10.00
 			// We need 0.10 for our float64 representation
-			consumptionRate = float64(dbContest.ConsumptionRate.Int.Int64()) / 10000.0
+			houseRake = float64(dbContest.HouseRake.Int.Int64()) / 10000.0
 		}
 	}
 
 	return &contest.Contest{
-		ID:              contest.ID(dbContest.ID),
-		CircleID:        circle.ID(dbContest.CircleID),
-		CreatorID:       user.ID(dbContest.CreatorID),
-		Question:        dbContest.Question,
-		Options:         options,
-		Predictions:     predictions,
-		Status:          contest.Status(dbContest.Status),
-		MinStake:        minStake,
-		ConsumptionRate: consumptionRate,
-		ResultOptionID:  resultOptionID,
-		CreatedAt:       dbContest.CreatedAt.Time,
-		ClosesAt:        dbContest.ClosesAt.Time,
-		Duration:        dbContest.Duration,
+		ID:             contest.ID(dbContest.ID),
+		CircleID:       circle.ID(dbContest.CircleID),
+		CreatorID:      user.ID(dbContest.CreatorID),
+		Question:       dbContest.Question,
+		Options:        options,
+		Predictions:    predictions,
+		Status:         contest.Status(dbContest.Status),
+		MinStake:       minStake,
+		HouseRake:      houseRake,
+		ResultOptionID: resultOptionID,
+		CreatedAt:      dbContest.CreatedAt.Time,
+		ClosesAt:       dbContest.ClosesAt.Time,
+		Duration:       dbContest.Duration,
 	}, nil
 }
 

@@ -95,15 +95,15 @@ import { forkJoin, map, switchMap, of } from 'rxjs';
                       <p class="font-bold">💎 {{ contest.total_pot }}</p>
                     </div>
                     <div>
-                      <p class="text-secondary">Consumed (10%)</p>
+                      <p class="text-secondary">House Rake (10%)</p>
                       <p class="font-bold text-warning">
-                        💎 {{ contest.clout_consumed }}
+                        💎 {{ contest.house_rake }}
                       </p>
                     </div>
                     <div>
                       <p class="text-secondary">Remaining (90%)</p>
                       <p class="font-bold text-success">
-                        💎 {{ contest.total_pot - contest.clout_consumed }}
+                        💎 {{ contest.total_pot - contest.house_rake }}
                       </p>
                     </div>
                   </div>

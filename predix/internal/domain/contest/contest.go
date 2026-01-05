@@ -52,24 +52,24 @@ const (
 
 // Contest represents an event users can predict on.
 type Contest struct {
-	ID              ID
-	CircleID        circle.ID
-	CreatorID       user.ID
-	Question        string
-	Options         map[int]*Option // Keyed by Option ID
-	Predictions     []*Prediction
-	Status          Status
-	MinStake        int
-	ResultOptionID  *int    // ID of the winning option
-	ConsumptionRate float64 // Rate at which clout is consumed (e.g., 0.10 for 10%)
-	CreatedAt       time.Time
-	ClosesAt        time.Time
-	Duration        string // "1h", "1d", or "1w"
+	ID             ID
+	CircleID       circle.ID
+	CreatorID      user.ID
+	Question       string
+	Options        map[int]*Option // Keyed by Option ID
+	Predictions    []*Prediction
+	Status         Status
+	MinStake       int
+	ResultOptionID *int    // ID of the winning option
+	HouseRake      float64 // Rate at which clout is taken as house rake (e.g., 0.10 for 10%)
+	CreatedAt      time.Time
+	ClosesAt       time.Time
+	Duration       string // "1h", "1d", or "1w"
 }
 
 const (
-	minStakeDefault        = 10
-	consumptionRateDefault = 0.10 // 10% consumption rate
+	minStakeDefault  = 10
+	houseRakeDefault = 0.10 // 10% house rake
 )
 
 var allowedMinStakes = map[int]struct{}{
@@ -138,17 +138,17 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 
 	now := clk.Now()
 	return &Contest{
-		ID:              0, // ID will be set by database
-		CircleID:        circleID,
-		CreatorID:       creatorID,
-		Question:        question,
-		Options:         optionMap,
-		Status:          StatusOpen,
-		MinStake:        normalizedMinStake,
-		ConsumptionRate: consumptionRateDefault,
-		CreatedAt:       now,
-		ClosesAt:        now.Add(durationValue),
-		Duration:        duration,
+		ID:        0, // ID will be set by database
+		CircleID:  circleID,
+		CreatorID: creatorID,
+		Question:  question,
+		Options:   optionMap,
+		Status:    StatusOpen,
+		MinStake:  normalizedMinStake,
+		HouseRake: houseRakeDefault,
+		CreatedAt: now,
+		ClosesAt:  now.Add(durationValue),
+		Duration:  duration,
 	}, nil
 }
 
@@ -252,9 +252,9 @@ func (c *Contest) CalculatePot() int {
 	return total
 }
 
-// CalculateConsumedClout returns the amount of clout consumed from losing stakes.
+// CalculateHouseRakeClout returns the amount of clout consumed from losing stakes.
 // Returns 0 if the contest is not resolved.
-func (c *Contest) CalculateConsumedClout() int {
+func (c *Contest) CalculateHouseRakeClout() int {
 	if c.ResultOptionID == nil {
 		return 0
 	}
@@ -269,13 +269,13 @@ func (c *Contest) CalculateConsumedClout() int {
 	}
 
 	losingStake := totalPot - winningStake
-	return int(float64(losingStake) * c.ConsumptionRate)
+	return int(float64(losingStake) * c.HouseRake)
 }
 
 // CalculateRemainingPot returns the remaining pot after consumption.
 func (c *Contest) CalculateRemainingPot() int {
 	pot := c.CalculatePot()
-	return pot - c.CalculateConsumedClout()
+	return pot - c.CalculateHouseRakeClout()
 }
 
 // PayoutRecord represents the payout details for a single winner.
@@ -314,7 +314,7 @@ func (c *Contest) CalculateWinnerPayouts() (map[user.ID]int, error) {
 	}
 
 	losingClout := totalPot - totalWinningClout
-	distributableLosingClout := int(float64(losingClout) * (1.0 - c.ConsumptionRate))
+	distributableLosingClout := int(float64(losingClout) * (1.0 - c.HouseRake))
 
 	for _, pred := range winningPredictions {
 		// Return original stake
@@ -357,7 +357,7 @@ func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
 	}
 
 	losingClout := totalPot - totalWinningClout
-	distributableLosingClout := int(float64(losingClout) * (1.0 - c.ConsumptionRate))
+	distributableLosingClout := int(float64(losingClout) * (1.0 - c.HouseRake))
 
 	// Create payout records for each winner
 	for _, pred := range winningPredictions {
