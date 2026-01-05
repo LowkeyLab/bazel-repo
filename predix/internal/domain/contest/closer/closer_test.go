@@ -5,61 +5,104 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
+	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func createPrerequisites(t *testing.T, pool *pgxpool.Pool) (circle.ID, user.ID) {
+	ctx := context.Background()
+	q := db.New(pool)
+
+	// Create User
+	u, err := q.CreateUser(ctx, db.CreateUserParams{
+		Username:     "testuser",
+		PasswordHash: "hash",
+		Role:         db.UserRoleMember,
+	})
+	require.NoError(t, err)
+
+	// Create Circle
+	c, err := q.CreateCircle(ctx, db.CreateCircleParams{
+		Name:      "Test Circle",
+		CreatorID: u.ID,
+		CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
+	})
+	require.NoError(t, err)
+
+	return circle.ID(c.ID), user.ID(u.ID)
+}
+
 func TestCloseExpiredContests_ClosesOnlyExpired(t *testing.T) {
-	now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
-	repo := repository.NewMemory()
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		repo := repository.NewPostgres(pool)
+		circleID, userID := createPrerequisites(t, pool)
 
-	expiredClock := clock.FixedClock{Time: now.Add(-2 * time.Hour)}
-	expired, err := contest.New(expiredClock, circle.ID(1), user.ID(1), "Expired?", []string{"Yes", "No"}, contest.Duration1Hour, 10)
-	require.NoError(t, err)
-	require.NoError(t, repo.Save(context.Background(), expired))
+		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
 
-	activeClock := clock.FixedClock{Time: now}
-	active, err := contest.New(activeClock, circle.ID(2), user.ID(1), "Active?", []string{"A", "B"}, contest.Duration1Hour, 10)
-	require.NoError(t, err)
-	require.NoError(t, repo.Save(context.Background(), active))
+		// Create expired contest
+		expiredClock := clock.FixedClock{Time: now.Add(-2 * time.Hour)}
+		expired, err := contest.New(expiredClock, circleID, userID, "Expired?", []string{"Yes", "No"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		require.NoError(t, repo.Save(context.Background(), expired))
 
-	err = closer.CloseExpiredContests(context.Background(), repo, clock.FixedClock{Time: now})
-	require.NoError(t, err)
+		// Create active contest
+		activeClock := clock.FixedClock{Time: now}
+		active, err := contest.New(activeClock, circleID, userID, "Active?", []string{"A", "B"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		require.NoError(t, repo.Save(context.Background(), active))
 
-	updatedExpired, err := repo.FindByID(context.Background(), expired.ID)
-	require.NoError(t, err)
-	assert.Equal(t, contest.StatusClosed, updatedExpired.Status)
+		// Run Closer
+		err = closer.CloseExpiredContests(context.Background(), repo, clock.FixedClock{Time: now})
+		require.NoError(t, err)
 
-	updatedActive, err := repo.FindByID(context.Background(), active.ID)
-	require.NoError(t, err)
-	assert.Equal(t, contest.StatusOpen, updatedActive.Status)
+		// Verify Expired
+		updatedExpired, err := repo.FindByID(context.Background(), expired.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusClosed, updatedExpired.Status)
+
+		// Verify Active
+		updatedActive, err := repo.FindByID(context.Background(), active.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusOpen, updatedActive.Status)
+	})
 }
 
 func TestStartCloser_ClosesExpiredAndStops(t *testing.T) {
-	now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
-	repo := repository.NewMemory()
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		repo := repository.NewPostgres(pool)
+		circleID, userID := createPrerequisites(t, pool)
 
-	expiredClock := clock.FixedClock{Time: now.Add(-90 * time.Minute)}
-	expired, err := contest.New(expiredClock, circle.ID(3), user.ID(1), "Expired?", []string{"Yes", "No"}, contest.Duration1Hour, 10)
-	require.NoError(t, err)
-	require.NoError(t, repo.Save(context.Background(), expired))
+		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+		// Create expired contest
+		expiredClock := clock.FixedClock{Time: now.Add(-90 * time.Minute)}
+		expired, err := contest.New(expiredClock, circleID, userID, "Expired?", []string{"Yes", "No"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		require.NoError(t, repo.Save(context.Background(), expired))
 
-	go closer.StartCloser(ctx, repo, clock.FixedClock{Time: now}, 5*time.Millisecond)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	time.Sleep(20 * time.Millisecond)
-	cancel()
-	time.Sleep(5 * time.Millisecond)
+		// Run Closer in goroutine
+		go closer.StartCloser(ctx, repo, clock.FixedClock{Time: now}, 50*time.Millisecond)
 
-	updated, err := repo.FindByID(context.Background(), expired.ID)
-	require.NoError(t, err)
-	assert.Equal(t, contest.StatusClosed, updated.Status)
+		// Wait enough time for the ticker to tick at least once
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+
+		// Verify
+		updated, err := repo.FindByID(context.Background(), expired.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusClosed, updated.Status)
+	})
 }

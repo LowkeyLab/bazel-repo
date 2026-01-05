@@ -252,7 +252,7 @@ func (c *Contest) CalculatePot() int {
 	return total
 }
 
-// CalculateHouseRakeClout returns the amount of clout consumed from losing stakes.
+// CalculateHouseRakeClout returns the amount of clout taken as house rake from losing stakes.
 // Returns 0 if the contest is not resolved.
 func (c *Contest) CalculateHouseRakeClout() int {
 	if c.ResultOptionID == nil {
