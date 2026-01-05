@@ -264,6 +264,99 @@ func (c *Contest) CalculateRemainingPot() int {
 	return pot - c.CalculateConsumedClout()
 }
 
+// PayoutRecord represents the payout details for a single winner.
+type PayoutRecord struct {
+	UserID        user.ID
+	OriginalStake int
+	ShareOfPot    int
+	TotalPayout   int
+}
+
+// CalculateWinnerPayouts calculates and returns the clout distribution to winners.
+// It validates that the contest is resolved and returns a map of user.ID to total payout.
+// Returns an error if the contest hasn't been resolved or has no winning option.
+func (c *Contest) CalculateWinnerPayouts() (map[user.ID]int, error) {
+	if c.ResultOptionID == nil {
+		return nil, errors.New("contest has not been resolved yet")
+	}
+
+	payouts := make(map[user.ID]int)
+
+	// Find all predictions that match the winning option
+	var winningPredictions []*Prediction
+	var totalWinningClout int
+
+	for i := range c.Predictions {
+		if c.Predictions[i].OptionID == *c.ResultOptionID {
+			winningPredictions = append(winningPredictions, c.Predictions[i])
+			totalWinningClout += c.Predictions[i].Clout
+		}
+	}
+
+	if len(winningPredictions) == 0 {
+		return payouts, nil
+	}
+
+	// Distribute remaining pot proportionally based on stake
+	remainingPot := c.CalculateRemainingPot()
+	for _, pred := range winningPredictions {
+		// Return original stake
+		payout := pred.Clout
+		// Add proportional share of remaining pot (after consumption fee)
+		if totalWinningClout > 0 {
+			payout += (pred.Clout * remainingPot) / totalWinningClout
+		}
+		payouts[pred.UserID] += payout
+	}
+
+	return payouts, nil
+}
+
+// CalculatePayoutBreakdown returns detailed payout records for all winners.
+// Returns a slice of PayoutRecord with individual payout details.
+// Returns an error if the contest hasn't been resolved or has no winning option.
+func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
+	if c.ResultOptionID == nil {
+		return nil, errors.New("contest has not been resolved yet")
+	}
+
+	var records []*PayoutRecord
+
+	// Find all predictions that match the winning option
+	var winningPredictions []*Prediction
+	var totalWinningClout int
+
+	for i := range c.Predictions {
+		if c.Predictions[i].OptionID == *c.ResultOptionID {
+			winningPredictions = append(winningPredictions, c.Predictions[i])
+			totalWinningClout += c.Predictions[i].Clout
+		}
+	}
+
+	if len(winningPredictions) == 0 {
+		return records, nil
+	}
+
+	// Create payout records for each winner
+	distributablePot := c.CalculateRemainingPot()
+	for _, pred := range winningPredictions {
+		share := 0
+		if totalWinningClout > 0 {
+			share = (pred.Clout * distributablePot) / totalWinningClout
+		}
+
+		record := &PayoutRecord{
+			UserID:        pred.UserID,
+			OriginalStake: pred.Clout,
+			ShareOfPot:    share,
+			TotalPayout:   pred.Clout + share,
+		}
+		records = append(records, record)
+	}
+
+	return records, nil
+}
+
 func normalizeMinStake(minStake int) (int, error) {
 	if minStake == 0 {
 		return minStakeDefault, nil

@@ -116,8 +116,11 @@ func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contest
 		return nil, err
 	}
 
-	// Calculate payouts for winners
-	payouts := s.calculateWinnerPayouts(c)
+	// Calculate payouts using domain method
+	payouts, err := c.CalculateWinnerPayouts()
+	if err != nil {
+		return nil, err
+	}
 
 	// Save updated contest
 	err = s.repo.Save(ctx, c)
@@ -171,44 +174,6 @@ func (s *Service) calculateRefunds(c *contest.Contest) map[user.ID]int {
 	}
 
 	return refunds
-}
-
-// calculateWinnerPayouts distributes the remaining pot (after consumption) proportionally to winners.
-func (s *Service) calculateWinnerPayouts(c *contest.Contest) map[user.ID]int {
-	payouts := make(map[user.ID]int)
-
-	if c.ResultOptionID == nil {
-		return payouts
-	}
-
-	// Find all predictions that match the winning option
-	var winningPredictions []*contest.Prediction
-	var totalWinningClout int
-
-	for i := range c.Predictions {
-		if c.Predictions[i].OptionID == *c.ResultOptionID {
-			winningPredictions = append(winningPredictions, c.Predictions[i])
-			totalWinningClout += c.Predictions[i].Clout
-		}
-	}
-
-	if len(winningPredictions) == 0 {
-		return payouts
-	}
-
-	// Distribute remaining pot proportionally based on stake
-	remainingPot := c.CalculateRemainingPot()
-	for _, pred := range winningPredictions {
-		// Return original stake
-		payout := pred.Clout
-		// Add proportional share of remaining pot (after consumption fee)
-		if totalWinningClout > 0 {
-			payout += (pred.Clout * remainingPot) / totalWinningClout
-		}
-		payouts[pred.UserID] += payout
-	}
-
-	return payouts
 }
 
 func (s *Service) GetContest(ctx context.Context, id contest.ID) (*contest.Contest, error) {

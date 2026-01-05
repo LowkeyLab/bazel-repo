@@ -317,58 +317,40 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 		return
 	}
 
-	if cont.ResultOptionID == nil {
-		slog.WarnContext(c.Request.Context(), "resolved contest has no winning option", "contest_id", contestID)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "resolved contest has no winning option"})
+	// Use domain method to calculate payout breakdown
+	payoutRecords, err := cont.CalculatePayoutBreakdown()
+	if err != nil {
+		slog.WarnContext(c.Request.Context(), "failed to calculate payout breakdown", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Calculate payout breakdown
+	// Build response
 	totalPot := cont.CalculatePot()
 	cloutConsumed := cont.CalculateConsumedClout()
 	distributablePot := cont.CalculateRemainingPot()
-
-	// Find all winning predictions and calculate payouts
-	var winningPredictions []*contest.Prediction
-	var totalWinningClout int
-
-	for i := range cont.Predictions {
-		if cont.Predictions[i].OptionID == *cont.ResultOptionID {
-			winningPredictions = append(winningPredictions, cont.Predictions[i])
-			totalWinningClout += cont.Predictions[i].Clout
-		}
-	}
-
-	// Build payout records
-	payoutRecords := make([]payoutRecord, 0, len(winningPredictions))
 	totalDistributed := 0
 
-	for _, pred := range winningPredictions {
-		stake := pred.Clout
-		share := 0
-		if totalWinningClout > 0 {
-			share = (stake * distributablePot) / totalWinningClout
-		}
-		total := stake + share
-		totalDistributed += total
-
-		payoutRecords = append(payoutRecords, payoutRecord{
-			UserID: int32(pred.UserID),
-			Stake:  stake,
-			Share:  share,
-			Total:  total,
+	winners := make([]payoutRecord, 0, len(payoutRecords))
+	for _, record := range payoutRecords {
+		winners = append(winners, payoutRecord{
+			UserID: int32(record.UserID),
+			Stake:  record.OriginalStake,
+			Share:  record.ShareOfPot,
+			Total:  record.TotalPayout,
 		})
+		totalDistributed += record.TotalPayout
 	}
 
 	response := payoutBreakdownResponse{
-		Winners:          payoutRecords,
+		Winners:          winners,
 		TotalPot:         totalPot,
 		CloutConsumed:    cloutConsumed,
 		DistributablePot: distributablePot,
 		TotalDistributed: totalDistributed,
 	}
 
-	slog.InfoContext(c.Request.Context(), "payout breakdown retrieved", "contest_id", contestID, "winner_count", len(winningPredictions))
+	slog.InfoContext(c.Request.Context(), "payout breakdown retrieved", "contest_id", contestID, "winner_count", len(payoutRecords))
 	c.JSON(http.StatusOK, response)
 }
 
