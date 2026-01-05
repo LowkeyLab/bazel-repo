@@ -75,7 +75,7 @@ func main() {
 	go contestcloser.StartCloser(ctx, contestRepo, clk, 10*time.Second)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
-	circleHandler := circlerest.NewHandler(circleSvc, nil)
+	circleHandler := circlerest.NewHandler(circleSvc)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
 	r := gin.Default()

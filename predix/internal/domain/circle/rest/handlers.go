@@ -23,7 +23,7 @@ type Handler struct {
 }
 
 // NewHandler constructs a circle REST handler.
-func NewHandler(svc *service.Service, _ interface{}) *Handler {
+func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 

@@ -43,7 +43,7 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	contestRepo := contestrepo.NewPostgres(pool)
 	clk := clock.RealClock{}
 	svc := service.NewService(repo, userRepo, contestRepo, clk)
-	handler := NewHandler(svc, nil)
+	handler := NewHandler(svc)
 
 	r := gin.New()
 	authGroup := r.Group("/protected")
