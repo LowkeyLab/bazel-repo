@@ -223,6 +223,57 @@ func TestContestHandlers(t *testing.T) {
 			assert.Equal(t, int32(100), dbPredictions[0].Clout)
 		})
 
+		t.Run("MakePredictionHandler_UpdatesExistingStake", func(t *testing.T) {
+			router, svc, queries := build(t)
+
+			creatorID := createTestUser(t, pool, "predict-update-creator")
+			predictorID := createTestUser(t, pool, "predict-updater")
+			circleID := createTestCircle(t, pool, "Update Circle", creatorID)
+
+			// Add predictor to the circle
+			q := db.New(pool)
+			ctx := context.Background()
+			err := q.AddCircleMember(ctx, db.AddCircleMemberParams{
+				CircleID: int32(circleID),
+				UserID:   int32(predictorID),
+				Clout:    1000,
+			})
+			require.NoError(t, err)
+
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Who wins?", []string{"Option A", "Option B"}, contest.Duration1Day, 100)
+			require.NoError(t, err)
+
+			firstBody := fmt.Sprintf(`{"circle_id": %d, "option_id": 1, "clout": 200}`, circleID)
+			firstReq := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(firstBody))
+			firstReq.Header.Set("Content-Type", "application/json")
+			firstReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", predictorID))
+			firstResp := httptest.NewRecorder()
+			router.ServeHTTP(firstResp, firstReq)
+
+			require.Equal(t, http.StatusCreated, firstResp.Code)
+
+			secondBody := fmt.Sprintf(`{"circle_id": %d, "option_id": 1, "clout": 120}`, circleID)
+			secondReq := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(secondBody))
+			secondReq.Header.Set("Content-Type", "application/json")
+			secondReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", predictorID))
+			secondResp := httptest.NewRecorder()
+			router.ServeHTTP(secondResp, secondReq)
+
+			require.Equal(t, http.StatusCreated, secondResp.Code)
+
+			dbPredictions, err := queries.ListContestPredictions(ctx, int32(createdContest.ID))
+			require.NoError(t, err)
+			require.Len(t, dbPredictions, 1)
+			assert.Equal(t, int32(120), dbPredictions[0].Clout)
+
+			memberRecord, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
+				CircleID: int32(circleID),
+				UserID:   int32(predictorID),
+			})
+			require.NoError(t, err)
+			assert.Equal(t, int32(880), memberRecord.Clout)
+		})
+
 		t.Run("ResolveContestHandler", func(t *testing.T) {
 			router, svc, queries := build(t)
 

@@ -89,23 +89,13 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		}
 	}
 
-	// Save new predictions (compare with existing to avoid duplicates)
-	existingPredictionCount := 0
-	if !isNew {
-		existingPredictions, _ := qtx.ListContestPredictions(ctx, int32(c.ID))
-		existingPredictionCount = len(existingPredictions)
-	}
-
-	// Only save predictions that are new
-	for i := existingPredictionCount; i < len(c.Predictions); i++ {
-		prediction := c.Predictions[i]
-		_, err = qtx.CreatePrediction(ctx, db.CreatePredictionParams{
-			ContestID: int32(c.ID),
-			UserID:    int32(prediction.UserID),
-			OptionID:  int32(prediction.OptionID),
-			Clout:     int32(prediction.Clout),
-			CreatedAt: pgtype.Timestamp{Time: prediction.Timestamp, Valid: true},
-		})
+	for _, prediction := range c.Predictions {
+		_, err = tx.Exec(ctx, `
+INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (contest_id, user_id, option_id)
+DO UPDATE SET clout = EXCLUDED.clout, created_at = EXCLUDED.created_at
+`, int32(c.ID), int32(prediction.UserID), int32(prediction.OptionID), int32(prediction.Clout), prediction.Timestamp)
 		if err != nil {
 			return fmt.Errorf("failed to save prediction: %w", err)
 		}

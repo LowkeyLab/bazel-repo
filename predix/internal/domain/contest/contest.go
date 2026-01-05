@@ -170,11 +170,20 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 		return fmt.Errorf("prediction clout must be at least %d", c.MinStake)
 	}
 
+	now := time.Now()
+	for _, prediction := range c.Predictions {
+		if prediction.UserID == userID && prediction.OptionID == optionID {
+			prediction.Clout = clout
+			prediction.Timestamp = now
+			return nil
+		}
+	}
+
 	prediction := &Prediction{
 		UserID:    userID,
 		OptionID:  optionID,
 		Clout:     clout,
-		Timestamp: time.Now(),
+		Timestamp: now,
 	}
 	c.Predictions = append(c.Predictions, prediction)
 	return nil

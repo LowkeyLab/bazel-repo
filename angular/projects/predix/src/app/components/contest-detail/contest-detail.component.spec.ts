@@ -482,4 +482,60 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       expect(sum).toBe(breakdown!.total_pot);
     });
   });
+
+  describe('Per-option stake controls', () => {
+    const contestWithUserPrediction: Contest = {
+      id: 42,
+      circle_id: 1,
+      creator_id: 1,
+      question: 'Who wins?',
+      options: [
+        { id: 1, text: 'A' },
+        { id: 2, text: 'B' },
+      ],
+      predictions: [
+        {
+          user_id: 1,
+          option_id: 1,
+          clout: 500,
+          timestamp: '2024-01-01T12:00:00Z',
+        },
+      ],
+      status: 'OPEN',
+      min_stake: 100,
+      total_pot: 500,
+      clout_consumed: 50,
+      created_at: '2024-01-01T00:00:00Z',
+      closes_at: '2024-01-02T00:00:00Z',
+      duration: '1d',
+    };
+
+    beforeEach(() => {
+      mockContestService.getContest.and.returnValue(
+        of(contestWithUserPrediction),
+      );
+      mockContestService.makePrediction.and.returnValue(of(void 0));
+
+      fixture.detectChanges();
+    });
+
+    it('prefills stake from existing user prediction', () => {
+      expect(component['getStakeForOption'](1)).toBe(500);
+    });
+
+    it('clamps decrements to the minimum stake', () => {
+      component.adjustStake(1, -1000);
+      expect(component['getStakeForOption'](1)).toBe(100);
+    });
+
+    it('sends the updated stake for the chosen option', () => {
+      component.setStake(1, 1200);
+      component.placePrediction(1);
+
+      expect(mockContestService.makePrediction).toHaveBeenCalledWith(42, {
+        option_id: 1,
+        clout: 1200,
+      });
+    });
+  });
 });

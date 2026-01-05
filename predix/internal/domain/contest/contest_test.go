@@ -8,6 +8,8 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
@@ -195,6 +197,31 @@ func TestPredict(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for clout below min stake")
 	}
+}
+
+func TestPredict_UpdateExistingStake(t *testing.T) {
+	circleID := circle.ID(2)
+	creatorID := user.ID(3)
+	clk := clockpkg.FixedClock{Time: time.Now()}
+	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 100)
+	require.NoError(t, err)
+
+	betterID := user.ID(4)
+	optionID := 1
+
+	require.NoError(t, c.Predict(betterID, optionID, 200))
+	require.Len(t, c.Predictions, 1)
+	require.Equal(t, 200, c.Predictions[0].Clout)
+
+	err = c.Predict(betterID, optionID, 120)
+	require.NoError(t, err)
+	assert.Len(t, c.Predictions, 1, "should update in place instead of appending")
+	assert.Equal(t, 120, c.Predictions[0].Clout)
+
+	// Updating below the contest min stake is rejected and keeps the previous value
+	err = c.Predict(betterID, optionID, 50)
+	assert.Error(t, err)
+	assert.Equal(t, 120, c.Predictions[0].Clout)
 }
 
 func TestResolve(t *testing.T) {

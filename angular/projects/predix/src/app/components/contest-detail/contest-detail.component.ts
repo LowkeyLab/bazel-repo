@@ -277,10 +277,25 @@ import { BackButtonComponent } from '../back-button/back-button.component';
 
             <h2 class="text-2xl font-bold mb-4">Options & Predictions</h2>
 
-            <div class="space-y-4">
+            @if (contest.status === 'OPEN') {
+              <div class="alert alert-info mb-4">
+                <span>
+                  Adjust stakes per option. Submitting again updates your
+                  existing stake for that option.
+                </span>
+              </div>
+
+              @if (predictionError()) {
+                <div class="alert alert-error mb-4">
+                  <span>{{ predictionError() }}</span>
+                </div>
+              }
+            }
+
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               @for (option of contest.options; track option.id) {
-                <div class="card bg-base-200">
-                  <div class="card-body">
+                <div class="card bg-base-200 h-full">
+                  <div class="card-body flex flex-col gap-4">
                     <div class="flex justify-between items-center">
                       <h3 class="card-title">{{ option.text }}</h3>
                       @if (
@@ -304,81 +319,110 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                         </div>
                       </div>
                     </div>
+
+                    @if (contest.status === 'OPEN') {
+                      <div class="divider my-0"></div>
+                      <div class="flex flex-col gap-3">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="text-sm text-secondary">Your stake</span>
+                          <input
+                            type="number"
+                            class="input input-bordered input-sm w-32"
+                            [value]="getStakeForOption(option.id)"
+                            (input)="
+                              setStake(
+                                option.id,
+                                $any($event.target).valueAsNumber
+                              )
+                            "
+                            [min]="contest.min_stake"
+                            [disabled]="predictionLoading()"
+                          />
+                          <span class="text-xs text-secondary">
+                            Min {{ contest.min_stake }} Clout
+                          </span>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm"
+                            (click)="adjustStake(option.id, -100)"
+                            [disabled]="
+                              predictionLoading() ||
+                              getStakeForOption(option.id) <= contest.min_stake
+                            "
+                          >
+                            -100
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm"
+                            (click)="adjustStake(option.id, -1000)"
+                            [disabled]="
+                              predictionLoading() ||
+                              getStakeForOption(option.id) <= contest.min_stake
+                            "
+                          >
+                            -1000
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm"
+                            (click)="adjustStake(option.id, -10000)"
+                            [disabled]="
+                              predictionLoading() ||
+                              getStakeForOption(option.id) <= contest.min_stake
+                            "
+                          >
+                            -10000
+                          </button>
+                          <div class="flex-1"></div>
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm"
+                            (click)="adjustStake(option.id, 100)"
+                            [disabled]="predictionLoading()"
+                          >
+                            +100
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm"
+                            (click)="adjustStake(option.id, 1000)"
+                            [disabled]="predictionLoading()"
+                          >
+                            +1000
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline btn-sm"
+                            (click)="adjustStake(option.id, 10000)"
+                            [disabled]="predictionLoading()"
+                          >
+                            +10000
+                          </button>
+                        </div>
+
+                        <div class="flex justify-end">
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            (click)="placePrediction(option.id)"
+                            [disabled]="predictionLoading()"
+                          >
+                            @if (predictionLoading()) {
+                              <span class="loading loading-spinner"></span>
+                            }
+                            Place / Update Prediction
+                          </button>
+                        </div>
+                      </div>
+                    }
                   </div>
                 </div>
               }
             </div>
-
-            @if (contest.status === 'OPEN') {
-              <div class="divider"></div>
-
-              <h2 class="text-2xl font-bold mb-4">Make a Prediction</h2>
-              <form (submit)="onSubmit($event)">
-                <div class="alert alert-info mb-4">
-                  <span>
-                    Predictions are placed as
-                    {{ auth.currentUser()?.username || 'your account' }}.
-                  </span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="form-control">
-                    <label class="label">
-                      <span class="label-text">Choose Option</span>
-                    </label>
-                    <select
-                      class="select select-bordered"
-                      [(ngModel)]="selectedOptionId"
-                      name="optionId"
-                      required
-                    >
-                      <option [ngValue]="null" disabled selected>
-                        Select option
-                      </option>
-                      @for (option of contest.options; track option.id) {
-                        <option [ngValue]="option.id">{{ option.text }}</option>
-                      }
-                    </select>
-                  </div>
-
-                  <div class="form-control">
-                    <label class="label">
-                      <span class="label-text">Clout Amount</span>
-                    </label>
-                    <input
-                      type="number"
-                      class="input input-bordered"
-                      [(ngModel)]="cloutAmount"
-                      name="clout"
-                      [min]="contest.min_stake"
-                      required
-                    />
-                    <p class="text-xs text-secondary mt-1">
-                      Minimum stake: {{ contest.min_stake }} Clout
-                    </p>
-                  </div>
-                </div>
-
-                @if (predictionError()) {
-                  <div class="alert alert-error mt-4">
-                    <span>{{ predictionError() }}</span>
-                  </div>
-                }
-
-                <div class="card-actions justify-end mt-4">
-                  <button
-                    type="submit"
-                    class="btn btn-primary"
-                    [disabled]="predictionLoading()"
-                  >
-                    @if (predictionLoading()) {
-                      <span class="loading loading-spinner"></span>
-                    }
-                    Place Prediction
-                  </button>
-                </div>
-              </form>
-            }
           </div>
         </div>
       } @else {
@@ -467,6 +511,7 @@ export class ContestDetailComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly predictionLoading = signal(false);
   protected readonly predictionError = signal('');
+  protected readonly optionStakes = signal<Record<number, number>>({});
   protected readonly lockLoading = signal(false);
   protected readonly resolveLoading = signal(false);
   protected readonly resolveError = signal('');
@@ -498,8 +543,6 @@ export class ContestDetailComponent implements OnInit {
     );
   });
 
-  protected selectedOptionId: number | null = null;
-  protected cloutAmount = 10;
   protected selectedWinnerId: number | null = null;
 
   ngOnInit(): void {
@@ -513,7 +556,7 @@ export class ContestDetailComponent implements OnInit {
     this.contestService.getContest(id).subscribe({
       next: (contest) => {
         this.contest.set(contest);
-        this.cloutAmount = contest.min_stake;
+        this.syncOptionStakes(contest);
         this.loading.set(false);
 
         // Load payout breakdown if contest is resolved
@@ -525,6 +568,20 @@ export class ContestDetailComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  private syncOptionStakes(contest: Contest): void {
+    const stakes: Record<number, number> = {};
+    const userId = this.auth.currentUser()?.id;
+
+    for (const option of contest.options) {
+      const existing = contest.predictions.find(
+        (p) => p.option_id === option.id && p.user_id === userId,
+      );
+      stakes[option.id] = existing?.clout ?? contest.min_stake;
+    }
+
+    this.optionStakes.set(stakes);
   }
 
   private loadPayoutBreakdown(contestId: number): void {
@@ -545,19 +602,46 @@ export class ContestDetailComponent implements OnInit {
     });
   }
 
-  protected onSubmit(event: Event): void {
-    event.preventDefault();
-
-    if (!this.selectedOptionId) {
-      this.predictionError.set('Please select an option');
-      return;
-    }
-
-    const contestId = this.contest()?.id;
+  protected getStakeForOption(optionId: number): number {
     const contest = this.contest();
-    if (!contestId || !contest) return;
+    if (!contest) return 0;
 
-    if (this.cloutAmount < contest.min_stake) {
+    return this.optionStakes()[optionId] ?? contest.min_stake;
+  }
+
+  protected setStake(optionId: number, value: number): void {
+    const contest = this.contest();
+    if (!contest) return;
+
+    const parsed = Number.isFinite(value) ? value : contest.min_stake;
+    const next = Math.max(contest.min_stake, parsed);
+
+    this.optionStakes.update((current) => ({
+      ...current,
+      [optionId]: next,
+    }));
+    this.predictionError.set('');
+  }
+
+  protected adjustStake(optionId: number, delta: number): void {
+    const contest = this.contest();
+    if (!contest) return;
+
+    this.optionStakes.update((current) => {
+      const currentValue = current[optionId] ?? contest.min_stake;
+      const next = Math.max(contest.min_stake, currentValue + delta);
+      return { ...current, [optionId]: next };
+    });
+
+    this.predictionError.set('');
+  }
+
+  protected placePrediction(optionId: number): void {
+    const contest = this.contest();
+    if (!contest) return;
+
+    const stake = this.getStakeForOption(optionId);
+    if (stake < contest.min_stake) {
       this.predictionError.set(
         `Minimum stake is ${contest.min_stake} Clout for this contest`,
       );
@@ -568,18 +652,14 @@ export class ContestDetailComponent implements OnInit {
     this.predictionError.set('');
 
     this.contestService
-      .makePrediction(contestId, {
-        option_id: this.selectedOptionId,
-        clout: this.cloutAmount,
+      .makePrediction(contest.id, {
+        option_id: optionId,
+        clout: stake,
       })
       .subscribe({
         next: () => {
           this.predictionLoading.set(false);
-          // Reload contest to show new prediction
-          this.loadContest(contestId);
-          // Reset form
-          this.selectedOptionId = null;
-          this.cloutAmount = contest.min_stake;
+          this.loadContest(contest.id);
         },
         error: (err) => {
           this.predictionLoading.set(false);

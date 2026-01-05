@@ -215,18 +215,27 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user
 		return ErrUserNotInCircle
 	}
 
-	if userMember.Clout < clout {
+	existingStake := 0
+	for _, pred := range contest.Predictions {
+		if pred.UserID == userID && pred.OptionID == optionID {
+			existingStake = pred.Clout
+			break
+		}
+	}
+
+	delta := clout - existingStake
+	if delta > 0 && userMember.Clout < delta {
 		return ErrInsufficientClout
 	}
 
-	// Record the prediction in the contest (deduct clout happens next)
+	// Record the prediction in the contest (deduct/refund clout happens next)
 	err = s.contestSvc.RecordPrediction(ctx, contestID, userID, optionID, clout)
 	if err != nil {
 		return fmt.Errorf("failed to record prediction: %w", err)
 	}
 
-	// Deduct clout from member's balance
-	newClout := userMember.Clout - clout
+	// Adjust clout balance by the delta between old and new stakes
+	newClout := userMember.Clout - delta
 	err = s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
 	if err != nil {
 		return fmt.Errorf("failed to update member clout: %w", err)

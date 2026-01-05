@@ -10,6 +10,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -342,6 +343,53 @@ func TestCircleService(t *testing.T) {
 			assert.Equal(t, member1ID, usernames["member_alpha"])
 			assert.Equal(t, member2ID, usernames["member_beta"])
 			assert.Equal(t, member3ID, usernames["member_gamma"])
+		})
+
+		t.Run("Predict_AllowsUpdatingExistingStake", func(t *testing.T) {
+			testutil.ResetTables(t, pool)
+
+			circleRepo := repository.NewPostgres(pool)
+			userRepo := userrepo.NewPostgres(pool)
+			contestRepo := contestrepo.NewPostgres(pool)
+			clk := clock.RealClock{}
+			contestSvc := contestservice.NewService(contestRepo, clk)
+			svc := service.NewService(circleRepo, userRepo, contestSvc)
+			queries := db.New(pool)
+
+			ctx := context.Background()
+			creatorID := createTestUser(t, pool, "creator_predict")
+			memberID := createTestUser(t, pool, "predictor")
+
+			circleObj, err := svc.CreateCircle(ctx, "Prediction Circle", creatorID)
+			require.NoError(t, err)
+
+			require.NoError(t, svc.AddMember(ctx, circleObj.ID, memberID))
+
+			contestObj, err := contestSvc.CreateContest(ctx, circleObj.ID, creatorID, "Who wins?", []string{"Yes", "No"}, contest.Duration1Day, 100)
+			require.NoError(t, err)
+
+			require.NoError(t, svc.Predict(ctx, contestObj.ID, memberID, 1, 200))
+
+			memberAfterFirst, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
+				CircleID: int32(circleObj.ID),
+				UserID:   int32(memberID),
+			})
+			require.NoError(t, err)
+			assert.Equal(t, int32(800), memberAfterFirst.Clout)
+
+			require.NoError(t, svc.Predict(ctx, contestObj.ID, memberID, 1, 120))
+
+			memberAfterSecond, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
+				CircleID: int32(circleObj.ID),
+				UserID:   int32(memberID),
+			})
+			require.NoError(t, err)
+			assert.Equal(t, int32(880), memberAfterSecond.Clout)
+
+			updatedContest, err := contestSvc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			require.Len(t, updatedContest.Predictions, 1)
+			assert.Equal(t, 120, updatedContest.Predictions[0].Clout)
 		})
 	})
 }
