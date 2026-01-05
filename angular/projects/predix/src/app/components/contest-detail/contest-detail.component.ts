@@ -6,7 +6,7 @@ import {
   OnInit,
   computed,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
 import type {
   Contest,
