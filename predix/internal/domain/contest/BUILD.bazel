@@ -7,6 +7,7 @@ go_library(
     visibility = ["//predix:__subpackages__"],
     deps = [
         "//predix/internal/domain/circle",
+        "//predix/internal/domain/clock",
         "//predix/internal/domain/user",
     ],
 )
@@ -26,6 +27,7 @@ go_test(
     deps = [
         ":contest",
         "//predix/internal/domain/circle",
+        "//predix/internal/domain/clock",
         "//predix/internal/domain/user",
     ],
 )

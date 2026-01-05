@@ -16,6 +16,7 @@ type Querier interface {
 	CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCircle(ctx context.Context, id int32) error
+	FindExpiredContests(ctx context.Context) ([]Contest, error)
 	GetCircle(ctx context.Context, id int32) (Circle, error)
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
 	GetContest(ctx context.Context, id int32) (Contest, error)
@@ -28,6 +29,7 @@ type Querier interface {
 	ListUserCircles(ctx context.Context, userID int32) ([]Circle, error)
 	UpdateCircleMemberClout(ctx context.Context, arg UpdateCircleMemberCloutParams) error
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
+	UpdateContestStatusOnly(ctx context.Context, arg UpdateContestStatusOnlyParams) error
 }
 
 var _ Querier = (*Queries)(nil)

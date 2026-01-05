@@ -76,7 +76,8 @@ type Contest struct {
 	ConsumptionRate pgtype.Numeric   `json:"consumption_rate"`
 	ResultOptionID  pgtype.Int4      `json:"result_option_id"`
 	CreatedAt       pgtype.Timestamp `json:"created_at"`
-	ExpiresAt       pgtype.Timestamp `json:"expires_at"`
+	ClosesAt        pgtype.Timestamp `json:"closes_at"`
+	Duration        string           `json:"duration"`
 }
 
 type Option struct {

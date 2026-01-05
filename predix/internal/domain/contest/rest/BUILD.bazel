@@ -35,6 +35,8 @@ go_test(
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/circle/service",
+        "//predix/internal/domain/clock",
+        "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/contest/service",
         "//predix/internal/domain/user",

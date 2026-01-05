@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	clockpkg "github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -16,12 +17,15 @@ import (
 func TestMemoryRepository_SaveContest(t *testing.T) {
 	repo := repository.NewMemory()
 
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	c, err := contest.New(
+		clk,
 		circle.ID(1),
 		user.ID(1),
 		"Test question?",
 		[]string{"Yes", "No"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -44,12 +48,15 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 	repo := repository.NewMemory()
 
 	// Create and save contest
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	c, err := contest.New(
+		clk,
 		circle.ID(2),
 		user.ID(1),
 		"Will it rain?",
 		[]string{"Yes", "No", "Maybe"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -80,12 +87,15 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	repo := repository.NewMemory()
 
 	// Create contests with different circles
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	c1, err := contest.New(
+		clk,
 		circle.ID(2),
 		user.ID(1),
 		"Question 1?",
 		[]string{"A", "B"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -93,11 +103,12 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	require.NoError(t, err)
 
 	c2, err := contest.New(
+		clk,
 		circle.ID(2),
 		user.ID(1),
 		"Question 2?",
 		[]string{"X", "Y"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -105,11 +116,12 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	require.NoError(t, err)
 
 	c3, err := contest.New(
+		clk,
 		circle.ID(3),
 		user.ID(1),
 		"Question 3?",
 		[]string{"M", "N"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -141,12 +153,15 @@ func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
 	repo := repository.NewMemory()
 
 	// Create and save contest
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	c, err := contest.New(
+		clk,
 		circle.ID(1),
 		user.ID(1),
 		"Question?",
 		[]string{"A", "B"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -177,12 +192,15 @@ func TestMemoryRepository_DeepCopy(t *testing.T) {
 	repo := repository.NewMemory()
 
 	// Create and save contest
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	c, err := contest.New(
+		clk,
 		circle.ID(1),
 		user.ID(1),
 		"Question?",
 		[]string{"A", "B"},
-		time.Now().Add(24*time.Hour),
+		contest.Duration1Day,
 		10,
 	)
 	require.NoError(t, err)
@@ -205,14 +223,17 @@ func TestMemoryRepository_Concurrency(t *testing.T) {
 
 	// Test concurrent saves
 	done := make(chan bool, 10)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
 			c, _ := contest.New(
+				clk,
 				circle.ID(idx+1),
 				user.ID(1),
 				"Question?",
 				[]string{"A", "B"},
-				time.Now().Add(24*time.Hour),
+				contest.Duration1Day,
 				10,
 			)
 			_ = repo.Save(context.Background(), c)

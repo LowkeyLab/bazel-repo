@@ -14,6 +14,8 @@ import (
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	circlerest "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/rest"
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
+	contestcloser "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	contestrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/rest"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
@@ -63,9 +65,17 @@ func main() {
 		userRepo = userrepo.NewPostgres(pool)
 	}
 
-	contestSvc := contestservice.NewService(contestRepo)
+	// Create clock for services
+	clk := clock.RealClock{}
+
+	contestSvc := contestservice.NewService(contestRepo, clk)
 	circleSvc := circleservice.NewService(circleRepo, userRepo, contestSvc)
 	userSvc := userservice.NewService(userRepo)
+
+	// Start the contest closer goroutine
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go contestcloser.StartCloser(ctx, contestRepo, clk, 10*time.Second)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc, contestSvc)

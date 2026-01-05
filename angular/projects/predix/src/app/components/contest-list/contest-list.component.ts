@@ -53,7 +53,7 @@ import { DatePipe } from '@angular/common';
                       {{ contest.question }}
                     </h2>
                     <p class="text-sm text-secondary mb-3">
-                      Predictions close {{ contest.expires_at | date: 'short' }}
+                      Predictions close {{ contest.closes_at | date: 'short' }}
                     </p>
                     <div class="flex gap-2 flex-wrap mb-2">
                       @for (option of contest.options; track option.id) {

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -17,6 +16,8 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -41,7 +42,8 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	repo := circlerepo.NewPostgres(pool)
 	userRepo := userrepo.NewPostgres(pool)
 	contestRepo := contestrepo.NewPostgres(pool)
-	contestSvc := contestservice.NewService(contestRepo)
+	clk := clock.RealClock{}
+	contestSvc := contestservice.NewService(contestRepo, clk)
 	svc := service.NewService(repo, userRepo, contestSvc)
 	handler := NewHandler(svc, contestSvc)
 
@@ -421,9 +423,8 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			contestOptions := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
 
-			contest, err := contestSvc.CreateContest(ctx, testCircle.ID, creatorID, "Test Question?", contestOptions, expiresAt, 100)
+			contest, err := contestSvc.CreateContest(ctx, testCircle.ID, creatorID, "Test Question?", contestOptions, contest.Duration1Day, 100)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests", testCircle.ID), nil)

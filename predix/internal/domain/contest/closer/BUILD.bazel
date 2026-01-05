@@ -1,42 +1,28 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "service",
-    srcs = ["service.go"],
-    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service",
+    name = "closer",
+    srcs = ["closer.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer",
     visibility = ["//predix:__subpackages__"],
     deps = [
-        "//predix/internal/domain/circle",
         "//predix/internal/domain/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
-        "//predix/internal/domain/user",
     ],
 )
 
 go_test(
-    name = "service_test",
+    name = "closer_test",
     timeout = "short",
-    srcs = ["service_test.go"],
-    data = [
-        "//predix/internal/sql:schema.sql",
-    ],
-    tags = [
-        # keep
-        "requires-docker",
-        "requires-network",
-    ],
+    srcs = ["closer_test.go"],
     deps = [
-        ":service",
-        "//predix/internal/db",
+        ":closer",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",
-        "//predix/internal/testutil",
-        "@com_github_jackc_pgx_v5//pgtype",
-        "@com_github_jackc_pgx_v5//pgxpool",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],

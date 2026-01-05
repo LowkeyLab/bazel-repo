@@ -62,7 +62,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
               <div>
                 <p class="text-sm text-secondary">Expires</p>
                 <p class="font-semibold">
-                  {{ contest.expires_at | date: 'short' }}
+                  {{ contest.closes_at | date: 'short' }}
                 </p>
               </div>
               <div>

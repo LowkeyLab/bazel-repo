@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -17,19 +17,21 @@ type ContestRepository = repository.Repository
 var ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
 
 type Service struct {
-	repo repository.Repository
+	repo  repository.Repository
+	clock clock.Clock
 }
 
 // NewService creates a service with repository interfaces.
-func NewService(repo ContestRepository) *Service {
+func NewService(repo ContestRepository, clk clock.Clock) *Service {
 	return &Service{
-		repo: repo,
+		repo:  repo,
+		clock: clk,
 	}
 }
 
-func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time, minStake int) (*contest.Contest, error) {
+func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creatorID user.ID, question string, options []string, duration string, minStake int) (*contest.Contest, error) {
 	// Create domain entity (validation happens here)
-	c, err := contest.New(circleID, creatorID, question, options, expiresAt, minStake)
+	c, err := contest.New(s.clock, circleID, creatorID, question, options, duration, minStake)
 	if err != nil {
 		return nil, err
 	}

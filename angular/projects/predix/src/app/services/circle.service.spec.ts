@@ -47,7 +47,8 @@ describe('CircleService', () => {
           total_pot: 0,
           clout_consumed: 0,
           created_at: '2024-01-01T00:00:00Z',
-          expires_at: '2024-01-02T00:00:00Z',
+          closes_at: '2024-01-02T00:00:00Z',
+          duration: '1d',
         },
       ];
 
@@ -102,7 +103,8 @@ describe('CircleService', () => {
           total_pot: 100,
           clout_consumed: 10,
           created_at: '2024-01-01T00:00:00Z',
-          expires_at: '2024-01-02T00:00:00Z',
+          closes_at: '2024-01-02T00:00:00Z',
+          duration: '1d',
         },
         {
           id: 2,
@@ -120,7 +122,8 @@ describe('CircleService', () => {
           total_pot: 200,
           clout_consumed: 20,
           created_at: '2024-01-01T00:00:00Z',
-          expires_at: '2024-01-02T00:00:00Z',
+          closes_at: '2024-01-02T00:00:00Z',
+          duration: '1d',
         },
       ];
 

@@ -13,7 +13,8 @@ export interface Contest {
   clout_consumed: number;
   result_option_id?: number;
   created_at: string;
-  expires_at: string;
+  closes_at: string;
+  duration: string;
 }
 
 // Computed field: 90% of total pot after 10% consumption
@@ -43,7 +44,7 @@ export interface CreateContestRequest {
   question: string;
   options: string[];
   min_stake: number;
-  expires_at: string;
+  expiration_duration: string;
 }
 
 export interface MakePredictionRequest {

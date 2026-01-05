@@ -222,38 +222,46 @@ import { BackButtonComponent } from '../back-button/back-button.component';
             </div>
 
             <div class="space-y-2">
-              <span class="label-text text-sm">Expires at</span>
-              <label
-                class="input input-bordered flex items-center gap-3"
-                aria-label="Expires at"
+              <span class="label-text text-sm">Contest Duration</span>
+              <div
+                class="flex flex-col gap-2 p-3 border border-base-300 rounded-lg"
               >
-                <svg
-                  class="h-[1em] opacity-60"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <g
-                    stroke-linejoin="round"
-                    stroke-linecap="round"
-                    stroke-width="2"
-                    fill="none"
-                    stroke="currentColor"
-                  >
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <path d="M12 7v5l3 3"></path>
-                  </g>
-                </svg>
-                <input
-                  type="datetime-local"
-                  class="grow"
-                  [(ngModel)]="expiresAt"
-                  name="expiresAt"
-                  required
-                />
-              </label>
+                <label class="label cursor-pointer">
+                  <span class="label-text">1 Hour</span>
+                  <input
+                    type="radio"
+                    name="duration"
+                    class="radio checked:bg-primary"
+                    value="1h"
+                    [(ngModel)]="duration"
+                    required
+                  />
+                </label>
+                <label class="label cursor-pointer">
+                  <span class="label-text">1 Day</span>
+                  <input
+                    type="radio"
+                    name="duration"
+                    class="radio checked:bg-primary"
+                    value="1d"
+                    [(ngModel)]="duration"
+                    required
+                  />
+                </label>
+                <label class="label cursor-pointer">
+                  <span class="label-text">1 Week</span>
+                  <input
+                    type="radio"
+                    name="duration"
+                    class="radio checked:bg-primary"
+                    value="1w"
+                    [(ngModel)]="duration"
+                    required
+                  />
+                </label>
+              </div>
               <p class="text-xs text-secondary">
-                When should predictions close?
+                How long should predictions be open?
               </p>
             </div>
 
@@ -311,7 +319,7 @@ export class CreateContestComponent implements OnInit {
   protected question = '';
   protected circleName = '';
   protected circleId: number | null = null;
-  protected expiresAt = '';
+  protected duration = '1d'; // Default to 1 day
   protected readonly minStakeOptions = [10, 100, 1000];
   protected selectedMinStake = this.minStakeOptions[0];
   protected readonly options = signal([{ value: '' }, { value: '' }]);
@@ -361,8 +369,8 @@ export class CreateContestComponent implements OnInit {
       return;
     }
 
-    if (!this.expiresAt) {
-      this.error.set('Expiration date is required');
+    if (!this.duration) {
+      this.error.set('Duration is required');
       return;
     }
 
@@ -380,7 +388,7 @@ export class CreateContestComponent implements OnInit {
         question: this.question,
         options: optionTexts,
         min_stake: this.selectedMinStake,
-        expires_at: new Date(this.expiresAt).toISOString(),
+        expiration_duration: this.duration,
       })
       .subscribe({
         next: (contest) => {

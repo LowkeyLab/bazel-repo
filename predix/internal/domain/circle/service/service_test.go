@@ -9,6 +9,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -50,7 +51,8 @@ func TestCircleService(t *testing.T) {
 			repo := repository.NewPostgres(pool)
 			userRepo := userrepo.NewPostgres(pool)
 			contestRepo := contestrepo.NewPostgres(pool)
-			contestSvc := contestservice.NewService(contestRepo)
+			clk := clock.RealClock{}
+			contestSvc := contestservice.NewService(contestRepo, clk)
 			svc := service.NewService(repo, userRepo, contestSvc)
 			queries := db.New(pool)
 			return svc, repo, userRepo, queries

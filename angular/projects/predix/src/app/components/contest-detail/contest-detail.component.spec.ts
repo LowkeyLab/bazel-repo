@@ -43,7 +43,8 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     total_pot: 300,
     clout_consumed: 30,
     created_at: '2024-01-01T00:00:00Z',
-    expires_at: '2024-01-02T00:00:00Z',
+    closes_at: '2024-01-02T00:00:00Z',
+    duration: '1d',
   };
 
   const mockPayoutBreakdown: PayoutBreakdown = {

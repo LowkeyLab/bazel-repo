@@ -84,7 +84,8 @@ type contestResponse struct {
 	CloutConsumed  int                  `json:"clout_consumed"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
-	ExpiresAt      time.Time            `json:"expires_at"`
+	ClosesAt       time.Time            `json:"closes_at"`
+	Duration       string               `json:"duration"`
 }
 
 type addMemberRequest struct {
@@ -516,6 +517,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		CloutConsumed:  cont.CalculateConsumedClout(),
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
-		ExpiresAt:      cont.ExpiresAt,
+		ClosesAt:       cont.ClosesAt,
+		Duration:       cont.Duration,
 	}
 }

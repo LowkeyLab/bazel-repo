@@ -51,7 +51,8 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			MinStake:        int32(c.MinStake),
 			ConsumptionRate: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
 			CreatedAt:       pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-			ExpiresAt:       pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
+			ClosesAt:        pgtype.Timestamp{Time: c.ClosesAt, Valid: true},
+			Duration:        c.Duration,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to save contest: %w", err)
@@ -190,7 +191,8 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		ConsumptionRate: consumptionRate,
 		ResultOptionID:  resultOptionID,
 		CreatedAt:       dbContest.CreatedAt.Time,
-		ExpiresAt:       dbContest.ExpiresAt.Time,
+		ClosesAt:        dbContest.ClosesAt.Time,
+		Duration:        dbContest.Duration,
 	}, nil
 }
 
@@ -256,9 +258,92 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 			MinStake:       minStake,
 			ResultOptionID: resultOptionID,
 			CreatedAt:      dbContest.CreatedAt.Time,
-			ExpiresAt:      dbContest.ExpiresAt.Time,
+			ClosesAt:       dbContest.ClosesAt.Time,
+			Duration:       dbContest.Duration,
 		}
 	}
 
 	return contests, nil
+}
+
+// FindExpiredContests retrieves all contests that are OPEN or LOCKED and have passed their closes_at time.
+func (r *Postgres) FindExpiredContests(ctx context.Context) ([]*contest.Contest, error) {
+	dbContests, err := r.queries.FindExpiredContests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find expired contests: %w", err)
+	}
+
+	contests := make([]*contest.Contest, len(dbContests))
+	for i, dbContest := range dbContests {
+		// Load options
+		dbOptions, err := r.queries.ListContestOptions(ctx, dbContest.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load contest options: %w", err)
+		}
+
+		options := make(map[int]*contest.Option)
+		for _, dbOption := range dbOptions {
+			options[int(dbOption.OptionID)] = &contest.Option{
+				ID:   int(dbOption.OptionID),
+				Text: dbOption.Text,
+			}
+		}
+
+		// Load predictions
+		dbPredictions, err := r.queries.ListContestPredictions(ctx, dbContest.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load contest predictions: %w", err)
+		}
+
+		predictions := make([]*contest.Prediction, len(dbPredictions))
+		for j, dbPrediction := range dbPredictions {
+			predictions[j] = &contest.Prediction{
+				UserID:    user.ID(dbPrediction.UserID),
+				OptionID:  int(dbPrediction.OptionID),
+				Clout:     int(dbPrediction.Clout),
+				Timestamp: dbPrediction.CreatedAt.Time,
+			}
+		}
+
+		// Parse result option ID
+		var resultOptionID *int
+		if dbContest.ResultOptionID.Valid {
+			val := int(dbContest.ResultOptionID.Int32)
+			resultOptionID = &val
+		}
+
+		minStake := int(dbContest.MinStake)
+		if minStake == 0 {
+			minStake = defaultMinStake
+		}
+
+		contests[i] = &contest.Contest{
+			ID:             contest.ID(dbContest.ID),
+			CircleID:       circle.ID(dbContest.CircleID),
+			CreatorID:      user.ID(dbContest.CreatorID),
+			Question:       dbContest.Question,
+			Options:        options,
+			Predictions:    predictions,
+			Status:         contest.Status(dbContest.Status),
+			MinStake:       minStake,
+			ResultOptionID: resultOptionID,
+			CreatedAt:      dbContest.CreatedAt.Time,
+			ClosesAt:       dbContest.ClosesAt.Time,
+			Duration:       dbContest.Duration,
+		}
+	}
+
+	return contests, nil
+}
+
+// UpdateStatus updates the status of a contest.
+func (r *Postgres) UpdateStatus(ctx context.Context, id contest.ID, status contest.Status) error {
+	err := r.queries.UpdateContestStatusOnly(ctx, db.UpdateContestStatusOnlyParams{
+		ID:     int32(id),
+		Status: string(status),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update contest status: %w", err)
+	}
+	return nil
 }

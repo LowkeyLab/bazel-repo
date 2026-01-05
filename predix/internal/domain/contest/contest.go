@@ -3,11 +3,39 @@ package contest
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
+
+// Duration constants for contest expiration.
+const (
+	Duration1Hour = "1h"
+	Duration1Day  = "1d"
+	Duration1Week = "1w"
+)
+
+// ValidDurations returns all accepted duration values.
+func ValidDurations() []string {
+	return []string{Duration1Hour, Duration1Day, Duration1Week}
+}
+
+// parseDuration converts a duration string to a time.Duration.
+func parseDuration(d string) (time.Duration, error) {
+	switch d {
+	case Duration1Hour:
+		return time.Hour, nil
+	case Duration1Day:
+		return 24 * time.Hour, nil
+	case Duration1Week:
+		return 7 * 24 * time.Hour, nil
+	default:
+		return 0, fmt.Errorf("invalid duration: must be one of: %s", strings.Join(ValidDurations(), ", "))
+	}
+}
 
 // ID represents the unique identifier for a Contest.
 type ID int32
@@ -35,7 +63,8 @@ type Contest struct {
 	ResultOptionID  *int    // ID of the winning option
 	ConsumptionRate float64 // Rate at which clout is consumed (e.g., 0.10 for 10%)
 	CreatedAt       time.Time
-	ExpiresAt       time.Time
+	ClosesAt        time.Time
+	Duration        string // "1h", "1d", or "1w"
 }
 
 const (
@@ -64,7 +93,7 @@ type Prediction struct {
 }
 
 // New creates a new Contest.
-func New(circleID circle.ID, creatorID user.ID, question string, options []string, expiresAt time.Time, minStake int) (*Contest, error) {
+func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string, options []string, duration string, minStake int) (*Contest, error) {
 	if circleID == 0 {
 		return nil, errors.New("circle id must be positive")
 	}
@@ -78,6 +107,12 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 	}
 
 	normalizedMinStake, err := normalizeMinStake(minStake)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and parse duration
+	durationValue, err := parseDuration(duration)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +136,7 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 		optionMap[optID] = &Option{ID: optID, Text: text}
 	}
 
+	now := clk.Now()
 	return &Contest{
 		ID:              0, // ID will be set by database
 		CircleID:        circleID,
@@ -110,8 +146,9 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 		Status:          StatusOpen,
 		MinStake:        normalizedMinStake,
 		ConsumptionRate: consumptionRateDefault,
-		CreatedAt:       time.Now(),
-		ExpiresAt:       expiresAt,
+		CreatedAt:       now,
+		ClosesAt:        now.Add(durationValue),
+		Duration:        duration,
 	}, nil
 }
 
@@ -141,6 +178,15 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 	}
 	c.Predictions = append(c.Predictions, prediction)
 	return nil
+}
+
+// IsClosed checks if the contest should be closed based on the current time.
+// Returns true if the contest status is OPEN or LOCKED and the closes_at time has passed.
+func (c *Contest) IsClosed(clk clock.Clock) bool {
+	if c.Status != StatusOpen && c.Status != StatusLocked {
+		return false
+	}
+	return !clk.Now().Before(c.ClosesAt)
 }
 
 // Lock transitions the contest from Open to Locked, preventing new predictions.

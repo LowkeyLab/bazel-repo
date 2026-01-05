@@ -39,11 +39,11 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 }
 
 type createContestRequest struct {
-	CircleID  int32     `json:"circle_id"`
-	Question  string    `json:"question"`
-	Options   []string  `json:"options"`
-	MinStake  int       `json:"min_stake"`
-	ExpiresAt time.Time `json:"expires_at"`
+	CircleID int32    `json:"circle_id"`
+	Question string   `json:"question"`
+	Options  []string `json:"options"`
+	MinStake int      `json:"min_stake"`
+	Duration string   `json:"expiration_duration"`
 }
 
 type optionResponse struct {
@@ -71,7 +71,8 @@ type contestResponse struct {
 	CloutConsumed  int                  `json:"clout_consumed"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
-	ExpiresAt      time.Time            `json:"expires_at"`
+	ClosesAt       time.Time            `json:"closes_at"`
+	Duration       string               `json:"duration"`
 }
 
 type makePredictionRequest struct {
@@ -113,13 +114,28 @@ func (h *Handler) createContest(c *gin.Context) {
 		return
 	}
 
+	// Validate duration
+	validDurations := contest.ValidDurations()
+	isValid := false
+	for _, d := range validDurations {
+		if req.Duration == d {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		slog.WarnContext(c.Request.Context(), "invalid duration provided", "duration", req.Duration)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid duration: must be one of: 1h, 1d, 1w"})
+		return
+	}
+
 	newContest, err := h.svc.CreateContest(
 		c.Request.Context(),
 		circle.ID(req.CircleID),
 		creatorID,
 		req.Question,
 		req.Options,
-		req.ExpiresAt,
+		req.Duration,
 		req.MinStake,
 	)
 	if err != nil {
@@ -406,6 +422,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		CloutConsumed:  cont.CalculateConsumedClout(),
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
-		ExpiresAt:      cont.ExpiresAt,
+		ClosesAt:       cont.ClosesAt,
+		Duration:       cont.Duration,
 	}
 }

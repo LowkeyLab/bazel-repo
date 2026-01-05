@@ -27,6 +27,7 @@ go_test(
     deps = [
         ":repository",
         "//predix/internal/domain/circle",
+        "//predix/internal/domain/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/user",
         "@com_github_stretchr_testify//assert",

@@ -126,7 +126,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                   <div class="card-body">
                     <h3 class="card-title text-lg">{{ contest.question }}</h3>
                     <p class="text-sm text-secondary">
-                      Expires {{ contest.expires_at | date: 'short' }}
+                      Expires {{ contest.closes_at | date: 'short' }}
                     </p>
                     <div class="flex gap-2 flex-wrap">
                       @for (option of contest.options; track option.id) {

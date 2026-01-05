@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
@@ -68,7 +69,7 @@ func TestContestService(t *testing.T) {
 		build := func(t *testing.T) (*service.Service, *db.Queries) {
 			testutil.ResetTables(t, pool)
 			repo := repository.NewPostgres(pool)
-			return service.NewService(repo), db.New(pool)
+			return service.NewService(repo, clock.RealClock{}), db.New(pool)
 		}
 
 		t.Run("CreateContest", func(t *testing.T) {
@@ -78,9 +79,8 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Book Club", creatorID)
 
 			opts := []string{"Yes", "No", "Maybe"}
-			expiresAt := time.Now().Add(24 * time.Hour)
 
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Should we read this book?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Should we read this book?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 			assert.NotNil(t, c)
 			assert.Equal(t, "Should we read this book?", c.Question)
@@ -107,9 +107,8 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Poker Night", creatorID)
 
 			opts := []string{"Go all in", "Fold"}
-			expiresAt := time.Now().Add(12 * time.Hour)
 
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "What will the dealer show?", opts, expiresAt, 100)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "What will the dealer show?", opts, contest.Duration1Hour, 100)
 			require.NoError(t, err)
 			assert.Equal(t, 100, c.MinStake)
 
@@ -126,9 +125,8 @@ func TestContestService(t *testing.T) {
 
 			t.Run("empty question", func(t *testing.T) {
 				opts := []string{"Yes", "No"}
-				expiresAt := time.Now().Add(24 * time.Hour)
 
-				c, err := svc.CreateContest(ctx, circleID, creatorID, "", opts, expiresAt, 0)
+				c, err := svc.CreateContest(ctx, circleID, creatorID, "", opts, contest.Duration1Day, 0)
 				assert.Error(t, err)
 				assert.Nil(t, c)
 				assert.Contains(t, err.Error(), "question cannot be empty")
@@ -136,9 +134,8 @@ func TestContestService(t *testing.T) {
 
 			t.Run("not enough options", func(t *testing.T) {
 				opts := []string{"Yes"}
-				expiresAt := time.Now().Add(24 * time.Hour)
 
-				c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt, 0)
+				c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, contest.Duration1Day, 0)
 				assert.Error(t, err)
 				assert.Nil(t, c)
 				assert.Contains(t, err.Error(), "at least two options")
@@ -146,9 +143,8 @@ func TestContestService(t *testing.T) {
 
 			t.Run("empty option text", func(t *testing.T) {
 				opts := []string{"Yes", ""}
-				expiresAt := time.Now().Add(24 * time.Hour)
 
-				c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt, 0)
+				c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, contest.Duration1Day, 0)
 				assert.Error(t, err)
 				assert.Nil(t, c)
 				assert.Contains(t, err.Error(), "option text cannot be empty")
@@ -156,9 +152,8 @@ func TestContestService(t *testing.T) {
 
 			t.Run("duplicate options", func(t *testing.T) {
 				opts := []string{"Yes", "No", "Yes"}
-				expiresAt := time.Now().Add(24 * time.Hour)
 
-				c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, expiresAt, 0)
+				c, err := svc.CreateContest(ctx, circleID, creatorID, "Valid question?", opts, contest.Duration1Day, 0)
 				assert.Error(t, err)
 				assert.Nil(t, c)
 				assert.Contains(t, err.Error(), "duplicate options")
@@ -166,9 +161,8 @@ func TestContestService(t *testing.T) {
 
 			t.Run("no circles", func(t *testing.T) {
 				opts := []string{"Yes", "No"}
-				expiresAt := time.Now().Add(24 * time.Hour)
 
-				c, err := svc.CreateContest(ctx, 0, creatorID, "Valid question?", opts, expiresAt, 0)
+				c, err := svc.CreateContest(ctx, 0, creatorID, "Valid question?", opts, contest.Duration1Day, 0)
 				assert.Error(t, err)
 				assert.Nil(t, c)
 				assert.Contains(t, err.Error(), "circle id must be positive")
@@ -182,8 +176,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Predictions Circle", userID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, userID, "What will happen?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, userID, "What will happen?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.RecordPrediction(ctx, c.ID, userID, 1, 100)
@@ -204,8 +197,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Test Circle", userID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, userID, "Test question?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, userID, "Test question?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = q.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
@@ -227,8 +219,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "High Rollers", userID)
 
 			opts := []string{"Heads", "Tails"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, userID, "Coin flip?", opts, expiresAt, 100)
+			c, err := svc.CreateContest(ctx, circleID, userID, "Coin flip?", opts, contest.Duration1Day, 100)
 			require.NoError(t, err)
 
 			err = svc.RecordPrediction(ctx, c.ID, userID, 1, 50)
@@ -243,8 +234,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Resolution Circle", userID)
 
 			opts := []string{"Outcome A", "Outcome B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, userID, "What is the outcome?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, userID, "What is the outcome?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, userID, 1)
@@ -265,8 +255,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Ownership Circle", creatorID)
 
 			opts := []string{"Outcome A", "Outcome B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Which team wins?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Which team wins?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, nonCreatorID, 1)
@@ -285,8 +274,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Lock Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock this contest?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock this contest?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 			assert.Equal(t, contest.StatusOpen, c.Status)
 
@@ -306,8 +294,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Lock Ownership Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock attempt?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock attempt?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.LockContest(ctx, c.ID, nonCreatorID)
@@ -325,8 +312,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Double Lock Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Double lock?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Double lock?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.LockContest(ctx, c.ID, creatorID)
@@ -348,8 +334,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Locked Predict Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Can you predict on locked?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Can you predict on locked?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.LockContest(ctx, c.ID, creatorID)
@@ -367,8 +352,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Lock Resolve Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock then resolve?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock then resolve?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.RecordPrediction(ctx, c.ID, creatorID, 1, 100)
@@ -392,8 +376,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Close Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close from open?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close from open?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			refunds, err := svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
@@ -412,8 +395,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Close Locked Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close from locked?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close from locked?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.LockContest(ctx, c.ID, creatorID)
@@ -444,8 +426,7 @@ func TestContestService(t *testing.T) {
 			require.NoError(t, err)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close with predictions?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close with predictions?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			err = svc.RecordPrediction(ctx, c.ID, creatorID, 1, 100)
@@ -474,8 +455,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Close Authorization Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close auth?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close auth?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			_, err = svc.CloseContestAndCalculateRefunds(ctx, c.ID, nonCreatorID)
@@ -493,8 +473,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Close Resolved Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close resolved?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close resolved?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, creatorID, 1)
@@ -516,8 +495,7 @@ func TestContestService(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Double Close Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			c, err := svc.CreateContest(ctx, circleID, creatorID, "Double close?", opts, expiresAt, 0)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Double close?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			_, err = svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)

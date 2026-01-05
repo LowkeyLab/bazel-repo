@@ -18,6 +18,8 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -46,7 +48,8 @@ type contestResponseBody struct {
 	Status         string    `json:"status"`
 	ResultOptionID *int      `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
-	ExpiresAt      time.Time `json:"expires_at"`
+	ClosesAt       time.Time `json:"closes_at"`
+	Duration       string    `json:"duration"`
 }
 
 func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Service, *db.Queries) {
@@ -55,7 +58,7 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	repo := repository.NewPostgres(pool)
 	circleRepo := circlerepo.NewPostgres(pool)
 	userRepo := userrepo.NewPostgres(pool)
-	contestSvc := service.NewService(repo)
+	contestSvc := service.NewService(repo, clock.RealClock{})
 	circleSvc := circleservice.NewService(circleRepo, userRepo, contestSvc)
 	handler := NewHandler(contestSvc, circleSvc)
 
@@ -120,15 +123,13 @@ func TestContestHandlers(t *testing.T) {
 			creatorID := createTestUser(t, pool, "alice")
 			circleID := createTestCircle(t, pool, "Study Group", creatorID)
 
-			expiresAt := time.Now().Add(24 * time.Hour)
-
 			body := fmt.Sprintf(`{
 				"circle_id": %d,
 				"question": "Who will win the Super Bowl?",
 				"options": ["Team A", "Team B"],
 				"min_stake": 100,
-				"expires_at": "%s"
-			}`, circleID, expiresAt.Format(time.RFC3339))
+				"expiration_duration": "1d"
+			}`, circleID)
 
 			req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -160,15 +161,13 @@ func TestContestHandlers(t *testing.T) {
 			creatorID := createTestUser(t, pool, "alice-invalid")
 			circleID := createTestCircle(t, pool, "Validation Circle", creatorID)
 
-			expiresAt := time.Now().Add(24 * time.Hour)
-
 			body := fmt.Sprintf(`{
 				"circle_id": %d,
 				"question": "Invalid stake?",
 				"options": ["Team A", "Team B"],
 				"min_stake": 5,
-				"expires_at": "%s"
-			}`, circleID, expiresAt.Format(time.RFC3339))
+				"expiration_duration": "1d"
+			}`, circleID)
 
 			req := httptest.NewRequest(http.MethodPost, "/protected/contests", bytes.NewBufferString(body))
 			req.Header.Set("Content-Type", "application/json")
@@ -198,8 +197,7 @@ func TestContestHandlers(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Who wins?", []string{"Option A", "Option B"}, expiresAt, 0)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Who wins?", []string{"Option A", "Option B"}, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			body := fmt.Sprintf(`{
@@ -232,8 +230,7 @@ func TestContestHandlers(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Predictors", creatorID)
 
 			ctx := context.Background()
-			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Test Question?", []string{"Yes", "No"}, expiresAt, 0)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Test Question?", []string{"Yes", "No"}, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			body := `{"winning_option_id": 1}`
@@ -261,8 +258,7 @@ func TestContestHandlers(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Guarded Circle", creatorID)
 
 			ctx := context.Background()
-			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Resolve?", []string{"Yes", "No"}, expiresAt, 0)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Resolve?", []string{"Yes", "No"}, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			body := `{"winning_option_id": 1}`
@@ -288,8 +284,7 @@ func TestContestHandlers(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Test Circle", creatorID)
 
 			ctx := context.Background()
-			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, expiresAt, 0)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Will it rain?", []string{"Yes", "No", "Maybe"}, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d", createdContest.ID), nil)
@@ -362,8 +357,7 @@ func TestContestHandlers(t *testing.T) {
 
 			// Create contest with 2 options
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Payout test?", opts, expiresAt, 0)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Payout test?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			// Add predictions
@@ -418,8 +412,7 @@ func TestContestHandlers(t *testing.T) {
 			circleID := createTestCircle(t, pool, "Unresolved Circle", creatorID)
 
 			opts := []string{"Option A", "Option B"}
-			expiresAt := time.Now().Add(24 * time.Hour)
-			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Not resolved?", opts, expiresAt, 0)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Not resolved?", opts, contest.Duration1Day, 0)
 			require.NoError(t, err)
 
 			// Try to get payout breakdown for non-resolved contest

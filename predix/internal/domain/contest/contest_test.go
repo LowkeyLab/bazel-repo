@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	clockpkg "github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
@@ -12,10 +13,11 @@ import (
 func TestNew(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
-	expiresAt := time.Now().Add(1 * time.Hour)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 	options := []string{"Yes", "No"}
 
-	c, err := contest.New(circleID, creatorID, "Will it rain?", options, expiresAt, 10)
+	c, err := contest.New(clk, circleID, creatorID, "Will it rain?", options, contest.Duration1Hour, 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -31,7 +33,8 @@ func TestNew(t *testing.T) {
 func TestNew_Validation(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
-	expiresAt := time.Now().Add(1 * time.Hour)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 
 	tests := []struct {
 		name     string
@@ -81,7 +84,7 @@ func TestNew_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := contest.New(circleID, creatorID, tt.question, tt.options, expiresAt, tt.minStake)
+			c, err := contest.New(clk, circleID, creatorID, tt.question, tt.options, contest.Duration1Hour, tt.minStake)
 			if err == nil {
 				t.Errorf("expected error containing %q, got nil", tt.wantErr)
 			} else if err.Error() != tt.wantErr {
@@ -97,7 +100,8 @@ func TestNew_Validation(t *testing.T) {
 func TestNew_ValidContest(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
-	expiresAt := time.Now().Add(1 * time.Hour)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 
 	tests := []struct {
 		name     string
@@ -130,7 +134,7 @@ func TestNew_ValidContest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := contest.New(circleID, creatorID, tt.question, tt.options, expiresAt, tt.minStake)
+			c, err := contest.New(clk, circleID, creatorID, tt.question, tt.options, contest.Duration1Hour, tt.minStake)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -156,8 +160,9 @@ func TestNew_ValidContest(t *testing.T) {
 func TestPredict(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
-	expiresAt := time.Now().Add(1 * time.Hour)
-	c, err := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt, 100)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
+	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 100)
 	if err != nil {
 		t.Fatalf("unexpected error creating contest: %v", err)
 	}
@@ -195,8 +200,9 @@ func TestPredict(t *testing.T) {
 func TestResolve(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
-	expiresAt := time.Now().Add(1 * time.Hour)
-	c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt, 10)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
+	c, _ := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 10)
 
 	// Find valid option ID
 	var optionID int
@@ -227,7 +233,8 @@ func TestResolve(t *testing.T) {
 func TestClose(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
-	expiresAt := time.Now().Add(1 * time.Hour)
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
 
 	tests := []struct {
 		name       string
@@ -272,7 +279,7 @@ func TestClose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt, 10)
+			c, _ := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 10)
 			tt.setup(c)
 
 			err := c.Close()
