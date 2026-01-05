@@ -252,13 +252,27 @@ func (c *Contest) CalculatePot() int {
 	return total
 }
 
-// CalculateConsumedClout returns the amount of clout consumed at the current rate.
+// CalculateConsumedClout returns the amount of clout consumed from losing stakes.
+// Returns 0 if the contest is not resolved.
 func (c *Contest) CalculateConsumedClout() int {
-	pot := c.CalculatePot()
-	return int(float64(pot) * c.ConsumptionRate)
+	if c.ResultOptionID == nil {
+		return 0
+	}
+
+	totalPot := 0
+	winningStake := 0
+	for _, pred := range c.Predictions {
+		totalPot += pred.Clout
+		if pred.OptionID == *c.ResultOptionID {
+			winningStake += pred.Clout
+		}
+	}
+
+	losingStake := totalPot - winningStake
+	return int(float64(losingStake) * c.ConsumptionRate)
 }
 
-// CalculateRemainingPot returns the remaining pot after consumption (90% of total pot).
+// CalculateRemainingPot returns the remaining pot after consumption.
 func (c *Contest) CalculateRemainingPot() int {
 	pot := c.CalculatePot()
 	return pot - c.CalculateConsumedClout()
@@ -285,8 +299,10 @@ func (c *Contest) CalculateWinnerPayouts() (map[user.ID]int, error) {
 	// Find all predictions that match the winning option
 	var winningPredictions []*Prediction
 	var totalWinningClout int
+	var totalPot int
 
 	for i := range c.Predictions {
+		totalPot += c.Predictions[i].Clout
 		if c.Predictions[i].OptionID == *c.ResultOptionID {
 			winningPredictions = append(winningPredictions, c.Predictions[i])
 			totalWinningClout += c.Predictions[i].Clout
@@ -297,14 +313,15 @@ func (c *Contest) CalculateWinnerPayouts() (map[user.ID]int, error) {
 		return payouts, nil
 	}
 
-	// Distribute remaining pot proportionally based on stake
-	remainingPot := c.CalculateRemainingPot()
+	losingClout := totalPot - totalWinningClout
+	distributableLosingClout := int(float64(losingClout) * (1.0 - c.ConsumptionRate))
+
 	for _, pred := range winningPredictions {
 		// Return original stake
 		payout := pred.Clout
 		// Add proportional share of remaining pot (after consumption fee)
 		if totalWinningClout > 0 {
-			payout += (pred.Clout * remainingPot) / totalWinningClout
+			payout += (pred.Clout * distributableLosingClout) / totalWinningClout
 		}
 		payouts[pred.UserID] += payout
 	}
@@ -325,8 +342,10 @@ func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
 	// Find all predictions that match the winning option
 	var winningPredictions []*Prediction
 	var totalWinningClout int
+	var totalPot int
 
 	for i := range c.Predictions {
+		totalPot += c.Predictions[i].Clout
 		if c.Predictions[i].OptionID == *c.ResultOptionID {
 			winningPredictions = append(winningPredictions, c.Predictions[i])
 			totalWinningClout += c.Predictions[i].Clout
@@ -337,12 +356,14 @@ func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
 		return records, nil
 	}
 
+	losingClout := totalPot - totalWinningClout
+	distributableLosingClout := int(float64(losingClout) * (1.0 - c.ConsumptionRate))
+
 	// Create payout records for each winner
-	distributablePot := c.CalculateRemainingPot()
 	for _, pred := range winningPredictions {
 		share := 0
 		if totalWinningClout > 0 {
-			share = (pred.Clout * distributablePot) / totalWinningClout
+			share = (pred.Clout * distributableLosingClout) / totalWinningClout
 		}
 
 		record := &PayoutRecord{

@@ -15,7 +15,10 @@ go_library(
 go_test(
     name = "contest_test",
     size = "small",
-    srcs = ["contest_test.go"],
+    srcs = [
+        "contest_test.go",
+        "payout_test.go",
+    ],
     data = [
         "//predix/internal/sql:schema.sql",
     ],
