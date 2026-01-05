@@ -37,7 +37,7 @@ import { AuthService } from '../../services/auth.service';
             <div class="space-y-2">
               <span class="label-text text-sm">Username</span>
               <label
-                class="input input-bordered flex items-center gap-3"
+                class="input input-bordered flex items-center gap-3 w-full"
                 aria-label="Username"
               >
                 <svg
@@ -72,7 +72,7 @@ import { AuthService } from '../../services/auth.service';
             <div class="space-y-2">
               <span class="label-text text-sm">Password</span>
               <label
-                class="input input-bordered flex items-center gap-3"
+                class="input input-bordered flex items-center gap-3 w-full"
                 aria-label="Password"
               >
                 <svg
@@ -108,7 +108,7 @@ import { AuthService } from '../../services/auth.service';
             <div class="space-y-2">
               <span class="label-text text-sm">Confirm password</span>
               <label
-                class="input input-bordered flex items-center gap-3"
+                class="input input-bordered flex items-center gap-3 w-full"
                 aria-label="Confirm password"
               >
                 <svg
