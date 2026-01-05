@@ -406,3 +406,56 @@ func TestCalculateWinnerPayouts_MultipleWinners(t *testing.T) {
 	assert.Equal(t, 190, payouts[winner1ID])
 	assert.Equal(t, 570, payouts[winner2ID])
 }
+
+func TestCalculatePayoutBreakdown(t *testing.T) {
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
+	clk := clockpkg.FixedClock{Time: time.Now()}
+	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
+	require.NoError(t, err)
+
+	winner1ID := user.ID(2) // Bets 100
+	winner2ID := user.ID(3) // Bets 300
+	loserID := user.ID(4)   // Bets 400
+
+	require.NoError(t, c.Predict(winner1ID, 1, 100))
+	require.NoError(t, c.Predict(winner2ID, 1, 300))
+	require.NoError(t, c.Predict(loserID, 2, 400))
+
+	require.NoError(t, c.Resolve(1))
+
+	records, err := c.CalculatePayoutBreakdown()
+	require.NoError(t, err)
+	assert.Len(t, records, 2)
+
+	// Winning Stake Total = 400
+	// Losing Stake Total = 400
+	// Burn = 400 * 0.10 = 40
+	// Distributable = 360
+
+	// Verify Winner 1
+	var r1 *contest.PayoutRecord
+	for _, r := range records {
+		if r.UserID == winner1ID {
+			r1 = r
+			break
+		}
+	}
+	require.NotNil(t, r1)
+	assert.Equal(t, 100, r1.OriginalStake)
+	assert.Equal(t, 90, r1.ShareOfPot) // 0.25 * 360
+	assert.Equal(t, 190, r1.TotalPayout)
+
+	// Verify Winner 2
+	var r2 *contest.PayoutRecord
+	for _, r := range records {
+		if r.UserID == winner2ID {
+			r2 = r
+			break
+		}
+	}
+	require.NotNil(t, r2)
+	assert.Equal(t, 300, r2.OriginalStake)
+	assert.Equal(t, 270, r2.ShareOfPot) // 0.75 * 360
+	assert.Equal(t, 570, r2.TotalPayout)
+}
