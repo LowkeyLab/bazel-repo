@@ -277,5 +277,112 @@ func TestContestService(t *testing.T) {
 			assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
 			assert.False(t, dbContest.ResultOptionID.Valid)
 		})
+
+		t.Run("LockContest", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Jack")
+			circleID := createTestCircle(t, pool, "Lock Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock this contest?", opts, expiresAt, 0)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusOpen, c.Status)
+
+			err = svc.LockContest(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "LOCKED", dbContest.Status)
+		})
+
+		t.Run("LockContest_OnlyCreatorCanLock", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Kate")
+			nonCreatorID := createTestUser(t, pool, "Liam")
+			circleID := createTestCircle(t, pool, "Lock Ownership Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock attempt?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, c.ID, nonCreatorID)
+			assert.ErrorIs(t, err, service.ErrNotContestCreator)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
+		})
+
+		t.Run("LockContest_CannotLockAlreadyLocked", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Megan")
+			circleID := createTestCircle(t, pool, "Double Lock Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Double lock?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, c.ID, creatorID)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "only open contests can be locked")
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "LOCKED", dbContest.Status)
+		})
+
+		t.Run("Predict_ContestLocked", func(t *testing.T) {
+			svc, _ := build(t)
+
+			creatorID := createTestUser(t, pool, "Noah")
+			circleID := createTestCircle(t, pool, "Locked Predict Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Can you predict on locked?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			err = svc.RecordPrediction(ctx, c.ID, creatorID, 1, 100)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "locked for predictions")
+		})
+
+		t.Run("ResolveContest_FromLockedState", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Olivia")
+			circleID := createTestCircle(t, pool, "Lock Resolve Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Lock then resolve?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			err = svc.RecordPrediction(ctx, c.ID, creatorID, 1, 100)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, creatorID, 1)
+			require.NoError(t, err)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "RESOLVED", dbContest.Status)
+		})
 	})
 }

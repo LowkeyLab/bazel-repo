@@ -67,6 +67,34 @@ func (s *Service) RecordPrediction(ctx context.Context, contestID contest.ID, us
 	return nil
 }
 
+// LockContest transitions a contest from Open to Locked.
+// Only the contest creator can lock the contest.
+func (s *Service) LockContest(ctx context.Context, contestID contest.ID, lockerID user.ID) error {
+	// Load contest from repository
+	c, err := s.repo.FindByID(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CreatorID != lockerID {
+		return ErrNotContestCreator
+	}
+
+	// Use domain method to lock
+	err = c.Lock()
+	if err != nil {
+		return err
+	}
+
+	// Save updated contest
+	err = s.repo.Save(ctx, c)
+	if err != nil {
+		return fmt.Errorf("failed to save locked contest: %w", err)
+	}
+
+	return nil
+}
+
 // ResolveContestAndCalculatePayouts resolves a contest and returns winner payouts.
 // Returns a map of user.ID to clout amount for each winner.
 func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (map[user.ID]int, error) {

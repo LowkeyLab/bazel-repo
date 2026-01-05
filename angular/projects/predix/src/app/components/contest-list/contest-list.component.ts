@@ -65,6 +65,7 @@ import { DatePipe } from '@angular/common';
                     <div
                       class="badge"
                       [class.badge-success]="contest.status === 'OPEN'"
+                      [class.badge-warning]="contest.status === 'LOCKED'"
                       [class.badge-neutral]="contest.status === 'CLOSED'"
                       [class.badge-info]="contest.status === 'RESOLVED'"
                     >
@@ -121,6 +122,7 @@ export class ContestListComponent {
   protected readonly loading = signal(false);
   protected readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
+    LOCKED: 'Locked (awaiting resolution)',
     CLOSED: 'Closed (paused)',
     RESOLVED: 'Resolved',
   };

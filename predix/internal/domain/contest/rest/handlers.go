@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/contests", h.createContest)
 	r.GET("/contests/:id", h.getContest)
 	r.POST("/contests/:id/predictions", h.makePrediction)
+	r.POST("/contests/:id/lock", h.lockContest)
 	r.POST("/contests/:id/resolve", h.resolveContest)
 }
 
@@ -181,6 +182,40 @@ func (h *Handler) makePrediction(c *gin.Context) {
 
 	slog.InfoContext(c.Request.Context(), "prediction made successfully", "contest_id", contestID, "user_id", userID, "option_id", req.OptionID)
 	c.Status(http.StatusCreated)
+}
+
+func (h *Handler) lockContest(c *gin.Context) {
+	contestID, ok := parseContestID(c)
+	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		slog.WarnContext(c.Request.Context(), "unauthenticated lock attempt")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	err := h.svc.LockContest(c.Request.Context(), contestID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		if errors.Is(err, service.ErrNotContestCreator) {
+			slog.WarnContext(c.Request.Context(), "unauthorized contest lock", "contest_id", contestID, "user_id", userID)
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		slog.WarnContext(c.Request.Context(), "failed to lock contest", "contest_id", contestID, "user_id", userID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	slog.InfoContext(c.Request.Context(), "contest locked successfully", "contest_id", contestID, "user_id", userID)
+	c.Status(http.StatusOK)
 }
 
 func (h *Handler) resolveContest(c *gin.Context) {

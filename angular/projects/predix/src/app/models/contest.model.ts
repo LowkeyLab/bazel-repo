@@ -1,4 +1,4 @@
-export type ContestStatus = 'OPEN' | 'CLOSED' | 'RESOLVED';
+export type ContestStatus = 'OPEN' | 'LOCKED' | 'CLOSED' | 'RESOLVED';
 
 export interface Contest {
   id: number;

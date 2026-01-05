@@ -34,6 +34,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
               <div
                 class="badge badge-lg"
                 [class.badge-success]="contest.status === 'OPEN'"
+                [class.badge-warning]="contest.status === 'LOCKED'"
                 [class.badge-neutral]="contest.status === 'CLOSED'"
                 [class.badge-info]="contest.status === 'RESOLVED'"
               >
@@ -114,6 +115,42 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                   >Winner:
                   {{ getOptionText(contest, contest.result_option_id) }}</span
                 >
+              </div>
+            }
+
+            @if (contest.status === 'OPEN' && isCreator()) {
+              <div class="alert alert-info mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="stroke-current shrink-0 h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div class="flex-1">
+                  <span
+                    >As the creator, you can lock this contest to prevent
+                    further predictions.</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-warning"
+                  (click)="onLock()"
+                  [disabled]="lockLoading()"
+                >
+                  @if (lockLoading()) {
+                    <span class="loading loading-spinner"></span>
+                  } @else {
+                    🔒 Lock Predictions
+                  }
+                </button>
               </div>
             }
 
@@ -244,8 +281,10 @@ export class ContestDetailComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly predictionLoading = signal(false);
   protected readonly predictionError = signal('');
+  protected readonly lockLoading = signal(false);
   protected readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
+    LOCKED: 'Locked (awaiting resolution)',
     CLOSED: 'Closed (paused)',
     RESOLVED: 'Resolved',
   };
@@ -316,6 +355,30 @@ export class ContestDetailComponent implements OnInit {
           );
         },
       });
+  }
+
+  protected onLock(): void {
+    const contestId = this.contest()?.id;
+    if (!contestId) return;
+
+    this.lockLoading.set(true);
+
+    this.contestService.lockContest(contestId).subscribe({
+      next: () => {
+        this.lockLoading.set(false);
+        // Reload contest to show updated status
+        this.loadContest(contestId);
+      },
+      error: () => {
+        this.lockLoading.set(false);
+      },
+    });
+  }
+
+  protected isCreator(): boolean {
+    const contest = this.contest();
+    const user = this.auth.currentUser();
+    return contest && user ? contest.creator_id === user.id : false;
   }
 
   protected getTotalClout(contest: Contest): number {

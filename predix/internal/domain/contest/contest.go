@@ -17,6 +17,7 @@ type Status string
 
 const (
 	StatusOpen     Status = "OPEN"
+	StatusLocked   Status = "LOCKED"
 	StatusClosed   Status = "CLOSED"
 	StatusResolved Status = "RESOLVED"
 )
@@ -116,6 +117,9 @@ func New(circleID circle.ID, creatorID user.ID, question string, options []strin
 
 // Predict adds a prediction to the contest.
 func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
+	if c.Status == StatusLocked {
+		return errors.New("contest is locked for predictions")
+	}
 	if c.Status != StatusOpen {
 		return errors.New("contest is not open for predictions")
 	}
@@ -139,10 +143,23 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 	return nil
 }
 
+// Lock transitions the contest from Open to Locked, preventing new predictions.
+func (c *Contest) Lock() error {
+	if c.Status != StatusOpen {
+		return errors.New("only open contests can be locked")
+	}
+
+	c.Status = StatusLocked
+	return nil
+}
+
 // Resolve marks the contest as resolved and determines the winner.
 func (c *Contest) Resolve(winningOptionID int) error {
 	if c.Status == StatusResolved {
 		return errors.New("contest is already resolved")
+	}
+	if c.Status != StatusLocked && c.Status != StatusOpen {
+		return errors.New("contest is not in a state that can be resolved")
 	}
 	if _, ok := c.Options[winningOptionID]; !ok {
 		return errors.New("invalid winning option")

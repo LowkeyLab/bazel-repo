@@ -34,6 +34,10 @@ export class ContestService {
     );
   }
 
+  lockContest(contestId: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${contestId}/lock`, {});
+  }
+
   resolveContest(
     contestId: number,
     request: ResolveContestRequest,
