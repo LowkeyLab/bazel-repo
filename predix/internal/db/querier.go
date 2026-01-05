@@ -10,7 +10,6 @@ import (
 
 type Querier interface {
 	AddCircleMember(ctx context.Context, arg AddCircleMemberParams) error
-	AddContestCircle(ctx context.Context, arg AddContestCircleParams) error
 	CreateCircle(ctx context.Context, arg CreateCircleParams) (Circle, error)
 	CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error)
 	CreateOption(ctx context.Context, arg CreateOptionParams) error
@@ -23,7 +22,6 @@ type Querier interface {
 	GetUser(ctx context.Context, id int32) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	ListCircleMembers(ctx context.Context, circleID int32) ([]ListCircleMembersRow, error)
-	ListContestCircles(ctx context.Context, contestID int32) ([]ContestCircle, error)
 	ListContestOptions(ctx context.Context, contestID int32) ([]Option, error)
 	ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error)
 	ListContestsByCircle(ctx context.Context, circleID int32) ([]Contest, error)

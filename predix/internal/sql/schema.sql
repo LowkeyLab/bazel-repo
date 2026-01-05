@@ -23,6 +23,7 @@ CREATE TABLE circle_members (
 
 CREATE TABLE contests (
     id SERIAL PRIMARY KEY,
+    circle_id INT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
     creator_id INT NOT NULL REFERENCES users(id),
     question TEXT NOT NULL,
     status TEXT NOT NULL,
@@ -33,25 +34,19 @@ CREATE TABLE contests (
     expires_at TIMESTAMP NOT NULL
 );
 
-CREATE TABLE contest_circles (
-    contest_id INT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
-    circle_id INT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
-    PRIMARY KEY (contest_id, circle_id)
-);
-
 CREATE TABLE options (
-    contest_id INT NOT NULL REFERENCES contests(id),
+    contest_id INT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
     option_id INT NOT NULL, -- 1, 2, 3...
     text TEXT NOT NULL,
     PRIMARY KEY (contest_id, option_id)
 );
 
 CREATE TABLE predictions (
-    contest_id INT NOT NULL REFERENCES contests(id),
+    contest_id INT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
     user_id INT NOT NULL REFERENCES users(id),
     option_id INT NOT NULL,
     clout INT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY (contest_id, user_id, option_id),
-    FOREIGN KEY (contest_id, option_id) REFERENCES options(contest_id, option_id)
+    FOREIGN KEY (contest_id, option_id) REFERENCES options(contest_id, option_id) ON DELETE CASCADE
 );

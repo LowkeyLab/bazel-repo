@@ -196,7 +196,14 @@ func (s *Service) enrichCircle(ctx context.Context, circ *circle.Circle) (*Enric
 }
 
 // Predict handles the prediction workflow: validate clout, deduct it, and record the prediction.
-func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+	contest, err := s.contestSvc.GetContest(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	circleID := contest.CircleID
+
 	// Load circle to check user membership and clout balance
 	circ, err := s.circleRepo.FindByID(ctx, circleID)
 	if err != nil {
@@ -229,7 +236,14 @@ func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID con
 }
 
 // ResolveAndDistributeContestClout resolves a contest and distributes winnings to the circle members.
-func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID circle.ID, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
+func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
+	contest, err := s.contestSvc.GetContest(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	circleID := contest.CircleID
+
 	// Resolve the contest and get winner payouts
 	payouts, err := s.contestSvc.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
 	if err != nil {

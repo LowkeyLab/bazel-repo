@@ -2,7 +2,7 @@ export type ContestStatus = 'OPEN' | 'CLOSED' | 'RESOLVED';
 
 export interface Contest {
   id: number;
-  circle_ids: number[];
+  circle_id: number;
   creator_id: number;
   question: string;
   options: ContestOption[];
@@ -29,7 +29,7 @@ export interface Prediction {
 }
 
 export interface CreateContestRequest {
-  circle_ids: number[];
+  circle_id: number;
   question: string;
   options: string[];
   min_stake: number;
@@ -37,7 +37,6 @@ export interface CreateContestRequest {
 }
 
 export interface MakePredictionRequest {
-  circle_id: number;
   option_id: number;
   clout: number;
 }

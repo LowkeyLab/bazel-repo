@@ -251,15 +251,12 @@ export class ContestDetailComponent implements OnInit {
   };
 
   protected selectedOptionId: number | null = null;
-  protected selectedCircleId: number | null = null;
   protected cloutAmount = 10;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    const circleId = Number(this.route.snapshot.queryParamMap.get('circleId'));
     if (id) {
       this.loadContest(id);
-      this.selectedCircleId = circleId;
     }
   }
 
@@ -300,7 +297,6 @@ export class ContestDetailComponent implements OnInit {
 
     this.contestService
       .makePrediction(contestId, {
-        circle_id: this.selectedCircleId || 0,
         option_id: this.selectedOptionId,
         clout: this.cloutAmount,
       })

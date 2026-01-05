@@ -37,7 +37,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 }
 
 type createContestRequest struct {
-	CircleIDs []int32   `json:"circle_ids"`
+	CircleID  int32     `json:"circle_id"`
 	Question  string    `json:"question"`
 	Options   []string  `json:"options"`
 	MinStake  int       `json:"min_stake"`
@@ -58,7 +58,7 @@ type predictionResponse struct {
 
 type contestResponse struct {
 	ID             int32                `json:"id"`
-	CircleIDs      []int32              `json:"circle_ids"`
+	CircleID       int32                `json:"circle_id"`
 	CreatorID      int32                `json:"creator_id"`
 	Question       string               `json:"question"`
 	Options        []optionResponse     `json:"options"`
@@ -73,14 +73,12 @@ type contestResponse struct {
 }
 
 type makePredictionRequest struct {
-	CircleID int32 `json:"circle_id"`
-	OptionID int   `json:"option_id"`
-	Clout    int   `json:"clout"`
+	OptionID int `json:"option_id"`
+	Clout    int `json:"clout"`
 }
 
 type resolveContestRequest struct {
-	CircleID        int32 `json:"circle_id"`
-	WinningOptionID int   `json:"winning_option_id"`
+	WinningOptionID int `json:"winning_option_id"`
 }
 
 func (h *Handler) createContest(c *gin.Context) {
@@ -98,14 +96,9 @@ func (h *Handler) createContest(c *gin.Context) {
 		return
 	}
 
-	circleIDs := make([]circle.ID, 0, len(req.CircleIDs))
-	for _, id := range req.CircleIDs {
-		circleIDs = append(circleIDs, circle.ID(id))
-	}
-
 	newContest, err := h.svc.CreateContest(
 		c.Request.Context(),
-		circleIDs,
+		circle.ID(req.CircleID),
 		creatorID,
 		req.Question,
 		req.Options,
@@ -113,12 +106,12 @@ func (h *Handler) createContest(c *gin.Context) {
 		req.MinStake,
 	)
 	if err != nil {
-		slog.WarnContext(c.Request.Context(), "failed to create contest", "creator_id", creatorID, "question", req.Question, "circles", len(req.CircleIDs), "error", err)
+		slog.WarnContext(c.Request.Context(), "failed to create contest", "creator_id", creatorID, "question", req.Question, "circle_id", req.CircleID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "contest created successfully", "contest_id", newContest.ID, "creator_id", creatorID, "question", req.Question)
+	slog.InfoContext(c.Request.Context(), "contest created successfully", "contest_id", newContest.ID, "creator_id", creatorID, "question", req.Question, "circle_id", req.CircleID)
 	c.JSON(http.StatusCreated, toContestResponse(newContest))
 }
 
@@ -164,29 +157,29 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	err := h.circleSvc.Predict(c.Request.Context(), circle.ID(req.CircleID), contestID, userID, req.OptionID, req.Clout)
+	err := h.circleSvc.Predict(c.Request.Context(), contestID, userID, req.OptionID, req.Clout)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", req.CircleID, "contest_id", contestID)
+			slog.WarnContext(c.Request.Context(), "circle or contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
 		}
 		if errors.Is(err, circleservice.ErrUserNotInCircle) {
-			slog.WarnContext(c.Request.Context(), "user not in circle", "circle_id", req.CircleID, "user_id", userID)
+			slog.WarnContext(c.Request.Context(), "user not in circle", "contest_id", contestID, "user_id", userID)
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
 		if errors.Is(err, circleservice.ErrInsufficientClout) {
-			slog.WarnContext(c.Request.Context(), "insufficient clout", "circle_id", req.CircleID, "user_id", userID)
+			slog.WarnContext(c.Request.Context(), "insufficient clout", "contest_id", contestID, "user_id", userID)
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		slog.WarnContext(c.Request.Context(), "failed to make prediction", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "option_id", req.OptionID, "error", err)
+		slog.WarnContext(c.Request.Context(), "failed to make prediction", "contest_id", contestID, "user_id", userID, "option_id", req.OptionID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "prediction made successfully", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "option_id", req.OptionID)
+	slog.InfoContext(c.Request.Context(), "prediction made successfully", "contest_id", contestID, "user_id", userID, "option_id", req.OptionID)
 	c.Status(http.StatusCreated)
 }
 
@@ -210,31 +203,10 @@ func (h *Handler) resolveContest(c *gin.Context) {
 		return
 	}
 
-	circleID := circle.ID(req.CircleID)
-	if circleID == 0 {
-		contest, err := h.svc.GetContest(c.Request.Context(), contestID)
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				slog.WarnContext(c.Request.Context(), "contest not found while resolving", "contest_id", contestID)
-				c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
-				return
-			}
-			slog.ErrorContext(c.Request.Context(), "failed to load contest for resolution", "contest_id", contestID, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if len(contest.CircleIDs) == 0 {
-			slog.WarnContext(c.Request.Context(), "contest has no circles for resolution", "contest_id", contestID)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "contest has no circles"})
-			return
-		}
-		circleID = contest.CircleIDs[0]
-	}
-
-	err := h.circleSvc.ResolveAndDistributeContestClout(c.Request.Context(), circleID, contestID, userID, req.WinningOptionID)
+	err := h.circleSvc.ResolveAndDistributeContestClout(c.Request.Context(), contestID, userID, req.WinningOptionID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", req.CircleID, "contest_id", contestID)
+			slog.WarnContext(c.Request.Context(), "circle or contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
 		}
@@ -243,12 +215,12 @@ func (h *Handler) resolveContest(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
-		slog.WarnContext(c.Request.Context(), "failed to resolve contest", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID, "error", err)
+		slog.WarnContext(c.Request.Context(), "failed to resolve contest", "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "contest resolved and clout distributed", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID)
+	slog.InfoContext(c.Request.Context(), "contest resolved and clout distributed", "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID)
 	c.Status(http.StatusOK)
 }
 
@@ -271,11 +243,6 @@ func parseContestID(c *gin.Context) (contest.ID, bool) {
 }
 
 func toContestResponse(cont *contest.Contest) contestResponse {
-	circleIDs := make([]int32, len(cont.CircleIDs))
-	for i, id := range cont.CircleIDs {
-		circleIDs[i] = int32(id)
-	}
-
 	options := make([]optionResponse, 0, len(cont.Options))
 	for _, opt := range cont.Options {
 		options = append(options, optionResponse{ID: opt.ID, Text: opt.Text})
@@ -296,7 +263,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 
 	return contestResponse{
 		ID:             int32(cont.ID),
-		CircleIDs:      circleIDs,
+		CircleID:       int32(cont.CircleID),
 		CreatorID:      int32(cont.CreatorID),
 		Question:       cont.Question,
 		Options:        options,

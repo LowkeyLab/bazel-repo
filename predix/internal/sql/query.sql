@@ -51,21 +51,13 @@ DELETE FROM circles
 WHERE id = $1;
 
 -- name: CreateContest :one
-INSERT INTO contests (creator_id, question, status, min_stake, consumption_rate, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO contests (circle_id, creator_id, question, status, min_stake, consumption_rate, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
-
--- name: AddContestCircle :exec
-INSERT INTO contest_circles (contest_id, circle_id)
-VALUES ($1, $2);
 
 -- name: GetContest :one
 SELECT * FROM contests
 WHERE id = $1 LIMIT 1;
-
--- name: ListContestCircles :many
-SELECT * FROM contest_circles
-WHERE contest_id = $1;
 
 -- name: UpdateContestStatus :exec
 UPDATE contests
@@ -92,6 +84,5 @@ WHERE contest_id = $1;
 -- name: ListContestsByCircle :many
 SELECT c.*
 FROM contests c
-JOIN contest_circles cc ON cc.contest_id = c.id
-WHERE cc.circle_id = $1
+WHERE c.circle_id = $1
 ORDER BY created_at DESC;

@@ -47,19 +47,17 @@ func (r *Memory) Save(ctx context.Context, c *contest.Contest) error {
 
 	contestCopy := &contest.Contest{
 		ID:             c.ID,
+		CircleID:       c.CircleID,
 		CreatorID:      c.CreatorID,
 		Question:       c.Question,
 		Status:         c.Status,
 		MinStake:       minStake,
 		CreatedAt:      c.CreatedAt,
 		ExpiresAt:      c.ExpiresAt,
-		CircleIDs:      make([]circle.ID, len(c.CircleIDs)),
 		Options:        make(map[int]*contest.Option),
 		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
 		ResultOptionID: c.ResultOptionID,
 	}
-
-	copy(contestCopy.CircleIDs, c.CircleIDs)
 
 	for id, option := range c.Options {
 		contestCopy.Options[id] = &contest.Option{
@@ -99,19 +97,17 @@ func (r *Memory) FindByID(ctx context.Context, id contest.ID) (*contest.Contest,
 
 	contestCopy := &contest.Contest{
 		ID:             c.ID,
+		CircleID:       c.CircleID,
 		CreatorID:      c.CreatorID,
 		Question:       c.Question,
 		Status:         c.Status,
 		MinStake:       minStake,
 		CreatedAt:      c.CreatedAt,
 		ExpiresAt:      c.ExpiresAt,
-		CircleIDs:      make([]circle.ID, len(c.CircleIDs)),
 		Options:        make(map[int]*contest.Option),
 		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
 		ResultOptionID: c.ResultOptionID,
 	}
-
-	copy(contestCopy.CircleIDs, c.CircleIDs)
 
 	for id, option := range c.Options {
 		contestCopy.Options[id] = &contest.Option{
@@ -141,49 +137,44 @@ func (r *Memory) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*con
 
 	for _, c := range r.contests {
 		// Check if this contest contains the circle
-		for _, cid := range c.CircleIDs {
-			if cid == circleID {
-				// Deep copy before adding
-				minStake := c.MinStake
-				if minStake == 0 {
-					minStake = defaultMinStake
-				}
-
-				contestCopy := &contest.Contest{
-					ID:             c.ID,
-					CreatorID:      c.CreatorID,
-					Question:       c.Question,
-					Status:         c.Status,
-					MinStake:       minStake,
-					CreatedAt:      c.CreatedAt,
-					ExpiresAt:      c.ExpiresAt,
-					CircleIDs:      make([]circle.ID, len(c.CircleIDs)),
-					Options:        make(map[int]*contest.Option),
-					Predictions:    make([]*contest.Prediction, len(c.Predictions)),
-					ResultOptionID: c.ResultOptionID,
-				}
-
-				copy(contestCopy.CircleIDs, c.CircleIDs)
-
-				for id, option := range c.Options {
-					contestCopy.Options[id] = &contest.Option{
-						ID:   option.ID,
-						Text: option.Text,
-					}
-				}
-
-				for i, prediction := range c.Predictions {
-					contestCopy.Predictions[i] = &contest.Prediction{
-						UserID:    prediction.UserID,
-						OptionID:  prediction.OptionID,
-						Clout:     prediction.Clout,
-						Timestamp: prediction.Timestamp,
-					}
-				}
-
-				result = append(result, contestCopy)
-				break
+		if c.CircleID == circleID {
+			// Deep copy before adding
+			minStake := c.MinStake
+			if minStake == 0 {
+				minStake = defaultMinStake
 			}
+
+			contestCopy := &contest.Contest{
+				ID:             c.ID,
+				CircleID:       c.CircleID,
+				CreatorID:      c.CreatorID,
+				Question:       c.Question,
+				Status:         c.Status,
+				MinStake:       minStake,
+				CreatedAt:      c.CreatedAt,
+				ExpiresAt:      c.ExpiresAt,
+				Options:        make(map[int]*contest.Option),
+				Predictions:    make([]*contest.Prediction, len(c.Predictions)),
+				ResultOptionID: c.ResultOptionID,
+			}
+
+			for id, option := range c.Options {
+				contestCopy.Options[id] = &contest.Option{
+					ID:   option.ID,
+					Text: option.Text,
+				}
+			}
+
+			for i, prediction := range c.Predictions {
+				contestCopy.Predictions[i] = &contest.Prediction{
+					UserID:    prediction.UserID,
+					OptionID:  prediction.OptionID,
+					Clout:     prediction.Clout,
+					Timestamp: prediction.Timestamp,
+				}
+			}
+
+			result = append(result, contestCopy)
 		}
 	}
 

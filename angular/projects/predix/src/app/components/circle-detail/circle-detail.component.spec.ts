@@ -27,7 +27,7 @@ describe('CircleDetailComponent', () => {
   const mockContests: Contest[] = [
     {
       id: 1,
-      circle_ids: [1],
+      circle_id: 1,
       creator_id: 1,
       question: 'What is 2+2?',
       options: [

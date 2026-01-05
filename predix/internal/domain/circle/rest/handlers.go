@@ -73,7 +73,7 @@ type predictionResponse struct {
 
 type contestResponse struct {
 	ID             int32                `json:"id"`
-	CircleIDs      []int32              `json:"circle_ids"`
+	CircleID       int32                `json:"circle_id"`
 	CreatorID      int32                `json:"creator_id"`
 	Question       string               `json:"question"`
 	Options        []optionResponse     `json:"options"`
@@ -304,6 +304,24 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
+	contest, err := h.contestSvc.GetContest(c.Request.Context(), contestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		slog.ErrorContext(c.Request.Context(), "failed to load contest", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if contest.CircleID != circleID {
+		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+		return
+	}
+
 	userID, ok := auth.UserIDFromContext(c)
 	if !ok {
 		slog.WarnContext(c.Request.Context(), "unauthenticated prediction attempt")
@@ -318,7 +336,7 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.Predict(c.Request.Context(), circleID, contestID, userID, req.OptionID, req.Clout)
+	err = h.svc.Predict(c.Request.Context(), contestID, userID, req.OptionID, req.Clout)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", circleID, "contest_id", contestID)
@@ -355,6 +373,24 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 		return
 	}
 
+	contest, err := h.contestSvc.GetContest(c.Request.Context(), contestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		slog.ErrorContext(c.Request.Context(), "failed to load contest", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if contest.CircleID != circleID {
+		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+		return
+	}
+
 	userID, ok := auth.UserIDFromContext(c)
 	if !ok {
 		slog.WarnContext(c.Request.Context(), "unauthenticated resolve attempt")
@@ -369,7 +405,7 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.ResolveAndDistributeContestClout(c.Request.Context(), circleID, contestID, userID, req.WinningOptionID)
+	err = h.svc.ResolveAndDistributeContestClout(c.Request.Context(), contestID, userID, req.WinningOptionID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", circleID, "contest_id", contestID)
@@ -449,11 +485,6 @@ func toEnrichedCircleResponse(enriched *service.EnrichedCircle) circleResponse {
 }
 
 func toContestResponse(cont *contest.Contest) contestResponse {
-	circleIDs := make([]int32, len(cont.CircleIDs))
-	for i, id := range cont.CircleIDs {
-		circleIDs[i] = int32(id)
-	}
-
 	options := make([]optionResponse, 0, len(cont.Options))
 	for _, opt := range cont.Options {
 		options = append(options, optionResponse{ID: opt.ID, Text: opt.Text})
@@ -474,7 +505,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 
 	return contestResponse{
 		ID:             int32(cont.ID),
-		CircleIDs:      circleIDs,
+		CircleID:       int32(cont.CircleID),
 		CreatorID:      int32(cont.CreatorID),
 		Question:       cont.Question,
 		Options:        options,

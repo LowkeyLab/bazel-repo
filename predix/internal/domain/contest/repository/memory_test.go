@@ -17,7 +17,7 @@ func TestMemoryRepository_SaveContest(t *testing.T) {
 	repo := repository.NewMemory()
 
 	c, err := contest.New(
-		[]circle.ID{1},
+		circle.ID(1),
 		user.ID(1),
 		"Test question?",
 		[]string{"Yes", "No"},
@@ -45,7 +45,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 
 	// Create and save contest
 	c, err := contest.New(
-		[]circle.ID{1, 2},
+		circle.ID(2),
 		user.ID(1),
 		"Will it rain?",
 		[]string{"Yes", "No", "Maybe"},
@@ -63,7 +63,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 	assert.Equal(t, c.Question, found.Question)
 	assert.Equal(t, c.CreatorID, found.CreatorID)
 	assert.Equal(t, c.Status, found.Status)
-	assert.ElementsMatch(t, c.CircleIDs, found.CircleIDs)
+	assert.Equal(t, c.CircleID, found.CircleID)
 	assert.Len(t, found.Options, 3)
 	assert.Empty(t, found.Predictions)
 }
@@ -81,7 +81,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 
 	// Create contests with different circles
 	c1, err := contest.New(
-		[]circle.ID{1, 2},
+		circle.ID(2),
 		user.ID(1),
 		"Question 1?",
 		[]string{"A", "B"},
@@ -93,7 +93,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	require.NoError(t, err)
 
 	c2, err := contest.New(
-		[]circle.ID{2, 3},
+		circle.ID(2),
 		user.ID(1),
 		"Question 2?",
 		[]string{"X", "Y"},
@@ -105,7 +105,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	require.NoError(t, err)
 
 	c3, err := contest.New(
-		[]circle.ID{3},
+		circle.ID(3),
 		user.ID(1),
 		"Question 3?",
 		[]string{"M", "N"},
@@ -117,22 +117,22 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	require.NoError(t, err)
 
 	// Find by circle ID 2
-	contests, err := repo.FindByCircleID(context.Background(), 2)
+	contests, err := repo.FindByCircleID(context.Background(), circle.ID(2))
 	require.NoError(t, err)
 	assert.Len(t, contests, 2)
 
 	// Find by circle ID 3
-	contests, err = repo.FindByCircleID(context.Background(), 3)
-	require.NoError(t, err)
-	assert.Len(t, contests, 2)
-
-	// Find by circle ID 1
-	contests, err = repo.FindByCircleID(context.Background(), 1)
+	contests, err = repo.FindByCircleID(context.Background(), circle.ID(3))
 	require.NoError(t, err)
 	assert.Len(t, contests, 1)
 
+	// Find by circle ID 1
+	contests, err = repo.FindByCircleID(context.Background(), circle.ID(1))
+	require.NoError(t, err)
+	assert.Len(t, contests, 0)
+
 	// Find by non-existent circle
-	contests, err = repo.FindByCircleID(context.Background(), 999)
+	contests, err = repo.FindByCircleID(context.Background(), circle.ID(999))
 	require.NoError(t, err)
 	assert.Empty(t, contests)
 }
@@ -142,7 +142,7 @@ func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
 
 	// Create and save contest
 	c, err := contest.New(
-		[]circle.ID{1},
+		circle.ID(1),
 		user.ID(1),
 		"Question?",
 		[]string{"A", "B"},
@@ -178,7 +178,7 @@ func TestMemoryRepository_DeepCopy(t *testing.T) {
 
 	// Create and save contest
 	c, err := contest.New(
-		[]circle.ID{1},
+		circle.ID(1),
 		user.ID(1),
 		"Question?",
 		[]string{"A", "B"},
@@ -208,7 +208,7 @@ func TestMemoryRepository_Concurrency(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
 			c, _ := contest.New(
-				[]circle.ID{circle.ID(idx + 1)},
+				circle.ID(idx+1),
 				user.ID(1),
 				"Question?",
 				[]string{"A", "B"},

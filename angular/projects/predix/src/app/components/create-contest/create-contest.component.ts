@@ -347,7 +347,7 @@ export class CreateContestComponent implements OnInit {
       return;
     }
 
-    if (!this.circleName.trim()) {
+    if (!this.circleId) {
       this.error.set('Circle is required');
       return;
     }
@@ -374,11 +374,9 @@ export class CreateContestComponent implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    const circleIds = this.circleId ? [this.circleId] : [];
-
     this.contestService
       .createContest({
-        circle_ids: circleIds,
+        circle_id: this.circleId,
         question: this.question,
         options: optionTexts,
         min_stake: this.selectedMinStake,

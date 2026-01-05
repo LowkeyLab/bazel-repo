@@ -15,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
@@ -423,9 +422,8 @@ func TestCircleHandlers(t *testing.T) {
 
 			contestOptions := []string{"Option A", "Option B"}
 			expiresAt := time.Now().Add(24 * time.Hour)
-			circleIDs := []circle.ID{testCircle.ID}
 
-			contest, err := contestSvc.CreateContest(ctx, circleIDs, creatorID, "Test Question?", contestOptions, expiresAt, 100)
+			contest, err := contestSvc.CreateContest(ctx, testCircle.ID, creatorID, "Test Question?", contestOptions, expiresAt, 100)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests", testCircle.ID), nil)
