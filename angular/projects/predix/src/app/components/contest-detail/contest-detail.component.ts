@@ -4,10 +4,15 @@ import {
   signal,
   inject,
   OnInit,
+  computed,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
-import type { Contest, ContestStatus } from '../../models/contest.model';
+import type {
+  Contest,
+  ContestStatus,
+  PayoutBreakdown,
+} from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -115,6 +120,120 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                   >Winner:
                   {{ getOptionText(contest, contest.result_option_id) }}</span
                 >
+              </div>
+
+              <!-- Payout Breakdown Section -->
+              @if (payoutLoading()) {
+                <div class="card bg-base-200 mb-4">
+                  <div class="card-body">
+                    <div class="flex justify-center">
+                      <span class="loading loading-spinner"></span>
+                    </div>
+                  </div>
+                </div>
+              } @else if (payoutBreakdown(); as breakdown) {
+                <div class="card bg-base-200 mb-4">
+                  <div class="card-body">
+                    <h3 class="text-xl font-bold mb-2">💰 Payout Breakdown</h3>
+                    <p class="text-sm text-secondary mb-4">
+                      Winners receive their original stake plus their
+                      proportional share of the remaining pot (90% after 10%
+                      consumption).
+                    </p>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <p class="text-sm text-secondary">Total Pot</p>
+                        <p class="font-semibold text-lg">
+                          💎 {{ breakdown.total_pot }} Clout
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-sm text-secondary">
+                          Clout Consumed (10%)
+                        </p>
+                        <p class="font-semibold text-lg text-warning">
+                          💎 {{ breakdown.clout_consumed }} Clout
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-sm text-secondary">
+                          Distributable (90%)
+                        </p>
+                        <p class="font-semibold text-lg text-success">
+                          💎 {{ breakdown.distributable_pot }} Clout
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-sm text-secondary">Total Distributed</p>
+                        <p class="font-semibold text-lg text-info">
+                          💎 {{ breakdown.total_distributed }} Clout
+                        </p>
+                      </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                      <table class="table table-zebra">
+                        <thead>
+                          <tr>
+                            <th>User ID</th>
+                            <th>Original Stake</th>
+                            <th>Share of Pot</th>
+                            <th>Total Payout</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (
+                            payout of breakdown.winners;
+                            track payout.user_id
+                          ) {
+                            <tr>
+                              <td>{{ payout.user_id }}</td>
+                              <td>💎 {{ payout.stake }}</td>
+                              <td>💎 {{ payout.share }}</td>
+                              <td class="font-bold text-success">
+                                💎 {{ payout.total }}
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              } @else if (payoutError()) {
+                <div class="alert alert-error mb-4">
+                  <span>{{ payoutError() }}</span>
+                </div>
+              }
+            }
+
+            @if (canResolve()) {
+              <div class="alert alert-warning mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="stroke-current shrink-0 h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div class="flex-1">
+                  <span
+                    >As the creator, you can resolve this contest by selecting
+                    the winning option.</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-warning"
+                  (click)="openResolveModal()"
+                >
+                  🏆 Resolve Contest
+                </button>
               </div>
             }
 
@@ -267,6 +386,73 @@ import { BackButtonComponent } from '../back-button/back-button.component';
           <span>Contest not found</span>
         </div>
       }
+
+      <!-- Resolve Contest Modal -->
+      @if (showResolveModal() && contest(); as contest) {
+        <div class="modal modal-open">
+          <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">🏆 Resolve Contest</h3>
+            <p class="text-sm text-secondary mb-4">
+              Select the winning option. This action is final and cannot be
+              undone. Winners will receive their stake plus their proportional
+              share of 90% of the pot (10% is consumed as a house fee).
+            </p>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Winning Option</span>
+              </label>
+              <select
+                class="select select-bordered"
+                [(ngModel)]="selectedWinnerId"
+                name="winnerId"
+                required
+              >
+                <option [ngValue]="null" disabled selected>
+                  Select winning option
+                </option>
+                @for (option of contest.options; track option.id) {
+                  <option [ngValue]="option.id">
+                    {{ option.text }} ({{
+                      getPredictionsForOption(contest, option.id)
+                    }}
+                    predictions, 💎
+                    {{ getCloutForOption(contest, option.id) }} staked)
+                  </option>
+                }
+              </select>
+            </div>
+
+            @if (resolveError()) {
+              <div class="alert alert-error mb-4">
+                <span>{{ resolveError() }}</span>
+              </div>
+            }
+
+            <div class="modal-action">
+              <button
+                type="button"
+                class="btn"
+                (click)="closeResolveModal()"
+                [disabled]="resolveLoading()"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                (click)="onResolve()"
+                [disabled]="resolveLoading() || !selectedWinnerId"
+              >
+                @if (resolveLoading()) {
+                  <span class="loading loading-spinner"></span>
+                }
+                Confirm & Resolve
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -282,6 +468,12 @@ export class ContestDetailComponent implements OnInit {
   protected readonly predictionLoading = signal(false);
   protected readonly predictionError = signal('');
   protected readonly lockLoading = signal(false);
+  protected readonly resolveLoading = signal(false);
+  protected readonly resolveError = signal('');
+  protected readonly showResolveModal = signal(false);
+  protected readonly payoutBreakdown = signal<PayoutBreakdown | null>(null);
+  protected readonly payoutLoading = signal(false);
+  protected readonly payoutError = signal('');
   protected readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
     LOCKED: 'Locked (awaiting resolution)',
@@ -289,8 +481,26 @@ export class ContestDetailComponent implements OnInit {
     RESOLVED: 'Resolved',
   };
 
+  protected readonly isCreator = computed(() => {
+    const contest = this.contest();
+    const user = this.auth.currentUser();
+    return contest && user ? contest.creator_id === user.id : false;
+  });
+
+  protected readonly canResolve = computed(() => {
+    const contest = this.contest();
+    return (
+      this.isCreator() &&
+      contest &&
+      (contest.status === 'OPEN' ||
+        contest.status === 'LOCKED' ||
+        contest.status === 'CLOSED')
+    );
+  });
+
   protected selectedOptionId: number | null = null;
   protected cloutAmount = 10;
+  protected selectedWinnerId: number | null = null;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -305,9 +515,32 @@ export class ContestDetailComponent implements OnInit {
         this.contest.set(contest);
         this.cloutAmount = contest.min_stake;
         this.loading.set(false);
+
+        // Load payout breakdown if contest is resolved
+        if (contest.status === 'RESOLVED') {
+          this.loadPayoutBreakdown(id);
+        }
       },
       error: () => {
         this.loading.set(false);
+      },
+    });
+  }
+
+  private loadPayoutBreakdown(contestId: number): void {
+    this.payoutLoading.set(true);
+    this.payoutError.set('');
+
+    this.contestService.getPayoutBreakdown(contestId).subscribe({
+      next: (breakdown) => {
+        this.payoutBreakdown.set(breakdown);
+        this.payoutLoading.set(false);
+      },
+      error: (err) => {
+        this.payoutError.set(
+          err.error?.error || 'Failed to load payout breakdown',
+        );
+        this.payoutLoading.set(false);
       },
     });
   }
@@ -375,10 +608,48 @@ export class ContestDetailComponent implements OnInit {
     });
   }
 
-  protected isCreator(): boolean {
-    const contest = this.contest();
-    const user = this.auth.currentUser();
-    return contest && user ? contest.creator_id === user.id : false;
+  protected openResolveModal(): void {
+    this.showResolveModal.set(true);
+    this.selectedWinnerId = null;
+    this.resolveError.set('');
+  }
+
+  protected closeResolveModal(): void {
+    this.showResolveModal.set(false);
+    this.selectedWinnerId = null;
+    this.resolveError.set('');
+  }
+
+  protected onResolve(): void {
+    if (!this.selectedWinnerId) {
+      this.resolveError.set('Please select a winning option');
+      return;
+    }
+
+    const contestId = this.contest()?.id;
+    if (!contestId) return;
+
+    this.resolveLoading.set(true);
+    this.resolveError.set('');
+
+    this.contestService
+      .resolveContest(contestId, {
+        winning_option_id: this.selectedWinnerId,
+      })
+      .subscribe({
+        next: () => {
+          this.resolveLoading.set(false);
+          this.closeResolveModal();
+          // Reload contest to show resolved state and fetch payout breakdown
+          this.loadContest(contestId);
+        },
+        error: (err) => {
+          this.resolveLoading.set(false);
+          this.resolveError.set(
+            err.error?.error || 'Failed to resolve contest',
+          );
+        },
+      });
   }
 
   protected getTotalClout(contest: Contest): number {

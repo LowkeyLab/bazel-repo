@@ -32,6 +32,7 @@ func NewHandler(svc *service.Service, circleSvc *circleservice.Service) *Handler
 func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/contests", h.createContest)
 	r.GET("/contests/:id", h.getContest)
+	r.GET("/contests/:id/payout-breakdown", h.getPayoutBreakdown)
 	r.POST("/contests/:id/predictions", h.makePrediction)
 	r.POST("/contests/:id/lock", h.lockContest)
 	r.POST("/contests/:id/resolve", h.resolveContest)
@@ -80,6 +81,21 @@ type makePredictionRequest struct {
 
 type resolveContestRequest struct {
 	WinningOptionID int `json:"winning_option_id"`
+}
+
+type payoutRecord struct {
+	UserID int32 `json:"user_id"`
+	Stake  int   `json:"stake"`
+	Share  int   `json:"share"`
+	Total  int   `json:"total"`
+}
+
+type payoutBreakdownResponse struct {
+	Winners          []payoutRecord `json:"winners"`
+	TotalPot         int            `json:"total_pot"`
+	CloutConsumed    int            `json:"clout_consumed"`
+	DistributablePot int            `json:"distributable_pot"`
+	TotalDistributed int            `json:"total_distributed"`
 }
 
 func (h *Handler) createContest(c *gin.Context) {
@@ -257,6 +273,87 @@ func (h *Handler) resolveContest(c *gin.Context) {
 
 	slog.InfoContext(c.Request.Context(), "contest resolved and clout distributed", "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID)
 	c.Status(http.StatusOK)
+}
+
+func (h *Handler) getPayoutBreakdown(c *gin.Context) {
+	contestID, ok := parseContestID(c)
+	if !ok {
+		return
+	}
+
+	// Get the contest to verify it's resolved and get contest details
+	cont, err := h.svc.GetContest(c.Request.Context(), contestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		slog.ErrorContext(c.Request.Context(), "failed to get contest", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	// Check if contest is resolved
+	if cont.Status != contest.StatusResolved {
+		slog.WarnContext(c.Request.Context(), "contest not resolved", "contest_id", contestID, "status", cont.Status)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "contest must be resolved to view payout breakdown"})
+		return
+	}
+
+	if cont.ResultOptionID == nil {
+		slog.WarnContext(c.Request.Context(), "resolved contest has no winning option", "contest_id", contestID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "resolved contest has no winning option"})
+		return
+	}
+
+	// Calculate payout breakdown
+	totalPot := cont.CalculatePot()
+	cloutConsumed := cont.CalculateConsumedClout()
+	distributablePot := cont.CalculateRemainingPot()
+
+	// Find all winning predictions and calculate payouts
+	var winningPredictions []*contest.Prediction
+	var totalWinningClout int
+
+	for i := range cont.Predictions {
+		if cont.Predictions[i].OptionID == *cont.ResultOptionID {
+			winningPredictions = append(winningPredictions, cont.Predictions[i])
+			totalWinningClout += cont.Predictions[i].Clout
+		}
+	}
+
+	// Build payout records
+	payoutRecords := make([]payoutRecord, 0, len(winningPredictions))
+	totalDistributed := 0
+
+	for _, pred := range winningPredictions {
+		stake := pred.Clout
+		share := 0
+		if totalWinningClout > 0 {
+			share = (stake * distributablePot) / totalWinningClout
+		}
+		total := stake + share
+		totalDistributed += total
+
+		payoutRecords = append(payoutRecords, payoutRecord{
+			UserID: int32(pred.UserID),
+			Stake:  stake,
+			Share:  share,
+			Total:  total,
+		})
+	}
+
+	response := payoutBreakdownResponse{
+		Winners:          payoutRecords,
+		TotalPot:         totalPot,
+		CloutConsumed:    cloutConsumed,
+		DistributablePot: distributablePot,
+		TotalDistributed: totalDistributed,
+	}
+
+	slog.InfoContext(c.Request.Context(), "payout breakdown retrieved", "contest_id", contestID, "winner_count", len(winningPredictions))
+	c.JSON(http.StatusOK, response)
 }
 
 func parseContestID(c *gin.Context) (contest.ID, bool) {

@@ -6,6 +6,7 @@ import type {
   Contest,
   CreateContestRequest,
   MakePredictionRequest,
+  PayoutBreakdown,
   ResolveContestRequest,
 } from '../models/contest.model';
 
@@ -43,5 +44,11 @@ export class ContestService {
     request: ResolveContestRequest,
   ): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/${contestId}/resolve`, request);
+  }
+
+  getPayoutBreakdown(contestId: number): Observable<PayoutBreakdown> {
+    return this.http.get<PayoutBreakdown>(
+      `${this.apiUrl}/${contestId}/payout-breakdown`,
+    );
   }
 }

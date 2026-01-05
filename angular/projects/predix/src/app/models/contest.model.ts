@@ -16,6 +16,16 @@ export interface Contest {
   expires_at: string;
 }
 
+// Computed field: 90% of total pot after 10% consumption
+export function getDistributableClout(contest: Contest): number {
+  return contest.total_pot - contest.clout_consumed;
+}
+
+// Computed field: 10% of total pot (house fee)
+export function getConsumedClout(contest: Contest): number {
+  return contest.clout_consumed;
+}
+
 export interface ContestOption {
   id: number;
   text: string;
@@ -43,4 +53,19 @@ export interface MakePredictionRequest {
 
 export interface ResolveContestRequest {
   winning_option_id: number;
+}
+
+export interface PayoutRecord {
+  user_id: number;
+  stake: number;
+  share: number;
+  total: number;
+}
+
+export interface PayoutBreakdown {
+  winners: PayoutRecord[];
+  total_pot: number;
+  clout_consumed: number;
+  distributable_pot: number;
+  total_distributed: number;
 }

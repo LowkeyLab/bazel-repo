@@ -350,5 +350,100 @@ func TestContestHandlers(t *testing.T) {
 
 			assert.Equal(t, http.StatusNotFound, resp.Code)
 		})
+
+		t.Run("GetPayoutBreakdown_Success", func(t *testing.T) {
+			router, svc, _ := build(t)
+
+			ctx := context.Background()
+			creatorID := createTestUser(t, pool, "carol")
+			user1ID := createTestUser(t, pool, "dave")
+			user2ID := createTestUser(t, pool, "eve")
+			circleID := createTestCircle(t, pool, "Payout Circle", creatorID)
+
+			// Create contest with 2 options
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Payout test?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			// Add predictions
+			err = svc.RecordPrediction(ctx, createdContest.ID, user1ID, 1, 100)
+			require.NoError(t, err)
+			err = svc.RecordPrediction(ctx, createdContest.ID, user2ID, 1, 200)
+			require.NoError(t, err)
+
+			// Resolve contest
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, createdContest.ID, creatorID, 1)
+			require.NoError(t, err)
+
+			// Request payout breakdown
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d/payout-breakdown", createdContest.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp := httptest.NewRecorder()
+
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusOK, resp.Code)
+
+			var payload payoutBreakdownResponse
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+
+			// Verify calculations
+			assert.Equal(t, 300, payload.TotalPot)
+			assert.Equal(t, 30, payload.CloutConsumed)     // 10% of 300
+			assert.Equal(t, 270, payload.DistributablePot) // 90% of 300
+			assert.Len(t, payload.Winners, 2)
+
+			// Verify winner payouts
+			// User1: 100 stake + (100/300)*270 share = 100 + 90 = 190
+			// User2: 200 stake + (200/300)*270 share = 200 + 180 = 380
+			assert.Equal(t, int32(user1ID), payload.Winners[0].UserID)
+			assert.Equal(t, 100, payload.Winners[0].Stake)
+			assert.Equal(t, 90, payload.Winners[0].Share)
+			assert.Equal(t, 190, payload.Winners[0].Total)
+
+			assert.Equal(t, int32(user2ID), payload.Winners[1].UserID)
+			assert.Equal(t, 200, payload.Winners[1].Stake)
+			assert.Equal(t, 180, payload.Winners[1].Share)
+			assert.Equal(t, 380, payload.Winners[1].Total)
+
+			assert.Equal(t, 570, payload.TotalDistributed)
+		})
+
+		t.Run("GetPayoutBreakdown_NotResolved", func(t *testing.T) {
+			router, svc, _ := build(t)
+
+			ctx := context.Background()
+			creatorID := createTestUser(t, pool, "grace")
+			circleID := createTestCircle(t, pool, "Unresolved Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			createdContest, err := svc.CreateContest(ctx, circleID, creatorID, "Not resolved?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			// Try to get payout breakdown for non-resolved contest
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/contests/%d/payout-breakdown", createdContest.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp := httptest.NewRecorder()
+
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+		})
+
+		t.Run("GetPayoutBreakdown_NotFound", func(t *testing.T) {
+			router, _, _ := build(t)
+
+			creatorID := createTestUser(t, pool, "henry")
+
+			req := httptest.NewRequest(http.MethodGet, "/protected/contests/99999/payout-breakdown", nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp := httptest.NewRecorder()
+
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusNotFound, resp.Code)
+		})
 	})
 }
