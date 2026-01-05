@@ -213,9 +213,50 @@ func TestMemoryRepository_DeepCopy(t *testing.T) {
 	found1.Question = "Modified Question?"
 
 	// Retrieve again and verify original is unchanged
-	found2, err := repo.FindByID(context.Background(), c.ID)
+	found, err := repo.FindByID(context.Background(), c.ID)
 	require.NoError(t, err)
-	assert.Equal(t, "Question?", found2.Question)
+	assert.Equal(t, "Question?", found.Question)
+}
+
+func TestMemoryRepository_SaveResolvedContest(t *testing.T) {
+	repo := repository.NewMemory()
+
+	// Create and save contest
+	now := time.Now()
+	clk := clockpkg.FixedClock{Time: now}
+	c, err := contest.New(
+		clk,
+		circle.ID(1),
+		user.ID(1),
+		"Question?",
+		[]string{"A", "B"},
+		contest.Duration1Day,
+		10,
+	)
+	require.NoError(t, err)
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+
+	// Add predictions
+	require.NoError(t, c.Predict(user.ID(2), 1, 100))
+	require.NoError(t, c.Predict(user.ID(3), 2, 200))
+
+	// Resolve the contest
+	winningOptionID := 1
+	err = c.Resolve(winningOptionID)
+	require.NoError(t, err)
+
+	// Save the resolved contest
+	err = repo.Save(context.Background(), c)
+	require.NoError(t, err)
+
+	// Retrieve and verify resolved state
+	found, err := repo.FindByID(context.Background(), c.ID)
+	require.NoError(t, err)
+	assert.Equal(t, contest.StatusResolved, found.Status)
+	require.NotNil(t, found.ResultOptionID)
+	assert.Equal(t, winningOptionID, *found.ResultOptionID)
+	assert.Len(t, found.Predictions, 2)
 }
 
 func TestMemoryRepository_Concurrency(t *testing.T) {
