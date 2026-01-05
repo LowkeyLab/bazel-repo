@@ -260,16 +260,10 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, contestI
 
 	circleID := cont.CircleID
 
-	// Resolve the contest
-	err = s.ResolveContest(ctx, contestID, resolverID, winningOptionID)
+	// Resolve the contest and get winner payouts
+	payouts, err := s.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
 	if err != nil {
 		return fmt.Errorf("failed to resolve contest: %w", err)
-	}
-
-	// Calculate payouts
-	payouts, err := s.CalculatePayouts(ctx, contestID)
-	if err != nil {
-		return fmt.Errorf("failed to calculate payouts: %w", err)
 	}
 
 	// Load circle to update member clout
@@ -396,45 +390,34 @@ func (s *Service) LockContest(ctx context.Context, contestID contest.ID, lockerI
 	return nil
 }
 
-// ResolveContest marks a contest as resolved with a winning option.
-func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
-	// Load contest from repository
-	c, err := s.contestRepo.FindByID(ctx, contestID)
-	if err != nil {
-		return fmt.Errorf("failed to get contest: %w", err)
-	}
-
-	if c.CreatorID != resolverID {
-		return ErrNotContestCreator
-	}
-
-	// Use domain method to resolve
-	err = c.Resolve(winningOptionID)
-	if err != nil {
-		return err
-	}
-
-	// Save updated contest
-	err = s.contestRepo.Save(ctx, c)
-	if err != nil {
-		return fmt.Errorf("failed to save resolved contest: %w", err)
-	}
-
-	return nil
-}
-
-// CalculatePayouts calculates winner payouts for a resolved contest.
-func (s *Service) CalculatePayouts(ctx context.Context, contestID contest.ID) (map[user.ID]int, error) {
+// ResolveContestAndCalculatePayouts resolves a contest and returns winner payouts.
+func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (map[user.ID]int, error) {
 	// Load contest from repository
 	c, err := s.contestRepo.FindByID(ctx, contestID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get contest: %w", err)
 	}
 
+	if c.CreatorID != resolverID {
+		return nil, ErrNotContestCreator
+	}
+
+	// Use domain method to resolve
+	err = c.Resolve(winningOptionID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Calculate payouts using domain method
 	payouts, err := c.CalculateWinnerPayouts()
 	if err != nil {
 		return nil, err
+	}
+
+	// Save updated contest
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save resolved contest: %w", err)
 	}
 
 	return payouts, nil
