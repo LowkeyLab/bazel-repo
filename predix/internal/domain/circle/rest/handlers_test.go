@@ -19,7 +19,6 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
-	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
@@ -36,23 +35,22 @@ type circleResponseBody struct {
 	} `json:"members"`
 }
 
-func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Service, *db.Queries, *contestservice.Service) {
+func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Service, *db.Queries) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	repo := circlerepo.NewPostgres(pool)
 	userRepo := userrepo.NewPostgres(pool)
 	contestRepo := contestrepo.NewPostgres(pool)
 	clk := clock.RealClock{}
-	contestSvc := contestservice.NewService(contestRepo, clk)
-	svc := service.NewService(repo, userRepo, contestSvc)
-	handler := NewHandler(svc, contestSvc)
+	svc := service.NewService(repo, userRepo, contestRepo, clk)
+	handler := NewHandler(svc, nil)
 
 	r := gin.New()
 	authGroup := r.Group("/protected")
 	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)
 
-	return r, svc, db.New(pool), contestSvc
+	return r, svc, db.New(pool)
 }
 
 func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
@@ -78,13 +76,13 @@ func createUserWithRole(t *testing.T, pool *pgxpool.Pool, username string, role 
 
 func TestCircleHandlers(t *testing.T) {
 	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
-		build := func(t *testing.T) (*gin.Engine, *service.Service, *db.Queries, *contestservice.Service) {
+		build := func(t *testing.T) (*gin.Engine, *service.Service, *db.Queries) {
 			testutil.ResetTables(t, pool)
 			return setupTestRouter(t, pool)
 		}
 
 		t.Run("CreateCircleHandler", func(t *testing.T) {
-			router, _, queries, _ := build(t)
+			router, _, queries := build(t)
 
 			creatorID := createTestUser(t, pool, "alice")
 
@@ -118,7 +116,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("AddMemberHandler", func(t *testing.T) {
-			router, svc, queries, _ := build(t)
+			router, svc, queries := build(t)
 
 			creatorID := createTestUser(t, pool, "bob")
 			joinerID := createTestUser(t, pool, "charlie")
@@ -158,7 +156,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("DeleteCircle_ByCreator", func(t *testing.T) {
-			router, svc, queries, _ := build(t)
+			router, svc, queries := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 
@@ -178,7 +176,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("DeleteCircle_ByAdmin", func(t *testing.T) {
-			router, svc, queries, _ := build(t)
+			router, svc, queries := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 			adminID := createUserWithRole(t, pool, "admin", db.UserRoleAdmin)
@@ -199,7 +197,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("DeleteCircle_Forbidden", func(t *testing.T) {
-			router, svc, _, _ := build(t)
+			router, svc, _ := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 			memberID := createTestUser(t, pool, "member")
@@ -218,7 +216,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("GetCircle_NotFound", func(t *testing.T) {
-			router, _, _, _ := build(t)
+			router, _, _ := build(t)
 
 			userID := createTestUser(t, pool, "dana")
 
@@ -232,7 +230,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("ListUserCircles", func(t *testing.T) {
-			router, svc, _, _ := build(t)
+			router, svc, _ := build(t)
 
 			user1ID := createTestUser(t, pool, "user1")
 			user2ID := createTestUser(t, pool, "user2")
@@ -280,7 +278,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("ListUserCircles_Empty", func(t *testing.T) {
-			router, _, _, _ := build(t)
+			router, _, _ := build(t)
 
 			userID := createTestUser(t, pool, "lonely")
 
@@ -298,7 +296,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("ListUserCircles_Unauthorized", func(t *testing.T) {
-			router, _, _, _ := build(t)
+			router, _, _ := build(t)
 
 			req := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
 			resp := httptest.NewRecorder()
@@ -309,7 +307,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("JoinCircle_Success", func(t *testing.T) {
-			router, svc, queries, _ := build(t)
+			router, svc, queries := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 			joinerID := createTestUser(t, pool, "joiner")
@@ -347,7 +345,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("JoinCircle_AlreadyMember", func(t *testing.T) {
-			router, svc, _, _ := build(t)
+			router, svc, _ := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 
@@ -369,7 +367,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("JoinCircle_CircleNotFound", func(t *testing.T) {
-			router, _, _, _ := build(t)
+			router, _, _ := build(t)
 
 			userID := createTestUser(t, pool, "user")
 
@@ -383,7 +381,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("JoinCircle_Unauthorized", func(t *testing.T) {
-			router, svc, _, _ := build(t)
+			router, svc, _ := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 
@@ -400,7 +398,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("JoinCircle_InvalidCircleID", func(t *testing.T) {
-			router, _, _, _ := build(t)
+			router, _, _ := build(t)
 
 			userID := createTestUser(t, pool, "user")
 
@@ -414,7 +412,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("GetCircleContests", func(t *testing.T) {
-			router, svc, _, contestSvc := build(t)
+			router, svc, _ := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 			ctx := context.Background()
@@ -424,7 +422,7 @@ func TestCircleHandlers(t *testing.T) {
 
 			contestOptions := []string{"Option A", "Option B"}
 
-			contest, err := contestSvc.CreateContest(ctx, testCircle.ID, creatorID, "Test Question?", contestOptions, contest.Duration1Day, 100)
+			contest, err := svc.CreateContest(ctx, testCircle.ID, creatorID, "Test Question?", contestOptions, contest.Duration1Day, 100)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests", testCircle.ID), nil)
@@ -446,7 +444,7 @@ func TestCircleHandlers(t *testing.T) {
 		})
 
 		t.Run("GetCircleContests_Empty", func(t *testing.T) {
-			router, svc, _, _ := build(t)
+			router, svc, _ := build(t)
 
 			creatorID := createTestUser(t, pool, "creator")
 			ctx := context.Background()

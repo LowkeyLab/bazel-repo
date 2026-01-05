@@ -12,7 +12,6 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
-	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
@@ -53,8 +52,7 @@ func TestCircleService(t *testing.T) {
 			userRepo := userrepo.NewPostgres(pool)
 			contestRepo := contestrepo.NewPostgres(pool)
 			clk := clock.RealClock{}
-			contestSvc := contestservice.NewService(contestRepo, clk)
-			svc := service.NewService(repo, userRepo, contestSvc)
+			svc := service.NewService(repo, userRepo, contestRepo, clk)
 			queries := db.New(pool)
 			return svc, repo, userRepo, queries
 		}
@@ -352,12 +350,9 @@ func TestCircleService(t *testing.T) {
 			userRepo := userrepo.NewPostgres(pool)
 			contestRepo := contestrepo.NewPostgres(pool)
 			clk := clock.RealClock{}
-			contestSvc := contestservice.NewService(contestRepo, clk)
-			svc := service.NewService(circleRepo, userRepo, contestSvc)
+			svc := service.NewService(circleRepo, userRepo, contestRepo, clk)
 			queries := db.New(pool)
-
-			ctx := context.Background()
-			creatorID := createTestUser(t, pool, "creator_predict")
+			creatorID := createTestUser(t, pool, "predictor_creator")
 			memberID := createTestUser(t, pool, "predictor")
 
 			circleObj, err := svc.CreateCircle(ctx, "Prediction Circle", creatorID)
@@ -365,7 +360,7 @@ func TestCircleService(t *testing.T) {
 
 			require.NoError(t, svc.AddMember(ctx, circleObj.ID, memberID))
 
-			contestObj, err := contestSvc.CreateContest(ctx, circleObj.ID, creatorID, "Who wins?", []string{"Yes", "No"}, contest.Duration1Day, 100)
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Who wins?", []string{"Yes", "No"}, contest.Duration1Day, 100)
 			require.NoError(t, err)
 
 			require.NoError(t, svc.Predict(ctx, contestObj.ID, memberID, 1, 200))
@@ -386,7 +381,7 @@ func TestCircleService(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, int32(880), memberAfterSecond.Clout)
 
-			updatedContest, err := contestSvc.GetContest(ctx, contestObj.ID)
+			updatedContest, err := svc.GetContest(ctx, contestObj.ID)
 			require.NoError(t, err)
 			require.Len(t, updatedContest.Predictions, 1)
 			assert.Equal(t, 120, updatedContest.Predictions[0].Clout)

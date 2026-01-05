@@ -6,28 +6,34 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
-	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
+	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 )
 
-type CircleRepository = repository.Repository
+type (
+	CircleRepository  = repository.Repository
+	ContestRepository = contestrepo.Repository
+)
 
 type Service struct {
-	circleRepo repository.Repository
-	userRepo   userrepo.Repository
-	contestSvc *contestservice.Service
+	circleRepo  repository.Repository
+	userRepo    userrepo.Repository
+	contestRepo contestrepo.Repository
+	clock       clock.Clock
 }
 
 // NewService creates a service with a repository interface.
-func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestSvc *contestservice.Service) *Service {
+func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestRepo ContestRepository, clk clock.Clock) *Service {
 	return &Service{
-		circleRepo: circleRepo,
-		userRepo:   userRepo,
-		contestSvc: contestSvc,
+		circleRepo:  circleRepo,
+		userRepo:    userRepo,
+		contestRepo: contestRepo,
+		clock:       clk,
 	}
 }
 
@@ -35,6 +41,7 @@ var (
 	ErrNotCircleOwner    = errors.New("only the circle creator or an admin can delete this circle")
 	ErrInsufficientClout = errors.New("insufficient clout balance to make this prediction")
 	ErrUserNotInCircle   = errors.New("user is not a member of this circle")
+	ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
 )
 
 // EnrichedMember contains member data with username looked up from user repository.
@@ -197,12 +204,12 @@ func (s *Service) enrichCircle(ctx context.Context, circ *circle.Circle) (*Enric
 
 // Predict handles the prediction workflow: validate clout, deduct it, and record the prediction.
 func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
-	contest, err := s.contestSvc.GetContest(ctx, contestID)
+	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	circleID := contest.CircleID
+	circleID := cont.CircleID
 
 	// Load circle to check user membership and clout balance
 	circ, err := s.circleRepo.FindByID(ctx, circleID)
@@ -216,7 +223,7 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user
 	}
 
 	existingStake := 0
-	for _, pred := range contest.Predictions {
+	for _, pred := range cont.Predictions {
 		if pred.UserID == userID && pred.OptionID == optionID {
 			existingStake = pred.Clout
 			break
@@ -228,8 +235,8 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user
 		return ErrInsufficientClout
 	}
 
-	// Record the prediction in the contest (deduct/refund clout happens next)
-	err = s.contestSvc.RecordPrediction(ctx, contestID, userID, optionID, clout)
+	// Record the prediction in the contest
+	err = s.RecordPrediction(ctx, contestID, userID, optionID, clout)
 	if err != nil {
 		return fmt.Errorf("failed to record prediction: %w", err)
 	}
@@ -246,15 +253,15 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user
 
 // ResolveAndDistributeContestClout resolves a contest and distributes winnings to the circle members.
 func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
-	contest, err := s.contestSvc.GetContest(ctx, contestID)
+	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	circleID := contest.CircleID
+	circleID := cont.CircleID
 
 	// Resolve the contest and get winner payouts
-	payouts, err := s.contestSvc.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
+	payouts, err := s.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
 	if err != nil {
 		return fmt.Errorf("failed to resolve contest: %w", err)
 	}
@@ -281,15 +288,15 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, contestI
 
 // CloseAndRefundContestClout closes a contest without resolution and refunds all staked clout to the circle members.
 func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID contest.ID, closerID user.ID) error {
-	contest, err := s.contestSvc.GetContest(ctx, contestID)
+	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	circleID := contest.CircleID
+	circleID := cont.CircleID
 
 	// Close the contest and get refunds
-	refunds, err := s.contestSvc.CloseContestAndCalculateRefunds(ctx, contestID, closerID)
+	refunds, err := s.CloseContestAndCalculateRefunds(ctx, contestID, closerID)
 	if err != nil {
 		return fmt.Errorf("failed to close contest: %w", err)
 	}
@@ -312,4 +319,158 @@ func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID cont
 	}
 
 	return nil
+}
+
+// Contest operations
+
+// CreateContest creates a new contest in a circle.
+func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creatorID user.ID, question string, options []string, duration string, minStake int) (*contest.Contest, error) {
+	// Create domain entity (validation happens here)
+	c, err := contest.New(s.clock, circleID, creatorID, question, options, duration, minStake)
+	if err != nil {
+		return nil, err
+	}
+
+	// Persist using repository
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// RecordPrediction adds a prediction to a contest and persists it.
+func (s *Service) RecordPrediction(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+	// Load contest from repository
+	c, err := s.contestRepo.FindByID(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	// Use domain method to add prediction
+	err = c.Predict(userID, optionID, clout)
+	if err != nil {
+		return err
+	}
+
+	// Save updated contest
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return fmt.Errorf("failed to save prediction: %w", err)
+	}
+
+	return nil
+}
+
+// LockContest transitions a contest from Open to Locked.
+func (s *Service) LockContest(ctx context.Context, contestID contest.ID, lockerID user.ID) error {
+	// Load contest from repository
+	c, err := s.contestRepo.FindByID(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CreatorID != lockerID {
+		return ErrNotContestCreator
+	}
+
+	// Use domain method to lock
+	err = c.Lock()
+	if err != nil {
+		return err
+	}
+
+	// Save updated contest
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return fmt.Errorf("failed to save locked contest: %w", err)
+	}
+
+	return nil
+}
+
+// ResolveContestAndCalculatePayouts resolves a contest and returns winner payouts.
+func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (map[user.ID]int, error) {
+	// Load contest from repository
+	c, err := s.contestRepo.FindByID(ctx, contestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CreatorID != resolverID {
+		return nil, ErrNotContestCreator
+	}
+
+	// Use domain method to resolve
+	err = c.Resolve(winningOptionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate payouts using domain method
+	payouts, err := c.CalculateWinnerPayouts()
+	if err != nil {
+		return nil, err
+	}
+
+	// Save updated contest
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save resolved contest: %w", err)
+	}
+
+	return payouts, nil
+}
+
+// CloseContestAndCalculateRefunds closes a contest without resolution and returns refunds.
+func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID contest.ID, closerID user.ID) (map[user.ID]int, error) {
+	// Load contest from repository
+	c, err := s.contestRepo.FindByID(ctx, contestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CreatorID != closerID {
+		return nil, ErrNotContestCreator
+	}
+
+	// Use domain method to close
+	err = c.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate refunds for all predictors (100% of their stake)
+	refunds := s.calculateRefunds(c)
+
+	// Save updated contest
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save closed contest: %w", err)
+	}
+
+	return refunds, nil
+}
+
+// calculateRefunds returns all predictions as full refunds (100% of each prediction).
+func (s *Service) calculateRefunds(c *contest.Contest) map[user.ID]int {
+	refunds := make(map[user.ID]int)
+
+	// Sum all predictions by user (in case user has multiple predictions on different options)
+	for _, pred := range c.Predictions {
+		refunds[pred.UserID] += pred.Clout
+	}
+
+	return refunds
+}
+
+// GetContest retrieves a contest by ID.
+func (s *Service) GetContest(ctx context.Context, id contest.ID) (*contest.Contest, error) {
+	return s.contestRepo.FindByID(ctx, id)
+}
+
+// GetContestsByCircleID retrieves all contests in a circle.
+func (s *Service) GetContestsByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
+	return s.contestRepo.FindByCircleID(ctx, circleID)
 }

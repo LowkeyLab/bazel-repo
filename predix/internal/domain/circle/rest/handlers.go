@@ -14,19 +14,17 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
-	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 // Handler wires circle HTTP endpoints.
 type Handler struct {
-	svc        *service.Service
-	contestSvc *contestservice.Service
+	svc *service.Service
 }
 
 // NewHandler constructs a circle REST handler.
-func NewHandler(svc *service.Service, contestSvc *contestservice.Service) *Handler {
-	return &Handler{svc: svc, contestSvc: contestSvc}
+func NewHandler(svc *service.Service, _ interface{}) *Handler {
+	return &Handler{svc: svc}
 }
 
 // RegisterRoutes registers circle routes on the provided router.
@@ -37,8 +35,12 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/circles/:id/join", h.joinCircle)
 	r.GET("/circles/:id", h.getCircle)
 	r.GET("/circles/:id/contests", h.getCircleContests)
+	r.POST("/circles/:id/contests", h.createContest)
+	r.GET("/circles/:id/contests/:contestID", h.getContest)
 	r.POST("/circles/:id/contests/:contestID/predictions", h.makePrediction)
+	r.POST("/circles/:id/contests/:contestID/lock", h.lockContest)
 	r.POST("/circles/:id/contests/:contestID/resolve-distribute", h.resolveAndDistribute)
+	r.GET("/circles/:id/contests/:contestID/payout-breakdown", h.getPayoutBreakdown)
 	r.DELETE("/circles/:id", h.deleteCircle)
 }
 
@@ -99,6 +101,28 @@ type makePredictionRequest struct {
 
 type resolveContestRequest struct {
 	WinningOptionID int `json:"winning_option_id"`
+}
+
+type createContestRequest struct {
+	Question string   `json:"question"`
+	Options  []string `json:"options"`
+	MinStake int      `json:"min_stake"`
+	Duration string   `json:"expiration_duration"`
+}
+
+type payoutRecord struct {
+	UserID int32 `json:"user_id"`
+	Stake  int   `json:"stake"`
+	Share  int   `json:"share"`
+	Total  int   `json:"total"`
+}
+
+type payoutBreakdownResponse struct {
+	Winners          []payoutRecord `json:"winners"`
+	TotalPot         int            `json:"total_pot"`
+	CloutConsumed    int            `json:"clout_consumed"`
+	DistributablePot int            `json:"distributable_pot"`
+	TotalDistributed int            `json:"total_distributed"`
 }
 
 func (h *Handler) createCircle(c *gin.Context) {
@@ -244,7 +268,7 @@ func (h *Handler) getCircleContests(c *gin.Context) {
 		return
 	}
 
-	contests, err := h.contestSvc.GetContestsByCircleID(c.Request.Context(), circleID)
+	contests, err := h.svc.GetContestsByCircleID(c.Request.Context(), circleID)
 	if err != nil {
 		slog.ErrorContext(c.Request.Context(), "failed to get circle contests", "circle_id", circleID, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -305,7 +329,7 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	contest, err := h.contestSvc.GetContest(c.Request.Context(), contestID)
+	contest, err := h.svc.GetContest(c.Request.Context(), contestID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
@@ -374,7 +398,7 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 		return
 	}
 
-	contest, err := h.contestSvc.GetContest(c.Request.Context(), contestID)
+	contest, err := h.svc.GetContest(c.Request.Context(), contestID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
@@ -413,7 +437,7 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
 		}
-		if errors.Is(err, contestservice.ErrNotContestCreator) {
+		if errors.Is(err, service.ErrNotContestCreator) {
 			slog.WarnContext(c.Request.Context(), "unauthorized contest resolution", "contest_id", contestID, "user_id", userID)
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
@@ -425,6 +449,224 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 
 	slog.InfoContext(c.Request.Context(), "contest resolved and clout distributed", "circle_id", circleID, "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID)
 	c.Status(http.StatusOK)
+}
+
+func (h *Handler) createContest(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	var req createContestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.WarnContext(c.Request.Context(), "invalid create contest request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	creatorID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		slog.WarnContext(c.Request.Context(), "unauthenticated contest creation attempt")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Validate duration
+	validDurations := contest.ValidDurations()
+	isValid := false
+	for _, d := range validDurations {
+		if req.Duration == d {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		slog.WarnContext(c.Request.Context(), "invalid duration provided", "duration", req.Duration)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid duration: must be one of: 1h, 1d, 1w"})
+		return
+	}
+
+	newContest, err := h.svc.CreateContest(
+		c.Request.Context(),
+		circleID,
+		creatorID,
+		req.Question,
+		req.Options,
+		req.Duration,
+		req.MinStake,
+	)
+	if err != nil {
+		slog.WarnContext(c.Request.Context(), "failed to create contest", "creator_id", creatorID, "question", req.Question, "circle_id", circleID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	slog.InfoContext(c.Request.Context(), "contest created successfully", "contest_id", newContest.ID, "creator_id", creatorID, "question", req.Question, "circle_id", circleID)
+	c.JSON(http.StatusCreated, toContestResponse(newContest))
+}
+
+func (h *Handler) getContest(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	contestID, ok := parseContestIDFromRoute(c)
+	if !ok {
+		return
+	}
+
+	result, err := h.svc.GetContest(c.Request.Context(), contestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.DebugContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		slog.ErrorContext(c.Request.Context(), "failed to get contest", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if result.CircleID != circleID {
+		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+		return
+	}
+
+	slog.DebugContext(c.Request.Context(), "contest retrieved", "contest_id", contestID)
+	c.JSON(http.StatusOK, toContestResponse(result))
+}
+
+func (h *Handler) lockContest(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	contestID, ok := parseContestIDFromRoute(c)
+	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		slog.WarnContext(c.Request.Context(), "unauthenticated lock attempt")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	cont, err := h.svc.GetContest(c.Request.Context(), contestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		slog.ErrorContext(c.Request.Context(), "failed to load contest", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if cont.CircleID != circleID {
+		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+		return
+	}
+
+	err = h.svc.LockContest(c.Request.Context(), contestID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		if errors.Is(err, service.ErrNotContestCreator) {
+			slog.WarnContext(c.Request.Context(), "unauthorized contest lock", "contest_id", contestID, "user_id", userID)
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		slog.WarnContext(c.Request.Context(), "failed to lock contest", "contest_id", contestID, "user_id", userID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	slog.InfoContext(c.Request.Context(), "contest locked successfully", "contest_id", contestID, "user_id", userID)
+	c.Status(http.StatusOK)
+}
+
+func (h *Handler) getPayoutBreakdown(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	contestID, ok := parseContestIDFromRoute(c)
+	if !ok {
+		return
+	}
+
+	// Get the contest to verify it's resolved and get contest details
+	cont, err := h.svc.GetContest(c.Request.Context(), contestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		slog.ErrorContext(c.Request.Context(), "failed to get contest", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	if cont.CircleID != circleID {
+		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+		return
+	}
+
+	// Check if contest is resolved
+	if cont.Status != contest.StatusResolved {
+		slog.WarnContext(c.Request.Context(), "contest not resolved", "contest_id", contestID, "status", cont.Status)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "contest must be resolved to view payout breakdown"})
+		return
+	}
+
+	// Use domain method to calculate payout breakdown
+	payoutRecords, err := cont.CalculatePayoutBreakdown()
+	if err != nil {
+		slog.WarnContext(c.Request.Context(), "failed to calculate payout breakdown", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Build response
+	totalPot := cont.CalculatePot()
+	cloutConsumed := cont.CalculateConsumedClout()
+	distributablePot := cont.CalculateRemainingPot()
+	totalDistributed := 0
+
+	winners := make([]payoutRecord, 0, len(payoutRecords))
+	for _, record := range payoutRecords {
+		winners = append(winners, payoutRecord{
+			UserID: int32(record.UserID),
+			Stake:  record.OriginalStake,
+			Share:  record.ShareOfPot,
+			Total:  record.TotalPayout,
+		})
+		totalDistributed += record.TotalPayout
+	}
+
+	response := payoutBreakdownResponse{
+		Winners:          winners,
+		TotalPot:         totalPot,
+		CloutConsumed:    cloutConsumed,
+		DistributablePot: distributablePot,
+		TotalDistributed: totalDistributed,
+	}
+
+	slog.InfoContext(c.Request.Context(), "payout breakdown retrieved", "contest_id", contestID, "winner_count", len(payoutRecords))
+	c.JSON(http.StatusOK, response)
 }
 
 func parseCircleID(c *gin.Context) (circle.ID, bool) {
@@ -446,6 +688,24 @@ func parseCircleID(c *gin.Context) (circle.ID, bool) {
 }
 
 func parseContestID(c *gin.Context) (contest.ID, bool) {
+	rawID := c.Param("contestID")
+	if rawID == "" {
+		slog.WarnContext(c.Request.Context(), "missing contest id parameter")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing contest id"})
+		return 0, false
+	}
+
+	parsed, err := strconv.ParseInt(rawID, 10, 32)
+	if err != nil {
+		slog.WarnContext(c.Request.Context(), "invalid contest id format", "id", rawID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid contest id"})
+		return 0, false
+	}
+
+	return contest.ID(parsed), true
+}
+
+func parseContestIDFromRoute(c *gin.Context) (contest.ID, bool) {
 	rawID := c.Param("contestID")
 	if rawID == "" {
 		slog.WarnContext(c.Request.Context(), "missing contest id parameter")

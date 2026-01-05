@@ -6,10 +6,11 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service",
     visibility = ["//predix:__subpackages__"],
     deps = [
+        "//predix/internal/clock",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/contest",
-        "//predix/internal/domain/contest/service",
+        "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",
         "//predix/internal/domain/user/repository",
     ],

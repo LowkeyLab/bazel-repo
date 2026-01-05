@@ -17,8 +17,6 @@ import (
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	contestcloser "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
-	contestrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/rest"
-	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	userrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/rest"
 	userservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
@@ -68,8 +66,7 @@ func main() {
 	// Create clock for services
 	clk := clock.RealClock{}
 
-	contestSvc := contestservice.NewService(contestRepo, clk)
-	circleSvc := circleservice.NewService(circleRepo, userRepo, contestSvc)
+	circleSvc := circleservice.NewService(circleRepo, userRepo, contestRepo, clk)
 	userSvc := userservice.NewService(userRepo)
 
 	// Start the contest closer goroutine
@@ -78,8 +75,7 @@ func main() {
 	go contestcloser.StartCloser(ctx, contestRepo, clk, 10*time.Second)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
-	circleHandler := circlerest.NewHandler(circleSvc, contestSvc)
-	contestHandler := contestrest.NewHandler(contestSvc, circleSvc)
+	circleHandler := circlerest.NewHandler(circleSvc, nil)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
 	r := gin.Default()
@@ -98,7 +94,6 @@ func main() {
 	protected := r.Group("/protected")
 	protected.Use(authManager.Middleware())
 	circleHandler.RegisterRoutes(protected)
-	contestHandler.RegisterRoutes(protected)
 	healthcheck.RegisterRoutes(r)
 
 	slog.Info("Predix service starting", "address", ":8080")

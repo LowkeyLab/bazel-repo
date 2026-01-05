@@ -13,8 +13,6 @@ go_library(
         "//predix/internal/domain/circle/service",
         "//predix/internal/domain/contest/closer",
         "//predix/internal/domain/contest/repository",
-        "//predix/internal/domain/contest/rest",
-        "//predix/internal/domain/contest/service",
         "//predix/internal/domain/user/repository",
         "//predix/internal/domain/user/rest",
         "//predix/internal/domain/user/service",
