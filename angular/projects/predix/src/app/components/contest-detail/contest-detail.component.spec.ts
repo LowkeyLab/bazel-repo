@@ -87,7 +87,11 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     mockActivatedRoute = {
       snapshot: {
         paramMap: {
-          get: jasmine.createSpy('get').and.returnValue('1'),
+          get: jasmine.createSpy('get').and.callFake((key: string) => {
+            if (key === 'id') return '1';
+            if (key === 'circleId') return '1';
+            return null;
+          }),
         },
       } as any,
     };
@@ -125,9 +129,9 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(mockContestService.getContest).toHaveBeenCalledWith(1);
-      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledWith(1);
-      expect(component['payoutBreakdown']()).toEqual(mockPayoutBreakdown);
+      expect(mockContestService.getContest).toHaveBeenCalledWith(1, 1);
+      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledWith(1, 1);
+      expect(component.payoutBreakdown()).toEqual(mockPayoutBreakdown);
     });
 
     it('should not load payout breakdown when contest is OPEN', () => {
@@ -135,7 +139,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(mockContestService.getContest).toHaveBeenCalledWith(1);
+      expect(mockContestService.getContest).toHaveBeenCalledWith(1, 1);
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
 
@@ -149,7 +153,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       // Check that payoutLoading is false after loading completes
       setTimeout(() => {
-        expect(component['payoutLoading']()).toBe(false);
+        expect(component.payoutLoading()).toBe(false);
         done();
       }, 0);
     });
@@ -164,10 +168,8 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutError']()).toBe(
-        'Failed to load payout breakdown',
-      );
-      expect(component['payoutLoading']()).toBe(false);
+      expect(component.payoutError()).toBe('Failed to load payout breakdown');
+      expect(component.payoutLoading()).toBe(false);
     });
 
     it('should handle generic payout breakdown fetch error', () => {
@@ -178,10 +180,8 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutError']()).toBe(
-        'Failed to load payout breakdown',
-      );
-      expect(component['payoutLoading']()).toBe(false);
+      expect(component.payoutError()).toBe('Failed to load payout breakdown');
+      expect(component.payoutLoading()).toBe(false);
     });
   });
 
@@ -195,7 +195,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should display payout breakdown data correctly', () => {
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       expect(breakdown?.total_pot).toBe(300);
       expect(breakdown?.clout_consumed).toBe(30);
@@ -204,7 +204,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should display all winners in payout breakdown', () => {
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown?.winners.length).toBe(2);
       expect(breakdown?.winners[0]).toEqual({
         user_id: 2,
@@ -221,7 +221,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should calculate payout totals correctly', () => {
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       const actualTotal = breakdown!.winners.reduce(
         (sum, winner) => sum + winner.total,
@@ -231,7 +231,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should verify payout breakdown totals sum correctly', () => {
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       expect(breakdown!.total_distributed).toBe(570);
       // Total pot - consumed = distributable
@@ -247,7 +247,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutBreakdown']()).toBeNull();
+      expect(component.payoutBreakdown()).toBeNull();
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
 
@@ -261,7 +261,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutBreakdown']()).toBeNull();
+      expect(component.payoutBreakdown()).toBeNull();
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
 
@@ -275,7 +275,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutBreakdown']()).toBeNull();
+      expect(component.payoutBreakdown()).toBeNull();
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
   });
@@ -293,10 +293,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         of(mockPayoutBreakdown),
       );
 
-      component['loadContest'](1);
+      component.loadContest(1, 1);
 
-      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledWith(1);
-      expect(component['payoutBreakdown']()).toEqual(mockPayoutBreakdown);
+      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledWith(1, 1);
+      expect(component.payoutBreakdown()).toEqual(mockPayoutBreakdown);
     });
 
     it('should handle error when loading payout breakdown after resolution', () => {
@@ -309,22 +309,22 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutError']()).toBe('Contest not found');
-      expect(component['payoutBreakdown']()).toBeNull();
+      expect(component.payoutError()).toBe('Contest not found');
+      expect(component.payoutBreakdown()).toBeNull();
     });
   });
 
   describe('Payout Breakdown Signals', () => {
     it('should initialize payoutBreakdown signal as null', () => {
-      expect(component['payoutBreakdown']()).toBeNull();
+      expect(component.payoutBreakdown()).toBeNull();
     });
 
     it('should initialize payoutLoading signal as false', () => {
-      expect(component['payoutLoading']()).toBe(false);
+      expect(component.payoutLoading()).toBe(false);
     });
 
     it('should initialize payoutError signal as empty string', () => {
-      expect(component['payoutError']()).toBe('');
+      expect(component.payoutError()).toBe('');
     });
 
     it('should update all three signals when loading succeeds', () => {
@@ -333,15 +333,15 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         of(mockPayoutBreakdown),
       );
 
-      expect(component['payoutBreakdown']()).toBeNull();
-      expect(component['payoutLoading']()).toBe(false);
-      expect(component['payoutError']()).toBe('');
+      expect(component.payoutBreakdown()).toBeNull();
+      expect(component.payoutLoading()).toBe(false);
+      expect(component.payoutError()).toBe('');
 
       fixture.detectChanges();
 
-      expect(component['payoutBreakdown']()).toEqual(mockPayoutBreakdown);
-      expect(component['payoutLoading']()).toBe(false);
-      expect(component['payoutError']()).toBe('');
+      expect(component.payoutBreakdown()).toEqual(mockPayoutBreakdown);
+      expect(component.payoutLoading()).toBe(false);
+      expect(component.payoutError()).toBe('');
     });
 
     it('should update signals correctly when loading fails', () => {
@@ -355,9 +355,9 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      expect(component['payoutBreakdown']()).toBeNull();
-      expect(component['payoutLoading']()).toBe(false);
-      expect(component['payoutError']()).toBe(errorMessage);
+      expect(component.payoutBreakdown()).toBeNull();
+      expect(component.payoutLoading()).toBe(false);
+      expect(component.payoutError()).toBe(errorMessage);
     });
   });
 
@@ -385,7 +385,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown?.winners.length).toBe(1);
       expect(breakdown?.total_distributed).toBe(570);
     });
@@ -411,7 +411,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown?.winners.length).toBe(4);
       expect(breakdown?.total_distributed).toBe(300);
     });
@@ -432,7 +432,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown?.total_pot).toBe(0);
       expect(breakdown?.total_distributed).toBe(0);
     });
@@ -447,7 +447,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       const expectedConsumed = Math.floor(breakdown!.total_pot * 0.1);
       expect(breakdown!.clout_consumed).toBe(expectedConsumed);
@@ -461,7 +461,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       const expectedDistributable =
         breakdown!.total_pot - breakdown!.clout_consumed;
@@ -476,7 +476,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
       fixture.detectChanges();
 
-      const breakdown = component['payoutBreakdown']();
+      const breakdown = component.payoutBreakdown();
       expect(breakdown).toBeTruthy();
       const sum = breakdown!.clout_consumed + breakdown!.distributable_pot;
       expect(sum).toBe(breakdown!.total_pot);
@@ -520,19 +520,19 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('prefills stake from existing user prediction', () => {
-      expect(component['getStakeForOption'](1)).toBe(500);
+      expect(component.getStakeForOption(1)).toBe(500);
     });
 
     it('clamps decrements to the minimum stake', () => {
       component.adjustStake(1, -1000);
-      expect(component['getStakeForOption'](1)).toBe(100);
+      expect(component.getStakeForOption(1)).toBe(100);
     });
 
     it('sends the updated stake for the chosen option', () => {
       component.setStake(1, 1200);
       component.placePrediction(1);
 
-      expect(mockContestService.makePrediction).toHaveBeenCalledWith(42, {
+      expect(mockContestService.makePrediction).toHaveBeenCalledWith(1, 42, {
         option_id: 1,
         clout: 1200,
       });

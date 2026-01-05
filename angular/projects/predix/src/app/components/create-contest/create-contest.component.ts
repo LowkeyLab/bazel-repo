@@ -393,7 +393,12 @@ export class CreateContestComponent implements OnInit {
       .subscribe({
         next: (contest) => {
           this.loading.set(false);
-          this.router.navigate(['/contests', contest.id]);
+          this.router.navigate([
+            '/circles',
+            contest.circle_id,
+            'contests',
+            contest.id,
+          ]);
         },
         error: (err) => {
           this.loading.set(false);

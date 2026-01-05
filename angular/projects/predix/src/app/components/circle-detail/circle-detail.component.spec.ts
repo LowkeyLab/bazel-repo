@@ -98,10 +98,10 @@ describe('CircleDetailComponent', () => {
 
       expect(mockCircleService.getCircle).toHaveBeenCalledWith(1);
       expect(mockCircleService.getCircleContests).toHaveBeenCalledWith(1);
-      expect(component['circle']()).toEqual(mockCircle);
-      expect(component['contests']()).toEqual(mockContests);
-      expect(component['loading']()).toBe(false);
-      expect(component['loadingContests']()).toBe(false);
+      expect(component.circle()).toEqual(mockCircle);
+      expect(component.contests()).toEqual(mockContests);
+      expect(component.loading()).toBe(false);
+      expect(component.loadingContests()).toBe(false);
     });
 
     it('should handle circle load error', () => {
@@ -112,8 +112,8 @@ describe('CircleDetailComponent', () => {
 
       fixture.detectChanges();
 
-      expect(component['circle']()).toBeNull();
-      expect(component['loading']()).toBe(false);
+      expect(component.circle()).toBeNull();
+      expect(component.loading()).toBe(false);
     });
 
     it('should handle contests load error', () => {
@@ -124,9 +124,9 @@ describe('CircleDetailComponent', () => {
 
       fixture.detectChanges();
 
-      expect(component['circle']()).toEqual(mockCircle);
-      expect(component['contests']()).toEqual([]);
-      expect(component['loadingContests']()).toBe(false);
+      expect(component.circle()).toEqual(mockCircle);
+      expect(component.contests()).toEqual([]);
+      expect(component.loadingContests()).toBe(false);
     });
   });
 
@@ -140,8 +140,8 @@ describe('CircleDetailComponent', () => {
 
       fixture.detectChanges();
 
-      expect(component['contests']()).toEqual(mockContests);
-      expect(component['loadingContests']()).toBe(false);
+      expect(component.contests()).toEqual(mockContests);
+      expect(component.loadingContests()).toBe(false);
     });
 
     it('should handle empty contests list', () => {
@@ -149,8 +149,8 @@ describe('CircleDetailComponent', () => {
 
       fixture.detectChanges();
 
-      expect(component['contests']()).toEqual([]);
-      expect(component['loadingContests']()).toBe(false);
+      expect(component.contests()).toEqual([]);
+      expect(component.loadingContests()).toBe(false);
     });
 
     it('should set loadingContests to true while loading', (done) => {
@@ -159,7 +159,7 @@ describe('CircleDetailComponent', () => {
       fixture.detectChanges();
 
       // After detectChanges, loadingContests should be false
-      expect(component['loadingContests']()).toBe(false);
+      expect(component.loadingContests()).toBe(false);
       done();
     });
   });
@@ -172,9 +172,14 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should navigate to contest detail', () => {
-      component['viewContest'](1);
+      component.viewContest(1);
 
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['/contests', 1]);
+      expect(mockRouter.navigate).toHaveBeenCalledWith([
+        '/circles',
+        1,
+        'contests',
+        1,
+      ]);
     });
   });
   describe('createContest', () => {
@@ -185,7 +190,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should navigate to create contest page', () => {
-      component['createContest']('Test Circle');
+      component.createContest('Test Circle');
 
       expect(mockRouter.navigate).toHaveBeenCalledWith(
         ['/circles', 1, 'contest', 'new'],
@@ -204,7 +209,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should generate correct join link', () => {
-      const link = component['getJoinLink'](1);
+      const link = component.getJoinLink(1);
 
       expect(link).toContain('/circles/1/join');
     });
@@ -222,7 +227,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should copy join link to clipboard', async () => {
-      component['copyJoinLink'](1);
+      component.copyJoinLink(1);
 
       expect(navigator.clipboard.writeText).toHaveBeenCalled();
       const call = (
@@ -232,13 +237,13 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should set linkCopied signal to true temporarily', async () => {
-      component['copyJoinLink'](1);
+      component.copyJoinLink(1);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // linkCopied should be true initially
       // After 2 seconds, it should be false (but we won't wait that long in tests)
-      expect(component['linkCopied']()).toBe(true);
+      expect(component.linkCopied()).toBe(true);
     });
   });
 
@@ -250,7 +255,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should return max clout from members', () => {
-      const maxClout = component['getMaxClout'](mockCircle);
+      const maxClout = component.getMaxClout(mockCircle);
 
       expect(maxClout).toBe(500);
     });
@@ -261,7 +266,7 @@ describe('CircleDetailComponent', () => {
         members: [{ user_id: 1, username: 'alice', clout: 300 }],
       };
 
-      const maxClout = component['getMaxClout'](singleMemberCircle);
+      const maxClout = component.getMaxClout(singleMemberCircle);
 
       expect(maxClout).toBe(300);
     });

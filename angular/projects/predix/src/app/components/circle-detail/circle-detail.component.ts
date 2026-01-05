@@ -165,11 +165,11 @@ export class CircleDetailComponent implements OnInit {
   private readonly circleService = inject(CircleService);
   private readonly document = inject(DOCUMENT);
 
-  protected readonly circle = signal<Circle | null>(null);
-  protected readonly loading = signal(true);
-  protected readonly contests = signal<Contest[]>([]);
-  protected readonly loadingContests = signal(false);
-  protected readonly linkCopied = signal(false);
+  public readonly circle = signal<Circle | null>(null);
+  public readonly loading = signal(true);
+  public readonly contests = signal<Contest[]>([]);
+  public readonly loadingContests = signal(false);
+  public readonly linkCopied = signal(false);
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -179,7 +179,7 @@ export class CircleDetailComponent implements OnInit {
     }
   }
 
-  private loadCircle(id: number): void {
+  public loadCircle(id: number): void {
     this.circleService.getCircle(id).subscribe({
       next: (circle) => {
         this.circle.set(circle);
@@ -191,7 +191,7 @@ export class CircleDetailComponent implements OnInit {
     });
   }
 
-  private loadContests(circleId: number): void {
+  public loadContests(circleId: number): void {
     this.loadingContests.set(true);
     this.circleService.getCircleContests(circleId).subscribe({
       next: (contests) => {
@@ -204,31 +204,34 @@ export class CircleDetailComponent implements OnInit {
     });
   }
 
-  protected viewContest(id: number): void {
-    this.router.navigate(['/contests', id]);
+  public viewContest(id: number): void {
+    const circleId = this.circle()?.id;
+    if (circleId) {
+      this.router.navigate(['/circles', circleId, 'contests', id]);
+    }
   }
 
-  protected createContest(circleName: string): void {
+  public createContest(circleName: string): void {
     this.router.navigate(['/circles', this.circle()?.id, 'contest', 'new'], {
       queryParams: { circleName },
     });
   }
 
-  protected addMember(): void {
+  public addMember(): void {
     // TODO: Implement add member modal/form
     alert('Add member functionality coming soon!');
   }
 
-  protected getMaxClout(circle: Circle): number {
+  public getMaxClout(circle: Circle): number {
     return Math.max(...circle.members.map((m) => m.clout));
   }
 
-  protected getJoinLink(circleId: number): string {
+  public getJoinLink(circleId: number): string {
     const origin = this.document.location.origin;
     return `${origin}/circles/${circleId}/join`;
   }
 
-  protected copyJoinLink(circleId: number): void {
+  public copyJoinLink(circleId: number): void {
     const link = this.getJoinLink(circleId);
     navigator.clipboard.writeText(link).then(() => {
       this.linkCopied.set(true);

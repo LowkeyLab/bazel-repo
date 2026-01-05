@@ -78,7 +78,7 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'contests/:id',
+    path: 'circles/:circleId/contests/:id',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./components/contest-detail/contest-detail.component').then(

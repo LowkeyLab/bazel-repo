@@ -15,40 +15,57 @@ import type {
 })
 export class ContestService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}/protected/contests`;
+  private readonly apiUrl = `${environment.apiUrl}/protected`;
 
   createContest(request: CreateContestRequest): Observable<Contest> {
-    return this.http.post<Contest>(this.apiUrl, request);
+    const { circle_id, ...rest } = request;
+    return this.http.post<Contest>(
+      `${this.apiUrl}/circles/${circle_id}/contests`,
+      rest,
+    );
   }
 
-  getContest(id: number): Observable<Contest> {
-    return this.http.get<Contest>(`${this.apiUrl}/${id}`);
+  getContest(circleId: number, contestId: number): Observable<Contest> {
+    return this.http.get<Contest>(
+      `${this.apiUrl}/circles/${circleId}/contests/${contestId}`,
+    );
   }
 
   makePrediction(
+    circleId: number,
     contestId: number,
     request: MakePredictionRequest,
   ): Observable<void> {
     return this.http.post<void>(
-      `${this.apiUrl}/${contestId}/predictions`,
+      `${this.apiUrl}/circles/${circleId}/contests/${contestId}/predictions`,
       request,
     );
   }
 
-  lockContest(contestId: number): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${contestId}/lock`, {});
+  lockContest(circleId: number, contestId: number): Observable<void> {
+    return this.http.post<void>(
+      `${this.apiUrl}/circles/${circleId}/contests/${contestId}/lock`,
+      {},
+    );
   }
 
   resolveContest(
+    circleId: number,
     contestId: number,
     request: ResolveContestRequest,
   ): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${contestId}/resolve`, request);
+    return this.http.post<void>(
+      `${this.apiUrl}/circles/${circleId}/contests/${contestId}/resolve-distribute`,
+      request,
+    );
   }
 
-  getPayoutBreakdown(contestId: number): Observable<PayoutBreakdown> {
+  getPayoutBreakdown(
+    circleId: number,
+    contestId: number,
+  ): Observable<PayoutBreakdown> {
     return this.http.get<PayoutBreakdown>(
-      `${this.apiUrl}/${contestId}/payout-breakdown`,
+      `${this.apiUrl}/circles/${circleId}/contests/${contestId}/payout-breakdown`,
     );
   }
 }

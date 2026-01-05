@@ -3,11 +3,14 @@ import {
   Component,
   signal,
   inject,
+  OnInit,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
+import { CircleService } from '../../services/circle.service';
 import type { Contest, ContestStatus } from '../../models/contest.model';
 import { DatePipe } from '@angular/common';
+import { forkJoin, map, switchMap, of } from 'rxjs';
 
 @Component({
   selector: 'contest-list',
@@ -44,7 +47,7 @@ import { DatePipe } from '@angular/common';
           @for (contest of contests(); track contest.id) {
             <div
               class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
-              (click)="viewContest(contest.id)"
+              (click)="viewContest(contest)"
             >
               <div class="card-body">
                 <div class="flex justify-between items-start">
@@ -114,9 +117,10 @@ import { DatePipe } from '@angular/common';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContestListComponent {
+export class ContestListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly contestService = inject(ContestService);
+  private readonly circleService = inject(CircleService);
 
   protected readonly contests = signal<Contest[]>([]);
   protected readonly loading = signal(false);
@@ -127,8 +131,49 @@ export class ContestListComponent {
     RESOLVED: 'Resolved',
   };
 
-  viewContest(id: number): void {
-    this.router.navigate(['/contests', id]);
+  ngOnInit(): void {
+    this.loadAllContests();
+  }
+
+  private loadAllContests(): void {
+    this.loading.set(true);
+    this.circleService
+      .listUserCircles()
+      .pipe(
+        switchMap((circles) => {
+          if (circles.length === 0) return of([]);
+          const contestRequests = circles.map((c) =>
+            this.circleService.getCircleContests(c.id),
+          );
+          return forkJoin(contestRequests).pipe(
+            map((results) => results.flat()),
+          );
+        }),
+      )
+      .subscribe({
+        next: (allContests) => {
+          allContests.sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime(),
+          );
+          this.contests.set(allContests);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          console.error('Failed to load contests:', err);
+          this.loading.set(false);
+        },
+      });
+  }
+
+  viewContest(contest: Contest): void {
+    this.router.navigate([
+      '/circles',
+      contest.circle_id,
+      'contests',
+      contest.id,
+    ]);
   }
 
   protected getTotalClout(contest: Contest): number {

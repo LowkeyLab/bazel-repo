@@ -29,7 +29,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
         </div>
       } @else if (contest(); as contest) {
         <div class="mb-6">
-          <back-button [link]="'/contests'" />
+          <back-button [link]="['/circles', '' + contest.circle_id]" />
         </div>
 
         <div class="card bg-base-100 shadow-xl mb-6">
@@ -505,34 +505,34 @@ export class ContestDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly contestService = inject(ContestService);
-  protected readonly auth = inject(AuthService);
+  public readonly auth = inject(AuthService);
 
-  protected readonly contest = signal<Contest | null>(null);
-  protected readonly loading = signal(true);
-  protected readonly predictionLoading = signal(false);
-  protected readonly predictionError = signal('');
-  protected readonly optionStakes = signal<Record<number, number>>({});
-  protected readonly lockLoading = signal(false);
-  protected readonly resolveLoading = signal(false);
-  protected readonly resolveError = signal('');
-  protected readonly showResolveModal = signal(false);
-  protected readonly payoutBreakdown = signal<PayoutBreakdown | null>(null);
-  protected readonly payoutLoading = signal(false);
-  protected readonly payoutError = signal('');
-  protected readonly statusLabels: Record<ContestStatus, string> = {
+  public readonly contest = signal<Contest | null>(null);
+  public readonly loading = signal(true);
+  public readonly predictionLoading = signal(false);
+  public readonly predictionError = signal('');
+  public readonly optionStakes = signal<Record<number, number>>({});
+  public readonly lockLoading = signal(false);
+  public readonly resolveLoading = signal(false);
+  public readonly resolveError = signal('');
+  public readonly showResolveModal = signal(false);
+  public readonly payoutBreakdown = signal<PayoutBreakdown | null>(null);
+  public readonly payoutLoading = signal(false);
+  public readonly payoutError = signal('');
+  public readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
     LOCKED: 'Locked (awaiting resolution)',
     CLOSED: 'Closed (paused)',
     RESOLVED: 'Resolved',
   };
 
-  protected readonly isCreator = computed(() => {
+  public readonly isCreator = computed(() => {
     const contest = this.contest();
     const user = this.auth.currentUser();
     return contest && user ? contest.creator_id === user.id : false;
   });
 
-  protected readonly canResolve = computed(() => {
+  public readonly canResolve = computed(() => {
     const contest = this.contest();
     return (
       this.isCreator() &&
@@ -543,17 +543,18 @@ export class ContestDetailComponent implements OnInit {
     );
   });
 
-  protected selectedWinnerId: number | null = null;
+  public selectedWinnerId: number | null = null;
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
-    if (id) {
-      this.loadContest(id);
+    const circleId = Number(this.route.snapshot.paramMap.get('circleId'));
+    const contestId = Number(this.route.snapshot.paramMap.get('id'));
+    if (circleId && contestId) {
+      this.loadContest(circleId, contestId);
     }
   }
 
-  private loadContest(id: number): void {
-    this.contestService.getContest(id).subscribe({
+  public loadContest(circleId: number, contestId: number): void {
+    this.contestService.getContest(circleId, contestId).subscribe({
       next: (contest) => {
         this.contest.set(contest);
         this.syncOptionStakes(contest);
@@ -561,7 +562,7 @@ export class ContestDetailComponent implements OnInit {
 
         // Load payout breakdown if contest is resolved
         if (contest.status === 'RESOLVED') {
-          this.loadPayoutBreakdown(id);
+          this.loadPayoutBreakdown(circleId, contestId);
         }
       },
       error: () => {
@@ -584,11 +585,11 @@ export class ContestDetailComponent implements OnInit {
     this.optionStakes.set(stakes);
   }
 
-  private loadPayoutBreakdown(contestId: number): void {
+  public loadPayoutBreakdown(circleId: number, contestId: number): void {
     this.payoutLoading.set(true);
     this.payoutError.set('');
 
-    this.contestService.getPayoutBreakdown(contestId).subscribe({
+    this.contestService.getPayoutBreakdown(circleId, contestId).subscribe({
       next: (breakdown) => {
         this.payoutBreakdown.set(breakdown);
         this.payoutLoading.set(false);
@@ -602,14 +603,14 @@ export class ContestDetailComponent implements OnInit {
     });
   }
 
-  protected getStakeForOption(optionId: number): number {
+  public getStakeForOption(optionId: number): number {
     const contest = this.contest();
     if (!contest) return 0;
 
     return this.optionStakes()[optionId] ?? contest.min_stake;
   }
 
-  protected setStake(optionId: number, value: number): void {
+  public setStake(optionId: number, value: number): void {
     const contest = this.contest();
     if (!contest) return;
 
@@ -623,7 +624,7 @@ export class ContestDetailComponent implements OnInit {
     this.predictionError.set('');
   }
 
-  protected adjustStake(optionId: number, delta: number): void {
+  public adjustStake(optionId: number, delta: number): void {
     const contest = this.contest();
     if (!contest) return;
 
@@ -636,7 +637,7 @@ export class ContestDetailComponent implements OnInit {
     this.predictionError.set('');
   }
 
-  protected placePrediction(optionId: number): void {
+  public placePrediction(optionId: number): void {
     const contest = this.contest();
     if (!contest) return;
 
@@ -652,14 +653,14 @@ export class ContestDetailComponent implements OnInit {
     this.predictionError.set('');
 
     this.contestService
-      .makePrediction(contest.id, {
+      .makePrediction(contest.circle_id, contest.id, {
         option_id: optionId,
         clout: stake,
       })
       .subscribe({
         next: () => {
           this.predictionLoading.set(false);
-          this.loadContest(contest.id);
+          this.loadContest(contest.circle_id, contest.id);
         },
         error: (err) => {
           this.predictionLoading.set(false);
@@ -670,17 +671,17 @@ export class ContestDetailComponent implements OnInit {
       });
   }
 
-  protected onLock(): void {
-    const contestId = this.contest()?.id;
-    if (!contestId) return;
+  public onLock(): void {
+    const contest = this.contest();
+    if (!contest) return;
 
     this.lockLoading.set(true);
 
-    this.contestService.lockContest(contestId).subscribe({
+    this.contestService.lockContest(contest.circle_id, contest.id).subscribe({
       next: () => {
         this.lockLoading.set(false);
         // Reload contest to show updated status
-        this.loadContest(contestId);
+        this.loadContest(contest.circle_id, contest.id);
       },
       error: () => {
         this.lockLoading.set(false);
@@ -688,32 +689,32 @@ export class ContestDetailComponent implements OnInit {
     });
   }
 
-  protected openResolveModal(): void {
+  public openResolveModal(): void {
     this.showResolveModal.set(true);
     this.selectedWinnerId = null;
     this.resolveError.set('');
   }
 
-  protected closeResolveModal(): void {
+  public closeResolveModal(): void {
     this.showResolveModal.set(false);
     this.selectedWinnerId = null;
     this.resolveError.set('');
   }
 
-  protected onResolve(): void {
+  public onResolve(): void {
     if (!this.selectedWinnerId) {
       this.resolveError.set('Please select a winning option');
       return;
     }
 
-    const contestId = this.contest()?.id;
-    if (!contestId) return;
+    const contest = this.contest();
+    if (!contest) return;
 
     this.resolveLoading.set(true);
     this.resolveError.set('');
 
     this.contestService
-      .resolveContest(contestId, {
+      .resolveContest(contest.circle_id, contest.id, {
         winning_option_id: this.selectedWinnerId,
       })
       .subscribe({
@@ -721,7 +722,7 @@ export class ContestDetailComponent implements OnInit {
           this.resolveLoading.set(false);
           this.closeResolveModal();
           // Reload contest to show resolved state and fetch payout breakdown
-          this.loadContest(contestId);
+          this.loadContest(contest.circle_id, contest.id);
         },
         error: (err) => {
           this.resolveLoading.set(false);
@@ -732,24 +733,21 @@ export class ContestDetailComponent implements OnInit {
       });
   }
 
-  protected getTotalClout(contest: Contest): number {
+  public getTotalClout(contest: Contest): number {
     return contest.predictions.reduce((sum, pred) => sum + pred.clout, 0);
   }
 
-  protected getPredictionsForOption(
-    contest: Contest,
-    optionId: number,
-  ): number {
+  public getPredictionsForOption(contest: Contest, optionId: number): number {
     return contest.predictions.filter((p) => p.option_id === optionId).length;
   }
 
-  protected getCloutForOption(contest: Contest, optionId: number): number {
+  public getCloutForOption(contest: Contest, optionId: number): number {
     return contest.predictions
       .filter((p) => p.option_id === optionId)
       .reduce((sum, pred) => sum + pred.clout, 0);
   }
 
-  protected getOptionText(contest: Contest, optionId: number): string {
+  public getOptionText(contest: Contest, optionId: number): string {
     return contest.options.find((o) => o.id === optionId)?.text || 'Unknown';
   }
 }
