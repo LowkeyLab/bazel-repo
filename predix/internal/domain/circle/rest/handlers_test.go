@@ -465,78 +465,76 @@ func TestCircleHandlers(t *testing.T) {
 
 			assert.Len(t, contests, 0)
 		})
-	})
-}
 
-func TestPayoutIntegration(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
-		router, svc, _ := setupTestRouter(t, pool)
-		ctx := context.Background()
+		t.Run("ResolveAndDistributeContestClout", func(t *testing.T) {
+			router, svc, _ := build(t)
+			ctx := context.Background()
 
-		// 1. Setup Users
-		creatorID := createTestUser(t, pool, "creator")
-		winnerID := createTestUser(t, pool, "winner")
-		loserID := createTestUser(t, pool, "loser")
+			// 1. Setup Users
+			creatorID := createTestUser(t, pool, "creator")
+			winnerID := createTestUser(t, pool, "winner")
+			loserID := createTestUser(t, pool, "loser")
 
-		// 2. Setup Circle
-		circ, err := svc.CreateCircle(ctx, "Betting Circle", creatorID)
-		require.NoError(t, err)
-		require.NoError(t, svc.AddMember(ctx, circ.ID, winnerID))
-		require.NoError(t, svc.AddMember(ctx, circ.ID, loserID))
+			// 2. Setup Circle
+			circ, err := svc.CreateCircle(ctx, "Betting Circle", creatorID)
+			require.NoError(t, err)
+			require.NoError(t, svc.AddMember(ctx, circ.ID, winnerID))
+			require.NoError(t, svc.AddMember(ctx, circ.ID, loserID))
 
-		// 3. Create Contest
-		cont, err := svc.CreateContest(ctx, circ.ID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
-		require.NoError(t, err)
+			// 3. Create Contest
+			cont, err := svc.CreateContest(ctx, circ.ID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
+			require.NoError(t, err)
 
-		// 4. Place Bets
-		// Winner bets 100 on Option 1
-		require.NoError(t, svc.Predict(ctx, cont.ID, winnerID, 1, 100))
-		// Loser bets 100 on Option 2
-		require.NoError(t, svc.Predict(ctx, cont.ID, loserID, 2, 100))
+			// 4. Place Bets
+			// Winner bets 100 on Option 1
+			require.NoError(t, svc.Predict(ctx, circ.ID, cont.ID, winnerID, 1, 100))
+			// Loser bets 100 on Option 2
+			require.NoError(t, svc.Predict(ctx, circ.ID, cont.ID, loserID, 2, 100))
 
-		// 5. Resolve Contest (Option 1 wins)
-		resolveBody := `{"winning_option_id": 1}`
-		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/contests/%d/resolve-distribute", circ.ID, cont.ID), bytes.NewBufferString(resolveBody))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-		require.Equal(t, http.StatusOK, resp.Code)
+			// 5. Resolve Contest (Option 1 wins)
+			resolveBody := `{"winning_option_id": 1}`
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/contests/%d/resolve-distribute", circ.ID, cont.ID), bytes.NewBufferString(resolveBody))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+			require.Equal(t, http.StatusOK, resp.Code)
 
-		// 6. Verify Contest Detail Response (Check House Rake)
-		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d", circ.ID, cont.ID), nil)
-		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
-		resp = httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-		require.Equal(t, http.StatusOK, resp.Code)
+			// 6. Verify Contest Detail Response (Check House Rake)
+			req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d", circ.ID, cont.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp = httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+			require.Equal(t, http.StatusOK, resp.Code)
 
-		var contestResp contestResponse
-		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &contestResp))
+			var contestResp contestResponse
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &contestResp))
 
-		// Total Pot = 200
-		// Losing Stakes = 100
-		// Burn = 10% of 100 = 10
-		assert.Equal(t, 200, contestResp.TotalPot)
-		assert.Equal(t, 10, contestResp.HouseRake, "HTTP response should show 10 house rake (10% of losing stake)")
+			// Total Pot = 200
+			// Losing Stakes = 100
+			// Burn = 10% of 100 = 10
+			assert.Equal(t, 200, contestResp.TotalPot)
+			assert.Equal(t, 10, contestResp.HouseRake, "HTTP response should show 10 house rake (10% of losing stake)")
 
-		// 7. Verify Payout Breakdown Response
-		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d/payout-breakdown", circ.ID, cont.ID), nil)
-		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
-		resp = httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-		require.Equal(t, http.StatusOK, resp.Code)
+			// 7. Verify Payout Breakdown Response
+			req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d/payout-breakdown", circ.ID, cont.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			resp = httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+			require.Equal(t, http.StatusOK, resp.Code)
 
-		var breakdownResp payoutBreakdownResponse
-		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &breakdownResp))
+			var breakdownResp payoutBreakdownResponse
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &breakdownResp))
 
-		assert.Equal(t, 200, breakdownResp.TotalPot)
-		assert.Equal(t, 10, breakdownResp.HouseRake)
-		assert.Equal(t, 190, breakdownResp.DistributablePot)
+			assert.Equal(t, 200, breakdownResp.TotalPot)
+			assert.Equal(t, 10, breakdownResp.HouseRake)
+			assert.Equal(t, 190, breakdownResp.DistributablePot)
 
-		// Verify Winner Payout
-		require.Len(t, breakdownResp.Winners, 1)
-		winnerRecord := breakdownResp.Winners[0]
-		assert.Equal(t, int32(winnerID), winnerRecord.UserID)
-		assert.Equal(t, 190, winnerRecord.Total, "Winner should receive 190 clout")
+			// Verify Winner Payout
+			require.Len(t, breakdownResp.Winners, 1)
+			winnerRecord := breakdownResp.Winners[0]
+			assert.Equal(t, int32(winnerID), winnerRecord.UserID)
+			assert.Equal(t, 190, winnerRecord.Total, "Winner should receive 190 clout")
+		})
 	})
 }

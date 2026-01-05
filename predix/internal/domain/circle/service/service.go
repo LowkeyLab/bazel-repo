@@ -42,6 +42,7 @@ var (
 	ErrInsufficientClout = errors.New("insufficient clout balance to make this prediction")
 	ErrUserNotInCircle   = errors.New("user is not a member of this circle")
 	ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
+	ErrContestNotFound   = errors.New("contest not found or does not belong to this circle")
 )
 
 // EnrichedMember contains member data with username looked up from user repository.
@@ -58,6 +59,21 @@ type EnrichedCircle struct {
 	CreatorID user.ID
 	Members   []EnrichedMember
 	CreatedAt time.Time
+}
+
+type PayoutRecord struct {
+	UserID int32
+	Stake  int
+	Share  int
+	Total  int
+}
+
+type PayoutBreakdown struct {
+	Winners          []PayoutRecord
+	TotalPot         int
+	HouseRake        int
+	DistributablePot int
+	TotalDistributed int
 }
 
 func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.ID) (*circle.Circle, error) {
@@ -203,13 +219,15 @@ func (s *Service) enrichCircle(ctx context.Context, circ *circle.Circle) (*Enric
 }
 
 // Predict handles the prediction workflow: validate clout, deduct it, and record the prediction.
-func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID contest.ID, userID user.ID, optionID int, clout int) error {
 	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	circleID := cont.CircleID
+	if cont.CircleID != circleID {
+		return ErrContestNotFound
+	}
 
 	// Load circle to check user membership and clout balance
 	circ, err := s.circleRepo.FindByID(ctx, circleID)
@@ -252,13 +270,15 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user
 }
 
 // ResolveAndDistributeContestClout resolves a contest and distributes winnings to the circle members.
-func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
+func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID circle.ID, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
 	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	circleID := cont.CircleID
+	if cont.CircleID != circleID {
+		return ErrContestNotFound
+	}
 
 	// Resolve the contest and get winner payouts
 	payouts, err := s.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
@@ -364,11 +384,15 @@ func (s *Service) RecordPrediction(ctx context.Context, contestID contest.ID, us
 }
 
 // LockContest transitions a contest from Open to Locked.
-func (s *Service) LockContest(ctx context.Context, contestID contest.ID, lockerID user.ID) error {
+func (s *Service) LockContest(ctx context.Context, circleID circle.ID, contestID contest.ID, lockerID user.ID) error {
 	// Load contest from repository
 	c, err := s.contestRepo.FindByID(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CircleID != circleID {
+		return ErrContestNotFound
 	}
 
 	if c.CreatorID != lockerID {
@@ -468,6 +492,57 @@ func (s *Service) calculateRefunds(c *contest.Contest) map[user.ID]int {
 // GetContest retrieves a contest by ID.
 func (s *Service) GetContest(ctx context.Context, id contest.ID) (*contest.Contest, error) {
 	return s.contestRepo.FindByID(ctx, id)
+}
+
+// GetContestInCircle retrieves a contest and verifies it belongs to the circle.
+func (s *Service) GetContestInCircle(ctx context.Context, circleID circle.ID, contestID contest.ID) (*contest.Contest, error) {
+	c, err := s.contestRepo.FindByID(ctx, contestID)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.CircleID != circleID {
+		return nil, ErrContestNotFound
+	}
+
+	return c, nil
+}
+
+// GetPayoutBreakdown calculates the payout breakdown for a resolved contest.
+func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, contestID contest.ID) (*PayoutBreakdown, error) {
+	c, err := s.GetContestInCircle(ctx, circleID, contestID)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.Status != contest.StatusResolved {
+		return nil, fmt.Errorf("contest must be resolved to view payout breakdown")
+	}
+
+	payoutRecords, err := c.CalculatePayoutBreakdown()
+	if err != nil {
+		return nil, err
+	}
+
+	winners := make([]PayoutRecord, 0, len(payoutRecords))
+	totalDistributed := 0
+	for _, record := range payoutRecords {
+		winners = append(winners, PayoutRecord{
+			UserID: int32(record.UserID),
+			Stake:  record.OriginalStake,
+			Share:  record.ShareOfPot,
+			Total:  record.TotalPayout,
+		})
+		totalDistributed += record.TotalPayout
+	}
+
+	return &PayoutBreakdown{
+		Winners:          winners,
+		TotalPot:         c.CalculatePot(),
+		HouseRake:        c.CalculateHouseRakeClout(),
+		DistributablePot: c.CalculateRemainingPot(),
+		TotalDistributed: totalDistributed,
+	}, nil
 }
 
 // GetContestsByCircleID retrieves all contests in a circle.

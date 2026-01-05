@@ -363,7 +363,7 @@ func TestCircleService(t *testing.T) {
 			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Who wins?", []string{"Yes", "No"}, contest.Duration1Day, 100)
 			require.NoError(t, err)
 
-			require.NoError(t, svc.Predict(ctx, contestObj.ID, memberID, 1, 200))
+			require.NoError(t, svc.Predict(ctx, circleObj.ID, contestObj.ID, memberID, 1, 200))
 
 			memberAfterFirst, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(circleObj.ID),
@@ -372,7 +372,7 @@ func TestCircleService(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, int32(800), memberAfterFirst.Clout)
 
-			require.NoError(t, svc.Predict(ctx, contestObj.ID, memberID, 1, 120))
+			require.NoError(t, svc.Predict(ctx, circleObj.ID, contestObj.ID, memberID, 1, 120))
 
 			memberAfterSecond, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(circleObj.ID),
@@ -406,11 +406,11 @@ func TestCircleService(t *testing.T) {
 			require.NoError(t, err)
 
 			// Winner bets 100 on Option 1
-			err = svc.Predict(ctx, contestObj.ID, winnerID, 1, 100)
+			err = svc.Predict(ctx, circleObj.ID, contestObj.ID, winnerID, 1, 100)
 			require.NoError(t, err)
 
 			// Loser bets 200 on Option 2
-			err = svc.Predict(ctx, contestObj.ID, loserID, 2, 200)
+			err = svc.Predict(ctx, circleObj.ID, contestObj.ID, loserID, 2, 200)
 			require.NoError(t, err)
 
 			// Resolve with Option 1 as winner

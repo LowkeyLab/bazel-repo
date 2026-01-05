@@ -329,24 +329,6 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	contest, err := h.svc.GetContest(c.Request.Context(), contestID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
-			return
-		}
-		slog.ErrorContext(c.Request.Context(), "failed to load contest", "contest_id", contestID, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if contest.CircleID != circleID {
-		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
-		return
-	}
-
 	userID, ok := auth.UserIDFromContext(c)
 	if !ok {
 		slog.WarnContext(c.Request.Context(), "unauthenticated prediction attempt")
@@ -361,9 +343,9 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	err = h.svc.Predict(c.Request.Context(), contestID, userID, req.OptionID, req.Clout)
+	err := h.svc.Predict(c.Request.Context(), circleID, contestID, userID, req.OptionID, req.Clout)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", circleID, "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
@@ -398,24 +380,6 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 		return
 	}
 
-	contest, err := h.svc.GetContest(c.Request.Context(), contestID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
-			return
-		}
-		slog.ErrorContext(c.Request.Context(), "failed to load contest", "contest_id", contestID, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if contest.CircleID != circleID {
-		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
-		return
-	}
-
 	userID, ok := auth.UserIDFromContext(c)
 	if !ok {
 		slog.WarnContext(c.Request.Context(), "unauthenticated resolve attempt")
@@ -430,9 +394,9 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 		return
 	}
 
-	err = h.svc.ResolveAndDistributeContestClout(c.Request.Context(), contestID, userID, req.WinningOptionID)
+	err := h.svc.ResolveAndDistributeContestClout(c.Request.Context(), circleID, contestID, userID, req.WinningOptionID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", circleID, "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
@@ -516,21 +480,15 @@ func (h *Handler) getContest(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.GetContest(c.Request.Context(), contestID)
+	result, err := h.svc.GetContestInCircle(c.Request.Context(), circleID, contestID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.DebugContext(c.Request.Context(), "contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
 			return
 		}
 		slog.ErrorContext(c.Request.Context(), "failed to get contest", "contest_id", contestID, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if result.CircleID != circleID {
-		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 		return
 	}
 
@@ -556,27 +514,9 @@ func (h *Handler) lockContest(c *gin.Context) {
 		return
 	}
 
-	cont, err := h.svc.GetContest(c.Request.Context(), contestID)
+	err := h.svc.LockContest(c.Request.Context(), circleID, contestID, userID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
-			return
-		}
-		slog.ErrorContext(c.Request.Context(), "failed to load contest", "contest_id", contestID, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if cont.CircleID != circleID {
-		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
-		return
-	}
-
-	err = h.svc.LockContest(c.Request.Context(), contestID, userID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
 			return
@@ -606,66 +546,38 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 		return
 	}
 
-	// Get the contest to verify it's resolved and get contest details
-	cont, err := h.svc.GetContest(c.Request.Context(), contestID)
+	breakdown, err := h.svc.GetPayoutBreakdown(c.Request.Context(), circleID, contestID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
 			return
 		}
-		slog.ErrorContext(c.Request.Context(), "failed to get contest", "contest_id", contestID, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-		return
-	}
-
-	if cont.CircleID != circleID {
-		slog.WarnContext(c.Request.Context(), "contest does not belong to circle", "circle_id", circleID, "contest_id", contestID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
-		return
-	}
-
-	// Check if contest is resolved
-	if cont.Status != contest.StatusResolved {
-		slog.WarnContext(c.Request.Context(), "contest not resolved", "contest_id", contestID, "status", cont.Status)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "contest must be resolved to view payout breakdown"})
-		return
-	}
-
-	// Use domain method to calculate payout breakdown
-	payoutRecords, err := cont.CalculatePayoutBreakdown()
-	if err != nil {
+		// Assuming GetPayoutBreakdown validates status and returns specific error if not resolved
 		slog.WarnContext(c.Request.Context(), "failed to calculate payout breakdown", "contest_id", contestID, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Build response
-	totalPot := cont.CalculatePot()
-	houseRake := cont.CalculateHouseRakeClout()
-	distributablePot := cont.CalculateRemainingPot()
-	totalDistributed := 0
-
-	winners := make([]payoutRecord, 0, len(payoutRecords))
-	for _, record := range payoutRecords {
+	winners := make([]payoutRecord, 0, len(breakdown.Winners))
+	for _, record := range breakdown.Winners {
 		winners = append(winners, payoutRecord{
-			UserID: int32(record.UserID),
-			Stake:  record.OriginalStake,
-			Share:  record.ShareOfPot,
-			Total:  record.TotalPayout,
+			UserID: record.UserID,
+			Stake:  record.Stake,
+			Share:  record.Share,
+			Total:  record.Total,
 		})
-		totalDistributed += record.TotalPayout
 	}
 
 	response := payoutBreakdownResponse{
 		Winners:          winners,
-		TotalPot:         totalPot,
-		HouseRake:        houseRake,
-		DistributablePot: distributablePot,
-		TotalDistributed: totalDistributed,
+		TotalPot:         breakdown.TotalPot,
+		HouseRake:        breakdown.HouseRake,
+		DistributablePot: breakdown.DistributablePot,
+		TotalDistributed: breakdown.TotalDistributed,
 	}
 
-	slog.InfoContext(c.Request.Context(), "payout breakdown retrieved", "contest_id", contestID, "winner_count", len(payoutRecords))
+	slog.InfoContext(c.Request.Context(), "payout breakdown retrieved", "contest_id", contestID, "winner_count", len(breakdown.Winners))
 	c.JSON(http.StatusOK, response)
 }
 
