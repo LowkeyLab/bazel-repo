@@ -58,6 +58,7 @@ func (r *Memory) Save(ctx context.Context, c *contest.Contest) error {
 		Options:        make(map[int]*contest.Option),
 		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
 		ResultOptionID: c.ResultOptionID,
+		HouseRake:      c.HouseRake,
 	}
 
 	for id, option := range c.Options {
@@ -109,6 +110,7 @@ func (r *Memory) FindByID(ctx context.Context, id contest.ID) (*contest.Contest,
 		Options:        make(map[int]*contest.Option),
 		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
 		ResultOptionID: c.ResultOptionID,
+		HouseRake:      c.HouseRake,
 	}
 
 	for id, option := range c.Options {
@@ -159,6 +161,7 @@ func (r *Memory) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*con
 				Options:        make(map[int]*contest.Option),
 				Predictions:    make([]*contest.Prediction, len(c.Predictions)),
 				ResultOptionID: c.ResultOptionID,
+				HouseRake:      c.HouseRake,
 			}
 
 			for id, option := range c.Options {
@@ -212,6 +215,7 @@ func (r *Memory) FindExpiredContests(ctx context.Context) ([]*contest.Contest, e
 				Options:        make(map[int]*contest.Option),
 				Predictions:    make([]*contest.Prediction, len(c.Predictions)),
 				ResultOptionID: c.ResultOptionID,
+				HouseRake:      c.HouseRake,
 			}
 
 			for id, option := range c.Options {

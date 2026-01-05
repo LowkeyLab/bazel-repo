@@ -115,6 +115,50 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		return nil, fmt.Errorf("failed to find contest by id: %w", err)
 	}
 
+	return r.mapContest(ctx, dbContest)
+}
+
+// FindByCircleID retrieves all Contests for a given Circle.
+func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
+	dbContests, err := r.queries.ListContestsByCircle(ctx, int32(circleID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find contests by circle id: %w", err)
+	}
+
+	contests := make([]*contest.Contest, len(dbContests))
+	for i, dbContest := range dbContests {
+		c, err := r.mapContest(ctx, dbContest)
+		if err != nil {
+			return nil, err
+		}
+		contests[i] = c
+	}
+
+	return contests, nil
+}
+
+// FindExpiredContests retrieves all contests that are OPEN or LOCKED and have passed their closes_at time.
+func (r *Postgres) FindExpiredContests(ctx context.Context) ([]*contest.Contest, error) {
+	dbContests, err := r.queries.FindExpiredContests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find expired contests: %w", err)
+	}
+
+	contests := make([]*contest.Contest, len(dbContests))
+	for i, dbContest := range dbContests {
+		c, err := r.mapContest(ctx, dbContest)
+		if err != nil {
+			return nil, err
+		}
+		contests[i] = c
+	}
+
+	return contests, nil
+}
+
+func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*contest.Contest, error) {
+	id := dbContest.ID
+
 	// Load options
 	dbOptions, err := r.queries.ListContestOptions(ctx, int32(id))
 	if err != nil {
@@ -161,12 +205,8 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 	houseRake := 0.10 // default
 	if dbContest.HouseRake.Valid {
 		// Convert Numeric to string then parse - stored as percentage (10.00 = 10%)
-		numStr := dbContest.HouseRake.Int.String()
-		if len(numStr) > 0 {
-			// Simple conversion: if stored as 1000 with exp -2, that's 10.00
-			// We need 0.10 for our float64 representation
-			houseRake = float64(dbContest.HouseRake.Int.Int64()) / 10000.0
-		}
+		// We need 0.10 for our float64 representation
+		houseRake = float64(dbContest.HouseRake.Int.Int64()) / 10000.0
 	}
 
 	return &contest.Contest{
@@ -184,146 +224,6 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		ClosesAt:       dbContest.ClosesAt.Time,
 		Duration:       dbContest.Duration,
 	}, nil
-}
-
-// FindByCircleID retrieves all Contests for a given Circle.
-func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
-	dbContests, err := r.queries.ListContestsByCircle(ctx, int32(circleID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to find contests by circle id: %w", err)
-	}
-
-	contests := make([]*contest.Contest, len(dbContests))
-	for i, dbContest := range dbContests {
-		// Load options
-		dbOptions, err := r.queries.ListContestOptions(ctx, dbContest.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load contest options: %w", err)
-		}
-
-		options := make(map[int]*contest.Option)
-		for _, dbOption := range dbOptions {
-			options[int(dbOption.OptionID)] = &contest.Option{
-				ID:   int(dbOption.OptionID),
-				Text: dbOption.Text,
-			}
-		}
-
-		// Load predictions
-		dbPredictions, err := r.queries.ListContestPredictions(ctx, dbContest.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load contest predictions: %w", err)
-		}
-
-		predictions := make([]*contest.Prediction, len(dbPredictions))
-		for j, dbPrediction := range dbPredictions {
-			predictions[j] = &contest.Prediction{
-				UserID:    user.ID(dbPrediction.UserID),
-				OptionID:  int(dbPrediction.OptionID),
-				Clout:     int(dbPrediction.Clout),
-				Timestamp: dbPrediction.CreatedAt.Time,
-			}
-		}
-
-		// Parse result option ID
-		var resultOptionID *int
-		if dbContest.ResultOptionID.Valid {
-			val := int(dbContest.ResultOptionID.Int32)
-			resultOptionID = &val
-		}
-
-		minStake := int(dbContest.MinStake)
-		if minStake == 0 {
-			minStake = defaultMinStake
-		}
-
-		contests[i] = &contest.Contest{
-			ID:             contest.ID(dbContest.ID),
-			CircleID:       circle.ID(dbContest.CircleID),
-			CreatorID:      user.ID(dbContest.CreatorID),
-			Question:       dbContest.Question,
-			Options:        options,
-			Predictions:    predictions,
-			Status:         contest.Status(dbContest.Status),
-			MinStake:       minStake,
-			ResultOptionID: resultOptionID,
-			CreatedAt:      dbContest.CreatedAt.Time,
-			ClosesAt:       dbContest.ClosesAt.Time,
-			Duration:       dbContest.Duration,
-		}
-	}
-
-	return contests, nil
-}
-
-// FindExpiredContests retrieves all contests that are OPEN or LOCKED and have passed their closes_at time.
-func (r *Postgres) FindExpiredContests(ctx context.Context) ([]*contest.Contest, error) {
-	dbContests, err := r.queries.FindExpiredContests(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find expired contests: %w", err)
-	}
-
-	contests := make([]*contest.Contest, len(dbContests))
-	for i, dbContest := range dbContests {
-		// Load options
-		dbOptions, err := r.queries.ListContestOptions(ctx, dbContest.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load contest options: %w", err)
-		}
-
-		options := make(map[int]*contest.Option)
-		for _, dbOption := range dbOptions {
-			options[int(dbOption.OptionID)] = &contest.Option{
-				ID:   int(dbOption.OptionID),
-				Text: dbOption.Text,
-			}
-		}
-
-		// Load predictions
-		dbPredictions, err := r.queries.ListContestPredictions(ctx, dbContest.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load contest predictions: %w", err)
-		}
-
-		predictions := make([]*contest.Prediction, len(dbPredictions))
-		for j, dbPrediction := range dbPredictions {
-			predictions[j] = &contest.Prediction{
-				UserID:    user.ID(dbPrediction.UserID),
-				OptionID:  int(dbPrediction.OptionID),
-				Clout:     int(dbPrediction.Clout),
-				Timestamp: dbPrediction.CreatedAt.Time,
-			}
-		}
-
-		// Parse result option ID
-		var resultOptionID *int
-		if dbContest.ResultOptionID.Valid {
-			val := int(dbContest.ResultOptionID.Int32)
-			resultOptionID = &val
-		}
-
-		minStake := int(dbContest.MinStake)
-		if minStake == 0 {
-			minStake = defaultMinStake
-		}
-
-		contests[i] = &contest.Contest{
-			ID:             contest.ID(dbContest.ID),
-			CircleID:       circle.ID(dbContest.CircleID),
-			CreatorID:      user.ID(dbContest.CreatorID),
-			Question:       dbContest.Question,
-			Options:        options,
-			Predictions:    predictions,
-			Status:         contest.Status(dbContest.Status),
-			MinStake:       minStake,
-			ResultOptionID: resultOptionID,
-			CreatedAt:      dbContest.CreatedAt.Time,
-			ClosesAt:       dbContest.ClosesAt.Time,
-			Duration:       dbContest.Duration,
-		}
-	}
-
-	return contests, nil
 }
 
 // UpdateStatus updates the status of a contest.
