@@ -119,6 +119,7 @@ type payoutRecord struct {
 
 type payoutBreakdownResponse struct {
 	Winners          []payoutRecord `json:"winners"`
+	Losers           []payoutRecord `json:"losers"`
 	TotalPot         int            `json:"total_pot"`
 	HouseRake        int            `json:"house_rake"`
 	DistributablePot int            `json:"distributable_pot"`
@@ -559,18 +560,29 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 		return
 	}
 
-	winners := make([]payoutRecord, 0, len(breakdown.Winners))
-	for _, record := range breakdown.Winners {
-		winners = append(winners, payoutRecord{
-			UserID: record.UserID,
-			Stake:  record.Stake,
-			Share:  record.Share,
-			Total:  record.Total,
-		})
+	winners := make([]payoutRecord, len(breakdown.Winners))
+	for i, r := range breakdown.Winners {
+		winners[i] = payoutRecord{
+			UserID: r.UserID,
+			Stake:  r.Stake,
+			Share:  r.Share,
+			Total:  r.Total,
+		}
+	}
+
+	losers := make([]payoutRecord, len(breakdown.Losers))
+	for i, r := range breakdown.Losers {
+		losers[i] = payoutRecord{
+			UserID: r.UserID,
+			Stake:  r.Stake,
+			Share:  r.Share,
+			Total:  r.Total,
+		}
 	}
 
 	response := payoutBreakdownResponse{
 		Winners:          winners,
+		Losers:           losers,
 		TotalPot:         breakdown.TotalPot,
 		HouseRake:        breakdown.HouseRake,
 		DistributablePot: breakdown.DistributablePot,

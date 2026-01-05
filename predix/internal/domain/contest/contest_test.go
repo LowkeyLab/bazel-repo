@@ -424,9 +424,10 @@ func TestCalculatePayoutBreakdown(t *testing.T) {
 
 	require.NoError(t, c.Resolve(1))
 
-	records, err := c.CalculatePayoutBreakdown()
+	winners, losers, err := c.CalculatePayoutBreakdown()
 	require.NoError(t, err)
-	assert.Len(t, records, 2)
+	assert.Len(t, winners, 2)
+	assert.Len(t, losers, 1)
 
 	// Winning Stake Total = 400
 	// Losing Stake Total = 400
@@ -435,7 +436,7 @@ func TestCalculatePayoutBreakdown(t *testing.T) {
 
 	// Verify Winner 1
 	var r1 *contest.PayoutRecord
-	for _, r := range records {
+	for _, r := range winners {
 		if r.UserID == winner1ID {
 			r1 = r
 			break
@@ -448,7 +449,7 @@ func TestCalculatePayoutBreakdown(t *testing.T) {
 
 	// Verify Winner 2
 	var r2 *contest.PayoutRecord
-	for _, r := range records {
+	for _, r := range winners {
 		if r.UserID == winner2ID {
 			r2 = r
 			break
@@ -458,4 +459,10 @@ func TestCalculatePayoutBreakdown(t *testing.T) {
 	assert.Equal(t, 300, r2.OriginalStake)
 	assert.Equal(t, 270, r2.ShareOfPot) // 0.75 * 360
 	assert.Equal(t, 570, r2.TotalPayout)
+
+	// Verify Loser
+	assert.Equal(t, loserID, losers[0].UserID)
+	assert.Equal(t, 400, losers[0].OriginalStake)
+	assert.Equal(t, 0, losers[0].ShareOfPot)
+	assert.Equal(t, 0, losers[0].TotalPayout)
 }

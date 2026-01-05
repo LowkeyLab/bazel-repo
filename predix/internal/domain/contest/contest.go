@@ -329,18 +329,20 @@ func (c *Contest) CalculateWinnerPayouts() (map[user.ID]int, error) {
 	return payouts, nil
 }
 
-// CalculatePayoutBreakdown returns detailed payout records for all winners.
-// Returns a slice of PayoutRecord with individual payout details.
+// CalculatePayoutBreakdown returns detailed payout records for all winners and losers.
+// Returns two slices: winning PayoutRecords and losing PayoutRecords.
 // Returns an error if the contest hasn't been resolved or has no winning option.
-func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
+func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, []*PayoutRecord, error) {
 	if c.ResultOptionID == nil {
-		return nil, errors.New("contest has not been resolved yet")
+		return nil, nil, errors.New("contest has not been resolved yet")
 	}
 
-	var records []*PayoutRecord
+	var winners []*PayoutRecord
+	var losers []*PayoutRecord
 
 	// Find all predictions that match the winning option
 	var winningPredictions []*Prediction
+	var losingPredictions []*Prediction
 	var totalWinningClout int
 	var totalPot int
 
@@ -349,11 +351,9 @@ func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
 		if c.Predictions[i].OptionID == *c.ResultOptionID {
 			winningPredictions = append(winningPredictions, c.Predictions[i])
 			totalWinningClout += c.Predictions[i].Clout
+		} else {
+			losingPredictions = append(losingPredictions, c.Predictions[i])
 		}
-	}
-
-	if len(winningPredictions) == 0 {
-		return records, nil
 	}
 
 	losingClout := totalPot - totalWinningClout
@@ -372,10 +372,21 @@ func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, error) {
 			ShareOfPot:    share,
 			TotalPayout:   pred.Clout + share,
 		}
-		records = append(records, record)
+		winners = append(winners, record)
 	}
 
-	return records, nil
+	// Create payout records for each loser
+	for _, pred := range losingPredictions {
+		record := &PayoutRecord{
+			UserID:        pred.UserID,
+			OriginalStake: pred.Clout,
+			ShareOfPot:    0,
+			TotalPayout:   0,
+		}
+		losers = append(losers, record)
+	}
+
+	return winners, losers, nil
 }
 
 func normalizeMinStake(minStake int) (int, error) {

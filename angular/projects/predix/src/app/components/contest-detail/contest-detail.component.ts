@@ -172,7 +172,8 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                         </p>
                       </div>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto mb-6">
+                      <h4 class="font-bold mb-2">🏆 Winners</h4>
                       <table class="table table-zebra">
                         <thead>
                           <tr>
@@ -193,6 +194,37 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                               <td>💎 {{ payout.share }}</td>
                               <td class="font-bold text-success">
                                 💎 {{ payout.total }}
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                      <h4 class="font-bold mb-2">❌ Losers</h4>
+                      <table class="table table-zebra">
+                        <thead>
+                          <tr>
+                            <th>User ID</th>
+                            <th>Original Stake</th>
+                            <th>Loss</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (loss of breakdown.losers; track loss.user_id) {
+                            <tr>
+                              <td>{{ loss.user_id }}</td>
+                              <td>💎 {{ loss.stake }}</td>
+                              <td class="font-bold text-error">
+                                💎 -{{ loss.stake }}
+                              </td>
+                            </tr>
+                          }
+                          @if (breakdown.losers.length === 0) {
+                            <tr>
+                              <td colspan="3" class="text-center italic">
+                                No losers.
                               </td>
                             </tr>
                           }

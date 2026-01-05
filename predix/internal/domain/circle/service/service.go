@@ -70,6 +70,7 @@ type PayoutRecord struct {
 
 type PayoutBreakdown struct {
 	Winners          []PayoutRecord
+	Losers           []PayoutRecord
 	TotalPot         int
 	HouseRake        int
 	DistributablePot int
@@ -519,28 +520,53 @@ func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, co
 		return nil, fmt.Errorf("contest must be resolved to view payout breakdown")
 	}
 
-	payoutRecords, err := c.CalculatePayoutBreakdown()
+	winners, losers, err := c.CalculatePayoutBreakdown()
 	if err != nil {
 		return nil, err
 	}
 
-	winners := make([]PayoutRecord, 0, len(payoutRecords))
+	winnerRecords := make([]PayoutRecord, len(winners))
+	for i, r := range winners {
+		winnerRecords[i] = PayoutRecord{
+			UserID: int32(r.UserID),
+			Stake:  r.OriginalStake,
+			Share:  r.ShareOfPot,
+			Total:  r.TotalPayout,
+		}
+	}
+
+	loserRecords := make([]PayoutRecord, len(losers))
+	for i, r := range losers {
+		loserRecords[i] = PayoutRecord{
+			UserID: int32(r.UserID),
+			Stake:  r.OriginalStake,
+			Share:  r.ShareOfPot,
+			Total:  r.TotalPayout,
+		}
+	}
+
+	totalPot := 0
+	winningClout := 0
+	for _, p := range c.Predictions {
+		totalPot += p.Clout
+		if c.ResultOptionID != nil && p.OptionID == *c.ResultOptionID {
+			winningClout += p.Clout
+		}
+	}
+	losingClout := totalPot - winningClout
+	houseRake := int(float64(losingClout) * c.HouseRake)
+
 	totalDistributed := 0
-	for _, record := range payoutRecords {
-		winners = append(winners, PayoutRecord{
-			UserID: int32(record.UserID),
-			Stake:  record.OriginalStake,
-			Share:  record.ShareOfPot,
-			Total:  record.TotalPayout,
-		})
-		totalDistributed += record.TotalPayout
+	for _, r := range winnerRecords {
+		totalDistributed += r.Total
 	}
 
 	return &PayoutBreakdown{
-		Winners:          winners,
-		TotalPot:         c.CalculatePot(),
-		HouseRake:        c.CalculateHouseRakeClout(),
-		DistributablePot: c.CalculateRemainingPot(),
+		Winners:          winnerRecords,
+		Losers:           loserRecords,
+		TotalPot:         totalPot,
+		HouseRake:        houseRake,
+		DistributablePot: totalPot - houseRake,
 		TotalDistributed: totalDistributed,
 	}, nil
 }

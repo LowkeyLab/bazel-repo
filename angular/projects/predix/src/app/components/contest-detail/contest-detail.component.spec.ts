@@ -62,6 +62,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         total: 380,
       },
     ],
+    losers: [],
     total_pot: 300,
     house_rake: 30,
     distributable_pot: 270,
@@ -372,6 +373,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
             total: 570,
           },
         ],
+        losers: [],
         total_pot: 300,
         house_rake: 30,
         distributable_pot: 270,
@@ -392,16 +394,17 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
     it('should handle contest with many winners', () => {
       const manyWinnersBreakdown: PayoutBreakdown = {
-        winners: [
-          { user_id: 2, stake: 50, share: 25, total: 75 },
-          { user_id: 3, stake: 50, share: 25, total: 75 },
-          { user_id: 4, stake: 50, share: 25, total: 75 },
-          { user_id: 5, stake: 50, share: 25, total: 75 },
-        ],
+        winners: Array.from({ length: 10 }, (_, i) => ({
+          user_id: i + 2,
+          stake: 10,
+          share: 9,
+          total: 19,
+        })),
+        losers: [],
         total_pot: 200,
-        house_rake: 20,
-        distributable_pot: 180,
-        total_distributed: 300,
+        house_rake: 10,
+        distributable_pot: 90,
+        total_distributed: 190,
       };
 
       mockContestService.getContest.and.returnValue(of(mockResolvedContest));
@@ -412,13 +415,14 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       fixture.detectChanges();
 
       const breakdown = component.payoutBreakdown();
-      expect(breakdown?.winners.length).toBe(4);
-      expect(breakdown?.total_distributed).toBe(300);
+      expect(breakdown?.winners.length).toBe(10);
+      expect(breakdown?.total_distributed).toBe(190);
     });
 
     it('should handle zero clout stake', () => {
       const zeroStakeBreakdown: PayoutBreakdown = {
-        winners: [{ user_id: 2, stake: 0, share: 0, total: 0 }],
+        winners: [],
+        losers: [],
         total_pot: 0,
         house_rake: 0,
         distributable_pot: 0,

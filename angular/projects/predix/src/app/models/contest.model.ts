@@ -65,6 +65,7 @@ export interface PayoutRecord {
 
 export interface PayoutBreakdown {
   winners: PayoutRecord[];
+  losers: PayoutRecord[];
   total_pot: number;
   house_rake: number;
   distributable_pot: number;
