@@ -467,3 +467,76 @@ func TestCircleHandlers(t *testing.T) {
 		})
 	})
 }
+
+func TestPayoutIntegration(t *testing.T) {
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		router, svc, _ := setupTestRouter(t, pool)
+		ctx := context.Background()
+
+		// 1. Setup Users
+		creatorID := createTestUser(t, pool, "creator")
+		winnerID := createTestUser(t, pool, "winner")
+		loserID := createTestUser(t, pool, "loser")
+
+		// 2. Setup Circle
+		circ, err := svc.CreateCircle(ctx, "Betting Circle", creatorID)
+		require.NoError(t, err)
+		require.NoError(t, svc.AddMember(ctx, circ.ID, winnerID))
+		require.NoError(t, svc.AddMember(ctx, circ.ID, loserID))
+
+		// 3. Create Contest
+		cont, err := svc.CreateContest(ctx, circ.ID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+
+		// 4. Place Bets
+		// Winner bets 100 on Option 1
+		require.NoError(t, svc.Predict(ctx, cont.ID, winnerID, 1, 100))
+		// Loser bets 100 on Option 2
+		require.NoError(t, svc.Predict(ctx, cont.ID, loserID, 2, 100))
+
+		// 5. Resolve Contest (Option 1 wins)
+		resolveBody := `{"winning_option_id": 1}`
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/contests/%d/resolve-distribute", circ.ID, cont.ID), bytes.NewBufferString(resolveBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		require.Equal(t, http.StatusOK, resp.Code)
+
+		// 6. Verify Contest Detail Response (Check Clout Consumed)
+		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d", circ.ID, cont.ID), nil)
+		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+		resp = httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		require.Equal(t, http.StatusOK, resp.Code)
+
+		var contestResp contestResponse
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &contestResp))
+
+		// Total Pot = 200
+		// Losing Stakes = 100
+		// Burn = 10% of 100 = 10
+		assert.Equal(t, 200, contestResp.TotalPot)
+		assert.Equal(t, 10, contestResp.CloutConsumed, "HTTP response should show 10 clout consumed (10% of losing stake)")
+
+		// 7. Verify Payout Breakdown Response
+		req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d/payout-breakdown", circ.ID, cont.ID), nil)
+		req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+		resp = httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		require.Equal(t, http.StatusOK, resp.Code)
+
+		var breakdownResp payoutBreakdownResponse
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &breakdownResp))
+
+		assert.Equal(t, 200, breakdownResp.TotalPot)
+		assert.Equal(t, 10, breakdownResp.CloutConsumed)
+		assert.Equal(t, 190, breakdownResp.DistributablePot)
+
+		// Verify Winner Payout
+		require.Len(t, breakdownResp.Winners, 1)
+		winnerRecord := breakdownResp.Winners[0]
+		assert.Equal(t, int32(winnerID), winnerRecord.UserID)
+		assert.Equal(t, 190, winnerRecord.Total, "Winner should receive 190 clout")
+	})
+}

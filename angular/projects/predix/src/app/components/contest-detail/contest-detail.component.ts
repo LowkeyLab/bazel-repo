@@ -86,18 +86,22 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                     💎 {{ contest.total_pot }} Clout
                   </p>
                 </div>
-                <div>
-                  <p class="text-sm text-secondary">Clout Consumed (10%)</p>
-                  <p class="font-semibold text-lg text-warning">
-                    💎 {{ contest.clout_consumed }} Clout
-                  </p>
-                </div>
-                <div>
-                  <p class="text-sm text-secondary">Remaining Pool (90%)</p>
-                  <p class="font-semibold text-lg text-success">
-                    💎 {{ contest.total_pot - contest.clout_consumed }} Clout
-                  </p>
-                </div>
+                @if (contest.status === 'RESOLVED') {
+                  <div>
+                    <p class="text-sm text-secondary">
+                      Clout Consumed (10% of Losers)
+                    </p>
+                    <p class="font-semibold text-lg text-warning">
+                      💎 {{ contest.clout_consumed }} Clout
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-secondary">Distributable Pot</p>
+                    <p class="font-semibold text-lg text-success">
+                      💎 {{ contest.total_pot - contest.clout_consumed }} Clout
+                    </p>
+                  </div>
+                }
               }
             </div>
 
@@ -137,8 +141,8 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                     <h3 class="text-xl font-bold mb-2">💰 Payout Breakdown</h3>
                     <p class="text-sm text-secondary mb-4">
                       Winners receive their original stake plus their
-                      proportional share of the remaining pot (90% after 10%
-                      consumption).
+                      proportional share of the losing stakes (minus 10% house
+                      fee).
                     </p>
                     <div class="grid grid-cols-2 gap-4 mb-6">
                       <div>
@@ -149,16 +153,14 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                       </div>
                       <div>
                         <p class="text-sm text-secondary">
-                          Clout Consumed (10%)
+                          Clout Consumed (10% of Losers)
                         </p>
                         <p class="font-semibold text-lg text-warning">
                           💎 {{ breakdown.clout_consumed }} Clout
                         </p>
                       </div>
                       <div>
-                        <p class="text-sm text-secondary">
-                          Distributable (90%)
-                        </p>
+                        <p class="text-sm text-secondary">Distributable</p>
                         <p class="font-semibold text-lg text-success">
                           💎 {{ breakdown.distributable_pot }} Clout
                         </p>
@@ -503,7 +505,6 @@ import { BackButtonComponent } from '../back-button/back-button.component';
 })
 export class ContestDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly contestService = inject(ContestService);
   public readonly auth = inject(AuthService);
 
