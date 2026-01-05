@@ -126,6 +126,51 @@ func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contest
 	return payouts, nil
 }
 
+// CloseContestAndCalculateRefunds closes a contest without resolution and returns refunds.
+// Only the contest creator can close the contest.
+// Returns a map of user.ID to clout amount to refund to each predictor (100% of their stake).
+func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID contest.ID, closerID user.ID) (map[user.ID]int, error) {
+	// Load contest from repository
+	c, err := s.repo.FindByID(ctx, contestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	if c.CreatorID != closerID {
+		return nil, ErrNotContestCreator
+	}
+
+	// Use domain method to close
+	err = c.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate refunds for all predictors (100% of their stake)
+	refunds := s.calculateRefunds(c)
+
+	// Save updated contest
+	err = s.repo.Save(ctx, c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save closed contest: %w", err)
+	}
+
+	return refunds, nil
+}
+
+// calculateRefunds returns all predictions as full refunds (100% of each prediction).
+// Returns a map where keys are user IDs and values are total clout to refund.
+func (s *Service) calculateRefunds(c *contest.Contest) map[user.ID]int {
+	refunds := make(map[user.ID]int)
+
+	// Sum all predictions by user (in case user has multiple predictions on different options)
+	for _, pred := range c.Predictions {
+		refunds[pred.UserID] += pred.Clout
+	}
+
+	return refunds
+}
+
 // calculateWinnerPayouts distributes the remaining pot (after consumption) proportionally to winners.
 func (s *Service) calculateWinnerPayouts(c *contest.Contest) map[user.ID]int {
 	payouts := make(map[user.ID]int)

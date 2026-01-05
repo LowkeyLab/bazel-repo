@@ -269,3 +269,38 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, contestI
 
 	return nil
 }
+
+// CloseAndRefundContestClout closes a contest without resolution and refunds all staked clout to the circle members.
+func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID contest.ID, closerID user.ID) error {
+	contest, err := s.contestSvc.GetContest(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	circleID := contest.CircleID
+
+	// Close the contest and get refunds
+	refunds, err := s.contestSvc.CloseContestAndCalculateRefunds(ctx, contestID, closerID)
+	if err != nil {
+		return fmt.Errorf("failed to close contest: %w", err)
+	}
+
+	// Load circle to update member clout
+	circ, err := s.circleRepo.FindByID(ctx, circleID)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	// Update clout for each predictor being refunded
+	for userID, refundAmount := range refunds {
+		if member, exists := circ.Members[userID]; exists {
+			newClout := member.Clout + refundAmount
+			err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+			if err != nil {
+				return fmt.Errorf("failed to update refunded clout for user %d: %w", userID, err)
+			}
+		}
+	}
+
+	return nil
+}

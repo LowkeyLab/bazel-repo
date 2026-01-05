@@ -384,5 +384,152 @@ func TestContestService(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "RESOLVED", dbContest.Status)
 		})
+
+		t.Run("CloseContest_FromOpenState", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Oscar")
+			circleID := createTestCircle(t, pool, "Close Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close from open?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			refunds, err := svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+			assert.Empty(t, refunds)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "CLOSED", dbContest.Status)
+		})
+
+		t.Run("CloseContest_FromLockedState", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Piper")
+			circleID := createTestCircle(t, pool, "Close Locked Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close from locked?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			refunds, err := svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+			assert.Empty(t, refunds)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "CLOSED", dbContest.Status)
+		})
+
+		t.Run("CloseContest_WithPredictions", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Quinn")
+			userID := createTestUser(t, pool, "Rachel")
+			circleID := createTestCircle(t, pool, "Close Predictions Circle", creatorID)
+
+			// Add another member
+			err := q.AddCircleMember(ctx, db.AddCircleMemberParams{
+				CircleID: int32(circleID),
+				UserID:   int32(userID),
+				Clout:    1000,
+			})
+			require.NoError(t, err)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close with predictions?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			err = svc.RecordPrediction(ctx, c.ID, creatorID, 1, 100)
+			require.NoError(t, err)
+
+			err = svc.RecordPrediction(ctx, c.ID, userID, 2, 200)
+			require.NoError(t, err)
+
+			refunds, err := svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			assert.Len(t, refunds, 2)
+			assert.Equal(t, 100, refunds[creatorID])
+			assert.Equal(t, 200, refunds[userID])
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "CLOSED", dbContest.Status)
+		})
+
+		t.Run("CloseContest_OnlyCreatorCanClose", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Sam")
+			nonCreatorID := createTestUser(t, pool, "Tina")
+			circleID := createTestCircle(t, pool, "Close Authorization Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close auth?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			_, err = svc.CloseContestAndCalculateRefunds(ctx, c.ID, nonCreatorID)
+			assert.ErrorIs(t, err, service.ErrNotContestCreator)
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, string(contest.StatusOpen), dbContest.Status)
+		})
+
+		t.Run("CloseContest_CannotCloseResolved", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Uma")
+			circleID := createTestCircle(t, pool, "Close Resolved Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Close resolved?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, creatorID, 1)
+			require.NoError(t, err)
+
+			_, err = svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot close a resolved contest")
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "RESOLVED", dbContest.Status)
+		})
+
+		t.Run("CloseContest_CannotCloseAlreadyClosed", func(t *testing.T) {
+			svc, q := build(t)
+
+			creatorID := createTestUser(t, pool, "Victor")
+			circleID := createTestCircle(t, pool, "Double Close Circle", creatorID)
+
+			opts := []string{"Option A", "Option B"}
+			expiresAt := time.Now().Add(24 * time.Hour)
+			c, err := svc.CreateContest(ctx, circleID, creatorID, "Double close?", opts, expiresAt, 0)
+			require.NoError(t, err)
+
+			_, err = svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
+			require.NoError(t, err)
+
+			_, err = svc.CloseContestAndCalculateRefunds(ctx, c.ID, creatorID)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "contest is already closed")
+
+			dbContest, err := q.GetContest(ctx, int32(c.ID))
+			require.NoError(t, err)
+			assert.Equal(t, "CLOSED", dbContest.Status)
+		})
 	})
 }

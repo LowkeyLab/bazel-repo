@@ -153,6 +153,24 @@ func (c *Contest) Lock() error {
 	return nil
 }
 
+// Close transitions the contest to Closed without resolving it.
+// This refunds all staked clouts to the predictors.
+// Only open or locked contests can be closed.
+func (c *Contest) Close() error {
+	if c.Status == StatusResolved {
+		return errors.New("cannot close a resolved contest")
+	}
+	if c.Status == StatusClosed {
+		return errors.New("contest is already closed")
+	}
+	if c.Status != StatusLocked && c.Status != StatusOpen {
+		return errors.New("contest is not in a state that can be closed")
+	}
+
+	c.Status = StatusClosed
+	return nil
+}
+
 // Resolve marks the contest as resolved and determines the winner.
 func (c *Contest) Resolve(winningOptionID int) error {
 	if c.Status == StatusResolved {

@@ -223,3 +223,73 @@ func TestResolve(t *testing.T) {
 		t.Error("expected error resolving already resolved contest")
 	}
 }
+
+func TestClose(t *testing.T) {
+	circleID := circle.ID(1)
+	creatorID := user.ID(1)
+	expiresAt := time.Now().Add(1 * time.Hour)
+
+	tests := []struct {
+		name       string
+		setup      func(*contest.Contest)
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:    "close open contest",
+			setup:   func(c *contest.Contest) {},
+			wantErr: false,
+		},
+		{
+			name: "close locked contest",
+			setup: func(c *contest.Contest) {
+				c.Lock()
+			},
+			wantErr: false,
+		},
+		{
+			name: "cannot close resolved contest",
+			setup: func(c *contest.Contest) {
+				var optionID int
+				for id := range c.Options {
+					optionID = id
+					break
+				}
+				c.Resolve(optionID)
+			},
+			wantErr:    true,
+			wantErrMsg: "cannot close a resolved contest",
+		},
+		{
+			name: "cannot close already closed contest",
+			setup: func(c *contest.Contest) {
+				c.Close()
+			},
+			wantErr:    true,
+			wantErrMsg: "contest is already closed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := contest.New(circleID, creatorID, "Q?", []string{"A", "B"}, expiresAt, 10)
+			tt.setup(c)
+
+			err := c.Close()
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				} else if tt.wantErrMsg != "" && err.Error() != tt.wantErrMsg {
+					t.Errorf("expected error %q, got %q", tt.wantErrMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if c.Status != contest.StatusClosed {
+					t.Errorf("expected status Closed, got %s", c.Status)
+				}
+			}
+		})
+	}
+}
