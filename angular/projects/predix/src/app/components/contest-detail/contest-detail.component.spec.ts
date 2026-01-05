@@ -51,12 +51,14 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     winners: [
       {
         user_id: 2,
+        username: 'bob',
         stake: 100,
         share: 90,
         total: 190,
       },
       {
         user_id: 3,
+        username: 'charlie',
         stake: 200,
         share: 180,
         total: 380,
@@ -209,12 +211,14 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       expect(breakdown?.winners.length).toBe(2);
       expect(breakdown?.winners[0]).toEqual({
         user_id: 2,
+        username: 'bob',
         stake: 100,
         share: 90,
         total: 190,
       });
       expect(breakdown?.winners[1]).toEqual({
         user_id: 3,
+        username: 'charlie',
         stake: 200,
         share: 180,
         total: 380,
@@ -368,6 +372,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         winners: [
           {
             user_id: 2,
+            username: 'bob',
             stake: 300,
             share: 270,
             total: 570,
@@ -396,6 +401,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       const manyWinnersBreakdown: PayoutBreakdown = {
         winners: Array.from({ length: 10 }, (_, i) => ({
           user_id: i + 2,
+          username: 'user' + (i + 2),
           stake: 10,
           share: 9,
           total: 19,

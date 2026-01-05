@@ -468,5 +468,46 @@ func TestCircleService(t *testing.T) {
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid winning option")
 		})
+
+		t.Run("GetPayoutBreakdown", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, pool, "creator_pb")
+			winnerID := createTestUser(t, pool, "winner_pb")
+			loserID := createTestUser(t, pool, "loser_pb")
+
+			circleObj, err := svc.CreateCircle(ctx, "PB Circle", creatorID)
+			require.NoError(t, err)
+
+			err = svc.AddMember(ctx, circleObj.ID, winnerID)
+			require.NoError(t, err)
+			err = svc.AddMember(ctx, circleObj.ID, loserID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			// Winner bets 100 on Option 1
+			err = svc.Predict(ctx, circleObj.ID, contestObj.ID, winnerID, 1, 100)
+			require.NoError(t, err)
+
+			// Loser bets 200 on Option 2
+			err = svc.Predict(ctx, circleObj.ID, contestObj.ID, loserID, 2, 200)
+			require.NoError(t, err)
+
+			// Resolve
+			err = svc.ResolveAndDistributeContestClout(ctx, circleObj.ID, contestObj.ID, creatorID, 1)
+			require.NoError(t, err)
+
+			breakdown, err := svc.GetPayoutBreakdown(ctx, circleObj.ID, contestObj.ID)
+			require.NoError(t, err)
+			assert.NotNil(t, breakdown)
+
+			assert.Len(t, breakdown.Winners, 1)
+			assert.Equal(t, "winner_pb", breakdown.Winners[0].Username)
+
+			assert.Len(t, breakdown.Losers, 1)
+			assert.Equal(t, "loser_pb", breakdown.Losers[0].Username)
+		})
 	})
 }

@@ -58,6 +58,7 @@ export interface ResolveContestRequest {
 
 export interface PayoutRecord {
   user_id: number;
+  username: string;
   stake: number;
   share: number;
   total: number;

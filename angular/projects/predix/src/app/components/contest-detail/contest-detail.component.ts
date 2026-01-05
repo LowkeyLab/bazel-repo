@@ -177,10 +177,9 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                       <table class="table table-zebra">
                         <thead>
                           <tr>
-                            <th>User ID</th>
+                            <th>User</th>
                             <th>Original Stake</th>
-                            <th>Share of Pot</th>
-                            <th>Total Payout</th>
+                            <th>Gain</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -189,11 +188,10 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                             track payout.user_id
                           ) {
                             <tr>
-                              <td>{{ payout.user_id }}</td>
+                              <td>{{ payout.username }}</td>
                               <td>💎 {{ payout.stake }}</td>
-                              <td>💎 {{ payout.share }}</td>
                               <td class="font-bold text-success">
-                                💎 {{ payout.total }}
+                                💎 {{ payout.share }}
                               </td>
                             </tr>
                           }
@@ -206,7 +204,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                       <table class="table table-zebra">
                         <thead>
                           <tr>
-                            <th>User ID</th>
+                            <th>User</th>
                             <th>Original Stake</th>
                             <th>Loss</th>
                           </tr>
@@ -214,7 +212,7 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                         <tbody>
                           @for (loss of breakdown.losers; track loss.user_id) {
                             <tr>
-                              <td>{{ loss.user_id }}</td>
+                              <td>{{ loss.username }}</td>
                               <td>💎 {{ loss.stake }}</td>
                               <td class="font-bold text-error">
                                 💎 -{{ loss.stake }}

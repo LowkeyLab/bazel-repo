@@ -111,10 +111,11 @@ type createContestRequest struct {
 }
 
 type payoutRecord struct {
-	UserID int32 `json:"user_id"`
-	Stake  int   `json:"stake"`
-	Share  int   `json:"share"`
-	Total  int   `json:"total"`
+	UserID   int32  `json:"user_id"`
+	Username string `json:"username"`
+	Stake    int    `json:"stake"`
+	Share    int    `json:"share"`
+	Total    int    `json:"total"`
 }
 
 type payoutBreakdownResponse struct {
@@ -563,20 +564,22 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 	winners := make([]payoutRecord, len(breakdown.Winners))
 	for i, r := range breakdown.Winners {
 		winners[i] = payoutRecord{
-			UserID: r.UserID,
-			Stake:  r.Stake,
-			Share:  r.Share,
-			Total:  r.Total,
+			UserID:   r.UserID,
+			Username: r.Username,
+			Stake:    r.Stake,
+			Share:    r.Share,
+			Total:    r.Total,
 		}
 	}
 
 	losers := make([]payoutRecord, len(breakdown.Losers))
 	for i, r := range breakdown.Losers {
 		losers[i] = payoutRecord{
-			UserID: r.UserID,
-			Stake:  r.Stake,
-			Share:  r.Share,
-			Total:  r.Total,
+			UserID:   r.UserID,
+			Username: r.Username,
+			Stake:    r.Stake,
+			Share:    r.Share,
+			Total:    r.Total,
 		}
 	}
 

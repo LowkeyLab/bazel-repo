@@ -62,10 +62,11 @@ type EnrichedCircle struct {
 }
 
 type PayoutRecord struct {
-	UserID int32
-	Stake  int
-	Share  int
-	Total  int
+	UserID   int32
+	Username string
+	Stake    int
+	Share    int
+	Total    int
 }
 
 type PayoutBreakdown struct {
@@ -527,21 +528,33 @@ func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, co
 
 	winnerRecords := make([]PayoutRecord, len(winners))
 	for i, r := range winners {
+		username := "Unknown"
+		u, err := s.userRepo.FindByID(ctx, r.UserID)
+		if err == nil {
+			username = u.Username
+		}
 		winnerRecords[i] = PayoutRecord{
-			UserID: int32(r.UserID),
-			Stake:  r.OriginalStake,
-			Share:  r.ShareOfPot,
-			Total:  r.TotalPayout,
+			UserID:   int32(r.UserID),
+			Username: username,
+			Stake:    r.OriginalStake,
+			Share:    r.ShareOfPot,
+			Total:    r.TotalPayout,
 		}
 	}
 
 	loserRecords := make([]PayoutRecord, len(losers))
 	for i, r := range losers {
+		username := "Unknown"
+		u, err := s.userRepo.FindByID(ctx, r.UserID)
+		if err == nil {
+			username = u.Username
+		}
 		loserRecords[i] = PayoutRecord{
-			UserID: int32(r.UserID),
-			Stake:  r.OriginalStake,
-			Share:  r.ShareOfPot,
-			Total:  r.TotalPayout,
+			UserID:   int32(r.UserID),
+			Username: username,
+			Stake:    r.OriginalStake,
+			Share:    r.ShareOfPot,
+			Total:    r.TotalPayout,
 		}
 	}
 
