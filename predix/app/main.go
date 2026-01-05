@@ -80,8 +80,17 @@ func main() {
 
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
+
+	var allowOrigins []string
+	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
+		allowOrigins = strings.Split(origins, ",")
+	}
+	if devMode {
+		allowOrigins = append(allowOrigins, "http://localhost:4200")
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:4200"},
+		AllowOrigins:     allowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
