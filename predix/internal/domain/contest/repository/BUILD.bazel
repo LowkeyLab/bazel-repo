@@ -26,8 +26,8 @@ go_test(
     srcs = ["memory_test.go"],
     deps = [
         ":repository",
+        "//predix/internal/clock",
         "//predix/internal/domain/circle",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/user",
         "@com_github_stretchr_testify//assert",

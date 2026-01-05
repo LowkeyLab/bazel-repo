@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 

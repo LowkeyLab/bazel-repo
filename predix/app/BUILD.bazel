@@ -7,10 +7,10 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//predix/internal/auth",
+        "//predix/internal/clock",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/circle/rest",
         "//predix/internal/domain/circle/service",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/contest/closer",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/contest/rest",

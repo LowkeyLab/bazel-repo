@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	clockpkg "github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	clockpkg "github.com/lowkeylab/bazel-repo/predix/internal/domain/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"

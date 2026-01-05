@@ -6,7 +6,7 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer",
     visibility = ["//predix:__subpackages__"],
     deps = [
-        "//predix/internal/domain/clock",
+        "//predix/internal/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
     ],
@@ -18,8 +18,8 @@ go_test(
     srcs = ["closer_test.go"],
     deps = [
         ":closer",
+        "//predix/internal/clock",
         "//predix/internal/domain/circle",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",

@@ -31,11 +31,11 @@ go_test(
     ],
     deps = [
         "//predix/internal/auth",
+        "//predix/internal/clock",
         "//predix/internal/db",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/circle/service",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/contest/service",

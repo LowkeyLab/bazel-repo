@@ -6,8 +6,8 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest",
     visibility = ["//predix:__subpackages__"],
     deps = [
+        "//predix/internal/clock",
         "//predix/internal/domain/circle",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/user",
     ],
 )
@@ -26,8 +26,8 @@ go_test(
     ],
     deps = [
         ":contest",
+        "//predix/internal/clock",
         "//predix/internal/domain/circle",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/user",
     ],
 )

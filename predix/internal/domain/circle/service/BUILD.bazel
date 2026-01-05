@@ -29,9 +29,9 @@ go_test(
     ],
     deps = [
         ":service",
+        "//predix/internal/clock",
         "//predix/internal/db",
         "//predix/internal/domain/circle/repository",
-        "//predix/internal/domain/clock",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/contest/service",
         "//predix/internal/domain/user",
