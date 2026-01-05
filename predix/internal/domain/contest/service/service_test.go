@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
@@ -69,8 +68,7 @@ func TestContestService(t *testing.T) {
 		build := func(t *testing.T) (*service.Service, *db.Queries) {
 			testutil.ResetTables(t, pool)
 			repo := repository.NewPostgres(pool)
-			circleRepo := circlerepo.NewPostgres(pool)
-			return service.NewService(repo, circleRepo), db.New(pool)
+			return service.NewService(repo), db.New(pool)
 		}
 
 		t.Run("CreateContest", func(t *testing.T) {
@@ -193,7 +191,7 @@ func TestContestService(t *testing.T) {
 			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What will happen?", opts, expiresAt, 0)
 			require.NoError(t, err)
 
-			err = svc.Predict(ctx, c.ID, circleID, userID, 1, 100)
+			err = svc.RecordPrediction(ctx, c.ID, userID, 1, 100)
 			require.NoError(t, err)
 
 			predictions, err := q.ListContestPredictions(ctx, int32(c.ID))
@@ -222,7 +220,7 @@ func TestContestService(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			err = svc.Predict(ctx, c.ID, circleID, userID, 1, 100)
+			err = svc.RecordPrediction(ctx, c.ID, userID, 1, 100)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "not open")
 		})
@@ -238,7 +236,7 @@ func TestContestService(t *testing.T) {
 			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "Coin flip?", opts, expiresAt, 100)
 			require.NoError(t, err)
 
-			err = svc.Predict(ctx, c.ID, circleID, userID, 1, 50)
+			err = svc.RecordPrediction(ctx, c.ID, userID, 1, 50)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "at least 100")
 		})
@@ -254,7 +252,7 @@ func TestContestService(t *testing.T) {
 			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What is the outcome?", opts, expiresAt, 0)
 			require.NoError(t, err)
 
-			err = svc.ResolveContest(ctx, c.ID, userID, 1)
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, userID, 1)
 			require.NoError(t, err)
 
 			dbContest, err := q.GetContest(ctx, int32(c.ID))
@@ -276,7 +274,7 @@ func TestContestService(t *testing.T) {
 			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Which team wins?", opts, expiresAt, 0)
 			require.NoError(t, err)
 
-			err = svc.ResolveContest(ctx, c.ID, nonCreatorID, 1)
+			_, err = svc.ResolveContestAndCalculatePayouts(ctx, c.ID, nonCreatorID, 1)
 			assert.ErrorIs(t, err, service.ErrNotContestCreator)
 
 			dbContest, err := q.GetContest(ctx, int32(c.ID))

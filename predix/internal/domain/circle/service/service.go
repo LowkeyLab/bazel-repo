@@ -8,6 +8,8 @@ import (
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
+	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 )
@@ -17,17 +19,23 @@ type CircleRepository = repository.Repository
 type Service struct {
 	circleRepo repository.Repository
 	userRepo   userrepo.Repository
+	contestSvc *contestservice.Service
 }
 
 // NewService creates a service with a repository interface.
-func NewService(circleRepo CircleRepository, userRepo userrepo.Repository) *Service {
+func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestSvc *contestservice.Service) *Service {
 	return &Service{
 		circleRepo: circleRepo,
 		userRepo:   userRepo,
+		contestSvc: contestSvc,
 	}
 }
 
-var ErrNotCircleOwner = errors.New("only the circle creator or an admin can delete this circle")
+var (
+	ErrNotCircleOwner    = errors.New("only the circle creator or an admin can delete this circle")
+	ErrInsufficientClout = errors.New("insufficient clout balance to make this prediction")
+	ErrUserNotInCircle   = errors.New("user is not a member of this circle")
+)
 
 // EnrichedMember contains member data with username looked up from user repository.
 type EnrichedMember struct {
@@ -185,4 +193,65 @@ func (s *Service) enrichCircle(ctx context.Context, circ *circle.Circle) (*Enric
 		Members:   members,
 		CreatedAt: circ.CreatedAt,
 	}, nil
+}
+
+// Predict handles the prediction workflow: validate clout, deduct it, and record the prediction.
+func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+	// Load circle to check user membership and clout balance
+	circ, err := s.circleRepo.FindByID(ctx, circleID)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	userMember, exists := circ.Members[userID]
+	if !exists {
+		return ErrUserNotInCircle
+	}
+
+	if userMember.Clout < clout {
+		return ErrInsufficientClout
+	}
+
+	// Record the prediction in the contest (deduct clout happens next)
+	err = s.contestSvc.RecordPrediction(ctx, contestID, userID, optionID, clout)
+	if err != nil {
+		return fmt.Errorf("failed to record prediction: %w", err)
+	}
+
+	// Deduct clout from member's balance
+	newClout := userMember.Clout - clout
+	err = s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+	if err != nil {
+		return fmt.Errorf("failed to update member clout: %w", err)
+	}
+
+	return nil
+}
+
+// ResolveAndDistributeContestClout resolves a contest and distributes winnings to the circle members.
+func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID circle.ID, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
+	// Resolve the contest and get winner payouts
+	payouts, err := s.contestSvc.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
+	if err != nil {
+		return fmt.Errorf("failed to resolve contest: %w", err)
+	}
+
+	// Load circle to update member clout
+	circ, err := s.circleRepo.FindByID(ctx, circleID)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	// Update clout for each winner
+	for winnerID, payout := range payouts {
+		if member, exists := circ.Members[winnerID]; exists {
+			newClout := member.Clout + payout
+			err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(winnerID), newClout)
+			if err != nil {
+				return fmt.Errorf("failed to update winner clout for user %d: %w", winnerID, err)
+			}
+		}
+	}
+
+	return nil
 }

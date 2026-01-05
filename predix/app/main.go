@@ -24,24 +24,17 @@ import (
 )
 
 func main() {
-	// 0. Initialize Logger
-	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
 	logger := slog.New(logHandler)
 	slog.SetDefault(logger)
 
-	// 1. Initialize Infrastructure
-	// Determine whether to use in-memory or PostgreSQL repositories
 	devMode := strings.ToLower(os.Getenv("DEV_MODE")) == "true"
 	jwtSecret := os.Getenv("JWT_SECRET")
-
 	if devMode {
 		slog.Info("Running in development mode with in-memory storage")
 		jwtSecret = "dev-secret"
 	}
 
-	// 2. Initialize Repositories
 	var userRepo userrepo.Repository
 	var contestRepo contestrepo.Repository
 	var circleRepo circlerepo.Repository
@@ -51,10 +44,8 @@ func main() {
 		circleRepo = circlerepo.NewMemory()
 		contestRepo = contestrepo.NewMemory()
 		userRepo = userrepo.NewMemory()
-
 	} else {
 		slog.Info("Using PostgreSQL repositories")
-		// DB
 		connStr := os.Getenv("DATABASE_URL")
 		if connStr == "" {
 			connStr = "postgres://user:password@localhost:5432/predix?sslmode=disable"
@@ -70,20 +61,17 @@ func main() {
 		circleRepo = circlerepo.NewPostgres(pool)
 		contestRepo = contestrepo.NewPostgres(pool)
 		userRepo = userrepo.NewPostgres(pool)
-
 	}
 
-	circleSvc := circleservice.NewService(circleRepo, userRepo)
-	contestSvc := contestservice.NewService(contestRepo, circleRepo)
+	contestSvc := contestservice.NewService(contestRepo)
+	circleSvc := circleservice.NewService(circleRepo, userRepo, contestSvc)
 	userSvc := userservice.NewService(userRepo)
 
-	// 3. Initialize HTTP Handlers
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc, contestSvc)
-	contestHandler := contestrest.NewHandler(contestSvc)
+	contestHandler := contestrest.NewHandler(contestSvc, circleSvc)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
-	// 4. Setup HTTP Router
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
 	r.Use(cors.New(cors.Config{

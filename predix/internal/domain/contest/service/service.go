@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -15,21 +14,16 @@ import (
 
 type ContestRepository = repository.Repository
 
-var (
-	ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
-	ErrInsufficientClout = errors.New("insufficient clout balance to make this prediction")
-)
+var ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
 
 type Service struct {
-	repo       repository.Repository
-	circleRepo circlerepo.Repository
+	repo repository.Repository
 }
 
 // NewService creates a service with repository interfaces.
-func NewService(repo ContestRepository, circleRepo circlerepo.Repository) *Service {
+func NewService(repo ContestRepository) *Service {
 	return &Service{
-		repo:       repo,
-		circleRepo: circleRepo,
+		repo: repo,
 	}
 }
 
@@ -49,39 +43,19 @@ func (s *Service) CreateContest(ctx context.Context, circleIDs []circle.ID, crea
 	return c, nil
 }
 
-func (s *Service) Predict(ctx context.Context, contestID contest.ID, circleID circle.ID, userID user.ID, optionID int, clout int) error {
+// RecordPrediction adds a prediction to a contest and persists it.
+// Note: This method does NOT deduct clout; that is handled by the circle service.
+func (s *Service) RecordPrediction(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
 	// Load contest from repository
 	c, err := s.repo.FindByID(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
-	// Check if user has sufficient clout in the circle
-	member, err := s.circleRepo.FindByID(ctx, circleID)
-	if err != nil {
-		return fmt.Errorf("failed to get circle: %w", err)
-	}
-
-	userMember, exists := member.Members[userID]
-	if !exists {
-		return errors.New("user is not a member of this circle")
-	}
-
-	if userMember.Clout < clout {
-		return ErrInsufficientClout
-	}
-
 	// Use domain method to add prediction
 	err = c.Predict(userID, optionID, clout)
 	if err != nil {
 		return err
-	}
-
-	// Deduct clout from member's balance
-	newClout := userMember.Clout - clout
-	err = s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
-	if err != nil {
-		return fmt.Errorf("failed to update member clout: %w", err)
 	}
 
 	// Save updated contest
@@ -93,30 +67,73 @@ func (s *Service) Predict(ctx context.Context, contestID contest.ID, circleID ci
 	return nil
 }
 
-func (s *Service) ResolveContest(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
+// ResolveContestAndCalculatePayouts resolves a contest and returns winner payouts.
+// Returns a map of user.ID to clout amount for each winner.
+func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (map[user.ID]int, error) {
 	// Load contest from repository
 	c, err := s.repo.FindByID(ctx, contestID)
 	if err != nil {
-		return fmt.Errorf("failed to get contest: %w", err)
+		return nil, fmt.Errorf("failed to get contest: %w", err)
 	}
 
 	if c.CreatorID != resolverID {
-		return ErrNotContestCreator
+		return nil, ErrNotContestCreator
 	}
 
 	// Use domain method to resolve
 	err = c.Resolve(winningOptionID)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	// Calculate payouts for winners
+	payouts := s.calculateWinnerPayouts(c)
 
 	// Save updated contest
 	err = s.repo.Save(ctx, c)
 	if err != nil {
-		return fmt.Errorf("failed to save resolved contest: %w", err)
+		return nil, fmt.Errorf("failed to save resolved contest: %w", err)
 	}
 
-	return nil
+	return payouts, nil
+}
+
+// calculateWinnerPayouts distributes the remaining pot (after consumption) proportionally to winners.
+func (s *Service) calculateWinnerPayouts(c *contest.Contest) map[user.ID]int {
+	payouts := make(map[user.ID]int)
+
+	if c.ResultOptionID == nil {
+		return payouts
+	}
+
+	// Find all predictions that match the winning option
+	var winningPredictions []*contest.Prediction
+	var totalWinningClout int
+
+	for i := range c.Predictions {
+		if c.Predictions[i].OptionID == *c.ResultOptionID {
+			winningPredictions = append(winningPredictions, c.Predictions[i])
+			totalWinningClout += c.Predictions[i].Clout
+		}
+	}
+
+	if len(winningPredictions) == 0 {
+		return payouts
+	}
+
+	// Distribute remaining pot proportionally based on stake
+	remainingPot := c.CalculateRemainingPot()
+	for _, pred := range winningPredictions {
+		// Return original stake
+		payout := pred.Clout
+		// Add proportional share of remaining pot (after consumption fee)
+		if totalWinningClout > 0 {
+			payout += (pred.Clout * remainingPot) / totalWinningClout
+		}
+		payouts[pred.UserID] += payout
+	}
+
+	return payouts
 }
 
 func (s *Service) GetContest(ctx context.Context, id contest.ID) (*contest.Contest, error) {

@@ -42,9 +42,8 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	repo := circlerepo.NewPostgres(pool)
 	userRepo := userrepo.NewPostgres(pool)
 	contestRepo := contestrepo.NewPostgres(pool)
-	circleRepo := circlerepo.NewPostgres(pool)
-	svc := service.NewService(repo, userRepo)
-	contestSvc := contestservice.NewService(contestRepo, circleRepo)
+	contestSvc := contestservice.NewService(contestRepo)
+	svc := service.NewService(repo, userRepo, contestSvc)
 	handler := NewHandler(svc, contestSvc)
 
 	r := gin.New()

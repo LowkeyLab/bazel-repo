@@ -12,26 +12,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 )
 
 // Handler wires contest HTTP endpoints.
 type Handler struct {
-	svc *service.Service
+	svc       *service.Service
+	circleSvc *circleservice.Service
 }
 
 // NewHandler constructs a contest REST handler.
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *service.Service, circleSvc *circleservice.Service) *Handler {
+	return &Handler{svc: svc, circleSvc: circleSvc}
 }
 
 // RegisterRoutes registers contest routes on the provided router.
 func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.POST("/contests", h.createContest)
+	r.GET("/contests/:id", h.getContest)
 	r.POST("/contests/:id/predictions", h.makePrediction)
 	r.POST("/contests/:id/resolve", h.resolveContest)
-	r.GET("/contests/:id", h.getContest)
 }
 
 type createContestRequest struct {
@@ -70,6 +72,17 @@ type contestResponse struct {
 	ExpiresAt      time.Time            `json:"expires_at"`
 }
 
+type makePredictionRequest struct {
+	CircleID int32 `json:"circle_id"`
+	OptionID int   `json:"option_id"`
+	Clout    int   `json:"clout"`
+}
+
+type resolveContestRequest struct {
+	CircleID        int32 `json:"circle_id"`
+	WinningOptionID int   `json:"winning_option_id"`
+}
+
 func (h *Handler) createContest(c *gin.Context) {
 	var req createContestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -85,9 +98,9 @@ func (h *Handler) createContest(c *gin.Context) {
 		return
 	}
 
-	circleIDs := make([]circle.ID, len(req.CircleIDs))
-	for i, id := range req.CircleIDs {
-		circleIDs[i] = circle.ID(id)
+	circleIDs := make([]circle.ID, 0, len(req.CircleIDs))
+	for _, id := range req.CircleIDs {
+		circleIDs = append(circleIDs, circle.ID(id))
 	}
 
 	newContest, err := h.svc.CreateContest(
@@ -107,93 +120,6 @@ func (h *Handler) createContest(c *gin.Context) {
 
 	slog.InfoContext(c.Request.Context(), "contest created successfully", "contest_id", newContest.ID, "creator_id", creatorID, "question", req.Question)
 	c.JSON(http.StatusCreated, toContestResponse(newContest))
-}
-
-type makePredictionRequest struct {
-	CircleID int32 `json:"circle_id"`
-	OptionID int   `json:"option_id"`
-	Clout    int   `json:"clout"`
-}
-
-func (h *Handler) makePrediction(c *gin.Context) {
-	contestID, ok := parseContestID(c)
-	if !ok {
-		return
-	}
-
-	userID, ok := auth.UserIDFromContext(c)
-	if !ok {
-		slog.WarnContext(c.Request.Context(), "unauthenticated prediction attempt")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
-		return
-	}
-
-	var req makePredictionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.WarnContext(c.Request.Context(), "invalid make prediction request body", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
-		return
-	}
-
-	err := h.svc.Predict(c.Request.Context(), contestID, circle.ID(req.CircleID), userID, req.OptionID, req.Clout)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
-			return
-		}
-		slog.WarnContext(c.Request.Context(), "failed to make prediction", "contest_id", contestID, "user_id", userID, "option_id", req.OptionID, "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	slog.InfoContext(c.Request.Context(), "prediction made successfully", "contest_id", contestID, "user_id", userID, "option_id", req.OptionID)
-	c.Status(http.StatusCreated)
-}
-
-type resolveContestRequest struct {
-	WinningOptionID int `json:"winning_option_id"`
-}
-
-func (h *Handler) resolveContest(c *gin.Context) {
-	contestID, ok := parseContestID(c)
-	if !ok {
-		return
-	}
-
-	userID, ok := auth.UserIDFromContext(c)
-	if !ok {
-		slog.WarnContext(c.Request.Context(), "unauthenticated resolve contest attempt")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
-		return
-	}
-
-	var req resolveContestRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.WarnContext(c.Request.Context(), "invalid resolve contest request body", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
-		return
-	}
-
-	err := h.svc.ResolveContest(c.Request.Context(), contestID, userID, req.WinningOptionID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
-			return
-		}
-		if errors.Is(err, service.ErrNotContestCreator) {
-			slog.WarnContext(c.Request.Context(), "unauthorized contest resolution", "contest_id", contestID, "user_id", userID, "error", err)
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-		slog.WarnContext(c.Request.Context(), "failed to resolve contest", "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID, "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	slog.InfoContext(c.Request.Context(), "contest resolved successfully", "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID)
-	c.Status(http.StatusOK)
 }
 
 func (h *Handler) getContest(c *gin.Context) {
@@ -216,6 +142,114 @@ func (h *Handler) getContest(c *gin.Context) {
 
 	slog.DebugContext(c.Request.Context(), "contest retrieved", "contest_id", contestID)
 	c.JSON(http.StatusOK, toContestResponse(result))
+}
+
+func (h *Handler) makePrediction(c *gin.Context) {
+	contestID, ok := parseContestID(c)
+	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		slog.WarnContext(c.Request.Context(), "unauthenticated prediction attempt")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	var req makePredictionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.WarnContext(c.Request.Context(), "invalid make prediction request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	err := h.circleSvc.Predict(c.Request.Context(), circle.ID(req.CircleID), contestID, userID, req.OptionID, req.Clout)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", req.CircleID, "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+			return
+		}
+		if errors.Is(err, circleservice.ErrUserNotInCircle) {
+			slog.WarnContext(c.Request.Context(), "user not in circle", "circle_id", req.CircleID, "user_id", userID)
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, circleservice.ErrInsufficientClout) {
+			slog.WarnContext(c.Request.Context(), "insufficient clout", "circle_id", req.CircleID, "user_id", userID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		slog.WarnContext(c.Request.Context(), "failed to make prediction", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "option_id", req.OptionID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	slog.InfoContext(c.Request.Context(), "prediction made successfully", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "option_id", req.OptionID)
+	c.Status(http.StatusCreated)
+}
+
+func (h *Handler) resolveContest(c *gin.Context) {
+	contestID, ok := parseContestID(c)
+	if !ok {
+		return
+	}
+
+	userID, ok := auth.UserIDFromContext(c)
+	if !ok {
+		slog.WarnContext(c.Request.Context(), "unauthenticated resolve attempt")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	var req resolveContestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.WarnContext(c.Request.Context(), "invalid resolve contest request body", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	circleID := circle.ID(req.CircleID)
+	if circleID == 0 {
+		contest, err := h.svc.GetContest(c.Request.Context(), contestID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				slog.WarnContext(c.Request.Context(), "contest not found while resolving", "contest_id", contestID)
+				c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+				return
+			}
+			slog.ErrorContext(c.Request.Context(), "failed to load contest for resolution", "contest_id", contestID, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if len(contest.CircleIDs) == 0 {
+			slog.WarnContext(c.Request.Context(), "contest has no circles for resolution", "contest_id", contestID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "contest has no circles"})
+			return
+		}
+		circleID = contest.CircleIDs[0]
+	}
+
+	err := h.circleSvc.ResolveAndDistributeContestClout(c.Request.Context(), circleID, contestID, userID, req.WinningOptionID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", req.CircleID, "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
+			return
+		}
+		if errors.Is(err, service.ErrNotContestCreator) {
+			slog.WarnContext(c.Request.Context(), "unauthorized contest resolution", "contest_id", contestID, "user_id", userID)
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		slog.WarnContext(c.Request.Context(), "failed to resolve contest", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	slog.InfoContext(c.Request.Context(), "contest resolved and clout distributed", "circle_id", req.CircleID, "contest_id", contestID, "user_id", userID, "winning_option_id", req.WinningOptionID)
+	c.Status(http.StatusOK)
 }
 
 func parseContestID(c *gin.Context) (contest.ID, bool) {
@@ -244,10 +278,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 
 	options := make([]optionResponse, 0, len(cont.Options))
 	for _, opt := range cont.Options {
-		options = append(options, optionResponse{
-			ID:   opt.ID,
-			Text: opt.Text,
-		})
+		options = append(options, optionResponse{ID: opt.ID, Text: opt.Text})
 	}
 	sort.Slice(options, func(i, j int) bool {
 		return options[i].ID < options[j].ID

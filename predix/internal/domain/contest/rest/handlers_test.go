@@ -17,9 +17,11 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
+	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
+	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,15 +54,17 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	gin.SetMode(gin.TestMode)
 	repo := repository.NewPostgres(pool)
 	circleRepo := circlerepo.NewPostgres(pool)
-	svc := service.NewService(repo, circleRepo)
-	handler := NewHandler(svc)
+	userRepo := userrepo.NewPostgres(pool)
+	contestSvc := service.NewService(repo)
+	circleSvc := circleservice.NewService(circleRepo, userRepo, contestSvc)
+	handler := NewHandler(contestSvc, circleSvc)
 
 	r := gin.New()
 	authGroup := r.Group("/protected")
 	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)
 
-	return r, svc, db.New(pool)
+	return r, contestSvc, db.New(pool)
 }
 
 func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
