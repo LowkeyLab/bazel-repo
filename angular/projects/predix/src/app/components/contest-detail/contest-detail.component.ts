@@ -73,6 +73,26 @@ import { BackButtonComponent } from '../back-button/back-button.component';
                 <p class="text-sm text-secondary">Predictions</p>
                 <p class="font-semibold">{{ contest.predictions.length }}</p>
               </div>
+              @if (contest.total_pot > 0) {
+                <div>
+                  <p class="text-sm text-secondary">Total Pot</p>
+                  <p class="font-semibold text-lg">
+                    💎 {{ contest.total_pot }} Clout
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm text-secondary">Clout Consumed (10%)</p>
+                  <p class="font-semibold text-lg text-warning">
+                    💎 {{ contest.clout_consumed }} Clout
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm text-secondary">Remaining Pool (90%)</p>
+                  <p class="font-semibold text-lg text-success">
+                    💎 {{ contest.total_pot - contest.clout_consumed }} Clout
+                  </p>
+                </div>
+              }
             </div>
 
             @if (contest.status === 'RESOLVED' && contest.result_option_id) {
@@ -231,12 +251,15 @@ export class ContestDetailComponent implements OnInit {
   };
 
   protected selectedOptionId: number | null = null;
+  protected selectedCircleId: number | null = null;
   protected cloutAmount = 10;
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
+    const circleId = Number(this.route.snapshot.queryParamMap.get('circleId'));
     if (id) {
       this.loadContest(id);
+      this.selectedCircleId = circleId;
     }
   }
 
@@ -277,6 +300,7 @@ export class ContestDetailComponent implements OnInit {
 
     this.contestService
       .makePrediction(contestId, {
+        circle_id: this.selectedCircleId || 0,
         option_id: this.selectedOptionId,
         clout: this.cloutAmount,
       })

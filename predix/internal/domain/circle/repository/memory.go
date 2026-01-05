@@ -155,3 +155,22 @@ func (r *Memory) Delete(ctx context.Context, circleID circle.ID) error {
 	delete(r.circles, circleID)
 	return nil
 }
+
+// UpdateMemberClout updates a member's clout balance in a circle.
+func (r *Memory) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	c, exists := r.circles[circleID]
+	if !exists {
+		return fmt.Errorf("circle not found with id: %d", circleID)
+	}
+
+	member, exists := c.Members[user.ID(userID)]
+	if !exists {
+		return fmt.Errorf("user not found in circle")
+	}
+
+	member.Clout = newClout
+	return nil
+}

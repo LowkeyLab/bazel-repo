@@ -74,7 +74,7 @@ func main() {
 	}
 
 	circleSvc := circleservice.NewService(circleRepo, userRepo)
-	contestSvc := contestservice.NewService(contestRepo)
+	contestSvc := contestservice.NewService(contestRepo, circleRepo)
 	userSvc := userservice.NewService(userRepo)
 
 	// 3. Initialize HTTP Handlers

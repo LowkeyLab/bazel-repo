@@ -67,14 +67,15 @@ type CircleMember struct {
 }
 
 type Contest struct {
-	ID             int32            `json:"id"`
-	CreatorID      int32            `json:"creator_id"`
-	Question       string           `json:"question"`
-	Status         string           `json:"status"`
-	MinStake       int32            `json:"min_stake"`
-	ResultOptionID pgtype.Int4      `json:"result_option_id"`
-	CreatedAt      pgtype.Timestamp `json:"created_at"`
-	ExpiresAt      pgtype.Timestamp `json:"expires_at"`
+	ID              int32            `json:"id"`
+	CreatorID       int32            `json:"creator_id"`
+	Question        string           `json:"question"`
+	Status          string           `json:"status"`
+	MinStake        int32            `json:"min_stake"`
+	ConsumptionRate pgtype.Numeric   `json:"consumption_rate"`
+	ResultOptionID  pgtype.Int4      `json:"result_option_id"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	ExpiresAt       pgtype.Timestamp `json:"expires_at"`
 }
 
 type ContestCircle struct {

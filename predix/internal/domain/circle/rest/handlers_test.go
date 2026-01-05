@@ -16,7 +16,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
+	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	contestservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
@@ -39,11 +39,12 @@ type circleResponseBody struct {
 func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Service, *db.Queries, *contestservice.Service) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	repo := repository.NewPostgres(pool)
+	repo := circlerepo.NewPostgres(pool)
 	userRepo := userrepo.NewPostgres(pool)
 	contestRepo := contestrepo.NewPostgres(pool)
+	circleRepo := circlerepo.NewPostgres(pool)
 	svc := service.NewService(repo, userRepo)
-	contestSvc := contestservice.NewService(contestRepo)
+	contestSvc := contestservice.NewService(contestRepo, circleRepo)
 	handler := NewHandler(svc, contestSvc)
 
 	r := gin.New()

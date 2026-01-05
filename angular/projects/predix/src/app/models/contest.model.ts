@@ -9,6 +9,8 @@ export interface Contest {
   predictions: Prediction[];
   status: ContestStatus;
   min_stake: number;
+  total_pot: number;
+  clout_consumed: number;
   result_option_id?: number;
   created_at: string;
   expires_at: string;
@@ -35,6 +37,7 @@ export interface CreateContestRequest {
 }
 
 export interface MakePredictionRequest {
+  circle_id: number;
   option_id: number;
   clout: number;
 }

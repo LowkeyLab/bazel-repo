@@ -67,18 +67,19 @@ func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Cir
 }
 
 const createContest = `-- name: CreateContest :one
-INSERT INTO contests (creator_id, question, status, min_stake, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, creator_id, question, status, min_stake, result_option_id, created_at, expires_at
+INSERT INTO contests (creator_id, question, status, min_stake, consumption_rate, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, creator_id, question, status, min_stake, consumption_rate, result_option_id, created_at, expires_at
 `
 
 type CreateContestParams struct {
-	CreatorID int32            `json:"creator_id"`
-	Question  string           `json:"question"`
-	Status    string           `json:"status"`
-	MinStake  int32            `json:"min_stake"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+	CreatorID       int32            `json:"creator_id"`
+	Question        string           `json:"question"`
+	Status          string           `json:"status"`
+	MinStake        int32            `json:"min_stake"`
+	ConsumptionRate pgtype.Numeric   `json:"consumption_rate"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	ExpiresAt       pgtype.Timestamp `json:"expires_at"`
 }
 
 func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error) {
@@ -87,6 +88,7 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 		arg.Question,
 		arg.Status,
 		arg.MinStake,
+		arg.ConsumptionRate,
 		arg.CreatedAt,
 		arg.ExpiresAt,
 	)
@@ -97,6 +99,7 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 		&i.Question,
 		&i.Status,
 		&i.MinStake,
+		&i.ConsumptionRate,
 		&i.ResultOptionID,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -222,7 +225,7 @@ func (q *Queries) GetCircleMember(ctx context.Context, arg GetCircleMemberParams
 }
 
 const getContest = `-- name: GetContest :one
-SELECT id, creator_id, question, status, min_stake, result_option_id, created_at, expires_at FROM contests
+SELECT id, creator_id, question, status, min_stake, consumption_rate, result_option_id, created_at, expires_at FROM contests
 WHERE id = $1 LIMIT 1
 `
 
@@ -235,6 +238,7 @@ func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 		&i.Question,
 		&i.Status,
 		&i.MinStake,
+		&i.ConsumptionRate,
 		&i.ResultOptionID,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -397,7 +401,7 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID int32) (
 }
 
 const listContestsByCircle = `-- name: ListContestsByCircle :many
-SELECT c.id, c.creator_id, c.question, c.status, c.min_stake, c.result_option_id, c.created_at, c.expires_at
+SELECT c.id, c.creator_id, c.question, c.status, c.min_stake, c.consumption_rate, c.result_option_id, c.created_at, c.expires_at
 FROM contests c
 JOIN contest_circles cc ON cc.contest_id = c.id
 WHERE cc.circle_id = $1
@@ -419,6 +423,7 @@ func (q *Queries) ListContestsByCircle(ctx context.Context, circleID int32) ([]C
 			&i.Question,
 			&i.Status,
 			&i.MinStake,
+			&i.ConsumptionRate,
 			&i.ResultOptionID,
 			&i.CreatedAt,
 			&i.ExpiresAt,
@@ -464,6 +469,23 @@ func (q *Queries) ListUserCircles(ctx context.Context, userID int32) ([]Circle, 
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCircleMemberClout = `-- name: UpdateCircleMemberClout :exec
+UPDATE circle_members
+SET clout = $3
+WHERE circle_id = $1 AND user_id = $2
+`
+
+type UpdateCircleMemberCloutParams struct {
+	CircleID int32 `json:"circle_id"`
+	UserID   int32 `json:"user_id"`
+	Clout    int32 `json:"clout"`
+}
+
+func (q *Queries) UpdateCircleMemberClout(ctx context.Context, arg UpdateCircleMemberCloutParams) error {
+	_, err := q.db.Exec(ctx, updateCircleMemberClout, arg.CircleID, arg.UserID, arg.Clout)
+	return err
 }
 
 const updateContestStatus = `-- name: UpdateContestStatus :exec

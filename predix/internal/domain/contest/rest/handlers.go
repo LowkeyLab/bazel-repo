@@ -63,6 +63,8 @@ type contestResponse struct {
 	Predictions    []predictionResponse `json:"predictions"`
 	Status         string               `json:"status"`
 	MinStake       int                  `json:"min_stake"`
+	TotalPot       int                  `json:"total_pot"`
+	CloutConsumed  int                  `json:"clout_consumed"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
 	ExpiresAt      time.Time            `json:"expires_at"`
@@ -108,8 +110,9 @@ func (h *Handler) createContest(c *gin.Context) {
 }
 
 type makePredictionRequest struct {
-	OptionID int `json:"option_id"`
-	Clout    int `json:"clout"`
+	CircleID int32 `json:"circle_id"`
+	OptionID int   `json:"option_id"`
+	Clout    int   `json:"clout"`
 }
 
 func (h *Handler) makePrediction(c *gin.Context) {
@@ -132,7 +135,7 @@ func (h *Handler) makePrediction(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.Predict(c.Request.Context(), contestID, userID, req.OptionID, req.Clout)
+	err := h.svc.Predict(c.Request.Context(), contestID, circle.ID(req.CircleID), userID, req.OptionID, req.Clout)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
@@ -269,6 +272,8 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		Predictions:    predictions,
 		Status:         string(cont.Status),
 		MinStake:       cont.MinStake,
+		TotalPot:       cont.CalculatePot(),
+		CloutConsumed:  cont.CalculateConsumedClout(),
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
 		ExpiresAt:      cont.ExpiresAt,

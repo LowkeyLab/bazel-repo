@@ -28,6 +28,11 @@ VALUES ($1, $2, $3);
 SELECT * FROM circle_members
 WHERE circle_id = $1 AND user_id = $2 LIMIT 1;
 
+-- name: UpdateCircleMemberClout :exec
+UPDATE circle_members
+SET clout = $3
+WHERE circle_id = $1 AND user_id = $2;
+
 -- name: ListCircleMembers :many
 SELECT cm.*, u.username
 FROM circle_members cm
@@ -46,8 +51,8 @@ DELETE FROM circles
 WHERE id = $1;
 
 -- name: CreateContest :one
-INSERT INTO contests (creator_id, question, status, min_stake, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO contests (creator_id, question, status, min_stake, consumption_rate, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: AddContestCircle :exec

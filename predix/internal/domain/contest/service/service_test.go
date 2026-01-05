@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
@@ -36,7 +37,7 @@ func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
 	return user.ID(result.ID)
 }
 
-// createTestCircle creates a test circle in the database
+// createTestCircle creates a test circle in the database with creator as member
 func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID user.ID) circle.ID {
 	t.Helper()
 
@@ -50,6 +51,14 @@ func createTestCircle(t *testing.T, pool *pgxpool.Pool, name string, creatorID u
 	})
 	require.NoError(t, err)
 
+	// Add creator as a member with initial clout balance
+	err = q.AddCircleMember(ctx, db.AddCircleMemberParams{
+		CircleID: result.ID,
+		UserID:   int32(creatorID),
+		Clout:    1000, // Default starting clout
+	})
+	require.NoError(t, err)
+
 	return circle.ID(result.ID)
 }
 
@@ -60,7 +69,8 @@ func TestContestService(t *testing.T) {
 		build := func(t *testing.T) (*service.Service, *db.Queries) {
 			testutil.ResetTables(t, pool)
 			repo := repository.NewPostgres(pool)
-			return service.NewService(repo), db.New(pool)
+			circleRepo := circlerepo.NewPostgres(pool)
+			return service.NewService(repo, circleRepo), db.New(pool)
 		}
 
 		t.Run("CreateContest", func(t *testing.T) {
@@ -183,7 +193,7 @@ func TestContestService(t *testing.T) {
 			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "What will happen?", opts, expiresAt, 0)
 			require.NoError(t, err)
 
-			err = svc.Predict(ctx, c.ID, userID, 1, 100)
+			err = svc.Predict(ctx, c.ID, circleID, userID, 1, 100)
 			require.NoError(t, err)
 
 			predictions, err := q.ListContestPredictions(ctx, int32(c.ID))
@@ -212,7 +222,7 @@ func TestContestService(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			err = svc.Predict(ctx, c.ID, userID, 1, 100)
+			err = svc.Predict(ctx, c.ID, circleID, userID, 1, 100)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "not open")
 		})
@@ -228,7 +238,7 @@ func TestContestService(t *testing.T) {
 			c, err := svc.CreateContest(ctx, []circle.ID{circleID}, userID, "Coin flip?", opts, expiresAt, 100)
 			require.NoError(t, err)
 
-			err = svc.Predict(ctx, c.ID, userID, 1, 50)
+			err = svc.Predict(ctx, c.ID, circleID, userID, 1, 50)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "at least 100")
 		})

@@ -12,5 +12,6 @@ type Repository interface {
 	FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error)
 	FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error)
 	AddMember(ctx context.Context, circleID circle.ID, member *circle.Member) error
+	UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error
 	Delete(ctx context.Context, id circle.ID) error
 }

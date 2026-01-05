@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,12 +44,13 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	if isNew {
 		// Create new contest
 		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
-			CreatorID: int32(c.CreatorID),
-			Question:  c.Question,
-			Status:    string(c.Status),
-			MinStake:  int32(c.MinStake),
-			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
+			CreatorID:       int32(c.CreatorID),
+			Question:        c.Question,
+			Status:          string(c.Status),
+			MinStake:        int32(c.MinStake),
+			ConsumptionRate: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
+			CreatedAt:       pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
+			ExpiresAt:       pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 		})
 		if err != nil {
 			return fmt.Errorf("failed to save contest: %w", err)
@@ -179,18 +181,31 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 		minStake = defaultMinStake
 	}
 
+	// Parse consumption rate from pgtype.Numeric
+	consumptionRate := 0.10 // default
+	if dbContest.ConsumptionRate.Valid {
+		// Convert Numeric to string then parse - stored as percentage (10.00 = 10%)
+		numStr := dbContest.ConsumptionRate.Int.String()
+		if len(numStr) > 0 {
+			// Simple conversion: if stored as 1000 with exp -2, that's 10.00
+			// We need 0.10 for our float64 representation
+			consumptionRate = float64(dbContest.ConsumptionRate.Int.Int64()) / 10000.0
+		}
+	}
+
 	return &contest.Contest{
-		ID:             contest.ID(dbContest.ID),
-		CircleIDs:      circles,
-		CreatorID:      user.ID(dbContest.CreatorID),
-		Question:       dbContest.Question,
-		Options:        options,
-		Predictions:    predictions,
-		Status:         contest.Status(dbContest.Status),
-		MinStake:       minStake,
-		ResultOptionID: resultOptionID,
-		CreatedAt:      dbContest.CreatedAt.Time,
-		ExpiresAt:      dbContest.ExpiresAt.Time,
+		ID:              contest.ID(dbContest.ID),
+		CircleIDs:       circles,
+		CreatorID:       user.ID(dbContest.CreatorID),
+		Question:        dbContest.Question,
+		Options:         options,
+		Predictions:     predictions,
+		Status:          contest.Status(dbContest.Status),
+		MinStake:        minStake,
+		ConsumptionRate: consumptionRate,
+		ResultOptionID:  resultOptionID,
+		CreatedAt:       dbContest.CreatedAt.Time,
+		ExpiresAt:       dbContest.ExpiresAt.Time,
 	}, nil
 }
 

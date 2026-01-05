@@ -83,6 +83,27 @@ import { DatePipe } from '@angular/common';
                     >💎 {{ getTotalClout(contest) }} Clout staked</span
                   >
                 </div>
+                @if (contest.total_pot > 0) {
+                  <div class="divider my-2"></div>
+                  <div class="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p class="text-secondary">Total Pot</p>
+                      <p class="font-bold">💎 {{ contest.total_pot }}</p>
+                    </div>
+                    <div>
+                      <p class="text-secondary">Consumed (10%)</p>
+                      <p class="font-bold text-warning">
+                        💎 {{ contest.clout_consumed }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-secondary">Remaining (90%)</p>
+                      <p class="font-bold text-success">
+                        💎 {{ contest.total_pot - contest.clout_consumed }}
+                      </p>
+                    </div>
+                  </div>
+                }
               </div>
             </div>
           }

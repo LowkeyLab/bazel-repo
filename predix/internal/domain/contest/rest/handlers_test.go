@@ -16,6 +16,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -50,7 +51,8 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	repo := repository.NewPostgres(pool)
-	svc := service.NewService(repo)
+	circleRepo := circlerepo.NewPostgres(pool)
+	svc := service.NewService(repo, circleRepo)
 	handler := NewHandler(svc)
 
 	r := gin.New()
@@ -182,15 +184,25 @@ func TestContestHandlers(t *testing.T) {
 			predictorID := createTestUser(t, pool, "charlie")
 			circleID := createTestCircle(t, pool, "Sports Fans", creatorID)
 
+			// Add predictor to the circle
+			q := db.New(pool)
 			ctx := context.Background()
+			err := q.AddCircleMember(ctx, db.AddCircleMemberParams{
+				CircleID: int32(circleID),
+				UserID:   int32(predictorID),
+				Clout:    1000,
+			})
+			require.NoError(t, err)
+
 			expiresAt := time.Now().Add(24 * time.Hour)
 			createdContest, err := svc.CreateContest(ctx, []circle.ID{circleID}, creatorID, "Who wins?", []string{"Option A", "Option B"}, expiresAt, 0)
 			require.NoError(t, err)
 
 			body := fmt.Sprintf(`{
+				"circle_id": %d,
 				"option_id": 1,
 				"clout": 100
-			}`)
+			}`, circleID)
 
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/contests/%d/predictions", createdContest.ID), bytes.NewBufferString(body))
 			req.Header.Set("Content-Type", "application/json")

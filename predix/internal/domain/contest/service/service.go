@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
+	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -14,16 +15,21 @@ import (
 
 type ContestRepository = repository.Repository
 
-var ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
+var (
+	ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
+	ErrInsufficientClout = errors.New("insufficient clout balance to make this prediction")
+)
 
 type Service struct {
-	repo repository.Repository
+	repo       repository.Repository
+	circleRepo circlerepo.Repository
 }
 
-// NewService creates a service with a repository interface.
-func NewService(repo ContestRepository) *Service {
+// NewService creates a service with repository interfaces.
+func NewService(repo ContestRepository, circleRepo circlerepo.Repository) *Service {
 	return &Service{
-		repo: repo,
+		repo:       repo,
+		circleRepo: circleRepo,
 	}
 }
 
@@ -43,17 +49,39 @@ func (s *Service) CreateContest(ctx context.Context, circleIDs []circle.ID, crea
 	return c, nil
 }
 
-func (s *Service) Predict(ctx context.Context, contestID contest.ID, userID user.ID, optionID int, clout int) error {
+func (s *Service) Predict(ctx context.Context, contestID contest.ID, circleID circle.ID, userID user.ID, optionID int, clout int) error {
 	// Load contest from repository
 	c, err := s.repo.FindByID(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
 	}
 
+	// Check if user has sufficient clout in the circle
+	member, err := s.circleRepo.FindByID(ctx, circleID)
+	if err != nil {
+		return fmt.Errorf("failed to get circle: %w", err)
+	}
+
+	userMember, exists := member.Members[userID]
+	if !exists {
+		return errors.New("user is not a member of this circle")
+	}
+
+	if userMember.Clout < clout {
+		return ErrInsufficientClout
+	}
+
 	// Use domain method to add prediction
 	err = c.Predict(userID, optionID, clout)
 	if err != nil {
 		return err
+	}
+
+	// Deduct clout from member's balance
+	newClout := userMember.Clout - clout
+	err = s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+	if err != nil {
+		return fmt.Errorf("failed to update member clout: %w", err)
 	}
 
 	// Save updated contest

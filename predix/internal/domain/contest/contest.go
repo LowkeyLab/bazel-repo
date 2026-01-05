@@ -23,21 +23,23 @@ const (
 
 // Contest represents an event users can predict on.
 type Contest struct {
-	ID             ID
-	CircleIDs      []circle.ID
-	CreatorID      user.ID
-	Question       string
-	Options        map[int]*Option // Keyed by Option ID
-	Predictions    []*Prediction
-	Status         Status
-	MinStake       int
-	ResultOptionID *int // ID of the winning option
-	CreatedAt      time.Time
-	ExpiresAt      time.Time
+	ID              ID
+	CircleIDs       []circle.ID
+	CreatorID       user.ID
+	Question        string
+	Options         map[int]*Option // Keyed by Option ID
+	Predictions     []*Prediction
+	Status          Status
+	MinStake        int
+	ResultOptionID  *int    // ID of the winning option
+	ConsumptionRate float64 // Rate at which clout is consumed (e.g., 0.10 for 10%)
+	CreatedAt       time.Time
+	ExpiresAt       time.Time
 }
 
 const (
-	minStakeDefault = 10
+	minStakeDefault        = 10
+	consumptionRateDefault = 0.10 // 10% consumption rate
 )
 
 var allowedMinStakes = map[int]struct{}{
@@ -112,15 +114,16 @@ func New(circleIDs []circle.ID, creatorID user.ID, question string, options []st
 	}
 
 	return &Contest{
-		ID:        0, // ID will be set by database
-		CircleIDs: uniqueCircles,
-		CreatorID: creatorID,
-		Question:  question,
-		Options:   optionMap,
-		Status:    StatusOpen,
-		MinStake:  normalizedMinStake,
-		CreatedAt: time.Now(),
-		ExpiresAt: expiresAt,
+		ID:              0, // ID will be set by database
+		CircleIDs:       uniqueCircles,
+		CreatorID:       creatorID,
+		Question:        question,
+		Options:         optionMap,
+		Status:          StatusOpen,
+		MinStake:        normalizedMinStake,
+		ConsumptionRate: consumptionRateDefault,
+		CreatedAt:       time.Now(),
+		ExpiresAt:       expiresAt,
 	}, nil
 }
 
@@ -161,6 +164,27 @@ func (c *Contest) Resolve(winningOptionID int) error {
 	c.ResultOptionID = &winningOptionID
 	c.Status = StatusResolved
 	return nil
+}
+
+// CalculatePot returns the sum of all predictions' clout.
+func (c *Contest) CalculatePot() int {
+	total := 0
+	for _, pred := range c.Predictions {
+		total += pred.Clout
+	}
+	return total
+}
+
+// CalculateConsumedClout returns the amount of clout consumed at the current rate.
+func (c *Contest) CalculateConsumedClout() int {
+	pot := c.CalculatePot()
+	return int(float64(pot) * c.ConsumptionRate)
+}
+
+// CalculateRemainingPot returns the remaining pot after consumption (90% of total pot).
+func (c *Contest) CalculateRemainingPot() int {
+	pot := c.CalculatePot()
+	return pot - c.CalculateConsumedClout()
 }
 
 func normalizeMinStake(minStake int) (int, error) {

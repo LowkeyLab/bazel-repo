@@ -45,6 +45,8 @@ describe('CircleDetailComponent', () => {
       status: 'OPEN',
       result_option_id: undefined,
       min_stake: 10,
+      total_pot: 100,
+      clout_consumed: 10,
       created_at: '2024-01-01T00:00:00Z',
       expires_at: '2024-01-02T00:00:00Z',
     },

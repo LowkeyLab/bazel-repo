@@ -160,3 +160,16 @@ func (r *Postgres) Delete(ctx context.Context, id circle.ID) error {
 
 	return nil
 }
+
+// UpdateMemberClout updates a member's clout balance in a circle.
+func (r *Postgres) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error {
+	if err := r.queries.UpdateCircleMemberClout(ctx, db.UpdateCircleMemberCloutParams{
+		CircleID: int32(circleID),
+		UserID:   userID,
+		Clout:    int32(newClout),
+	}); err != nil {
+		return fmt.Errorf("failed to update member clout: %w", err)
+	}
+
+	return nil
+}
