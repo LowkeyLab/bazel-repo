@@ -386,5 +386,52 @@ func TestCircleService(t *testing.T) {
 			require.Len(t, updatedContest.Predictions, 1)
 			assert.Equal(t, 120, updatedContest.Predictions[0].Clout)
 		})
+
+		t.Run("ResolveContest", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+			creatorID := createTestUser(t, pool, "resolve_creator")
+			circleObj, err := svc.CreateCircle(ctx, "Resolve Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			// Resolve with valid option
+			err = svc.ResolveContest(ctx, contestObj.ID, creatorID, 1)
+			require.NoError(t, err)
+
+			updated, err := svc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusResolved, updated.Status)
+			assert.Equal(t, 1, *updated.ResultOptionID)
+		})
+
+		t.Run("CalculatePayouts", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+			creatorID := createTestUser(t, pool, "payout_creator")
+			winnerID := createTestUser(t, pool, "payout_winner")
+			loserID := createTestUser(t, pool, "payout_loser")
+
+			circleObj, err := svc.CreateCircle(ctx, "Payout Circle", creatorID)
+			require.NoError(t, err)
+			require.NoError(t, svc.AddMember(ctx, circleObj.ID, winnerID))
+			require.NoError(t, svc.AddMember(ctx, circleObj.ID, loserID))
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			require.NoError(t, svc.Predict(ctx, contestObj.ID, winnerID, 1, 100))
+			require.NoError(t, svc.Predict(ctx, contestObj.ID, loserID, 2, 100))
+
+			// Must resolve first
+			require.NoError(t, svc.ResolveContest(ctx, contestObj.ID, creatorID, 1))
+
+			payouts, err := svc.CalculatePayouts(ctx, contestObj.ID)
+			require.NoError(t, err)
+
+			// Winner gets 100 + (100 * 0.9) = 190
+			assert.Equal(t, 190, payouts[winnerID])
+			assert.Equal(t, 0, payouts[loserID])
+		})
 	})
 }
