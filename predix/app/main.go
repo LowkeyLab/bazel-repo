@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -9,6 +10,9 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
@@ -22,6 +26,28 @@ import (
 	userservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/healthcheck"
 )
+
+func runMigrations(connStr string) error {
+	migrationPath := "predix/internal/sql/migrations"
+	// Check if directory exists
+	if _, err := os.Stat(migrationPath); os.IsNotExist(err) {
+		return fmt.Errorf("migrations directory not found at %s", migrationPath)
+	}
+
+	m, err := migrate.New(
+		"file://"+migrationPath,
+		connStr,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
+}
 
 func main() {
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
@@ -49,6 +75,11 @@ func main() {
 		connStr := os.Getenv("DATABASE_URL")
 		if connStr == "" {
 			connStr = "postgres://user:password@localhost:5432/predix?sslmode=disable"
+		}
+
+		if err := runMigrations(connStr); err != nil {
+			slog.Error("failed to run migrations", "error", err)
+			os.Exit(1)
 		}
 
 		pool, err := pgxpool.New(context.Background(), connStr)

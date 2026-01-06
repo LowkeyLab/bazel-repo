@@ -17,7 +17,7 @@ go_test(
     size = "small",
     srcs = ["contest_test.go"],
     data = [
-        "//predix/internal/sql:schema.sql",
+        "//predix/internal/sql:migrations",
     ],
     tags = [
         # keep

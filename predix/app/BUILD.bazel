@@ -5,6 +5,7 @@ load("@rules_pkg//:pkg.bzl", "pkg_tar")
 go_library(
     name = "app_lib",
     srcs = ["main.go"],
+    data = ["//predix/internal/sql:migrations"],  # keep
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
     deps = [
@@ -21,14 +22,11 @@ go_library(
         "//predix/internal/healthcheck",
         "@com_github_gin_contrib_cors//:cors",
         "@com_github_gin_gonic_gin//:gin",
+        "@com_github_golang_migrate_migrate_v4//:migrate",
+        "@com_github_golang_migrate_migrate_v4//database/pgx/v5:pgx",
+        "@com_github_golang_migrate_migrate_v4//source/file",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],
-)
-
-go_binary(
-    name = "app",
-    embed = [":app_lib"],
-    visibility = ["//visibility:public"],
 )
 
 pkg_tar(
@@ -56,5 +54,11 @@ oci_push(
     image = ":image",
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/predix_backend",
+    visibility = ["//visibility:public"],
+)
+
+go_binary(
+    name = "app",
+    embed = [":app_lib"],
     visibility = ["//visibility:public"],
 )

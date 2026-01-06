@@ -21,7 +21,7 @@ go_test(
     timeout = "short",
     srcs = ["handlers_test.go"],
     data = [
-        "//predix/internal/sql:schema.sql",
+        "//predix/internal/sql:migrations",
     ],
     embed = [":rest"],
     tags = [

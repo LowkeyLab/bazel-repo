@@ -13,7 +13,7 @@ go_test(
     size = "small",
     srcs = ["circle_test.go"],
     data = [
-        "//predix/internal/sql:schema.sql",
+        "//predix/internal/sql:migrations",
     ],
     tags = [
         # keep

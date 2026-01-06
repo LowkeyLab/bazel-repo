@@ -2,11 +2,15 @@ package testutil
 
 import (
 	"context"
-	"os"
+	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -59,18 +63,54 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 		pool.Close()
 	})
 
-	// Apply Schema
-	schemaContent, err := readSchemaFile()
-	if err != nil {
-		t.Fatalf("could not read schema file: %v", err)
-	}
-
-	_, err = pool.Exec(ctx, string(schemaContent))
-	if err != nil {
-		t.Fatalf("failed to apply schema: %v", err)
+	// Apply Schema via Migrations
+	if err := runMigrations(connStr); err != nil {
+		t.Fatalf("failed to run migrations: %v", err)
 	}
 
 	return pool
+}
+
+// runMigrations applies migrations to the test database
+func runMigrations(connStr string) error {
+	// Try using Bazel runfiles to locate migrations directory
+	// The path should be relative to the repository root.
+	// For example: predix/internal/sql/migrations
+
+	// We need to resolve one file in the directory to find the absolute path to the directory
+	// because runfiles.Rlocation expects a file path usually.
+	// However, let's try to find the directory by resolving a known file inside it.
+	// Since we are using filegroup glob(["migrations/*.sql"]), we can look for "000001_init_schema.up.sql"
+
+	migrationFile := "predix/internal/sql/migrations/000001_init_schema.up.sql"
+	// Attempt to resolve with module name prefix if necessary.
+	// Usually it is "_main/predix/..." or just "predix/..." depending on how rules_go sets it up.
+	// Based on the previous code, it used "_main/predix/internal/sql/schema.sql"
+
+	rloc, err := runfiles.Rlocation("_main/" + migrationFile)
+	if err != nil {
+		// Fallback without _main
+		rloc, err = runfiles.Rlocation(migrationFile)
+		if err != nil {
+			return fmt.Errorf("could not locate migration file %s: %v", migrationFile, err)
+		}
+	}
+
+	migrationsDir := filepath.Dir(rloc)
+
+	m, err := migrate.New(
+		"file://"+migrationsDir,
+		connStr,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }
 
 // WithTestDB starts the Postgres container once for a group of subtests.
@@ -91,20 +131,4 @@ func ResetTables(t *testing.T, pool *pgxpool.Pool) {
 	if err != nil {
 		t.Fatalf("failed to reset tables: %v", err)
 	}
-}
-
-// readSchemaFile tries to read the schema file from the provided path or using runfiles
-func readSchemaFile() ([]byte, error) {
-	// Try using Bazel runfiles
-	rloc, err := runfiles.Rlocation("_main/predix/internal/sql/schema.sql")
-	if err != nil {
-		return nil, err
-	}
-
-	content, err := os.ReadFile(rloc)
-	if err != nil {
-		return nil, err
-	}
-
-	return content, nil
 }

@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS predictions;
+DROP TABLE IF EXISTS options;
+DROP TABLE IF EXISTS contests;
+DROP TABLE IF EXISTS circle_members;
+DROP TABLE IF EXISTS circles;
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS user_role;

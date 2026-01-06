@@ -16,7 +16,7 @@ go_test(
     name = "service_test",
     timeout = "short",
     srcs = ["service_test.go"],
-    data = ["//predix/internal/sql:schema.sql"],
+    data = ["//predix/internal/sql:migrations"],
     embed = [":service"],
     tags = [
         # keep
