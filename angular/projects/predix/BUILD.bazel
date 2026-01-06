@@ -1,0 +1,72 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+    ),
+)
+
+ng_application(
+    name = "predix",
+    tailwindcss = True,
+    zonejs = False,
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
+ng_test(
+    name = "test",
+    srcs = [":srcs"],
+    karma = True,
+    tailwindcss = True,
+    zonejs = False,
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
+pkg_tar(
+    name = "caddyfile_layer",
+    srcs = ["Caddyfile"],
+    package_dir = "/etc/caddy",
+)
+
+pkg_tar(
+    name = "frontend_layer",
+    srcs = [":predix"],
+    package_dir = "/app",
+    strip_prefix = "dist",
+)
+
+oci_image(
+    name = "image",
+    base = "@alpine_caddy",
+    entrypoint = [
+        "caddy",
+        "run",
+        "--config",
+        "/etc/caddy/Caddyfile",
+    ],
+    tars = [
+        ":caddyfile_layer",
+        ":frontend_layer",
+    ],
+)
+
+oci_load(
+    name = "load_image",
+    image = ":image",
+    repo_tags = ["lowkeylab/predix_frontend:latest"],
+)
+
+oci_push(
+    name = "push_image",
+    image = ":image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/predix_frontend",
+)

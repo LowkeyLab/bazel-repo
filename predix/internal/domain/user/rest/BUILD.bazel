@@ -1,0 +1,56 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "rest",
+    srcs = ["handlers.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/rest",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/auth",
+        "//predix/internal/domain/user",
+        "//predix/internal/domain/user/service",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)
+
+go_test(
+    name = "handlers_test",
+    timeout = "short",
+    srcs = ["handlers_test.go"],
+    data = ["//predix/internal/sql:migrations"],
+    embed = [":rest"],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        "//predix/internal/auth",
+        "//predix/internal/domain/user/repository",
+        "//predix/internal/domain/user/service",
+        "//predix/internal/testutil",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_test(
+    name = "rest_test",
+    timeout = "short",
+    srcs = ["handlers_test.go"],
+    data = ["//predix/internal/sql:migrations"],
+    embed = [":rest"],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        "//predix/internal/auth",
+        "//predix/internal/domain/user/repository",
+        "//predix/internal/domain/user/service",
+        "//predix/internal/testutil",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)

@@ -56,14 +56,14 @@ def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = [], **kwa
     if karma:
         extra_deps += [
             # keep-sorted start
+            "//angular:node_modules/@types/jasmine",
             "//angular:node_modules/@types/node",
+            "//angular:node_modules/jasmine-core",
             "//angular:node_modules/karma",
             "//angular:node_modules/karma-chrome-launcher",
             "//angular:node_modules/karma-coverage",
             "//angular:node_modules/karma-jasmine",
             "//angular:node_modules/karma-jasmine-html-reporter",
-            "//angular:node_modules/@types/jasmine",
-            "//angular:node_modules/jasmine-core",
             # keep-sorted end
         ]
 

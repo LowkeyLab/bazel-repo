@@ -1,0 +1,43 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "repository",
+    srcs = [
+        "memory.go",
+        "postgres.go",
+        "repository.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/db",
+        "//predix/internal/domain/user",
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_test(
+    name = "repository_test",
+    size = "small",
+    srcs = [
+        "memory_test.go",
+        "postgres_test.go",
+    ],
+    data = [
+        "//predix/internal/sql:migrations",
+    ],
+    tags = [
+        # keep
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":repository",
+        "//predix/internal/domain/user",
+        "//predix/internal/testutil",
+        "@com_github_jackc_pgx_v5//pgxpool",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

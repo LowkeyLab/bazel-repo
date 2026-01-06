@@ -492,7 +492,7 @@ go_deps.from_file(go_mod = "//:go.mod")
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
-use_repo(go_deps, "com_github_go_delve_delve", "com_github_hay_kot_scaffold", "io_nmyk_cowsay", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
+use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgerrcode", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
 
 #########################
 # Keep Sorted
@@ -507,14 +507,6 @@ oci_extension.pull(
     name = "distroless_cc",
     digest = "sha256:43fc7a7004c4cdb27aac60b3e95c87130cf47823f72d25d42ed0f9b503f1d184",
     image = "gcr.io/distroless/cc-debian13",
-    platforms = [
-        "linux/amd64",
-    ],
-)
-oci_extension.pull(
-    name = "postgres_18_1",
-    digest = "sha256:b13e60a97e0c8d918e8c4d9a68dc356b13f53b3a2655a46a15af67f7b097dd4f",
-    image = "postgres:18.1",
     platforms = [
         "linux/amd64",
     ],
@@ -543,7 +535,7 @@ oci_extension.pull(
         "linux/amd64",
     ],
 )
-use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "postgres_18_1", "postgres_18_1_linux_amd64")
+use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java21", "distroless_java21_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution

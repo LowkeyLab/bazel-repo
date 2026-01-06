@@ -1,0 +1,136 @@
+<div class="container mx-auto px-4 py-8">
+  @if (loading()) {
+    <div class="flex justify-center">
+      <span class="loading loading-spinner loading-lg"></span>
+    </div>
+  } @else if (circle(); as circle) {
+    <div class="mb-6">
+      <back-button [link]="'/circles'" [label]="'Back'" />
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h1 class="card-title text-4xl mb-4">{{ circle.name }}</h1>
+        <p class="text-sm text-secondary">
+          Created {{ circle.created_at | date: "medium" }}
+        </p>
+
+        <div class="divider"></div>
+
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold mb-2">Invite Link</h2>
+          <p class="text-sm text-secondary mb-3">
+            Share this link with others to invite them to join this circle
+          </p>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              readonly
+              [value]="getJoinLink(circle.id)"
+              class="input input-bordered flex-1 font-mono text-sm"
+              #joinLinkInput
+            />
+            <button class="btn btn-primary" (click)="copyJoinLink(circle.id)">
+              @if (linkCopied()) {
+                ✓ Copied!
+              } @else {
+                📋 Copy
+              }
+            </button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h2 class="text-2xl font-bold mb-4">Members</h2>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>💎 Clout</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (member of circle.members; track member.user_id) {
+                <tr>
+                  <td>
+                    <div class="font-semibold">{{ member.username }}</div>
+                  </td>
+                  <td>
+                    <div class="badge badge-primary">
+                      {{ member.clout }}
+                    </div>
+                  </td>
+                  <td>
+                    @if (member.clout === getMaxClout(circle)) {
+                      <div class="badge badge-warning">👑 Top Dog</div>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold">Contests</h2>
+            <button
+              class="btn btn-primary btn-sm"
+              (click)="createContest(circle.name)"
+            >
+              + Create Contest
+            </button>
+          </div>
+          @if (loadingContests()) {
+            <div class="flex justify-center">
+              <span class="loading loading-spinner loading-lg"></span>
+            </div>
+          } @else if (contests().length === 0) {
+            <div class="alert alert-info">
+              <span>No contests in this circle yet.</span>
+            </div>
+          } @else {
+            <div class="grid gap-4">
+              @for (contest of contests(); track contest.id) {
+                <div
+                  class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+                  (click)="viewContest(contest.id)"
+                >
+                  <div class="card-body">
+                    <h3 class="card-title text-lg">{{ contest.question }}</h3>
+                    <p class="text-sm text-secondary">
+                      Expires {{ contest.closes_at | date: "short" }}
+                    </p>
+                    <div class="flex gap-2 flex-wrap">
+                      @for (option of contest.options; track option.id) {
+                        <div class="badge badge-outline">{{ option.text }}</div>
+                      }
+                    </div>
+                    <div class="card-actions justify-between items-center mt-2">
+                      <span class="text-sm text-secondary"
+                        >{{ contest.predictions.length }} predictions</span
+                      >
+                      <span class="text-sm text-secondary"
+                        >Min stake: {{ contest.min_stake }} Clout</span
+                      >
+                      <div class="badge badge-primary">
+                        {{ contest.status }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="alert alert-error">
+      <span>Circle not found</span>
+    </div>
+  }
+</div>

@@ -1,0 +1,79 @@
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+  <div class="mb-6">
+    <back-button [link]="'/circles'" />
+  </div>
+
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body space-y-6">
+      <h1 class="card-title text-3xl">Create New Circle</h1>
+
+      <form (submit)="onSubmit($event)" class="space-y-4">
+        <div class="space-y-2">
+          <span class="label-text text-sm">Circle name</span>
+          <label
+            class="input input-bordered flex items-center gap-3"
+            aria-label="Circle name"
+          >
+            <svg
+              class="h-[1em] opacity-60"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <g
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                stroke-width="2"
+                fill="none"
+                stroke="currentColor"
+              >
+                <circle cx="12" cy="8" r="4"></circle>
+                <path d="M5 20a7 7 0 0 1 14 0"></path>
+              </g>
+            </svg>
+            <input
+              type="text"
+              class="grow"
+              placeholder="Sunday Football Crew"
+              [(ngModel)]="circleName"
+              name="circleName"
+              autocomplete="organization"
+              required
+            />
+          </label>
+        </div>
+
+        @if (error()) {
+          <div class="alert alert-error">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span>{{ error() }}</span>
+          </div>
+        }
+
+        <div class="card-actions justify-end pt-2">
+          <button type="button" class="btn btn-ghost" (click)="navigateBack()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading()">
+            @if (loading()) {
+              <span class="loading loading-spinner"></span>
+            }
+            Create Circle
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

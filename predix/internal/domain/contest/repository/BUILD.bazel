@@ -1,0 +1,36 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "repository",
+    srcs = [
+        "constants.go",
+        "memory.go",
+        "postgres.go",
+        "repository.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/db",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest",
+        "//predix/internal/domain/user",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_test(
+    name = "repository_test",
+    timeout = "short",
+    srcs = ["memory_test.go"],
+    deps = [
+        ":repository",
+        "//predix/internal/clock",
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest",
+        "//predix/internal/domain/user",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

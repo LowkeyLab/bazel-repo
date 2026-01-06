@@ -1,0 +1,64 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+
+go_library(
+    name = "app_lib",
+    srcs = ["main.go"],
+    data = ["//predix/internal/sql:migrations"],  # keep
+    importpath = "github.com/lowkeylab/bazel-repo/predix/app",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//predix/internal/auth",
+        "//predix/internal/clock",
+        "//predix/internal/domain/circle/repository",
+        "//predix/internal/domain/circle/rest",
+        "//predix/internal/domain/circle/service",
+        "//predix/internal/domain/contest/closer",
+        "//predix/internal/domain/contest/repository",
+        "//predix/internal/domain/user/repository",
+        "//predix/internal/domain/user/rest",
+        "//predix/internal/domain/user/service",
+        "//predix/internal/healthcheck",
+        "@com_github_gin_contrib_cors//:cors",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_golang_migrate_migrate_v4//:migrate",
+        "@com_github_golang_migrate_migrate_v4//database/pgx/v5:pgx",
+        "@com_github_golang_migrate_migrate_v4//source/file",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)
+
+go_binary(
+    name = "app",
+    embed = [":app_lib"],
+    visibility = ["//visibility:public"],
+)
+
+pkg_tar(
+    name = "app_layer",
+    srcs = [":app"],
+    package_dir = "/app",
+)
+
+oci_image(
+    name = "image",
+    base = "@distroless_cc",
+    entrypoint = ["/app/app"],
+    tars = [":app_layer"],
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "load_image",
+    image = ":image",
+    repo_tags = ["lowkeylab/predix_backend:latest"],
+)
+
+oci_push(
+    name = "push_image",
+    image = ":image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/predix_backend",
+    visibility = ["//visibility:public"],
+)

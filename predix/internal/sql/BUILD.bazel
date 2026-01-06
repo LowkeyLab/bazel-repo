@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "query.sql",
+])
+
+filegroup(
+    name = "migrations",
+    srcs = glob(["migrations/*.sql"]),
+)

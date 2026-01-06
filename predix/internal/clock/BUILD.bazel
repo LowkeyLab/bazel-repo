@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "clock",
+    srcs = ["clock.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/clock",
+    visibility = ["//predix:__subpackages__"],
+)

@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "healthcheck",
+    srcs = ["healthcheck.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/healthcheck",
+    visibility = ["//predix:__subpackages__"],
+    deps = ["@com_github_gin_gonic_gin//:gin"],
+)
+
+go_test(
+    name = "healthcheck_test",
+    timeout = "short",
+    srcs = ["healthcheck_test.go"],
+    embed = [":healthcheck"],
+    deps = ["@com_github_gin_gonic_gin//:gin"],
+)

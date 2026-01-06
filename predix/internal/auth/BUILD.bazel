@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "auth",
+    srcs = [
+        "auth.go",
+        "test_middleware.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/auth",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/domain/user",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_golang_jwt_jwt_v5//:jwt",
+    ],
+)
