@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
-  HttpClientTestingModule,
   HttpTestingController,
+  provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { CircleService } from './circle.service';
 import { environment } from '../../environments/environment';
@@ -15,8 +15,7 @@ describe('CircleService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [CircleService],
+      providers: [CircleService, provideHttpClientTesting()],
     });
 
     service = TestBed.inject(CircleService);

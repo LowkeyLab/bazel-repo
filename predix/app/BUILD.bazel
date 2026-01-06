@@ -5,7 +5,6 @@ load("@rules_pkg//:pkg.bzl", "pkg_tar")
 go_library(
     name = "app_lib",
     srcs = ["main.go"],
-    data = ["//predix/internal/sql:migrations"],  # keep
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
     deps = [
@@ -41,11 +40,20 @@ pkg_tar(
     package_dir = "/app",
 )
 
+pkg_tar(
+    name = "migrations_layer",
+    srcs = glob(["../internal/sql/migrations/**"]),
+    package_dir = "/migrations",
+)
+
 oci_image(
     name = "image",
     base = "@distroless_cc",
     entrypoint = ["/app/app"],
-    tars = [":app_layer"],
+    tars = [
+        ":app_layer",
+        ":migrations_layer",
+    ],
     visibility = ["//visibility:public"],
 )
 

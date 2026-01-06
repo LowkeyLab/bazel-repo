@@ -28,7 +28,7 @@ import (
 )
 
 func runMigrations(connStr string) error {
-	migrationPath := "predix/internal/sql/migrations"
+	migrationPath := "migrations"
 	// Check if directory exists
 	if _, err := os.Stat(migrationPath); os.IsNotExist(err) {
 		return fmt.Errorf("migrations directory not found at %s", migrationPath)
@@ -72,9 +72,10 @@ func main() {
 		userRepo = userrepo.NewMemory()
 	} else {
 		slog.Info("Using PostgreSQL repositories")
-		connStr := os.Getenv("DATABASE_URL")
-		if connStr == "" {
-			connStr = "postgres://user:password@localhost:5432/predix?sslmode=disable"
+		connStr, ok := os.LookupEnv("DATABASE_URL")
+		if !ok {
+			slog.Error("DATABASE_URL environment variable is required in production mode")
+			os.Exit(1)
 		}
 
 		if err := runMigrations(connStr); err != nil {
