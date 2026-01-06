@@ -34,7 +34,7 @@ func runMigrations(connStr string) error {
 		return fmt.Errorf("failed to initialize runfiles: %w", err)
 	}
 
-	migrationPath, err := r.Rlocation("bazel-repo/predix/internal/sql/migrations")
+	migrationPath, err := r.Rlocation("_main/predix/internal/sql/migrations")
 	if err != nil {
 		return fmt.Errorf("migrations directory not found in runfiles: %w", err)
 	}
