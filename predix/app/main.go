@@ -143,10 +143,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-// Modifies the connection string to be compatible with pgx v5
-func switchToPgx5(connStr string) string {
-	connStr = strings.Replace(connStr, "postgres://", "postgresql://", 1)
-	connStr = strings.Replace(connStr, "postgresql://", "pgx5://", 1)
-	return connStr
-}
