@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  predix:
+    image: lowkeylab/predix_backend:latest
+    container_name: predix-app
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: "dev-secret"
+      ALLOWED_ORIGINS: "http://localhost:4200"
+      DATABASE_URL: "postgres://predix:predix_password@postgres:5432/predix_db?sslmode=disable"
+    depends_on:
+      - postgres
+    networks:
+      - predix-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  postgres:
+    image: postgres:18
+    container_name: predix-postgres
+    environment:
+      POSTGRES_USER: predix
+      POSTGRES_PASSWORD: predix_password
+      POSTGRES_DB: predix_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    networks:
+      - predix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U predix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+networks:
+  predix-network:
+    driver: bridge
+volumes:
+  postgres:

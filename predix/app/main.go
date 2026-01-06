@@ -2,18 +2,18 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
@@ -28,27 +28,22 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/healthcheck"
 )
 
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
 func runMigrations(connStr string) error {
-	r, err := runfiles.New()
+	sourceDriver, err := iofs.New(migrationFS, "migrations")
 	if err != nil {
-		return fmt.Errorf("failed to initialize runfiles: %w", err)
+		return fmt.Errorf("failed to create iofs driver: %w", err)
 	}
 
-	migrationPath, err := r.Rlocation("_main/predix/internal/sql/migrations")
+	m, err := migrate.NewWithSourceInstance("iofs", sourceDriver, connStr)
 	if err != nil {
-		return fmt.Errorf("migrations directory not found in runfiles: %w", err)
-	}
-
-	m, err := migrate.New(
-		"file://"+migrationPath,
-		connStr,
-	)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return err
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil
