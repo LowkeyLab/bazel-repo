@@ -78,6 +78,8 @@ func main() {
 			os.Exit(1)
 		}
 
+		connStr = switchToPgx5(connStr)
+
 		if err := runMigrations(connStr); err != nil {
 			slog.Error("failed to run migrations", "error", err)
 			os.Exit(1)
@@ -142,4 +144,11 @@ func main() {
 		slog.Error("server exited", "error", err)
 		os.Exit(1)
 	}
+}
+
+// Modifies the connection string to be compatible with pgx v5
+func switchToPgx5(connStr string) string {
+	connStr = strings.Replace(connStr, "postgres://", "postgresql://", 1)
+	connStr = strings.Replace(connStr, "postgresql://", "pgx5://", 1)
+	return connStr
 }
