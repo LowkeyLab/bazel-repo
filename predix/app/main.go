@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -28,10 +29,14 @@ import (
 )
 
 func runMigrations(connStr string) error {
-	migrationPath := "migrations"
-	// Check if directory exists
-	if _, err := os.Stat(migrationPath); os.IsNotExist(err) {
-		return fmt.Errorf("migrations directory not found at %s", migrationPath)
+	r, err := runfiles.New()
+	if err != nil {
+		return fmt.Errorf("failed to initialize runfiles: %w", err)
+	}
+
+	migrationPath := r.Rlocation("bazel-repo/predix/internal/sql/migrations")
+	if migrationPath == "" {
+		return fmt.Errorf("migrations directory not found in runfiles")
 	}
 
 	m, err := migrate.New(
