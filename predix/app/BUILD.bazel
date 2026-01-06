@@ -29,6 +29,12 @@ go_library(
     ],
 )
 
+go_binary(
+    name = "app",
+    embed = [":app_lib"],
+    visibility = ["//visibility:public"],
+)
+
 pkg_tar(
     name = "app_layer",
     srcs = [":app"],
@@ -54,11 +60,5 @@ oci_push(
     image = ":image",
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/predix_backend",
-    visibility = ["//visibility:public"],
-)
-
-go_binary(
-    name = "app",
-    embed = [":app_lib"],
     visibility = ["//visibility:public"],
 )
