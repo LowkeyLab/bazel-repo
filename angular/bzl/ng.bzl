@@ -5,7 +5,7 @@ Angular macros.
 load("@rules_angular//src/architect:ng_application.bzl", orig_ng_application = "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", orig_ng_test = "ng_test")
 
-def ng_application(zonejs = False, tailwindcss = False, deps = None, **kwargs):
+def ng_application(zonejs = False, tailwindcss = False, deps = [], **kwargs):
     """
     Defines an ng_application with optional dependencies on zone.js and tailwindcss.
 
@@ -15,24 +15,24 @@ def ng_application(zonejs = False, tailwindcss = False, deps = None, **kwargs):
         deps (list): Additional dependencies to include.
         **kwargs: Additional keyword arguments passed to ng_application.
     """
-    deps = deps or []
+    extra_deps = []
     if zonejs:
-        deps.append("//angular:node_modules/zone.js")
+        extra_deps.append("//angular:node_modules/zone.js")
     if tailwindcss:
-        deps += [
+        extra_deps += [
             "//angular:node_modules/@tailwindcss/postcss",
             "//angular:node_modules/postcss",
             "//angular:node_modules/tailwindcss",
             "//angular:postcssrc",
         ]
     orig_ng_application(
-        deps = deps,
+        deps = deps + extra_deps,
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
         **kwargs
     )
 
-def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = None, **kwargs):
+def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = [], **kwargs):
     """
     Defines an ng_test with optional dependencies on zone.js and tailwindcss.
 
@@ -43,18 +43,18 @@ def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = None, **k
         deps (list): Additional dependencies to include.
         **kwargs: Additional keyword arguments passed to ng_test.
     """
-    deps = deps or []
+    extra_deps = []
     if zonejs:
-        deps.append("//angular:node_modules/zone.js")
+        extra_deps.append("//angular:node_modules/zone.js")
     if tailwindcss:
-        deps += [
+        extra_deps += [
             "//angular:node_modules/@tailwindcss/postcss",
             "//angular:node_modules/postcss",
             "//angular:node_modules/tailwindcss",
             "//angular:postcssrc",
         ]
     if karma:
-        deps += [
+        extra_deps += [
             # keep-sorted start
             "//angular:node_modules/@types/jasmine",
             "//angular:node_modules/@types/node",
@@ -68,7 +68,7 @@ def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = None, **k
         ]
 
     orig_ng_test(
-        deps = deps,
+        deps = deps + extra_deps,
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
         size = "small",

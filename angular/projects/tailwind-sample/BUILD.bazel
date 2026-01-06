@@ -8,9 +8,6 @@ copy_to_bin(
     name = "srcs",
     srcs = glob(
         ["src/**/*"],
-        exclude = [
-            "dist/",
-        ],
     ),
 )
 
