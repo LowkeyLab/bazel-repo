@@ -5,11 +5,7 @@ import { inject } from '@angular/core';
 
 @Component({
   selector: 'back-button',
-  template: `
-    <button class="btn btn-ghost" (click)="navigateBack()">
-      ← {{ label() }}
-    </button>
-  `,
+  templateUrl: './back-button.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BackButtonComponent {
