@@ -5,7 +5,9 @@ load("@rules_pkg//:pkg.bzl", "pkg_tar")
 go_library(
     name = "app_lib",
     srcs = ["main.go"],
-    data = ["//predix/internal/sql:migrations"],  # keep
+    data = [
+        "//predix/internal/sql:migrations",
+    ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
     deps = [
@@ -26,6 +28,7 @@ go_library(
         "@com_github_golang_migrate_migrate_v4//database/pgx/v5:pgx",
         "@com_github_golang_migrate_migrate_v4//source/file",
         "@com_github_jackc_pgx_v5//pgxpool",
+        "@rules_go//go/runfiles",
     ],
 )
 
@@ -45,7 +48,9 @@ oci_image(
     name = "image",
     base = "@distroless_cc",
     entrypoint = ["/app/app"],
-    tars = [":app_layer"],
+    tars = [
+        ":app_layer",
+    ],
     visibility = ["//visibility:public"],
 )
 

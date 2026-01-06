@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -28,10 +29,14 @@ import (
 )
 
 func runMigrations(connStr string) error {
-	migrationPath := "predix/internal/sql/migrations"
-	// Check if directory exists
-	if _, err := os.Stat(migrationPath); os.IsNotExist(err) {
-		return fmt.Errorf("migrations directory not found at %s", migrationPath)
+	r, err := runfiles.New()
+	if err != nil {
+		return fmt.Errorf("failed to initialize runfiles: %w", err)
+	}
+
+	migrationPath, err := r.Rlocation("bazel-repo/predix/internal/sql/migrations")
+	if err != nil {
+		return fmt.Errorf("migrations directory not found in runfiles: %w", err)
 	}
 
 	m, err := migrate.New(
@@ -72,9 +77,10 @@ func main() {
 		userRepo = userrepo.NewMemory()
 	} else {
 		slog.Info("Using PostgreSQL repositories")
-		connStr := os.Getenv("DATABASE_URL")
-		if connStr == "" {
-			connStr = "postgres://user:password@localhost:5432/predix?sslmode=disable"
+		connStr, ok := os.LookupEnv("DATABASE_URL")
+		if !ok {
+			slog.Error("DATABASE_URL environment variable is required in production mode")
+			os.Exit(1)
 		}
 
 		if err := runMigrations(connStr); err != nil {
