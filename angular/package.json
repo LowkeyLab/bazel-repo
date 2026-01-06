@@ -44,7 +44,7 @@
     "@types/node": "catalog:",
     "daisyui": "catalog:",
     "jasmine-core": "catalog:",
-    "jsdom": "^27.1.0",
+    "jsdom": "catalog:",
     "karma": "catalog:",
     "karma-chrome-launcher": "catalog:",
     "karma-coverage": "catalog:",

@@ -1,13 +1,21 @@
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
+copy_to_directory(
+    name = "copy_migrations",
+    srcs = ["//predix/internal/sql/migrations"],
+    out = "migrations",
+    root_paths = ["predix/internal/sql/migrations"],
+)
+
 go_library(
     name = "app_lib",
     srcs = ["main.go"],
-    data = [
-        "//predix/internal/sql:migrations",
-    ],
+    embedsrcs = [
+        ":copy_migrations",
+    ],  # keep
     importpath = "github.com/lowkeylab/bazel-repo/predix/app",
     visibility = ["//visibility:private"],
     deps = [
@@ -25,8 +33,8 @@ go_library(
         "@com_github_gin_contrib_cors//:cors",
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_golang_migrate_migrate_v4//:migrate",
-        "@com_github_golang_migrate_migrate_v4//database/pgx/v5:pgx",
-        "@com_github_golang_migrate_migrate_v4//source/file",
+        "@com_github_golang_migrate_migrate_v4//database/postgres",
+        "@com_github_golang_migrate_migrate_v4//source/iofs",
         "@com_github_jackc_pgx_v5//pgxpool",
         "@rules_go//go/runfiles",
     ],
@@ -41,13 +49,12 @@ go_binary(
 pkg_tar(
     name = "app_layer",
     srcs = [":app"],
-    package_dir = "/app",
 )
 
 oci_image(
     name = "image",
     base = "@distroless_cc",
-    entrypoint = ["/app/app"],
+    entrypoint = ["/app"],
     tars = [
         ":app_layer",
     ],

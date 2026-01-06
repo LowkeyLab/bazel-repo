@@ -25,6 +25,7 @@ ng_application(
     zonejs = True,
     deps = [
         ":canvas_confetti",
+        "//angular:node_modules/daisyui",
     ],
 )
 
@@ -36,6 +37,7 @@ ng_test(
     zonejs = True,
     deps = [
         ":canvas_confetti",
+        "//angular:node_modules/daisyui",
     ],
 )
 
