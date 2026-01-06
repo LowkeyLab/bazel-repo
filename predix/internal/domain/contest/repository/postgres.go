@@ -90,12 +90,13 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	}
 
 	for _, prediction := range c.Predictions {
-		_, err = tx.Exec(ctx, `
-INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (contest_id, user_id, option_id)
-DO UPDATE SET clout = EXCLUDED.clout, created_at = EXCLUDED.created_at
-`, int32(c.ID), int32(prediction.UserID), int32(prediction.OptionID), int32(prediction.Clout), prediction.Timestamp)
+		err = qtx.UpsertPrediction(ctx, db.UpsertPredictionParams{
+			ContestID: int32(c.ID),
+			UserID:    int32(prediction.UserID),
+			OptionID:  int32(prediction.OptionID),
+			Clout:     int32(prediction.Clout),
+			CreatedAt: pgtype.Timestamp{Time: prediction.Timestamp, Valid: true},
+		})
 		if err != nil {
 			return fmt.Errorf("failed to save prediction: %w", err)
 		}

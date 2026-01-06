@@ -77,6 +77,12 @@ INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+-- name: UpsertPrediction :exec
+INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (contest_id, user_id, option_id)
+DO UPDATE SET clout = EXCLUDED.clout, created_at = EXCLUDED.created_at;
+
 -- name: ListContestPredictions :many
 SELECT * FROM predictions
 WHERE contest_id = $1;

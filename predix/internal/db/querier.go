@@ -30,6 +30,7 @@ type Querier interface {
 	UpdateCircleMemberClout(ctx context.Context, arg UpdateCircleMemberCloutParams) error
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
 	UpdateContestStatusOnly(ctx context.Context, arg UpdateContestStatusOnlyParams) error
+	UpsertPrediction(ctx context.Context, arg UpsertPredictionParams) error
 }
 
 var _ Querier = (*Queries)(nil)

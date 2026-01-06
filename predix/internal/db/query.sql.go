@@ -527,3 +527,29 @@ func (q *Queries) UpdateContestStatusOnly(ctx context.Context, arg UpdateContest
 	_, err := q.db.Exec(ctx, updateContestStatusOnly, arg.ID, arg.Status)
 	return err
 }
+
+const upsertPrediction = `-- name: UpsertPrediction :exec
+INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (contest_id, user_id, option_id)
+DO UPDATE SET clout = EXCLUDED.clout, created_at = EXCLUDED.created_at
+`
+
+type UpsertPredictionParams struct {
+	ContestID int32            `json:"contest_id"`
+	UserID    int32            `json:"user_id"`
+	OptionID  int32            `json:"option_id"`
+	Clout     int32            `json:"clout"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+func (q *Queries) UpsertPrediction(ctx context.Context, arg UpsertPredictionParams) error {
+	_, err := q.db.Exec(ctx, upsertPrediction,
+		arg.ContestID,
+		arg.UserID,
+		arg.OptionID,
+		arg.Clout,
+		arg.CreatedAt,
+	)
+	return err
+}
