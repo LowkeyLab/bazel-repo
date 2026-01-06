@@ -12,7 +12,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
@@ -77,8 +77,6 @@ func main() {
 			slog.Error("DATABASE_URL environment variable is required in production mode")
 			os.Exit(1)
 		}
-
-		connStr = switchToPgx5(connStr)
 
 		if err := runMigrations(connStr); err != nil {
 			slog.Error("failed to run migrations", "error", err)

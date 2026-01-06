@@ -33,7 +33,7 @@ go_library(
         "@com_github_gin_contrib_cors//:cors",
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_golang_migrate_migrate_v4//:migrate",
-        "@com_github_golang_migrate_migrate_v4//database/pgx/v5:pgx",
+        "@com_github_golang_migrate_migrate_v4//database/postgres",
         "@com_github_golang_migrate_migrate_v4//source/iofs",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],
