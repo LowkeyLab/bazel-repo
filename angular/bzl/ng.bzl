@@ -2,7 +2,7 @@
 Angular macros.
 """
 
-load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("@npm//angular:postcss-cli/package_json.bzl", postcss_cli = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", orig_ng_application = "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", orig_ng_test = "ng_test")
 
@@ -20,20 +20,21 @@ def process_styles(name, src, out, config = "//angular:postcssrc", deps = [], **
     """
     extra_srcs = kwargs.pop("srcs", [])
 
-    js_run_binary(
+    postcss_cli.postcss(
         name = name,
-        srcs = [src, config] + deps + extra_srcs,
+        srcs = [src, config] + deps + extra_srcs + [
+            "//angular:node_modules/@tailwindcss/postcss",
+            "//angular:node_modules/postcss",
+            "//angular:node_modules/tailwindcss",
+        ],
         outs = [out],
         args = [
             "$(rootpath {})".format(src),
+            "-o",
             "$(rootpath {})".format(out),
+            "--config",
             "$(rootpath {})".format(config),
         ],
-        env = {
-            "JS_BINARY__SILENT_ON_SUCCESS": "0",
-        },
-        tool = "//tools:process_styles",
-        **kwargs
     )
 
 def ng_application(zonejs = False, tailwindcss = False, deps = [], **kwargs):
