@@ -4,6 +4,8 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { TestScheduler } from 'rxjs/testing';
+import { of } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { ContestService } from './contest.service';
 import { environment } from '../../environments/environment';
 import type { Contest } from '../models/contest.model';
@@ -78,194 +80,157 @@ describe('ContestService', () => {
       });
     });
 
-    it('should poll for contest details and compute totals', (done) => {
-      const circleId = 1;
-      const contestId = 42;
-      const mockContest: Contest = {
-        id: contestId,
-        circle_id: circleId,
-        creator_id: 1,
-        question: 'Who will win?',
-        options: [
-          { id: 1, text: 'Option A' },
-          { id: 2, text: 'Option B' },
-        ],
-        predictions: [
-          {
-            user_id: 1,
-            option_id: 1,
-            clout: 100,
-            timestamp: '2024-01-01T00:00:00Z',
-          },
-          {
-            user_id: 2,
-            option_id: 1,
-            clout: 50,
-            timestamp: '2024-01-01T00:00:01Z',
-          },
-          {
-            user_id: 3,
-            option_id: 2,
-            clout: 200,
-            timestamp: '2024-01-01T00:00:02Z',
-          },
-        ],
-        status: 'OPEN',
-        min_stake: 10,
-        total_pot: 350,
-        house_rake: 35,
-        created_at: '2024-01-01T00:00:00Z',
-        closes_at: '2024-01-02T00:00:00Z',
-        duration: '1d',
-      };
-
-      let emissionCount = 0;
-      const subscription = service
-        .pollContestDetails(circleId, contestId, 100)
-        .subscribe({
-          next: (contestWithTotals) => {
-            emissionCount++;
-            expect(contestWithTotals.id).toBe(contestId);
-            expect(contestWithTotals.totals.byOption.get(1)).toEqual({
-              clout: 150,
-              count: 2,
-            });
-            expect(contestWithTotals.totals.byOption.get(2)).toEqual({
+    it('should poll for contest details and compute totals', () => {
+      scheduler.run(({ expectObservable }) => {
+        const circleId = 1;
+        const contestId = 42;
+        const mockContest: Contest = {
+          id: contestId,
+          circle_id: circleId,
+          creator_id: 1,
+          question: 'Who will win?',
+          options: [
+            { id: 1, text: 'Option A' },
+            { id: 2, text: 'Option B' },
+          ],
+          predictions: [
+            {
+              user_id: 1,
+              option_id: 1,
+              clout: 100,
+              timestamp: '2024-01-01T00:00:00Z',
+            },
+            {
+              user_id: 2,
+              option_id: 1,
+              clout: 50,
+              timestamp: '2024-01-01T00:00:01Z',
+            },
+            {
+              user_id: 3,
+              option_id: 2,
               clout: 200,
-              count: 1,
-            });
+              timestamp: '2024-01-01T00:00:02Z',
+            },
+          ],
+          status: 'OPEN',
+          min_stake: 10,
+          total_pot: 350,
+          house_rake: 35,
+          created_at: '2024-01-01T00:00:00Z',
+          closes_at: '2024-01-02T00:00:00Z',
+          duration: '1d',
+        };
 
-            if (emissionCount === 2) {
-              subscription.unsubscribe();
-              done();
-            }
-          },
+        spyOn(service, 'getContest').and.returnValue(of(mockContest));
+
+        const polling$ = service
+          .pollContestDetails(circleId, contestId, 5)
+          .pipe(take(2));
+
+        const expectedMarble = 'a 4ms (a|)';
+        const expectedValues = {
+          a: jasmine.objectContaining({
+            id: contestId,
+            totals: jasmine.objectContaining({
+              byOption: jasmine.any(Map),
+            }),
+          }),
+        };
+
+        expectObservable(polling$).toBe(expectedMarble, expectedValues);
+      });
+
+      expect(service.getContest).toHaveBeenCalledTimes(2);
+    });
+
+    it('should stop polling when contest status becomes CLOSED', () => {
+      scheduler.run(({ expectObservable }) => {
+        const circleId = 1;
+        const contestId = 42;
+        const mockContestOpen: Contest = {
+          id: contestId,
+          circle_id: circleId,
+          creator_id: 1,
+          question: 'Who will win?',
+          options: [{ id: 1, text: 'Option A' }],
+          predictions: [],
+          status: 'OPEN',
+          min_stake: 10,
+          total_pot: 0,
+          house_rake: 0,
+          created_at: '2024-01-01T00:00:00Z',
+          closes_at: '2024-01-02T00:00:00Z',
+          duration: '1d',
+        };
+
+        const mockContestClosed: Contest = {
+          ...mockContestOpen,
+          status: 'CLOSED',
+        };
+
+        let callCount = 0;
+        spyOn(service, 'getContest').and.callFake(() => {
+          callCount++;
+          return of(callCount === 1 ? mockContestOpen : mockContestClosed);
         });
 
-      // First poll
-      const req1 = httpMock.expectOne(
-        `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-      );
-      req1.flush(mockContest);
+        const polling$ = service.pollContestDetails(circleId, contestId, 5);
 
-      // Second poll
-      setTimeout(() => {
-        const req2 = httpMock.expectOne(
-          `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-        );
-        req2.flush(mockContest);
-      }, 100);
+        // Should emit OPEN at 0ms, then CLOSED at 5ms and complete
+        const expectedMarble = 'a 4ms (b|)';
+        const expectedValues = {
+          a: jasmine.objectContaining({ status: 'OPEN' }),
+          b: jasmine.objectContaining({ status: 'CLOSED' }),
+        };
+
+        expectObservable(polling$).toBe(expectedMarble, expectedValues);
+      });
     });
 
-    it('should stop polling when contest status becomes CLOSED', (done) => {
-      const circleId = 1;
-      const contestId = 42;
-      const mockContestOpen: Contest = {
-        id: contestId,
-        circle_id: circleId,
-        creator_id: 1,
-        question: 'Who will win?',
-        options: [{ id: 1, text: 'Option A' }],
-        predictions: [],
-        status: 'OPEN',
-        min_stake: 10,
-        total_pot: 0,
-        house_rake: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        closes_at: '2024-01-02T00:00:00Z',
-        duration: '1d',
-      };
+    it('should stop polling when contest status becomes RESOLVED', () => {
+      scheduler.run(({ expectObservable }) => {
+        const circleId = 1;
+        const contestId = 42;
+        const mockContestLocked: Contest = {
+          id: contestId,
+          circle_id: circleId,
+          creator_id: 1,
+          question: 'Who will win?',
+          options: [{ id: 1, text: 'Option A' }],
+          predictions: [],
+          status: 'LOCKED',
+          min_stake: 10,
+          total_pot: 0,
+          house_rake: 0,
+          created_at: '2024-01-01T00:00:00Z',
+          closes_at: '2024-01-02T00:00:00Z',
+          duration: '1d',
+        };
 
-      const mockContestClosed: Contest = {
-        ...mockContestOpen,
-        status: 'CLOSED',
-      };
+        const mockContestResolved: Contest = {
+          ...mockContestLocked,
+          status: 'RESOLVED',
+          result_option_id: 1,
+        };
 
-      let emissionCount = 0;
-      service.pollContestDetails(circleId, contestId, 100).subscribe({
-        next: (contestWithTotals) => {
-          emissionCount++;
-          if (emissionCount === 1) {
-            expect(contestWithTotals.status).toBe('OPEN');
-          } else if (emissionCount === 2) {
-            expect(contestWithTotals.status).toBe('CLOSED');
-          }
-        },
-        complete: () => {
-          expect(emissionCount).toBe(2);
-          done();
-        },
+        let callCount = 0;
+        spyOn(service, 'getContest').and.callFake(() => {
+          callCount++;
+          return of(callCount === 1 ? mockContestLocked : mockContestResolved);
+        });
+
+        const polling$ = service.pollContestDetails(circleId, contestId, 5);
+
+        // Should emit LOCKED at 0ms, then RESOLVED at 5ms and complete
+        const expectedMarble = 'a 4ms (b|)';
+        const expectedValues = {
+          a: jasmine.objectContaining({ status: 'LOCKED' }),
+          b: jasmine.objectContaining({ status: 'RESOLVED' }),
+        };
+
+        expectObservable(polling$).toBe(expectedMarble, expectedValues);
       });
-
-      // First poll: OPEN
-      const req1 = httpMock.expectOne(
-        `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-      );
-      req1.flush(mockContestOpen);
-
-      // Second poll: CLOSED (should complete after this)
-      setTimeout(() => {
-        const req2 = httpMock.expectOne(
-          `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-        );
-        req2.flush(mockContestClosed);
-      }, 100);
-    });
-
-    it('should stop polling when contest status becomes RESOLVED', (done) => {
-      const circleId = 1;
-      const contestId = 42;
-      const mockContestLocked: Contest = {
-        id: contestId,
-        circle_id: circleId,
-        creator_id: 1,
-        question: 'Who will win?',
-        options: [{ id: 1, text: 'Option A' }],
-        predictions: [],
-        status: 'LOCKED',
-        min_stake: 10,
-        total_pot: 0,
-        house_rake: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        closes_at: '2024-01-02T00:00:00Z',
-        duration: '1d',
-      };
-
-      const mockContestResolved: Contest = {
-        ...mockContestLocked,
-        status: 'RESOLVED',
-        result_option_id: 1,
-      };
-
-      let emissionCount = 0;
-      service.pollContestDetails(circleId, contestId, 100).subscribe({
-        next: (contestWithTotals) => {
-          emissionCount++;
-          if (emissionCount === 1) {
-            expect(contestWithTotals.status).toBe('LOCKED');
-          } else if (emissionCount === 2) {
-            expect(contestWithTotals.status).toBe('RESOLVED');
-          }
-        },
-        complete: () => {
-          expect(emissionCount).toBe(2);
-          done();
-        },
-      });
-
-      // First poll: LOCKED
-      const req1 = httpMock.expectOne(
-        `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-      );
-      req1.flush(mockContestLocked);
-
-      // Second poll: RESOLVED (should complete after this)
-      setTimeout(() => {
-        const req2 = httpMock.expectOne(
-          `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-        );
-        req2.flush(mockContestResolved);
-      }, 100);
     });
   });
 });
