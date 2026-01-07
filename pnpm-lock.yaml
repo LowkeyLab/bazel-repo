@@ -109,7 +109,7 @@ catalogs:
       specifier: ^8.5.3
       version: 8.5.6
     postcss-cli:
-      specifier: 11.0.1
+      specifier: ^11.0.1
       version: 11.0.1
     prettier:
       specifier: ^3.7.4
