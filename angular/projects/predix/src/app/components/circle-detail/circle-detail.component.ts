@@ -4,7 +4,9 @@ import {
   signal,
   inject,
   OnInit,
+  DestroyRef,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
 import type { Circle } from '../../models/circle.model';
@@ -24,6 +26,7 @@ export class CircleDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly circleService = inject(CircleService);
   private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
 
   public readonly circle = signal<Circle | null>(null);
   public readonly loading = signal(true);
@@ -53,15 +56,18 @@ export class CircleDetailComponent implements OnInit {
 
   public loadContests(circleId: number): void {
     this.loadingContests.set(true);
-    this.circleService.getCircleContests(circleId).subscribe({
-      next: (contests) => {
-        this.contests.set(contests);
-        this.loadingContests.set(false);
-      },
-      error: () => {
-        this.loadingContests.set(false);
-      },
-    });
+    this.circleService
+      .pollCircleContests(circleId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (contests) => {
+          this.contests.set(contests);
+          this.loadingContests.set(false);
+        },
+        error: () => {
+          this.loadingContests.set(false);
+        },
+      });
   }
 
   public viewContest(id: number): void {

@@ -3,6 +3,9 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { TestScheduler } from 'rxjs/testing';
+import { of } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { CircleService } from './circle.service';
 import { environment } from '../../environments/environment';
 import type { Circle } from '../models/circle.model';
@@ -24,6 +27,52 @@ describe('CircleService', () => {
 
   afterEach(() => {
     httpMock.verify();
+  });
+
+  describe('pollCircleContests', () => {
+    let scheduler: TestScheduler;
+
+    beforeEach(() => {
+      scheduler = new TestScheduler((actual, expected) => {
+        expect(actual).toEqual(expected);
+      });
+    });
+
+    it('should poll for updated contests', () => {
+      scheduler.run(({ expectObservable }) => {
+        const circleId = 1;
+        const mockContests: Contest[] = [
+          {
+            id: 1,
+            circle_id: 1,
+            creator_id: 1,
+            question: 'What is 2+2?',
+            options: [],
+            predictions: [],
+            status: 'OPEN',
+            min_stake: 10,
+            total_pot: 0,
+            house_rake: 0,
+            created_at: '2024-01-01T00:00:00Z',
+            closes_at: '2024-01-02T00:00:00Z',
+            duration: '1d',
+          },
+        ];
+
+        spyOn(service, 'getCircleContests').and.returnValue(of(mockContests));
+
+        // Poll every 5ms for testing purposes (virtual time)
+        const polling$ = service.pollCircleContests(circleId, 5).pipe(take(3));
+
+        // Expect immediate emission (0ms), then at 5ms, then at 10ms
+        const expectedMarble = 'a 4ms a 4ms (a|)';
+        const expectedValues = { a: mockContests };
+
+        expectObservable(polling$).toBe(expectedMarble, expectedValues);
+      });
+
+      expect(service.getCircleContests).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('getCircleContests', () => {
