@@ -31,9 +31,6 @@ ng_application(
         ":processed_styles",
         ":srcs",
     ],
-    # Override styles to use the processed one
-    # Note: This might require updating angular.json to point to processed_styles.css
-    # but for now we include it in srcs
     tailwindcss = True,
     zonejs = True,
     deps = [
