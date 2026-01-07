@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
@@ -8,14 +8,29 @@ copy_to_bin(
     name = "srcs",
     srcs = glob(
         ["src/**/*"],
-        exclude = [
-            "dist/",
-        ],
+        exclude = ["src/styles.css"],
     ),
+)
+
+process_styles(
+    name = "processed_styles",
+    src = "src/styles.css",
+    srcs = glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+    out = "src/processed_styles.css",
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
 )
 
 ng_application(
     name = "tailwind-sample",
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
     tailwindcss = True,
     zonejs = True,
     deps = [
@@ -25,7 +40,10 @@ ng_application(
 
 ng_test(
     name = "test",
-    srcs = [":srcs"],
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
     karma = True,
     tailwindcss = True,
     zonejs = True,

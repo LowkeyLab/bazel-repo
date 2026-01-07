@@ -5,6 +5,3 @@
 
 @import "tailwindcss";
 @plugin "daisyui";
-
-@source "./app/**/*.html";
-@source "./app/**/*.ts";
