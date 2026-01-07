@@ -16,12 +16,12 @@ copy_to_bin(
 postcss_cli.postcss(
     name = "processed_styles",
     srcs = [
-        "postcss.config.js",
         "src/styles.css",
         "//angular:node_modules/@tailwindcss/postcss",
         "//angular:node_modules/daisyui",
         "//angular:node_modules/postcss",
         "//angular:node_modules/tailwindcss",
+        "//angular:postcssrc",
     ] + glob([
         "src/**/*.html",
         "src/**/*.ts",
@@ -32,7 +32,7 @@ postcss_cli.postcss(
         "-o",
         "src/processed_styles.css",
         "--config",
-        "postcss.config.js",
+        "../../.postcssrc.json",
     ],
     chdir = package_name(),
 )
@@ -40,7 +40,6 @@ postcss_cli.postcss(
 ng_application(
     name = "tailwind-sample",
     srcs = [
-        "tailwind.config.js",
         ":processed_styles",
         ":srcs",
     ],
