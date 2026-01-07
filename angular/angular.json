@@ -96,7 +96,7 @@
                 "input": "projects/tailwind-sample/public"
               }
             ],
-            "styles": ["projects/tailwind-sample/src/styles.css"]
+            "styles": ["projects/tailwind-sample/src/processed_styles.css"]
           },
           "configurations": {
             "production": {
@@ -148,7 +148,7 @@
                 "input": "projects/tailwind-sample/public"
               }
             ],
-            "styles": ["projects/tailwind-sample/src/styles.css"]
+            "styles": ["projects/tailwind-sample/src/processed_styles.css"]
           }
         }
       }

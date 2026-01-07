@@ -1,4 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@npm//angular:postcss-cli/package_json.bzl", postcss_cli = "bin")
 load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
 
 # aspect:generation_mode update_only
@@ -8,11 +9,44 @@ copy_to_bin(
     name = "srcs",
     srcs = glob(
         ["src/**/*"],
+        exclude = ["src/styles.css"],
     ),
+)
+
+postcss_cli.postcss(
+    name = "processed_styles",
+    srcs = [
+        "postcss.config.js",
+        "src/styles.css",
+        "//angular:node_modules/@tailwindcss/postcss",
+        "//angular:node_modules/daisyui",
+        "//angular:node_modules/postcss",
+        "//angular:node_modules/tailwindcss",
+    ] + glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+    outs = ["src/processed_styles.css"],
+    args = [
+        "src/styles.css",
+        "-o",
+        "src/processed_styles.css",
+        "--config",
+        "postcss.config.js",
+    ],
+    chdir = package_name(),
 )
 
 ng_application(
     name = "tailwind-sample",
+    srcs = [
+        "tailwind.config.js",
+        ":processed_styles",
+        ":srcs",
+    ],
+    # Override styles to use the processed one
+    # Note: This might require updating angular.json to point to processed_styles.css
+    # but for now we include it in srcs
     tailwindcss = True,
     zonejs = True,
     deps = [
@@ -22,7 +56,10 @@ ng_application(
 
 ng_test(
     name = "test",
-    srcs = [":srcs"],
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
     karma = True,
     tailwindcss = True,
     zonejs = True,
