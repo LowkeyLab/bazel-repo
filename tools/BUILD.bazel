@@ -1,3 +1,5 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+
 # BUILD file for Bazel tools and extensions
 load("@bazel_env.bzl", "bazel_env")
 load("@bazelrc-preset.bzl", "bazelrc_preset")
@@ -58,4 +60,20 @@ bazel_env(
 sh_binary(
     name = "workspace_status",
     srcs = ["workspace_status.sh"],
+)
+
+js_binary(
+    name = "process_styles",
+    data = [
+        "process_css.js",
+        "//angular:node_modules/@tailwindcss/postcss",
+        "//angular:node_modules/daisyui",
+        "//angular:node_modules/postcss",
+        "//angular:node_modules/tailwindcss",
+    ],
+    entry_point = "process_css.js",
+    env = {
+        "NODE_PATH": "angular/node_modules",
+    },
+    visibility = ["//visibility:public"],
 )

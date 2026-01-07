@@ -1,17 +1,35 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
 
 copy_to_bin(
     name = "srcs",
     srcs = glob(
         ["src/**/*"],
+        exclude = ["src/styles.css"],
     ),
+)
+
+process_styles(
+    name = "processed_styles",
+    src = "src/styles.css",
+    srcs = glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+    out = "src/processed_styles.css",
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
 )
 
 ng_application(
     name = "predix",
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
     tailwindcss = True,
     zonejs = False,
     deps = [
@@ -21,7 +39,10 @@ ng_application(
 
 ng_test(
     name = "test",
-    srcs = [":srcs"],
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
     karma = True,
     tailwindcss = True,
     zonejs = False,

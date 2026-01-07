@@ -2,8 +2,39 @@
 Angular macros.
 """
 
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@rules_angular//src/architect:ng_application.bzl", orig_ng_application = "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", orig_ng_test = "ng_test")
+
+def process_styles(name, src, out, config = "//angular:postcssrc", deps = [], **kwargs):
+    """
+    Processes a CSS file using PostCSS with Tailwind CSS support.
+
+    Args:
+        name: The name of the target.
+        src: The source CSS file.
+        out: The output CSS file.
+        config: The PostCSS configuration file (default: //angular:postcssrc).
+        deps: Additional dependencies (e.g., daisyui).
+        **kwargs: Additional arguments passed to js_run_binary (e.g. srcs for content scanning).
+    """
+    extra_srcs = kwargs.pop("srcs", [])
+
+    js_run_binary(
+        name = name,
+        srcs = [src, config] + deps + extra_srcs,
+        outs = [out],
+        args = [
+            "$(rootpath {})".format(src),
+            "$(rootpath {})".format(out),
+            "$(rootpath {})".format(config),
+        ],
+        env = {
+            "JS_BINARY__SILENT_ON_SUCCESS": "0",
+        },
+        tool = "//tools:process_styles",
+        **kwargs
+    )
 
 def ng_application(zonejs = False, tailwindcss = False, deps = [], **kwargs):
     """

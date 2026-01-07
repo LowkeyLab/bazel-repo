@@ -20,5 +20,3 @@ js_library(
     tags = ["no-lint"],
     visibility = ["//angular:__subpackages__"],
 )
-
-exports_files([".postcssrc.json"])

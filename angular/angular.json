@@ -172,7 +172,7 @@
                 "input": "projects/mindreadr/public"
               }
             ],
-            "styles": ["projects/mindreadr/src/styles.css"]
+            "styles": ["projects/mindreadr/src/processed_styles.css"]
           },
           "configurations": {
             "production": {
@@ -232,7 +232,7 @@
                 "input": "projects/mindreadr/public"
               }
             ],
-            "styles": ["projects/mindreadr/src/styles.css"]
+            "styles": ["projects/mindreadr/src/processed_styles.css"]
           }
         }
       }
@@ -255,7 +255,7 @@
                 "input": "projects/predix/public"
               }
             ],
-            "styles": ["projects/predix/src/styles.css"]
+            "styles": ["projects/predix/src/processed_styles.css"]
           },
           "configurations": {
             "production": {
@@ -310,7 +310,7 @@
                 "input": "projects/predix/public"
               }
             ],
-            "styles": ["projects/predix/src/styles.css"]
+            "styles": ["projects/predix/src/processed_styles.css"]
           }
         }
       }

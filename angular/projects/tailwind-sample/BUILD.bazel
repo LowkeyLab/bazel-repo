@@ -1,6 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@npm//angular:postcss-cli/package_json.bzl", postcss_cli = "bin")
-load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
@@ -13,28 +12,17 @@ copy_to_bin(
     ),
 )
 
-postcss_cli.postcss(
+process_styles(
     name = "processed_styles",
-    srcs = [
-        "src/styles.css",
-        "//angular:node_modules/@tailwindcss/postcss",
-        "//angular:node_modules/daisyui",
-        "//angular:node_modules/postcss",
-        "//angular:node_modules/tailwindcss",
-        "//angular:postcssrc",
-    ] + glob([
+    src = "src/styles.css",
+    srcs = glob([
         "src/**/*.html",
         "src/**/*.ts",
     ]),
-    outs = ["src/processed_styles.css"],
-    args = [
-        "src/styles.css",
-        "-o",
-        "src/processed_styles.css",
-        "--config",
-        "../../.postcssrc.json",
+    out = "src/processed_styles.css",
+    deps = [
+        "//angular:node_modules/daisyui",
     ],
-    chdir = package_name(),
 )
 
 ng_application(
