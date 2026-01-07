@@ -3,7 +3,7 @@ import { ContestDetailComponent } from './contest-detail.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
 import { AuthService, type AuthUser } from '../../services/auth.service';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import type { Contest, PayoutBreakdown } from '../../models/contest.model';
 
 describe('ContestDetailComponent - Payout Breakdown', () => {
@@ -84,6 +84,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       'lockContest',
       'resolveContest',
       'getPayoutBreakdown',
+      'pollContestDetails',
     ]);
     mockAuthService = jasmine.createSpyObj('AuthService', ['currentUser']);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
@@ -115,6 +116,14 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       ],
     }).compileComponents();
 
+    // Default mock for pollContestDetails (can be overridden in specific tests)
+    mockContestService.pollContestDetails.and.returnValue(
+      of({
+        ...mockOpenContest,
+        totals: { byOption: new Map() },
+      }),
+    );
+
     fixture = TestBed.createComponent(ContestDetailComponent);
     component = fixture.componentInstance;
   });
@@ -125,29 +134,52 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
   describe('Payout Breakdown Loading', () => {
     it('should load payout breakdown when contest is RESOLVED', () => {
-      mockContestService.getContest.and.returnValue(of(mockResolvedContest));
+      const contestWithTotals = {
+        ...mockResolvedContest,
+        totals: {
+          byOption: new Map([
+            [1, { clout: 0, count: 0 }],
+            [2, { clout: 300, count: 2 }],
+          ]),
+        },
+      };
+      mockContestService.pollContestDetails.and.returnValue(
+        of(contestWithTotals),
+      );
       mockContestService.getPayoutBreakdown.and.returnValue(
         of(mockPayoutBreakdown),
       );
 
       fixture.detectChanges();
 
-      expect(mockContestService.getContest).toHaveBeenCalledWith(1, 1);
+      expect(mockContestService.pollContestDetails).toHaveBeenCalledWith(1, 1);
       expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledWith(1, 1);
       expect(component.payoutBreakdown()).toEqual(mockPayoutBreakdown);
     });
 
     it('should not load payout breakdown when contest is OPEN', () => {
-      mockContestService.getContest.and.returnValue(of(mockOpenContest));
+      const contestWithTotals = {
+        ...mockOpenContest,
+        totals: { byOption: new Map() },
+      };
+      mockContestService.pollContestDetails.and.returnValue(
+        of(contestWithTotals),
+      );
 
       fixture.detectChanges();
 
-      expect(mockContestService.getContest).toHaveBeenCalledWith(1, 1);
+      expect(mockContestService.pollContestDetails).toHaveBeenCalledWith(1, 1);
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
 
     it('should set payoutLoading signal to true while fetching', (done) => {
-      mockContestService.getContest.and.returnValue(of(mockResolvedContest));
+      const contestWithTotals = {
+        ...mockResolvedContest,
+        totals: { byOption: new Map() },
+      };
+      mockContestService.pollContestDetails.and.returnValue(
+        of(contestWithTotals),
+      );
       mockContestService.getPayoutBreakdown.and.returnValue(
         of(mockPayoutBreakdown),
       );
@@ -546,6 +578,106 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         option_id: 1,
         clout: 1200,
       });
+    });
+  });
+
+  describe('Polling Lifecycle', () => {
+    it('should start polling on init', () => {
+      const contestWithTotals = {
+        ...mockOpenContest,
+        totals: { byOption: new Map() },
+      };
+      mockContestService.pollContestDetails.and.returnValue(
+        of(contestWithTotals),
+      );
+
+      fixture.detectChanges();
+
+      expect(mockContestService.pollContestDetails).toHaveBeenCalledWith(1, 1);
+      expect(component.contest()).toEqual(contestWithTotals);
+    });
+
+    it('should unsubscribe from polling on destroy', () => {
+      type ContestWithTotals = Contest & {
+        totals: { byOption: Map<number, { clout: number; count: number }> };
+      };
+      const pollSubject = new Subject<ContestWithTotals>();
+      mockContestService.pollContestDetails.and.returnValue(
+        pollSubject.asObservable(),
+      );
+
+      fixture.detectChanges();
+
+      const subscription = (component as any).pollingSubscription;
+      spyOn(subscription, 'unsubscribe');
+
+      fixture.destroy();
+
+      expect(subscription.unsubscribe).toHaveBeenCalled();
+    });
+
+    it('should update contest state on each poll emission', (done) => {
+      const contestOpen = {
+        ...mockOpenContest,
+        totals: { byOption: new Map([[1, { clout: 100, count: 1 }]]) },
+      };
+      const contestUpdated = {
+        ...mockOpenContest,
+        totals: { byOption: new Map([[1, { clout: 300, count: 3 }]]) },
+      };
+
+      const pollSubject = new Subject<typeof contestOpen>();
+      mockContestService.pollContestDetails.and.returnValue(
+        pollSubject.asObservable(),
+      );
+
+      fixture.detectChanges();
+
+      // First emission
+      pollSubject.next(contestOpen);
+      expect(component.contest()).toEqual(contestOpen);
+
+      // Second emission
+      pollSubject.next(contestUpdated);
+      expect(component.contest()).toEqual(contestUpdated);
+
+      pollSubject.complete();
+      done();
+    });
+
+    it('should load payout breakdown only once when contest becomes resolved', () => {
+      const contestLocked = {
+        ...mockOpenContest,
+        status: 'LOCKED' as const,
+        totals: { byOption: new Map() },
+      };
+      const contestResolved = {
+        ...mockResolvedContest,
+        totals: { byOption: new Map() },
+      };
+
+      const pollSubject = new Subject<any>();
+      mockContestService.pollContestDetails.and.returnValue(
+        pollSubject.asObservable(),
+      );
+      mockContestService.getPayoutBreakdown.and.returnValue(
+        of(mockPayoutBreakdown),
+      );
+
+      fixture.detectChanges();
+
+      // First emission: LOCKED (no payout breakdown)
+      pollSubject.next(contestLocked);
+      expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
+
+      // Second emission: RESOLVED (should load payout breakdown)
+      pollSubject.next(contestResolved);
+      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledWith(1, 1);
+      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledTimes(1);
+
+      // Third emission: RESOLVED again (should not load payout breakdown again)
+      pollSubject.next(contestResolved);
+      expect(mockContestService.getPayoutBreakdown).toHaveBeenCalledTimes(1);
     });
   });
 });

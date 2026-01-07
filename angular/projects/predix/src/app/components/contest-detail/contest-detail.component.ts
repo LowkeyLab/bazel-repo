@@ -4,9 +4,11 @@ import {
   signal,
   inject,
   OnInit,
+  OnDestroy,
   computed,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ContestService } from '../../services/contest.service';
 import type {
   Contest,
@@ -24,10 +26,12 @@ import { BackButtonComponent } from '../back-button/back-button.component';
   templateUrl: './contest-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContestDetailComponent implements OnInit {
+export class ContestDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly contestService = inject(ContestService);
   public readonly auth = inject(AuthService);
+
+  private pollingSubscription?: Subscription;
 
   public readonly contest = signal<Contest | null>(null);
   public readonly loading = signal(true);
@@ -71,11 +75,45 @@ export class ContestDetailComponent implements OnInit {
     const circleId = Number(this.route.snapshot.paramMap.get('circleId'));
     const contestId = Number(this.route.snapshot.paramMap.get('id'));
     if (circleId && contestId) {
-      this.loadContest(circleId, contestId);
+      this.startPolling(circleId, contestId);
     }
   }
 
+  ngOnDestroy(): void {
+    this.pollingSubscription?.unsubscribe();
+  }
+
+  private startPolling(circleId: number, contestId: number): void {
+    this.loading.set(true);
+
+    this.pollingSubscription = this.contestService
+      .pollContestDetails(circleId, contestId)
+      .subscribe({
+        next: (contestWithTotals) => {
+          this.contest.set(contestWithTotals);
+          this.syncOptionStakes(contestWithTotals);
+          this.loading.set(false);
+
+          // Load payout breakdown once if contest just became resolved
+          if (
+            contestWithTotals.status === 'RESOLVED' &&
+            !this.payoutBreakdown()
+          ) {
+            this.loadPayoutBreakdown(circleId, contestId);
+          }
+        },
+        error: (err) => {
+          console.error('Polling failed after retries:', err);
+          this.loading.set(false);
+        },
+        complete: () => {
+          console.log('Polling stopped (contest closed or resolved)');
+        },
+      });
+  }
+
   public loadContest(circleId: number, contestId: number): void {
+    // Keep this method for explicit reloads after mutations
     this.contestService.getContest(circleId, contestId).subscribe({
       next: (contest) => {
         this.contest.set(contest);
@@ -83,7 +121,7 @@ export class ContestDetailComponent implements OnInit {
         this.loading.set(false);
 
         // Load payout breakdown if contest is resolved
-        if (contest.status === 'RESOLVED') {
+        if (contest.status === 'RESOLVED' && !this.payoutBreakdown()) {
           this.loadPayoutBreakdown(circleId, contestId);
         }
       },
