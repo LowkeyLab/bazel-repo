@@ -30,7 +30,7 @@
         </p>
       }
     </div>
-    <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       @if (terminated(); as termState) {
         <mindreadr-status-badge
           [type]="getTerminationType(termState)"
@@ -158,11 +158,14 @@
               } @else {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   @for (entry of objectKeys(r.guesses); track entry) {
-                    <div class="flex items-start gap-2 text-sm sm:text-base">
-                      <div class="font-semibold truncate flex-shrink-0">
+                    <div
+                      class="flex items-start gap-2 text-sm sm:text-base"
+                      animate.enter="slide-in-left"
+                    >
+                      <div class="font-semibold truncate shrink-0">
                         {{ entry }}:
                       </div>
-                      <div class="break-words min-w-0">
+                      <div class="wrap-break-word min-w-0">
                         {{ r.guesses[entry] }}
                       </div>
                     </div>

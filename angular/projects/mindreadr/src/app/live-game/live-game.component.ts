@@ -23,6 +23,7 @@ interface Toast {
   standalone: true,
   imports: [CommonModule, FormsModule, StatusBadgeComponent],
   templateUrl: './live-game.component.html',
+  styleUrls: ['./live-game.component.css'],
 })
 export class LiveGameComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
