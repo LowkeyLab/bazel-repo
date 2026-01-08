@@ -641,7 +641,7 @@ describe('ContestListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton).toBeTruthy();
       expect(refreshButton.nativeElement.textContent).toContain('Refresh');
@@ -653,7 +653,7 @@ describe('ContestListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       refreshButton.nativeElement.click();
 
@@ -668,7 +668,7 @@ describe('ContestListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton.nativeElement.disabled).toBe(true);
     });
@@ -681,7 +681,7 @@ describe('ContestListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton.nativeElement.disabled).toBe(false);
     });
@@ -694,7 +694,7 @@ describe('ContestListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton.nativeElement.textContent).toContain(
         'Refreshing...',
@@ -709,7 +709,7 @@ describe('ContestListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton.nativeElement.textContent).toContain('Refresh');
     });
@@ -721,7 +721,7 @@ describe('ContestListComponent', () => {
       component.loading.set(true);
       fixture.detectChanges();
 
-      const icon = fixture.debugElement.query(By.css('button svg'));
+      const icon = fixture.debugElement.query(By.css('button.btn-ghost svg'));
       expect(icon.nativeElement.classList.contains('animate-spin')).toBe(true);
     });
 
@@ -732,7 +732,7 @@ describe('ContestListComponent', () => {
       component.loading.set(false);
       fixture.detectChanges();
 
-      const icon = fixture.debugElement.query(By.css('button svg'));
+      const icon = fixture.debugElement.query(By.css('button.btn-ghost svg'));
       expect(icon.nativeElement.classList.contains('animate-spin')).toBe(false);
     });
   });

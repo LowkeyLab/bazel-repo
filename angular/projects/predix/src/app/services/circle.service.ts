@@ -1,7 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, timer } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import type {
   Circle,
@@ -31,13 +30,6 @@ export class CircleService {
 
   getCircleContests(id: number): Observable<Contest[]> {
     return this.http.get<Contest[]>(`${this.apiUrl}/${id}/contests`);
-  }
-
-  pollCircleContests(
-    id: number,
-    interval: number = 5000,
-  ): Observable<Contest[]> {
-    return timer(0, interval).pipe(switchMap(() => this.getCircleContests(id)));
   }
 
   addMember(circleId: number, request: AddMemberRequest): Observable<void> {

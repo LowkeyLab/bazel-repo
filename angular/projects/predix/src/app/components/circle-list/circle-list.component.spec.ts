@@ -140,7 +140,7 @@ describe('CircleListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton).toBeTruthy();
       expect(refreshButton.nativeElement.textContent).toContain('Refresh');
@@ -152,7 +152,7 @@ describe('CircleListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       refreshButton.nativeElement.click();
 
@@ -167,7 +167,7 @@ describe('CircleListComponent', () => {
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton.nativeElement.disabled).toBe(true);
     });
@@ -179,7 +179,7 @@ describe('CircleListComponent', () => {
       component.loading.set(true);
       fixture.detectChanges();
       let refreshButton = fixture.debugElement.query(
-        By.css('button.btn-primary'),
+        By.css('button.btn-ghost'),
       );
       expect(refreshButton.nativeElement.textContent).toContain(
         'Refreshing...',
@@ -187,7 +187,7 @@ describe('CircleListComponent', () => {
 
       component.loading.set(false);
       fixture.detectChanges();
-      refreshButton = fixture.debugElement.query(By.css('button.btn-primary'));
+      refreshButton = fixture.debugElement.query(By.css('button.btn-ghost'));
       expect(refreshButton.nativeElement.textContent).toContain('Refresh');
     });
 

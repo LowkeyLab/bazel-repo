@@ -57,7 +57,6 @@ describe('CircleDetailComponent', () => {
     mockCircleService = jasmine.createSpyObj('CircleService', [
       'getCircle',
       'getCircleContests',
-      'pollCircleContests',
       'createCircle',
       'listUserCircles',
       'addMember',
@@ -93,12 +92,12 @@ describe('CircleDetailComponent', () => {
   describe('ngOnInit', () => {
     it('should load circle and contests on init', () => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
 
       fixture.detectChanges();
 
       expect(mockCircleService.getCircle).toHaveBeenCalledWith(1);
-      expect(mockCircleService.pollCircleContests).toHaveBeenCalledWith(1);
+      expect(mockCircleService.getCircleContests).toHaveBeenCalledWith(1);
       expect(component.circle()).toEqual(mockCircle);
       expect(component.contests()).toEqual(mockContests);
       expect(component.loading()).toBe(false);
@@ -109,7 +108,7 @@ describe('CircleDetailComponent', () => {
       mockCircleService.getCircle.and.returnValue(
         throwError(() => new Error('Not found')),
       );
-      mockCircleService.pollCircleContests.and.returnValue(of([]));
+      mockCircleService.getCircleContests.and.returnValue(of([]));
 
       fixture.detectChanges();
 
@@ -119,7 +118,7 @@ describe('CircleDetailComponent', () => {
 
     it('should handle contests load error', () => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(
+      mockCircleService.getCircleContests.and.returnValue(
         throwError(() => new Error('Server error')),
       );
 
@@ -137,7 +136,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should load contests for a circle', () => {
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
 
       fixture.detectChanges();
 
@@ -146,7 +145,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should handle empty contests list', () => {
-      mockCircleService.pollCircleContests.and.returnValue(of([]));
+      mockCircleService.getCircleContests.and.returnValue(of([]));
 
       fixture.detectChanges();
 
@@ -155,7 +154,7 @@ describe('CircleDetailComponent', () => {
     });
 
     it('should set loadingContests to true while loading', (done) => {
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
 
       fixture.detectChanges();
 
@@ -165,10 +164,34 @@ describe('CircleDetailComponent', () => {
     });
   });
 
+  describe('refreshContests', () => {
+    beforeEach(() => {
+      mockCircleService.getCircle.and.returnValue(of(mockCircle));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
+      fixture.detectChanges();
+    });
+
+    it('should manually refresh contests', () => {
+      component.refreshContests();
+
+      expect(mockCircleService.getCircleContests).toHaveBeenCalledWith(1);
+      expect(component.contests()).toEqual(mockContests);
+    });
+
+    it('should not refresh if circle id is not available', () => {
+      component.circle.set(null);
+      mockCircleService.getCircleContests.calls.reset();
+
+      component.refreshContests();
+
+      expect(mockCircleService.getCircleContests).not.toHaveBeenCalled();
+    });
+  });
+
   describe('viewContest', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
       fixture.detectChanges();
     });
 
@@ -186,7 +209,7 @@ describe('CircleDetailComponent', () => {
   describe('createContest', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
       fixture.detectChanges();
     });
 
@@ -205,7 +228,7 @@ describe('CircleDetailComponent', () => {
   describe('getJoinLink', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
       fixture.detectChanges();
     });
 
@@ -219,7 +242,7 @@ describe('CircleDetailComponent', () => {
   describe('copyJoinLink', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
       fixture.detectChanges();
 
       spyOn(navigator.clipboard, 'writeText').and.returnValue(
@@ -251,7 +274,7 @@ describe('CircleDetailComponent', () => {
   describe('getMaxClout', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));
-      mockCircleService.pollCircleContests.and.returnValue(of(mockContests));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
       fixture.detectChanges();
     });
 
