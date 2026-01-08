@@ -9,6 +9,7 @@ import confetti from 'canvas-confetti';
   standalone: true,
   imports: [],
   templateUrl: './game-summary.component.html',
+  styleUrls: ['./game-summary.component.css'],
 })
 export class GameSummaryComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
