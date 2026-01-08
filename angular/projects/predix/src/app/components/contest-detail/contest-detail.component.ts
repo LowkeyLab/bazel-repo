@@ -37,7 +37,10 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
   public readonly loading = signal(true);
   public readonly predictionLoading = signal(false);
   public readonly predictionError = signal('');
-  public readonly optionStakes = signal<Record<number, number>>({});
+  public readonly userStakeInputs = signal<Record<number, number>>({});
+  public readonly lastSyncedPredictions = signal<Map<number, number>>(
+    new Map(),
+  );
   public readonly lockLoading = signal(false);
   public readonly resolveLoading = signal(false);
   public readonly resolveError = signal('');
@@ -91,7 +94,12 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (contestWithTotals) => {
           this.contest.set(contestWithTotals);
-          this.syncOptionStakes(contestWithTotals);
+
+          // Only sync stakes if predictions actually changed
+          if (this.havePredictionsChanged(contestWithTotals)) {
+            this.syncOptionStakes(contestWithTotals);
+          }
+
           this.loading.set(false);
 
           // Load payout breakdown once if contest just became resolved
@@ -131,18 +139,48 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  private havePredictionsChanged(contest: Contest): boolean {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) return false;
+
+    const currentPredictions = new Map<number, number>();
+    for (const prediction of contest.predictions) {
+      if (prediction.user_id === userId) {
+        currentPredictions.set(prediction.option_id, prediction.clout);
+      }
+    }
+
+    const lastSynced = this.lastSyncedPredictions();
+
+    // Check if the maps are different
+    if (currentPredictions.size !== lastSynced.size) return true;
+
+    for (const [optionId, clout] of currentPredictions) {
+      if (lastSynced.get(optionId) !== clout) return true;
+    }
+
+    return false;
+  }
+
   private syncOptionStakes(contest: Contest): void {
     const stakes: Record<number, number> = {};
     const userId = this.auth.currentUser()?.id;
+    const newSyncedPredictions = new Map<number, number>();
 
     for (const option of contest.options) {
       const existing = contest.predictions.find(
         (p) => p.option_id === option.id && p.user_id === userId,
       );
-      stakes[option.id] = existing?.clout ?? contest.min_stake;
+      const clout = existing?.clout ?? contest.min_stake;
+      stakes[option.id] = clout;
+
+      if (existing) {
+        newSyncedPredictions.set(option.id, clout);
+      }
     }
 
-    this.optionStakes.set(stakes);
+    this.userStakeInputs.set(stakes);
+    this.lastSyncedPredictions.set(newSyncedPredictions);
   }
 
   public loadPayoutBreakdown(circleId: number, contestId: number): void {
@@ -167,7 +205,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     const contest = this.contest();
     if (!contest) return 0;
 
-    return this.optionStakes()[optionId] ?? contest.min_stake;
+    return this.userStakeInputs()[optionId] ?? contest.min_stake;
   }
 
   public setStake(optionId: number, value: number): void {
@@ -177,7 +215,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     const parsed = Number.isFinite(value) ? value : contest.min_stake;
     const next = Math.max(contest.min_stake, parsed);
 
-    this.optionStakes.update((current) => ({
+    this.userStakeInputs.update((current) => ({
       ...current,
       [optionId]: next,
     }));
@@ -188,7 +226,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     const contest = this.contest();
     if (!contest) return;
 
-    this.optionStakes.update((current) => {
+    this.userStakeInputs.update((current) => {
       const currentValue = current[optionId] ?? contest.min_stake;
       const next = Math.max(contest.min_stake, currentValue + delta);
       return { ...current, [optionId]: next };

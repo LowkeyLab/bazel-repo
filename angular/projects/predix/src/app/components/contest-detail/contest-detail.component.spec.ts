@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ContestDetailComponent } from './contest-detail.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
-import { AuthService, type AuthUser } from '../../services/auth.service';
+import { AuthService } from '../../services/auth.service';
 import { of, throwError, Subject } from 'rxjs';
 import type { Contest, PayoutBreakdown } from '../../models/contest.model';
 
