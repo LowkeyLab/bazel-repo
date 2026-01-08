@@ -267,7 +267,6 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.predictionLoading.set(false);
-          this.loadContest(contest.circle_id, contest.id);
         },
         error: (err) => {
           this.predictionLoading.set(false);
