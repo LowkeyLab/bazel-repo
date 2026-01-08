@@ -3,7 +3,7 @@
     <h1 class="text-3xl font-bold">My Circles</h1>
     <div class="flex gap-2">
       <button
-        class="btn btn-primary"
+        class="btn btn-ghost"
         (click)="refreshCircles()"
         [disabled]="loading()"
         aria-label="Refresh circles"
@@ -25,7 +25,7 @@
         </svg>
         <span>{{ loading() ? "Refreshing..." : "Refresh" }}</span>
       </button>
-      <button class="btn btn-secondary" (click)="createCircle()">
+      <button class="btn btn-primary" (click)="createCircle()">
         Create Circle
       </button>
     </div>
