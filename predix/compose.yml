@@ -14,7 +14,7 @@ services:
     networks:
       - predix-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
     networks:
       - predix-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,7 +46,7 @@ services:
     networks:
       - predix-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U predix"]
+      test: ["CMD-SHELL", "pg_isready -U predix -d predix_db"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -164,6 +164,30 @@ describe('CircleDetailComponent', () => {
     });
   });
 
+  describe('refreshContests', () => {
+    beforeEach(() => {
+      mockCircleService.getCircle.and.returnValue(of(mockCircle));
+      mockCircleService.getCircleContests.and.returnValue(of(mockContests));
+      fixture.detectChanges();
+    });
+
+    it('should manually refresh contests', () => {
+      component.refreshContests();
+
+      expect(mockCircleService.getCircleContests).toHaveBeenCalledWith(1);
+      expect(component.contests()).toEqual(mockContests);
+    });
+
+    it('should not refresh if circle id is not available', () => {
+      component.circle.set(null);
+      mockCircleService.getCircleContests.calls.reset();
+
+      component.refreshContests();
+
+      expect(mockCircleService.getCircleContests).not.toHaveBeenCalled();
+    });
+  });
+
   describe('viewContest', () => {
     beforeEach(() => {
       mockCircleService.getCircle.and.returnValue(of(mockCircle));

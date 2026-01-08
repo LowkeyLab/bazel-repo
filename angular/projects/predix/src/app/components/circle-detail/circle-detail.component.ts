@@ -64,6 +64,13 @@ export class CircleDetailComponent implements OnInit {
     });
   }
 
+  public refreshContests(): void {
+    const circleId = this.circle()?.id;
+    if (circleId) {
+      this.loadContests(circleId);
+    }
+  }
+
   public viewContest(id: number): void {
     const circleId = this.circle()?.id;
     if (circleId) {

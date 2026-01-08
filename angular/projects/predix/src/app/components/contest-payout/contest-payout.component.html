@@ -1,0 +1,98 @@
+@if (payoutLoading()) {
+  <div class="card bg-base-200 mb-4">
+    <div class="card-body">
+      <div class="flex justify-center">
+        <span class="loading loading-spinner"></span>
+      </div>
+    </div>
+  </div>
+} @else if (payoutBreakdown(); as breakdown) {
+  <div class="mb-4">
+    <h3 class="text-xl font-bold mb-2">💰 Payout Breakdown</h3>
+    <p class="text-sm text-secondary mb-4">
+      Winners receive their original stake plus their proportional share of the
+      losing stakes (minus house rake).
+    </p>
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div>
+        <p class="text-sm text-secondary">Total Staked</p>
+        <p class="font-semibold">💎 {{ breakdown.total_pot }} Clout</p>
+      </div>
+      <div>
+        <p class="text-sm text-secondary">
+          House Rake ({{
+            getHouseRakePercentOfLosers(breakdown) | number: "1.0-2"
+          }}% of losers)
+        </p>
+        <p class="font-semibold text-warning">
+          💎 {{ breakdown.house_rake }} Clout
+        </p>
+      </div>
+      <div>
+        <p class="text-sm text-secondary">Distributable</p>
+        <p class="font-semibold text-success">
+          💎 {{ breakdown.distributable_pot }} Clout
+        </p>
+      </div>
+      <div>
+        <p class="text-sm text-secondary">Total Distributed</p>
+        <p class="font-semibold text-info">
+          💎 {{ breakdown.total_distributed }} Clout
+        </p>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto mb-6">
+      <h4 class="font-bold mb-2">🏆 Winners</h4>
+      <table class="table table-zebra table-fixed">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Original Stake</th>
+            <th>Gain</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (payout of breakdown.winners; track payout.user_id) {
+            <tr>
+              <td>{{ payout.username }}</td>
+              <td>💎 {{ payout.stake }}</td>
+              <td class="font-bold text-success">💎 {{ payout.share }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="overflow-x-auto">
+      <h4 class="font-bold mb-2">❌ Losers</h4>
+      <table class="table table-zebra table-fixed">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Original Stake</th>
+            <th>Loss</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (loss of breakdown.losers; track loss.user_id) {
+            <tr>
+              <td>{{ loss.username }}</td>
+              <td>💎 {{ loss.stake }}</td>
+              <td class="font-bold text-error">💎 -{{ loss.stake }}</td>
+            </tr>
+          }
+          @if (breakdown.losers.length === 0) {
+            <tr>
+              <td colspan="3" class="text-center italic">No losers.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+} @else if (payoutError()) {
+  <div class="alert alert-error mb-4">
+    <span>{{ payoutError() }}</span>
+  </div>
+}

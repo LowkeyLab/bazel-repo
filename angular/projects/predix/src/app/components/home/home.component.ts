@@ -33,7 +33,7 @@ export class HomeComponent {
   protected readonly highlights = [
     {
       title: 'Friends-first',
-      copy: 'Invite-only Circles keep Contests, Clout ledgers, and leaderboards contained to your crew.',
+      copy: 'Invite-only Circles keep Contests, Clout ledgers, and leaderboards for you and your friends.',
       emoji: '🔒',
     },
     {
@@ -43,7 +43,7 @@ export class HomeComponent {
     },
     {
       title: 'Social energy',
-      copy: 'Trash talk ticker, recap cards, and 1v1 challenges keep Contests lively.',
+      copy: 'Live ticks, payouts, and trash talk make predicting with friends more fun.',
       emoji: '🎉',
     },
   ];

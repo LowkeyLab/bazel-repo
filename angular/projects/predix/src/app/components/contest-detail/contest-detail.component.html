@@ -13,7 +13,7 @@
         <div class="flex justify-between items-start mb-4">
           <h1 class="text-3xl font-bold flex-1">{{ contest.question }}</h1>
           <div
-            class="badge badge-lg"
+            class="badge"
             [class.badge-success]="contest.status === 'OPEN'"
             [class.badge-warning]="contest.status === 'LOCKED'"
             [class.badge-neutral]="contest.status === 'CLOSED'"
@@ -22,11 +22,6 @@
             {{ statusLabels[contest.status] }}
           </div>
         </div>
-
-        <p class="text-sm text-secondary mb-2">
-          Contest creator resolves by selecting the winning Option; CLOSED is
-          reserved for paused prediction windows.
-        </p>
 
         <div class="grid grid-cols-2 gap-4 mb-4">
           <div>
@@ -42,10 +37,6 @@
             </p>
           </div>
           <div>
-            <p class="text-sm text-secondary">Total Staked</p>
-            <p class="font-semibold">💎 {{ getTotalClout(contest) }} Clout</p>
-          </div>
-          <div>
             <p class="text-sm text-secondary">Minimum Stake</p>
             <p class="font-semibold">💎 {{ contest.min_stake }} Clout</p>
           </div>
@@ -55,25 +46,9 @@
           </div>
           @if (contest.total_pot > 0) {
             <div>
-              <p class="text-sm text-secondary">Total Pot</p>
-              <p class="font-semibold text-lg">
-                💎 {{ contest.total_pot }} Clout
-              </p>
+              <p class="text-sm text-secondary">Total Staked</p>
+              <p class="font-semibold">💎 {{ contest.total_pot }} Clout</p>
             </div>
-            @if (contest.status === "RESOLVED") {
-              <div>
-                <p class="text-sm text-secondary">House Rake (10% of Losers)</p>
-                <p class="font-semibold text-lg text-warning">
-                  💎 {{ contest.house_rake }} Clout
-                </p>
-              </div>
-              <div>
-                <p class="text-sm text-secondary">Distributable Pot</p>
-                <p class="font-semibold text-lg text-success">
-                  💎 {{ contest.total_pot - contest.house_rake }} Clout
-                </p>
-              </div>
-            }
           }
         </div>
 
@@ -99,115 +74,16 @@
           </div>
 
           <!-- Payout Breakdown Section -->
-          @if (payoutLoading()) {
-            <div class="card bg-base-200 mb-4">
-              <div class="card-body">
-                <div class="flex justify-center">
-                  <span class="loading loading-spinner"></span>
-                </div>
-              </div>
-            </div>
-          } @else if (payoutBreakdown(); as breakdown) {
-            <div class="card bg-base-200 mb-4">
-              <div class="card-body">
-                <h3 class="text-xl font-bold mb-2">💰 Payout Breakdown</h3>
-                <p class="text-sm text-secondary mb-4">
-                  Winners receive their original stake plus their proportional
-                  share of the losing stakes (minus 10% house rake).
-                </p>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <p class="text-sm text-secondary">Total Pot</p>
-                    <p class="font-semibold text-lg">
-                      💎 {{ breakdown.total_pot }} Clout
-                    </p>
-                  </div>
-                  <div>
-                    <p class="text-sm text-secondary">
-                      House Rake (10% of Losers)
-                    </p>
-                    <p class="font-semibold text-lg text-warning">
-                      💎 {{ breakdown.house_rake }} Clout
-                    </p>
-                  </div>
-                  <div>
-                    <p class="text-sm text-secondary">Distributable</p>
-                    <p class="font-semibold text-lg text-success">
-                      💎 {{ breakdown.distributable_pot }} Clout
-                    </p>
-                  </div>
-                  <div>
-                    <p class="text-sm text-secondary">Total Distributed</p>
-                    <p class="font-semibold text-lg text-info">
-                      💎 {{ breakdown.total_distributed }} Clout
-                    </p>
-                  </div>
-                </div>
-                <div class="overflow-x-auto mb-6">
-                  <h4 class="font-bold mb-2">🏆 Winners</h4>
-                  <table class="table table-zebra">
-                    <thead>
-                      <tr>
-                        <th>User</th>
-                        <th>Original Stake</th>
-                        <th>Gain</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (payout of breakdown.winners; track payout.user_id) {
-                        <tr>
-                          <td>{{ payout.username }}</td>
-                          <td>💎 {{ payout.stake }}</td>
-                          <td class="font-bold text-success">
-                            💎 {{ payout.share }}
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-
-                <div class="overflow-x-auto">
-                  <h4 class="font-bold mb-2">❌ Losers</h4>
-                  <table class="table table-zebra">
-                    <thead>
-                      <tr>
-                        <th>User</th>
-                        <th>Original Stake</th>
-                        <th>Loss</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (loss of breakdown.losers; track loss.user_id) {
-                        <tr>
-                          <td>{{ loss.username }}</td>
-                          <td>💎 {{ loss.stake }}</td>
-                          <td class="font-bold text-error">
-                            💎 -{{ loss.stake }}
-                          </td>
-                        </tr>
-                      }
-                      @if (breakdown.losers.length === 0) {
-                        <tr>
-                          <td colspan="3" class="text-center italic">
-                            No losers.
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          } @else if (payoutError()) {
-            <div class="alert alert-error mb-4">
-              <span>{{ payoutError() }}</span>
-            </div>
-          }
+          <contest-payout
+            [contest]="contest"
+            [payoutBreakdown]="payoutBreakdown()"
+            [payoutLoading]="payoutLoading()"
+            [payoutError]="payoutError()"
+          />
         }
 
         @if (canResolve()) {
-          <div class="alert alert-warning mb-4">
+          <div class="alert alert-info mb-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="stroke-current shrink-0 h-6 w-6"
@@ -281,7 +157,7 @@
           <div class="alert alert-info mb-4">
             <span>
               Adjust stakes per option. Submitting again updates your existing
-              stake for that option.
+              stake.
             </span>
           </div>
 
@@ -322,99 +198,15 @@
 
                 @if (contest.status === "OPEN") {
                   <div class="divider my-0"></div>
-                  <div class="flex flex-col gap-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-sm text-secondary">Your stake</span>
-                      <input
-                        type="number"
-                        class="input input-bordered input-sm w-32"
-                        [value]="getStakeForOption(option.id)"
-                        (input)="
-                          setStake(option.id, $any($event.target).valueAsNumber)
-                        "
-                        [min]="contest.min_stake"
-                        [disabled]="predictionLoading()"
-                      />
-                      <span class="text-xs text-secondary">
-                        Min {{ contest.min_stake }} Clout
-                      </span>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, -100)"
-                        [disabled]="
-                          predictionLoading() ||
-                          getStakeForOption(option.id) <= contest.min_stake
-                        "
-                      >
-                        -100
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, -1000)"
-                        [disabled]="
-                          predictionLoading() ||
-                          getStakeForOption(option.id) <= contest.min_stake
-                        "
-                      >
-                        -1000
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, -10000)"
-                        [disabled]="
-                          predictionLoading() ||
-                          getStakeForOption(option.id) <= contest.min_stake
-                        "
-                      >
-                        -10000
-                      </button>
-                      <div class="flex-1"></div>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, 100)"
-                        [disabled]="predictionLoading()"
-                      >
-                        +100
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, 1000)"
-                        [disabled]="predictionLoading()"
-                      >
-                        +1000
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, 10000)"
-                        [disabled]="predictionLoading()"
-                      >
-                        +10000
-                      </button>
-                    </div>
-
-                    <div class="flex justify-end">
-                      <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        (click)="placePrediction(option.id)"
-                        [disabled]="predictionLoading()"
-                      >
-                        @if (predictionLoading()) {
-                          <span class="loading loading-spinner"></span>
-                        }
-                        Place / Update Prediction
-                      </button>
-                    </div>
-                  </div>
+                  <stake-adjustment
+                    [config]="{
+                      minStake: contest.min_stake,
+                      currentStake: getStakeForOption(option.id),
+                      isLoading: predictionLoading(),
+                    }"
+                    (stakeChanged)="setStake(option.id, $event)"
+                    (predictionSubmitted)="placePrediction(option.id)"
+                  />
                 }
               </div>
             </div>
@@ -435,8 +227,10 @@
         <h3 class="font-bold text-lg mb-4">🏆 Resolve Contest</h3>
         <p class="text-sm text-secondary mb-4">
           Select the winning option. This action is final and cannot be undone.
-          Winners will receive their stake plus their proportional share of 90%
-          of the pot (10% is taken as a house rake).
+          Winners will receive their stake plus their proportional share of
+          {{ getDistributablePercentOfPot(contest) | number: "1.0-2" }}% of the
+          pot ({{ getHouseRakePercentOfPot(contest) | number: "1.0-2" }}% is
+          taken as a house rake).
         </p>
 
         <div class="form-control mb-4">

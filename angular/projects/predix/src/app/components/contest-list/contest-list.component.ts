@@ -23,8 +23,8 @@ export class ContestListComponent implements OnInit {
   private readonly contestService = inject(ContestService);
   private readonly circleService = inject(CircleService);
 
-  protected readonly contests = signal<Contest[]>([]);
-  protected readonly loading = signal(false);
+  public readonly contests = signal<Contest[]>([]);
+  public readonly loading = signal(false);
   protected readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
     LOCKED: 'Locked (awaiting resolution)',
@@ -77,7 +77,11 @@ export class ContestListComponent implements OnInit {
     ]);
   }
 
-  protected getTotalClout(contest: Contest): number {
+  public getTotalClout(contest: Contest): number {
     return contest.predictions.reduce((sum, pred) => sum + pred.clout, 0);
+  }
+
+  public refreshContests(): void {
+    this.loadAllContests();
   }
 }

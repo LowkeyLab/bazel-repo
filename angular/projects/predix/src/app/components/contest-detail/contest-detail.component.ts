@@ -4,36 +4,52 @@ import {
   signal,
   inject,
   OnInit,
+  OnDestroy,
   computed,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ContestService } from '../../services/contest.service';
 import type {
   Contest,
   ContestStatus,
   PayoutBreakdown,
 } from '../../models/contest.model';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { BackButtonComponent } from '../back-button/back-button.component';
+import { ContestPayoutComponent } from '../contest-payout/contest-payout.component';
+import { StakeAdjustmentComponent } from '../stake-adjustment/stake-adjustment.component';
 
 @Component({
   selector: 'contest-detail',
-  imports: [DatePipe, FormsModule, BackButtonComponent],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    FormsModule,
+    BackButtonComponent,
+    ContestPayoutComponent,
+    StakeAdjustmentComponent,
+  ],
   templateUrl: './contest-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContestDetailComponent implements OnInit {
+export class ContestDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly contestService = inject(ContestService);
   public readonly auth = inject(AuthService);
+
+  private pollingSubscription?: Subscription;
 
   public readonly contest = signal<Contest | null>(null);
   public readonly loading = signal(true);
   public readonly predictionLoading = signal(false);
   public readonly predictionError = signal('');
-  public readonly optionStakes = signal<Record<number, number>>({});
+  public readonly userStakeInputs = signal<Record<number, number>>({});
+  public readonly lastSyncedPredictions = signal<Map<number, number>>(
+    new Map(),
+  );
   public readonly lockLoading = signal(false);
   public readonly resolveLoading = signal(false);
   public readonly resolveError = signal('');
@@ -71,11 +87,50 @@ export class ContestDetailComponent implements OnInit {
     const circleId = Number(this.route.snapshot.paramMap.get('circleId'));
     const contestId = Number(this.route.snapshot.paramMap.get('id'));
     if (circleId && contestId) {
-      this.loadContest(circleId, contestId);
+      this.startPolling(circleId, contestId);
     }
   }
 
+  ngOnDestroy(): void {
+    this.pollingSubscription?.unsubscribe();
+  }
+
+  private startPolling(circleId: number, contestId: number): void {
+    this.loading.set(true);
+
+    this.pollingSubscription = this.contestService
+      .pollContestDetails(circleId, contestId)
+      .subscribe({
+        next: (contestWithTotals) => {
+          this.contest.set(contestWithTotals);
+
+          // Only sync stakes if predictions actually changed
+          if (this.havePredictionsChanged(contestWithTotals)) {
+            this.syncOptionStakes(contestWithTotals);
+          }
+
+          this.loading.set(false);
+
+          // Load payout breakdown once if contest just became resolved
+          if (
+            contestWithTotals.status === 'RESOLVED' &&
+            !this.payoutBreakdown()
+          ) {
+            this.loadPayoutBreakdown(circleId, contestId);
+          }
+        },
+        error: (err) => {
+          console.error('Polling failed after retries:', err);
+          this.loading.set(false);
+        },
+        complete: () => {
+          console.log('Polling stopped (contest closed or resolved)');
+        },
+      });
+  }
+
   public loadContest(circleId: number, contestId: number): void {
+    // Keep this method for explicit reloads after mutations
     this.contestService.getContest(circleId, contestId).subscribe({
       next: (contest) => {
         this.contest.set(contest);
@@ -83,7 +138,7 @@ export class ContestDetailComponent implements OnInit {
         this.loading.set(false);
 
         // Load payout breakdown if contest is resolved
-        if (contest.status === 'RESOLVED') {
+        if (contest.status === 'RESOLVED' && !this.payoutBreakdown()) {
           this.loadPayoutBreakdown(circleId, contestId);
         }
       },
@@ -93,18 +148,48 @@ export class ContestDetailComponent implements OnInit {
     });
   }
 
+  private havePredictionsChanged(contest: Contest): boolean {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) return false;
+
+    const currentPredictions = new Map<number, number>();
+    for (const prediction of contest.predictions) {
+      if (prediction.user_id === userId) {
+        currentPredictions.set(prediction.option_id, prediction.clout);
+      }
+    }
+
+    const lastSynced = this.lastSyncedPredictions();
+
+    // Check if the maps are different
+    if (currentPredictions.size !== lastSynced.size) return true;
+
+    for (const [optionId, clout] of currentPredictions) {
+      if (lastSynced.get(optionId) !== clout) return true;
+    }
+
+    return false;
+  }
+
   private syncOptionStakes(contest: Contest): void {
     const stakes: Record<number, number> = {};
     const userId = this.auth.currentUser()?.id;
+    const newSyncedPredictions = new Map<number, number>();
 
     for (const option of contest.options) {
       const existing = contest.predictions.find(
         (p) => p.option_id === option.id && p.user_id === userId,
       );
-      stakes[option.id] = existing?.clout ?? contest.min_stake;
+      const clout = existing?.clout ?? contest.min_stake;
+      stakes[option.id] = clout;
+
+      if (existing) {
+        newSyncedPredictions.set(option.id, clout);
+      }
     }
 
-    this.optionStakes.set(stakes);
+    this.userStakeInputs.set(stakes);
+    this.lastSyncedPredictions.set(newSyncedPredictions);
   }
 
   public loadPayoutBreakdown(circleId: number, contestId: number): void {
@@ -129,7 +214,7 @@ export class ContestDetailComponent implements OnInit {
     const contest = this.contest();
     if (!contest) return 0;
 
-    return this.optionStakes()[optionId] ?? contest.min_stake;
+    return this.userStakeInputs()[optionId] ?? contest.min_stake;
   }
 
   public setStake(optionId: number, value: number): void {
@@ -139,7 +224,7 @@ export class ContestDetailComponent implements OnInit {
     const parsed = Number.isFinite(value) ? value : contest.min_stake;
     const next = Math.max(contest.min_stake, parsed);
 
-    this.optionStakes.update((current) => ({
+    this.userStakeInputs.update((current) => ({
       ...current,
       [optionId]: next,
     }));
@@ -150,7 +235,7 @@ export class ContestDetailComponent implements OnInit {
     const contest = this.contest();
     if (!contest) return;
 
-    this.optionStakes.update((current) => {
+    this.userStakeInputs.update((current) => {
       const currentValue = current[optionId] ?? contest.min_stake;
       const next = Math.max(contest.min_stake, currentValue + delta);
       return { ...current, [optionId]: next };
@@ -182,7 +267,6 @@ export class ContestDetailComponent implements OnInit {
       .subscribe({
         next: () => {
           this.predictionLoading.set(false);
-          this.loadContest(contest.circle_id, contest.id);
         },
         error: (err) => {
           this.predictionLoading.set(false);
@@ -271,5 +355,15 @@ export class ContestDetailComponent implements OnInit {
 
   public getOptionText(contest: Contest, optionId: number): string {
     return contest.options.find((o) => o.id === optionId)?.text || 'Unknown';
+  }
+
+  public getHouseRakePercentOfPot(contest: Contest): number {
+    if (!contest || !contest.total_pot) return 0;
+    return (contest.house_rake / contest.total_pot) * 100;
+  }
+
+  public getDistributablePercentOfPot(contest: Contest): number {
+    if (!contest || !contest.total_pot) return 0;
+    return 100 - this.getHouseRakePercentOfPot(contest);
   }
 }

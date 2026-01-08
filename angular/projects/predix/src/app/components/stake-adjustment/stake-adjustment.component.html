@@ -1,0 +1,54 @@
+<div class="flex flex-col gap-3">
+  <div class="flex items-center gap-2 flex-wrap">
+    <span class="text-sm text-secondary">Your stake</span>
+    <input
+      type="number"
+      class="input input-bordered input-sm w-32"
+      [value]="config().currentStake"
+      (input)="onStakeChange($any($event.target).valueAsNumber)"
+      [min]="config().minStake"
+      [disabled]="config().isLoading"
+    />
+    <span class="text-xs text-secondary">
+      Min {{ config().minStake }} Clout
+    </span>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    @for (btn of adjustmentButtons; track btn.value) {
+      @if (btn.value < 0) {
+        <button
+          type="button"
+          class="btn btn-outline btn-sm"
+          (click)="onAdjustStake(btn.value)"
+          [disabled]="!canDecreaseStake()"
+        >
+          {{ btn.label }}
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="btn btn-outline btn-sm"
+          (click)="onAdjustStake(btn.value)"
+          [disabled]="config().isLoading"
+        >
+          {{ btn.label }}
+        </button>
+      }
+    }
+  </div>
+
+  <div class="flex justify-end">
+    <button
+      type="button"
+      class="btn btn-primary btn-sm"
+      (click)="onSubmit()"
+      [disabled]="config().isLoading"
+    >
+      @if (config().isLoading) {
+        <span class="loading loading-spinner"></span>
+      }
+      Place / Update Prediction
+    </button>
+  </div>
+</div>

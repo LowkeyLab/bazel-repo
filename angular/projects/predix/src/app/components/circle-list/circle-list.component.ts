@@ -19,8 +19,8 @@ export class CircleListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly circleService = inject(CircleService);
 
-  protected readonly circles = signal<Circle[]>([]);
-  protected readonly loading = signal(false);
+  public readonly circles = signal<Circle[]>([]);
+  public readonly loading = signal(false);
 
   ngOnInit(): void {
     this.loadCircles();
@@ -38,6 +38,10 @@ export class CircleListComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  refreshCircles(): void {
+    this.loadCircles();
   }
 
   createCircle(): void {
