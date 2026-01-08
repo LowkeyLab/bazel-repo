@@ -37,10 +37,6 @@
             </p>
           </div>
           <div>
-            <p class="text-sm text-secondary">Total Staked</p>
-            <p class="font-semibold">💎 {{ getTotalClout(contest) }} Clout</p>
-          </div>
-          <div>
             <p class="text-sm text-secondary">Minimum Stake</p>
             <p class="font-semibold">💎 {{ contest.min_stake }} Clout</p>
           </div>
@@ -50,29 +46,9 @@
           </div>
           @if (contest.total_pot > 0) {
             <div>
-              <p class="text-sm text-secondary">Total Pot</p>
-              <p class="font-semibold text-lg">
-                💎 {{ contest.total_pot }} Clout
-              </p>
+              <p class="text-sm text-secondary">Total Staked</p>
+              <p class="font-semibold">💎 {{ contest.total_pot }} Clout</p>
             </div>
-            @if (contest.status === "RESOLVED") {
-              <div>
-                <p class="text-sm text-secondary">
-                  House Rake ({{
-                    getHouseRakePercentOfPot(contest) | number: "1.0-2"
-                  }}% of pot)
-                </p>
-                <p class="font-semibold text-lg text-warning">
-                  💎 {{ contest.house_rake }} Clout
-                </p>
-              </div>
-              <div>
-                <p class="text-sm text-secondary">Distributable Pot</p>
-                <p class="font-semibold text-lg text-success">
-                  💎 {{ contest.total_pot - contest.house_rake }} Clout
-                </p>
-              </div>
-            }
           }
         </div>
 
