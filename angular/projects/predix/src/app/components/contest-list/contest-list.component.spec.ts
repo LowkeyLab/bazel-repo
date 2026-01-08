@@ -644,9 +644,7 @@ describe('ContestListComponent', () => {
         By.css('button.btn-primary'),
       );
       expect(refreshButton).toBeTruthy();
-      expect(refreshButton.nativeElement.textContent).toContain(
-        'Refresh Contests',
-      );
+      expect(refreshButton.nativeElement.textContent).toContain('Refresh');
     });
 
     it('should call refreshContests when refresh button is clicked', () => {
@@ -703,7 +701,7 @@ describe('ContestListComponent', () => {
       );
     });
 
-    it('should show "Refresh Contests" text when not loading', () => {
+    it('should show "Refresh" text when not loading', () => {
       mockCircleService.listUserCircles.and.returnValue(of([]));
       fixture.detectChanges();
 
@@ -713,9 +711,7 @@ describe('ContestListComponent', () => {
       const refreshButton = fixture.debugElement.query(
         By.css('button.btn-primary'),
       );
-      expect(refreshButton.nativeElement.textContent).toContain(
-        'Refresh Contests',
-      );
+      expect(refreshButton.nativeElement.textContent).toContain('Refresh');
     });
 
     it('should have animate-spin class on icon when loading', () => {
