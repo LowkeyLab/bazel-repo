@@ -21,6 +21,10 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   currentPlayer = signal<any | null>(null);
   private initialPlayerName: string | null = null;
 
+  // Signal for staggered rounds animation
+  sortedRounds = signal<GameDto['rounds']>([]);
+  private animationTimeouts: number[] = [];
+
   // No websocket subscriptions for summary view
 
   ngOnInit(): void {
@@ -50,12 +54,42 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Start staggered animation of rounds
+    this.animateRoundsIn();
+
     // Celebrate with a burst of confetti
     this.fireConfetti();
   }
 
   ngOnDestroy(): void {
-    // Nothing to clean up; no subscriptions.
+    // Clean up animation timeouts
+    this.animationTimeouts.forEach((id) => clearTimeout(id));
+    this.animationTimeouts = [];
+  }
+
+  private animateRoundsIn(): void {
+    const g = this.game();
+    if (!g) return;
+
+    const sorted = (g.rounds ?? [])
+      .slice()
+      .sort((a: RoundDto, b: RoundDto) => a.number - b.number);
+
+    if (sorted.length === 0) {
+      this.sortedRounds.set([]);
+      return;
+    }
+
+    // Start with empty array
+    this.sortedRounds.set([]);
+
+    // Add each round with a delay (150ms between each)
+    sorted.forEach((round, index) => {
+      const timeoutId = window.setTimeout(() => {
+        this.sortedRounds.update((current) => [...current, round]);
+      }, index * 150);
+      this.animationTimeouts.push(timeoutId);
+    });
   }
 
   roundsCount(): number {
@@ -77,12 +111,6 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
 
   objectKeys<T extends object>(obj: T): Array<keyof T & string> {
     return Object.keys(obj) as Array<keyof T & string>;
-  }
-
-  sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
-    return (rounds ?? [])
-      .slice()
-      .sort((a: RoundDto, b: RoundDto) => a.number - b.number);
   }
 
   sorted_player_name(

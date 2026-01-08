@@ -62,7 +62,7 @@
         <div class="opacity-70 text-sm sm:text-base">No rounds recorded.</div>
       } @else {
         <ul class="space-y-2 sm:space-y-3">
-          @for (r of sortedRounds(g.rounds); track r.number) {
+          @for (r of sortedRounds(); track r.number) {
             <li class="border rounded p-2 sm:p-3" animate.enter="slide-in-left">
               <div class="font-mono text-xs sm:text-sm mb-2">
                 Round #{{ r.number }}
