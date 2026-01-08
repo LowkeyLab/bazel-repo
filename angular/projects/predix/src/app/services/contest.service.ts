@@ -3,12 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, timer } from 'rxjs';
 import { switchMap, takeWhile, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { exponentialBackoff } from '../utils/rx';
-import {
-  DEFAULT_POLL_INTERVAL_MS,
-  MAX_BACKOFF_MS,
-  MAX_RETRIES,
-} from '../config/polling';
+import { DEFAULT_POLL_INTERVAL_MS } from '../config/polling';
 import type {
   Contest,
   CreateContestRequest,
@@ -79,7 +74,6 @@ export class ContestService {
   /**
    * Polls contest details at a fixed interval until the contest is closed or resolved.
    * Maps the contest to include computed totals for convenience.
-   * Includes exponential backoff retry logic on errors.
    *
    * @param circleId - Circle ID
    * @param contestId - Contest ID
@@ -97,7 +91,6 @@ export class ContestService {
   > {
     return timer(0, intervalMs).pipe(
       switchMap(() => this.getContest(circleId, contestId)),
-      exponentialBackoff(1000, MAX_BACKOFF_MS, MAX_RETRIES),
       map((contest) => {
         // Compute totals by option for convenience
         const totals = new Map<number, { clout: number; count: number }>();
