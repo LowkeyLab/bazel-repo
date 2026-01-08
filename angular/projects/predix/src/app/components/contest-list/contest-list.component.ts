@@ -80,4 +80,8 @@ export class ContestListComponent implements OnInit {
   public getTotalClout(contest: Contest): number {
     return contest.predictions.reduce((sum, pred) => sum + pred.clout, 0);
   }
+
+  public refreshContests(): void {
+    this.loadAllContests();
+  }
 }

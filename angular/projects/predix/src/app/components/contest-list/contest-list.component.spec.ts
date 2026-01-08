@@ -392,6 +392,85 @@ describe('ContestListComponent', () => {
     });
   });
 
+  describe('Refresh Flow', () => {
+    it('should reload contests when refreshContests is called', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+
+      fixture.detectChanges(); // Initial load via ngOnInit
+
+      expect(mockCircleService.listUserCircles).toHaveBeenCalledTimes(1);
+
+      // Clear previous calls
+      mockCircleService.listUserCircles.calls.reset();
+      mockCircleService.getCircleContests.calls.reset();
+
+      // Now refresh
+      component.refreshContests();
+
+      expect(mockCircleService.listUserCircles).toHaveBeenCalledTimes(1);
+      expect(mockCircleService.getCircleContests).toHaveBeenCalledTimes(1);
+    });
+
+    it('should set loading state during refresh', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+
+      fixture.detectChanges(); // Initial load
+
+      expect(component.loading()).toBe(false);
+
+      component.refreshContests();
+
+      // After refresh completes, loading should be false again
+      expect(component.loading()).toBe(false);
+    });
+
+    it('should update contests with new data on refresh', () => {
+      // Initial load
+      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+
+      fixture.detectChanges();
+
+      expect(component.contests().length).toBe(1);
+      expect(component.contests()[0]).toBe(mockContest1);
+
+      // Update mock to return different data
+      mockCircleService.listUserCircles.and.returnValue(of([mockCircle2]));
+      mockCircleService.getCircleContests.and.returnValue(
+        of([mockContest3, mockContest4]),
+      );
+
+      component.refreshContests();
+
+      expect(component.contests().length).toBe(2);
+      expect(component.contests()).toContain(mockContest3);
+      expect(component.contests()).toContain(mockContest4);
+    });
+
+    it('should handle errors during refresh', () => {
+      spyOn(console, 'error');
+      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+
+      fixture.detectChanges(); // Initial load succeeds
+
+      // Make next call fail
+      mockCircleService.listUserCircles.and.returnValue(
+        throwError(() => new Error('Network error')),
+      );
+
+      component.refreshContests();
+
+      expect(component.loading()).toBe(false);
+      expect(console.error).toHaveBeenCalledWith(
+        'Failed to load contests:',
+        jasmine.any(Error),
+      );
+    });
+  });
+
   describe('Template Rendering Flow', () => {
     it('should show loading spinner when loading is true', () => {
       // Set up mocks to prevent ngOnInit errors
@@ -555,6 +634,110 @@ describe('ContestListComponent', () => {
       );
       expect(optionTexts).toContain('Yes');
       expect(optionTexts).toContain('No');
+    });
+
+    it('should render refresh button', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      const refreshButton = fixture.debugElement.query(
+        By.css('button.btn-primary'),
+      );
+      expect(refreshButton).toBeTruthy();
+      expect(refreshButton.nativeElement.textContent).toContain(
+        'Refresh Contests',
+      );
+    });
+
+    it('should call refreshContests when refresh button is clicked', () => {
+      spyOn(component, 'refreshContests');
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      const refreshButton = fixture.debugElement.query(
+        By.css('button.btn-primary'),
+      );
+      refreshButton.nativeElement.click();
+
+      expect(component.refreshContests).toHaveBeenCalledTimes(1);
+    });
+
+    it('should disable refresh button when loading', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      component.loading.set(true);
+      fixture.detectChanges();
+
+      const refreshButton = fixture.debugElement.query(
+        By.css('button.btn-primary'),
+      );
+      expect(refreshButton.nativeElement.disabled).toBe(true);
+    });
+
+    it('should enable refresh button when not loading', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      component.loading.set(false);
+      fixture.detectChanges();
+
+      const refreshButton = fixture.debugElement.query(
+        By.css('button.btn-primary'),
+      );
+      expect(refreshButton.nativeElement.disabled).toBe(false);
+    });
+
+    it('should show "Refreshing..." text when loading', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      component.loading.set(true);
+      fixture.detectChanges();
+
+      const refreshButton = fixture.debugElement.query(
+        By.css('button.btn-primary'),
+      );
+      expect(refreshButton.nativeElement.textContent).toContain(
+        'Refreshing...',
+      );
+    });
+
+    it('should show "Refresh Contests" text when not loading', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      component.loading.set(false);
+      fixture.detectChanges();
+
+      const refreshButton = fixture.debugElement.query(
+        By.css('button.btn-primary'),
+      );
+      expect(refreshButton.nativeElement.textContent).toContain(
+        'Refresh Contests',
+      );
+    });
+
+    it('should have animate-spin class on icon when loading', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      component.loading.set(true);
+      fixture.detectChanges();
+
+      const icon = fixture.debugElement.query(By.css('button svg'));
+      expect(icon.nativeElement.classList.contains('animate-spin')).toBe(true);
+    });
+
+    it('should not have animate-spin class on icon when not loading', () => {
+      mockCircleService.listUserCircles.and.returnValue(of([]));
+      fixture.detectChanges();
+
+      component.loading.set(false);
+      fixture.detectChanges();
+
+      const icon = fixture.debugElement.query(By.css('button svg'));
+      expect(icon.nativeElement.classList.contains('animate-spin')).toBe(false);
     });
   });
 });
