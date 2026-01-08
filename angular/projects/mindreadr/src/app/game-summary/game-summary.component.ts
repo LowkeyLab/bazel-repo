@@ -1,4 +1,11 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameDto, RoundDto } from '../services/game.types';
@@ -14,6 +21,9 @@ import confetti from 'canvas-confetti';
 export class GameSummaryComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  // Configurable animation delay (milliseconds between each round appearing)
+  animationDelayMs = input<number>(150);
 
   gameId = signal<string>('');
   game = signal<GameDto | null>(null);
@@ -83,11 +93,12 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
     // Start with empty array
     this.sortedRounds.set([]);
 
-    // Add each round with a delay (150ms between each)
+    // Add each round with a configurable delay
+    const delay = this.animationDelayMs();
     sorted.forEach((round, index) => {
       const timeoutId = window.setTimeout(() => {
         this.sortedRounds.update((current) => [...current, round]);
-      }, index * 150);
+      }, index * delay);
       this.animationTimeouts.push(timeoutId);
     });
   }
