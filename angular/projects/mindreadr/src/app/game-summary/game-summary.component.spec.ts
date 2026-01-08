@@ -2,6 +2,7 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameSummaryComponent } from './game-summary.component';
 import { GameDto } from '../services/game.types';
+import { GameRoundsComponent } from '../game-rounds/game-rounds.component';
 
 describe('GameSummaryComponent', () => {
   const TEST_ANIMATION_DELAY = 50; // Use faster delay for tests

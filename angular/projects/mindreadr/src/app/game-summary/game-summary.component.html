@@ -56,37 +56,10 @@
       </p>
     </div>
 
-    <div class="p-3 sm:p-4 border rounded">
-      <h2 class="font-semibold mb-2 text-base sm:text-lg">Your Guesses</h2>
-      @if (g.rounds.length === 0) {
-        <div class="opacity-70 text-sm sm:text-base">No rounds recorded.</div>
-      } @else {
-        <ul class="space-y-2 sm:space-y-3">
-          @for (r of sortedRounds(); track r.number) {
-            <li class="border rounded p-2 sm:p-3" animate.enter="slide-in-left">
-              <div class="font-mono text-xs sm:text-sm mb-2">
-                Round #{{ r.number }}
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                @for (
-                  entry of sorted_player_names_for_round(g, r);
-                  track entry
-                ) {
-                  <div class="flex items-start gap-2 text-sm sm:text-base">
-                    <div class="font-semibold truncate shrink-0">
-                      {{ entry }}:
-                    </div>
-                    <div class="wrap-break-word min-w-0">
-                      {{ r.guesses[entry] }}
-                    </div>
-                  </div>
-                }
-              </div>
-            </li>
-          }
-        </ul>
-      }
-    </div>
+    <mindreadr-game-rounds
+      [game]="game()"
+      [animationDelayMs]="animationDelayMs()"
+    />
   } @else {
     <div class="opacity-70 text-sm sm:text-base">Loading summary...</div>
   }

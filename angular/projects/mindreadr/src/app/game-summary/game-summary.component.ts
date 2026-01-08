@@ -8,13 +8,14 @@ import {
 } from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameDto, RoundDto } from '../services/game.types';
+import { GameDto } from '../services/game.types';
 import confetti from 'canvas-confetti';
+import { GameRoundsComponent } from '../game-rounds/game-rounds.component';
 
 @Component({
   selector: 'mindreadr-game-summary',
   standalone: true,
-  imports: [],
+  imports: [GameRoundsComponent],
   templateUrl: './game-summary.component.html',
   styleUrls: ['./game-summary.component.css'],
 })
@@ -30,10 +31,6 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   error = signal<string | null>(null);
   currentPlayer = signal<any | null>(null);
   private initialPlayerName: string | null = null;
-
-  // Signal for staggered rounds animation
-  sortedRounds = signal<GameDto['rounds']>([]);
-  private animationTimeouts: number[] = [];
 
   // No websocket subscriptions for summary view
 
@@ -64,43 +61,12 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Start staggered animation of rounds
-    this.animateRoundsIn();
-
     // Celebrate with a burst of confetti
     this.fireConfetti();
   }
 
   ngOnDestroy(): void {
-    // Clean up animation timeouts
-    this.animationTimeouts.forEach((id) => clearTimeout(id));
-    this.animationTimeouts = [];
-  }
-
-  private animateRoundsIn(): void {
-    const g = this.game();
-    if (!g) return;
-
-    const sorted = (g.rounds ?? [])
-      .slice()
-      .sort((a: RoundDto, b: RoundDto) => a.number - b.number);
-
-    if (sorted.length === 0) {
-      this.sortedRounds.set([]);
-      return;
-    }
-
-    // Start with empty array
-    this.sortedRounds.set([]);
-
-    // Add each round with a configurable delay
-    const delay = this.animationDelayMs();
-    sorted.forEach((round, index) => {
-      const timeoutId = window.setTimeout(() => {
-        this.sortedRounds.update((current) => [...current, round]);
-      }, index * delay);
-      this.animationTimeouts.push(timeoutId);
-    });
+    // No cleanup needed
   }
 
   roundsCount(): number {
@@ -120,36 +86,11 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
     return String(last);
   }
 
-  objectKeys<T extends object>(obj: T): Array<keyof T & string> {
-    return Object.keys(obj) as Array<keyof T & string>;
-  }
-
-  sorted_player_name(
-    guesses: Record<string, string> | undefined | null,
-  ): string[] {
-    if (!guesses) return [];
-    return Object.keys(guesses).sort((a: string, b: string) =>
-      a.localeCompare(b),
-    );
-  }
-
   sorted_player_names_from_players(players: GameDto['players']): string[] {
     return players
       .map((p) => p.name)
       .filter((n) => n.length > 0)
       .sort((a, b) => a.localeCompare(b));
-  }
-
-  sorted_player_names_for_round(
-    game: GameDto,
-    round: GameDto['rounds'][number],
-  ): string[] {
-    const names = this.sorted_player_names_from_players(game?.players ?? []);
-    return names.filter(
-      (n) =>
-        round?.guesses &&
-        Object.prototype.hasOwnProperty.call(round.guesses, n),
-    );
   }
 
   backToGames(): void {
