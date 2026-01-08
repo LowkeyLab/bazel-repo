@@ -19,10 +19,17 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { BackButtonComponent } from '../back-button/back-button.component';
+import { ContestPayoutComponent } from '../contest-payout/contest-payout.component';
 
 @Component({
   selector: 'contest-detail',
-  imports: [DatePipe, DecimalPipe, FormsModule, BackButtonComponent],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    FormsModule,
+    BackButtonComponent,
+    ContestPayoutComponent,
+  ],
   templateUrl: './contest-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -357,12 +364,5 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
   public getDistributablePercentOfPot(contest: Contest): number {
     if (!contest || !contest.total_pot) return 0;
     return 100 - this.getHouseRakePercentOfPot(contest);
-  }
-
-  public getHouseRakePercentOfLosers(breakdown: PayoutBreakdown): number {
-    if (!breakdown) return 0;
-    const losersTotal = breakdown.losers.reduce((sum, l) => sum + l.stake, 0);
-    if (!losersTotal) return 0;
-    return (breakdown.house_rake / losersTotal) * 100;
   }
 }
