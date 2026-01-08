@@ -20,6 +20,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { BackButtonComponent } from '../back-button/back-button.component';
 import { ContestPayoutComponent } from '../contest-payout/contest-payout.component';
+import { StakeAdjustmentComponent } from '../stake-adjustment/stake-adjustment.component';
 
 @Component({
   selector: 'contest-detail',
@@ -29,6 +30,7 @@ import { ContestPayoutComponent } from '../contest-payout/contest-payout.compone
     FormsModule,
     BackButtonComponent,
     ContestPayoutComponent,
+    StakeAdjustmentComponent,
   ],
   templateUrl: './contest-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

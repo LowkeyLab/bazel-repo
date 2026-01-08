@@ -157,7 +157,7 @@
           <div class="alert alert-info mb-4">
             <span>
               Adjust stakes per option. Submitting again updates your existing
-              stake for that option.
+              stake.
             </span>
           </div>
 
@@ -198,99 +198,15 @@
 
                 @if (contest.status === "OPEN") {
                   <div class="divider my-0"></div>
-                  <div class="flex flex-col gap-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-sm text-secondary">Your stake</span>
-                      <input
-                        type="number"
-                        class="input input-bordered input-sm w-32"
-                        [value]="getStakeForOption(option.id)"
-                        (input)="
-                          setStake(option.id, $any($event.target).valueAsNumber)
-                        "
-                        [min]="contest.min_stake"
-                        [disabled]="predictionLoading()"
-                      />
-                      <span class="text-xs text-secondary">
-                        Min {{ contest.min_stake }} Clout
-                      </span>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, -100)"
-                        [disabled]="
-                          predictionLoading() ||
-                          getStakeForOption(option.id) <= contest.min_stake
-                        "
-                      >
-                        -100
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, -1000)"
-                        [disabled]="
-                          predictionLoading() ||
-                          getStakeForOption(option.id) <= contest.min_stake
-                        "
-                      >
-                        -1000
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, -10000)"
-                        [disabled]="
-                          predictionLoading() ||
-                          getStakeForOption(option.id) <= contest.min_stake
-                        "
-                      >
-                        -10000
-                      </button>
-                      <div class="flex-1"></div>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, 100)"
-                        [disabled]="predictionLoading()"
-                      >
-                        +100
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, 1000)"
-                        [disabled]="predictionLoading()"
-                      >
-                        +1000
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-sm"
-                        (click)="adjustStake(option.id, 10000)"
-                        [disabled]="predictionLoading()"
-                      >
-                        +10000
-                      </button>
-                    </div>
-
-                    <div class="flex justify-end">
-                      <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        (click)="placePrediction(option.id)"
-                        [disabled]="predictionLoading()"
-                      >
-                        @if (predictionLoading()) {
-                          <span class="loading loading-spinner"></span>
-                        }
-                        Place / Update Prediction
-                      </button>
-                    </div>
-                  </div>
+                  <stake-adjustment
+                    [config]="{
+                      minStake: contest.min_stake,
+                      currentStake: getStakeForOption(option.id),
+                      isLoading: predictionLoading(),
+                    }"
+                    (stakeChanged)="setStake(option.id, $event)"
+                    (predictionSubmitted)="placePrediction(option.id)"
+                  />
                 }
               </div>
             </div>
