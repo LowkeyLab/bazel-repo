@@ -3,7 +3,6 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { of } from 'rxjs';
 import { CircleService } from './circle.service';
 import { environment } from '../../environments/environment';
 import type { Circle } from '../models/circle.model';
