@@ -138,7 +138,7 @@
       } @else {
         <ul class="space-y-2 sm:space-y-3">
           @for (r of reversedRounds(); track r.number) {
-            <li class="border rounded p-2 sm:p-3">
+            <li class="border rounded p-2 sm:p-3" animate.enter="slide-in-left">
               <div class="font-mono text-xs sm:text-sm mb-2">
                 Round #{{ r.number }}
               </div>
@@ -158,10 +158,7 @@
               } @else {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   @for (entry of objectKeys(r.guesses); track entry) {
-                    <div
-                      class="flex items-start gap-2 text-sm sm:text-base"
-                      animate.enter="slide-in-left"
-                    >
+                    <div class="flex items-start gap-2 text-sm sm:text-base">
                       <div class="font-semibold truncate shrink-0">
                         {{ entry }}:
                       </div>
