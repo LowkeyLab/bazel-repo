@@ -57,7 +57,11 @@
             </div>
             @if (contest.status === "RESOLVED") {
               <div>
-                <p class="text-sm text-secondary">House Rake (10% of Losers)</p>
+                <p class="text-sm text-secondary">
+                  House Rake ({{
+                    getHouseRakePercentOfPot(contest) | number: "1.0-2"
+                  }}% of pot)
+                </p>
                 <p class="font-semibold text-lg text-warning">
                   💎 {{ contest.house_rake }} Clout
                 </p>
@@ -108,7 +112,7 @@
                 <h3 class="text-xl font-bold mb-2">💰 Payout Breakdown</h3>
                 <p class="text-sm text-secondary mb-4">
                   Winners receive their original stake plus their proportional
-                  share of the losing stakes (minus 10% house rake).
+                  share of the losing stakes (minus house rake).
                 </p>
                 <div class="grid grid-cols-2 gap-4 mb-6">
                   <div>
@@ -119,7 +123,10 @@
                   </div>
                   <div>
                     <p class="text-sm text-secondary">
-                      House Rake (10% of Losers)
+                      House Rake ({{
+                        getHouseRakePercentOfLosers(breakdown)
+                          | number: "1.0-2"
+                      }}% of losers)
                     </p>
                     <p class="font-semibold text-lg text-warning">
                       💎 {{ breakdown.house_rake }} Clout
@@ -430,8 +437,10 @@
         <h3 class="font-bold text-lg mb-4">🏆 Resolve Contest</h3>
         <p class="text-sm text-secondary mb-4">
           Select the winning option. This action is final and cannot be undone.
-          Winners will receive their stake plus their proportional share of 90%
-          of the pot (10% is taken as a house rake).
+          Winners will receive their stake plus their proportional share of
+          {{ getDistributablePercentOfPot(contest) | number: "1.0-2" }}% of the
+          pot ({{ getHouseRakePercentOfPot(contest) | number: "1.0-2" }}% is
+          taken as a house rake).
         </p>
 
         <div class="form-control mb-4">
