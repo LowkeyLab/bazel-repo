@@ -4,6 +4,6 @@ export const environment = {
   authorizer: {
     authorizerURL: 'http://localhost:8081',
     redirectURL: 'http://localhost:4200',
-    clientID: 'predix-client-id-dev',
+    clientID: 'f0d9bdfc-af49-4baa-a974-04bedea878b3',
   },
 };

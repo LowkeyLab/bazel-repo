@@ -7,7 +7,7 @@ services:
       - "8080:8080"
     environment:
       AUTHORIZER_URL: "http://authorizer:8081"
-      AUTHORIZER_CLIENT_ID: "authorizer-client-id"
+      AUTHORIZER_CLIENT_ID: "f0d9bdfc-af49-4baa-a974-04bedea878b3"
       ALLOWED_ORIGINS: "http://localhost:4200"
       DATABASE_URL: "postgres://predix:predix_password@postgres:5432/predix_db?sslmode=disable"
     depends_on:
@@ -52,15 +52,15 @@ services:
       timeout: 5s
       retries: 5
   authorizer:
-    image: lakhansamani/authorizer:latest
+    image: lakhansamani/authorizer:1.4.4
     container_name: authorizer
     ports:
-      - "8081:8081"
+      - "8081:8080"
     environment:
       ENV: development
       DATABASE_TYPE: postgres
       DATABASE_URL: postgres://predix:predix_password@postgres:5432/predix_db?sslmode=disable
-      ADMIN_SECRET: admin_secret
+      ADMIN_SECRET: admin
     depends_on:
       - postgres
     networks:
