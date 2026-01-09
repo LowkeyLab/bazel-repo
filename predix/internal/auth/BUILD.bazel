@@ -10,7 +10,7 @@ go_library(
     visibility = ["//predix:__subpackages__"],
     deps = [
         "//predix/internal/domain/user",
+        "@com_github_authorizerdev_authorizer_go//:authorizer-go",
         "@com_github_gin_gonic_gin//:gin",
-        "@com_github_golang_jwt_jwt_v5//:jwt",
     ],
 )

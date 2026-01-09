@@ -127,7 +127,7 @@ func ResetTables(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
 	ctx := context.Background()
-	_, err := pool.Exec(ctx, `TRUNCATE TABLE predictions, options, contests, circle_members, circles, users RESTART IDENTITY CASCADE`)
+	_, err := pool.Exec(ctx, `TRUNCATE TABLE predictions, options, contests, circle_members, circles RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("failed to reset tables: %v", err)
 	}

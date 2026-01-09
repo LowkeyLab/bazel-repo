@@ -1,6 +1,7 @@
 package contest_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 func TestNew(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	now := time.Now()
 	clk := clockpkg.FixedClock{Time: now}
 	options := []string{"Yes", "No"}
@@ -34,7 +35,7 @@ func TestNew(t *testing.T) {
 
 func TestNew_Validation(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	now := time.Now()
 	clk := clockpkg.FixedClock{Time: now}
 
@@ -101,7 +102,7 @@ func TestNew_Validation(t *testing.T) {
 
 func TestNew_ValidContest(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	now := time.Now()
 	clk := clockpkg.FixedClock{Time: now}
 
@@ -161,7 +162,7 @@ func TestNew_ValidContest(t *testing.T) {
 
 func TestPredict(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	now := time.Now()
 	clk := clockpkg.FixedClock{Time: now}
 	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 100)
@@ -169,7 +170,7 @@ func TestPredict(t *testing.T) {
 		t.Fatalf("unexpected error creating contest: %v", err)
 	}
 
-	betterID := user.ID(1)
+	betterID := user.ID("user-1")
 
 	// Find valid option ID (it's 1 or 2 based on logic)
 	var optionID int
@@ -201,12 +202,12 @@ func TestPredict(t *testing.T) {
 
 func TestPredict_UpdateExistingStake(t *testing.T) {
 	circleID := circle.ID(2)
-	creatorID := user.ID(3)
+	creatorID := user.ID("user-3")
 	clk := clockpkg.FixedClock{Time: time.Now()}
 	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 100)
 	require.NoError(t, err)
 
-	betterID := user.ID(4)
+	betterID := user.ID("user-4")
 	optionID := 1
 
 	require.NoError(t, c.Predict(betterID, optionID, 200))
@@ -226,7 +227,7 @@ func TestPredict_UpdateExistingStake(t *testing.T) {
 
 func TestResolve(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	now := time.Now()
 	clk := clockpkg.FixedClock{Time: now}
 	c, _ := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 10)
@@ -259,7 +260,7 @@ func TestResolve(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	now := time.Now()
 	clk := clockpkg.FixedClock{Time: now}
 
@@ -330,13 +331,13 @@ func TestClose(t *testing.T) {
 
 func TestCalculateWinnerPayouts(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	clk := clockpkg.FixedClock{Time: time.Now()}
 	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
 	require.NoError(t, err)
 
-	winnerID := user.ID(2)
-	loserID := user.ID(3)
+	winnerID := user.ID("user-2")
+	loserID := user.ID("user-3")
 
 	// User 2 bets 100 on Option 1 (Winner)
 	err = c.Predict(winnerID, 1, 100)
@@ -374,14 +375,14 @@ func TestCalculateWinnerPayouts(t *testing.T) {
 
 func TestCalculateWinnerPayouts_MultipleWinners(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	clk := clockpkg.FixedClock{Time: time.Now()}
 	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
 	require.NoError(t, err)
 
-	winner1ID := user.ID(2) // Bets 100
-	winner2ID := user.ID(3) // Bets 300
-	loserID := user.ID(4)   // Bets 400
+	winner1ID := user.ID("user-2") // Bets 100
+	winner2ID := user.ID("user-3") // Bets 300
+	loserID := user.ID("user-4")   // Bets 400
 
 	require.NoError(t, c.Predict(winner1ID, 1, 100))
 	require.NoError(t, c.Predict(winner2ID, 1, 300))
@@ -409,14 +410,14 @@ func TestCalculateWinnerPayouts_MultipleWinners(t *testing.T) {
 
 func TestCalculatePayoutBreakdown(t *testing.T) {
 	circleID := circle.ID(1)
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	clk := clockpkg.FixedClock{Time: time.Now()}
 	c, err := contest.New(clk, circleID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
 	require.NoError(t, err)
 
-	winner1ID := user.ID(2) // Bets 100
-	winner2ID := user.ID(3) // Bets 300
-	loserID := user.ID(4)   // Bets 400
+	winner1ID := user.ID("user-2") // Bets 100
+	winner2ID := user.ID("user-3") // Bets 300
+	loserID := user.ID("user-4")   // Bets 400
 
 	require.NoError(t, c.Predict(winner1ID, 1, 100))
 	require.NoError(t, c.Predict(winner2ID, 1, 300))
@@ -465,4 +466,22 @@ func TestCalculatePayoutBreakdown(t *testing.T) {
 	assert.Equal(t, 400, losers[0].OriginalStake)
 	assert.Equal(t, 0, losers[0].ShareOfPot)
 	assert.Equal(t, 0, losers[0].TotalPayout)
+}
+
+func normalizeMinStake(minStake int) (int, error) {
+	if minStake == 0 {
+		return 10, nil
+	}
+
+	allowed := map[int]struct{}{
+		10:   {},
+		100:  {},
+		1000: {},
+	}
+
+	if _, ok := allowed[minStake]; ok {
+		return minStake, nil
+	}
+
+	return 0, fmt.Errorf("min stake must be one of 10, 100, or 1000")
 }

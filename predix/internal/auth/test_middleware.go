@@ -2,7 +2,6 @@ package auth
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -15,19 +14,14 @@ const TestUserIDHeader = "X-Test-User-ID"
 // TestMiddleware injects a user ID from a test header without validating tokens.
 func TestMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		raw := strings.TrimSpace(c.GetHeader(TestUserIDHeader))
-		if raw == "" {
+		id := strings.TrimSpace(c.GetHeader(TestUserIDHeader))
+		if id == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing test user id"})
 			return
 		}
 
-		id, err := strconv.ParseInt(raw, 10, 32)
-		if err != nil || id <= 0 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid test user id"})
-			return
-		}
-
 		c.Set(userIDContextKey, user.ID(id))
+		c.Set(userNameContextKey, "test-"+id)
 		c.Next()
 	}
 }

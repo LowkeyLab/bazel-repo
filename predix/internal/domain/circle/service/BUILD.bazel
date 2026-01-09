@@ -6,20 +6,23 @@ go_library(
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service",
     visibility = ["//predix:__subpackages__"],
     deps = [
+        "//predix/internal/auth",
         "//predix/internal/clock",
         "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",
-        "//predix/internal/domain/user/repository",
     ],
 )
 
 go_test(
     name = "service_test",
     timeout = "short",
-    srcs = ["service_test.go"],
+    srcs = [
+        "mock_auth_test.go",
+        "service_test.go",
+    ],
     data = [
         "//predix/internal/sql:migrations",
     ],
@@ -36,11 +39,11 @@ go_test(
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",
-        "//predix/internal/domain/user/repository",
         "//predix/internal/testutil",
-        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_authorizerdev_authorizer_go//:authorizer-go",
         "@com_github_jackc_pgx_v5//pgxpool",
         "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//mock",
         "@com_github_stretchr_testify//require",
     ],
 )

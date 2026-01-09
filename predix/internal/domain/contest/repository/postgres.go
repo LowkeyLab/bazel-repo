@@ -45,7 +45,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		// Create new contest
 		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
 			CircleID:  int32(c.CircleID),
-			CreatorID: int32(c.CreatorID),
+			CreatorID: string(c.CreatorID),
 			Question:  c.Question,
 			Status:    string(c.Status),
 			MinStake:  int32(c.MinStake),
@@ -92,7 +92,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	for _, prediction := range c.Predictions {
 		err = qtx.UpsertPrediction(ctx, db.UpsertPredictionParams{
 			ContestID: int32(c.ID),
-			UserID:    int32(prediction.UserID),
+			UserID:    string(prediction.UserID),
 			OptionID:  int32(prediction.OptionID),
 			Clout:     int32(prediction.Clout),
 			CreatedAt: pgtype.Timestamp{Time: prediction.Timestamp, Valid: true},

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	name := "Test Circle"
 
 	c, err := circle.New(name, creatorID)
@@ -31,12 +31,12 @@ func TestNew(t *testing.T) {
 		t.Fatal("creator not found in members")
 	}
 	if member.UserID != creatorID {
-		t.Errorf("expected member ID %d, got %d", creatorID, member.UserID)
+		t.Errorf("expected member ID %s, got %s", creatorID, member.UserID)
 	}
 }
 
 func TestNew_EmptyName(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	c, err := circle.New("", creatorID)
 	if err == nil {
 		t.Error("expected error for empty name, got nil")
@@ -51,7 +51,7 @@ func TestNew_EmptyName(t *testing.T) {
 }
 
 func TestNew_ValidNames(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 
 	tests := []struct {
 		name       string
@@ -92,10 +92,10 @@ func TestNew_ValidNames(t *testing.T) {
 }
 
 func TestAddMember(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID("user-1")
 	c, _ := circle.New("Test Circle", creatorID)
 
-	newUserID := user.ID(2)
+	newUserID := user.ID("user-2")
 	c.AddMember(newUserID)
 
 	if len(c.Members) != 2 {

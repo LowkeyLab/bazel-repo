@@ -89,7 +89,7 @@ func (r *Memory) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, er
 }
 
 // FindByUserID retrieves all circles for a given user.
-func (r *Memory) FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error) {
+func (r *Memory) FindByUserID(ctx context.Context, userID string) ([]*circle.Circle, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -157,7 +157,7 @@ func (r *Memory) Delete(ctx context.Context, circleID circle.ID) error {
 }
 
 // UpdateMemberClout updates a member's clout balance in a circle.
-func (r *Memory) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error {
+func (r *Memory) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID string, newClout int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

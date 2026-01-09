@@ -17,9 +17,9 @@ VALUES ($1, $2, $3)
 `
 
 type AddCircleMemberParams struct {
-	CircleID int32 `json:"circle_id"`
-	UserID   int32 `json:"user_id"`
-	Clout    int32 `json:"clout"`
+	CircleID int32  `json:"circle_id"`
+	UserID   string `json:"user_id"`
+	Clout    int32  `json:"clout"`
 }
 
 func (q *Queries) AddCircleMember(ctx context.Context, arg AddCircleMemberParams) error {
@@ -35,7 +35,7 @@ RETURNING id, name, creator_id, created_at
 
 type CreateCircleParams struct {
 	Name      string           `json:"name"`
-	CreatorID int32            `json:"creator_id"`
+	CreatorID string           `json:"creator_id"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
@@ -59,7 +59,7 @@ RETURNING id, circle_id, creator_id, question, status, min_stake, house_rake, re
 
 type CreateContestParams struct {
 	CircleID  int32            `json:"circle_id"`
-	CreatorID int32            `json:"creator_id"`
+	CreatorID string           `json:"creator_id"`
 	Question  string           `json:"question"`
 	Status    string           `json:"status"`
 	MinStake  int32            `json:"min_stake"`
@@ -112,63 +112,6 @@ type CreateOptionParams struct {
 func (q *Queries) CreateOption(ctx context.Context, arg CreateOptionParams) error {
 	_, err := q.db.Exec(ctx, createOption, arg.ContestID, arg.OptionID, arg.Text)
 	return err
-}
-
-const createPrediction = `-- name: CreatePrediction :one
-INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING contest_id, user_id, option_id, clout, created_at
-`
-
-type CreatePredictionParams struct {
-	ContestID int32            `json:"contest_id"`
-	UserID    int32            `json:"user_id"`
-	OptionID  int32            `json:"option_id"`
-	Clout     int32            `json:"clout"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-}
-
-func (q *Queries) CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error) {
-	row := q.db.QueryRow(ctx, createPrediction,
-		arg.ContestID,
-		arg.UserID,
-		arg.OptionID,
-		arg.Clout,
-		arg.CreatedAt,
-	)
-	var i Prediction
-	err := row.Scan(
-		&i.ContestID,
-		&i.UserID,
-		&i.OptionID,
-		&i.Clout,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password_hash, role)
-VALUES ($1, $2, $3)
-RETURNING id, username, password_hash, role
-`
-
-type CreateUserParams struct {
-	Username     string   `json:"username"`
-	PasswordHash string   `json:"password_hash"`
-	Role         UserRole `json:"role"`
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.PasswordHash, arg.Role)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.PasswordHash,
-		&i.Role,
-	)
-	return i, err
 }
 
 const deleteCircle = `-- name: DeleteCircle :exec
@@ -242,8 +185,8 @@ WHERE circle_id = $1 AND user_id = $2 LIMIT 1
 `
 
 type GetCircleMemberParams struct {
-	CircleID int32 `json:"circle_id"`
-	UserID   int32 `json:"user_id"`
+	CircleID int32  `json:"circle_id"`
+	UserID   string `json:"user_id"`
 }
 
 func (q *Queries) GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error) {
@@ -277,69 +220,21 @@ func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 	return i, err
 }
 
-const getUser = `-- name: GetUser :one
-SELECT id, username, password_hash, role FROM users
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRow(ctx, getUser, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.PasswordHash,
-		&i.Role,
-	)
-	return i, err
-}
-
-const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, role FROM users
-WHERE username = $1 LIMIT 1
-`
-
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByUsername, username)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.PasswordHash,
-		&i.Role,
-	)
-	return i, err
-}
-
 const listCircleMembers = `-- name: ListCircleMembers :many
-SELECT cm.circle_id, cm.user_id, cm.clout, u.username
-FROM circle_members cm
-JOIN users u ON u.id = cm.user_id
-WHERE cm.circle_id = $1
+SELECT circle_id, user_id, clout FROM circle_members
+WHERE circle_id = $1
 `
 
-type ListCircleMembersRow struct {
-	CircleID int32  `json:"circle_id"`
-	UserID   int32  `json:"user_id"`
-	Clout    int32  `json:"clout"`
-	Username string `json:"username"`
-}
-
-func (q *Queries) ListCircleMembers(ctx context.Context, circleID int32) ([]ListCircleMembersRow, error) {
+func (q *Queries) ListCircleMembers(ctx context.Context, circleID int32) ([]CircleMember, error) {
 	rows, err := q.db.Query(ctx, listCircleMembers, circleID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListCircleMembersRow
+	var items []CircleMember
 	for rows.Next() {
-		var i ListCircleMembersRow
-		if err := rows.Scan(
-			&i.CircleID,
-			&i.UserID,
-			&i.Clout,
-			&i.Username,
-		); err != nil {
+		var i CircleMember
+		if err := rows.Scan(&i.CircleID, &i.UserID, &i.Clout); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -407,9 +302,9 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID int32) (
 }
 
 const listContestsByCircle = `-- name: ListContestsByCircle :many
-SELECT c.id, c.circle_id, c.creator_id, c.question, c.status, c.min_stake, c.house_rake, c.result_option_id, c.created_at, c.closes_at, c.duration
-FROM contests c
-WHERE c.circle_id = $1
+SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration
+FROM contests
+WHERE circle_id = $1
 ORDER BY created_at DESC
 `
 
@@ -453,7 +348,7 @@ WHERE cm.user_id = $1
 ORDER BY c.created_at DESC
 `
 
-func (q *Queries) ListUserCircles(ctx context.Context, userID int32) ([]Circle, error) {
+func (q *Queries) ListUserCircles(ctx context.Context, userID string) ([]Circle, error) {
 	rows, err := q.db.Query(ctx, listUserCircles, userID)
 	if err != nil {
 		return nil, err
@@ -485,9 +380,9 @@ WHERE circle_id = $1 AND user_id = $2
 `
 
 type UpdateCircleMemberCloutParams struct {
-	CircleID int32 `json:"circle_id"`
-	UserID   int32 `json:"user_id"`
-	Clout    int32 `json:"clout"`
+	CircleID int32  `json:"circle_id"`
+	UserID   string `json:"user_id"`
+	Clout    int32  `json:"clout"`
 }
 
 func (q *Queries) UpdateCircleMemberClout(ctx context.Context, arg UpdateCircleMemberCloutParams) error {
@@ -537,7 +432,7 @@ DO UPDATE SET clout = EXCLUDED.clout, created_at = EXCLUDED.created_at
 
 type UpsertPredictionParams struct {
 	ContestID int32            `json:"contest_id"`
-	UserID    int32            `json:"user_id"`
+	UserID    string           `json:"user_id"`
 	OptionID  int32            `json:"option_id"`
 	Clout     int32            `json:"clout"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`

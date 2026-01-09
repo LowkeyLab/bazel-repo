@@ -1,16 +1,3 @@
--- name: CreateUser :one
-INSERT INTO users (username, password_hash, role)
-VALUES ($1, $2, $3)
-RETURNING *;
-
--- name: GetUser :one
-SELECT * FROM users
-WHERE id = $1 LIMIT 1;
-
--- name: GetUserByUsername :one
-SELECT * FROM users
-WHERE username = $1 LIMIT 1;
-
 -- name: CreateCircle :one
 INSERT INTO circles (name, creator_id, created_at)
 VALUES ($1, $2, $3)
@@ -34,10 +21,8 @@ SET clout = $3
 WHERE circle_id = $1 AND user_id = $2;
 
 -- name: ListCircleMembers :many
-SELECT cm.*, u.username
-FROM circle_members cm
-JOIN users u ON u.id = cm.user_id
-WHERE cm.circle_id = $1;
+SELECT * FROM circle_members
+WHERE circle_id = $1;
 
 -- name: ListUserCircles :many
 SELECT c.id, c.name, c.creator_id, c.created_at
@@ -71,11 +56,6 @@ VALUES ($1, $2, $3);
 -- name: ListContestOptions :many
 SELECT * FROM options
 WHERE contest_id = $1;
-
--- name: CreatePrediction :one
-INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING *;
 
 -- name: UpsertPrediction :exec
 INSERT INTO predictions (contest_id, user_id, option_id, clout, created_at)

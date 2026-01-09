@@ -13,20 +13,16 @@ type Querier interface {
 	CreateCircle(ctx context.Context, arg CreateCircleParams) (Circle, error)
 	CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error)
 	CreateOption(ctx context.Context, arg CreateOptionParams) error
-	CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error)
-	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCircle(ctx context.Context, id int32) error
 	FindExpiredContests(ctx context.Context) ([]Contest, error)
 	GetCircle(ctx context.Context, id int32) (Circle, error)
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
 	GetContest(ctx context.Context, id int32) (Contest, error)
-	GetUser(ctx context.Context, id int32) (User, error)
-	GetUserByUsername(ctx context.Context, username string) (User, error)
-	ListCircleMembers(ctx context.Context, circleID int32) ([]ListCircleMembersRow, error)
+	ListCircleMembers(ctx context.Context, circleID int32) ([]CircleMember, error)
 	ListContestOptions(ctx context.Context, contestID int32) ([]Option, error)
 	ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error)
 	ListContestsByCircle(ctx context.Context, circleID int32) ([]Contest, error)
-	ListUserCircles(ctx context.Context, userID int32) ([]Circle, error)
+	ListUserCircles(ctx context.Context, userID string) ([]Circle, error)
 	UpdateCircleMemberClout(ctx context.Context, arg UpdateCircleMemberCloutParams) error
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
 	UpdateContestStatusOnly(ctx context.Context, arg UpdateContestStatusOnlyParams) error

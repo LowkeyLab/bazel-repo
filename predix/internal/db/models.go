@@ -5,71 +5,26 @@
 package db
 
 import (
-	"database/sql/driver"
-	"fmt"
-
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-type UserRole string
-
-const (
-	UserRoleMember UserRole = "member"
-	UserRoleAdmin  UserRole = "admin"
-)
-
-func (e *UserRole) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = UserRole(s)
-	case string:
-		*e = UserRole(s)
-	default:
-		return fmt.Errorf("unsupported scan type for UserRole: %T", src)
-	}
-	return nil
-}
-
-type NullUserRole struct {
-	UserRole UserRole `json:"user_role"`
-	Valid    bool     `json:"valid"` // Valid is true if UserRole is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullUserRole) Scan(value interface{}) error {
-	if value == nil {
-		ns.UserRole, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.UserRole.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullUserRole) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.UserRole), nil
-}
 
 type Circle struct {
 	ID        int32            `json:"id"`
 	Name      string           `json:"name"`
-	CreatorID int32            `json:"creator_id"`
+	CreatorID string           `json:"creator_id"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 type CircleMember struct {
-	CircleID int32 `json:"circle_id"`
-	UserID   int32 `json:"user_id"`
-	Clout    int32 `json:"clout"`
+	CircleID int32  `json:"circle_id"`
+	UserID   string `json:"user_id"`
+	Clout    int32  `json:"clout"`
 }
 
 type Contest struct {
 	ID             int32            `json:"id"`
 	CircleID       int32            `json:"circle_id"`
-	CreatorID      int32            `json:"creator_id"`
+	CreatorID      string           `json:"creator_id"`
 	Question       string           `json:"question"`
 	Status         string           `json:"status"`
 	MinStake       int32            `json:"min_stake"`
@@ -88,15 +43,8 @@ type Option struct {
 
 type Prediction struct {
 	ContestID int32            `json:"contest_id"`
-	UserID    int32            `json:"user_id"`
+	UserID    string           `json:"user_id"`
 	OptionID  int32            `json:"option_id"`
 	Clout     int32            `json:"clout"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
-}
-
-type User struct {
-	ID           int32    `json:"id"`
-	Username     string   `json:"username"`
-	PasswordHash string   `json:"password_hash"`
-	Role         UserRole `json:"role"`
 }

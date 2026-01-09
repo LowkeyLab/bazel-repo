@@ -30,8 +30,8 @@ func New(name string, creatorID user.ID) (*Circle, error) {
 	if name == "" {
 		return nil, errors.New("circle name cannot be empty")
 	}
-	if creatorID == 0 {
-		return nil, errors.New("creator id must be positive")
+	if creatorID == "" {
+		return nil, errors.New("creator id cannot be empty")
 	}
 
 	c := &Circle{

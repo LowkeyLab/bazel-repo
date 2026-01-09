@@ -8,9 +8,9 @@ import (
 
 func TestNew(t *testing.T) {
 	username := "alice"
-	passwordHash := "hash"
+	authorizerID := "auth-id"
 
-	u, err := user.New(username, passwordHash)
+	u, err := user.New(username, authorizerID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -18,13 +18,7 @@ func TestNew(t *testing.T) {
 	if u.Username != username {
 		t.Errorf("expected username %q, got %q", username, u.Username)
 	}
-	if u.PasswordHash != passwordHash {
-		t.Errorf("expected password hash %q, got %q", passwordHash, u.PasswordHash)
-	}
-	if u.ID != 0 {
-		t.Errorf("expected ID to be 0 (unassigned), got %d", u.ID)
-	}
-	if u.Role != user.RoleMember {
-		t.Errorf("expected role to default to %q, got %q", user.RoleMember, u.Role)
+	if u.ID != user.ID(authorizerID) {
+		t.Errorf("expected ID %q, got %q", authorizerID, u.ID)
 	}
 }

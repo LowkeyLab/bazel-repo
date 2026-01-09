@@ -23,23 +23,17 @@ func createPrerequisites(t *testing.T, pool *pgxpool.Pool) (circle.ID, user.ID) 
 	ctx := context.Background()
 	q := db.New(pool)
 
-	// Create User
-	u, err := q.CreateUser(ctx, db.CreateUserParams{
-		Username:     "testuser",
-		PasswordHash: "hash",
-		Role:         db.UserRoleMember,
-	})
-	require.NoError(t, err)
+	userID := user.ID("test-user-id")
 
 	// Create Circle
 	c, err := q.CreateCircle(ctx, db.CreateCircleParams{
 		Name:      "Test Circle",
-		CreatorID: u.ID,
+		CreatorID: string(userID),
 		CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
 	})
 	require.NoError(t, err)
 
-	return circle.ID(c.ID), user.ID(u.ID)
+	return circle.ID(c.ID), userID
 }
 
 func TestCloser(t *testing.T) {

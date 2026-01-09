@@ -38,7 +38,7 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	// Save circle
 	result, err := qtx.CreateCircle(ctx, db.CreateCircleParams{
 		Name:      c.Name,
-		CreatorID: int32(c.CreatorID),
+		CreatorID: string(c.CreatorID),
 		CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
 	})
 	if err != nil {
@@ -52,7 +52,7 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	for _, member := range c.Members {
 		err = qtx.AddCircleMember(ctx, db.AddCircleMemberParams{
 			CircleID: int32(c.ID),
-			UserID:   int32(member.UserID),
+			UserID:   string(member.UserID),
 			Clout:    int32(member.Clout),
 		})
 		if err != nil {
@@ -75,7 +75,7 @@ func (r *Postgres) AddMember(ctx context.Context, circleID circle.ID, member *ci
 
 	err := r.queries.AddCircleMember(ctx, db.AddCircleMemberParams{
 		CircleID: int32(circleID),
-		UserID:   int32(member.UserID),
+		UserID:   string(member.UserID),
 		Clout:    int32(member.Clout),
 	})
 	if err != nil {
@@ -117,7 +117,7 @@ func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, 
 }
 
 // FindByUserID retrieves all circles for a given user, ordered by creation date.
-func (r *Postgres) FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error) {
+func (r *Postgres) FindByUserID(ctx context.Context, userID string) ([]*circle.Circle, error) {
 	dbCircles, err := r.queries.ListUserCircles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find circles by user id: %w", err)
@@ -162,7 +162,7 @@ func (r *Postgres) Delete(ctx context.Context, id circle.ID) error {
 }
 
 // UpdateMemberClout updates a member's clout balance in a circle.
-func (r *Postgres) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error {
+func (r *Postgres) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID string, newClout int) error {
 	if err := r.queries.UpdateCircleMemberClout(ctx, db.UpdateCircleMemberCloutParams{
 		CircleID: int32(circleID),
 		UserID:   userID,

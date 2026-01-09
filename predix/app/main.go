@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/authorizerdev/authorizer-go"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
@@ -22,9 +23,6 @@ import (
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	contestcloser "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
-	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
-	userrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/rest"
-	userservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/healthcheck"
 )
 
@@ -55,13 +53,10 @@ func main() {
 	slog.SetDefault(logger)
 
 	devMode := strings.ToLower(os.Getenv("DEV_MODE")) == "true"
-	jwtSecret := os.Getenv("JWT_SECRET")
 	if devMode {
 		slog.Info("Running in development mode with in-memory storage")
-		jwtSecret = "dev-secret"
 	}
 
-	var userRepo userrepo.Repository
 	var contestRepo contestrepo.Repository
 	var circleRepo circlerepo.Repository
 
@@ -69,7 +64,6 @@ func main() {
 		slog.Info("Using in-memory repositories")
 		circleRepo = circlerepo.NewMemory()
 		contestRepo = contestrepo.NewMemory()
-		userRepo = userrepo.NewMemory()
 	} else {
 		slog.Info("Using PostgreSQL repositories")
 		connStr, ok := os.LookupEnv("DATABASE_URL")
@@ -92,23 +86,36 @@ func main() {
 
 		circleRepo = circlerepo.NewPostgres(pool)
 		contestRepo = contestrepo.NewPostgres(pool)
-		userRepo = userrepo.NewPostgres(pool)
 	}
 
 	// Create clock for services
 	clk := clock.RealClock{}
 
-	circleSvc := circleservice.NewService(circleRepo, userRepo, contestRepo, clk)
-	userSvc := userservice.NewService(userRepo)
+	authorizerURL := os.Getenv("AUTHORIZER_URL")
+	authorizerClientID := os.Getenv("AUTHORIZER_CLIENT_ID")
+	if authorizerURL == "" || authorizerClientID == "" {
+		if !devMode {
+			slog.Error("AUTHORIZER_URL and AUTHORIZER_CLIENT_ID must be set in production")
+			os.Exit(1)
+		}
+		slog.Warn("Running without Authorizer config in dev mode")
+	}
+
+	authClient, err := authorizer.NewAuthorizerClient(authorizerClientID, authorizerURL, "", nil)
+	if err != nil {
+		slog.Error("Failed to create Authorizer client", "error", err)
+		os.Exit(1)
+	}
+
+	circleSvc := circleservice.NewService(circleRepo, contestRepo, clk, authClient)
 
 	// Start the contest closer goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go contestcloser.StartCloser(ctx, contestRepo, clk, 10*time.Minute)
 
-	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
+	authManager := auth.NewManager(authClient)
 	circleHandler := circlerest.NewHandler(circleSvc)
-	userHandler := userrest.NewHandler(userSvc, authManager)
 
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
@@ -129,8 +136,6 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-
-	userHandler.RegisterRoutes(r)
 
 	protected := r.Group("/protected")
 	protected.Use(authManager.Middleware())

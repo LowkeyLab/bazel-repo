@@ -6,7 +6,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      JWT_SECRET: "dev-secret"
+      AUTHORIZER_URL: "http://authorizer:8081"
+      AUTHORIZER_CLIENT_ID: "authorizer-client-id"
       ALLOWED_ORIGINS: "http://localhost:4200"
       DATABASE_URL: "postgres://predix:predix_password@postgres:5432/predix_db?sslmode=disable"
     depends_on:

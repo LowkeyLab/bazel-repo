@@ -1,80 +1,41 @@
 package auth
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
+	authorizer "github.com/authorizerdev/authorizer-go"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
-const userIDContextKey = "currentUserID"
+const (
+	userIDContextKey   = "currentUserID"
+	userNameContextKey = "currentUsername"
+)
 
-// Manager issues and validates authentication tokens.
-type Manager struct {
-	secret []byte
-	ttl    time.Duration
+// Client defines the interface for interacting with the Authorizer service.
+// This interface allows for mocking the Authorizer client in tests.
+type Client interface {
+	GetProfile(headers map[string]string) (*authorizer.User, error)
 }
 
-// NewManager constructs a Manager with the provided secret and token TTL.
-func NewManager(secret string, ttl time.Duration) *Manager {
-	return &Manager{secret: []byte(secret), ttl: ttl}
+// Manager validates authentication tokens using Authorizer.
+type Manager interface {
+	Middleware() gin.HandlerFunc
 }
 
-// GenerateToken signs a JWT for the given user.
-func (m *Manager) GenerateToken(u *user.User) (string, error) {
-	if u == nil {
-		return "", errors.New("user is required")
-	}
-	if u.ID == 0 {
-		return "", errors.New("user id is required")
-	}
-
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.ttl)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"uid": int32(u.ID),
-		"exp": claims.ExpiresAt.Unix(),
-		"iat": claims.IssuedAt.Unix(),
-	})
-
-	return token.SignedString(m.secret)
+type authorizerManager struct {
+	client Client
 }
 
-// ParseToken validates a JWT and extracts the user ID.
-func (m *Manager) ParseToken(raw string) (user.ID, error) {
-	parsed, err := jwt.Parse(raw, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-		return m.secret, nil
-	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
-	if err != nil {
-		return 0, fmt.Errorf("invalid token: %w", err)
-	}
-
-	claims, ok := parsed.Claims.(jwt.MapClaims)
-	if !ok || !parsed.Valid {
-		return 0, errors.New("invalid token claims")
-	}
-
-	uid, ok := claims["uid"].(float64)
-	if !ok {
-		return 0, errors.New("user id missing from token")
-	}
-
-	return user.ID(int32(uid)), nil
+// NewManager constructs a Manager with the provided Authorizer client.
+func NewManager(client Client) Manager {
+	return &authorizerManager{client: client}
 }
 
-// Middleware enforces authentication and injects the user ID into the context.
-func (m *Manager) Middleware() gin.HandlerFunc {
+// Middleware enforces authentication and injects the user ID and name into the context.
+func (m *authorizerManager) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -88,13 +49,29 @@ func (m *Manager) Middleware() gin.HandlerFunc {
 			return
 		}
 
-		userID, err := m.ParseToken(parts[1])
+		// Use GetProfile to validate the token/session and get user details
+		resUser, err := m.client.GetProfile(map[string]string{"Authorization": authHeader})
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token: " + err.Error()})
 			return
 		}
 
-		c.Set(userIDContextKey, userID)
+		if resUser == nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not found in session"})
+			return
+		}
+
+		// Use nickname if available, else email, else ID as username
+		username := resUser.Nickname
+		if username == nil || *username == "" {
+			username = &resUser.Email
+		}
+		if *username == "" {
+			username = &resUser.ID
+		}
+
+		c.Set(userIDContextKey, user.ID(resUser.ID))
+		c.Set(userNameContextKey, *username)
 		c.Next()
 	}
 }
@@ -103,9 +80,20 @@ func (m *Manager) Middleware() gin.HandlerFunc {
 func UserIDFromContext(c *gin.Context) (user.ID, bool) {
 	value, ok := c.Get(userIDContextKey)
 	if !ok {
-		return 0, false
+		return "", false
 	}
 
 	id, ok := value.(user.ID)
 	return id, ok
+}
+
+// UserNameFromContext extracts the authenticated username from the Gin context.
+func UserNameFromContext(c *gin.Context) (string, bool) {
+	value, ok := c.Get(userNameContextKey)
+	if !ok {
+		return "", false
+	}
+
+	name, ok := value.(string)
+	return name, ok
 }

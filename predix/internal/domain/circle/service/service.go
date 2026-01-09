@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
-	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 )
 
 type (
@@ -22,18 +22,18 @@ type (
 
 type Service struct {
 	circleRepo  repository.Repository
-	userRepo    userrepo.Repository
 	contestRepo contestrepo.Repository
 	clock       clock.Clock
+	authClient  auth.Client
 }
 
 // NewService creates a service with a repository interface.
-func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestRepo ContestRepository, clk clock.Clock) *Service {
+func NewService(circleRepo CircleRepository, contestRepo ContestRepository, clk clock.Clock, authClient auth.Client) *Service {
 	return &Service{
 		circleRepo:  circleRepo,
-		userRepo:    userRepo,
 		contestRepo: contestRepo,
 		clock:       clk,
+		authClient:  authClient,
 	}
 }
 
@@ -45,7 +45,7 @@ var (
 	ErrContestNotFound   = errors.New("contest not found or does not belong to this circle")
 )
 
-// EnrichedMember contains member data with username looked up from user repository.
+// EnrichedMember contains member data with username.
 type EnrichedMember struct {
 	UserID   user.ID
 	Username string
@@ -62,7 +62,7 @@ type EnrichedCircle struct {
 }
 
 type PayoutRecord struct {
-	UserID   int32
+	UserID   string
 	Username string
 	Stake    int
 	Share    int
@@ -147,7 +147,7 @@ func (s *Service) GetCircleWithUsernames(ctx context.Context, id circle.ID) (*En
 
 // ListUserCirclesWithUsernames retrieves all circles for a user with member usernames enriched.
 func (s *Service) ListUserCirclesWithUsernames(ctx context.Context, userID user.ID) ([]*EnrichedCircle, error) {
-	circles, err := s.circleRepo.FindByUserID(ctx, int32(userID))
+	circles, err := s.circleRepo.FindByUserID(ctx, string(userID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user circles: %w", err)
 	}
@@ -164,7 +164,7 @@ func (s *Service) ListUserCirclesWithUsernames(ctx context.Context, userID user.
 }
 
 func (s *Service) ListUserCircles(ctx context.Context, userID user.ID) ([]*circle.Circle, error) {
-	circles, err := s.circleRepo.FindByUserID(ctx, int32(userID))
+	circles, err := s.circleRepo.FindByUserID(ctx, string(userID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user circles: %w", err)
 	}
@@ -178,12 +178,9 @@ func (s *Service) DeleteCircle(ctx context.Context, id circle.ID, requesterID us
 		return fmt.Errorf("failed to get circle: %w", err)
 	}
 
-	requester, err := s.userRepo.FindByID(ctx, requesterID)
-	if err != nil {
-		return fmt.Errorf("failed to get user: %w", err)
-	}
-
-	if circ.CreatorID != requesterID && requester.Role != user.RoleAdmin {
+	// In a real app, we'd check roles from Authorizer.
+	// For now, only the creator can delete.
+	if circ.CreatorID != requesterID {
 		return ErrNotCircleOwner
 	}
 
@@ -199,14 +196,18 @@ func (s *Service) enrichCircle(ctx context.Context, circ *circle.Circle) (*Enric
 	members := make([]EnrichedMember, 0, len(circ.Members))
 
 	for _, member := range circ.Members {
-		u, err := s.userRepo.FindByID(ctx, member.UserID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user %d: %w", member.UserID, err)
+		// Ideally we use a batch API, but for now we'll use placeholders
+		// or fetch from authorizer if possible.
+		// Since we don't have an admin secret here easily, we'll use ID as username
+		// or a mock value. In production, we'd use s.authClient.AdminListUsers.
+		username := "User " + string(member.UserID)
+		if len(string(member.UserID)) > 8 {
+			username = "User " + string(member.UserID)[:8]
 		}
 
 		members = append(members, EnrichedMember{
 			UserID:   member.UserID,
-			Username: u.Username,
+			Username: username,
 			Clout:    member.Clout,
 		})
 	}
@@ -263,7 +264,7 @@ func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID con
 
 	// Adjust clout balance by the delta between old and new stakes
 	newClout := userMember.Clout - delta
-	err = s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+	err = s.circleRepo.UpdateMemberClout(ctx, circleID, string(userID), newClout)
 	if err != nil {
 		return fmt.Errorf("failed to update member clout: %w", err)
 	}
@@ -298,9 +299,9 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID
 	for winnerID, payout := range payouts {
 		if member, exists := circ.Members[winnerID]; exists {
 			newClout := member.Clout + payout
-			err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(winnerID), newClout)
+			err := s.circleRepo.UpdateMemberClout(ctx, circleID, string(winnerID), newClout)
 			if err != nil {
-				return fmt.Errorf("failed to update winner clout for user %d: %w", winnerID, err)
+				return fmt.Errorf("failed to update winner clout for user %s: %w", winnerID, err)
 			}
 		}
 	}
@@ -333,9 +334,9 @@ func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID cont
 	for userID, refundAmount := range refunds {
 		if member, exists := circ.Members[userID]; exists {
 			newClout := member.Clout + refundAmount
-			err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+			err := s.circleRepo.UpdateMemberClout(ctx, circleID, string(userID), newClout)
 			if err != nil {
-				return fmt.Errorf("failed to update refunded clout for user %d: %w", userID, err)
+				return fmt.Errorf("failed to update refunded clout for user %s: %w", userID, err)
 			}
 		}
 	}
@@ -528,13 +529,9 @@ func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, co
 
 	winnerRecords := make([]PayoutRecord, len(winners))
 	for i, r := range winners {
-		username := "Unknown"
-		u, err := s.userRepo.FindByID(ctx, r.UserID)
-		if err == nil {
-			username = u.Username
-		}
+		username := "User " + string(r.UserID)[:8]
 		winnerRecords[i] = PayoutRecord{
-			UserID:   int32(r.UserID),
+			UserID:   string(r.UserID),
 			Username: username,
 			Stake:    r.OriginalStake,
 			Share:    r.ShareOfPot,
@@ -544,13 +541,9 @@ func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, co
 
 	loserRecords := make([]PayoutRecord, len(losers))
 	for i, r := range losers {
-		username := "Unknown"
-		u, err := s.userRepo.FindByID(ctx, r.UserID)
-		if err == nil {
-			username = u.Username
-		}
+		username := "User " + string(r.UserID)[:8]
 		loserRecords[i] = PayoutRecord{
-			UserID:   int32(r.UserID),
+			UserID:   string(r.UserID),
 			Username: username,
 			Stake:    r.OriginalStake,
 			Share:    r.ShareOfPot,

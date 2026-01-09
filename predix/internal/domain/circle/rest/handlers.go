@@ -49,7 +49,7 @@ type createCircleRequest struct {
 }
 
 type memberResponse struct {
-	UserID   int32  `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Clout    int    `json:"clout"`
 }
@@ -67,7 +67,7 @@ type optionResponse struct {
 }
 
 type predictionResponse struct {
-	UserID    int32     `json:"user_id"`
+	UserID    string    `json:"user_id"`
 	OptionID  int       `json:"option_id"`
 	Clout     int       `json:"clout"`
 	Timestamp time.Time `json:"timestamp"`
@@ -76,7 +76,7 @@ type predictionResponse struct {
 type contestResponse struct {
 	ID             int32                `json:"id"`
 	CircleID       int32                `json:"circle_id"`
-	CreatorID      int32                `json:"creator_id"`
+	CreatorID      string               `json:"creator_id"`
 	Question       string               `json:"question"`
 	Options        []optionResponse     `json:"options"`
 	Predictions    []predictionResponse `json:"predictions"`
@@ -91,7 +91,7 @@ type contestResponse struct {
 }
 
 type addMemberRequest struct {
-	UserID int32 `json:"user_id"`
+	UserID string `json:"user_id"`
 }
 
 type makePredictionRequest struct {
@@ -111,7 +111,7 @@ type createContestRequest struct {
 }
 
 type payoutRecord struct {
-	UserID   int32  `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Stake    int    `json:"stake"`
 	Share    int    `json:"share"`
@@ -654,7 +654,7 @@ func toEnrichedCircleResponse(enriched *service.EnrichedCircle) circleResponse {
 	members := make([]memberResponse, len(enriched.Members))
 	for i, m := range enriched.Members {
 		members[i] = memberResponse{
-			UserID:   int32(m.UserID),
+			UserID:   string(m.UserID),
 			Username: m.Username,
 			Clout:    m.Clout,
 		}
@@ -684,7 +684,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 	predictions := make([]predictionResponse, len(cont.Predictions))
 	for i, pred := range cont.Predictions {
 		predictions[i] = predictionResponse{
-			UserID:    int32(pred.UserID),
+			UserID:    string(pred.UserID),
 			OptionID:  pred.OptionID,
 			Clout:     pred.Clout,
 			Timestamp: pred.Timestamp,
@@ -694,7 +694,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 	return contestResponse{
 		ID:             int32(cont.ID),
 		CircleID:       int32(cont.CircleID),
-		CreatorID:      int32(cont.CreatorID),
+		CreatorID:      string(cont.CreatorID),
 		Question:       cont.Question,
 		Options:        options,
 		Predictions:    predictions,

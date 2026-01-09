@@ -10,5 +10,9 @@ filegroup(
     srcs = [
         "000001_init_schema.down.sql",
         "000001_init_schema.up.sql",
+        "000002_add_authorizer_id.down.sql",
+        "000002_add_authorizer_id.up.sql",
+        "000003_remove_local_users.down.sql",
+        "000003_remove_local_users.up.sql",
     ],
 )
