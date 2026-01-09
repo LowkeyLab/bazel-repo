@@ -50,6 +50,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  authorizer:
+    image: lakhansamani/authorizer:latest
+    container_name: authorizer
+    ports:
+      - "8081:8081"
+    environment:
+      ENV: development
+      DATABASE_TYPE: postgres
+      DATABASE_URL: postgres://predix:predix_password@postgres:5432/predix_db?sslmode=disable
+      ADMIN_SECRET: admin_secret
+    depends_on:
+      - postgres
+    networks:
+      - predix-network
 networks:
   predix-network:
     driver: bridge
