@@ -4,9 +4,10 @@ import { from } from 'rxjs';
 import { Authorizer, ResponseTypes } from '@authorizerdev/authorizer-js';
 
 import { environment } from '../../environments/environment';
+import { UserId } from '../models/user.model';
 
 export interface AuthUser {
-  id: number | string;
+  id: UserId;
   username: string;
   role: string;
 }

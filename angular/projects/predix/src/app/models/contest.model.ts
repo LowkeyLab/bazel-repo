@@ -1,9 +1,11 @@
+import { UserId } from './user.model';
+
 export type ContestStatus = 'OPEN' | 'LOCKED' | 'CLOSED' | 'RESOLVED';
 
 export interface Contest {
   id: number;
   circle_id: number;
-  creator_id: number | string;
+  creator_id: UserId;
   question: string;
   options: ContestOption[];
   predictions: Prediction[];
@@ -33,7 +35,7 @@ export interface ContestOption {
 }
 
 export interface Prediction {
-  user_id: number | string;
+  user_id: UserId;
   option_id: number;
   clout: number;
   timestamp: string;
@@ -57,7 +59,7 @@ export interface ResolveContestRequest {
 }
 
 export interface PayoutRecord {
-  user_id: number | string;
+  user_id: UserId;
   username: string;
   stake: number;
   share: number;
