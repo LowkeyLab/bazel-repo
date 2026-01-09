@@ -1,9 +1,11 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameSummaryComponent } from './game-summary.component';
 import { GameDto } from '../services/game.types';
 
 describe('GameSummaryComponent', () => {
+  const TEST_ANIMATION_DELAY = 50; // Use faster delay for tests
+
   function createComponentWithNavState(state: any, id: string | null = 'g1') {
     const routerSpy = {
       currentNavigation: () => ({ extras: { state } }),
@@ -21,6 +23,8 @@ describe('GameSummaryComponent', () => {
     });
     const fixture = TestBed.createComponent(GameSummaryComponent);
     const comp = fixture.componentInstance;
+    // Set test animation delay
+    fixture.componentRef.setInput('animationDelayMs', TEST_ANIMATION_DELAY);
     fixture.detectChanges();
     return { fixture, comp, routerSpy };
   }
@@ -54,7 +58,7 @@ describe('GameSummaryComponent', () => {
     }, 1600);
   });
 
-  it('orders rounds ascending by round number', () => {
+  it('orders rounds ascending by round number', fakeAsync(() => {
     const finalGame: GameDto = {
       id: 'g2',
       playerLimit: 2,
@@ -70,14 +74,19 @@ describe('GameSummaryComponent', () => {
       playerName: 'Alice',
       finalGame,
     });
+
+    // Wait for animation delays (2 rounds * delay)
+    tick(2 * TEST_ANIMATION_DELAY);
+    fixture.detectChanges();
+
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
     const roundHeaders = Array.from(el.querySelectorAll('div.font-mono'));
     expect(roundHeaders.length).toBe(2);
     expect(roundHeaders[0].textContent?.trim()).toContain('Round #1');
     expect(roundHeaders[1].textContent?.trim()).toContain('Round #2');
-  });
+  }));
 
-  it('orders player names alphabetically in guesses', () => {
+  it('orders player names alphabetically in guesses', fakeAsync(() => {
     const finalGame: GameDto = {
       id: 'g3',
       playerLimit: 2,
@@ -90,10 +99,15 @@ describe('GameSummaryComponent', () => {
       playerName: 'Bob',
       finalGame,
     });
+
+    // Wait for animation delay (1 round * delay)
+    tick(TEST_ANIMATION_DELAY);
+    fixture.detectChanges();
+
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
     const guessLabels = Array.from(
       el.querySelectorAll('div.font-semibold'),
     ).map((n) => (n.textContent || '').replace(':', '').trim());
     expect(guessLabels).toEqual(['Alice', 'Bob']);
-  });
+  }));
 });

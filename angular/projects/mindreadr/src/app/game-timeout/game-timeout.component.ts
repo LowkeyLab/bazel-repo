@@ -1,17 +1,28 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameDto, RoundDto } from '../services/game.types';
+import { GameDto } from '../services/game.types';
+import { GameRoundsComponent } from '../game-rounds/game-rounds.component';
 
 @Component({
   selector: 'mindreadr-game-timeout',
   standalone: true,
-  imports: [],
+  imports: [GameRoundsComponent],
   templateUrl: './game-timeout.component.html',
 })
 export class GameTimeoutComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  // Configurable animation delay (milliseconds between each round appearing)
+  animationDelayMs = input<number>(150);
 
   gameId = signal<string>('');
   game = signal<GameDto | null>(null);
@@ -58,28 +69,11 @@ export class GameTimeoutComponent implements OnInit, OnDestroy {
     return g ? g.rounds.length : 0;
   }
 
-  sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
-    return (rounds ?? [])
-      .slice()
-      .sort((a: RoundDto, b: RoundDto) => a.number - b.number);
-  }
   sorted_player_names_from_players(players: GameDto['players']): string[] {
     return players
       .map((p) => p.name)
       .filter((n) => n.length > 0)
       .sort((a, b) => a.localeCompare(b));
-  }
-
-  sorted_player_names_for_round(
-    game: GameDto,
-    round: GameDto['rounds'][number],
-  ): string[] {
-    const names = this.sorted_player_names_from_players(game?.players ?? []);
-    return names.filter(
-      (n) =>
-        round?.guesses &&
-        Object.prototype.hasOwnProperty.call(round.guesses, n),
-    );
   }
 
   tryAgain(): void {

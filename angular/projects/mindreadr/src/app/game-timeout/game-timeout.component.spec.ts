@@ -1,9 +1,11 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameTimeoutComponent } from './game-timeout.component';
 import { GameDto } from '../services/game.types';
 
 describe('GameTimeoutComponent', () => {
+  const TEST_ANIMATION_DELAY = 50; // Use faster delay for tests
+
   function createComponentWithNavState(state: any, id: string | null = 'g1') {
     const routerSpy = {
       currentNavigation: () => ({ extras: { state } }),
@@ -21,6 +23,8 @@ describe('GameTimeoutComponent', () => {
     });
     const fixture = TestBed.createComponent(GameTimeoutComponent);
     const comp = fixture.componentInstance;
+    // Set test animation delay
+    fixture.componentRef.setInput('animationDelayMs', TEST_ANIMATION_DELAY);
     fixture.detectChanges();
     return { fixture, comp, routerSpy };
   }
@@ -54,7 +58,7 @@ describe('GameTimeoutComponent', () => {
     }, 1600);
   });
 
-  it('orders rounds ascending by round number', () => {
+  it('orders rounds ascending by round number', fakeAsync(() => {
     const finalGame: GameDto = {
       id: 'g2',
       playerLimit: 2,
@@ -71,15 +75,20 @@ describe('GameTimeoutComponent', () => {
       playerName: 'Alice',
       finalGame,
     });
+
+    // Wait for animation delays (3 rounds * delay)
+    tick(3 * TEST_ANIMATION_DELAY);
+    fixture.detectChanges();
+
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
     const roundHeaders = Array.from(el.querySelectorAll('div.font-mono'));
     expect(roundHeaders.length).toBe(3);
     expect(roundHeaders[0].textContent?.trim()).toContain('Round #1');
     expect(roundHeaders[1].textContent?.trim()).toContain('Round #2');
     expect(roundHeaders[2].textContent?.trim()).toContain('Round #3');
-  });
+  }));
 
-  it('orders player names alphabetically in guesses', () => {
+  it('orders player names alphabetically in guesses', fakeAsync(() => {
     const finalGame: GameDto = {
       id: 'g3',
       playerLimit: 2,
@@ -92,14 +101,19 @@ describe('GameTimeoutComponent', () => {
       playerName: 'Bob',
       finalGame,
     });
+
+    // Wait for animation delay (1 round * delay)
+    tick(TEST_ANIMATION_DELAY);
+    fixture.detectChanges();
+
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
     const guessLabels = Array.from(
       el.querySelectorAll('div.font-semibold'),
     ).map((n) => (n.textContent || '').replace(':', '').trim());
     expect(guessLabels).toEqual(['Alice', 'Bob']);
-  });
+  }));
 
-  it('shows all rounds when game times out', () => {
+  it('shows all rounds when game times out', fakeAsync(() => {
     const finalGame: GameDto = {
       id: 'g4',
       playerLimit: 2,
@@ -112,14 +126,21 @@ describe('GameTimeoutComponent', () => {
       ],
       state: 'TERMINATED',
     };
-    const { comp } = createComponentWithNavState({
+    const { fixture, comp } = createComponentWithNavState({
       playerName: 'Alice',
       finalGame,
     });
+
+    // Wait for animation delays (3 rounds * delay)
+    tick(3 * TEST_ANIMATION_DELAY);
+    fixture.detectChanges();
+
     expect(comp.roundsCount()).toBe(3);
-    const sorted = comp.sortedRounds(finalGame.rounds);
-    expect(sorted.length).toBe(3);
-    expect(sorted[0].number).toBe(1);
-    expect(sorted[2].number).toBe(3);
-  });
+
+    const el: HTMLElement = fixture.nativeElement as HTMLElement;
+    const roundHeaders = Array.from(el.querySelectorAll('div.font-mono'));
+    expect(roundHeaders.length).toBe(3);
+    expect(roundHeaders[0].textContent?.trim()).toContain('Round #1');
+    expect(roundHeaders[2].textContent?.trim()).toContain('Round #3');
+  }));
 });

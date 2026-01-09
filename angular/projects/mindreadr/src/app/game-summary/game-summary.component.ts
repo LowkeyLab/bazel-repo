@@ -1,18 +1,30 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
-import { GameDto, RoundDto } from '../services/game.types';
+import { GameDto } from '../services/game.types';
 import confetti from 'canvas-confetti';
+import { GameRoundsComponent } from '../game-rounds/game-rounds.component';
 
 @Component({
   selector: 'mindreadr-game-summary',
   standalone: true,
-  imports: [],
+  imports: [GameRoundsComponent],
   templateUrl: './game-summary.component.html',
+  styleUrls: ['./game-summary.component.css'],
 })
 export class GameSummaryComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  // Configurable animation delay (milliseconds between each round appearing)
+  animationDelayMs = input<number>(150);
 
   gameId = signal<string>('');
   game = signal<GameDto | null>(null);
@@ -54,7 +66,7 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Nothing to clean up; no subscriptions.
+    // No cleanup needed
   }
 
   roundsCount(): number {
@@ -74,42 +86,11 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
     return String(last);
   }
 
-  objectKeys<T extends object>(obj: T): Array<keyof T & string> {
-    return Object.keys(obj) as Array<keyof T & string>;
-  }
-
-  sortedRounds(rounds: GameDto['rounds']): GameDto['rounds'] {
-    return (rounds ?? [])
-      .slice()
-      .sort((a: RoundDto, b: RoundDto) => a.number - b.number);
-  }
-
-  sorted_player_name(
-    guesses: Record<string, string> | undefined | null,
-  ): string[] {
-    if (!guesses) return [];
-    return Object.keys(guesses).sort((a: string, b: string) =>
-      a.localeCompare(b),
-    );
-  }
-
   sorted_player_names_from_players(players: GameDto['players']): string[] {
     return players
       .map((p) => p.name)
       .filter((n) => n.length > 0)
       .sort((a, b) => a.localeCompare(b));
-  }
-
-  sorted_player_names_for_round(
-    game: GameDto,
-    round: GameDto['rounds'][number],
-  ): string[] {
-    const names = this.sorted_player_names_from_players(game?.players ?? []);
-    return names.filter(
-      (n) =>
-        round?.guesses &&
-        Object.prototype.hasOwnProperty.call(round.guesses, n),
-    );
   }
 
   backToGames(): void {
