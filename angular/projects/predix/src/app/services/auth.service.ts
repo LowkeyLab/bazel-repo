@@ -40,13 +40,13 @@ export class AuthService {
 
   login(): void {
     this.authorizer.authorize({
-      response_type: ResponseTypes.Code,
+      response_type: ResponseTypes.Token,
     });
   }
 
   register(): void {
     this.authorizer.authorize({
-      response_type: ResponseTypes.Code,
+      response_type: ResponseTypes.Token,
     });
   }
 
@@ -63,39 +63,21 @@ export class AuthService {
   }
 
   private restoreSession(): void {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken =
+      searchParams.get('access_token') || hashParams.get('access_token');
 
-    if (code) {
-      from(
-        this.authorizer.getToken({
-          code,
-          grant_type: 'authorization_code',
-        }),
-      ).subscribe({
-        next: (res: any) => {
-          if (res.access_token) {
-            this.fetchProfile(res.access_token);
+    if (accessToken) {
+      this.fetchProfile(accessToken);
 
-            // Clean URL
-            window.history.replaceState(
-              {},
-              document.title,
-              window.location.pathname,
-            );
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
 
-            // Handle redirect
-            const redirectTo =
-              localStorage.getItem(this.redirectKey) || '/circles';
-            localStorage.removeItem(this.redirectKey);
-            this.router.navigateByUrl(redirectTo);
-          }
-        },
-        error: (err) => {
-          console.error('Failed to exchange code', err);
-          this.checkExistingSession();
-        },
-      });
+      // Handle redirect
+      const redirectTo = localStorage.getItem(this.redirectKey) || '/circles';
+      localStorage.removeItem(this.redirectKey);
+      this.router.navigateByUrl(redirectTo);
       return;
     }
 
@@ -156,7 +138,7 @@ export class AuthService {
     return {
       id: user.id,
       username: user.email || user.id,
-      role: user.roles ? user.roles[0] : 'member',
+      role: user.roles,
     };
   }
 }
