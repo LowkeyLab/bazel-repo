@@ -6,7 +6,7 @@ export interface Circle {
 }
 
 export interface CircleMember {
-  user_id: number;
+  user_id: number | string;
   username: string;
   clout: number;
 }
@@ -16,5 +16,5 @@ export interface CreateCircleRequest {
 }
 
 export interface AddMemberRequest {
-  user_id: number;
+  user_id: number | string;
 }

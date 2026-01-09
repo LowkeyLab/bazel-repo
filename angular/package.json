@@ -28,7 +28,9 @@
     "@angular/forms": "catalog:",
     "@angular/platform-browser": "catalog:",
     "@angular/router": "catalog:",
+    "@authorizerdev/authorizer-js": "catalog:",
     "canvas-confetti": "catalog:",
+    "cross-fetch": "3.2.0",
     "rxjs": "catalog:",
     "tslib": "catalog:",
     "zone.js": "catalog:"

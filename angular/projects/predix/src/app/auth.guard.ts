@@ -11,8 +11,9 @@ export const authGuard: CanActivateFn = (_route, state) => {
     return true;
   }
 
-  const redirectTo =
-    state.url && state.url !== '/login' ? state.url : '/circles';
+  // Redirect to login page which will trigger Authorizer flow
+  // Pass the current URL so we can return after login
+  const redirectTo = state.url;
   router.navigate(['/login'], {
     queryParams: { redirectTo },
   });

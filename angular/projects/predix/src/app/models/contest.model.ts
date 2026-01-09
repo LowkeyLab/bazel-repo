@@ -3,7 +3,7 @@ export type ContestStatus = 'OPEN' | 'LOCKED' | 'CLOSED' | 'RESOLVED';
 export interface Contest {
   id: number;
   circle_id: number;
-  creator_id: number;
+  creator_id: number | string;
   question: string;
   options: ContestOption[];
   predictions: Prediction[];
@@ -33,7 +33,7 @@ export interface ContestOption {
 }
 
 export interface Prediction {
-  user_id: number;
+  user_id: number | string;
   option_id: number;
   clout: number;
   timestamp: string;
@@ -57,7 +57,7 @@ export interface ResolveContestRequest {
 }
 
 export interface PayoutRecord {
-  user_id: number;
+  user_id: number | string;
   username: string;
   stake: number;
   share: number;

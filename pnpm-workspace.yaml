@@ -7,14 +7,15 @@ catalog:
   '@angular/build': ^21.0.1
   '@angular/cli': ^21.0.3
   '@angular/common': ^21.0.3
-  '@angular/compiler': ^21.0.3
   '@angular/compiler-cli': ^21.0.2
+  '@angular/compiler': ^21.0.3
   '@angular/core': ^21.0.3
   '@angular/forms': ^21.0.3
   '@angular/platform-browser': ^21.0.3
   '@angular/router': ^21.0.3
   '@astrojs/check': ^0.9.6
   '@astrojs/ts-plugin': ^1.10.4
+  '@authorizerdev/authorizer-js': ^2.0.3
   '@eslint/js': ^9.39.1
   '@tailwindcss/cli': ^4.1.17
   '@tailwindcss/postcss': ^4.1.17
@@ -28,17 +29,17 @@ catalog:
   astro: ^5.5.6
   canvas-confetti: ^1.9.4
   daisyui: ^5.5.5
-  eslint: ^9.39.1
   eslint-plugin-astro: ^1.5.0
+  eslint: ^9.39.1
   jasmine-core: ~5.13.0
   jsdom: ^27.1.0
-  karma: ~6.4.0
   karma-chrome-launcher: ~3.2.0
   karma-coverage: ~2.2.0
-  karma-jasmine: ~5.1.0
   karma-jasmine-html-reporter: ~2.1.0
-  postcss: ^8.5.3
+  karma-jasmine: ~5.1.0
+  karma: ~6.4.0
   postcss-cli: ^11.0.1
+  postcss: ^8.5.3
   prettier: ^3.7.4
   rxjs: ~7.8.0
   sharp: ^0.34.2
@@ -46,8 +47,8 @@ catalog:
   tailwindcss: ^4.1.17
   tsconfig-to-swcconfig: 2.8.1
   tslib: ^2.3.0
-  typescript: ~5.9.3
   typescript-eslint: ^8.49.0
+  typescript: ~5.9.3
   vite: ^7.0.0
   vitest: ^4.0.0
   zone.js: ~0.16.0
