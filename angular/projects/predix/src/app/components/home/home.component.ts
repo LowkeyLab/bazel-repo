@@ -18,17 +18,13 @@ export class HomeComponent {
   private readonly auth = inject(AuthService);
 
   protected readonly primaryCta = computed(() =>
-    this.auth.isAuthenticated() ? '/circles' : '/register',
+    this.auth.isAuthenticated() ? '/circles' : '/login',
   );
   protected readonly secondaryCta = computed(() =>
     this.auth.isAuthenticated() ? '/contests' : '/login',
   );
-  protected readonly primaryLabel = computed(() =>
-    this.auth.isAuthenticated() ? 'Open your circles' : 'Create your account',
-  );
-  protected readonly secondaryLabel = computed(() =>
-    this.auth.isAuthenticated() ? 'Browse contests' : 'Sign in to preview',
-  );
+  protected readonly primaryLabel = computed(() => 'Start a circle');
+  protected readonly secondaryLabel = computed(() => 'Browse contests');
 
   protected readonly highlights = [
     {
