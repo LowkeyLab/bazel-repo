@@ -23,6 +23,7 @@ This guide covers Angular development within this Bazel monorepo. For repo-wide 
 ## Project Guides
 
 - Mindreadr: see `angular/projects/mindreadr/AGENTS.md`
+- Predix: see `angular/projects/predix/AGENTS.md`
 
 Note: Additional Angular projects live under `angular/projects/<name>/` and should include their own `AGENTS.md`.
 
