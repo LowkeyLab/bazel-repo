@@ -9,13 +9,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = auth.token();
   const isApiRequest = req.url.startsWith(environment.apiUrl);
 
-  if (token && isApiRequest) {
-    req = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  if (!isApiRequest) {
+    return next(req);
   }
+
+  if (!token) {
+    return next(req);
+  }
+
+  req = req.clone({
+    setHeaders: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   return next(req);
 };

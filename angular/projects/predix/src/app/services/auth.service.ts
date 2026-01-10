@@ -34,20 +34,18 @@ export class AuthService {
   readonly currentUser = this.currentUserSignal.asReadonly();
   readonly token = this.tokenSignal.asReadonly();
 
-  constructor() {
-    this.restoreSession();
-  }
-
   login(): void {
+    const loggedIn = this.tokenSignal();
+    if (loggedIn) {
+      return;
+    }
     this.authorizer.authorize({
       response_type: ResponseTypes.Token,
     });
   }
 
-  register(): void {
-    this.authorizer.authorize({
-      response_type: ResponseTypes.Token,
-    });
+  loginWithToken(token: string): void {
+    this.fetchProfile(token);
   }
 
   logout(): void {
@@ -60,53 +58,6 @@ export class AuthService {
 
   isAuthenticated(): boolean {
     return !!this.tokenSignal();
-  }
-
-  private restoreSession(): void {
-    const searchParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken =
-      searchParams.get('access_token') || hashParams.get('access_token');
-
-    if (accessToken) {
-      this.fetchProfile(accessToken);
-
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-
-      // Handle redirect
-      const redirectTo =
-        this.localStorageService.getPostLoginRedirect() || '/circles';
-      this.localStorageService.removePostLoginRedirect();
-      this.router.navigateByUrl(redirectTo);
-      return;
-    }
-
-    this.checkExistingSession();
-  }
-
-  private checkExistingSession(): void {
-    const authData = this.localStorageService.getAuthData();
-    if (authData) {
-      this.currentUserSignal.set(authData.user);
-      this.tokenSignal.set(authData.token);
-    }
-
-    from(this.authorizer.getSession()).subscribe({
-      next: (res: any) => {
-        if (res.user && res.access_token) {
-          const mappedUser = this.mapUser(res.user);
-          this.persistSession({ token: res.access_token, user: mappedUser });
-        } else if (res.errors && res.errors.length > 0) {
-          if (this.tokenSignal()) {
-            this.logout();
-          }
-        }
-      },
-      error: () => {
-        // keep local state if network error, or handle otherwise
-      },
-    });
   }
 
   private fetchProfile(accessToken: string): void {
