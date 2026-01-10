@@ -7,6 +7,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
+import { LocalStorageService } from '../../services/local-storage.service';
 
 @Component({
   selector: 'login',
@@ -18,6 +19,7 @@ export class LoginComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly localStorageService = inject(LocalStorageService);
 
   ngOnInit(): void {
     if (this.auth.isAuthenticated()) {
@@ -28,7 +30,7 @@ export class LoginComponent implements OnInit {
   protected onLogin(): void {
     const redirectTo = this.route.snapshot.queryParamMap.get('redirectTo');
     if (redirectTo) {
-      localStorage.setItem('post_login_redirect', redirectTo);
+      this.localStorageService.setPostLoginRedirect(redirectTo);
     }
     this.auth.login();
   }

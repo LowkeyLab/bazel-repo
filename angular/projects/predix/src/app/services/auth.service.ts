@@ -5,6 +5,7 @@ import { Authorizer, ResponseTypes } from '@authorizerdev/authorizer-js';
 
 import { environment } from '../../environments/environment';
 import { UserId } from '../models/user.model';
+import { LocalStorageService } from '../services/local-storage.service';
 
 export interface AuthUser {
   id: UserId;
@@ -26,8 +27,7 @@ export class AuthService {
     clientID: environment.authorizer.clientID,
   });
 
-  private readonly storageKey = 'predix_auth';
-  private readonly redirectKey = 'post_login_redirect';
+  private readonly localStorageService = inject(LocalStorageService);
   private readonly currentUserSignal = signal<AuthUser | null>(null);
   private readonly tokenSignal = signal<string | null>(null);
 
@@ -54,7 +54,7 @@ export class AuthService {
     this.authorizer.logout();
     this.currentUserSignal.set(null);
     this.tokenSignal.set(null);
-    localStorage.removeItem(this.storageKey);
+    this.localStorageService.removeAuthData();
     window.location.href = '/';
   }
 
@@ -75,8 +75,9 @@ export class AuthService {
       window.history.replaceState({}, document.title, window.location.pathname);
 
       // Handle redirect
-      const redirectTo = localStorage.getItem(this.redirectKey) || '/circles';
-      localStorage.removeItem(this.redirectKey);
+      const redirectTo =
+        this.localStorageService.getPostLoginRedirect() || '/circles';
+      this.localStorageService.removePostLoginRedirect();
       this.router.navigateByUrl(redirectTo);
       return;
     }
@@ -85,15 +86,10 @@ export class AuthService {
   }
 
   private checkExistingSession(): void {
-    const raw = localStorage.getItem(this.storageKey);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as LoginResponse;
-        this.currentUserSignal.set(parsed.user);
-        this.tokenSignal.set(parsed.token);
-      } catch (err) {
-        localStorage.removeItem(this.storageKey);
-      }
+    const authData = this.localStorageService.getAuthData();
+    if (authData) {
+      this.currentUserSignal.set(authData.user);
+      this.tokenSignal.set(authData.token);
     }
 
     from(this.authorizer.getSession()).subscribe({
@@ -131,7 +127,7 @@ export class AuthService {
   private persistSession(res: LoginResponse): void {
     this.currentUserSignal.set(res.user);
     this.tokenSignal.set(res.token);
-    localStorage.setItem(this.storageKey, JSON.stringify(res));
+    this.localStorageService.setAuthData(res);
   }
 
   private mapUser(user: any): AuthUser {
