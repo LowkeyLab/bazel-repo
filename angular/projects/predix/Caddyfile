@@ -7,5 +7,14 @@
 	handle {
 		try_files {path} /index.html
 		file_server
+
+		header {
+			Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline';"
+
+			# Other essential security headers
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+		}
 	}
 }
