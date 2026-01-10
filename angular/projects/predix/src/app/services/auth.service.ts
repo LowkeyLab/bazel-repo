@@ -1,7 +1,13 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
-import { from } from 'rxjs';
-import { Authorizer, ResponseTypes } from '@authorizerdev/authorizer-js';
+import { from, map, switchMap } from 'rxjs';
+import {
+  ApiResponse,
+  Authorizer,
+  AuthorizeResponse,
+  GetTokenResponse,
+  ResponseTypes,
+  User,
+} from '@authorizerdev/authorizer-js';
 
 import { environment } from '../../environments/environment';
 import { UserId } from '../models/user.model';
@@ -15,15 +21,20 @@ export interface AuthUser {
 
 export interface LoginResponse {
   token: string;
+  refresh_token: string;
   user: AuthUser;
+}
+
+interface TokenLoginResponse {
+  access_token: string;
+  refresh_token: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly router = inject(Router);
   private readonly authorizer = new Authorizer({
     authorizerURL: environment.authorizer.authorizerURL,
-    redirectURL: environment.authorizer.redirectURL,
+    redirectURL: window.location.origin + '/login',
     clientID: environment.authorizer.clientID,
   });
 
@@ -35,17 +46,62 @@ export class AuthService {
   readonly token = this.tokenSignal.asReadonly();
 
   login(): void {
-    const loggedIn = this.tokenSignal();
-    if (loggedIn) {
+    if (this.isAuthenticated()) {
       return;
     }
-    this.authorizer.authorize({
-      response_type: ResponseTypes.Token,
-    });
-  }
+    from(
+      this.authorizer.authorize({
+        response_type: ResponseTypes.Token,
+        use_refresh_token: true,
+      }),
+    )
+      .pipe(
+        map((res: ApiResponse<GetTokenResponse | AuthorizeResponse>) => {
+          if (res.errors || !res.data) {
+            throw new Error('Login failed');
+          }
 
-  loginWithToken(token: string): void {
-    this.fetchProfile(token);
+          let data = res.data;
+
+          if ('access_token' in data) {
+            return {
+              access_token: data.access_token,
+              refresh_token: data.refresh_token!,
+            } as TokenLoginResponse;
+          } else {
+            throw new Error('Invalid token response');
+          }
+        }),
+        switchMap((tokenRes: TokenLoginResponse) =>
+          from(
+            this.authorizer.getProfile({
+              Authorization: `Bearer ${tokenRes.access_token}`,
+            }),
+          ).pipe(
+            map((profileRes: ApiResponse<User>) => {
+              if (profileRes.errors || !profileRes.data) {
+                throw new Error('Failed to fetch user profile');
+              }
+
+              const user: AuthUser = this.mapUser(profileRes.data);
+
+              return {
+                token: tokenRes.access_token,
+                refresh_token: tokenRes.refresh_token,
+                user,
+              } as LoginResponse;
+            }),
+          ),
+        ),
+      )
+      .subscribe({
+        next: (res: LoginResponse) => {
+          this.persistSession(res);
+        },
+        error: () => {
+          this.logout();
+        },
+      });
   }
 
   logout(): void {
@@ -57,22 +113,7 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.tokenSignal();
-  }
-
-  private fetchProfile(accessToken: string): void {
-    from(
-      this.authorizer.getProfile({
-        Authorization: `Bearer ${accessToken}`,
-      }),
-    ).subscribe({
-      next: (res: any) => {
-        if (res && !res.errors) {
-          const user = this.mapUser(res);
-          this.persistSession({ token: accessToken, user });
-        }
-      },
-    });
+    return !!this.currentUserSignal();
   }
 
   private persistSession(res: LoginResponse): void {

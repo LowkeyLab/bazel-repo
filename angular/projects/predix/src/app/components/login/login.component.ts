@@ -24,24 +24,21 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     const redirectTo =
       this.localStorageService.getPostLoginRedirect() || '/circles';
-    const token = this.route.snapshot.queryParamMap.get('token');
-
-    if (token) {
-      this.auth.loginWithToken(token);
-    }
 
     if (this.auth.isAuthenticated()) {
       this.router.navigateByUrl(redirectTo);
+      this.localStorageService.removePostLoginRedirect();
     }
-
-    this.localStorageService.removePostLoginRedirect();
   }
 
   protected onLogin(): void {
-    const redirectTo = this.route.snapshot.queryParamMap.get('redirectTo');
+    const redirectTo =
+      this.route.snapshot.queryParamMap.get('redirectTo') || '/circles';
     if (redirectTo) {
       this.localStorageService.setPostLoginRedirect(redirectTo);
     }
     this.auth.login();
+    this.router.navigateByUrl(redirectTo);
+    this.localStorageService.removePostLoginRedirect();
   }
 }
