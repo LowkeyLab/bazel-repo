@@ -1,9 +1,6 @@
 :80 {
 	log
 	root * /app/browser
-	handle /health {
-		respond "OK" 200
-	}
 	handle {
 		try_files {path} /index.html
 		file_server
