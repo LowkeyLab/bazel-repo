@@ -1,11 +1,9 @@
-[workspace]
-members = ["nicknamer/migration", "nicknamer/server"]
-resolver = "2"
-
-[workspace.package]
+[package]
+name = "workspace"
+version = "0.1.0"
 edition = "2024"
 
-[workspace.dependencies]
+[dependencies]
 # Regular dependencies
 anyhow = "1.0.100"
 askama = "0.14.0"
