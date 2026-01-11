@@ -405,6 +405,19 @@ func (c *Contest) CalculatePayoutBreakdown() ([]*PayoutRecord, []*PayoutRecord, 
 	return winners, losers, nil
 }
 
+// CalculateRefunds returns all predictions as full refunds (100% of each prediction).
+// This is typically used when a contest is closed without resolution (expired).
+func (c *Contest) CalculateRefunds() map[user.ID]int {
+	refunds := make(map[user.ID]int)
+
+	// Sum all predictions by user (in case user has multiple predictions on different options)
+	for _, pred := range c.Predictions {
+		refunds[pred.UserID] += pred.Clout
+	}
+
+	return refunds
+}
+
 func normalizeMinStake(minStake int) (int, error) {
 	if minStake == 0 {
 		return minStakeDefault, nil
