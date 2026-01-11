@@ -45,7 +45,7 @@ utoipa = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "debug-embed"] }
 uuid = { version = "1.18.1", features = ["v4"] }
 
-# Dev dependencies
+[dev-dependencies]
 insta = { version = "1.43.2", features = ["yaml"] }
 mockall = "0.13.1"
 regex = "1.11.3"
