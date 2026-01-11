@@ -18,6 +18,8 @@
 
 # End of https://www.toptal.com/developers/gitignore/api/bazel
 
+# Rust
+/target/
 rust-project.json
 
 # Node.js and npm/pnpm

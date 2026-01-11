@@ -303,6 +303,10 @@ register_toolchains("//:kotlin_toolchain")
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
+    versions = [
+        "1.92.0",
+        "nightly/2026-01-11",
+    ],
 )
 use_repo(rust, "rust_toolchains")
 
@@ -324,124 +328,10 @@ crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 
 inject_repo(crate, "swagger_ui")
 
-# Regular dependencies
-crate.spec(
-    package = "anyhow",
-    version = "1.0.100",
-)
-crate.spec(
-    package = "askama",
-    version = "0.14.0",
-)
-crate.spec(
-    package = "axum",
-    version = "0.8.6",
-)
-crate.spec(
-    features = ["cookie"],
-    package = "axum-extra",
-    version = "0.10.3",
-)
-crate.spec(
-    package = "chrono",
-    version = "0.4.42",
-)
-crate.spec(
-    package = "config",
-    version = "0.15.18",
-)
-crate.spec(
-    features = ["aws_lc_rs"],
-    package = "jsonwebtoken",
-    version = "10.0.0",
-)
-crate.spec(
-    features = [
-        "sqlx-postgres",
-        "runtime-tokio-rustls",
-        "macros",
-    ],
-    package = "sea-orm",
-    version = "1.1.16",
-)
-crate.spec(
-    default_features = False,
-    features = [
-        "runtime-tokio-rustls",
-        "sqlx-postgres",
-        "cli",
-    ],
-    package = "sea-orm-migration",
-    version = "1.1.0",
-)
-crate.spec(
-    package = "serde",
-    version = "1.0.228",
-)
-crate.spec(
-    package = "serde_json",
-    version = "1.0.145",
-)
-crate.spec(
-    package = "serde_yaml",
-    version = "0.9.34",
-)
-crate.spec(
-    package = "thiserror",
-    version = "2.0.17",
-)
-crate.spec(
-    package = "time",
-    version = "0.3.44",
-)
-crate.spec(
-    default_features = False,
-    features = [
-        "macros",
-        "net",
-        "rt-multi-thread",
-    ],
-    package = "tokio",
-    version = "1.47.1",
-)
-crate.spec(
-    features = ["util"],
-    package = "tower",
-    version = "0.5.2",
-)
-crate.spec(
-    features = [
-        "trace",
-        "cors",
-        "sensitive-headers",
-    ],
-    package = "tower-http",
-    version = "0.6.6",
-)
-crate.spec(
-    package = "tracing",
-    version = "0.1.41",
-)
-crate.spec(
-    package = "tracing-futures",
-    version = "0.2.5",
-)
-crate.spec(
-    package = "tracing-subscriber",
-    version = "0.3.20",
-)
-crate.spec(
-    features = ["axum_extras"],
-    package = "utoipa",
-    version = "5.4.0",
-)
-crate.spec(
-    features = [
-        "axum",
-        "debug-embed",
-    ],
-    package = "utoipa-swagger-ui",
-    version = "9.0.2",
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
 )
 crate.annotation(
     additive_build_file_content = """
@@ -462,32 +352,6 @@ filegroup(
         "CARGO_MANIFEST_DIR": "$(execpath :dist)/..",
     },
 )
-crate.spec(
-    features = ["v4"],
-    package = "uuid",
-    version = "1.18.1",
-)
-
-# Dev dependencies
-crate.spec(
-    features = ["yaml"],
-    package = "insta",
-    version = "1.43.2",
-)
-crate.spec(
-    package = "mockall",
-    version = "0.13.1",
-)
-crate.spec(
-    package = "regex",
-    version = "1.11.3",
-)
-crate.spec(
-    features = ["postgres"],
-    package = "testcontainers-modules",
-    version = "0.13.0",
-)
-crate.from_specs()
 use_repo(crate, "crates")
 
 #########################

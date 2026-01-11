@@ -71,6 +71,8 @@ js_library(
 # gazelle:exclude ktor_tutorial/*
 # gazelle:exclude mindreadr/*
 # gazelle:exclude nicknamer/*
+# gazelle:rust_cargo_lockfile Cargo.lock
+# gazelle:rust_crates_prefix @crates//:
 gazelle(
     name = "gazelle",
     gazelle = ":gazelle_bin",
