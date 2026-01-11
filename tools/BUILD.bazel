@@ -52,6 +52,7 @@ bazel_env(
         "dlv": "@com_github_go_delve_delve//cmd/dlv:dlv",
         "govulncheck": "@org_golang_x_vuln//cmd/govulncheck:govulncheck",
         "prettier": "//tools/format:prettier",
+        "cargo": "@rules_rust//tools/upstream_wrapper:cargo",
     } | LOCAL_TOOLS | MULTITOOLS,
 )
 

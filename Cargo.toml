@@ -1,0 +1,52 @@
+[package]
+name = "workspace"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Regular dependencies
+anyhow = "1.0.100"
+askama = "0.14.0"
+axum = "0.8.6"
+axum-extra = { version = "0.10.3", features = ["cookie"] }
+chrono = "0.4.42"
+config = "0.15.18"
+jsonwebtoken = { version = "10.0.0", features = ["aws_lc_rs"] }
+sea-orm = { version = "1.1.16", features = [
+    "sqlx-postgres",
+    "runtime-tokio-rustls",
+    "macros",
+] }
+sea-orm-migration = { version = "1.1.0", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "sqlx-postgres",
+    "cli",
+] }
+serde = "1.0.228"
+serde_json = "1.0.145"
+serde_yaml = "0.9.34"
+thiserror = "2.0.17"
+time = "0.3.44"
+tokio = { version = "1.47.1", default-features = false, features = [
+    "macros",
+    "net",
+    "rt-multi-thread",
+] }
+tower = { version = "0.5.2", features = ["util"] }
+tower-http = { version = "0.6.6", features = [
+    "trace",
+    "cors",
+    "sensitive-headers",
+] }
+tracing = "0.1.41"
+tracing-futures = "0.2.5"
+tracing-subscriber = "0.3.20"
+utoipa = { version = "5.4.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "debug-embed"] }
+uuid = { version = "1.18.1", features = ["v4"] }
+
+[dev-dependencies]
+insta = { version = "1.43.2", features = ["yaml"] }
+mockall = "0.13.1"
+regex = "1.11.3"
+testcontainers-modules = { version = "0.13.0", features = ["postgres"] }
