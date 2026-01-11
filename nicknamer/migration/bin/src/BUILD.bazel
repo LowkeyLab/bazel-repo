@@ -1,13 +1,10 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
-package(default_visibility = ["//nicknamer"])
-
 rust_binary(
-    name = "bin",
-    srcs = ["src/main.rs"],
-    edition = "2021",
+    name = "main",
+    srcs = ["main.rs"],
     deps = [
-        "//nicknamer/migration/lib",
+        "@crates//:migration",
         "@crates//:sea-orm-migration",
         "@crates//:tokio",
     ],

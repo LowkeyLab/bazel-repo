@@ -1,0 +1,27 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "mod",
+    srcs = ["mod.rs"],
+    deps = [
+        "//nicknamer/server/lib/src/entities:name",
+        "@crates//:sea-orm",
+        "@crates//:serde_yaml",
+        "@crates//:thiserror",
+        "@crates//:tracing",
+    ],
+)
+
+rust_library(
+    name = "web",
+    srcs = ["web.rs"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:askama",
+        "@crates//:axum",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:thiserror",
+        "@crates//:tracing",
+    ],
+)

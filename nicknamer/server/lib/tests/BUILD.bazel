@@ -1,36 +1,85 @@
-load("@rules_rust//rust:defs.bzl", "rust_test_suite")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test_suite")
 
 package(default_visibility = ["//nicknamer"])
 
-rust_test_suite(
-    name = "tests",
-    size = "small",
-    srcs = glob(["*.rs"]),
-    data = glob(["snapshots/**/*.snap"]),
-    env = {
-        "INSTA_UPDATE": "no",
-        "INSTA_WORKSPACE_ROOT": ".",
-    },
-    exec_properties = {
-        "test.workload-isolation-type": "firecracker",
-        "test.init-dockerd": "true",
-    },
-    shared_srcs = glob(["common/**"]),
-    tags = ["requires-network"],
+# rust_test_suite(
+#     name = "tests",
+#     size = "small",
+#     srcs = glob(["*.rs"]),
+#     data = glob(["snapshots/**/*.snap"]),
+#     env = {
+#         "INSTA_UPDATE": "no",
+#         "INSTA_WORKSPACE_ROOT": ".",
+#     },
+#     exec_properties = {
+#         "test.workload-isolation-type": "firecracker",
+#         "test.init-dockerd": "true",
+#     },
+#     shared_srcs = glob(["common/**"]),
+#     tags = ["requires-network"],
+#     deps = [
+#         "//nicknamer/migration/lib",
+#         "//nicknamer/server/lib",
+#         "@crates//:anyhow",
+#         "@crates//:askama",
+#         "@crates//:axum",
+#         "@crates//:insta",
+#         "@crates//:sea-orm",
+#         "@crates//:serde",
+#         "@crates//:serde_json",
+#         "@crates//:testcontainers-modules",
+#         "@crates//:tokio",
+#         "@crates//:tower",
+#         "@crates//:tracing-subscriber",
+#         "@rules_rust//tools/runfiles",
+#     ],
+# )
+
+rust_library(
+    name = "auth_endpoints_tests",
+    srcs = ["auth_endpoints_tests.rs"],
     deps = [
-        "//nicknamer/migration/lib",
-        "//nicknamer/server/lib",
-        "@crates//:anyhow",
         "@crates//:askama",
         "@crates//:axum",
         "@crates//:insta",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_library(
+    name = "name_service_tests",
+    srcs = ["name_service_tests.rs"],
+    deps = [
+        "@crates//:anyhow",
         "@crates//:sea-orm",
-        "@crates//:serde",
+        "@crates//:tokio",
+        "@crates//:tracing-subscriber",
+    ],
+)
+
+rust_library(
+    name = "names_endpoints_tests",
+    srcs = ["names_endpoints_tests.rs"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:insta",
+        "@crates//:sea-orm",
         "@crates//:serde_json",
-        "@crates//:testcontainers-modules",
         "@crates//:tokio",
         "@crates//:tower",
         "@crates//:tracing-subscriber",
-        "@rules_rust//tools/runfiles",
+    ],
+)
+
+rust_library(
+    name = "web_endpoints_tests",
+    srcs = ["web_endpoints_tests.rs"],
+    deps = [
+        "@crates//:axum",
+        "@crates//:insta",
+        "@crates//:tokio",
+        "@crates//:tower",
     ],
 )

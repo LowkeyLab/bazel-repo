@@ -1,0 +1,16 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "mod",
+    srcs = ["mod.rs"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:migration",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)
