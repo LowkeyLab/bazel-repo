@@ -117,31 +117,6 @@
       }
     ]
   },
-  "gazelle": {
-    "binaries": [
-      {
-        "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.147+7666d01/gazelle-linux_arm64_cgo",
-        "sha256": "d84cabd87d6ddc939b8d5d8b8ea465f79dfd9097bbe8abfc42dda06d210bd744",
-        "os": "linux",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.147+7666d01/gazelle-linux_amd64_cgo",
-        "sha256": "564b7d0aaa67de99444e0b26e44c5b27b9880b9ec8c6218f683951e4ec9d1f58",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-gazelle/releases/download/2025.40.147+7666d01/gazelle-darwin_arm64_cgo",
-        "sha256": "47b5960b3bc20012ae969c8d0e7ec8e4d811a0e4e5f3b1912f9af6841c350d79",
-        "os": "macos",
-        "cpu": "arm64"
-      }
-    ]
-  },
   "ibazel": {
     "binaries": [
       {
