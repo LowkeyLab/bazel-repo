@@ -27,8 +27,11 @@ export class App {
     this.auth.isAuthenticated(),
   );
 
+  protected login(): void {
+    this.auth.login();
+  }
+
   protected logout(): void {
     this.auth.logout();
-    this.router.navigate(['/login']);
   }
 }

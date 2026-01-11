@@ -15,16 +15,14 @@ import { AuthService } from '../../services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent {
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
 
-  protected readonly primaryCta = computed(() =>
-    this.auth.isAuthenticated() ? '/circles' : '/login',
-  );
-  protected readonly secondaryCta = computed(() =>
-    this.auth.isAuthenticated() ? '/contests' : '/login',
-  );
   protected readonly primaryLabel = computed(() => 'Start a circle');
   protected readonly secondaryLabel = computed(() => 'Browse contests');
+
+  protected login(): void {
+    this.auth.login();
+  }
 
   protected readonly highlights = [
     {
