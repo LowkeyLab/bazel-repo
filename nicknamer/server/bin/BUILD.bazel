@@ -1,0 +1,55 @@
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+package(default_visibility = ["//nicknamer"])
+
+rust_binary(
+    name = "bin",
+    srcs = ["src/main.rs"],
+    deps = [
+        "//nicknamer/server/lib",
+        "@crates//:anyhow",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
+)
+
+# Docker Image Targets
+# ===================
+
+# Package the binary into a tar layer
+pkg_tar(
+    name = "nicknamer_layer",
+    srcs = [":bin"],
+)
+
+# Create a container image with the nicknamer server
+oci_image(
+    name = "nicknamer_image",
+    base = "@distroless_cc",
+    entrypoint = ["/bin"],
+    tars = [":nicknamer_layer"],
+)
+
+# Alias for easier building
+alias(
+    name = "image",
+    actual = ":nicknamer_image",
+)
+
+# Push the image to GitHub Container Registry
+oci_push(
+    name = "push_image",
+    image = ":nicknamer_image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/nicknamer_server",
+)
+
+# Load the image into the local Docker daemon
+oci_load(
+    name = "load_image",
+    image = ":nicknamer_image",
+    repo_tags = ["local/nicknamer-server:latest"],
+)

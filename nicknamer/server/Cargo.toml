@@ -40,4 +40,4 @@ uuid = { workspace = true }
 insta = { workspace = true }
 mockall = { workspace = true }
 regex = { workspace = true }
-testcontainers-modules = { workspace = true }
+testcontainers-modules = { workspace = true }   

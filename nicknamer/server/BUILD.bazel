@@ -1,0 +1,12 @@
+package(default_visibility = ["//nicknamer"])
+
+# Convenience aliases for Docker operations
+alias(
+    name = "build_image",
+    actual = "//nicknamer/server/bin:image",
+)
+
+alias(
+    name = "push_image",
+    actual = "//nicknamer/server/bin:push_image",
+)

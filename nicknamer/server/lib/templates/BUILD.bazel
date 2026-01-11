@@ -1,6 +1,0 @@
-package(default_visibility = ["//nicknamer"])
-
-filegroup(
-    name = "templates",
-    srcs = glob(["**/*.html"]),
-)

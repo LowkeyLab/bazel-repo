@@ -15,6 +15,6 @@ sh_binary(
     srcs = ["run_locally.sh"],
     data = [
         ":compose_file",
-        "//nicknamer/server/bin/src:main",
+        "//nicknamer/server/bin",
     ],
 )

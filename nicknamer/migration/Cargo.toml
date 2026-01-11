@@ -2,14 +2,11 @@
 name = "migration"
 version = "0.1.0"
 publish = false
-edition = { workspace = true }
+edition = {workspace = true}
 
 [dependencies]
 sea-orm-migration = { workspace = true }
 tokio = { workspace = true }
-
-[dev-dependencies]
-async-trait = { workspace = true }
 
 [[bin]]
 name = "migration"
