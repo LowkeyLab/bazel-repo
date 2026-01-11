@@ -53,7 +53,7 @@ GAZELLE_RUST_COMMIT = "13d3e1277c4afef566310ae84dc0d2ba93e4d71a"
 
 GAZELLE_RUST_SHA256 = "sha256-Etkv2xNfgccuSuTP04E+J2rCrGnU7mo47ddhJoMXpjU="
 
-bazel_dep(name = "gazelle_rust", version = "0.1.0")
+bazel_dep(name = "gazelle_rust", version = "0.1.0", dev_dependency = True)
 archive_override(
     module_name = "gazelle_rust",
     integrity = GAZELLE_RUST_SHA256,
