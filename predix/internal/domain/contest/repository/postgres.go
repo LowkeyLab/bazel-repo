@@ -156,7 +156,7 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 	return contests, nil
 }
 
-// FindContestsToLock retrieves all contests that are OPEN and have passed their closes_at time.
+// FindContestsToLock retrieves all contests that are OPEN and have passed their locked_at time.
 func (r *Postgres) FindContestsToLock(ctx context.Context) ([]*contest.Contest, error) {
 	dbContests, err := r.q(ctx).FindContestsToLock(ctx)
 	if err != nil {
