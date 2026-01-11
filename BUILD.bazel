@@ -70,6 +70,7 @@ js_library(
 # gazelle:exclude angular/*
 # gazelle:exclude ktor_tutorial/*
 # gazelle:exclude mindreadr/*
+# gazelle:exclude nicknamer/*
 gazelle(
     name = "gazelle",
     gazelle = ":gazelle_bin",
