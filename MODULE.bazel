@@ -49,6 +49,18 @@ bazel_dep(name = "gazelle", version = "0.47.0")
 bazel_dep(name = "bazel_env.bzl", version = "0.5.0", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
 
+GAZELLE_RUST_COMMIT = "13d3e1277c4afef566310ae84dc0d2ba93e4d71a"
+
+GAZELLE_RUST_SHA256 = None
+
+bazel_dep(name = "gazelle_rust", version = "0.1.0")
+archive_override(
+    module_name = "gazelle_rust",
+    sha256 = GAZELLE_RUST_SHA256,
+    strip_prefix = "gazelle_rust-{}".format(GAZELLE_RUST_COMMIT),
+    url = "https://github.com/Calsign/gazelle_rust/archive/{}.zip".format(GAZELLE_RUST_COMMIT),
+)
+
 # Use at HEAD version of rules_angular until 0.2.0 is released
 bazel_dep(name = "rules_angular")
 git_override(
