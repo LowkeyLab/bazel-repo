@@ -59,6 +59,11 @@ type UserRepository interface {
 	circleservice.UserRepository
 }
 
+type ContestRepository interface {
+	circleservice.ContestRepository
+	contestcloser.ContestRepository
+}
+
 func (m *PostgresTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return db.RunInTx(ctx, m.pool, fn)
 }
@@ -82,7 +87,7 @@ func main() {
 	}
 
 	var userRepo UserRepository
-	var contestRepo circleservice.ContestRepository
+	var contestRepo ContestRepository
 	var circleRepo circleservice.CircleRepository
 	var txManager circleservice.TransactionManager
 
@@ -133,7 +138,7 @@ func main() {
 	// Start the contest closer goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go contestcloser.StartCloser(ctx, contestRepo.(contestcloser.ContestRepository), circleSvc, clk, 10*time.Minute)
+	go contestcloser.StartCloser(ctx, contestRepo, circleSvc, clk, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc)
