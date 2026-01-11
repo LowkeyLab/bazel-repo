@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
@@ -56,9 +55,6 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	var err error
 
 	if isNew {
-		// Convert house rake from float to string for DECIMAL column
-		houseRakeStr := fmt.Sprintf("%.2f", c.HouseRake*100) // e.g., 0.10 becomes "10.00"
-
 		// Create new contest
 		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
 			CircleID:  int32(c.CircleID),
@@ -66,7 +62,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			Question:  c.Question,
 			Status:    string(c.Status),
 			MinStake:  int32(c.MinStake),
-			HouseRake: houseRakeStr,
+			HouseRake: c.HouseRake,
 			CreatedAt: c.CreatedAt,
 			LockedAt:  c.LockedAt,
 			ExpiresAt: c.ExpiresAt,
@@ -241,14 +237,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 		minStake = defaultMinStake
 	}
 
-	// Parse house rake from string decimal (e.g., "10.00" becomes 0.10)
-	houseRake := 0.10 // default
-	if dbContest.HouseRake != "" {
-		houseRakeFloat, err := strconv.ParseFloat(dbContest.HouseRake, 64)
-		if err == nil {
-			houseRake = houseRakeFloat / 100.0 // Convert from percentage to decimal
-		}
-	}
+	houseRake := dbContest.HouseRake
 
 	return &contest.Contest{
 		ID:             contest.ID(dbContest.ID),

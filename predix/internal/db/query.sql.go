@@ -63,7 +63,7 @@ type CreateContestParams struct {
 	Question  string    `json:"question"`
 	Status    string    `json:"status"`
 	MinStake  int32     `json:"min_stake"`
-	HouseRake string    `json:"house_rake"`
+	HouseRake float64   `json:"house_rake"`
 	CreatedAt time.Time `json:"created_at"`
 	LockedAt  time.Time `json:"locked_at"`
 	ExpiresAt time.Time `json:"expires_at"`
