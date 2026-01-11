@@ -25,13 +25,27 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 	}
 }
 
+// q returns the queries object, using the transaction from the context if present.
+func (r *Postgres) q(ctx context.Context) *db.Queries {
+	if tx, ok := db.GetTx(ctx); ok {
+		return r.queries.WithTx(tx)
+	}
+	return r.queries
+}
+
 // Save persists a Circle and its members to the database.
 func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+	// Check if we are already in a transaction
+	tx, hasTx := db.GetTx(ctx)
+	if !hasTx {
+		// No external transaction, start one
+		var err error
+		tx, err = r.pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer tx.Rollback(ctx)
 	}
-	defer tx.Rollback(ctx)
 
 	qtx := r.queries.WithTx(tx)
 
@@ -60,8 +74,10 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+	if !hasTx {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
 	}
 
 	return nil
@@ -73,7 +89,7 @@ func (r *Postgres) AddMember(ctx context.Context, circleID circle.ID, member *ci
 		return fmt.Errorf("member cannot be nil")
 	}
 
-	err := r.queries.AddCircleMember(ctx, db.AddCircleMemberParams{
+	err := r.q(ctx).AddCircleMember(ctx, db.AddCircleMemberParams{
 		CircleID: int32(circleID),
 		UserID:   int32(member.UserID),
 		Clout:    int32(member.Clout),
@@ -87,13 +103,13 @@ func (r *Postgres) AddMember(ctx context.Context, circleID circle.ID, member *ci
 
 // FindByID retrieves a Circle and its members by ID.
 func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error) {
-	dbCircle, err := r.queries.GetCircle(ctx, int32(id))
+	dbCircle, err := r.q(ctx).GetCircle(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find circle by id: %w", err)
 	}
 
 	// Load members
-	dbMembers, err := r.queries.ListCircleMembers(ctx, int32(id))
+	dbMembers, err := r.q(ctx).ListCircleMembers(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load circle members: %w", err)
 	}
@@ -118,7 +134,7 @@ func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, 
 
 // FindByUserID retrieves all circles for a given user, ordered by creation date.
 func (r *Postgres) FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error) {
-	dbCircles, err := r.queries.ListUserCircles(ctx, userID)
+	dbCircles, err := r.q(ctx).ListUserCircles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find circles by user id: %w", err)
 	}
@@ -126,7 +142,7 @@ func (r *Postgres) FindByUserID(ctx context.Context, userID int32) ([]*circle.Ci
 	var circles []*circle.Circle
 	for _, dbCircle := range dbCircles {
 		// Load members for each circle
-		dbMembers, err := r.queries.ListCircleMembers(ctx, dbCircle.ID)
+		dbMembers, err := r.q(ctx).ListCircleMembers(ctx, dbCircle.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load circle members for circle %d: %w", dbCircle.ID, err)
 		}
@@ -154,7 +170,7 @@ func (r *Postgres) FindByUserID(ctx context.Context, userID int32) ([]*circle.Ci
 
 // Delete removes a circle and its related data.
 func (r *Postgres) Delete(ctx context.Context, id circle.ID) error {
-	if err := r.queries.DeleteCircle(ctx, int32(id)); err != nil {
+	if err := r.q(ctx).DeleteCircle(ctx, int32(id)); err != nil {
 		return fmt.Errorf("failed to delete circle: %w", err)
 	}
 
@@ -163,7 +179,7 @@ func (r *Postgres) Delete(ctx context.Context, id circle.ID) error {
 
 // UpdateMemberClout updates a member's clout balance in a circle.
 func (r *Postgres) UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error {
-	if err := r.queries.UpdateCircleMemberClout(ctx, db.UpdateCircleMemberCloutParams{
+	if err := r.q(ctx).UpdateCircleMemberClout(ctx, db.UpdateCircleMemberCloutParams{
 		CircleID: int32(circleID),
 		UserID:   userID,
 		Clout:    int32(newClout),
