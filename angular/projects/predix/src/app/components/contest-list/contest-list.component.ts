@@ -28,7 +28,7 @@ export class ContestListComponent implements OnInit {
   protected readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
     LOCKED: 'Locked (awaiting resolution)',
-    CLOSED: 'Closed (paused)',
+    EXPIRED: 'Expired (refunded)',
     RESOLVED: 'Resolved',
   };
 

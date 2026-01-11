@@ -52,7 +52,7 @@ describe('ContestService', () => {
         total_pot: 0,
         house_rake: 0,
         created_at: '2024-01-01T00:00:00Z',
-        closes_at: '2024-01-02T00:00:00Z',
+        locked_at: '2024-01-02T00:00:00Z',
         duration: '1d',
       };
 
@@ -118,7 +118,7 @@ describe('ContestService', () => {
           total_pot: 350,
           house_rake: 35,
           created_at: '2024-01-01T00:00:00Z',
-          closes_at: '2024-01-02T00:00:00Z',
+          locked_at: '2024-01-02T00:00:00Z',
           duration: '1d',
         };
 
@@ -144,7 +144,7 @@ describe('ContestService', () => {
       expect(service.getContest).toHaveBeenCalledTimes(2);
     });
 
-    it('should stop polling when contest status becomes CLOSED', () => {
+    it('should stop polling when contest status becomes EXPIRED', () => {
       scheduler.run(({ expectObservable }) => {
         const circleId = 1;
         const contestId = 42;
@@ -160,13 +160,13 @@ describe('ContestService', () => {
           total_pot: 0,
           house_rake: 0,
           created_at: '2024-01-01T00:00:00Z',
-          closes_at: '2024-01-02T00:00:00Z',
+          locked_at: '2024-01-02T00:00:00Z',
           duration: '1d',
         };
 
         const mockContestClosed: Contest = {
           ...mockContestOpen,
-          status: 'CLOSED',
+          status: 'EXPIRED',
         };
 
         let callCount = 0;
@@ -177,11 +177,11 @@ describe('ContestService', () => {
 
         const polling$ = service.pollContestDetails(circleId, contestId, 5);
 
-        // Should emit OPEN at 0ms, then CLOSED at 5ms and complete
+        // Should emit OPEN at 0ms, then EXPIRED at 5ms and complete
         const expectedMarble = 'a 4ms (b|)';
         const expectedValues = {
           a: jasmine.objectContaining({ status: 'OPEN' }),
-          b: jasmine.objectContaining({ status: 'CLOSED' }),
+          b: jasmine.objectContaining({ status: 'EXPIRED' }),
         };
 
         expectObservable(polling$).toBe(expectedMarble, expectedValues);
@@ -204,7 +204,7 @@ describe('ContestService', () => {
           total_pot: 0,
           house_rake: 0,
           created_at: '2024-01-01T00:00:00Z',
-          closes_at: '2024-01-02T00:00:00Z',
+          locked_at: '2024-01-02T00:00:00Z',
           duration: '1d',
         };
 

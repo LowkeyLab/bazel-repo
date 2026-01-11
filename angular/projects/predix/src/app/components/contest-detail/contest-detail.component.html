@@ -16,7 +16,7 @@
             class="badge"
             [class.badge-success]="contest.status === 'OPEN'"
             [class.badge-warning]="contest.status === 'LOCKED'"
-            [class.badge-neutral]="contest.status === 'CLOSED'"
+            [class.badge-neutral]="contest.status === 'EXPIRED'"
             [class.badge-info]="contest.status === 'RESOLVED'"
           >
             {{ statusLabels[contest.status] }}
@@ -31,9 +31,9 @@
             </p>
           </div>
           <div>
-            <p class="text-sm text-secondary">Expires</p>
+            <p class="text-sm text-secondary">Locks</p>
             <p class="font-semibold">
-              {{ contest.closes_at | date: "short" }}
+              {{ contest.locked_at | date: "short" }}
             </p>
           </div>
           <div>

@@ -43,7 +43,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     total_pot: 300,
     house_rake: 30,
     created_at: '2024-01-01T00:00:00Z',
-    closes_at: '2024-01-02T00:00:00Z',
+    locked_at: '2024-01-02T00:00:00Z',
     duration: '1d',
   };
 
@@ -253,10 +253,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
 
-    it('should not load payout breakdown when contest status is CLOSED', () => {
+    it('should not load payout breakdown when contest status is EXPIRED', () => {
       const closedContest: Contest = {
         ...mockResolvedContest,
-        status: 'CLOSED',
+        status: 'EXPIRED',
         result_option_id: undefined,
       };
       mockContestService.pollContestDetails.and.returnValue(
