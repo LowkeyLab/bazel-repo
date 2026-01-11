@@ -1,7 +1,7 @@
 """Targets in the repository root"""
 
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
@@ -68,17 +68,19 @@ js_library(
 # gazelle:exclude personal_website/*
 # gazelle:exclude tools/*
 # gazelle:exclude angular/*
+# gazelle:exclude ktor_tutorial/*
+# gazelle:exclude mindreadr/*
 gazelle(
     name = "gazelle",
-    env = {
-        "ENABLE_LANGUAGES": ",".join([
-            "starlark",
-            "proto",
-            "js",
-            "go",
-        ]),
-    },
-    gazelle = "@multitool//tools/gazelle",
+    gazelle = ":gazelle_bin",
+)
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = DEFAULT_LANGUAGES + [
+        "@contrib_rules_jvm//java/gazelle",
+        "@bazel_skylib_gazelle_plugin//bzl",
+    ],
 )
 
 ### Kotlin toolchain configuration
