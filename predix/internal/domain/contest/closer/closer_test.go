@@ -50,9 +50,9 @@ type MockExpirer struct {
 
 func (m *MockExpirer) ExpireContest(ctx context.Context, contestID contest.ID) error {
 	m.expiredContests = append(m.expiredContests, contestID)
-	// Simulate what the service does: close the contest
+	// Simulate what the service does: expire the contest
 	// In real service, it also refunds, but here we just check status update via this call
-	return m.repo.UpdateStatus(ctx, contestID, contest.StatusClosed)
+	return m.repo.UpdateStatus(ctx, contestID, contest.StatusExpired)
 }
 
 func TestCloser(t *testing.T) {
@@ -127,7 +127,7 @@ func TestCloser(t *testing.T) {
 			// Verify Status (updated by Mock)
 			updatedExpired, err := repo.FindByID(context.Background(), expired.ID)
 			require.NoError(t, err)
-			assert.Equal(t, contest.StatusClosed, updatedExpired.Status)
+			assert.Equal(t, contest.StatusExpired, updatedExpired.Status)
 
 			// Verify Just Locked is still Locked
 			updatedJustLocked, err := repo.FindByID(context.Background(), justLocked.ID)

@@ -257,7 +257,7 @@ func TestResolve(t *testing.T) {
 	}
 }
 
-func TestClose(t *testing.T) {
+func TestExpire(t *testing.T) {
 	circleID := circle.ID(1)
 	creatorID := user.ID(1)
 	now := time.Now()
@@ -270,19 +270,19 @@ func TestClose(t *testing.T) {
 		wantErrMsg string
 	}{
 		{
-			name:    "close open contest",
+			name:    "expire open contest",
 			setup:   func(c *contest.Contest) {},
 			wantErr: false,
 		},
 		{
-			name: "close locked contest",
+			name: "expire locked contest",
 			setup: func(c *contest.Contest) {
 				c.Lock()
 			},
 			wantErr: false,
 		},
 		{
-			name: "cannot close resolved contest",
+			name: "cannot expire resolved contest",
 			setup: func(c *contest.Contest) {
 				var optionID int
 				for id := range c.Options {
@@ -292,15 +292,15 @@ func TestClose(t *testing.T) {
 				c.Resolve(optionID)
 			},
 			wantErr:    true,
-			wantErrMsg: "cannot close a resolved contest",
+			wantErrMsg: "cannot expire a resolved contest",
 		},
 		{
-			name: "cannot close already closed contest",
+			name: "cannot expire already expired contest",
 			setup: func(c *contest.Contest) {
-				c.Close()
+				c.Expire()
 			},
 			wantErr:    true,
-			wantErrMsg: "contest is already closed",
+			wantErrMsg: "contest is already expired",
 		},
 	}
 
@@ -309,7 +309,7 @@ func TestClose(t *testing.T) {
 			c, _ := contest.New(clk, circleID, creatorID, "Q?", []string{"A", "B"}, contest.Duration1Hour, 10)
 			tt.setup(c)
 
-			err := c.Close()
+			err := c.Expire()
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error, got nil")
@@ -320,8 +320,8 @@ func TestClose(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				if c.Status != contest.StatusClosed {
-					t.Errorf("expected status Closed, got %s", c.Status)
+				if c.Status != contest.StatusExpired {
+					t.Errorf("expected status Expired, got %s", c.Status)
 				}
 			}
 		})

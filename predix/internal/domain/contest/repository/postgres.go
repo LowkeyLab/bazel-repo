@@ -66,7 +66,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			MinStake:  int32(c.MinStake),
 			HouseRake: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
 			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-			ClosesAt:  pgtype.Timestamp{Time: c.ClosesAt, Valid: true},
+			LockedAt:  pgtype.Timestamp{Time: c.LockedAt, Valid: true},
 			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 			Duration:  c.Duration,
 		})
@@ -259,7 +259,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 		HouseRake:      houseRake,
 		ResultOptionID: resultOptionID,
 		CreatedAt:      dbContest.CreatedAt.Time,
-		ClosesAt:       dbContest.ClosesAt.Time,
+		LockedAt:       dbContest.LockedAt.Time,
 		ExpiresAt:      dbContest.ExpiresAt.Time,
 		Duration:       dbContest.Duration,
 	}, nil

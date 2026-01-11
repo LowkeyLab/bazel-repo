@@ -82,7 +82,7 @@ func (r *Memory) FindContestsToLock(ctx context.Context) ([]*contest.Contest, er
 	now := time.Now()
 
 	for _, c := range r.contests {
-		if c.Status == contest.StatusOpen && !now.Before(c.ClosesAt) {
+		if c.Status == contest.StatusOpen && !now.Before(c.LockedAt) {
 			result = append(result, r.deepCopy(c))
 		}
 	}
@@ -135,7 +135,7 @@ func (r *Memory) deepCopy(c *contest.Contest) *contest.Contest {
 		Status:         c.Status,
 		MinStake:       minStake,
 		CreatedAt:      c.CreatedAt,
-		ClosesAt:       c.ClosesAt,
+		LockedAt:       c.LockedAt,
 		ExpiresAt:      c.ExpiresAt,
 		Duration:       c.Duration,
 		Options:        make(map[int]*contest.Option),

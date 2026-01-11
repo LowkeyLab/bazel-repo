@@ -315,8 +315,8 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID
 	return nil
 }
 
-// CloseAndRefundContestClout closes a contest without resolution and refunds all staked clout to the circle members.
-func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID contest.ID, closerID user.ID) error {
+// ExpireAndRefundContestClout expires a contest without resolution and refunds all staked clout to the circle members.
+func (s *Service) ExpireAndRefundContestClout(ctx context.Context, contestID contest.ID, closerID user.ID) error {
 	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
@@ -324,10 +324,10 @@ func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID cont
 
 	circleID := cont.CircleID
 
-	// Close the contest and get refunds
-	refunds, err := s.CloseContestAndCalculateRefunds(ctx, contestID, closerID)
+	// Expire the contest and get refunds
+	refunds, err := s.ExpireContestAndCalculateRefunds(ctx, contestID, closerID)
 	if err != nil {
-		return fmt.Errorf("failed to close contest: %w", err)
+		return fmt.Errorf("failed to expire contest: %w", err)
 	}
 
 	// Load circle to update member clout
@@ -456,8 +456,8 @@ func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contest
 	return payouts, nil
 }
 
-// CloseContestAndCalculateRefunds closes a contest without resolution and returns refunds.
-func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID contest.ID, closerID user.ID) (map[user.ID]int, error) {
+// ExpireContestAndCalculateRefunds expires a contest without resolution and returns refunds.
+func (s *Service) ExpireContestAndCalculateRefunds(ctx context.Context, contestID contest.ID, closerID user.ID) (map[user.ID]int, error) {
 	// Load contest from repository
 	c, err := s.contestRepo.FindByID(ctx, contestID)
 	if err != nil {
@@ -468,8 +468,8 @@ func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID
 		return nil, ErrNotContestCreator
 	}
 
-	// Use domain method to close
-	err = c.Close()
+	// Use domain method to expire
+	err = c.Expire()
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID
 	// Save updated contest
 	err = s.contestRepo.Save(ctx, c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save closed contest: %w", err)
+		return nil, fmt.Errorf("failed to save expired contest: %w", err)
 	}
 
 	return refunds, nil
@@ -498,8 +498,8 @@ func (s *Service) ExpireContest(ctx context.Context, contestID contest.ID) error
 
 		circleID := cont.CircleID
 
-		// Use domain method to close (validates state)
-		if err := cont.Close(); err != nil {
+		// Use domain method to expire (validates state)
+		if err := cont.Expire(); err != nil {
 			return err
 		}
 

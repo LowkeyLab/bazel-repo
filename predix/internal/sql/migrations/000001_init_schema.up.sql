@@ -31,7 +31,7 @@ CREATE TABLE contests (
     house_rake DECIMAL(5, 2) NOT NULL DEFAULT 10.00,
     result_option_id INT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    closes_at TIMESTAMP NOT NULL,
+    locked_at TIMESTAMP NOT NULL,
     duration TEXT NOT NULL CHECK (duration IN ('1h', '1d', '1w'))
 );
 
