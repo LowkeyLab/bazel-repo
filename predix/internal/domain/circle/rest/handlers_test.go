@@ -35,6 +35,14 @@ type circleResponseBody struct {
 	} `json:"members"`
 }
 
+type TestTxManager struct {
+	pool *pgxpool.Pool
+}
+
+func (m *TestTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return db.RunInTx(ctx, m.pool, fn)
+}
+
 func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Service, *db.Queries) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -42,7 +50,8 @@ func setupTestRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *service.Se
 	userRepo := userrepo.NewPostgres(pool)
 	contestRepo := contestrepo.NewPostgres(pool)
 	clk := clock.RealClock{}
-	svc := service.NewService(repo, userRepo, contestRepo, clk)
+	txm := &TestTxManager{pool: pool}
+	svc := service.NewService(repo, userRepo, contestRepo, clk, txm)
 	handler := NewHandler(svc)
 
 	r := gin.New()

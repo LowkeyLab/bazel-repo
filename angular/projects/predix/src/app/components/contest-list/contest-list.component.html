@@ -61,7 +61,7 @@
                   {{ contest.question }}
                 </h2>
                 <p class="text-sm text-secondary mb-3">
-                  Predictions close {{ contest.closes_at | date: "short" }}
+                  Predictions lock {{ contest.locked_at | date: "short" }}
                 </p>
                 <div class="flex gap-2 flex-wrap mb-2">
                   @for (option of contest.options; track option.id) {
@@ -74,7 +74,7 @@
                   class="badge"
                   [class.badge-success]="contest.status === 'OPEN'"
                   [class.badge-warning]="contest.status === 'LOCKED'"
-                  [class.badge-neutral]="contest.status === 'CLOSED'"
+                  [class.badge-neutral]="contest.status === 'EXPIRED'"
                   [class.badge-info]="contest.status === 'RESOLVED'"
                 >
                   {{ statusLabels[contest.status] }}

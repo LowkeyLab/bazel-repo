@@ -69,7 +69,7 @@ describe('ContestListComponent', () => {
     total_pot: 125,
     house_rake: 12,
     created_at: '2024-01-05T10:00:00Z', // Newest
-    closes_at: '2024-01-10T00:00:00Z',
+    locked_at: '2024-01-10T00:00:00Z',
     duration: '5d',
   };
 
@@ -97,7 +97,7 @@ describe('ContestListComponent', () => {
     total_pot: 100,
     house_rake: 10,
     created_at: '2024-01-03T10:00:00Z', // Oldest
-    closes_at: '2024-01-05T00:00:00Z',
+    locked_at: '2024-01-05T00:00:00Z',
     duration: '2d',
   };
 
@@ -131,7 +131,7 @@ describe('ContestListComponent', () => {
     total_pot: 350,
     house_rake: 35,
     created_at: '2024-01-04T10:00:00Z', // Middle
-    closes_at: '2024-01-08T00:00:00Z',
+    locked_at: '2024-01-08T00:00:00Z',
     duration: '4d',
   };
 
@@ -151,7 +151,7 @@ describe('ContestListComponent', () => {
     total_pot: 0,
     house_rake: 0,
     created_at: '2024-01-02T10:00:00Z',
-    closes_at: '2024-01-09T00:00:00Z',
+    locked_at: '2024-01-09T00:00:00Z',
     duration: '7d',
   };
 

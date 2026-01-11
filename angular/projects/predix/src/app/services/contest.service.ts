@@ -72,7 +72,7 @@ export class ContestService {
   }
 
   /**
-   * Polls contest details at a fixed interval until the contest is closed or resolved.
+   * Polls contest details at a fixed interval until the contest is expired or resolved.
    * Maps the contest to include computed totals for convenience.
    *
    * @param circleId - Circle ID
@@ -107,7 +107,7 @@ export class ContestService {
       }),
       takeWhile(
         (contest) =>
-          contest.status !== 'CLOSED' && contest.status !== 'RESOLVED',
+          contest.status !== 'EXPIRED' && contest.status !== 'RESOLVED',
         true,
       ),
     );

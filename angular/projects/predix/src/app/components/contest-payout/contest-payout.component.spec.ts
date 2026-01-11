@@ -22,7 +22,7 @@ describe('ContestPayoutComponent', () => {
     total_pot: 300,
     house_rake: 30,
     created_at: '2024-01-01T00:00:00Z',
-    closes_at: '2024-01-02T00:00:00Z',
+    locked_at: '2024-01-02T00:00:00Z',
     duration: '1d',
   };
 

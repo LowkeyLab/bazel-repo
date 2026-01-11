@@ -60,7 +60,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
   public readonly statusLabels: Record<ContestStatus, string> = {
     OPEN: 'Open',
     LOCKED: 'Locked (awaiting resolution)',
-    CLOSED: 'Closed (paused)',
+    EXPIRED: 'Expired (refunded)',
     RESOLVED: 'Resolved',
   };
 
@@ -75,9 +75,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     return (
       this.isCreator() &&
       contest &&
-      (contest.status === 'OPEN' ||
-        contest.status === 'LOCKED' ||
-        contest.status === 'CLOSED')
+      (contest.status === 'OPEN' || contest.status === 'LOCKED')
     );
   });
 
@@ -124,7 +122,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
           this.loading.set(false);
         },
         complete: () => {
-          console.log('Polling stopped (contest closed or resolved)');
+          console.log('Polling stopped (contest expired or resolved)');
         },
       });
   }

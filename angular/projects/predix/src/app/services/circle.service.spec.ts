@@ -46,7 +46,7 @@ describe('CircleService', () => {
           total_pot: 0,
           house_rake: 0,
           created_at: '2024-01-01T00:00:00Z',
-          closes_at: '2024-01-02T00:00:00Z',
+          locked_at: '2024-01-02T00:00:00Z',
           duration: '1d',
         },
       ];
@@ -102,7 +102,7 @@ describe('CircleService', () => {
           total_pot: 100,
           house_rake: 10,
           created_at: '2024-01-01T00:00:00Z',
-          closes_at: '2024-01-02T00:00:00Z',
+          locked_at: '2024-01-02T00:00:00Z',
           duration: '1d',
         },
         {
@@ -115,13 +115,13 @@ describe('CircleService', () => {
             { id: 2, text: 'No' },
           ],
           predictions: [],
-          status: 'CLOSED',
+          status: 'EXPIRED',
           result_option_id: undefined,
           min_stake: 10,
           total_pot: 200,
           house_rake: 20,
           created_at: '2024-01-01T00:00:00Z',
-          closes_at: '2024-01-02T00:00:00Z',
+          locked_at: '2024-01-02T00:00:00Z',
           duration: '1d',
         },
       ];

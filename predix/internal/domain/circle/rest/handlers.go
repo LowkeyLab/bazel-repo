@@ -86,7 +86,7 @@ type contestResponse struct {
 	HouseRake      int                  `json:"house_rake"`
 	ResultOptionID *int                 `json:"result_option_id,omitempty"`
 	CreatedAt      time.Time            `json:"created_at"`
-	ClosesAt       time.Time            `json:"closes_at"`
+	LockedAt       time.Time            `json:"locked_at"`
 	Duration       string               `json:"duration"`
 }
 
@@ -704,7 +704,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		HouseRake:      cont.CalculateHouseRakeClout(),
 		ResultOptionID: cont.ResultOptionID,
 		CreatedAt:      cont.CreatedAt,
-		ClosesAt:       cont.ClosesAt,
+		LockedAt:       cont.LockedAt,
 		Duration:       cont.Duration,
 	}
 }

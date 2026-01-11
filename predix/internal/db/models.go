@@ -76,8 +76,9 @@ type Contest struct {
 	HouseRake      pgtype.Numeric   `json:"house_rake"`
 	ResultOptionID pgtype.Int4      `json:"result_option_id"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
-	ClosesAt       pgtype.Timestamp `json:"closes_at"`
+	LockedAt       pgtype.Timestamp `json:"locked_at"`
 	Duration       string           `json:"duration"`
+	ExpiresAt      pgtype.Timestamp `json:"expires_at"`
 }
 
 type Option struct {

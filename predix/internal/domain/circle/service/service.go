@@ -20,20 +20,27 @@ type (
 	ContestRepository = contestrepo.Repository
 )
 
+// TransactionManager defines an interface for executing code within a transaction.
+type TransactionManager interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type Service struct {
 	circleRepo  repository.Repository
 	userRepo    userrepo.Repository
 	contestRepo contestrepo.Repository
 	clock       clock.Clock
+	txm         TransactionManager
 }
 
 // NewService creates a service with a repository interface.
-func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestRepo ContestRepository, clk clock.Clock) *Service {
+func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestRepo ContestRepository, clk clock.Clock, txm TransactionManager) *Service {
 	return &Service{
 		circleRepo:  circleRepo,
 		userRepo:    userRepo,
 		contestRepo: contestRepo,
 		clock:       clk,
+		txm:         txm,
 	}
 }
 
@@ -308,8 +315,8 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID
 	return nil
 }
 
-// CloseAndRefundContestClout closes a contest without resolution and refunds all staked clout to the circle members.
-func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID contest.ID, closerID user.ID) error {
+// ExpireAndRefundContestClout expires a contest without resolution and refunds all staked clout to the circle members.
+func (s *Service) ExpireAndRefundContestClout(ctx context.Context, contestID contest.ID, closerID user.ID) error {
 	cont, err := s.GetContest(ctx, contestID)
 	if err != nil {
 		return fmt.Errorf("failed to get contest: %w", err)
@@ -317,10 +324,10 @@ func (s *Service) CloseAndRefundContestClout(ctx context.Context, contestID cont
 
 	circleID := cont.CircleID
 
-	// Close the contest and get refunds
-	refunds, err := s.CloseContestAndCalculateRefunds(ctx, contestID, closerID)
+	// Expire the contest and get refunds
+	refunds, err := s.ExpireContestAndCalculateRefunds(ctx, contestID, closerID)
 	if err != nil {
-		return fmt.Errorf("failed to close contest: %w", err)
+		return fmt.Errorf("failed to expire contest: %w", err)
 	}
 
 	// Load circle to update member clout
@@ -449,8 +456,8 @@ func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contest
 	return payouts, nil
 }
 
-// CloseContestAndCalculateRefunds closes a contest without resolution and returns refunds.
-func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID contest.ID, closerID user.ID) (map[user.ID]int, error) {
+// ExpireContestAndCalculateRefunds expires a contest without resolution and returns refunds.
+func (s *Service) ExpireContestAndCalculateRefunds(ctx context.Context, contestID contest.ID, closerID user.ID) (map[user.ID]int, error) {
 	// Load contest from repository
 	c, err := s.contestRepo.FindByID(ctx, contestID)
 	if err != nil {
@@ -461,34 +468,67 @@ func (s *Service) CloseContestAndCalculateRefunds(ctx context.Context, contestID
 		return nil, ErrNotContestCreator
 	}
 
-	// Use domain method to close
-	err = c.Close()
+	// Use domain method to expire
+	err = c.Expire()
 	if err != nil {
 		return nil, err
 	}
 
 	// Calculate refunds for all predictors (100% of their stake)
-	refunds := s.calculateRefunds(c)
+	refunds := c.CalculateRefunds()
 
 	// Save updated contest
 	err = s.contestRepo.Save(ctx, c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save closed contest: %w", err)
+		return nil, fmt.Errorf("failed to save expired contest: %w", err)
 	}
 
 	return refunds, nil
 }
 
-// calculateRefunds returns all predictions as full refunds (100% of each prediction).
-func (s *Service) calculateRefunds(c *contest.Contest) map[user.ID]int {
-	refunds := make(map[user.ID]int)
+// ExpireContest closes an expired contest and refunds all staked clout.
+// This is intended for system use and does not require a user initiator.
+// The entire operation is wrapped in a transaction to ensure atomicity.
+func (s *Service) ExpireContest(ctx context.Context, contestID contest.ID) error {
+	return s.txm.RunInTx(ctx, func(ctx context.Context) error {
+		cont, err := s.GetContest(ctx, contestID)
+		if err != nil {
+			return fmt.Errorf("failed to get contest: %w", err)
+		}
 
-	// Sum all predictions by user (in case user has multiple predictions on different options)
-	for _, pred := range c.Predictions {
-		refunds[pred.UserID] += pred.Clout
-	}
+		circleID := cont.CircleID
 
-	return refunds
+		// Use domain method to expire (validates state)
+		if err := cont.Expire(); err != nil {
+			return err
+		}
+
+		// Calculate refunds for all predictors (100% of their stake)
+		refunds := cont.CalculateRefunds()
+
+		// Save updated contest
+		if err := s.contestRepo.Save(ctx, cont); err != nil {
+			return fmt.Errorf("failed to save expired contest: %w", err)
+		}
+
+		// Load circle to update member clout
+		circ, err := s.circleRepo.FindByID(ctx, circleID)
+		if err != nil {
+			return fmt.Errorf("failed to get circle: %w", err)
+		}
+
+		// Update clout for each predictor being refunded
+		for userID, refundAmount := range refunds {
+			if member, exists := circ.Members[userID]; exists {
+				newClout := member.Clout + refundAmount
+				if err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout); err != nil {
+					return fmt.Errorf("failed to update refunded clout for user %d: %w", userID, err)
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 // GetContest retrieves a contest by ID.

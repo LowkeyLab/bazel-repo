@@ -1,4 +1,4 @@
-export type ContestStatus = 'OPEN' | 'LOCKED' | 'CLOSED' | 'RESOLVED';
+export type ContestStatus = 'OPEN' | 'LOCKED' | 'EXPIRED' | 'RESOLVED';
 
 export interface Contest {
   id: number;
@@ -13,7 +13,7 @@ export interface Contest {
   house_rake: number;
   result_option_id?: number;
   created_at: string;
-  closes_at: string;
+  locked_at: string;
   duration: string;
 }
 

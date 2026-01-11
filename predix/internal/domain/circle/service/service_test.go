@@ -41,6 +41,14 @@ func createTestUserWithRole(t *testing.T, pool *pgxpool.Pool, username string, r
 	return user.ID(result.ID)
 }
 
+type TestTxManager struct {
+	pool *pgxpool.Pool
+}
+
+func (m *TestTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return db.RunInTx(ctx, m.pool, fn)
+}
+
 func TestCircleService(t *testing.T) {
 	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
 		ctx := context.Background()
@@ -52,7 +60,8 @@ func TestCircleService(t *testing.T) {
 			userRepo := userrepo.NewPostgres(pool)
 			contestRepo := contestrepo.NewPostgres(pool)
 			clk := clock.RealClock{}
-			svc := service.NewService(repo, userRepo, contestRepo, clk)
+			txm := &TestTxManager{pool: pool}
+			svc := service.NewService(repo, userRepo, contestRepo, clk, txm)
 			queries := db.New(pool)
 			return svc, repo, userRepo, queries
 		}
@@ -350,7 +359,8 @@ func TestCircleService(t *testing.T) {
 			userRepo := userrepo.NewPostgres(pool)
 			contestRepo := contestrepo.NewPostgres(pool)
 			clk := clock.RealClock{}
-			svc := service.NewService(circleRepo, userRepo, contestRepo, clk)
+			txm := &TestTxManager{pool: pool}
+			svc := service.NewService(circleRepo, userRepo, contestRepo, clk, txm)
 			queries := db.New(pool)
 			creatorID := createTestUser(t, pool, "predictor_creator")
 			memberID := createTestUser(t, pool, "predictor")

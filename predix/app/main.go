@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
+	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	circlerest "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/rest"
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
@@ -49,6 +50,20 @@ func runMigrations(connStr string) error {
 	return nil
 }
 
+type PostgresTxManager struct {
+	pool *pgxpool.Pool
+}
+
+func (m *PostgresTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return db.RunInTx(ctx, m.pool, fn)
+}
+
+type NoOpTxManager struct{}
+
+func (m *NoOpTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
+
 func main() {
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
 	logger := slog.New(logHandler)
@@ -64,12 +79,14 @@ func main() {
 	var userRepo userrepo.Repository
 	var contestRepo contestrepo.Repository
 	var circleRepo circlerepo.Repository
+	var txManager circleservice.TransactionManager
 
 	if devMode {
 		slog.Info("Using in-memory repositories")
 		circleRepo = circlerepo.NewMemory()
 		contestRepo = contestrepo.NewMemory()
 		userRepo = userrepo.NewMemory()
+		txManager = &NoOpTxManager{}
 	} else {
 		slog.Info("Using PostgreSQL repositories")
 		connStr, ok := os.LookupEnv("DATABASE_URL")
@@ -93,18 +110,19 @@ func main() {
 		circleRepo = circlerepo.NewPostgres(pool)
 		contestRepo = contestrepo.NewPostgres(pool)
 		userRepo = userrepo.NewPostgres(pool)
+		txManager = &PostgresTxManager{pool: pool}
 	}
 
 	// Create clock for services
 	clk := clock.RealClock{}
 
-	circleSvc := circleservice.NewService(circleRepo, userRepo, contestRepo, clk)
+	circleSvc := circleservice.NewService(circleRepo, userRepo, contestRepo, clk, txManager)
 	userSvc := userservice.NewService(userRepo)
 
 	// Start the contest closer goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go contestcloser.StartCloser(ctx, contestRepo, clk, 10*time.Minute)
+	go contestcloser.StartCloser(ctx, contestRepo, circleSvc, clk, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc)

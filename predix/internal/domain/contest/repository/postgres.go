@@ -27,19 +27,34 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 	}
 }
 
+// q returns the queries object, using the transaction from the context if present.
+func (r *Postgres) q(ctx context.Context) *db.Queries {
+	if tx, ok := db.GetTx(ctx); ok {
+		return r.queries.WithTx(tx)
+	}
+	return r.queries
+}
+
 // Save persists a Contest with its options and predictions to the database.
 // It handles both creation and updates.
 func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+	// Check if we are already in a transaction
+	tx, hasTx := db.GetTx(ctx)
+	if !hasTx {
+		// No external transaction, start one
+		var err error
+		tx, err = r.pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer tx.Rollback(ctx)
 	}
-	defer tx.Rollback(ctx)
 
 	qtx := r.queries.WithTx(tx)
 
 	// Check if contest exists (ID will be 0 for new contests)
 	isNew := c.ID == 0
+	var err error
 
 	if isNew {
 		// Create new contest
@@ -51,7 +66,8 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			MinStake:  int32(c.MinStake),
 			HouseRake: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
 			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-			ClosesAt:  pgtype.Timestamp{Time: c.ClosesAt, Valid: true},
+			LockedAt:  pgtype.Timestamp{Time: c.LockedAt, Valid: true},
+			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 			Duration:  c.Duration,
 		})
 		if err != nil {
@@ -102,8 +118,10 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+	if !hasTx {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
 	}
 
 	return nil
@@ -111,7 +129,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 
 // FindByID retrieves a Contest with all its options and predictions by ID.
 func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contest, error) {
-	dbContest, err := r.queries.GetContest(ctx, int32(id))
+	dbContest, err := r.q(ctx).GetContest(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find contest by id: %w", err)
 	}
@@ -121,7 +139,7 @@ func (r *Postgres) FindByID(ctx context.Context, id contest.ID) (*contest.Contes
 
 // FindByCircleID retrieves all Contests for a given Circle.
 func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error) {
-	dbContests, err := r.queries.ListContestsByCircle(ctx, int32(circleID))
+	dbContests, err := r.q(ctx).ListContestsByCircle(ctx, int32(circleID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find contests by circle id: %w", err)
 	}
@@ -138,11 +156,30 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 	return contests, nil
 }
 
-// FindExpiredContests retrieves all contests that are OPEN or LOCKED and have passed their closes_at time.
-func (r *Postgres) FindExpiredContests(ctx context.Context) ([]*contest.Contest, error) {
-	dbContests, err := r.queries.FindExpiredContests(ctx)
+// FindContestsToLock retrieves all contests that are OPEN and have passed their locked_at time.
+func (r *Postgres) FindContestsToLock(ctx context.Context) ([]*contest.Contest, error) {
+	dbContests, err := r.q(ctx).FindContestsToLock(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find expired contests: %w", err)
+		return nil, fmt.Errorf("failed to find contests to lock: %w", err)
+	}
+
+	contests := make([]*contest.Contest, len(dbContests))
+	for i, dbContest := range dbContests {
+		c, err := r.mapContest(ctx, dbContest)
+		if err != nil {
+			return nil, err
+		}
+		contests[i] = c
+	}
+
+	return contests, nil
+}
+
+// FindContestsToExpire retrieves all contests that are OPEN or LOCKED and have passed their expires_at time.
+func (r *Postgres) FindContestsToExpire(ctx context.Context) ([]*contest.Contest, error) {
+	dbContests, err := r.q(ctx).FindContestsToExpire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find contests to expire: %w", err)
 	}
 
 	contests := make([]*contest.Contest, len(dbContests))
@@ -161,7 +198,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 	id := dbContest.ID
 
 	// Load options
-	dbOptions, err := r.queries.ListContestOptions(ctx, int32(id))
+	dbOptions, err := r.q(ctx).ListContestOptions(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load contest options: %w", err)
 	}
@@ -175,7 +212,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 	}
 
 	// Load predictions
-	dbPredictions, err := r.queries.ListContestPredictions(ctx, int32(id))
+	dbPredictions, err := r.q(ctx).ListContestPredictions(ctx, int32(id))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load contest predictions: %w", err)
 	}
@@ -222,14 +259,15 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 		HouseRake:      houseRake,
 		ResultOptionID: resultOptionID,
 		CreatedAt:      dbContest.CreatedAt.Time,
-		ClosesAt:       dbContest.ClosesAt.Time,
+		LockedAt:       dbContest.LockedAt.Time,
+		ExpiresAt:      dbContest.ExpiresAt.Time,
 		Duration:       dbContest.Duration,
 	}, nil
 }
 
 // UpdateStatus updates the status of a contest.
 func (r *Postgres) UpdateStatus(ctx context.Context, id contest.ID, status contest.Status) error {
-	err := r.queries.UpdateContestStatusOnly(ctx, db.UpdateContestStatusOnlyParams{
+	err := r.q(ctx).UpdateContestStatusOnly(ctx, db.UpdateContestStatusOnlyParams{
 		ID:     int32(id),
 		Status: string(status),
 	})

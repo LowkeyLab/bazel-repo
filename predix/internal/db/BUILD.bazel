@@ -7,6 +7,7 @@ go_library(
         "models.go",
         "querier.go",
         "query.sql.go",
+        "tx.go",
     ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/db",
     visibility = ["//predix:__subpackages__"],
@@ -14,5 +15,6 @@ go_library(
         "@com_github_jackc_pgx_v5//:pgx",
         "@com_github_jackc_pgx_v5//pgconn",
         "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
     ],
 )
