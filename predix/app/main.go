@@ -76,9 +76,9 @@ func main() {
 		jwtSecret = "dev-secret"
 	}
 
-	var userRepo userrepo.Repository
-	var contestRepo contestrepo.Repository
-	var circleRepo circlerepo.Repository
+	var userRepo any
+	var contestRepo any
+	var circleRepo any
 	var txManager circleservice.TransactionManager
 
 	if devMode {
@@ -116,13 +116,19 @@ func main() {
 	// Create clock for services
 	clk := clock.RealClock{}
 
-	circleSvc := circleservice.NewService(circleRepo, userRepo, contestRepo, clk, txManager)
-	userSvc := userservice.NewService(userRepo)
+	circleSvc := circleservice.NewService(
+		circleRepo.(circleservice.CircleRepository),
+		userRepo.(circleservice.UserRepository),
+		contestRepo.(circleservice.ContestRepository),
+		clk,
+		txManager,
+	)
+	userSvc := userservice.NewService(userRepo.(userservice.UserRepository))
 
 	// Start the contest closer goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go contestcloser.StartCloser(ctx, contestRepo, circleSvc, clk, 10*time.Minute)
+	go contestcloser.StartCloser(ctx, contestRepo.(contestcloser.ContestRepository), circleSvc, clk, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc)

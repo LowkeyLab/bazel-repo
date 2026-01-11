@@ -7,8 +7,14 @@ import (
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 )
+
+// ContestRepository defines the interface for accessing contests.
+type ContestRepository interface {
+	FindContestsToLock(ctx context.Context) ([]*contest.Contest, error)
+	FindContestsToExpire(ctx context.Context) ([]*contest.Contest, error)
+	UpdateStatus(ctx context.Context, id contest.ID, status contest.Status) error
+}
 
 // ContestExpirer defines the interface for expiring contests with refunds.
 type ContestExpirer interface {
@@ -19,7 +25,7 @@ type ContestExpirer interface {
 // 1. Contests that need to be locked (voting closed).
 // 2. Contests that have expired (auto-closed/cancelled).
 // The goroutine stops when the context is canceled.
-func StartCloser(ctx context.Context, repo repository.Repository, expirer ContestExpirer, clk clock.Clock, interval time.Duration) {
+func StartCloser(ctx context.Context, repo ContestRepository, expirer ContestExpirer, clk clock.Clock, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -42,7 +48,7 @@ func StartCloser(ctx context.Context, repo repository.Repository, expirer Contes
 }
 
 // LockContests finds contests that should be locked and updates their status.
-func LockContests(ctx context.Context, repo repository.Repository, clk clock.Clock) error {
+func LockContests(ctx context.Context, repo ContestRepository, clk clock.Clock) error {
 	toLock, err := repo.FindContestsToLock(ctx)
 	if err != nil {
 		return err
@@ -62,7 +68,7 @@ func LockContests(ctx context.Context, repo repository.Repository, clk clock.Clo
 }
 
 // ExpireContests finds contests that have expired and calls the expirer to close and refund them.
-func ExpireContests(ctx context.Context, repo repository.Repository, expirer ContestExpirer, clk clock.Clock) error {
+func ExpireContests(ctx context.Context, repo ContestRepository, expirer ContestExpirer, clk clock.Clock) error {
 	toExpire, err := repo.FindContestsToExpire(ctx)
 	if err != nil {
 		return err

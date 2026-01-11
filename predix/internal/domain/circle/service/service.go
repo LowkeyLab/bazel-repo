@@ -8,17 +8,28 @@ import (
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
-	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
-	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 )
 
-type (
-	CircleRepository  = repository.Repository
-	ContestRepository = contestrepo.Repository
-)
+type CircleRepository interface {
+	Save(ctx context.Context, c *circle.Circle) error
+	FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error)
+	FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error)
+	AddMember(ctx context.Context, circleID circle.ID, member *circle.Member) error
+	UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error
+	Delete(ctx context.Context, id circle.ID) error
+}
+
+type UserRepository interface {
+	FindByID(ctx context.Context, id user.ID) (*user.User, error)
+}
+
+type ContestRepository interface {
+	Save(ctx context.Context, c *contest.Contest) error
+	FindByID(ctx context.Context, id contest.ID) (*contest.Contest, error)
+	FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error)
+}
 
 // TransactionManager defines an interface for executing code within a transaction.
 type TransactionManager interface {
@@ -26,15 +37,15 @@ type TransactionManager interface {
 }
 
 type Service struct {
-	circleRepo  repository.Repository
-	userRepo    userrepo.Repository
-	contestRepo contestrepo.Repository
+	circleRepo  CircleRepository
+	userRepo    UserRepository
+	contestRepo ContestRepository
 	clock       clock.Clock
 	txm         TransactionManager
 }
 
 // NewService creates a service with a repository interface.
-func NewService(circleRepo CircleRepository, userRepo userrepo.Repository, contestRepo ContestRepository, clk clock.Clock, txm TransactionManager) *Service {
+func NewService(circleRepo CircleRepository, userRepo UserRepository, contestRepo ContestRepository, clk clock.Clock, txm TransactionManager) *Service {
 	return &Service{
 		circleRepo:  circleRepo,
 		userRepo:    userRepo,

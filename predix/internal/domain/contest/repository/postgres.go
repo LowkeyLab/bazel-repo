@@ -13,7 +13,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
-// Postgres is a PostgreSQL implementation of the Repository interface.
+// Postgres is a PostgreSQL implementation of contest repository interfaces.
 type Postgres struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries

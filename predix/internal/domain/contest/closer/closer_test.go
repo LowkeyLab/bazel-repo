@@ -45,7 +45,7 @@ func createPrerequisites(t *testing.T, pool *pgxpool.Pool) (circle.ID, user.ID) 
 // MockExpirer implements ContestExpirer for testing
 type MockExpirer struct {
 	expiredContests []contest.ID
-	repo            repository.Repository
+	repo            closer.ContestRepository
 }
 
 func (m *MockExpirer) ExpireContest(ctx context.Context, contestID contest.ID) error {

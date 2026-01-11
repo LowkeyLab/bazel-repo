@@ -11,12 +11,17 @@ import (
 )
 
 // Service provides user-related operations.
+type UserRepository interface {
+	Save(ctx context.Context, u *user.User) error
+	FindByUsername(ctx context.Context, username string) (*user.User, error)
+}
+
 type Service struct {
-	repo repository.Repository
+	repo UserRepository
 }
 
 // NewService constructs a Service.
-func NewService(repo repository.Repository) *Service {
+func NewService(repo UserRepository) *Service {
 	return &Service{repo: repo}
 }
 
