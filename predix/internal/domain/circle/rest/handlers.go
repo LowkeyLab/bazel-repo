@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
@@ -199,7 +199,7 @@ func (h *Handler) addMember(c *gin.Context) {
 
 	err := h.svc.AddMember(c.Request.Context(), circleID, user.ID(req.UserID))
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "circle not found", "circle_id", circleID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
 			return
@@ -228,7 +228,7 @@ func (h *Handler) joinCircle(c *gin.Context) {
 
 	err := h.svc.JoinCircle(c.Request.Context(), circleID, userID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "circle not found", "circle_id", circleID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
 			return
@@ -250,7 +250,7 @@ func (h *Handler) getCircle(c *gin.Context) {
 
 	result, err := h.svc.GetCircleWithUsernames(c.Request.Context(), circleID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			slog.DebugContext(c.Request.Context(), "circle not found", "circle_id", circleID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
 			return
@@ -301,7 +301,7 @@ func (h *Handler) deleteCircle(c *gin.Context) {
 
 	err := h.svc.DeleteCircle(c.Request.Context(), circleID, userID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			slog.WarnContext(c.Request.Context(), "circle not found", "circle_id", circleID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle not found"})
 			return
@@ -347,7 +347,7 @@ func (h *Handler) makePrediction(c *gin.Context) {
 
 	err := h.svc.Predict(c.Request.Context(), circleID, contestID, userID, req.OptionID, req.Clout)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", circleID, "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
@@ -398,7 +398,7 @@ func (h *Handler) resolveAndDistribute(c *gin.Context) {
 
 	err := h.svc.ResolveAndDistributeContestClout(c.Request.Context(), circleID, contestID, userID, req.WinningOptionID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "circle or contest not found", "circle_id", circleID, "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "circle or contest not found"})
 			return
@@ -484,7 +484,7 @@ func (h *Handler) getContest(c *gin.Context) {
 
 	result, err := h.svc.GetContestInCircle(c.Request.Context(), circleID, contestID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.DebugContext(c.Request.Context(), "contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
 			return
@@ -518,7 +518,7 @@ func (h *Handler) lockContest(c *gin.Context) {
 
 	err := h.svc.LockContest(c.Request.Context(), circleID, contestID, userID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
 			return
@@ -550,7 +550,7 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 
 	breakdown, err := h.svc.GetPayoutBreakdown(c.Request.Context(), circleID, contestID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
 			slog.WarnContext(c.Request.Context(), "contest not found", "contest_id", contestID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
 			return

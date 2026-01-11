@@ -12,7 +12,6 @@ go_library(
         "//predix/internal/domain/contest",
         "//predix/internal/domain/user",
         "@com_github_gin_gonic_gin//:gin",
-        "@com_github_jackc_pgx_v5//:pgx",
     ],
 )
 
@@ -41,8 +40,6 @@ go_test(
         "//predix/internal/domain/user/repository",
         "//predix/internal/testutil",
         "@com_github_gin_gonic_gin//:gin",
-        "@com_github_jackc_pgx_v5//:pgx",
-        "@com_github_jackc_pgx_v5//pgxpool",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],

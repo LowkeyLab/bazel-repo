@@ -2,19 +2,19 @@ package repository_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 )
 
 func TestPostgresRepository(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+	testutil.WithTestDB(t, func(t *testing.T, db *sql.DB) {
 		setup := func(t *testing.T) *repository.Postgres {
-			testutil.ResetTables(t, pool)
-			return repository.NewPostgres(pool)
+			testutil.ResetTables(t, db)
+			return repository.NewPostgres(db)
 		}
 
 		t.Run("Save", func(t *testing.T) {

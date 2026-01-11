@@ -5,10 +5,10 @@
 package db
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 )
 
 type UserRole string
@@ -54,10 +54,10 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Circle struct {
-	ID        int32            `json:"id"`
-	Name      string           `json:"name"`
-	CreatorID int32            `json:"creator_id"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ID        int32     `json:"id"`
+	Name      string    `json:"name"`
+	CreatorID int32     `json:"creator_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type CircleMember struct {
@@ -67,18 +67,18 @@ type CircleMember struct {
 }
 
 type Contest struct {
-	ID             int32            `json:"id"`
-	CircleID       int32            `json:"circle_id"`
-	CreatorID      int32            `json:"creator_id"`
-	Question       string           `json:"question"`
-	Status         string           `json:"status"`
-	MinStake       int32            `json:"min_stake"`
-	HouseRake      pgtype.Numeric   `json:"house_rake"`
-	ResultOptionID pgtype.Int4      `json:"result_option_id"`
-	CreatedAt      pgtype.Timestamp `json:"created_at"`
-	LockedAt       pgtype.Timestamp `json:"locked_at"`
-	Duration       string           `json:"duration"`
-	ExpiresAt      pgtype.Timestamp `json:"expires_at"`
+	ID             int32         `json:"id"`
+	CircleID       int32         `json:"circle_id"`
+	CreatorID      int32         `json:"creator_id"`
+	Question       string        `json:"question"`
+	Status         string        `json:"status"`
+	MinStake       int32         `json:"min_stake"`
+	HouseRake      string        `json:"house_rake"`
+	ResultOptionID sql.NullInt32 `json:"result_option_id"`
+	CreatedAt      time.Time     `json:"created_at"`
+	LockedAt       time.Time     `json:"locked_at"`
+	Duration       string        `json:"duration"`
+	ExpiresAt      time.Time     `json:"expires_at"`
 }
 
 type Option struct {
@@ -88,11 +88,11 @@ type Option struct {
 }
 
 type Prediction struct {
-	ContestID int32            `json:"contest_id"`
-	UserID    int32            `json:"user_id"`
-	OptionID  int32            `json:"option_id"`
-	Clout     int32            `json:"clout"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ContestID int32     `json:"contest_id"`
+	UserID    int32     `json:"user_id"`
+	OptionID  int32     `json:"option_id"`
+	Clout     int32     `json:"clout"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type User struct {

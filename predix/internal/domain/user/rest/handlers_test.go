@@ -3,6 +3,7 @@ package rest
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
@@ -27,10 +27,10 @@ type loginResponseBody struct {
 	Error string `json:"error"`
 }
 
-func setupRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *auth.Manager, *service.Service) {
+func setupRouter(t *testing.T, db *sql.DB) (*gin.Engine, *auth.Manager, *service.Service) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	repo := repository.NewPostgres(pool)
+	repo := repository.NewPostgres(db)
 	svc := service.NewService(repo)
 	tokens := auth.NewManager("test-secret", time.Hour)
 
@@ -43,10 +43,10 @@ func setupRouter(t *testing.T, pool *pgxpool.Pool) (*gin.Engine, *auth.Manager, 
 }
 
 func TestUserHandlers(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+	testutil.WithTestDB(t, func(t *testing.T, db *sql.DB) {
 		build := func(t *testing.T) (*gin.Engine, *auth.Manager, *service.Service) {
-			testutil.ResetTables(t, pool)
-			return setupRouter(t, pool)
+			testutil.ResetTables(t, db)
+			return setupRouter(t, db)
 		}
 
 		t.Run("RegisterSuccess", func(t *testing.T) {
