@@ -51,8 +51,8 @@ DELETE FROM circles
 WHERE id = $1;
 
 -- name: CreateContest :one
-INSERT INTO contests (circle_id, creator_id, question, status, min_stake, house_rake, created_at, closes_at, duration)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO contests (circle_id, creator_id, question, status, min_stake, house_rake, created_at, closes_at, expires_at, duration)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
 -- name: GetContest :one
@@ -93,10 +93,15 @@ FROM contests c
 WHERE c.circle_id = $1
 ORDER BY created_at DESC;
 
--- name: FindExpiredContests :many
+-- name: FindContestsToLock :many
+SELECT * FROM contests
+WHERE status = 'OPEN'
+  AND closes_at <= NOW();
+
+-- name: FindContestsToExpire :many
 SELECT * FROM contests
 WHERE status IN ('OPEN', 'LOCKED')
-  AND closes_at <= NOW();
+  AND expires_at <= NOW();
 
 -- name: UpdateContestStatusOnly :exec
 UPDATE contests

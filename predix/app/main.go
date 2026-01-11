@@ -104,7 +104,7 @@ func main() {
 	// Start the contest closer goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go contestcloser.StartCloser(ctx, contestRepo, clk, 10*time.Minute)
+	go contestcloser.StartCloser(ctx, contestRepo, circleSvc, clk, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc)

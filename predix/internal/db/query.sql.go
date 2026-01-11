@@ -52,9 +52,9 @@ func (q *Queries) CreateCircle(ctx context.Context, arg CreateCircleParams) (Cir
 }
 
 const createContest = `-- name: CreateContest :one
-INSERT INTO contests (circle_id, creator_id, question, status, min_stake, house_rake, created_at, closes_at, duration)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration
+INSERT INTO contests (circle_id, creator_id, question, status, min_stake, house_rake, created_at, closes_at, expires_at, duration)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration, expires_at
 `
 
 type CreateContestParams struct {
@@ -66,6 +66,7 @@ type CreateContestParams struct {
 	HouseRake pgtype.Numeric   `json:"house_rake"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 	ClosesAt  pgtype.Timestamp `json:"closes_at"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
 	Duration  string           `json:"duration"`
 }
 
@@ -79,6 +80,7 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 		arg.HouseRake,
 		arg.CreatedAt,
 		arg.ClosesAt,
+		arg.ExpiresAt,
 		arg.Duration,
 	)
 	var i Contest
@@ -94,6 +96,7 @@ func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (C
 		&i.CreatedAt,
 		&i.ClosesAt,
 		&i.Duration,
+		&i.ExpiresAt,
 	)
 	return i, err
 }
@@ -181,14 +184,14 @@ func (q *Queries) DeleteCircle(ctx context.Context, id int32) error {
 	return err
 }
 
-const findExpiredContests = `-- name: FindExpiredContests :many
-SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration FROM contests
+const findContestsToExpire = `-- name: FindContestsToExpire :many
+SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration, expires_at FROM contests
 WHERE status IN ('OPEN', 'LOCKED')
-  AND closes_at <= NOW()
+  AND expires_at <= NOW()
 `
 
-func (q *Queries) FindExpiredContests(ctx context.Context) ([]Contest, error) {
-	rows, err := q.db.Query(ctx, findExpiredContests)
+func (q *Queries) FindContestsToExpire(ctx context.Context) ([]Contest, error) {
+	rows, err := q.db.Query(ctx, findContestsToExpire)
 	if err != nil {
 		return nil, err
 	}
@@ -208,6 +211,46 @@ func (q *Queries) FindExpiredContests(ctx context.Context) ([]Contest, error) {
 			&i.CreatedAt,
 			&i.ClosesAt,
 			&i.Duration,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findContestsToLock = `-- name: FindContestsToLock :many
+SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration, expires_at FROM contests
+WHERE status = 'OPEN'
+  AND closes_at <= NOW()
+`
+
+func (q *Queries) FindContestsToLock(ctx context.Context) ([]Contest, error) {
+	rows, err := q.db.Query(ctx, findContestsToLock)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Contest
+	for rows.Next() {
+		var i Contest
+		if err := rows.Scan(
+			&i.ID,
+			&i.CircleID,
+			&i.CreatorID,
+			&i.Question,
+			&i.Status,
+			&i.MinStake,
+			&i.HouseRake,
+			&i.ResultOptionID,
+			&i.CreatedAt,
+			&i.ClosesAt,
+			&i.Duration,
+			&i.ExpiresAt,
 		); err != nil {
 			return nil, err
 		}
@@ -254,7 +297,7 @@ func (q *Queries) GetCircleMember(ctx context.Context, arg GetCircleMemberParams
 }
 
 const getContest = `-- name: GetContest :one
-SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration FROM contests
+SELECT id, circle_id, creator_id, question, status, min_stake, house_rake, result_option_id, created_at, closes_at, duration, expires_at FROM contests
 WHERE id = $1 LIMIT 1
 `
 
@@ -273,6 +316,7 @@ func (q *Queries) GetContest(ctx context.Context, id int32) (Contest, error) {
 		&i.CreatedAt,
 		&i.ClosesAt,
 		&i.Duration,
+		&i.ExpiresAt,
 	)
 	return i, err
 }
@@ -407,7 +451,7 @@ func (q *Queries) ListContestPredictions(ctx context.Context, contestID int32) (
 }
 
 const listContestsByCircle = `-- name: ListContestsByCircle :many
-SELECT c.id, c.circle_id, c.creator_id, c.question, c.status, c.min_stake, c.house_rake, c.result_option_id, c.created_at, c.closes_at, c.duration
+SELECT c.id, c.circle_id, c.creator_id, c.question, c.status, c.min_stake, c.house_rake, c.result_option_id, c.created_at, c.closes_at, c.duration, c.expires_at
 FROM contests c
 WHERE c.circle_id = $1
 ORDER BY created_at DESC
@@ -434,6 +478,7 @@ func (q *Queries) ListContestsByCircle(ctx context.Context, circleID int32) ([]C
 			&i.CreatedAt,
 			&i.ClosesAt,
 			&i.Duration,
+			&i.ExpiresAt,
 		); err != nil {
 			return nil, err
 		}

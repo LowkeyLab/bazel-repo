@@ -3,6 +3,8 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "000001_init_schema.down.sql",
     "000001_init_schema.up.sql",
+    "000002_add_expires_at.down.sql",
+    "000002_add_expires_at.up.sql",
 ])
 
 filegroup(
@@ -10,5 +12,7 @@ filegroup(
     srcs = [
         "000001_init_schema.down.sql",
         "000001_init_schema.up.sql",
+        "000002_add_expires_at.down.sql",
+        "000002_add_expires_at.up.sql",
     ],
 )

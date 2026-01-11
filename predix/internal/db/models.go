@@ -78,6 +78,7 @@ type Contest struct {
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 	ClosesAt       pgtype.Timestamp `json:"closes_at"`
 	Duration       string           `json:"duration"`
+	ExpiresAt      pgtype.Timestamp `json:"expires_at"`
 }
 
 type Option struct {

@@ -18,6 +18,9 @@ const (
 	Duration1Week = "1w"
 )
 
+// DefaultExpirationAfterClose is the time after locking when a contest expires (refunds).
+const DefaultExpirationAfterClose = 7 * 24 * time.Hour
+
 // ValidDurations returns all accepted duration values.
 func ValidDurations() []string {
 	return []string{Duration1Hour, Duration1Day, Duration1Week}
@@ -63,8 +66,9 @@ type Contest struct {
 	ResultOptionID *int    // ID of the winning option
 	HouseRake      float64 // Rate at which clout is taken as house rake (e.g., 0.10 for 10%)
 	CreatedAt      time.Time
-	ClosesAt       time.Time
-	Duration       string // "1h", "1d", or "1w"
+	ClosesAt       time.Time // Time when predictions are locked
+	ExpiresAt      time.Time // Time when contest is auto-closed and refunded
+	Duration       string    // "1h", "1d", or "1w"
 }
 
 const (
@@ -137,6 +141,8 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 	}
 
 	now := clk.Now()
+	closesAt := now.Add(durationValue)
+
 	return &Contest{
 		ID:        0, // ID will be set by database
 		CircleID:  circleID,
@@ -147,7 +153,8 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 		MinStake:  normalizedMinStake,
 		HouseRake: houseRakeDefault,
 		CreatedAt: now,
-		ClosesAt:  now.Add(durationValue),
+		ClosesAt:  closesAt,
+		ExpiresAt: closesAt.Add(DefaultExpirationAfterClose),
 		Duration:  duration,
 	}, nil
 }
@@ -189,13 +196,22 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 	return nil
 }
 
-// IsClosed checks if the contest should be closed based on the current time.
-// Returns true if the contest status is OPEN or LOCKED and the closes_at time has passed.
-func (c *Contest) IsClosed(clk clock.Clock) bool {
-	if c.Status != StatusOpen && c.Status != StatusLocked {
+// IsLockedTime checks if the contest should be locked based on the current time.
+// Returns true if the contest status is OPEN and the closes_at time has passed.
+func (c *Contest) IsLockedTime(clk clock.Clock) bool {
+	if c.Status != StatusOpen {
 		return false
 	}
 	return !clk.Now().Before(c.ClosesAt)
+}
+
+// IsExpiredTime checks if the contest should be expired based on the current time.
+// Returns true if the contest status is OPEN or LOCKED and the expires_at time has passed.
+func (c *Contest) IsExpiredTime(clk clock.Clock) bool {
+	if c.Status != StatusOpen && c.Status != StatusLocked {
+		return false
+	}
+	return !clk.Now().Before(c.ExpiresAt)
 }
 
 // Lock transitions the contest from Open to Locked, preventing new predictions.

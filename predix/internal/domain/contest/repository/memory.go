@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
@@ -39,45 +40,7 @@ func (r *Memory) Save(ctx context.Context, c *contest.Contest) error {
 		r.nextID++
 	}
 
-	// Deep copy the contest to avoid external mutations
-	minStake := c.MinStake
-	if minStake == 0 {
-		minStake = defaultMinStake
-	}
-
-	contestCopy := &contest.Contest{
-		ID:             c.ID,
-		CircleID:       c.CircleID,
-		CreatorID:      c.CreatorID,
-		Question:       c.Question,
-		Status:         c.Status,
-		MinStake:       minStake,
-		CreatedAt:      c.CreatedAt,
-		ClosesAt:       c.ClosesAt,
-		Duration:       c.Duration,
-		Options:        make(map[int]*contest.Option),
-		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
-		ResultOptionID: c.ResultOptionID,
-		HouseRake:      c.HouseRake,
-	}
-
-	for id, option := range c.Options {
-		contestCopy.Options[id] = &contest.Option{
-			ID:   option.ID,
-			Text: option.Text,
-		}
-	}
-
-	for i, prediction := range c.Predictions {
-		contestCopy.Predictions[i] = &contest.Prediction{
-			UserID:    prediction.UserID,
-			OptionID:  prediction.OptionID,
-			Clout:     prediction.Clout,
-			Timestamp: prediction.Timestamp,
-		}
-	}
-
-	r.contests[c.ID] = contestCopy
+	r.contests[c.ID] = r.deepCopy(c)
 	return nil
 }
 
@@ -91,45 +54,7 @@ func (r *Memory) FindByID(ctx context.Context, id contest.ID) (*contest.Contest,
 		return nil, fmt.Errorf("contest not found with id: %d", id)
 	}
 
-	// Deep copy to avoid external mutations
-	minStake := c.MinStake
-	if minStake == 0 {
-		minStake = defaultMinStake
-	}
-
-	contestCopy := &contest.Contest{
-		ID:             c.ID,
-		CircleID:       c.CircleID,
-		CreatorID:      c.CreatorID,
-		Question:       c.Question,
-		Status:         c.Status,
-		MinStake:       minStake,
-		CreatedAt:      c.CreatedAt,
-		ClosesAt:       c.ClosesAt,
-		Duration:       c.Duration,
-		Options:        make(map[int]*contest.Option),
-		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
-		ResultOptionID: c.ResultOptionID,
-		HouseRake:      c.HouseRake,
-	}
-
-	for id, option := range c.Options {
-		contestCopy.Options[id] = &contest.Option{
-			ID:   option.ID,
-			Text: option.Text,
-		}
-	}
-
-	for i, prediction := range c.Predictions {
-		contestCopy.Predictions[i] = &contest.Prediction{
-			UserID:    prediction.UserID,
-			OptionID:  prediction.OptionID,
-			Clout:     prediction.Clout,
-			Timestamp: prediction.Timestamp,
-		}
-	}
-
-	return contestCopy, nil
+	return r.deepCopy(c), nil
 }
 
 // FindByCircleID retrieves all contests associated with a circle.
@@ -140,101 +65,42 @@ func (r *Memory) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*con
 	var result []*contest.Contest
 
 	for _, c := range r.contests {
-		// Check if this contest contains the circle
 		if c.CircleID == circleID {
-			// Deep copy before adding
-			minStake := c.MinStake
-			if minStake == 0 {
-				minStake = defaultMinStake
-			}
-
-			contestCopy := &contest.Contest{
-				ID:             c.ID,
-				CircleID:       c.CircleID,
-				CreatorID:      c.CreatorID,
-				Question:       c.Question,
-				Status:         c.Status,
-				MinStake:       minStake,
-				CreatedAt:      c.CreatedAt,
-				ClosesAt:       c.ClosesAt,
-				Duration:       c.Duration,
-				Options:        make(map[int]*contest.Option),
-				Predictions:    make([]*contest.Prediction, len(c.Predictions)),
-				ResultOptionID: c.ResultOptionID,
-				HouseRake:      c.HouseRake,
-			}
-
-			for id, option := range c.Options {
-				contestCopy.Options[id] = &contest.Option{
-					ID:   option.ID,
-					Text: option.Text,
-				}
-			}
-
-			for i, prediction := range c.Predictions {
-				contestCopy.Predictions[i] = &contest.Prediction{
-					UserID:    prediction.UserID,
-					OptionID:  prediction.OptionID,
-					Clout:     prediction.Clout,
-					Timestamp: prediction.Timestamp,
-				}
-			}
-
-			result = append(result, contestCopy)
+			result = append(result, r.deepCopy(c))
 		}
 	}
 
 	return result, nil
 }
 
-// FindExpiredContests retrieves all contests that are OPEN or LOCKED and have passed their closes_at time.
-func (r *Memory) FindExpiredContests(ctx context.Context) ([]*contest.Contest, error) {
+// FindContestsToLock retrieves all contests that are OPEN and have passed their closes_at time.
+func (r *Memory) FindContestsToLock(ctx context.Context) ([]*contest.Contest, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var result []*contest.Contest
+	now := time.Now()
 
 	for _, c := range r.contests {
-		if c.Status == contest.StatusOpen || c.Status == contest.StatusLocked {
-			// Deep copy before adding
-			minStake := c.MinStake
-			if minStake == 0 {
-				minStake = defaultMinStake
-			}
+		if c.Status == contest.StatusOpen && !now.Before(c.ClosesAt) {
+			result = append(result, r.deepCopy(c))
+		}
+	}
 
-			contestCopy := &contest.Contest{
-				ID:             c.ID,
-				CircleID:       c.CircleID,
-				CreatorID:      c.CreatorID,
-				Question:       c.Question,
-				Status:         c.Status,
-				MinStake:       minStake,
-				CreatedAt:      c.CreatedAt,
-				ClosesAt:       c.ClosesAt,
-				Duration:       c.Duration,
-				Options:        make(map[int]*contest.Option),
-				Predictions:    make([]*contest.Prediction, len(c.Predictions)),
-				ResultOptionID: c.ResultOptionID,
-				HouseRake:      c.HouseRake,
-			}
+	return result, nil
+}
 
-			for id, option := range c.Options {
-				contestCopy.Options[id] = &contest.Option{
-					ID:   option.ID,
-					Text: option.Text,
-				}
-			}
+// FindContestsToExpire retrieves all contests that are OPEN or LOCKED and have passed their expires_at time.
+func (r *Memory) FindContestsToExpire(ctx context.Context) ([]*contest.Contest, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-			for i, prediction := range c.Predictions {
-				contestCopy.Predictions[i] = &contest.Prediction{
-					UserID:    prediction.UserID,
-					OptionID:  prediction.OptionID,
-					Clout:     prediction.Clout,
-					Timestamp: prediction.Timestamp,
-				}
-			}
+	var result []*contest.Contest
+	now := time.Now()
 
-			result = append(result, contestCopy)
+	for _, c := range r.contests {
+		if (c.Status == contest.StatusOpen || c.Status == contest.StatusLocked) && !now.Before(c.ExpiresAt) {
+			result = append(result, r.deepCopy(c))
 		}
 	}
 
@@ -253,4 +119,46 @@ func (r *Memory) UpdateStatus(ctx context.Context, id contest.ID, status contest
 
 	c.Status = status
 	return nil
+}
+
+func (r *Memory) deepCopy(c *contest.Contest) *contest.Contest {
+	minStake := c.MinStake
+	if minStake == 0 {
+		minStake = defaultMinStake
+	}
+
+	contestCopy := &contest.Contest{
+		ID:             c.ID,
+		CircleID:       c.CircleID,
+		CreatorID:      c.CreatorID,
+		Question:       c.Question,
+		Status:         c.Status,
+		MinStake:       minStake,
+		CreatedAt:      c.CreatedAt,
+		ClosesAt:       c.ClosesAt,
+		ExpiresAt:      c.ExpiresAt,
+		Duration:       c.Duration,
+		Options:        make(map[int]*contest.Option),
+		Predictions:    make([]*contest.Prediction, len(c.Predictions)),
+		ResultOptionID: c.ResultOptionID,
+		HouseRake:      c.HouseRake,
+	}
+
+	for id, option := range c.Options {
+		contestCopy.Options[id] = &contest.Option{
+			ID:   option.ID,
+			Text: option.Text,
+		}
+	}
+
+	for i, prediction := range c.Predictions {
+		contestCopy.Predictions[i] = &contest.Prediction{
+			UserID:    prediction.UserID,
+			OptionID:  prediction.OptionID,
+			Clout:     prediction.Clout,
+			Timestamp: prediction.Timestamp,
+		}
+	}
+
+	return contestCopy
 }

@@ -52,6 +52,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			HouseRake: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
 			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
 			ClosesAt:  pgtype.Timestamp{Time: c.ClosesAt, Valid: true},
+			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
 			Duration:  c.Duration,
 		})
 		if err != nil {
@@ -138,11 +139,30 @@ func (r *Postgres) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*c
 	return contests, nil
 }
 
-// FindExpiredContests retrieves all contests that are OPEN or LOCKED and have passed their closes_at time.
-func (r *Postgres) FindExpiredContests(ctx context.Context) ([]*contest.Contest, error) {
-	dbContests, err := r.queries.FindExpiredContests(ctx)
+// FindContestsToLock retrieves all contests that are OPEN and have passed their closes_at time.
+func (r *Postgres) FindContestsToLock(ctx context.Context) ([]*contest.Contest, error) {
+	dbContests, err := r.queries.FindContestsToLock(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find expired contests: %w", err)
+		return nil, fmt.Errorf("failed to find contests to lock: %w", err)
+	}
+
+	contests := make([]*contest.Contest, len(dbContests))
+	for i, dbContest := range dbContests {
+		c, err := r.mapContest(ctx, dbContest)
+		if err != nil {
+			return nil, err
+		}
+		contests[i] = c
+	}
+
+	return contests, nil
+}
+
+// FindContestsToExpire retrieves all contests that are OPEN or LOCKED and have passed their expires_at time.
+func (r *Postgres) FindContestsToExpire(ctx context.Context) ([]*contest.Contest, error) {
+	dbContests, err := r.queries.FindContestsToExpire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find contests to expire: %w", err)
 	}
 
 	contests := make([]*contest.Contest, len(dbContests))
@@ -223,6 +243,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 		ResultOptionID: resultOptionID,
 		CreatedAt:      dbContest.CreatedAt.Time,
 		ClosesAt:       dbContest.ClosesAt.Time,
+		ExpiresAt:      dbContest.ExpiresAt.Time,
 		Duration:       dbContest.Duration,
 	}, nil
 }

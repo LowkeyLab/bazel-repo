@@ -16,7 +16,8 @@ type Querier interface {
 	CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCircle(ctx context.Context, id int32) error
-	FindExpiredContests(ctx context.Context) ([]Contest, error)
+	FindContestsToExpire(ctx context.Context) ([]Contest, error)
+	FindContestsToLock(ctx context.Context) ([]Contest, error)
 	GetCircle(ctx context.Context, id int32) (Circle, error)
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
 	GetContest(ctx context.Context, id int32) (Contest, error)

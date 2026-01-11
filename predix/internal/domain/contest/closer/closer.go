@@ -10,9 +10,16 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 )
 
-// StartCloser runs a background goroutine that periodically checks for expired contests
-// and closes them by updating their status to CLOSED. The goroutine stops when the context is canceled.
-func StartCloser(ctx context.Context, repo repository.Repository, clk clock.Clock, interval time.Duration) {
+// ContestExpirer defines the interface for expiring contests with refunds.
+type ContestExpirer interface {
+	ExpireContest(ctx context.Context, contestID contest.ID) error
+}
+
+// StartCloser runs a background goroutine that periodically checks for:
+// 1. Contests that need to be locked (voting closed).
+// 2. Contests that have expired (auto-closed/cancelled).
+// The goroutine stops when the context is canceled.
+func StartCloser(ctx context.Context, repo repository.Repository, expirer ContestExpirer, clk clock.Clock, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -24,27 +31,50 @@ func StartCloser(ctx context.Context, repo repository.Repository, clk clock.Cloc
 			log.Println("Contest closer stopping due to context cancellation")
 			return
 		case <-ticker.C:
-			if err := CloseExpiredContests(ctx, repo, clk); err != nil {
-				log.Printf("Error closing expired contests: %v", err)
+			if err := LockContests(ctx, repo, clk); err != nil {
+				log.Printf("Error locking contests: %v", err)
+			}
+			if err := ExpireContests(ctx, repo, expirer, clk); err != nil {
+				log.Printf("Error expiring contests: %v", err)
 			}
 		}
 	}
 }
 
-// CloseExpiredContests finds and closes all expired contests.
-func CloseExpiredContests(ctx context.Context, repo repository.Repository, clk clock.Clock) error {
-	expiredContests, err := repo.FindExpiredContests(ctx)
+// LockContests finds contests that should be locked and updates their status.
+func LockContests(ctx context.Context, repo repository.Repository, clk clock.Clock) error {
+	toLock, err := repo.FindContestsToLock(ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, c := range expiredContests {
-		if c.IsClosed(clk) {
-			if err := repo.UpdateStatus(ctx, c.ID, contest.StatusClosed); err != nil {
-				log.Printf("Failed to close contest %d: %v", c.ID, err)
+	for _, c := range toLock {
+		if c.IsLockedTime(clk) {
+			if err := repo.UpdateStatus(ctx, c.ID, contest.StatusLocked); err != nil {
+				log.Printf("Failed to lock contest %d: %v", c.ID, err)
 				continue
 			}
-			log.Printf("Closed expired contest: %d (question: %s)", c.ID, c.Question)
+			log.Printf("Locked contest: %d (question: %s)", c.ID, c.Question)
+		}
+	}
+
+	return nil
+}
+
+// ExpireContests finds contests that have expired and calls the expirer to close and refund them.
+func ExpireContests(ctx context.Context, repo repository.Repository, expirer ContestExpirer, clk clock.Clock) error {
+	toExpire, err := repo.FindContestsToExpire(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, c := range toExpire {
+		if c.IsExpiredTime(clk) {
+			if err := expirer.ExpireContest(ctx, c.ID); err != nil {
+				log.Printf("Failed to expire (close & refund) contest %d: %v", c.ID, err)
+				continue
+			}
+			log.Printf("Expired (closed & refunded) contest: %d (question: %s)", c.ID, c.Question)
 		}
 	}
 
