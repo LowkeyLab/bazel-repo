@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
@@ -29,6 +30,8 @@ type ContestRepository interface {
 	Save(ctx context.Context, c *contest.Contest) error
 	FindByID(ctx context.Context, id contest.ID) (*contest.Contest, error)
 	FindByCircleID(ctx context.Context, circleID circle.ID) ([]*contest.Contest, error)
+	FindContestsToLock(ctx context.Context) ([]*contest.Contest, error)
+	FindContestsToExpire(ctx context.Context) ([]*contest.Contest, error)
 }
 
 // TransactionManager defines an interface for executing code within a transaction.
@@ -429,6 +432,72 @@ func (s *Service) LockContest(ctx context.Context, circleID circle.ID, contestID
 	err = s.contestRepo.Save(ctx, c)
 	if err != nil {
 		return fmt.Errorf("failed to save locked contest: %w", err)
+	}
+
+	return nil
+}
+
+// LockContestSystem locks a contest without user validation.
+// This is intended for system use (e.g. closer job).
+func (s *Service) LockContestSystem(ctx context.Context, contestID contest.ID) error {
+	// Load contest from repository
+	c, err := s.contestRepo.FindByID(ctx, contestID)
+	if err != nil {
+		return fmt.Errorf("failed to get contest: %w", err)
+	}
+
+	// Use domain method to lock
+	err = c.Lock()
+	if err != nil {
+		return err
+	}
+
+	// Save updated contest
+	err = s.contestRepo.Save(ctx, c)
+	if err != nil {
+		return fmt.Errorf("failed to save locked contest: %w", err)
+	}
+
+	return nil
+}
+
+// ProcessContestLocks finds contests that should be locked and updates their status.
+// This is intended to be called by a background job.
+func (s *Service) ProcessContestLocks(ctx context.Context) error {
+	toLock, err := s.contestRepo.FindContestsToLock(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to find contests to lock: %w", err)
+	}
+
+	for _, c := range toLock {
+		if c.IsLockedTime(s.clock) {
+			if err := s.LockContestSystem(ctx, c.ID); err != nil {
+				slog.Error("Error locking contest", "contest_id", c.ID, "error", err)
+			} else {
+				slog.Info("Locked contest", "contest_id", c.ID, "question", c.Question)
+			}
+		}
+	}
+
+	return nil
+}
+
+// ProcessContestExpirations finds contests that should be expired and updates their status.
+// This is intended to be called by a background job.
+func (s *Service) ProcessContestExpirations(ctx context.Context) error {
+	toExpire, err := s.contestRepo.FindContestsToExpire(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to find contests to expire: %w", err)
+	}
+
+	for _, c := range toExpire {
+		if c.IsExpiredTime(s.clock) {
+			if err := s.ExpireContest(ctx, c.ID); err != nil {
+				slog.Error("Error expiring contest", "contest_id", c.ID, "error", err)
+			} else {
+				slog.Info("Expired contest", "contest_id", c.ID, "question", c.Question)
+			}
+		}
 	}
 
 	return nil
