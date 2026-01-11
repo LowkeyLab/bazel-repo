@@ -8,7 +8,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
-// Memory is an in-memory implementation of the Repository interface.
+// Memory is an in-memory implementation of user repository interfaces.
 type Memory struct {
 	mu      sync.RWMutex
 	users   map[user.ID]*user.User

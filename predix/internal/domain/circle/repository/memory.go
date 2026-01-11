@@ -9,7 +9,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
-// Memory is an in-memory implementation of the Repository interface.
+// Memory is an in-memory implementation of circle repository interfaces.
 type Memory struct {
 	mu      sync.RWMutex
 	circles map[circle.ID]*circle.Circle

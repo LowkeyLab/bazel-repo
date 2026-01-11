@@ -10,7 +10,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 )
 
-// Memory is an in-memory implementation of the Repository interface.
+// Memory is an in-memory implementation of contest repository interfaces.
 type Memory struct {
 	mu       sync.RWMutex
 	contests map[contest.ID]*contest.Contest

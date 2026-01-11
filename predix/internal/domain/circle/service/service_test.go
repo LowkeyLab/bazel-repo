@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -47,6 +48,109 @@ type TestTxManager struct {
 
 func (m *TestTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return db.RunInTx(ctx, m.pool, fn)
+}
+
+func TestProcessContestLocks(t *testing.T) {
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		ctx := context.Background()
+		testutil.ResetTables(t, pool)
+
+		repo := repository.NewPostgres(pool)
+		userRepo := userrepo.NewPostgres(pool)
+		contestRepo := contestrepo.NewPostgres(pool)
+		txm := &TestTxManager{pool: pool}
+
+		// Use fixed clock for testing time-dependent logic
+		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
+		fixedClock := clock.FixedClock{Time: now}
+
+		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm)
+
+		// Create Prerequisites
+		creatorID := createTestUser(t, pool, "creator_lock")
+		circleObj, err := svc.CreateCircle(ctx, "Lock Circle", creatorID)
+		require.NoError(t, err)
+
+		// Create contest that should be locked (passed 1 hour duration)
+		// Contest created 2 hours ago
+		toLockClock := clock.FixedClock{Time: now.Add(-2 * time.Hour)}
+		toLock, err := contest.New(toLockClock, circleObj.ID, creatorID, "To Lock?", []string{"Yes", "No"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		require.NoError(t, contestRepo.Save(ctx, toLock))
+
+		// Create active contest (created now)
+		activeClock := clock.FixedClock{Time: now}
+		active, err := contest.New(activeClock, circleObj.ID, creatorID, "Active?", []string{"A", "B"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		require.NoError(t, contestRepo.Save(ctx, active))
+
+		// Run ProcessContestLocks
+		err = svc.ProcessContestLocks(ctx)
+		require.NoError(t, err)
+
+		// Verify Locked
+		updatedToLock, err := contestRepo.FindByID(ctx, toLock.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusLocked, updatedToLock.Status)
+
+		// Verify Active
+		updatedActive, err := contestRepo.FindByID(ctx, active.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusOpen, updatedActive.Status)
+	})
+}
+
+func TestProcessContestExpirations(t *testing.T) {
+	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+		ctx := context.Background()
+		testutil.ResetTables(t, pool)
+
+		repo := repository.NewPostgres(pool)
+		userRepo := userrepo.NewPostgres(pool)
+		contestRepo := contestrepo.NewPostgres(pool)
+		txm := &TestTxManager{pool: pool}
+
+		// Use fixed clock for testing time-dependent logic
+		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
+		fixedClock := clock.FixedClock{Time: now}
+
+		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm)
+
+		// Create Prerequisites
+		creatorID := createTestUser(t, pool, "creator_expire")
+		circleObj, err := svc.CreateCircle(ctx, "Expire Circle", creatorID)
+		require.NoError(t, err)
+
+		// Create contest that should be expired (passed 1 hour duration + 7 days expiration)
+		// Created 8 days ago
+		expiredClock := clock.FixedClock{Time: now.Add(-8 * 24 * time.Hour)}
+		expired, err := contest.New(expiredClock, circleObj.ID, creatorID, "Expired?", []string{"Yes", "No"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		expired.Status = contest.StatusLocked
+		require.NoError(t, contestRepo.Save(ctx, expired))
+
+		// Create contest that is just locked but not expired
+		// Created 2 hours ago
+		justLockedClock := clock.FixedClock{Time: now.Add(-2 * time.Hour)}
+		justLocked, err := contest.New(justLockedClock, circleObj.ID, creatorID, "Just Locked?", []string{"A", "B"}, contest.Duration1Hour, 10)
+		require.NoError(t, err)
+		justLocked.Status = contest.StatusLocked
+		require.NoError(t, contestRepo.Save(ctx, justLocked))
+
+		// Run ProcessContestExpirations
+		err = svc.ProcessContestExpirations(ctx)
+		require.NoError(t, err)
+
+		// Verify Expired
+		updatedExpired, err := contestRepo.FindByID(ctx, expired.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusExpired, updatedExpired.Status)
+
+		// Verify Just Locked is still Locked
+		updatedJustLocked, err := contestRepo.FindByID(ctx, justLocked.ID)
+		require.NoError(t, err)
+		assert.Equal(t, contest.StatusLocked, updatedJustLocked.Status)
+	})
 }
 
 func TestCircleService(t *testing.T) {

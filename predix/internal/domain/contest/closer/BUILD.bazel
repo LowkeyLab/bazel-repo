@@ -5,37 +5,14 @@ go_library(
     srcs = ["closer.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer",
     visibility = ["//predix:__subpackages__"],
-    deps = [
-        "//predix/internal/clock",
-        "//predix/internal/domain/contest",
-        "//predix/internal/domain/contest/repository",
-    ],
 )
 
 go_test(
     name = "closer_test",
     timeout = "short",
     srcs = ["closer_test.go"],
-    data = [
-        "//predix/internal/sql:migrations",
-    ],
-    tags = [
-        # keep
-        "requires-docker",
-        "requires-network",
-    ],
     deps = [
         ":closer",
-        "//predix/internal/clock",
-        "//predix/internal/db",
-        "//predix/internal/domain/circle",
-        "//predix/internal/domain/contest",
-        "//predix/internal/domain/contest/repository",
-        "//predix/internal/domain/user",
-        "//predix/internal/testutil",
-        "@com_github_jackc_pgx_v5//pgtype",
-        "@com_github_jackc_pgx_v5//pgxpool",
         "@com_github_stretchr_testify//assert",
-        "@com_github_stretchr_testify//require",
     ],
 )

@@ -54,6 +54,15 @@ type PostgresTxManager struct {
 	pool *pgxpool.Pool
 }
 
+type UserRepository interface {
+	userservice.UserRepository
+	circleservice.UserRepository
+}
+
+type ContestRepository interface {
+	circleservice.ContestRepository
+}
+
 func (m *PostgresTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return db.RunInTx(ctx, m.pool, fn)
 }
@@ -76,9 +85,9 @@ func main() {
 		jwtSecret = "dev-secret"
 	}
 
-	var userRepo userrepo.Repository
-	var contestRepo contestrepo.Repository
-	var circleRepo circlerepo.Repository
+	var userRepo UserRepository
+	var contestRepo ContestRepository
+	var circleRepo circleservice.CircleRepository
 	var txManager circleservice.TransactionManager
 
 	if devMode {
@@ -116,13 +125,19 @@ func main() {
 	// Create clock for services
 	clk := clock.RealClock{}
 
-	circleSvc := circleservice.NewService(circleRepo, userRepo, contestRepo, clk, txManager)
+	circleSvc := circleservice.NewService(
+		circleRepo,
+		userRepo,
+		contestRepo,
+		clk,
+		txManager,
+	)
 	userSvc := userservice.NewService(userRepo)
 
 	// Start the contest closer goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go contestcloser.StartCloser(ctx, contestRepo, circleSvc, clk, 10*time.Minute)
+	go contestcloser.StartCloser(ctx, circleSvc, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
 	circleHandler := circlerest.NewHandler(circleSvc)
