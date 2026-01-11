@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { AuthUser } from './auth.service';
 
 export interface StoredAuthData {
-  access_token: string;
+  token: string;
   user: AuthUser;
 }
 
@@ -17,9 +17,9 @@ export class LocalStorageService {
   /**
    * Get JWT token from local storage
    */
-  getAccessToken(): string | null {
+  getToken(): string | null {
     const authData = this.getAuthData();
-    return authData?.access_token ?? null;
+    return authData?.token ?? null;
   }
 
   /**
