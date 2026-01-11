@@ -20,7 +20,7 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
-  token: string;
+  access_token: string;
   refresh_token: string;
   user: AuthUser;
 }
@@ -72,10 +72,10 @@ export class AuthService {
             throw new Error('Invalid token response');
           }
         }),
-        switchMap((tokenRes: TokenLoginResponse) =>
+        switchMap(({ access_token, refresh_token }: TokenLoginResponse) =>
           from(
             this.authorizer.getProfile({
-              Authorization: `Bearer ${tokenRes.access_token}`,
+              Authorization: `Bearer ${access_token}`,
             }),
           ).pipe(
             map((profileRes: ApiResponse<User>) => {
@@ -86,8 +86,8 @@ export class AuthService {
               const user: AuthUser = this.mapUser(profileRes.data);
 
               return {
-                token: tokenRes.access_token,
-                refresh_token: tokenRes.refresh_token,
+                access_token,
+                refresh_token,
                 user,
               } as LoginResponse;
             }),
@@ -118,7 +118,7 @@ export class AuthService {
 
   private persistSession(res: LoginResponse): void {
     this.currentUserSignal.set(res.user);
-    this.tokenSignal.set(res.token);
+    this.tokenSignal.set(res.access_token);
     this.localStorageService.setAuthData(res);
   }
 
