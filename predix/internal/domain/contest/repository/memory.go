@@ -73,7 +73,7 @@ func (r *Memory) FindByCircleID(ctx context.Context, circleID circle.ID) ([]*con
 	return result, nil
 }
 
-// FindContestsToLock retrieves all contests that are OPEN and have passed their closes_at time.
+// FindContestsToLock retrieves all contests that are OPEN and have passed their locked_at time.
 func (r *Memory) FindContestsToLock(ctx context.Context) ([]*contest.Contest, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
