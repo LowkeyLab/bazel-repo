@@ -2,10 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -13,15 +12,15 @@ import (
 
 // Postgres is a PostgreSQL implementation of circle repository interfaces.
 type Postgres struct {
-	pool    *pgxpool.Pool
+	db      *sql.DB
 	queries *db.Queries
 }
 
 // NewPostgres creates a new Postgres repository.
-func NewPostgres(pool *pgxpool.Pool) *Postgres {
+func NewPostgres(sqlDB *sql.DB) *Postgres {
 	return &Postgres{
-		pool:    pool,
-		queries: db.New(pool),
+		db:      sqlDB,
+		queries: db.New(sqlDB),
 	}
 }
 
@@ -40,11 +39,11 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	if !hasTx {
 		// No external transaction, start one
 		var err error
-		tx, err = r.pool.Begin(ctx)
+		tx, err = r.db.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to begin transaction: %w", err)
 		}
-		defer tx.Rollback(ctx)
+		defer tx.Rollback()
 	}
 
 	qtx := r.queries.WithTx(tx)
@@ -53,7 +52,7 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	result, err := qtx.CreateCircle(ctx, db.CreateCircleParams{
 		Name:      c.Name,
 		CreatorID: int32(c.CreatorID),
-		CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
+		CreatedAt: c.CreatedAt,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to save circle: %w", err)
@@ -75,7 +74,7 @@ func (r *Postgres) Save(ctx context.Context, c *circle.Circle) error {
 	}
 
 	if !hasTx {
-		if err := tx.Commit(ctx); err != nil {
+		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 	}
@@ -127,7 +126,7 @@ func (r *Postgres) FindByID(ctx context.Context, id circle.ID) (*circle.Circle, 
 		ID:        circle.ID(dbCircle.ID),
 		Name:      dbCircle.Name,
 		CreatorID: user.ID(dbCircle.CreatorID),
-		CreatedAt: dbCircle.CreatedAt.Time,
+		CreatedAt: dbCircle.CreatedAt,
 		Members:   members,
 	}, nil
 }
@@ -160,7 +159,7 @@ func (r *Postgres) FindByUserID(ctx context.Context, userID int32) ([]*circle.Ci
 			ID:        circle.ID(dbCircle.ID),
 			Name:      dbCircle.Name,
 			CreatorID: user.ID(dbCircle.CreatorID),
-			CreatedAt: dbCircle.CreatedAt.Time,
+			CreatedAt: dbCircle.CreatedAt,
 			Members:   members,
 		})
 	}

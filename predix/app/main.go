@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"fmt"
 	"log/slog"
@@ -14,7 +15,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
@@ -51,7 +52,7 @@ func runMigrations(connStr string) error {
 }
 
 type PostgresTxManager struct {
-	pool *pgxpool.Pool
+	db *sql.DB
 }
 
 type UserRepository interface {
@@ -64,7 +65,7 @@ type ContestRepository interface {
 }
 
 func (m *PostgresTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	return db.RunInTx(ctx, m.pool, fn)
+	return db.RunInTx(ctx, m.db, fn)
 }
 
 type NoOpTxManager struct{}
@@ -109,17 +110,17 @@ func main() {
 			os.Exit(1)
 		}
 
-		pool, err := pgxpool.New(context.Background(), connStr)
+		sqlDB, err := sql.Open("pgx", connStr)
 		if err != nil {
 			slog.Error("unable to connect to database", "error", err)
 			os.Exit(1)
 		}
-		defer pool.Close()
+		defer sqlDB.Close()
 
-		circleRepo = circlerepo.NewPostgres(pool)
-		contestRepo = contestrepo.NewPostgres(pool)
-		userRepo = userrepo.NewPostgres(pool)
-		txManager = &PostgresTxManager{pool: pool}
+		circleRepo = circlerepo.NewPostgres(sqlDB)
+		contestRepo = contestrepo.NewPostgres(sqlDB)
+		userRepo = userrepo.NewPostgres(sqlDB)
+		txManager = &PostgresTxManager{db: sqlDB}
 	}
 
 	// Create clock for services

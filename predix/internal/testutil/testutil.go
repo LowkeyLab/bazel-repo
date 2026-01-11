@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -19,7 +20,7 @@ import (
 
 // SetupTestDB starts a PostgreSQL container, applies the schema, and returns a connection pool.
 // If schemaPath is empty, it will use runfiles to locate the schema.
-func SetupTestDB(t *testing.T) *pgxpool.Pool {
+func SetupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	if testing.Short() {
@@ -54,13 +55,13 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("failed to get connection string: %v", err)
 	}
 
-	pool, err := pgxpool.New(ctx, connStr)
+	db, err := sql.Open("pgx", connStr)
 	if err != nil {
-		t.Fatalf("failed to create connection pool: %v", err)
+		t.Fatalf("failed to open database connection: %v", err)
 	}
 
 	t.Cleanup(func() {
-		pool.Close()
+		db.Close()
 	})
 
 	// Apply Schema via Migrations
@@ -68,7 +69,7 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
-	return pool
+	return db
 }
 
 // runMigrations applies migrations to the test database
@@ -115,19 +116,19 @@ func runMigrations(connStr string) error {
 
 // WithTestDB starts the Postgres container once for a group of subtests.
 // Call ResetTables at the start of each subtest to isolate data.
-func WithTestDB(t *testing.T, fn func(t *testing.T, pool *pgxpool.Pool)) {
+func WithTestDB(t *testing.T, fn func(t *testing.T, db *sql.DB)) {
 	t.Helper()
 
-	pool := SetupTestDB(t)
-	fn(t, pool)
+	db := SetupTestDB(t)
+	fn(t, db)
 }
 
 // ResetTables truncates all application tables while keeping the container alive.
-func ResetTables(t *testing.T, pool *pgxpool.Pool) {
+func ResetTables(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	ctx := context.Background()
-	_, err := pool.Exec(ctx, `TRUNCATE TABLE predictions, options, contests, circle_members, circles, users RESTART IDENTITY CASCADE`)
+	_, err := db.ExecContext(ctx, `TRUNCATE TABLE predictions, options, contests, circle_members, circles, users RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("failed to reset tables: %v", err)
 	}

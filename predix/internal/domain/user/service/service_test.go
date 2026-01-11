@@ -2,22 +2,22 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/testutil"
 )
 
 func TestUserService(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+	testutil.WithTestDB(t, func(t *testing.T, db *sql.DB) {
 		ctx := context.Background()
 
 		newService := func(t *testing.T) *Service {
-			testutil.ResetTables(t, pool)
-			return NewService(repository.NewPostgres(pool))
+			testutil.ResetTables(t, db)
+			return NewService(repository.NewPostgres(db))
 		}
 
 		t.Run("LoginSuccess", func(t *testing.T) {

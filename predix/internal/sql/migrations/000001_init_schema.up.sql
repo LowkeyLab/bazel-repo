@@ -28,7 +28,7 @@ CREATE TABLE contests (
     question TEXT NOT NULL,
     status TEXT NOT NULL,
     min_stake INT NOT NULL DEFAULT 10 CHECK (min_stake IN (10, 100, 1000)),
-    house_rake DECIMAL(5, 2) NOT NULL DEFAULT 10.00,
+    house_rake DOUBLE PRECISION NOT NULL DEFAULT 0.10,
     result_option_id INT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     locked_at TIMESTAMP NOT NULL,

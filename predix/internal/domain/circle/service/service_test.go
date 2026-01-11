@@ -2,11 +2,10 @@ package service_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
@@ -21,15 +20,15 @@ import (
 )
 
 // createTestUser creates a test user in the database
-func createTestUser(t *testing.T, pool *pgxpool.Pool, username string) user.ID {
-	return createTestUserWithRole(t, pool, username, db.UserRoleMember)
+func createTestUser(t *testing.T, sqlDB *sql.DB, username string) user.ID {
+	return createTestUserWithRole(t, sqlDB, username, db.UserRoleMember)
 }
 
-func createTestUserWithRole(t *testing.T, pool *pgxpool.Pool, username string, role db.UserRole) user.ID {
+func createTestUserWithRole(t *testing.T, sqlDB *sql.DB, username string, role db.UserRole) user.ID {
 	t.Helper()
 
 	ctx := context.Background()
-	q := db.New(pool)
+	q := db.New(sqlDB)
 	passwordHash := "hash"
 
 	result, err := q.CreateUser(ctx, db.CreateUserParams{
@@ -43,22 +42,22 @@ func createTestUserWithRole(t *testing.T, pool *pgxpool.Pool, username string, r
 }
 
 type TestTxManager struct {
-	pool *pgxpool.Pool
+	sqlDB *sql.DB
 }
 
 func (m *TestTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	return db.RunInTx(ctx, m.pool, fn)
+	return db.RunInTx(ctx, m.sqlDB, fn)
 }
 
 func TestProcessContestLocks(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+	testutil.WithTestDB(t, func(t *testing.T, sqlDB *sql.DB) {
 		ctx := context.Background()
-		testutil.ResetTables(t, pool)
+		testutil.ResetTables(t, sqlDB)
 
-		repo := repository.NewPostgres(pool)
-		userRepo := userrepo.NewPostgres(pool)
-		contestRepo := contestrepo.NewPostgres(pool)
-		txm := &TestTxManager{pool: pool}
+		repo := repository.NewPostgres(sqlDB)
+		userRepo := userrepo.NewPostgres(sqlDB)
+		contestRepo := contestrepo.NewPostgres(sqlDB)
+		txm := &TestTxManager{sqlDB: sqlDB}
 
 		// Use fixed clock for testing time-dependent logic
 		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
@@ -67,7 +66,7 @@ func TestProcessContestLocks(t *testing.T) {
 		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm)
 
 		// Create Prerequisites
-		creatorID := createTestUser(t, pool, "creator_lock")
+		creatorID := createTestUser(t, sqlDB, "creator_lock")
 		circleObj, err := svc.CreateCircle(ctx, "Lock Circle", creatorID)
 		require.NoError(t, err)
 
@@ -101,14 +100,14 @@ func TestProcessContestLocks(t *testing.T) {
 }
 
 func TestProcessContestExpirations(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+	testutil.WithTestDB(t, func(t *testing.T, sqlDB *sql.DB) {
 		ctx := context.Background()
-		testutil.ResetTables(t, pool)
+		testutil.ResetTables(t, sqlDB)
 
-		repo := repository.NewPostgres(pool)
-		userRepo := userrepo.NewPostgres(pool)
-		contestRepo := contestrepo.NewPostgres(pool)
-		txm := &TestTxManager{pool: pool}
+		repo := repository.NewPostgres(sqlDB)
+		userRepo := userrepo.NewPostgres(sqlDB)
+		contestRepo := contestrepo.NewPostgres(sqlDB)
+		txm := &TestTxManager{sqlDB: sqlDB}
 
 		// Use fixed clock for testing time-dependent logic
 		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
@@ -117,7 +116,7 @@ func TestProcessContestExpirations(t *testing.T) {
 		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm)
 
 		// Create Prerequisites
-		creatorID := createTestUser(t, pool, "creator_expire")
+		creatorID := createTestUser(t, sqlDB, "creator_expire")
 		circleObj, err := svc.CreateCircle(ctx, "Expire Circle", creatorID)
 		require.NoError(t, err)
 
@@ -154,26 +153,26 @@ func TestProcessContestExpirations(t *testing.T) {
 }
 
 func TestCircleService(t *testing.T) {
-	testutil.WithTestDB(t, func(t *testing.T, pool *pgxpool.Pool) {
+	testutil.WithTestDB(t, func(t *testing.T, sqlDB *sql.DB) {
 		ctx := context.Background()
 
 		setup := func(t *testing.T) (*service.Service, *repository.Postgres, *userrepo.Postgres, *db.Queries) {
-			testutil.ResetTables(t, pool)
+			testutil.ResetTables(t, sqlDB)
 
-			repo := repository.NewPostgres(pool)
-			userRepo := userrepo.NewPostgres(pool)
-			contestRepo := contestrepo.NewPostgres(pool)
+			repo := repository.NewPostgres(sqlDB)
+			userRepo := userrepo.NewPostgres(sqlDB)
+			contestRepo := contestrepo.NewPostgres(sqlDB)
 			clk := clock.RealClock{}
-			txm := &TestTxManager{pool: pool}
+			txm := &TestTxManager{sqlDB: sqlDB}
 			svc := service.NewService(repo, userRepo, contestRepo, clk, txm)
-			queries := db.New(pool)
+			queries := db.New(sqlDB)
 			return svc, repo, userRepo, queries
 		}
 
 		t.Run("CreateCircle", func(t *testing.T) {
 			svc, _, _, q := setup(t)
 
-			creatorID := createTestUser(t, pool, "alice")
+			creatorID := createTestUser(t, sqlDB, "alice")
 
 			c, err := svc.CreateCircle(ctx, "Book Club", creatorID)
 			require.NoError(t, err)
@@ -196,7 +195,7 @@ func TestCircleService(t *testing.T) {
 		t.Run("CreateCircle_WithEmptyName", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "bob")
+			creatorID := createTestUser(t, sqlDB, "bob")
 
 			c, err := svc.CreateCircle(ctx, "", creatorID)
 			assert.Error(t, err)
@@ -206,35 +205,35 @@ func TestCircleService(t *testing.T) {
 		t.Run("DeleteCircle_ByCreator", func(t *testing.T) {
 			svc, _, _, q := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator")
+			creatorID := createTestUser(t, sqlDB, "creator")
 			circleObj, err := svc.CreateCircle(ctx, "Gamers", creatorID)
 			require.NoError(t, err)
 
 			require.NoError(t, svc.DeleteCircle(ctx, circleObj.ID, creatorID))
 
 			_, err = q.GetCircle(ctx, int32(circleObj.ID))
-			assert.ErrorIs(t, err, pgx.ErrNoRows)
+			assert.ErrorIs(t, err, sql.ErrNoRows)
 		})
 
 		t.Run("DeleteCircle_ByAdmin", func(t *testing.T) {
 			svc, _, _, q := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator")
-			adminID := createTestUserWithRole(t, pool, "admin", db.UserRoleAdmin)
+			creatorID := createTestUser(t, sqlDB, "creator")
+			adminID := createTestUserWithRole(t, sqlDB, "admin", db.UserRoleAdmin)
 
 			circleObj, err := svc.CreateCircle(ctx, "Readers", creatorID)
 			require.NoError(t, err)
 
 			require.NoError(t, svc.DeleteCircle(ctx, circleObj.ID, adminID))
 			_, err = q.GetCircle(ctx, int32(circleObj.ID))
-			assert.ErrorIs(t, err, pgx.ErrNoRows)
+			assert.ErrorIs(t, err, sql.ErrNoRows)
 		})
 
 		t.Run("DeleteCircle_ForbiddenForMember", func(t *testing.T) {
 			svc, repo, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator")
-			memberID := createTestUser(t, pool, "member")
+			creatorID := createTestUser(t, sqlDB, "creator")
+			memberID := createTestUser(t, sqlDB, "member")
 
 			circleObj, err := svc.CreateCircle(ctx, "Runners", creatorID)
 			require.NoError(t, err)
@@ -249,8 +248,8 @@ func TestCircleService(t *testing.T) {
 		t.Run("ListUserCircles", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			user1ID := createTestUser(t, pool, "user1")
-			user2ID := createTestUser(t, pool, "user2")
+			user1ID := createTestUser(t, sqlDB, "user1")
+			user2ID := createTestUser(t, sqlDB, "user2")
 
 			circle1, err := svc.CreateCircle(ctx, "Circle 1", user1ID)
 			require.NoError(t, err)
@@ -288,7 +287,7 @@ func TestCircleService(t *testing.T) {
 		t.Run("ListUserCircles_EmptyList", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			userID := createTestUser(t, pool, "lonely_user")
+			userID := createTestUser(t, sqlDB, "lonely_user")
 
 			circles, err := svc.ListUserCircles(ctx, userID)
 			require.NoError(t, err)
@@ -298,9 +297,9 @@ func TestCircleService(t *testing.T) {
 		t.Run("GetCircleWithUsernames", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator_alice")
-			member1ID := createTestUser(t, pool, "member_bob")
-			member2ID := createTestUser(t, pool, "member_charlie")
+			creatorID := createTestUser(t, sqlDB, "creator_alice")
+			member1ID := createTestUser(t, sqlDB, "member_bob")
+			member2ID := createTestUser(t, sqlDB, "member_charlie")
 
 			circle, err := svc.CreateCircle(ctx, "Movie Club", creatorID)
 			require.NoError(t, err)
@@ -341,9 +340,9 @@ func TestCircleService(t *testing.T) {
 		t.Run("ListUserCirclesWithUsernames", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			user1ID := createTestUser(t, pool, "user_one")
-			user2ID := createTestUser(t, pool, "user_two")
-			user3ID := createTestUser(t, pool, "user_three")
+			user1ID := createTestUser(t, sqlDB, "user_one")
+			user2ID := createTestUser(t, sqlDB, "user_two")
+			user3ID := createTestUser(t, sqlDB, "user_three")
 
 			circle1, err := svc.CreateCircle(ctx, "Tech Circle", user1ID)
 			require.NoError(t, err)
@@ -412,7 +411,7 @@ func TestCircleService(t *testing.T) {
 		t.Run("ListUserCirclesWithUsernames_EmptyList", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			userID := createTestUser(t, pool, "isolated_user")
+			userID := createTestUser(t, sqlDB, "isolated_user")
 
 			enrichedCircles, err := svc.ListUserCirclesWithUsernames(ctx, userID)
 			require.NoError(t, err)
@@ -422,10 +421,10 @@ func TestCircleService(t *testing.T) {
 		t.Run("ListUserCirclesWithUsernames_MultipleMembers", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "circle_creator")
-			member1ID := createTestUser(t, pool, "member_alpha")
-			member2ID := createTestUser(t, pool, "member_beta")
-			member3ID := createTestUser(t, pool, "member_gamma")
+			creatorID := createTestUser(t, sqlDB, "circle_creator")
+			member1ID := createTestUser(t, sqlDB, "member_alpha")
+			member2ID := createTestUser(t, sqlDB, "member_beta")
+			member3ID := createTestUser(t, sqlDB, "member_gamma")
 
 			circle, err := svc.CreateCircle(ctx, "Big Circle", creatorID)
 			require.NoError(t, err)
@@ -457,17 +456,17 @@ func TestCircleService(t *testing.T) {
 		})
 
 		t.Run("Predict_AllowsUpdatingExistingStake", func(t *testing.T) {
-			testutil.ResetTables(t, pool)
+			testutil.ResetTables(t, sqlDB)
 
-			circleRepo := repository.NewPostgres(pool)
-			userRepo := userrepo.NewPostgres(pool)
-			contestRepo := contestrepo.NewPostgres(pool)
+			circleRepo := repository.NewPostgres(sqlDB)
+			userRepo := userrepo.NewPostgres(sqlDB)
+			contestRepo := contestrepo.NewPostgres(sqlDB)
 			clk := clock.RealClock{}
-			txm := &TestTxManager{pool: pool}
+			txm := &TestTxManager{sqlDB: sqlDB}
 			svc := service.NewService(circleRepo, userRepo, contestRepo, clk, txm)
-			queries := db.New(pool)
-			creatorID := createTestUser(t, pool, "predictor_creator")
-			memberID := createTestUser(t, pool, "predictor")
+			queries := db.New(sqlDB)
+			creatorID := createTestUser(t, sqlDB, "predictor_creator")
+			memberID := createTestUser(t, sqlDB, "predictor")
 
 			circleObj, err := svc.CreateCircle(ctx, "Prediction Circle", creatorID)
 			require.NoError(t, err)
@@ -504,9 +503,9 @@ func TestCircleService(t *testing.T) {
 		t.Run("ResolveContestAndCalculatePayouts", func(t *testing.T) {
 			svc, _, _, q := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator_resolve")
-			winnerID := createTestUser(t, pool, "winner")
-			loserID := createTestUser(t, pool, "loser")
+			creatorID := createTestUser(t, sqlDB, "creator_resolve")
+			winnerID := createTestUser(t, sqlDB, "winner")
+			loserID := createTestUser(t, sqlDB, "loser")
 
 			circleObj, err := svc.CreateCircle(ctx, "Betting Circle", creatorID)
 			require.NoError(t, err)
@@ -553,8 +552,8 @@ func TestCircleService(t *testing.T) {
 		t.Run("ResolveContestAndCalculatePayouts_Unauthorized", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator_auth")
-			otherID := createTestUser(t, pool, "other_user")
+			creatorID := createTestUser(t, sqlDB, "creator_auth")
+			otherID := createTestUser(t, sqlDB, "other_user")
 
 			circleObj, err := svc.CreateCircle(ctx, "Auth Circle", creatorID)
 			require.NoError(t, err)
@@ -571,7 +570,7 @@ func TestCircleService(t *testing.T) {
 		t.Run("ResolveContestAndCalculatePayouts_InvalidOption", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator_opt")
+			creatorID := createTestUser(t, sqlDB, "creator_opt")
 			circleObj, err := svc.CreateCircle(ctx, "Opt Circle", creatorID)
 			require.NoError(t, err)
 
@@ -586,9 +585,9 @@ func TestCircleService(t *testing.T) {
 		t.Run("GetPayoutBreakdown", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
-			creatorID := createTestUser(t, pool, "creator_pb")
-			winnerID := createTestUser(t, pool, "winner_pb")
-			loserID := createTestUser(t, pool, "loser_pb")
+			creatorID := createTestUser(t, sqlDB, "creator_pb")
+			winnerID := createTestUser(t, sqlDB, "winner_pb")
+			loserID := createTestUser(t, sqlDB, "loser_pb")
 
 			circleObj, err := svc.CreateCircle(ctx, "PB Circle", creatorID)
 			require.NoError(t, err)

@@ -2,11 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"math/big"
 
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
@@ -15,15 +13,15 @@ import (
 
 // Postgres is a PostgreSQL implementation of contest repository interfaces.
 type Postgres struct {
-	pool    *pgxpool.Pool
+	db      *sql.DB
 	queries *db.Queries
 }
 
 // NewPostgres creates a new Postgres repository.
-func NewPostgres(pool *pgxpool.Pool) *Postgres {
+func NewPostgres(sqlDB *sql.DB) *Postgres {
 	return &Postgres{
-		pool:    pool,
-		queries: db.New(pool),
+		db:      sqlDB,
+		queries: db.New(sqlDB),
 	}
 }
 
@@ -43,11 +41,11 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	if !hasTx {
 		// No external transaction, start one
 		var err error
-		tx, err = r.pool.Begin(ctx)
+		tx, err = r.db.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to begin transaction: %w", err)
 		}
-		defer tx.Rollback(ctx)
+		defer tx.Rollback()
 	}
 
 	qtx := r.queries.WithTx(tx)
@@ -64,10 +62,10 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			Question:  c.Question,
 			Status:    string(c.Status),
 			MinStake:  int32(c.MinStake),
-			HouseRake: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Valid: true}, // 10.00
-			CreatedAt: pgtype.Timestamp{Time: c.CreatedAt, Valid: true},
-			LockedAt:  pgtype.Timestamp{Time: c.LockedAt, Valid: true},
-			ExpiresAt: pgtype.Timestamp{Time: c.ExpiresAt, Valid: true},
+			HouseRake: c.HouseRake,
+			CreatedAt: c.CreatedAt,
+			LockedAt:  c.LockedAt,
+			ExpiresAt: c.ExpiresAt,
 			Duration:  c.Duration,
 		})
 		if err != nil {
@@ -90,9 +88,9 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		}
 	} else {
 		// Update existing contest status
-		resultOptionID := pgtype.Int4{Valid: false}
+		resultOptionID := sql.NullInt32{Valid: false}
 		if c.ResultOptionID != nil {
-			resultOptionID = pgtype.Int4{Int32: int32(*c.ResultOptionID), Valid: true}
+			resultOptionID = sql.NullInt32{Int32: int32(*c.ResultOptionID), Valid: true}
 		}
 
 		err = qtx.UpdateContestStatus(ctx, db.UpdateContestStatusParams{
@@ -111,7 +109,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 			UserID:    int32(prediction.UserID),
 			OptionID:  int32(prediction.OptionID),
 			Clout:     int32(prediction.Clout),
-			CreatedAt: pgtype.Timestamp{Time: prediction.Timestamp, Valid: true},
+			CreatedAt: prediction.Timestamp,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to save prediction: %w", err)
@@ -119,7 +117,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	}
 
 	if !hasTx {
-		if err := tx.Commit(ctx); err != nil {
+		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 	}
@@ -223,7 +221,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 			UserID:    user.ID(dbPrediction.UserID),
 			OptionID:  int(dbPrediction.OptionID),
 			Clout:     int(dbPrediction.Clout),
-			Timestamp: dbPrediction.CreatedAt.Time,
+			Timestamp: dbPrediction.CreatedAt,
 		}
 	}
 
@@ -239,13 +237,7 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 		minStake = defaultMinStake
 	}
 
-	// Parse house rake from pgtype.Numeric
-	houseRake := 0.10 // default
-	if dbContest.HouseRake.Valid {
-		// Convert Numeric to string then parse - stored as percentage (10.00 = 10%)
-		// We need 0.10 for our float64 representation
-		houseRake = float64(dbContest.HouseRake.Int.Int64()) / 10000.0
-	}
+	houseRake := dbContest.HouseRake
 
 	return &contest.Contest{
 		ID:             contest.ID(dbContest.ID),
@@ -258,9 +250,9 @@ func (r *Postgres) mapContest(ctx context.Context, dbContest db.Contest) (*conte
 		MinStake:       minStake,
 		HouseRake:      houseRake,
 		ResultOptionID: resultOptionID,
-		CreatedAt:      dbContest.CreatedAt.Time,
-		LockedAt:       dbContest.LockedAt.Time,
-		ExpiresAt:      dbContest.ExpiresAt.Time,
+		CreatedAt:      dbContest.CreatedAt,
+		LockedAt:       dbContest.LockedAt,
+		ExpiresAt:      dbContest.ExpiresAt,
 		Duration:       dbContest.Duration,
 	}, nil
 }
