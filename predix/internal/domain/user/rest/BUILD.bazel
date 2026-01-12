@@ -18,7 +18,6 @@ go_test(
     name = "handlers_test",
     timeout = "short",
     srcs = ["handlers_test.go"],
-    data = ["//predix/internal/sql:migrations"],
     embed = [":rest"],
     tags = [
         # keep
@@ -40,7 +39,6 @@ go_test(
     name = "rest_test",
     timeout = "short",
     srcs = ["handlers_test.go"],
-    data = ["//predix/internal/sql:migrations"],
     embed = [":rest"],
     tags = [
         # keep

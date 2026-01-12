@@ -7,5 +7,5 @@ exports_files([
 # Reference the migrations from the migrations/ subdirectory
 filegroup(
     name = "migrations",
-    srcs = ["//predix/internal/sql/migrations"],
+    srcs = ["//predix/internal/migrations:sql_files"],
 )
