@@ -218,8 +218,6 @@ maven.install(
         "ch.qos.logback:logback-classic:%s" % LOGBACK_VERSION,
         # JSON Path
         "com.jayway.jsonpath:json-path:%s" % JSON_PATH_VERSION,
-        # Transitive dependencies
-        "com.google.j2objc:j2objc-annotations:3.1",
     ],
     fetch_javadoc = True,
     fetch_sources = True,
