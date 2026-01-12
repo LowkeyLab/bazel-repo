@@ -63,6 +63,9 @@ common:lint --aspects=//tools/lint:linters.bzl%ktlint
 common:lint --aspects=//tools/lint:linters.bzl%keep_sorted
 common:lint --aspects=//tools/lint:linters.bzl%stylelint
 
+common:lint --output_groups=+rules_lint_report
+common:lint --keep_going
+
 # Load any settings & overrides specific to the current user.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
 # should be last statement in this config so the user configuration is able to overwrite flags from
