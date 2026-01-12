@@ -25,6 +25,7 @@ test --test_verbose_timeout_warnings
 # For keep-sorted
 common --experimental_isolated_extension_usages
 
+# To always show a warning if githooks config is not correct
 common --workspace_status_command=githooks/check-config.sh
 
 # Disable skymeld; see https://github.com/bazelbuild/bazel/issues/23743
