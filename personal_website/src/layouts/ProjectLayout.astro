@@ -48,14 +48,16 @@ const {
 
   <!-- Project Header -->
   <div class="card bg-base-100 shadow-xl mb-8">
-    <div class="card-body">
-      <h1 class="text-4xl font-bold text-primary mb-4">
+    <div class="card-body p-6 md:p-8">
+      <h1 class="text-2xl font-bold text-primary mb-2">
         {projectData.title}
       </h1>
 
-      <TagBadges tags={projectData.tags} size="md" className="mb-4" />
+      <TagBadges tags={projectData.tags} size="sm" className="mb-4" />
 
-      <p class="text-xl mb-6">{projectData.description}</p>
+      <p class="text-base text-base-content/80 leading-relaxed mb-6">
+        {projectData.description}
+      </p>
 
       <div class="flex gap-3">
         {
@@ -102,7 +104,7 @@ const {
 
   <!-- Project Content -->
   <div
-    class="prose lg:prose-lg max-w-none bg-base-100 p-8 rounded-lg shadow-md"
+    class="prose max-w-none bg-base-100 p-6 md:p-8 rounded-xl shadow-md"
   >
     <slot />
   </div>
