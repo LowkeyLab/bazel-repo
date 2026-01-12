@@ -1,5 +1,23 @@
 {
   "$schema": "https://raw.githubusercontent.com/theoremlp/rules_multitool/main/lockfile.schema.json",
+  "aspect": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.1.7/aspect-cli-x86_64-unknown-linux-musl",
+        "sha256": "bea9a8cd557605fdeb3d1a0c34c43e8a3bbfc7048704020aa3a0acbd2b3980ae",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.1.7/aspect-cli-aarch64-apple-darwin",
+        "sha256": "0ea12c42750ed29811f9e4b82c1b9c967581caa5da2ed383115391797aff65fb",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
   "buf": {
     "binaries": [
       {

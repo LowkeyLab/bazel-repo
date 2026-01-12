@@ -52,6 +52,17 @@ common --workspace_status_command=githooks/check-config.sh
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
 build --repo_env=JAVA_HOME=../bazel_tools/jdk
 
+# Lint aspects
+common:lint --aspects=//tools/lint:linters.bzl%buf
+common:lint --aspects=//tools/lint:linters.bzl%checkstyle
+common:lint --aspects=//tools/lint:linters.bzl%eslint
+common:lint --aspects=//tools/lint:linters.bzl%shellcheck
+common:lint --aspects=//tools/lint:linters.bzl%ruff
+common:lint --aspects=//tools/lint:linters.bzl%pmd
+common:lint --aspects=//tools/lint:linters.bzl%ktlint
+common:lint --aspects=//tools/lint:linters.bzl%keep_sorted
+common:lint --aspects=//tools/lint:linters.bzl%stylelint
+
 # Load any settings & overrides specific to the current user.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
 # should be last statement in this config so the user configuration is able to overwrite flags from
