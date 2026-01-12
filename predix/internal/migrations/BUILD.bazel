@@ -4,15 +4,17 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(glob(["*.sql"]))
 
-filegroup(
-    name = "sql_files",
-    srcs = glob(["*.sql"]),
-)
-
 go_library(
     name = "migrations",
     srcs = ["migrations.go"],
-    embedsrcs = glob(["*.sql"]),
+    embedsrcs = [
+        "000001_init_schema.down.sql",
+        "000001_init_schema.up.sql",
+        "000002_add_expires_at.down.sql",
+        "000002_add_expires_at.up.sql",
+        "000003_change_house_rake_to_real.down.sql",
+        "000003_change_house_rake_to_real.up.sql",
+    ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/migrations",
     visibility = ["//visibility:public"],
     deps = [
