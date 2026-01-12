@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
@@ -37,6 +38,7 @@ func setupRouter(t *testing.T, db *sql.DB) (*gin.Engine, *auth.Manager, *service
 	handler := NewHandler(svc, tokens)
 
 	r := gin.New()
+	r.Use(sloggin.SetLogger())
 	handler.RegisterRoutes(r)
 
 	return r, tokens, svc

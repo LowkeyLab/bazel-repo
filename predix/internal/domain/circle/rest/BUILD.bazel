@@ -11,6 +11,7 @@ go_library(
         "//predix/internal/domain/circle/service",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/user",
+        "@com_github_gin_contrib_slog//:slog",
         "@com_github_gin_gonic_gin//:gin",
     ],
 )
@@ -39,6 +40,7 @@ go_test(
         "//predix/internal/domain/user",
         "//predix/internal/domain/user/repository",
         "//predix/internal/testutil",
+        "@com_github_gin_contrib_slog//:slog",
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
