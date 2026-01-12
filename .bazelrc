@@ -50,7 +50,7 @@ common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
 build --repo_env=JAVA_HOME=../bazel_tools/jdk
 
-# Lint aspects
+# Linting configuration
 common:lint --aspects=//tools/lint:linters.bzl%buf
 common:lint --aspects=//tools/lint:linters.bzl%checkstyle
 common:lint --aspects=//tools/lint:linters.bzl%eslint
