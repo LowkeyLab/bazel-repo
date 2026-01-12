@@ -41,7 +41,7 @@ jobs:
           - language: actions
             build-mode: none
           - language: go
-            build-mode: manual
+            build-mode: autobuild
           - language: java-kotlin
             build-mode: manual
           - language: javascript-typescript
