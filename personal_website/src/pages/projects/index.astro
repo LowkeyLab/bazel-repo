@@ -6,11 +6,13 @@ import { getCollection } from "astro:content";
 // Get all projects from the collection
 const projects = await getCollection("projects");
 
+const MAX_DATE = new Date(8640000000000000); // Maximum Date in JavaScript
+
 // Sort by activity date (most recent first)
 const sortedProjects = projects.sort((a, b) => {
   // Use a future date for "Present" (missing endDate)
-  const dateA = a.data.endDate || new Date(8640000000000000);
-  const dateB = b.data.endDate || new Date(8640000000000000);
+  const dateA = a.data.endDate || MAX_DATE;
+  const dateB = b.data.endDate || MAX_DATE;
 
   // If both end at the same time (e.g. both Present), sort by start date
   if (dateA.getTime() === dateB.getTime()) {
