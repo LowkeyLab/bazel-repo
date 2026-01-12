@@ -17,9 +17,6 @@ go_test(
     name = "service_test",
     timeout = "short",
     srcs = ["service_test.go"],
-    data = [
-        "//predix/internal/sql:migrations",
-    ],
     tags = [
         # keep
         "requires-docker",

@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.sql"]))
+
+go_library(
+    name = "migrations",
+    srcs = ["migrations.go"],
+    embedsrcs = [
+        "000001_init_schema.down.sql",
+        "000001_init_schema.up.sql",
+        "000002_add_expires_at.down.sql",
+        "000002_add_expires_at.up.sql",
+        "000003_change_house_rake_to_real.down.sql",
+        "000003_change_house_rake_to_real.up.sql",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/migrations",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_golang_migrate_migrate_v4//:migrate",
+        "@com_github_golang_migrate_migrate_v4//database/postgres",
+        "@com_github_golang_migrate_migrate_v4//source/iofs",
+    ],
+)

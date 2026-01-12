@@ -12,9 +12,6 @@ go_test(
     name = "circle_test",
     size = "small",
     srcs = ["circle_test.go"],
-    data = [
-        "//predix/internal/sql:migrations",
-    ],
     tags = [
         # keep
         "requires-docker",
