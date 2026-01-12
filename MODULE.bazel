@@ -170,21 +170,21 @@ use_repo(buf, "rules_buf_toolchains")
 # in the MODULE.bazel file.
 
 # Version variables for JVM dependencies
-KTOR_VERSION = "3.3.1"
+KTOR_VERSION = "3.3.3"
 
-KOTLIN_VERSION = "2.2.20"
+KOTLIN_VERSION = "2.3.0"
 
 POSTGRES_VERSION = "42.7.8"
 
-H2_VERSION = "2.3.232"
+H2_VERSION = "2.4.240"
 
 EXPOSED_VERSION = "0.61.0"
 
-LOGBACK_VERSION = "1.4.14"
+LOGBACK_VERSION = "1.5.24"
 
-JSON_PATH_VERSION = "2.9.0"
+JSON_PATH_VERSION = "2.10.0"
 
-JUNIT_VERSION = "6.0.1"
+JUNIT_VERSION = "6.0.2"
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
