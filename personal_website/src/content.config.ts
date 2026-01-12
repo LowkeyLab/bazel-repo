@@ -18,6 +18,19 @@ const projects = defineCollection({
     }),
 });
 
+const work = defineCollection({
+  loader: glob({ pattern: "**/*.md", base: "./src/content/work" }),
+  schema: z.object({
+    title: z.string(),
+    company: z.string(),
+    role: z.string(),
+    startDate: z.coerce.date(),
+    summary: z.string(),
+    tags: z.array(z.string()),
+  }),
+});
+
 export const collections = {
   projects,
+  work,
 };

@@ -1,0 +1,76 @@
+---
+import { render } from "astro:content";
+import { getCollection } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import TagBadges from "../../components/TagBadges.astro";
+
+// Generate static paths for all work projects
+export async function getStaticPaths() {
+  const workProjects = await getCollection("work");
+  return workProjects.map((work) => ({
+    params: { work: work.id },
+    props: { work },
+  }));
+}
+
+// Get the work project for this page
+const { work } = Astro.props;
+const { Content } = await render(work);
+
+// Format date
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+};
+---
+
+<Layout
+  title={`${work.data.title} | Tim Tran`}
+  description={work.data.summary}
+  activeItem="work"
+>
+  <div class="mb-8">
+    <a href="/work" class="btn btn-ghost btn-sm">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="w-5 h-5"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"></path>
+      </svg>
+      Back to Work Experience
+    </a>
+  </div>
+
+  <!-- Work Header -->
+  <div class="card bg-base-100 shadow-xl mb-8">
+    <div class="card-body p-6 md:p-8">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+        <div>
+           <h1 class="text-2xl font-bold text-primary">{work.data.title}</h1>
+           <p class="text-lg font-semibold opacity-75">{work.data.company} | {work.data.role}</p>
+        </div>
+        <div class="badge badge-md">{formatDate(work.data.startDate)}</div>
+      </div>
+
+      <TagBadges tags={work.data.tags} size="sm" className="mb-4" />
+
+      <p class="text-base text-base-content/80 leading-relaxed">{work.data.summary}</p>
+    </div>
+  </div>
+
+  <!-- Work Content -->
+  <div
+    class="prose max-w-none bg-base-100 p-6 md:p-8 rounded-xl shadow-md"
+  >
+    <Content />
+  </div>
+</Layout>

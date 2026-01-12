@@ -2,6 +2,10 @@
 import Layout from "../../layouts/Layout.astro";
 import TagBadges from "../../components/TagBadges.astro";
 import CallToAction from "../../components/CallToAction.astro";
+import { getCollection } from "astro:content";
+
+const workProjects = await getCollection("work");
+const sortedProjects = workProjects.sort((a, b) => b.data.startDate.valueOf() - a.data.startDate.valueOf());
 
 // Professional skills organized by category
 const skills = {
@@ -25,174 +29,82 @@ const skills = {
   activeItem="work"
 >
   <header class="mb-12 text-center">
-    <h1 class="text-4xl font-bold text-base-content mb-3">Work Experience</h1>
+    <h1 class="text-4xl font-bold text-base-content mb-3 tracking-tight">Work Experience</h1>
     <p class="text-xl text-base-content/80 max-w-3xl mx-auto">
-      Writings about what I've pushed to production
+      A journey through systems I've built and production environments I've scaled.
     </p>
   </header>
 
-  <!-- Current Role -->
-  <div class="card bg-base-100 shadow-xl mb-12">
-    <div class="card-body">
-      <div
-        class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6"
-      >
-        <div>
-          <h2 class="text-3xl font-bold text-primary">Bloomberg LP</h2>
-          <p class="text-xl">Software Engineer</p>
-        </div>
-        <div class="badge badge-lg">Current</div>
+  <!-- Dynamic Work Projects (Summaries) -->
+  <section class="space-y-10 mb-16">
+    {sortedProjects.map((project) => (
+      <div class="group relative">
+        <div class="absolute -inset-y-4 -inset-x-4 z-0 scale-95 bg-base-200 opacity-0 transition group-hover:scale-100 group-hover:opacity-100 sm:-inset-x-6 rounded-xl"></div>
+        <a href={`/work/${project.id}`} class="relative z-10 flex flex-col items-start">
+          <div class="flex flex-col md:flex-row justify-between items-baseline w-full mb-1">
+            <h2 class="text-2xl font-bold text-primary group-hover:text-primary-focus transition-colors">
+              {project.data.title}
+            </h2>
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold opacity-60 uppercase tracking-widest">{project.data.company}</span>
+              <span class="hidden md:block h-1 w-1 rounded-full bg-base-content/20"></span>
+              <span class="text-xs font-medium opacity-60">{new Intl.DateTimeFormat('en-US', { year: 'numeric' }).format(project.data.startDate)}</span>
+            </div>
+          </div>
+          <p class="text-lg text-base-content/80 leading-relaxed mb-4 max-w-4xl">
+            {project.data.summary}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            {project.data.tags.map(tag => (
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-wide">
+                {tag}
+              </span>
+            ))}
+          </div>
+          <div class="mt-4 flex items-center text-sm text-primary font-bold group-hover:translate-x-1 transition-transform">
+            Read case study
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="ml-1 w-4 h-4">
+              <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </a>
       </div>
+    ))}
+  </section>
 
-      <p class="mb-6">
-        At Bloomberg, I'm deeply immersed in the Java ecosystem, working on
-        high-performance, mission-critical financial software applications. I
-        collaborate with a team of engineers to develop and maintain robust
-        systems that process vast amounts of financial data and support critical
-        business operations.
-      </p>
-
-      <h3 class="text-xl font-semibold mb-2">Core Responsibilities:</h3>
-      <ul class="list-disc pl-6 mb-6 space-y-2">
-        <li>
-          Design and implement JVM-based solutions for complex financial data
-          processing systems
-        </li>
-        <li>
-          Optimize application performance for handling large-scale, real-time
-          market data
-        </li>
-        <li>
-          Develop and maintain microservices within Bloomberg's expansive tech
-          ecosystem
-        </li>
-        <li>
-          Collaborate on API design and implementation for internal and external
-          services
-        </li>
-        <li>Participate in code reviews and technical design discussions</li>
-        <li>
-          Work within agile development methodologies to deliver features and
-          improvements
-        </li>
-      </ul>
-
-      <h3 class="text-xl font-semibold mb-2">Technologies Used:</h3>
-      <TagBadges
-        tags={[
-          "Java",
-          "Spring Boot",
-          "Microservices",
-          "RESTful APIs",
-          "Kafka",
-          "PostgreSQL",
-          "JUnit",
-          "Gradle",
-        ]}
-        size="md"
-        className="mb-6"
-      />
-
-      <div class="divider"></div>
-
-      <h3 class="text-xl font-semibold mb-4">Projects I've Worked On</h3>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div class="card bg-base-200">
-          <div class="card-body">
-            <h4 class="card-title">Core Java Infrastructure</h4>
-            <p>
-              I'm a leading member of a group of 30 people who maintain the core
-              JVM libraries at Bloomberg. We maintain libraries that are used by
-              thousands of developers at the core of Bloomberg. <br />
-
-              My slice is usually build systems and CI pipelines, where I
-              maintain the Gradle and Maven builds of the libraries. I also
-              provide help for teams looking to migrate into the JVM ecosystem. <br
-              />
-
-              Recently, I've been working on streamlining code generation for
-              Bloomberg's proprietary RPC protocol. This involves generating
-              Kotlin code, as well as implementing a Kotlin codec for the
-              protocol. This would eliminate Bloomberg's reliance on many
-              external dependencies, which has caused migration issues in the
-              past.
-            </p>
-          </div>
-        </div>
-        <div class="card bg-base-200">
-          <div class="card-body">
-            <h4 class="card-title">Model Driven Architecture Platform</h4>
-            <p>
-              Many teams at Bloomberg developed in silos. This means that each
-              team developed their own model of the same financial concepts. In
-              the modern era, many clients are interested in using Bloomberg as
-              a provider for all of their financial data. This means that we
-              need to have a single source of well-defined data models, both for
-              our clients and for our internal teams. <br />
-
-              We're building a platform that allows teams to define their data
-              on a UI, then have code artifacts generated based on those models.
-              We provide the messaging schemas, the database schemas, and a
-              mapping between them. The ultimate goal is for developers to
-              simplify business logic development, communicate using the same
-              format, and have unified data storage. <br />
-            </p>
-          </div>
-        </div>
-        <div class="card bg-base-200">
-          <div class="card-body">
-            <h4 class="card-title">Indication of Interest (IOI) pipeline</h4>
-            <p>
-              My first ever project at Bloomberg. The team wanted to migrate
-              their legacy end-of-day C++ pipeline to a more real-time
-              aggregation system. I was tasked with building a proof of concept
-              utilizing Flink. <br />
-              I set up the build, CI/CD, and Kubernetes deployment. I also ported
-              the existing business logic to Flink, first using Java and then Kotlin.
-              <br />
-              The project was a success, and the team is deploying more and more
-              of their data pipelines using Flink and Kotlin.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div class="divider mb-16"></div>
 
   <!-- Technical Skills -->
-  <div class="card bg-base-100 shadow-xl mb-12">
-    <div class="card-body">
-      <h2 class="text-2xl font-bold text-primary mb-6">Technical Skills</h2>
+  <section class="mb-12">
+    <h2 class="text-3xl font-bold text-primary mb-8 text-center">Technical Skills</h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Languages</h3>
-          <TagBadges tags={skills.languages} size="md" />
-        </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-12">
+      <div>
+        <h3 class="text-lg font-bold mb-3 border-b border-primary/20 pb-1">Languages</h3>
+        <TagBadges tags={skills.languages} size="sm" />
+      </div>
 
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Frameworks</h3>
-          <TagBadges tags={skills.frameworks} size="md" />
-        </div>
+      <div>
+        <h3 class="text-lg font-bold mb-3 border-b border-primary/20 pb-1">Frameworks</h3>
+        <TagBadges tags={skills.frameworks} size="sm" />
+      </div>
 
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Tools</h3>
-          <TagBadges tags={skills.tools} size="md" />
-        </div>
+      <div>
+        <h3 class="text-lg font-bold mb-3 border-b border-primary/20 pb-1">Tools</h3>
+        <TagBadges tags={skills.tools} size="sm" />
+      </div>
 
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Databases</h3>
-          <TagBadges tags={skills.databases} size="md" />
-        </div>
+      <div>
+        <h3 class="text-lg font-bold mb-3 border-b border-primary/20 pb-1">Databases</h3>
+        <TagBadges tags={skills.databases} size="sm" />
+      </div>
 
-        <div class="md:col-span-2">
-          <h3 class="text-xl font-semibold mb-2">Concepts</h3>
-          <TagBadges tags={skills.concepts} size="md" />
-        </div>
+      <div class="md:col-span-2">
+        <h3 class="text-lg font-bold mb-3 border-b border-primary/20 pb-1">Concepts</h3>
+        <TagBadges tags={skills.concepts} size="sm" />
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- Call to Action -->
   <CallToAction />
