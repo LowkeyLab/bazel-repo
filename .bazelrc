@@ -25,6 +25,8 @@ test --test_verbose_timeout_warnings
 # For keep-sorted
 common --experimental_isolated_extension_usages
 
+common --workspace_status_command=githooks/check-config.sh
+
 # Disable skymeld; see https://github.com/bazelbuild/bazel/issues/23743
 # fixes src/main/tools/process-wrapper-legacy.cc:80: "execvp(external/++toolchains+coreutils_linux_amd64/coreutils, ...)": No such file or directory
 common --noexperimental_merged_skyframe_analysis_execution
@@ -43,8 +45,6 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 # To stamp release builds, run with
 # --config=release
 common:release --stamp --workspace_status_command=./tools/workspace_status.sh
-
-common --workspace_status_command=githooks/check-config.sh
 
 # Don't depend on a JAVA_HOME pointing at a system JDK
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
