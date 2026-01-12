@@ -8,7 +8,7 @@ edition = "2024"
 anyhow = "1.0.100"
 askama = "0.15.0"
 axum = "0.8.6"
-axum-extra = { version = "0.10.3", features = ["cookie"] }
+axum-extra = { version = "0.12.0", features = ["cookie"] }
 chrono = "0.4.42"
 config = "0.15.18"
 jsonwebtoken = { version = "10.0.0", features = ["aws_lc_rs"] }
