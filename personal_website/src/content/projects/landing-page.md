@@ -1,7 +1,6 @@
 ---
 title: "Personal Landing Page"
 description: "My personal website"
-cover: "../../assets/website.png"
 tags: ["Astro", "Tailwind", "Deno", "TypeScript"]
 featured: true
 links:

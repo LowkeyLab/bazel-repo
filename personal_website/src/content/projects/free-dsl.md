@@ -1,7 +1,6 @@
 ---
 title: "Free-DSL"
 description: "An annotation processor for creating Builders in Kotlin"
-cover: "../../assets/free-dsl.png"
 tags: ["Kotlin"]
 featured: true
 links:

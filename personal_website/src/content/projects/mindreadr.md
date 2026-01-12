@@ -1,7 +1,6 @@
 ---
 title: "Mindreadr"
 description: "A cooperative word-guessing game"
-cover: "../../assets/mindreadr.png"
 tags: ["Kotlin", "Ktor", "Angular", "TypeScript", "WebSocket", "Bazel"]
 featured: true
 links:

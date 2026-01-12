@@ -1,8 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import ProjectCard from "../../components/ProjectCard.astro";
 import CallToAction from "../../components/CallToAction.astro";
-import dummyImage from "../../assets/dummy.png";
 import { getCollection } from "astro:content";
 
 // Get all projects from the collection
@@ -56,23 +54,47 @@ const allTags = [
     }
   </div>
 
-  <!-- Projects Grid -->
-  <div
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-    id="projects-grid"
-  >
+  <!-- Projects List -->
+  <div class="space-y-10 mb-16" id="projects-grid">
     {
       sortedProjects.map((project) => (
-        <div class="project-card" data-tags={project.data.tags.join(",")}>
-          <ProjectCard
-            title={project.data.title}
-            description={project.data.description}
-            tags={project.data.tags}
-            image={project.data.cover || dummyImage}
-            imageAlt="Project cover"
-            links={project.data.links}
-            slug={project.id}
-          />
+        <div class="project-card group relative" data-tags={project.data.tags.join(",")}>
+          <div class="absolute -inset-y-4 -inset-x-4 z-0 scale-95 bg-base-200 opacity-0 transition group-hover:scale-100 group-hover:opacity-100 sm:-inset-x-6 rounded-xl" />
+          <a
+            href={`/projects/${project.id}`}
+            class="relative z-10 flex flex-col items-start"
+          >
+            <div class="flex flex-col md:flex-row justify-between items-baseline w-full mb-1">
+              <h2 class="text-2xl font-bold text-primary group-hover:text-primary-focus transition-colors">
+                {project.data.title}
+              </h2>
+            </div>
+            <p class="text-lg text-base-content/80 leading-relaxed mb-4 max-w-4xl">
+              {project.data.description}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              {project.data.tags.map((tag) => (
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-wide">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <div class="mt-4 flex items-center text-sm text-primary font-bold group-hover:translate-x-1 transition-transform">
+              View Project
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                class="ml-1 w-4 h-4"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+          </a>
         </div>
       ))
     }
