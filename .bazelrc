@@ -16,16 +16,14 @@ common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --jobs=50
 
-# For keep-sorted
-common --experimental_isolated_extension_usages
-# Ignore lockfile in CI
-common:ci --lockfile_mode="off"
+
 # Docs: https://registry.build/flag/bazel?filter=lockfile_mode
 
 # Show timeout warnings to correctly adjust build/test timeouts
 test --test_verbose_timeout_warnings
 
-run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
+# For keep-sorted
+common --experimental_isolated_extension_usages
 
 # Disable skymeld; see https://github.com/bazelbuild/bazel/issues/23743
 # fixes src/main/tools/process-wrapper-legacy.cc:80: "execvp(external/++toolchains+coreutils_linux_amd64/coreutils, ...)": No such file or directory
@@ -65,6 +63,12 @@ common:lint --aspects=//tools/lint:linters.bzl%stylelint
 
 common:lint --output_groups=+rules_lint_report
 common:lint --keep_going
+
+# Ignore lockfile in CI
+common:ci --lockfile_mode="off"
+
+# To output something for xargs
+run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
 # Load any settings & overrides specific to the current user.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
