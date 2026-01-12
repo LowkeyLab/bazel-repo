@@ -6,12 +6,27 @@ import { getCollection } from "astro:content";
 // Get all projects from the collection
 const projects = await getCollection("projects");
 
-// Sort by featured projects first
+// Sort by activity date (most recent first)
 const sortedProjects = projects.sort((a, b) => {
-  if (a.data.featured && !b.data.featured) return -1;
-  if (!a.data.featured && b.data.featured) return 1;
-  return a.data.title.localeCompare(b.data.title);
+  // Use a future date for "Present" (missing endDate)
+  const dateA = a.data.endDate || new Date(8640000000000000);
+  const dateB = b.data.endDate || new Date(8640000000000000);
+
+  // If both end at the same time (e.g. both Present), sort by start date
+  if (dateA.getTime() === dateB.getTime()) {
+    return b.data.startDate.valueOf() - a.data.startDate.valueOf();
+  }
+
+  return dateB.valueOf() - dateA.valueOf();
 });
+
+// Format date helper
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
 
 // Count frequency of each tag
 const tagFrequency = projects
@@ -68,6 +83,9 @@ const allTags = [
               <h2 class="text-2xl font-bold text-primary group-hover:text-primary-focus transition-colors">
                 {project.data.title}
               </h2>
+              <span class="text-sm font-medium opacity-60 whitespace-nowrap md:ml-4">
+                {formatDate(project.data.startDate)} - {project.data.endDate ? formatDate(project.data.endDate) : "Present"}
+              </span>
             </div>
             <p class="text-lg text-base-content/80 leading-relaxed mb-4 max-w-4xl">
               {project.data.description}

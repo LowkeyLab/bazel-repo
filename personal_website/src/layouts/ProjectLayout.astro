@@ -9,6 +9,8 @@ interface Props {
     title: string;
     description: string;
     tags: string[];
+    startDate: Date;
+    endDate?: Date;
     links: {
       github?: string;
       demo?: string;
@@ -24,6 +26,17 @@ const {
   projectData,
   activeItem = "projects",
 } = Astro.props;
+
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
+const dateRange = `${formatDate(projectData.startDate)} - ${
+  projectData.endDate ? formatDate(projectData.endDate) : "Present"
+}`;
 ---
 
 <Layout title={title} description={description} activeItem={activeItem}>
@@ -49,9 +62,12 @@ const {
   <!-- Project Header -->
   <div class="card bg-base-100 shadow-xl mb-8">
     <div class="card-body p-6 md:p-8">
-      <h1 class="text-2xl font-bold text-primary mb-2">
-        {projectData.title}
-      </h1>
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+        <h1 class="text-2xl font-bold text-primary">
+          {projectData.title}
+        </h1>
+        <div class="badge badge-md badge-outline font-semibold">{dateRange}</div>
+      </div>
 
       <TagBadges tags={projectData.tags} size="sm" className="mb-4" />
 

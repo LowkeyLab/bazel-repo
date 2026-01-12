@@ -2,6 +2,8 @@
 title: "Personal Landing Page"
 description: "My personal website"
 tags: ["Astro", "Tailwind", "Deno", "TypeScript"]
+startDate: 2025-02-11
+endDate: 2025-04-02
 featured: true
 links:
   github: "https://github.com/LowkeyLab/deno-monorepo/tree/main/website"
