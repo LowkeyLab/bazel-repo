@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
@@ -54,6 +55,7 @@ func setupTestRouter(t *testing.T, sqlDB *sql.DB) (*gin.Engine, *service.Service
 	handler := NewHandler(svc)
 
 	r := gin.New()
+	r.Use(sloggin.SetLogger())
 	authGroup := r.Group("/protected")
 	authGroup.Use(auth.TestMiddleware())
 	handler.RegisterRoutes(authGroup)

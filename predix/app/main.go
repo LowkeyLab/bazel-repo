@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-contrib/cors"
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -144,7 +145,9 @@ func main() {
 	circleHandler := circlerest.NewHandler(circleSvc)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(sloggin.SetLogger())
+	r.Use(gin.Recovery())
 	r.SetTrustedProxies(nil)
 
 	var allowOrigins []string
