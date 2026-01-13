@@ -5,7 +5,7 @@ RETURNING *;
 
 -- name: GetUser :one
 SELECT * FROM users
-WHERE id = $1 LIMIT 1;
+WHERE uuid = $1 LIMIT 1;
 
 -- name: GetUserByUsername :one
 SELECT * FROM users
@@ -36,7 +36,7 @@ WHERE circle_id = $1 AND user_id = $2;
 -- name: ListCircleMembers :many
 SELECT cm.*, u.username
 FROM circle_members cm
-JOIN users u ON u.id = cm.user_id
+JOIN users u ON u.uuid = cm.user_id
 WHERE cm.circle_id = $1;
 
 -- name: ListUserCircles :many

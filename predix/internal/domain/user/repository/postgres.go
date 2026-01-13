@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
@@ -35,13 +36,13 @@ func (r *Postgres) Save(ctx context.Context, u *user.User) error {
 		return fmt.Errorf("failed to save user: %w", err)
 	}
 	// Update the user with the generated ID
-	u.ID = user.ID(result.ID)
+	u.ID = user.ID(result.Uuid)
 	return nil
 }
 
 // FindByID retrieves a User by its ID.
 func (r *Postgres) FindByID(ctx context.Context, id user.ID) (*user.User, error) {
-	dbUser, err := r.queries.GetUser(ctx, int32(id))
+	dbUser, err := r.queries.GetUser(ctx, uuid.UUID(id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("failed to find user by id: %w", ErrNotFound)
@@ -67,7 +68,7 @@ func (r *Postgres) FindByUsername(ctx context.Context, username string) (*user.U
 
 func toDomainUser(dbUser *db.User) *user.User {
 	return &user.User{
-		ID:           user.ID(dbUser.ID),
+		ID:           user.ID(dbUser.Uuid),
 		Username:     dbUser.Username,
 		PasswordHash: dbUser.PasswordHash,
 		Role:         user.Role(dbUser.Role),

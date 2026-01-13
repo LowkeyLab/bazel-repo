@@ -14,6 +14,8 @@ go_library(
         "000002_add_expires_at.up.sql",
         "000003_change_house_rake_to_real.down.sql",
         "000003_change_house_rake_to_real.up.sql",
+        "000004_add_uuid_to_users.down.sql",
+        "000004_add_uuid_to_users.up.sql",
     ],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/migrations",
     visibility = ["//visibility:public"],

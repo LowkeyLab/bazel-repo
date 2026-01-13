@@ -10,6 +10,7 @@ import (
 
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
@@ -49,7 +50,7 @@ type createCircleRequest struct {
 }
 
 type memberResponse struct {
-	UserID   int32  `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Clout    int    `json:"clout"`
 }
@@ -67,7 +68,7 @@ type optionResponse struct {
 }
 
 type predictionResponse struct {
-	UserID    int32     `json:"user_id"`
+	UserID    string    `json:"user_id"`
 	OptionID  int       `json:"option_id"`
 	Clout     int       `json:"clout"`
 	Timestamp time.Time `json:"timestamp"`
@@ -76,7 +77,7 @@ type predictionResponse struct {
 type contestResponse struct {
 	ID             int32                `json:"id"`
 	CircleID       int32                `json:"circle_id"`
-	CreatorID      int32                `json:"creator_id"`
+	CreatorID      string               `json:"creator_id"`
 	Question       string               `json:"question"`
 	Options        []optionResponse     `json:"options"`
 	Predictions    []predictionResponse `json:"predictions"`
@@ -91,7 +92,7 @@ type contestResponse struct {
 }
 
 type addMemberRequest struct {
-	UserID int32 `json:"user_id"`
+	UserID string `json:"user_id"`
 }
 
 type makePredictionRequest struct {
@@ -111,7 +112,7 @@ type createContestRequest struct {
 }
 
 type payoutRecord struct {
-	UserID   int32  `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Stake    int    `json:"stake"`
 	Share    int    `json:"share"`
@@ -197,7 +198,14 @@ func (h *Handler) addMember(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.AddMember(c.Request.Context(), circleID, user.ID(req.UserID))
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		sloggin.Get(c).Warn("invalid user id in request", "user_id", req.UserID, "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	err = h.svc.AddMember(c.Request.Context(), circleID, user.ID(userID))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			sloggin.Get(c).Warn("circle not found", "circle_id", circleID)
@@ -564,7 +572,7 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 	winners := make([]payoutRecord, len(breakdown.Winners))
 	for i, r := range breakdown.Winners {
 		winners[i] = payoutRecord{
-			UserID:   r.UserID,
+			UserID:   uuid.UUID(r.UserID).String(),
 			Username: r.Username,
 			Stake:    r.Stake,
 			Share:    r.Share,
@@ -575,7 +583,7 @@ func (h *Handler) getPayoutBreakdown(c *gin.Context) {
 	losers := make([]payoutRecord, len(breakdown.Losers))
 	for i, r := range breakdown.Losers {
 		losers[i] = payoutRecord{
-			UserID:   r.UserID,
+			UserID:   uuid.UUID(r.UserID).String(),
 			Username: r.Username,
 			Stake:    r.Stake,
 			Share:    r.Share,
@@ -654,7 +662,7 @@ func toEnrichedCircleResponse(enriched *service.EnrichedCircle) circleResponse {
 	members := make([]memberResponse, len(enriched.Members))
 	for i, m := range enriched.Members {
 		members[i] = memberResponse{
-			UserID:   int32(m.UserID),
+			UserID:   uuid.UUID(m.UserID).String(),
 			Username: m.Username,
 			Clout:    m.Clout,
 		}
@@ -684,7 +692,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 	predictions := make([]predictionResponse, len(cont.Predictions))
 	for i, pred := range cont.Predictions {
 		predictions[i] = predictionResponse{
-			UserID:    int32(pred.UserID),
+			UserID:    uuid.UUID(pred.UserID).String(),
 			OptionID:  pred.OptionID,
 			Clout:     pred.Clout,
 			Timestamp: pred.Timestamp,
@@ -694,7 +702,7 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 	return contestResponse{
 		ID:             int32(cont.ID),
 		CircleID:       int32(cont.CircleID),
-		CreatorID:      int32(cont.CreatorID),
+		CreatorID:      uuid.UUID(cont.CreatorID).String(),
 		Question:       cont.Question,
 		Options:        options,
 		Predictions:    predictions,

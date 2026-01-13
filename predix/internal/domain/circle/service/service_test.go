@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
@@ -38,7 +39,7 @@ func createTestUserWithRole(t *testing.T, sqlDB *sql.DB, username string, role d
 	})
 	require.NoError(t, err)
 
-	return user.ID(result.ID)
+	return user.ID(result.Uuid)
 }
 
 type TestTxManager struct {
@@ -186,7 +187,7 @@ func TestCircleService(t *testing.T) {
 
 			dbMember, err := q.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(c.ID),
-				UserID:   int32(creatorID),
+				UserID:   uuid.UUID(creatorID),
 			})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1000), dbMember.Clout)
@@ -480,7 +481,7 @@ func TestCircleService(t *testing.T) {
 
 			memberAfterFirst, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(circleObj.ID),
-				UserID:   int32(memberID),
+				UserID:   uuid.UUID(memberID),
 			})
 			require.NoError(t, err)
 			assert.Equal(t, int32(800), memberAfterFirst.Clout)
@@ -489,7 +490,7 @@ func TestCircleService(t *testing.T) {
 
 			memberAfterSecond, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(circleObj.ID),
-				UserID:   int32(memberID),
+				UserID:   uuid.UUID(memberID),
 			})
 			require.NoError(t, err)
 			assert.Equal(t, int32(880), memberAfterSecond.Clout)

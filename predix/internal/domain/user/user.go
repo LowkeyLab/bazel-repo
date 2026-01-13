@@ -1,5 +1,9 @@
 package user
 
+import (
+	"github.com/google/uuid"
+)
+
 // Role represents the permission level of a User.
 type Role string
 
@@ -9,7 +13,7 @@ const (
 )
 
 // ID represents the unique identifier for a User.
-type ID int32
+type ID uuid.UUID
 
 // User represents a user of the Predix platform.
 type User struct {
@@ -31,7 +35,7 @@ func NewWithRole(username, passwordHash string, role Role) (*User, error) {
 	}
 
 	return &User{
-		ID:           0, // ID will be set by database
+		ID:           ID(uuid.Nil), // ID will be set by database
 		Username:     username,
 		PasswordHash: passwordHash,
 		Role:         role,

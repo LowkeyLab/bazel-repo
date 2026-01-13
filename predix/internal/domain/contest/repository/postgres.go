@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
@@ -58,7 +59,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 		// Create new contest
 		result, err := qtx.CreateContest(ctx, db.CreateContestParams{
 			CircleID:  int32(c.CircleID),
-			CreatorID: int32(c.CreatorID),
+			CreatorID: uuid.UUID(c.CreatorID),
 			Question:  c.Question,
 			Status:    string(c.Status),
 			MinStake:  int32(c.MinStake),
@@ -106,7 +107,7 @@ func (r *Postgres) Save(ctx context.Context, c *contest.Contest) error {
 	for _, prediction := range c.Predictions {
 		err = qtx.UpsertPrediction(ctx, db.UpsertPredictionParams{
 			ContestID: int32(c.ID),
-			UserID:    int32(prediction.UserID),
+			UserID:    uuid.UUID(prediction.UserID),
 			OptionID:  int32(prediction.OptionID),
 			Clout:     int32(prediction.Clout),
 			CreatedAt: prediction.Timestamp,

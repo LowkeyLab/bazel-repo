@@ -2,10 +2,10 @@ package auth
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
@@ -21,8 +21,8 @@ func TestMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		id, err := strconv.ParseInt(raw, 10, 32)
-		if err != nil || id <= 0 {
+		id, err := uuid.Parse(raw)
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid test user id"})
 			return
 		}
