@@ -5,6 +5,7 @@ import (
 
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
@@ -33,7 +34,7 @@ type loginRequest struct {
 }
 
 type userResponse struct {
-	ID       int32  `json:"id"`
+	ID       string `json:"id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 }
@@ -103,7 +104,7 @@ func (h *Handler) login(c *gin.Context) {
 
 func toUserResponse(u *user.User) userResponse {
 	return userResponse{
-		ID:       int32(u.ID),
+		ID:       uuid.UUID(u.ID).String(),
 		Username: u.Username,
 		Role:     string(u.Role),
 	}

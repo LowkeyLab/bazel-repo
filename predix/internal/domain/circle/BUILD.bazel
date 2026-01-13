@@ -5,7 +5,10 @@ go_library(
     srcs = ["circle.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle",
     visibility = ["//predix:__subpackages__"],
-    deps = ["//predix/internal/domain/user"],
+    deps = [
+        "//predix/internal/domain/user",
+        "@com_github_google_uuid//:uuid",
+    ],
 )
 
 go_test(
@@ -20,5 +23,6 @@ go_test(
     deps = [
         ":circle",
         "//predix/internal/domain/user",
+        "@com_github_google_uuid//:uuid",
     ],
 )

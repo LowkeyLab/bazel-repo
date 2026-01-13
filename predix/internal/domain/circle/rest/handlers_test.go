@@ -12,6 +12,7 @@ import (
 
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
@@ -30,8 +31,8 @@ type circleResponseBody struct {
 	ID      int32  `json:"id"`
 	Name    string `json:"name"`
 	Members []struct {
-		UserID int32 `json:"user_id"`
-		Clout  int   `json:"clout"`
+		UserID string `json:"user_id"`
+		Clout  int    `json:"clout"`
 	} `json:"members"`
 }
 
@@ -81,7 +82,7 @@ func createUserWithRole(t *testing.T, sqlDB *sql.DB, username string, role db.Us
 	})
 	require.NoError(t, err)
 
-	return user.ID(result.ID)
+	return user.ID(result.Uuid)
 }
 
 func TestCircleHandlers(t *testing.T) {
@@ -99,7 +100,7 @@ func TestCircleHandlers(t *testing.T) {
 			body := `{"name":"Study Group"}`
 			req := httptest.NewRequest(http.MethodPost, "/protected/circles", bytes.NewBufferString(body))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -110,7 +111,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
 			assert.Equal(t, "Study Group", payload.Name)
 			assert.Len(t, payload.Members, 1)
-			assert.Equal(t, int32(creatorID), payload.Members[0].UserID)
+			assert.Equal(t, uuid.UUID(creatorID).String(), payload.Members[0].UserID)
 
 			ctx := context.Background()
 			dbCircle, err := queries.GetCircle(ctx, payload.ID)
@@ -119,7 +120,7 @@ func TestCircleHandlers(t *testing.T) {
 
 			dbMember, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: payload.ID,
-				UserID:   int32(creatorID),
+				UserID:   uuid.UUID(creatorID),
 			})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1000), dbMember.Clout)
@@ -135,10 +136,10 @@ func TestCircleHandlers(t *testing.T) {
 			createdCircle, err := svc.CreateCircle(ctx, "Readers", creatorID)
 			require.NoError(t, err)
 
-			body := fmt.Sprintf(`{"user_id":%d}`, joinerID)
+			body := fmt.Sprintf(`{"user_id":"%s"}`, uuid.UUID(joinerID))
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/members", createdCircle.ID), bytes.NewBufferString(body))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -147,13 +148,13 @@ func TestCircleHandlers(t *testing.T) {
 
 			memberRecord, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(createdCircle.ID),
-				UserID:   int32(joinerID),
+				UserID:   uuid.UUID(joinerID),
 			})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1000), memberRecord.Clout)
 
 			getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
-			getReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			getReq.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 			getResp := httptest.NewRecorder()
 			router.ServeHTTP(getResp, getReq)
 
@@ -175,7 +176,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -196,7 +197,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", adminID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(adminID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -217,7 +218,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", memberID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(memberID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -231,7 +232,7 @@ func TestCircleHandlers(t *testing.T) {
 			userID := createTestUser(t, sqlDB, "dana")
 
 			req := httptest.NewRequest(http.MethodGet, "/protected/circles/99999", nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(userID).String())
 			resp := httptest.NewRecorder()
 
 			router.ServeHTTP(resp, req)
@@ -256,7 +257,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", user1ID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(user1ID).String())
 			resp := httptest.NewRecorder()
 
 			router.ServeHTTP(resp, req)
@@ -274,7 +275,7 @@ func TestCircleHandlers(t *testing.T) {
 			assert.True(t, circleNames["Movie Night"])
 
 			req2 := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
-			req2.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", user2ID))
+			req2.Header.Set(auth.TestUserIDHeader, uuid.UUID(user2ID).String())
 			resp2 := httptest.NewRecorder()
 
 			router.ServeHTTP(resp2, req2)
@@ -293,7 +294,7 @@ func TestCircleHandlers(t *testing.T) {
 			userID := createTestUser(t, sqlDB, "lonely")
 
 			req := httptest.NewRequest(http.MethodGet, "/protected/circles", nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(userID).String())
 			resp := httptest.NewRecorder()
 
 			router.ServeHTTP(resp, req)
@@ -327,7 +328,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/join", createdCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", joinerID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(joinerID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -336,13 +337,13 @@ func TestCircleHandlers(t *testing.T) {
 
 			memberRecord, err := queries.GetCircleMember(ctx, db.GetCircleMemberParams{
 				CircleID: int32(createdCircle.ID),
-				UserID:   int32(joinerID),
+				UserID:   uuid.UUID(joinerID),
 			})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1000), memberRecord.Clout)
 
 			getReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d", createdCircle.ID), nil)
-			getReq.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			getReq.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 			getResp := httptest.NewRecorder()
 			router.ServeHTTP(getResp, getReq)
 
@@ -364,7 +365,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/join", createdCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -382,7 +383,7 @@ func TestCircleHandlers(t *testing.T) {
 			userID := createTestUser(t, sqlDB, "user")
 
 			req := httptest.NewRequest(http.MethodPost, "/protected/circles/99999/join", nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(userID).String())
 			resp := httptest.NewRecorder()
 
 			router.ServeHTTP(resp, req)
@@ -413,7 +414,7 @@ func TestCircleHandlers(t *testing.T) {
 			userID := createTestUser(t, sqlDB, "user")
 
 			req := httptest.NewRequest(http.MethodPost, "/protected/circles/invalid/join", nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", userID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(userID).String())
 			resp := httptest.NewRecorder()
 
 			router.ServeHTTP(resp, req)
@@ -436,7 +437,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests", testCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -463,7 +464,7 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests", testCircle.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
@@ -505,14 +506,14 @@ func TestCircleHandlers(t *testing.T) {
 			resolveBody := `{"winning_option_id": 1}`
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/contests/%d/resolve-distribute", circ.ID, cont.ID), bytes.NewBufferString(resolveBody))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
 			require.Equal(t, http.StatusOK, resp.Code)
 
 			// 6. Verify Contest Detail Response (Check House Rake)
 			req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d", circ.ID, cont.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 			resp = httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
 			require.Equal(t, http.StatusOK, resp.Code)
@@ -528,7 +529,7 @@ func TestCircleHandlers(t *testing.T) {
 
 			// 7. Verify Payout Breakdown Response
 			req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d/payout-breakdown", circ.ID, cont.ID), nil)
-			req.Header.Set(auth.TestUserIDHeader, fmt.Sprintf("%d", creatorID))
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
 			resp = httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
 			require.Equal(t, http.StatusOK, resp.Code)
@@ -543,7 +544,7 @@ func TestCircleHandlers(t *testing.T) {
 			// Verify Winner Payout
 			require.Len(t, breakdownResp.Winners, 1)
 			winnerRecord := breakdownResp.Winners[0]
-			assert.Equal(t, int32(winnerID), winnerRecord.UserID)
+			assert.Equal(t, uuid.UUID(winnerID).String(), winnerRecord.UserID)
 			assert.Equal(t, 190, winnerRecord.Total, "Winner should receive 190 clout")
 		})
 	})

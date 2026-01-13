@@ -9,6 +9,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type UserRole string
@@ -56,20 +58,19 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 type Circle struct {
 	ID        int32     `json:"id"`
 	Name      string    `json:"name"`
-	CreatorID int32     `json:"creator_id"`
 	CreatedAt time.Time `json:"created_at"`
+	CreatorID uuid.UUID `json:"creator_id"`
 }
 
 type CircleMember struct {
-	CircleID int32 `json:"circle_id"`
-	UserID   int32 `json:"user_id"`
-	Clout    int32 `json:"clout"`
+	CircleID int32     `json:"circle_id"`
+	Clout    int32     `json:"clout"`
+	UserID   uuid.UUID `json:"user_id"`
 }
 
 type Contest struct {
 	ID             int32         `json:"id"`
 	CircleID       int32         `json:"circle_id"`
-	CreatorID      int32         `json:"creator_id"`
 	Question       string        `json:"question"`
 	Status         string        `json:"status"`
 	MinStake       int32         `json:"min_stake"`
@@ -79,6 +80,7 @@ type Contest struct {
 	LockedAt       time.Time     `json:"locked_at"`
 	Duration       string        `json:"duration"`
 	ExpiresAt      time.Time     `json:"expires_at"`
+	CreatorID      uuid.UUID     `json:"creator_id"`
 }
 
 type Option struct {
@@ -89,15 +91,16 @@ type Option struct {
 
 type Prediction struct {
 	ContestID int32     `json:"contest_id"`
-	UserID    int32     `json:"user_id"`
 	OptionID  int32     `json:"option_id"`
 	Clout     int32     `json:"clout"`
 	CreatedAt time.Time `json:"created_at"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 type User struct {
-	ID           int32    `json:"id"`
-	Username     string   `json:"username"`
-	PasswordHash string   `json:"password_hash"`
-	Role         UserRole `json:"role"`
+	ID           int32     `json:"id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"password_hash"`
+	Role         UserRole  `json:"role"`
+	Uuid         uuid.UUID `json:"uuid"`
 }

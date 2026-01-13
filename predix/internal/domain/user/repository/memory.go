@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
@@ -13,7 +14,6 @@ type Memory struct {
 	mu      sync.RWMutex
 	users   map[user.ID]*user.User
 	nameIdx map[string]user.ID
-	nextID  user.ID
 }
 
 // NewMemory creates a new in-memory user repository.
@@ -21,7 +21,6 @@ func NewMemory() *Memory {
 	return &Memory{
 		users:   make(map[user.ID]*user.User),
 		nameIdx: make(map[string]user.ID),
-		nextID:  1,
 	}
 }
 
@@ -35,9 +34,8 @@ func (r *Memory) Save(ctx context.Context, u *user.User) error {
 	defer r.mu.Unlock()
 
 	// If no ID, assign a new one
-	if u.ID == 0 {
-		u.ID = r.nextID
-		r.nextID++
+	if uuid.UUID(u.ID) == uuid.Nil {
+		u.ID = user.ID(uuid.New())
 	}
 
 	// Check if username already exists (for a different user)
@@ -66,7 +64,7 @@ func (r *Memory) FindByID(ctx context.Context, id user.ID) (*user.User, error) {
 
 	u, exists := r.users[id]
 	if !exists {
-		return nil, fmt.Errorf("%w: id %d", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: id %s", ErrNotFound, uuid.UUID(id).String())
 	}
 
 	// Return a copy to avoid external mutations

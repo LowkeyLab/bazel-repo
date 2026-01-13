@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
@@ -30,7 +31,7 @@ func (m *Manager) GenerateToken(u *user.User) (string, error) {
 	if u == nil {
 		return "", errors.New("user is required")
 	}
-	if u.ID == 0 {
+	if uuid.UUID(u.ID) == uuid.Nil {
 		return "", errors.New("user id is required")
 	}
 
@@ -40,7 +41,7 @@ func (m *Manager) GenerateToken(u *user.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"uid": int32(u.ID),
+		"uid": uuid.UUID(u.ID).String(),
 		"exp": claims.ExpiresAt.Unix(),
 		"iat": claims.IssuedAt.Unix(),
 	})
@@ -57,20 +58,25 @@ func (m *Manager) ParseToken(raw string) (user.ID, error) {
 		return m.secret, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
-		return 0, fmt.Errorf("invalid token: %w", err)
+		return user.ID(uuid.Nil), fmt.Errorf("invalid token: %w", err)
 	}
 
 	claims, ok := parsed.Claims.(jwt.MapClaims)
 	if !ok || !parsed.Valid {
-		return 0, errors.New("invalid token claims")
+		return user.ID(uuid.Nil), errors.New("invalid token claims")
 	}
 
-	uid, ok := claims["uid"].(float64)
+	uidStr, ok := claims["uid"].(string)
 	if !ok {
-		return 0, errors.New("user id missing from token")
+		return user.ID(uuid.Nil), errors.New("user id missing from token")
 	}
 
-	return user.ID(int32(uid)), nil
+	uid, err := uuid.Parse(uidStr)
+	if err != nil {
+		return user.ID(uuid.Nil), fmt.Errorf("invalid user id in token: %w", err)
+	}
+
+	return user.ID(uid), nil
 }
 
 // Middleware enforces authentication and injects the user ID into the context.
@@ -103,7 +109,7 @@ func (m *Manager) Middleware() gin.HandlerFunc {
 func UserIDFromContext(c *gin.Context) (user.ID, bool) {
 	value, ok := c.Get(userIDContextKey)
 	if !ok {
-		return 0, false
+		return user.ID(uuid.Nil), false
 	}
 
 	id, ok := value.(user.ID)

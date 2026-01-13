@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
@@ -30,8 +31,8 @@ func New(name string, creatorID user.ID) (*Circle, error) {
 	if name == "" {
 		return nil, errors.New("circle name cannot be empty")
 	}
-	if creatorID == 0 {
-		return nil, errors.New("creator id must be positive")
+	if uuid.UUID(creatorID) == uuid.Nil {
+		return nil, errors.New("creator id must be valid")
 	}
 
 	c := &Circle{

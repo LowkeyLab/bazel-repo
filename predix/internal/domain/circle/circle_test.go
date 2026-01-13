@@ -3,12 +3,13 @@ package circle_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 func TestNew(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID(uuid.New())
 	name := "Test Circle"
 
 	c, err := circle.New(name, creatorID)
@@ -31,12 +32,12 @@ func TestNew(t *testing.T) {
 		t.Fatal("creator not found in members")
 	}
 	if member.UserID != creatorID {
-		t.Errorf("expected member ID %d, got %d", creatorID, member.UserID)
+		t.Errorf("expected member ID %s, got %s", uuid.UUID(creatorID), uuid.UUID(member.UserID))
 	}
 }
 
 func TestNew_EmptyName(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID(uuid.New())
 	c, err := circle.New("", creatorID)
 	if err == nil {
 		t.Error("expected error for empty name, got nil")
@@ -51,7 +52,7 @@ func TestNew_EmptyName(t *testing.T) {
 }
 
 func TestNew_ValidNames(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID(uuid.New())
 
 	tests := []struct {
 		name       string
@@ -92,10 +93,10 @@ func TestNew_ValidNames(t *testing.T) {
 }
 
 func TestAddMember(t *testing.T) {
-	creatorID := user.ID(1)
+	creatorID := user.ID(uuid.New())
 	c, _ := circle.New("Test Circle", creatorID)
 
-	newUserID := user.ID(2)
+	newUserID := user.ID(uuid.New())
 	c.AddMember(newUserID)
 
 	if len(c.Members) != 2 {

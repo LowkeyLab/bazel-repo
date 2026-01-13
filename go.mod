@@ -146,7 +146,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-dap v0.12.0 // indirect
 	github.com/google/jsonschema-go v0.3.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/hay-kot/scaffold v0.12.1 // indirect
@@ -190,7 +190,7 @@ require (
 	github.com/yuin/goldmark v1.7.13 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	go.starlark.net v0.0.0-20231101134539-556fd59b42f6 // indirect
-	golang.org/x/arch v0.20.0 // indirect
+	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.47.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20251023183803-a4bb9ffd2546 // indirect
