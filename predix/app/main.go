@@ -121,7 +121,7 @@ func main() {
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
 	r := gin.New()
-	r.Use(sloggin.SetLogger())
+	r.Use(sloggin.SetLogger(sloggin.WithWriter(os.Stdout)))
 	r.Use(gin.Recovery())
 	r.SetTrustedProxies(nil)
 
