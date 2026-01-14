@@ -33,6 +33,7 @@ import { StakeAdjustmentComponent } from '../stake-adjustment/stake-adjustment.c
     StakeAdjustmentComponent,
   ],
   templateUrl: './contest-detail.component.html',
+  styleUrl: './contest-detail.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContestDetailComponent implements OnInit, OnDestroy {
@@ -63,6 +64,12 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     EXPIRED: 'Expired (refunded)',
     RESOLVED: 'Resolved',
   };
+
+  public readonly flashStates = signal<
+    Map<number, { count: 'up' | 'down' | null; clout: 'up' | 'down' | null }>
+  >(new Map());
+  private previousStats = new Map<number, { count: number; clout: number }>();
+  private flashTimeout: any;
 
   public readonly isCreator = computed(() => {
     const contest = this.contest();
@@ -100,6 +107,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
       .pollContestDetails(circleId, contestId)
       .subscribe({
         next: (contestWithTotals) => {
+          this.updateFlashStates(contestWithTotals);
           this.contest.set(contestWithTotals);
 
           // Only sync stakes if predictions actually changed
@@ -131,6 +139,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     // Keep this method for explicit reloads after mutations
     this.contestService.getContest(circleId, contestId).subscribe({
       next: (contest) => {
+        this.updateFlashStates(contest);
         this.contest.set(contest);
         this.syncOptionStakes(contest);
         this.loading.set(false);
@@ -335,6 +344,53 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
           );
         },
       });
+  }
+
+  private updateFlashStates(newContest: Contest): void {
+    const newFlashStates = new Map<
+      number,
+      { count: 'up' | 'down' | null; clout: 'up' | 'down' | null }
+    >();
+    const currentStats = new Map<number, { count: number; clout: number }>();
+    let hasChanges = false;
+
+    for (const option of newContest.options) {
+      const newCount = this.getPredictionsForOption(newContest, option.id);
+      const newClout = this.getCloutForOption(newContest, option.id);
+
+      currentStats.set(option.id, { count: newCount, clout: newClout });
+
+      const prev = this.previousStats.get(option.id);
+
+      if (prev) {
+        let countFlash: 'up' | 'down' | null = null;
+        if (newCount > prev.count) countFlash = 'up';
+        else if (newCount < prev.count) countFlash = 'down';
+
+        let cloutFlash: 'up' | 'down' | null = null;
+        if (newClout > prev.clout) cloutFlash = 'up';
+        else if (newClout < prev.clout) cloutFlash = 'down';
+
+        if (countFlash || cloutFlash) {
+          newFlashStates.set(option.id, {
+            count: countFlash,
+            clout: cloutFlash,
+          });
+          hasChanges = true;
+        }
+      }
+    }
+
+    this.previousStats = currentStats;
+
+    if (hasChanges) {
+      this.flashStates.set(newFlashStates);
+
+      if (this.flashTimeout) clearTimeout(this.flashTimeout);
+      this.flashTimeout = setTimeout(() => {
+        this.flashStates.set(new Map());
+      }, 1000);
+    }
   }
 
   public getTotalClout(contest: Contest): number {
