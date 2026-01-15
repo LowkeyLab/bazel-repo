@@ -21,7 +21,7 @@ import { AuthService } from '../../services/auth.service';
 import { BackButtonComponent } from '../back-button/back-button.component';
 import { ContestPayoutComponent } from '../contest-payout/contest-payout.component';
 import { StakeAdjustmentComponent } from '../stake-adjustment/stake-adjustment.component';
-import { ContestStatComponent } from '../contest-stat/contest-stat.component';
+import { ContestStatsComponent } from '../contest-stats/contest-stats.component';
 
 @Component({
   selector: 'contest-detail',
@@ -32,7 +32,7 @@ import { ContestStatComponent } from '../contest-stat/contest-stat.component';
     BackButtonComponent,
     ContestPayoutComponent,
     StakeAdjustmentComponent,
-    ContestStatComponent,
+    ContestStatsComponent,
   ],
   templateUrl: './contest-detail.component.html',
   styleUrl: './contest-detail.component.css',

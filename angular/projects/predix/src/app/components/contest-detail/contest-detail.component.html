@@ -181,16 +181,18 @@
                     <div class="badge badge-success">Winner 🎉</div>
                   }
                 </div>
-                <div class="stats stats-vertical lg:stats-horizontal">
-                  <contest-stat
-                    title="Predictions"
-                    [value]="getPredictionsForOption(contest, option.id)"
-                  />
-                  <contest-stat
-                    title="Clout staked"
-                    [value]="getCloutForOption(contest, option.id)"
-                  />
-                </div>
+                <contest-stats
+                  [stats]="[
+                    {
+                      title: 'Predictions',
+                      value: getPredictionsForOption(contest, option.id),
+                    },
+                    {
+                      title: 'Clout staked',
+                      value: getCloutForOption(contest, option.id),
+                    },
+                  ]"
+                />
 
                 @if (contest.status === "OPEN") {
                   <div class="divider my-0"></div>
