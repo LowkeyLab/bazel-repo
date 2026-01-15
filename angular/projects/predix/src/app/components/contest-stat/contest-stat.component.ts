@@ -27,7 +27,7 @@ export class ContestStatComponent {
     effect((onCleanup) => {
       const current = this.value();
       const previous = this.previousValue();
-      if (previous) {
+      if (previous !== null) {
         if (current > previous) {
           this.triggerFlash('up');
         } else if (current < previous) {
