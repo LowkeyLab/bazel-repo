@@ -10,11 +10,15 @@ import { ContestService } from './contest.service';
 import { environment } from '../../environments/environment';
 import type { Contest } from '../models/contest.model';
 import { provideHttpClient } from '@angular/common/http';
+import { AuthService } from './auth.service';
 
 describe('ContestService', () => {
   let service: ContestService;
   let httpMock: HttpTestingController;
   const apiUrl = `${environment.apiUrl}/protected`;
+  const mockAuthService = {
+    token: jasmine.createSpy('token').and.returnValue('test-token'),
+  };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -22,6 +26,7 @@ describe('ContestService', () => {
         ContestService,
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: AuthService, useValue: mockAuthService },
       ],
     });
 

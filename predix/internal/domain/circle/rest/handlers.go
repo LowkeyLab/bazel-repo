@@ -3,6 +3,7 @@ package rest
 import (
 	"database/sql"
 	"errors"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -38,6 +39,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.GET("/circles/:id/contests", h.getCircleContests)
 	r.POST("/circles/:id/contests", h.createContest)
 	r.GET("/circles/:id/contests/:contestID", h.getContest)
+	r.GET("/circles/:id/contests/:contestID/stream", h.streamContestEvents)
 	r.POST("/circles/:id/contests/:contestID/predictions", h.makePrediction)
 	r.POST("/circles/:id/contests/:contestID/lock", h.lockContest)
 	r.POST("/circles/:id/contests/:contestID/resolve-distribute", h.resolveAndDistribute)
@@ -715,4 +717,55 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		LockedAt:       cont.LockedAt,
 		Duration:       cont.Duration,
 	}
+}
+
+func (h *Handler) streamContestEvents(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	contestID, ok := parseContestIDFromRoute(c)
+	if !ok {
+		return
+	}
+
+	// Verify contest belongs to circle
+	_, err := h.svc.GetContestInCircle(c.Request.Context(), circleID, contestID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+			sloggin.Get(c).Warn("contest not found for streaming", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		sloggin.Get(c).Error("failed to get contest for streaming", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Prepare SSE headers
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Transfer-Encoding", "chunked")
+
+	// Subscribe to events
+	events, unsubscribe := h.svc.SubscribeToContest(contestID)
+	defer unsubscribe()
+
+	sloggin.Get(c).Info("client subscribed to contest events", "contest_id", contestID)
+
+	clientGone := c.Request.Context().Done()
+
+	c.Stream(func(w io.Writer) bool {
+		select {
+		case <-clientGone:
+			return false
+		case event := <-events:
+			// For now, we just send the event type. The client will refetch the contest.
+			// We can improve this by sending the actual diff or updated object.
+			c.SSEvent(string(event.Type), event.Payload)
+			return true
+		}
+	})
 }
