@@ -13,34 +13,34 @@ import {
   templateUrl: './contest-stat.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContestStatComponent implements OnDestroy {
+export class ContestStatComponent {
   public readonly title = input.required<string>();
   public readonly value = input.required<number>();
 
   protected readonly flash = signal<'up' | 'down' | null>(null);
 
-  private previousValue: number | null = null;
+  private readonly previousValue = signal<number | null>(null);
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const current = this.value();
-
-      if (this.previousValue !== null) {
-        if (current > this.previousValue) {
+      const previous = this.previousValue();
+      if (previous) {
+        if (current > previous) {
           this.triggerFlash('up');
-        } else if (current < this.previousValue) {
+        } else if (current < previous) {
           this.triggerFlash('down');
         }
       }
-      this.previousValue = current;
+      this.previousValue.set(current);
+      onCleanup(() => {
+        if (this.timeoutId) {
+          clearTimeout(this.timeoutId);
+          this.timeoutId = null;
+        }
+      });
     });
-  }
-
-  ngOnDestroy(): void {
-    if (this.timeoutId) {
-      clearTimeout(this.timeoutId);
-    }
   }
 
   private triggerFlash(direction: 'up' | 'down') {
