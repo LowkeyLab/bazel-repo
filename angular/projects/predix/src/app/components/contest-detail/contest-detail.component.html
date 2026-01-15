@@ -182,34 +182,14 @@
                   }
                 </div>
                 <div class="stats stats-vertical lg:stats-horizontal">
-                  <div
-                    class="stat transition-colors duration-300"
-                    [class.flash-up]="
-                      flashStates().get(option.id)?.count === 'up'
-                    "
-                    [class.flash-down]="
-                      flashStates().get(option.id)?.count === 'down'
-                    "
-                  >
-                    <div class="stat-title">Predictions</div>
-                    <div class="stat-value text-2xl">
-                      {{ getPredictionsForOption(contest, option.id) }}
-                    </div>
-                  </div>
-                  <div
-                    class="stat transition-colors duration-300"
-                    [class.flash-up]="
-                      flashStates().get(option.id)?.clout === 'up'
-                    "
-                    [class.flash-down]="
-                      flashStates().get(option.id)?.clout === 'down'
-                    "
-                  >
-                    <div class="stat-title">Clout staked</div>
-                    <div class="stat-value text-2xl">
-                      {{ getCloutForOption(contest, option.id) }}
-                    </div>
-                  </div>
+                  <contest-stat
+                    title="Predictions"
+                    [value]="getPredictionsForOption(contest, option.id)"
+                  />
+                  <contest-stat
+                    title="Clout staked"
+                    [value]="getCloutForOption(contest, option.id)"
+                  />
                 </div>
 
                 @if (contest.status === "OPEN") {
