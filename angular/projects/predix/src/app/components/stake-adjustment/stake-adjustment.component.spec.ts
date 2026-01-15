@@ -84,7 +84,7 @@ describe('StakeAdjustmentComponent', () => {
       const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
       const submitButton = buttons[buttons.length - 1];
       expect(submitButton.nativeElement.textContent).toContain(
-        'Place / Update Prediction',
+        'Place Prediction',
       );
     });
 

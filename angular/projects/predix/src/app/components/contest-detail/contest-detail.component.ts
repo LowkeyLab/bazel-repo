@@ -21,6 +21,7 @@ import { AuthService } from '../../services/auth.service';
 import { BackButtonComponent } from '../back-button/back-button.component';
 import { ContestPayoutComponent } from '../contest-payout/contest-payout.component';
 import { StakeAdjustmentComponent } from '../stake-adjustment/stake-adjustment.component';
+import { ContestStatsComponent } from '../contest-stats/contest-stats.component';
 
 @Component({
   selector: 'contest-detail',
@@ -31,6 +32,7 @@ import { StakeAdjustmentComponent } from '../stake-adjustment/stake-adjustment.c
     BackButtonComponent,
     ContestPayoutComponent,
     StakeAdjustmentComponent,
+    ContestStatsComponent,
   ],
   templateUrl: './contest-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
