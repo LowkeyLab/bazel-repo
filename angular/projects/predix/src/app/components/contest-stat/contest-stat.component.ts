@@ -11,13 +11,7 @@ import {
   selector: 'contest-stat',
   standalone: true,
   templateUrl: './contest-stat.component.html',
-  styleUrl: './contest-stat.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    class: 'stat transition-colors duration-300',
-    '[class.flash-up]': 'flash() === "up"',
-    '[class.flash-down]': 'flash() === "down"',
-  },
 })
 export class ContestStatComponent implements OnDestroy {
   public readonly title = input.required<string>();
@@ -52,6 +46,6 @@ export class ContestStatComponent implements OnDestroy {
   private triggerFlash(direction: 'up' | 'down') {
     this.flash.set(direction);
     if (this.timeoutId) clearTimeout(this.timeoutId);
-    this.timeoutId = setTimeout(() => this.flash.set(null), 1000);
+    this.timeoutId = setTimeout(() => this.flash.set(null), 300);
   }
 }

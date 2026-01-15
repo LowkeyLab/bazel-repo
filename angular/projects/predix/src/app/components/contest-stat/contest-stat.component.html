@@ -1,2 +1,10 @@
-<div class="stat-title">{{ title() }}</div>
-<div class="stat-value text-2xl">{{ value() }}</div>
+<div class="stat">
+  <div class="stat-title">{{ title() }}</div>
+  <div
+    class="stat-value text-2xl transition-colors duration-300"
+    [class.text-green-500]="flash() === 'up'"
+    [class.text-red-500]="flash() === 'down'"
+  >
+    {{ value() }}
+  </div>
+</div>
