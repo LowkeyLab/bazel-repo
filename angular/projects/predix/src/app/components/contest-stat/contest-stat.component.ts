@@ -3,7 +3,6 @@ import {
   Component,
   effect,
   input,
-  OnDestroy,
   signal,
 } from '@angular/core';
 
@@ -21,6 +20,8 @@ export class ContestStatComponent {
 
   private readonly previousValue = signal<number | null>(null);
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  private readonly FLASH_DURATION = 300;
 
   constructor() {
     effect((onCleanup) => {
@@ -46,6 +47,9 @@ export class ContestStatComponent {
   private triggerFlash(direction: 'up' | 'down') {
     this.flash.set(direction);
     if (this.timeoutId) clearTimeout(this.timeoutId);
-    this.timeoutId = setTimeout(() => this.flash.set(null), 300);
+    this.timeoutId = setTimeout(
+      () => this.flash.set(null),
+      this.FLASH_DURATION,
+    );
   }
 }
