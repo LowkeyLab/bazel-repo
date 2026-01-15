@@ -4,16 +4,13 @@ import {
   effect,
   input,
   signal,
-  ElementRef,
-  inject,
-  Renderer2,
 } from '@angular/core';
 
 @Component({
   selector: 'contest-stat',
   standalone: true,
   templateUrl: './contest-stat.component.html',
-  styleUrl: './contest-stat.component.css',
+  styleUrls: ['./contest-stat.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'stat transition-colors duration-300',
@@ -33,9 +30,6 @@ export class ContestStatComponent {
   constructor() {
     effect(() => {
       const current = this.value();
-
-      // Use untracked if we needed to read other signals without dependency,
-      // but here we just rely on value().
 
       if (this.previousValue !== null) {
         if (current > this.previousValue) {
