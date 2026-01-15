@@ -12,9 +12,6 @@ export interface StatItem {
   imports: [ContestStatComponent],
   templateUrl: './contest-stats.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    class: 'stats stats-vertical lg:stats-horizontal',
-  },
 })
 export class ContestStatsComponent {
   public readonly stats = input.required<StatItem[]>();

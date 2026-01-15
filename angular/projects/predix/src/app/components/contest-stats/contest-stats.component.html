@@ -1,3 +1,5 @@
-@for (stat of stats(); track stat.title) {
-  <contest-stat [title]="stat.title" [value]="stat.value" />
-}
+<div class="stats stats-vertical lg:stats-horizontal">
+  @for (stat of stats(); track stat.title) {
+    <contest-stat [title]="stat.title" [value]="stat.value" />
+  }
+</div>
