@@ -82,6 +82,18 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     );
   });
 
+  private readonly contestsStats = computed(() => {[
+                    {
+                      title: 'Predictions',
+                      value: this.getPredictionsForOption(this.contest, option.id),
+                    },
+                    {
+                      title: 'Clout staked',
+                      value: this.getCloutForOption(this.contest, option.id),
+                    },
+                  ]
+    
+
   public selectedWinnerId: number | null = null;
 
   ngOnInit(): void {

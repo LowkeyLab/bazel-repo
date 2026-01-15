@@ -181,18 +181,18 @@
                     <div class="badge badge-success">Winner 🎉</div>
                   }
                 </div>
-                <contest-stats
-                  [stats]="[
+                @let stats =
+                  [
                     {
-                      title: 'Predictions',
+                      title: "Predictions",
                       value: getPredictionsForOption(contest, option.id),
                     },
                     {
-                      title: 'Clout staked',
+                      title: "Clout staked",
                       value: getCloutForOption(contest, option.id),
                     },
-                  ]"
-                />
+                  ];
+                <contest-stats [stats]="stats" />
 
                 @if (contest.status === "OPEN") {
                   <div class="divider my-0"></div>
