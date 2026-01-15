@@ -10,6 +10,7 @@ import (
 	"time"
 
 	sloggin "github.com/gin-contrib/slog"
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
@@ -743,12 +744,6 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 		return
 	}
 
-	// Prepare SSE headers
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Header().Set("Transfer-Encoding", "chunked")
-
 	// Subscribe to events
 	events, unsubscribe := h.svc.SubscribeToContest(contestID)
 	defer unsubscribe()
@@ -764,7 +759,10 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 		case event := <-events:
 			// For now, we just send the event type. The client will refetch the contest.
 			// We can improve this by sending the actual diff or updated object.
-			c.SSEvent(string(event.Type), event.Payload)
+			sse.Encode(w, sse.Event{
+				Event: string(event.Type),
+				Data:  event.Payload,
+			})
 			return true
 		}
 	})

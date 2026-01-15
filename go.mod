@@ -35,7 +35,6 @@ require (
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
-	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -133,6 +132,7 @@ require (
 	github.com/gertd/go-pluralize v0.2.1 // indirect
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/slog v1.2.0
+	github.com/gin-contrib/sse v1.1.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-delve/delve v1.26.0 // indirect
 	github.com/go-delve/liner v1.2.3-0.20231231155935-4726ab1d7f62 // indirect
