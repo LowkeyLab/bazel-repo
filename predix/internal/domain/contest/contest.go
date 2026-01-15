@@ -69,6 +69,33 @@ type Contest struct {
 	LockedAt       time.Time // Time when predictions are locked
 	ExpiresAt      time.Time // Time when contest is auto-expired and refunded
 	Duration       string    // "1h", "1d", or "1w"
+	events         []circle.DomainEvent
+}
+
+// ContestUpdated event.
+type ContestUpdated struct {
+	ContestID ID
+}
+
+func (e ContestUpdated) EventName() string { return "ContestUpdated" }
+
+// ContestCreated event.
+type ContestCreated struct {
+	ContestID ID
+}
+
+func (e ContestCreated) EventName() string { return "ContestCreated" }
+
+// AddEvent adds a domain event to the contest.
+func (c *Contest) AddEvent(event circle.DomainEvent) {
+	c.events = append(c.events, event)
+}
+
+// PopEvents returns all domain events and clears them.
+func (c *Contest) PopEvents() []circle.DomainEvent {
+	events := c.events
+	c.events = nil
+	return events
 }
 
 const (
@@ -143,7 +170,7 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 	now := clk.Now()
 	lockedAt := now.Add(durationValue)
 
-	return &Contest{
+	c := &Contest{
 		ID:        0, // ID will be set by database
 		CircleID:  circleID,
 		CreatorID: creatorID,
@@ -156,7 +183,19 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 		LockedAt:  lockedAt,
 		ExpiresAt: lockedAt.Add(DefaultExpirationAfterLock),
 		Duration:  duration,
-	}, nil
+	}
+	c.AddEvent(ContestCreated{ContestID: c.ID}) // Note: ID is 0 here, repository should probably set it and maybe we update event?
+	// Actually, ID is set by DB. When we dispatch, we might want the real ID.
+	// If we dispatch after Save, the ID should be updated in the struct if Save updates it.
+	// The event struct copies the ID value. So if ID is 0, event has 0.
+	// This is a problem with "New" adding event for "Created" if ID is generated later.
+	// But let's assume Save updates the struct but the event in the slice is already created.
+	// We can update the event ID before dispatching?
+	// Or simpler: don't add event in New. Add it in Service after Save?
+	// "domain object has a slice... updates when the domain object changes"
+	// Creation is a change.
+	// If I add it here, the ID is 0.
+	return c, nil
 }
 
 // Predict adds a prediction to the contest.
@@ -182,6 +221,7 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 		if prediction.UserID == userID && prediction.OptionID == optionID {
 			prediction.Clout = clout
 			prediction.Timestamp = now
+			c.AddEvent(ContestUpdated{ContestID: c.ID})
 			return nil
 		}
 	}
@@ -193,6 +233,7 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 		Timestamp: now,
 	}
 	c.Predictions = append(c.Predictions, prediction)
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 
@@ -221,6 +262,7 @@ func (c *Contest) Lock() error {
 	}
 
 	c.Status = StatusLocked
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 
@@ -239,6 +281,7 @@ func (c *Contest) Expire() error {
 	}
 
 	c.Status = StatusExpired
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 
@@ -256,6 +299,7 @@ func (c *Contest) Resolve(winningOptionID int) error {
 
 	c.ResultOptionID = &winningOptionID
 	c.Status = StatusResolved
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 

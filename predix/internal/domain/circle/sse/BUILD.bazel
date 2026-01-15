@@ -5,7 +5,10 @@ go_library(
     srcs = ["manager.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse",
     visibility = ["//predix:__subpackages__"],
-    deps = ["//predix/internal/domain/contest"],
+    deps = [
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest",
+    ],
 )
 
 go_test(

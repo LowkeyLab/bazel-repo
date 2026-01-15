@@ -3,6 +3,7 @@ package sse
 import (
 	"sync"
 
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 )
 
@@ -29,6 +30,14 @@ type Manager struct {
 func NewManager() *Manager {
 	return &Manager{
 		subscribers: make(map[contest.ID][]chan Event),
+	}
+}
+
+// OnEvent handles domain events and broadcasts them to subscribers.
+func (m *Manager) OnEvent(event circle.DomainEvent) {
+	switch e := event.(type) {
+	case contest.ContestUpdated:
+		m.Broadcast(e.ContestID, Event{Type: EventContestUpdated})
 	}
 }
 

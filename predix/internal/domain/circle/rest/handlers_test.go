@@ -18,6 +18,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -52,7 +53,7 @@ func setupTestRouter(t *testing.T, sqlDB *sql.DB) (*gin.Engine, *service.Service
 	contestRepo := contestrepo.NewPostgres(sqlDB)
 	clk := clock.RealClock{}
 	txm := &TestTxManager{sqlDB: sqlDB}
-	svc := service.NewService(repo, userRepo, contestRepo, clk, txm)
+	svc := service.NewService(repo, userRepo, contestRepo, clk, txm, sse.NewManager())
 	handler := NewHandler(svc)
 
 	r := gin.New()
