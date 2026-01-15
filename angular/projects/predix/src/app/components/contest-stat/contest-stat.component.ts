@@ -18,7 +18,7 @@ export class ContestStatComponent {
 
   protected readonly flash = signal<'up' | 'down' | null>(null);
 
-  private readonly previousValue = signal<number | null>(null);
+  private previousValue: number | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   private readonly FLASH_DURATION = 300;
@@ -26,7 +26,7 @@ export class ContestStatComponent {
   constructor() {
     effect((onCleanup) => {
       const current = this.value();
-      const previous = this.previousValue();
+      const previous = this.previousValue;
       if (previous !== null) {
         if (current > previous) {
           this.triggerFlash('up');
@@ -34,7 +34,7 @@ export class ContestStatComponent {
           this.triggerFlash('down');
         }
       }
-      this.previousValue.set(current);
+      this.previousValue = current;
       onCleanup(() => {
         if (this.timeoutId) {
           clearTimeout(this.timeoutId);

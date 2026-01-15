@@ -35,7 +35,6 @@ import { ContestStatsComponent } from '../contest-stats/contest-stats.component'
     ContestStatsComponent,
   ],
   templateUrl: './contest-detail.component.html',
-  styleUrl: './contest-detail.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContestDetailComponent implements OnInit, OnDestroy {
@@ -81,18 +80,6 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
       (contest.status === 'OPEN' || contest.status === 'LOCKED')
     );
   });
-
-  private readonly contestsStats = computed(() => {[
-                    {
-                      title: 'Predictions',
-                      value: this.getPredictionsForOption(this.contest, option.id),
-                    },
-                    {
-                      title: 'Clout staked',
-                      value: this.getCloutForOption(this.contest, option.id),
-                    },
-                  ]
-    
 
   public selectedWinnerId: number | null = null;
 
