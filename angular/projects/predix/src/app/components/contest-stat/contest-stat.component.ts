@@ -3,6 +3,7 @@ import {
   Component,
   effect,
   input,
+  OnDestroy,
   signal,
 } from '@angular/core';
 
@@ -10,7 +11,7 @@ import {
   selector: 'contest-stat',
   standalone: true,
   templateUrl: './contest-stat.component.html',
-  styleUrls: ['./contest-stat.component.css'],
+  styleUrl: './contest-stat.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'stat transition-colors duration-300',
@@ -18,14 +19,14 @@ import {
     '[class.flash-down]': 'flash() === "down"',
   },
 })
-export class ContestStatComponent {
+export class ContestStatComponent implements OnDestroy {
   public readonly title = input.required<string>();
   public readonly value = input.required<number>();
 
-  public readonly flash = signal<'up' | 'down' | null>(null);
+  protected readonly flash = signal<'up' | 'down' | null>(null);
 
   private previousValue: number | null = null;
-  private timeoutId: any;
+  private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     effect(() => {
@@ -40,6 +41,12 @@ export class ContestStatComponent {
       }
       this.previousValue = current;
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
   }
 
   private triggerFlash(direction: 'up' | 'down') {
