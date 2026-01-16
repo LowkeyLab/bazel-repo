@@ -39,7 +39,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.GET("/circles/:id/contests", h.getCircleContests)
 	r.POST("/circles/:id/contests", h.createContest)
 	r.GET("/circles/:id/contests/:contestID", h.getContest)
-	r.GET("/circles/:id/contests/:contestID/stream", h.streamContestEvents)
+	r.GET("/circles/:id/contests/:contestID/stream", sseHeadersMiddleware(), h.streamContestEvents)
 	r.POST("/circles/:id/contests/:contestID/predictions", h.makePrediction)
 	r.POST("/circles/:id/contests/:contestID/lock", h.lockContest)
 	r.POST("/circles/:id/contests/:contestID/resolve-distribute", h.resolveAndDistribute)
@@ -749,11 +749,6 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 
 	sloggin.Get(c).Info("client subscribed to contest events", "contest_id", contestID)
 
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("Transfer-Encoding", "chunked")
-
 	init := make(chan struct{})
 
 	go func() {
@@ -782,4 +777,14 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 			return true
 		}
 	})
+}
+
+func sseHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("Transfer-Encoding", "chunked")
+		c.Next()
+	}
 }
