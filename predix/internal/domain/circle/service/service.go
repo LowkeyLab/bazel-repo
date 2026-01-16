@@ -447,6 +447,16 @@ func (s *Service) LockContest(ctx context.Context, circleID circle.ID, contestID
 		return ErrContestNotFound
 	}
 
+	if c.CreatorID != lockerID {
+		return ErrNotContestCreator
+	}
+
+	// Use domain method to lock
+	err = c.Lock()
+	if err != nil {
+		return err
+	}
+
 	// Save updated contest
 	err = s.contestRepo.Save(ctx, c)
 	if err != nil {

@@ -624,5 +624,44 @@ func TestCircleService(t *testing.T) {
 			assert.Len(t, breakdown.Losers, 1)
 			assert.Equal(t, "loser_pb", breakdown.Losers[0].Username)
 		})
+
+		t.Run("LockContest_ByCreator", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_lockc")
+
+			circleObj, err := svc.CreateCircle(ctx, "LockC Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Lock me?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, circleObj.ID, contestObj.ID, creatorID)
+			require.NoError(t, err)
+
+			lockedContest, err := svc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusLocked, lockedContest.Status)
+		})
+
+		t.Run("LockContest_ForbiddenForNonCreator", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_lockc2")
+			otherID := createTestUser(t, sqlDB, "other_lockc2")
+
+			circleObj, err := svc.CreateCircle(ctx, "LockC2 Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Lock me?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, circleObj.ID, contestObj.ID, otherID)
+			assert.ErrorIs(t, err, service.ErrNotContestCreator)
+
+			unlockedContest, err := svc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusOpen, unlockedContest.Status)
+		})
 	})
 }
