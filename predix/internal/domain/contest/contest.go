@@ -79,13 +79,6 @@ type ContestUpdated struct {
 
 func (e ContestUpdated) EventName() string { return "ContestUpdated" }
 
-// ContestCreated event.
-type ContestCreated struct {
-	ContestID ID
-}
-
-func (e ContestCreated) EventName() string { return "ContestCreated" }
-
 // AddEvent adds a domain event to the contest.
 func (c *Contest) AddEvent(event circle.DomainEvent) {
 	c.events = append(c.events, event)
@@ -184,17 +177,6 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 		ExpiresAt: lockedAt.Add(DefaultExpirationAfterLock),
 		Duration:  duration,
 	}
-	c.AddEvent(ContestCreated{ContestID: c.ID}) // Note: ID is 0 here, repository should probably set it and maybe we update event?
-	// Actually, ID is set by DB. When we dispatch, we might want the real ID.
-	// If we dispatch after Save, the ID should be updated in the struct if Save updates it.
-	// The event struct copies the ID value. So if ID is 0, event has 0.
-	// This is a problem with "New" adding event for "Created" if ID is generated later.
-	// But let's assume Save updates the struct but the event in the slice is already created.
-	// We can update the event ID before dispatching?
-	// Or simpler: don't add event in New. Add it in Service after Save?
-	// "domain object has a slice... updates when the domain object changes"
-	// Creation is a change.
-	// If I add it here, the ID is 0.
 	return c, nil
 }
 

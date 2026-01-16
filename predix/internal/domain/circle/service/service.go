@@ -405,9 +405,6 @@ func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creator
 		return nil, err
 	}
 
-	// Update event ID if it was 0 (hack for Creation event)
-	// But PopEvents returns interface.
-	// For now, let's just pop.
 	s.dispatchEvents(c.PopEvents())
 
 	return c, nil
