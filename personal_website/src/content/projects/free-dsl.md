@@ -1,8 +1,9 @@
 ---
 title: "Free-DSL"
 description: "An annotation processor for creating Builders in Kotlin"
-cover: "../../assets/free-dsl.png"
 tags: ["Kotlin"]
+startDate: 2024-08-31
+endDate: 2025-12-25
 featured: true
 links:
   github: "https://github.com/LowkeyLab/gradle-monorepo/tree/main/free-dsl"

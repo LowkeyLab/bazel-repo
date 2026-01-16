@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/stretchr/testify/assert"
@@ -59,7 +60,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 func TestMemoryRepository_FindByIDNotFound(t *testing.T) {
 	repo := repository.NewMemory()
 
-	_, err := repo.FindByID(context.Background(), 999)
+	_, err := repo.FindByID(context.Background(), user.ID(uuid.New()))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }

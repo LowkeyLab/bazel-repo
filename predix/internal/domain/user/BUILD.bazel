@@ -5,11 +5,15 @@ go_library(
     srcs = ["user.go"],
     importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/user",
     visibility = ["//predix:__subpackages__"],
+    deps = ["@com_github_google_uuid//:uuid"],
 )
 
 go_test(
     name = "user_test",
     size = "small",
     srcs = ["user_test.go"],
-    deps = [":user"],
+    deps = [
+        ":user",
+        "@com_github_google_uuid//:uuid",
+    ],
 )

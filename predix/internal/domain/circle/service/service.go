@@ -16,9 +16,9 @@ import (
 type CircleRepository interface {
 	Save(ctx context.Context, c *circle.Circle) error
 	FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error)
-	FindByUserID(ctx context.Context, userID int32) ([]*circle.Circle, error)
+	FindByUserID(ctx context.Context, userID user.ID) ([]*circle.Circle, error)
 	AddMember(ctx context.Context, circleID circle.ID, member *circle.Member) error
-	UpdateMemberClout(ctx context.Context, circleID circle.ID, userID int32, newClout int) error
+	UpdateMemberClout(ctx context.Context, circleID circle.ID, userID user.ID, newClout int) error
 	Delete(ctx context.Context, id circle.ID) error
 }
 
@@ -83,7 +83,7 @@ type EnrichedCircle struct {
 }
 
 type PayoutRecord struct {
-	UserID   int32
+	UserID   user.ID
 	Username string
 	Stake    int
 	Share    int
@@ -168,7 +168,7 @@ func (s *Service) GetCircleWithUsernames(ctx context.Context, id circle.ID) (*En
 
 // ListUserCirclesWithUsernames retrieves all circles for a user with member usernames enriched.
 func (s *Service) ListUserCirclesWithUsernames(ctx context.Context, userID user.ID) ([]*EnrichedCircle, error) {
-	circles, err := s.circleRepo.FindByUserID(ctx, int32(userID))
+	circles, err := s.circleRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user circles: %w", err)
 	}
@@ -185,7 +185,7 @@ func (s *Service) ListUserCirclesWithUsernames(ctx context.Context, userID user.
 }
 
 func (s *Service) ListUserCircles(ctx context.Context, userID user.ID) ([]*circle.Circle, error) {
-	circles, err := s.circleRepo.FindByUserID(ctx, int32(userID))
+	circles, err := s.circleRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user circles: %w", err)
 	}
@@ -284,7 +284,7 @@ func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID con
 
 	// Adjust clout balance by the delta between old and new stakes
 	newClout := userMember.Clout - delta
-	err = s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+	err = s.circleRepo.UpdateMemberClout(ctx, circleID, userID, newClout)
 	if err != nil {
 		return fmt.Errorf("failed to update member clout: %w", err)
 	}
@@ -319,7 +319,7 @@ func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID
 	for winnerID, payout := range payouts {
 		if member, exists := circ.Members[winnerID]; exists {
 			newClout := member.Clout + payout
-			err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(winnerID), newClout)
+			err := s.circleRepo.UpdateMemberClout(ctx, circleID, winnerID, newClout)
 			if err != nil {
 				return fmt.Errorf("failed to update winner clout for user %d: %w", winnerID, err)
 			}
@@ -354,7 +354,7 @@ func (s *Service) ExpireAndRefundContestClout(ctx context.Context, contestID con
 	for userID, refundAmount := range refunds {
 		if member, exists := circ.Members[userID]; exists {
 			newClout := member.Clout + refundAmount
-			err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout)
+			err := s.circleRepo.UpdateMemberClout(ctx, circleID, userID, newClout)
 			if err != nil {
 				return fmt.Errorf("failed to update refunded clout for user %d: %w", userID, err)
 			}
@@ -601,7 +601,7 @@ func (s *Service) ExpireContest(ctx context.Context, contestID contest.ID) error
 		for userID, refundAmount := range refunds {
 			if member, exists := circ.Members[userID]; exists {
 				newClout := member.Clout + refundAmount
-				if err := s.circleRepo.UpdateMemberClout(ctx, circleID, int32(userID), newClout); err != nil {
+				if err := s.circleRepo.UpdateMemberClout(ctx, circleID, userID, newClout); err != nil {
 					return fmt.Errorf("failed to update refunded clout for user %d: %w", userID, err)
 				}
 			}
@@ -654,7 +654,7 @@ func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, co
 			username = u.Username
 		}
 		winnerRecords[i] = PayoutRecord{
-			UserID:   int32(r.UserID),
+			UserID:   r.UserID,
 			Username: username,
 			Stake:    r.OriginalStake,
 			Share:    r.ShareOfPot,
@@ -670,7 +670,7 @@ func (s *Service) GetPayoutBreakdown(ctx context.Context, circleID circle.ID, co
 			username = u.Username
 		}
 		loserRecords[i] = PayoutRecord{
-			UserID:   int32(r.UserID),
+			UserID:   r.UserID,
 			Username: username,
 			Stake:    r.OriginalStake,
 			Share:    r.ShareOfPot,

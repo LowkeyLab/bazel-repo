@@ -181,20 +181,18 @@
                     <div class="badge badge-success">Winner 🎉</div>
                   }
                 </div>
-                <div class="stats stats-vertical lg:stats-horizontal">
-                  <div class="stat">
-                    <div class="stat-title">Predictions</div>
-                    <div class="stat-value text-2xl">
-                      {{ getPredictionsForOption(contest, option.id) }}
-                    </div>
-                  </div>
-                  <div class="stat">
-                    <div class="stat-title">Clout staked</div>
-                    <div class="stat-value text-2xl">
-                      {{ getCloutForOption(contest, option.id) }}
-                    </div>
-                  </div>
-                </div>
+                @let stats =
+                  [
+                    {
+                      title: "Predictions",
+                      value: getPredictionsForOption(contest, option.id),
+                    },
+                    {
+                      title: "Clout staked",
+                      value: getCloutForOption(contest, option.id),
+                    },
+                  ];
+                <contest-stats [stats]="stats" />
 
                 @if (contest.status === "OPEN") {
                   <div class="divider my-0"></div>

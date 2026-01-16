@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
@@ -20,7 +22,7 @@ import (
 type loginResponseBody struct {
 	Token string `json:"token"`
 	User  struct {
-		ID       int32  `json:"id"`
+		ID       string `json:"id"`
 		Username string `json:"username"`
 		Role     string `json:"role"`
 	} `json:"user"`
@@ -37,6 +39,7 @@ func setupRouter(t *testing.T, db *sql.DB) (*gin.Engine, *auth.Manager, *service
 	handler := NewHandler(svc, tokens)
 
 	r := gin.New()
+	r.Use(sloggin.SetLogger())
 	handler.RegisterRoutes(r)
 
 	return r, tokens, svc
@@ -81,8 +84,8 @@ func TestUserHandlers(t *testing.T) {
 				t.Fatalf("token parse failed: %v", err)
 			}
 
-			if int32(uid) != parsed.User.ID {
-				t.Fatalf("token uid %d does not match response user id %d", uid, parsed.User.ID)
+			if uuid.UUID(uid).String() != parsed.User.ID {
+				t.Fatalf("token uid %s does not match response user id %s", uuid.UUID(uid), parsed.User.ID)
 			}
 			if parsed.User.Username != "alice" {
 				t.Fatalf("expected username alice, got %s", parsed.User.Username)
@@ -157,7 +160,7 @@ func TestUserHandlers(t *testing.T) {
 			}
 
 			if uid != created.ID {
-				t.Fatalf("expected token uid %d, got %d", created.ID, uid)
+				t.Fatalf("expected token uid %s, got %s", created.ID, uid)
 			}
 			if parsed.User.Username != created.Username {
 				t.Fatalf("unexpected username: %s", parsed.User.Username)

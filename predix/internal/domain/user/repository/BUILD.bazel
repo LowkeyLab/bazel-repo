@@ -12,6 +12,7 @@ go_library(
     deps = [
         "//predix/internal/db",
         "//predix/internal/domain/user",
+        "@com_github_google_uuid//:uuid",
     ],
 )
 
@@ -22,9 +23,6 @@ go_test(
         "memory_test.go",
         "postgres_test.go",
     ],
-    data = [
-        "//predix/internal/sql:migrations",
-    ],
     tags = [
         # keep
         "requires-docker",
@@ -34,6 +32,7 @@ go_test(
         ":repository",
         "//predix/internal/domain/user",
         "//predix/internal/testutil",
+        "@com_github_google_uuid//:uuid",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],

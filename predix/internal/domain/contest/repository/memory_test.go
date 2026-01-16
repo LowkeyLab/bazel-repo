@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	clockpkg "github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
@@ -22,7 +23,7 @@ func TestMemoryRepository_SaveContest(t *testing.T) {
 	c, err := contest.New(
 		clk,
 		circle.ID(1),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Test question?",
 		[]string{"Yes", "No"},
 		contest.Duration1Day,
@@ -53,7 +54,7 @@ func TestMemoryRepository_FindByID(t *testing.T) {
 	c, err := contest.New(
 		clk,
 		circle.ID(2),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Will it rain?",
 		[]string{"Yes", "No", "Maybe"},
 		contest.Duration1Day,
@@ -92,7 +93,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	c1, err := contest.New(
 		clk,
 		circle.ID(2),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Question 1?",
 		[]string{"A", "B"},
 		contest.Duration1Day,
@@ -105,7 +106,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	c2, err := contest.New(
 		clk,
 		circle.ID(2),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Question 2?",
 		[]string{"X", "Y"},
 		contest.Duration1Day,
@@ -118,7 +119,7 @@ func TestMemoryRepository_FindByCircleID(t *testing.T) {
 	c3, err := contest.New(
 		clk,
 		circle.ID(3),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Question 3?",
 		[]string{"M", "N"},
 		contest.Duration1Day,
@@ -158,7 +159,7 @@ func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
 	c, err := contest.New(
 		clk,
 		circle.ID(1),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Question?",
 		[]string{"A", "B"},
 		contest.Duration1Day,
@@ -171,7 +172,8 @@ func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
 	originalID := c.ID
 
 	// Add a prediction
-	err = c.Predict(user.ID(2), 1, 100)
+	predictionUserID := user.ID(uuid.New())
+	err = c.Predict(predictionUserID, 1, 100)
 	require.NoError(t, err)
 
 	// Save again
@@ -183,7 +185,7 @@ func TestMemoryRepository_SaveUpdatesContest(t *testing.T) {
 	found, err := repo.FindByID(context.Background(), c.ID)
 	require.NoError(t, err)
 	assert.Len(t, found.Predictions, 1)
-	assert.Equal(t, user.ID(2), found.Predictions[0].UserID)
+	assert.Equal(t, predictionUserID, found.Predictions[0].UserID)
 	assert.Equal(t, 1, found.Predictions[0].OptionID)
 	assert.Equal(t, 100, found.Predictions[0].Clout)
 }
@@ -197,7 +199,7 @@ func TestMemoryRepository_DeepCopy(t *testing.T) {
 	c, err := contest.New(
 		clk,
 		circle.ID(1),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Question?",
 		[]string{"A", "B"},
 		contest.Duration1Day,
@@ -227,7 +229,7 @@ func TestMemoryRepository_SaveResolvedContest(t *testing.T) {
 	c, err := contest.New(
 		clk,
 		circle.ID(1),
-		user.ID(1),
+		user.ID(uuid.New()),
 		"Question?",
 		[]string{"A", "B"},
 		contest.Duration1Day,
@@ -238,8 +240,8 @@ func TestMemoryRepository_SaveResolvedContest(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add predictions
-	require.NoError(t, c.Predict(user.ID(2), 1, 100))
-	require.NoError(t, c.Predict(user.ID(3), 2, 200))
+	require.NoError(t, c.Predict(user.ID(uuid.New()), 1, 100))
+	require.NoError(t, c.Predict(user.ID(uuid.New()), 2, 200))
 
 	// Resolve the contest
 	winningOptionID := 1
@@ -271,7 +273,7 @@ func TestMemoryRepository_Concurrency(t *testing.T) {
 			c, _ := contest.New(
 				clk,
 				circle.ID(idx+1),
-				user.ID(1),
+				user.ID(uuid.New()),
 				"Question?",
 				[]string{"A", "B"},
 				contest.Duration1Day,

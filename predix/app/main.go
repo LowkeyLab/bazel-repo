@@ -3,18 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
-	"embed"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
@@ -28,28 +24,8 @@ import (
 	userrest "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/rest"
 	userservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/healthcheck"
+	"github.com/lowkeylab/bazel-repo/predix/internal/migrations"
 )
-
-//go:embed migrations/*.sql
-var migrationFS embed.FS
-
-func runMigrations(connStr string) error {
-	sourceDriver, err := iofs.New(migrationFS, "migrations")
-	if err != nil {
-		return fmt.Errorf("failed to create iofs driver: %w", err)
-	}
-
-	m, err := migrate.NewWithSourceInstance("iofs", sourceDriver, connStr)
-	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	return nil
-}
 
 type PostgresTxManager struct {
 	db *sql.DB
@@ -105,7 +81,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := runMigrations(connStr); err != nil {
+		if err := migrations.Run(connStr); err != nil {
 			slog.Error("failed to run migrations", "error", err)
 			os.Exit(1)
 		}
@@ -144,7 +120,9 @@ func main() {
 	circleHandler := circlerest.NewHandler(circleSvc)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(sloggin.SetLogger(sloggin.WithWriter(os.Stdout)))
+	r.Use(gin.Recovery())
 	r.SetTrustedProxies(nil)
 
 	var allowOrigins []string

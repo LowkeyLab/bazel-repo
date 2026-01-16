@@ -9,7 +9,9 @@ go_library(
         "//predix/internal/auth",
         "//predix/internal/domain/user",
         "//predix/internal/domain/user/service",
+        "@com_github_gin_contrib_slog//:slog",
         "@com_github_gin_gonic_gin//:gin",
+        "@com_github_google_uuid//:uuid",
     ],
 )
 
@@ -17,7 +19,6 @@ go_test(
     name = "handlers_test",
     timeout = "short",
     srcs = ["handlers_test.go"],
-    data = ["//predix/internal/sql:migrations"],
     embed = [":rest"],
     tags = [
         # keep
@@ -29,6 +30,7 @@ go_test(
         "//predix/internal/domain/user/repository",
         "//predix/internal/domain/user/service",
         "//predix/internal/testutil",
+        "@com_github_gin_contrib_slog//:slog",
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_jackc_pgx_v5//pgxpool",
     ],
@@ -38,7 +40,6 @@ go_test(
     name = "rest_test",
     timeout = "short",
     srcs = ["handlers_test.go"],
-    data = ["//predix/internal/sql:migrations"],
     embed = [":rest"],
     tags = [
         # keep
@@ -50,6 +51,8 @@ go_test(
         "//predix/internal/domain/user/repository",
         "//predix/internal/domain/user/service",
         "//predix/internal/testutil",
+        "@com_github_gin_contrib_slog//:slog",
         "@com_github_gin_gonic_gin//:gin",
+        "@com_github_google_uuid//:uuid",
     ],
 )

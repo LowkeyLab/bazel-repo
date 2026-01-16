@@ -1,8 +1,8 @@
 ---
 title: "Mindreadr"
 description: "A cooperative word-guessing game"
-cover: "../../assets/mindreadr.png"
 tags: ["Kotlin", "Ktor", "Angular", "TypeScript", "WebSocket", "Bazel"]
+startDate: 2025-11-19
 featured: true
 links:
   github: "https://github.com/tacascer/bazel-repo/tree/main/mindreadr"

@@ -1,10 +1,11 @@
 package rest
 
 import (
-	"log/slog"
 	"net/http"
 
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user/service"
@@ -33,7 +34,7 @@ type loginRequest struct {
 }
 
 type userResponse struct {
-	ID       int32  `json:"id"`
+	ID       string `json:"id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 }
@@ -46,26 +47,26 @@ type loginResponse struct {
 func (h *Handler) register(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.WarnContext(c.Request.Context(), "invalid register request body", "error", err)
+		sloggin.Get(c).Warn("invalid register request body", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
 	u, err := h.svc.Register(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		slog.WarnContext(c.Request.Context(), "registration failed", "username", req.Username, "error", err)
+		sloggin.Get(c).Warn("registration failed", "username", req.Username, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	token, err := h.tokens.GenerateToken(u)
 	if err != nil {
-		slog.ErrorContext(c.Request.Context(), "failed to generate token", "user_id", u.ID, "error", err)
+		sloggin.Get(c).Error("failed to generate token", "user_id", u.ID, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "user registered successfully", "user_id", u.ID, "username", u.Username)
+	sloggin.Get(c).Info("user registered successfully", "user_id", u.ID, "username", u.Username)
 	c.JSON(http.StatusCreated, loginResponse{
 		Token: token,
 		User:  toUserResponse(u),
@@ -75,26 +76,26 @@ func (h *Handler) register(c *gin.Context) {
 func (h *Handler) login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.WarnContext(c.Request.Context(), "invalid login request body", "error", err)
+		sloggin.Get(c).Warn("invalid login request body", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
 	u, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		slog.WarnContext(c.Request.Context(), "login failed", "username", req.Username, "error", err)
+		sloggin.Get(c).Warn("login failed", "username", req.Username, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	token, err := h.tokens.GenerateToken(u)
 	if err != nil {
-		slog.ErrorContext(c.Request.Context(), "failed to generate token", "user_id", u.ID, "error", err)
+		sloggin.Get(c).Error("failed to generate token", "user_id", u.ID, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "user logged in successfully", "user_id", u.ID, "username", u.Username)
+	sloggin.Get(c).Info("user logged in successfully", "user_id", u.ID, "username", u.Username)
 	c.JSON(http.StatusOK, loginResponse{
 		Token: token,
 		User:  toUserResponse(u),
@@ -103,7 +104,7 @@ func (h *Handler) login(c *gin.Context) {
 
 func toUserResponse(u *user.User) userResponse {
 	return userResponse{
-		ID:       int32(u.ID),
+		ID:       uuid.UUID(u.ID).String(),
 		Username: u.Username,
 		Role:     string(u.Role),
 	}

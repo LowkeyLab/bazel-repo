@@ -6,6 +6,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
@@ -18,16 +20,16 @@ type Querier interface {
 	DeleteCircle(ctx context.Context, id int32) error
 	FindContestsToExpire(ctx context.Context) ([]Contest, error)
 	FindContestsToLock(ctx context.Context) ([]Contest, error)
-	GetCircle(ctx context.Context, id int32) (Circle, error)
+	GetCircle(ctx context.Context, id int32) (GetCircleRow, error)
 	GetCircleMember(ctx context.Context, arg GetCircleMemberParams) (CircleMember, error)
 	GetContest(ctx context.Context, id int32) (Contest, error)
-	GetUser(ctx context.Context, id int32) (User, error)
+	GetUser(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	ListCircleMembers(ctx context.Context, circleID int32) ([]ListCircleMembersRow, error)
 	ListContestOptions(ctx context.Context, contestID int32) ([]Option, error)
 	ListContestPredictions(ctx context.Context, contestID int32) ([]Prediction, error)
 	ListContestsByCircle(ctx context.Context, circleID int32) ([]Contest, error)
-	ListUserCircles(ctx context.Context, userID int32) ([]Circle, error)
+	ListUserCircles(ctx context.Context, userID uuid.UUID) ([]ListUserCirclesRow, error)
 	UpdateCircleMemberClout(ctx context.Context, arg UpdateCircleMemberCloutParams) error
 	UpdateContestStatus(ctx context.Context, arg UpdateContestStatusParams) error
 	UpdateContestStatusOnly(ctx context.Context, arg UpdateContestStatusOnlyParams) error
