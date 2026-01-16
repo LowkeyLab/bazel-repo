@@ -548,5 +548,104 @@ func TestCircleHandlers(t *testing.T) {
 			assert.Equal(t, uuid.UUID(winnerID).String(), winnerRecord.UserID)
 			assert.Equal(t, 190, winnerRecord.Total, "Winner should receive 190 clout")
 		})
+
+		t.Run("StreamContestEvents_ValidSetup", func(t *testing.T) {
+			_, svc, _ := build(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_stream")
+
+			circle, err := svc.CreateCircle(context.Background(), "Stream Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(context.Background(), circle.ID, creatorID, "Will it work?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			// Test that contest exists and can be retrieved
+			retrievedContest, err := svc.GetContestInCircle(context.Background(), circle.ID, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contestObj.ID, retrievedContest.ID)
+			assert.Equal(t, circle.ID, retrievedContest.CircleID)
+		})
+
+		t.Run("StreamContestEvents_ContestNotFound", func(t *testing.T) {
+			router, svc, _ := build(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_stream_nf")
+
+			circle, err := svc.CreateCircle(context.Background(), "Stream Circle NF", creatorID)
+			require.NoError(t, err)
+
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/99999/stream", circle.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
+
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusNotFound, resp.Code)
+
+			var errorResp map[string]string
+			err = json.Unmarshal(resp.Body.Bytes(), &errorResp)
+			require.NoError(t, err)
+			assert.Equal(t, "contest not found", errorResp["error"])
+		})
+
+		t.Run("StreamContestEvents_ContestNotInCircle", func(t *testing.T) {
+			router, svc, _ := build(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_stream_nic")
+
+			circle1, err := svc.CreateCircle(context.Background(), "Circle 1", creatorID)
+			require.NoError(t, err)
+
+			circle2, err := svc.CreateCircle(context.Background(), "Circle 2", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(context.Background(), circle2.ID, creatorID, "Question?", []string{"A", "B"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d/stream", circle1.ID, contestObj.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
+
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusNotFound, resp.Code)
+
+			var errorResp map[string]string
+			err = json.Unmarshal(resp.Body.Bytes(), &errorResp)
+			require.NoError(t, err)
+			assert.Equal(t, "contest not found", errorResp["error"])
+		})
+
+		t.Run("StreamContestEvents_InvalidCircleID", func(t *testing.T) {
+			router, _, _ := build(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_stream_inv")
+
+			req, _ := http.NewRequest(http.MethodGet, "/protected/circles/invalid/contests/1/stream", nil)
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
+
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+		})
+
+		t.Run("StreamContestEvents_InvalidContestID", func(t *testing.T) {
+			router, svc, _ := build(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_stream_invc")
+
+			circle, err := svc.CreateCircle(context.Background(), "Stream Circle INV", creatorID)
+			require.NoError(t, err)
+
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/invalid/stream", circle.ID), nil)
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
+
+			resp := httptest.NewRecorder()
+			router.ServeHTTP(resp, req)
+
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+		})
 	})
 }
