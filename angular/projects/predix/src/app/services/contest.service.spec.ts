@@ -19,8 +19,22 @@ describe('ContestService', () => {
   const mockAuthService = {
     token: jasmine.createSpy('token').and.returnValue('test-token'),
   };
+  let mockEventSource: any;
+  let EventSourceSpy: jasmine.Spy;
 
   beforeEach(() => {
+    mockEventSource = {
+      onopen: null,
+      onerror: null,
+      addEventListener: jasmine.createSpy('addEventListener'),
+      close: jasmine.createSpy('close'),
+      readyState: 1,
+    };
+    EventSourceSpy = jasmine
+      .createSpy('EventSource')
+      .and.returnValue(mockEventSource);
+    (window as any).EventSource = EventSourceSpy;
+
     TestBed.configureTestingModule({
       providers: [
         ContestService,
@@ -73,6 +87,66 @@ describe('ContestService', () => {
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockContest);
+    });
+  });
+
+  describe('streamContestDetails', () => {
+    it('should stream contest updates with totals', (done) => {
+      const circleId = 1;
+      const contestId = 42;
+      const mockContest: Contest = {
+        id: contestId,
+        circle_id: circleId,
+        creator_id: 1,
+        question: 'Who will win?',
+        options: [
+          { id: 1, text: 'Option A' },
+          { id: 2, text: 'Option B' },
+        ],
+        predictions: [
+          {
+            option_id: 1,
+            clout: 50,
+            user_id: 1,
+            timestamp: '2024-01-01T00:00:00Z',
+          },
+          {
+            option_id: 1,
+            clout: 30,
+            user_id: 2,
+            timestamp: '2024-01-01T00:00:00Z',
+          },
+        ],
+        status: 'OPEN',
+        min_stake: 10,
+        total_pot: 80,
+        house_rake: 0,
+        created_at: '2024-01-01T00:00:00Z',
+        locked_at: '2024-01-02T00:00:00Z',
+        duration: '1d',
+      };
+
+      service
+        .streamContestDetails(circleId, contestId)
+        .pipe(take(1))
+        .subscribe({
+          next: (result) => {
+            expect(result.id).toBe(contestId);
+            expect(result.totals.byOption.get(1)?.clout).toBe(80);
+            expect(result.totals.byOption.get(1)?.count).toBe(2);
+            done();
+          },
+        });
+
+      setTimeout(() => {
+        if (mockEventSource.onopen) {
+          mockEventSource.onopen();
+        }
+        const req = httpMock.expectOne(
+          `${apiUrl}/circles/${circleId}/contests/${contestId}`,
+        );
+        req.flush(mockContest);
+      }, 0);
     });
   });
 });
