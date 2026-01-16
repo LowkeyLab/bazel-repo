@@ -99,7 +99,7 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
     this.loading.set(true);
 
     this.pollingSubscription = this.contestService
-      .pollContestDetails(circleId, contestId)
+      .streamContestDetails(circleId, contestId)
       .subscribe({
         next: (contestWithTotals) => {
           this.contest.set(contestWithTotals);
@@ -120,11 +120,11 @@ export class ContestDetailComponent implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
-          console.error('Polling failed after retries:', err);
+          console.error('Streaming failed:', err);
           this.loading.set(false);
         },
         complete: () => {
-          console.log('Polling stopped (contest expired or resolved)');
+          console.log('Streaming stopped (contest expired or resolved)');
         },
       });
   }

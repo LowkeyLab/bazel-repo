@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//predix/internal/clock",
         "//predix/internal/domain/circle",
+        "//predix/internal/domain/circle/sse",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/user",
     ],
@@ -27,6 +28,7 @@ go_test(
         "//predix/internal/clock",
         "//predix/internal/db",
         "//predix/internal/domain/circle/repository",
+        "//predix/internal/domain/circle/sse",
         "//predix/internal/domain/contest",
         "//predix/internal/domain/contest/repository",
         "//predix/internal/domain/user",

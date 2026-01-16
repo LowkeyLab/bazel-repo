@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sse",
+    srcs = ["manager.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse",
+    visibility = ["//predix:__subpackages__"],
+    deps = [
+        "//predix/internal/domain/circle",
+        "//predix/internal/domain/contest",
+    ],
+)
+
+go_test(
+    name = "sse_test",
+    size = "small",
+    srcs = ["manager_test.go"],
+    deps = [
+        ":sse",
+        "//predix/internal/domain/contest",
+        "@com_github_stretchr_testify//assert",
+    ],
+)
