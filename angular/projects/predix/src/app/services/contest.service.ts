@@ -1,9 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject, NgZone } from '@angular/core';
-import { Observable, timer } from 'rxjs';
-import { switchMap, takeWhile, map } from 'rxjs/operators';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { DEFAULT_POLL_INTERVAL_MS } from '../config/polling';
 import { AuthService } from './auth.service';
 import type {
   Contest,
