@@ -757,8 +757,12 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 	init := make(chan struct{})
 
 	go func() {
-		init <- struct{}{}
-		close(init)
+		select {
+		case <-c.Request.Context().Done():
+			sloggin.Get(c).Info("stopping initial event sender due to client disconnect", "contest_id", contestID)
+			return
+		case init <- struct{}{}:
+		}
 	}()
 
 	c.Stream(func(w io.Writer) bool {
@@ -774,10 +778,7 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 			return true
 
 		case <-init:
-			c.SSEvent(
-				"open",
-				true,
-			)
+			c.SSEvent("init", "connected")
 			return true
 		}
 	})
