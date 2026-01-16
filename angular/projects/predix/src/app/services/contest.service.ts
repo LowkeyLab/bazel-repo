@@ -19,7 +19,6 @@ import type {
 export class ContestService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
-  private readonly zone = inject(NgZone);
   private readonly apiUrl = `${environment.apiUrl}/protected`;
 
   private mapContestWithTotals(contest: Contest): Contest & {
@@ -90,35 +89,6 @@ export class ContestService {
     );
   }
 
-  /**
-   * Polls contest details at a fixed interval until the contest is expired or resolved.
-   * Maps the contest to include computed totals for convenience.
-   *
-   * @param circleId - Circle ID
-   * @param contestId - Contest ID
-   * @param intervalMs - Polling interval in milliseconds (default: DEFAULT_POLL_INTERVAL_MS)
-   * @returns Observable that emits contest details with totals until contest reaches a terminal status
-   */
-  pollContestDetails(
-    circleId: number,
-    contestId: number,
-    intervalMs: number = DEFAULT_POLL_INTERVAL_MS,
-  ): Observable<
-    Contest & {
-      totals: { byOption: Map<number, { clout: number; count: number }> };
-    }
-  > {
-    return timer(0, intervalMs).pipe(
-      switchMap(() => this.getContest(circleId, contestId)),
-      map((contest) => this.mapContestWithTotals(contest)),
-      takeWhile(
-        (contest) =>
-          contest.status !== 'EXPIRED' && contest.status !== 'RESOLVED',
-        true,
-      ),
-    );
-  }
-
   streamContestDetails(
     circleId: number,
     contestId: number,
@@ -153,22 +123,20 @@ export class ContestService {
       };
 
       eventSource.onopen = () => {
-        // Initial fetch
-        this.zone.run(() => fetchAndEmit());
+        console.log('Connected to contest event stream');
+        fetchAndEmit();
       };
 
       eventSource.addEventListener('contest_updated', () => {
-        this.zone.run(() => fetchAndEmit());
+        fetchAndEmit();
       });
 
       eventSource.onerror = (error) => {
-        this.zone.run(() => {
-          if (eventSource.readyState === EventSource.CLOSED) {
-            // If closed unexpectedly, maybe try to reconnect or error out
-            // For now, let's error if we can't connect
-            observer.error(error);
-          }
-        });
+        if (eventSource.readyState === EventSource.CLOSED) {
+          // If closed unexpectedly, maybe try to reconnect or error out
+          // For now, let's error if we can't connect
+          observer.error(error);
+        }
       };
 
       return () => {

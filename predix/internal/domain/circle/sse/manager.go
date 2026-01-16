@@ -17,7 +17,7 @@ const (
 // Event represents a server-sent event.
 type Event struct {
 	Type    EventType
-	Payload interface{}
+	Payload any
 }
 
 // Manager handles SSE subscriptions and broadcasting.

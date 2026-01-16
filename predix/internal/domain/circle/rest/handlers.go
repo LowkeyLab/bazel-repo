@@ -10,7 +10,6 @@ import (
 	"time"
 
 	sloggin "github.com/gin-contrib/slog"
-	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
@@ -750,19 +749,35 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 
 	sloggin.Get(c).Info("client subscribed to contest events", "contest_id", contestID)
 
-	clientGone := c.Request.Context().Done()
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Transfer-Encoding", "chunked")
+
+	init := make(chan struct{})
+
+	go func() {
+		init <- struct{}{}
+		close(init)
+	}()
 
 	c.Stream(func(w io.Writer) bool {
 		select {
-		case <-clientGone:
+		case <-c.Request.Context().Done():
+			sloggin.Get(c).Info("client disconnected from contest event stream", "contest_id", contestID)
 			return false
 		case event := <-events:
-			// For now, we just send the event type. The client will refetch the contest.
-			// We can improve this by sending the actual diff or updated object.
-			sse.Encode(w, sse.Event{
-				Event: string(event.Type),
-				Data:  event.Payload,
-			})
+			c.SSEvent(
+				"contest_updated",
+				event,
+			)
+			return true
+
+		case <-init:
+			c.SSEvent(
+				"open",
+				true,
+			)
 			return true
 		}
 	})
