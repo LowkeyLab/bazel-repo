@@ -53,8 +53,9 @@ func setupTestRouter(t *testing.T, sqlDB *sql.DB) (*gin.Engine, *service.Service
 	contestRepo := contestrepo.NewPostgres(sqlDB)
 	clk := clock.RealClock{}
 	txm := &TestTxManager{sqlDB: sqlDB}
-	svc := service.NewService(repo, userRepo, contestRepo, clk, txm, sse.NewManager())
-	handler := NewHandler(svc)
+	sseManager := sse.NewManager()
+	svc := service.NewService(repo, userRepo, contestRepo, clk, txm, sseManager)
+	handler := NewHandler(svc, sseManager)
 
 	r := gin.New()
 	r.Use(sloggin.SetLogger())

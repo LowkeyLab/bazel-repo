@@ -15,18 +15,24 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
+type EventSubscriber interface {
+	Subscribe(contestID contest.ID) (chan sse.Event, func())
+}
+
 // Handler wires circle HTTP endpoints.
 type Handler struct {
-	svc *service.Service
+	svc        *service.Service
+	subscriber EventSubscriber
 }
 
 // NewHandler constructs a circle REST handler.
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *service.Service, subscriber EventSubscriber) *Handler {
+	return &Handler{svc: svc, subscriber: subscriber}
 }
 
 // RegisterRoutes registers circle routes on the provided router.
@@ -744,7 +750,7 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 	}
 
 	// Subscribe to events
-	events, unsubscribe := h.svc.SubscribeToContest(contestID)
+	events, unsubscribe := h.subscriber.Subscribe(contestID)
 	defer unsubscribe()
 
 	sloggin.Get(c).Info("client subscribed to contest events", "contest_id", contestID)

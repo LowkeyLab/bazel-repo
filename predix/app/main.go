@@ -121,7 +121,7 @@ func main() {
 	go contestcloser.StartCloser(ctx, circleSvc, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
-	circleHandler := circlerest.NewHandler(circleSvc)
+	circleHandler := circlerest.NewHandler(circleSvc, sseManager)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
 	r := gin.New()
