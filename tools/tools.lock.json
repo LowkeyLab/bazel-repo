@@ -4,29 +4,29 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Linux-aarch64",
-        "sha256": "37bfa47e6ede6ac1b78b3e3c93a0911b7c71d5bb9ed9c684dfc0164167619bc1",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Linux-aarch64",
+        "sha256": "ea7df0f8bd470f07becd4874dfafa90351bf2cd2845fc0c288446626aa575359",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Linux-x86_64",
-        "sha256": "d82849eca790bacb5b8885a027f31bbfbfdf72b2d93bc82bda8cb2ca20e4faca",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Linux-x86_64",
+        "sha256": "c00596ea1fae1772d6aed88e5e72fcb48daf643dfc6a2f39618790a59e0c137a",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Darwin-arm64",
-        "sha256": "b7878d0c88673e067c3a5ac60fabf133b29be71ae3a37598f2e99ee5d3c5fd22",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Darwin-arm64",
+        "sha256": "de80d6e6f7dd7f68e2c818622390c135727982d24deee0c58885b92c843a0510",
         "os": "macos",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.61.0/buf-Darwin-x86_64",
-        "sha256": "20323fa889d55893b67d402b714b04efe8916358ab29ccd2f70203439dc67b42",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Darwin-x86_64",
+        "sha256": "63f21018b0a43875ea1f4624d1631e357648eb4a6126ae210ce9a64ed3762780",
         "os": "macos",
         "cpu": "x86_64"
       }
@@ -87,6 +87,26 @@
         "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_mac_arm64.tar.gz",
         "file": "caddy",
         "sha256": "cc9ad20742ea7bfee5dd1d435d42ab7fcf8592294f9ec43bf08fd21cbe448bc4",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "crane": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Linux_x86_64.tar.gz",
+        "file": "crane",
+        "sha256": "8ef3564d264e6b5ca93f7b7f5652704c4dd29d33935aff6947dd5adefd05953e",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Darwin_arm64.tar.gz",
+        "file": "crane",
+        "sha256": "210da17a7269a9904a9b6797efbf97f4b1e5567c0962f168d1489a7bd375f14a",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -170,6 +190,26 @@
       }
     ]
   },
+  "sqlc": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_linux_amd64.tar.gz",
+        "file": "sqlc",
+        "sha256": "468aecee071bfe55e97fcbcac52ea0208eeca444f67736f3b8f0f3d6a106132e",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_darwin_arm64.tar.gz",
+        "file": "sqlc",
+        "sha256": "ff18793b97715d08dde364446f43082a06da87b7797b9ec79ef2b31aeb0894e5",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
   "starpls": {
     "binaries": [
       {
@@ -221,46 +261,6 @@
         "url": "https://releases.hashicorp.com/terraform/1.9.3/terraform_1.9.3_darwin_arm64.zip",
         "file": "terraform",
         "sha256": "168cfeb339dbbfea6be651573ec168e6ca08bab79a4fc0474681eee1e9a95de9",
-        "os": "macos",
-        "cpu": "arm64"
-      }
-    ]
-  },
-  "sqlc": {
-    "binaries": [
-      {
-        "kind": "archive",
-        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_linux_amd64.tar.gz",
-        "file": "sqlc",
-        "sha256": "468aecee071bfe55e97fcbcac52ea0208eeca444f67736f3b8f0f3d6a106132e",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_darwin_arm64.tar.gz",
-        "file": "sqlc",
-        "sha256": "ff18793b97715d08dde364446f43082a06da87b7797b9ec79ef2b31aeb0894e5",
-        "os": "macos",
-        "cpu": "arm64"
-      }
-    ]
-  },
-  "crane": {
-    "binaries": [
-      {
-        "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Linux_x86_64.tar.gz",
-        "file": "crane",
-        "sha256": "8ef3564d264e6b5ca93f7b7f5652704c4dd29d33935aff6947dd5adefd05953e",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Darwin_arm64.tar.gz",
-        "file": "crane",
-        "sha256": "210da17a7269a9904a9b6797efbf97f4b1e5567c0962f168d1489a7bd375f14a",
         "os": "macos",
         "cpu": "arm64"
       }
