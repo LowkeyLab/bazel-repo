@@ -9,14 +9,12 @@ import (
 
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
-	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
 type EventListener interface {
 	OnEvent(event circle.DomainEvent)
-	Subscribe(contestID contest.ID) (chan sse.Event, func())
 }
 
 type CircleRepository interface {
@@ -64,11 +62,6 @@ func NewService(circleRepo CircleRepository, userRepo UserRepository, contestRep
 		txm:           txm,
 		eventListener: eventListener,
 	}
-}
-
-// SubscribeToContest subscribes to SSE events for a specific contest.
-func (s *Service) SubscribeToContest(contestID contest.ID) (chan sse.Event, func()) {
-	return s.eventListener.Subscribe(contestID)
 }
 
 var (
