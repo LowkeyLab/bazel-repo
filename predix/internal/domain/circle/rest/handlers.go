@@ -755,16 +755,9 @@ func (h *Handler) streamContestEvents(c *gin.Context) {
 
 	sloggin.Get(c).Info("client subscribed to contest events", "contest_id", contestID)
 
-	init := make(chan struct{})
+	init := make(chan struct{}, 1)
 
-	go func() {
-		select {
-		case <-c.Request.Context().Done():
-			sloggin.Get(c).Info("stopping initial event sender due to client disconnect", "contest_id", contestID)
-			return
-		case init <- struct{}{}:
-		}
-	}()
+	init <- struct{}{}
 
 	c.Stream(func(w io.Writer) bool {
 		select {
