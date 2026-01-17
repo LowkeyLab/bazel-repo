@@ -245,5 +245,25 @@
         "cpu": "arm64"
       }
     ]
+  },
+  "crane": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Linux_x86_64.tar.gz",
+        "file": "crane",
+        "sha256": "8ef3564d264e6b5ca93f7b7f5652704c4dd29d33935aff6947dd5adefd05953e",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Darwin_arm64.tar.gz",
+        "file": "crane",
+        "sha256": "210da17a7269a9904a9b6797efbf97f4b1e5567c0962f168d1489a7bd375f14a",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
   }
 }
