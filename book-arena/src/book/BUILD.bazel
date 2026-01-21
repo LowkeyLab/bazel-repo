@@ -33,6 +33,7 @@ rust_library(
     deps = [
         ":book",
         "@crates//:sqlx",
+        "@crates//:thiserror",
         "@crates//:uuid",
     ],
 )

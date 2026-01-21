@@ -35,12 +35,18 @@ pub trait GetById<'a> {
     ) -> Pin<Box<dyn std::future::Future<Output = Result<Option<Book>, ()>> + Send + 'a>>;
 }
 
+pub trait Store<'a> {
+    fn store(
+        &'a self,
+        book: Book,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<(), ()>> + Send + 'a>>;
+}
+
 impl<'a> GetById<'a> for Repo {
     fn get_by_id(
         &'a self,
         id: BookId,
     ) -> Pin<Box<dyn std::future::Future<Output = Result<Option<Book>, ()>> + Send + 'a>> {
-        // Implementation to get a book by its ID from the database
         Box::pin(async move {
             let record = sqlx::query_as::<_, Dao>(
                 "SELECT id, title, published_year FROM books WHERE id = $1",
@@ -55,6 +61,25 @@ impl<'a> GetById<'a> for Repo {
             } else {
                 Ok(None)
             }
+        })
+    }
+}
+
+impl<'a> Store<'a> for Repo {
+    fn store(
+        &'a self,
+        book: Book,
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<(), ()>> + Send + 'a>> {
+        Box::pin(async move {
+            sqlx::query("INSERT INTO books (id, title, published_year) VALUES ($1, $2, $3)")
+                .bind::<uuid::Uuid>(book.id.into())
+                .bind::<String>(book.title)
+                .bind::<Option<String>>(book.published_year)
+                .execute(&*self.pool)
+                .await
+                .map_err(|_| ())?;
+
+            Ok(())
         })
     }
 }
