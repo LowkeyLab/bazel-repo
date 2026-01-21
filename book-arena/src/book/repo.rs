@@ -21,8 +21,8 @@ impl From<Dao> for Book {
         Book {
             id: dao.id.into(),
             title: dao.title,
-            authors: Vec::new(), // Fetch authors separately if needed
-            genres: Vec::new(),  // Fetch genres separately if needed
+            authors: Vec::new(),
+            genres: Vec::new(),
             published_year: dao.published_year,
         }
     }
