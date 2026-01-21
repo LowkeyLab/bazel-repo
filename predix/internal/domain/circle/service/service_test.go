@@ -11,6 +11,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
@@ -64,7 +65,7 @@ func TestProcessContestLocks(t *testing.T) {
 		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
 		fixedClock := clock.FixedClock{Time: now}
 
-		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm)
+		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm, sse.NewManager())
 
 		// Create Prerequisites
 		creatorID := createTestUser(t, sqlDB, "creator_lock")
@@ -114,7 +115,7 @@ func TestProcessContestExpirations(t *testing.T) {
 		now := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
 		fixedClock := clock.FixedClock{Time: now}
 
-		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm)
+		svc := service.NewService(repo, userRepo, contestRepo, fixedClock, txm, sse.NewManager())
 
 		// Create Prerequisites
 		creatorID := createTestUser(t, sqlDB, "creator_expire")
@@ -165,7 +166,7 @@ func TestCircleService(t *testing.T) {
 			contestRepo := contestrepo.NewPostgres(sqlDB)
 			clk := clock.RealClock{}
 			txm := &TestTxManager{sqlDB: sqlDB}
-			svc := service.NewService(repo, userRepo, contestRepo, clk, txm)
+			svc := service.NewService(repo, userRepo, contestRepo, clk, txm, sse.NewManager())
 			queries := db.New(sqlDB)
 			return svc, repo, userRepo, queries
 		}
@@ -464,7 +465,7 @@ func TestCircleService(t *testing.T) {
 			contestRepo := contestrepo.NewPostgres(sqlDB)
 			clk := clock.RealClock{}
 			txm := &TestTxManager{sqlDB: sqlDB}
-			svc := service.NewService(circleRepo, userRepo, contestRepo, clk, txm)
+			svc := service.NewService(circleRepo, userRepo, contestRepo, clk, txm, sse.NewManager())
 			queries := db.New(sqlDB)
 			creatorID := createTestUser(t, sqlDB, "predictor_creator")
 			memberID := createTestUser(t, sqlDB, "predictor")
@@ -622,6 +623,45 @@ func TestCircleService(t *testing.T) {
 
 			assert.Len(t, breakdown.Losers, 1)
 			assert.Equal(t, "loser_pb", breakdown.Losers[0].Username)
+		})
+
+		t.Run("LockContest_ByCreator", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_lockc")
+
+			circleObj, err := svc.CreateCircle(ctx, "LockC Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Lock me?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, circleObj.ID, contestObj.ID, creatorID)
+			require.NoError(t, err)
+
+			lockedContest, err := svc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusLocked, lockedContest.Status)
+		})
+
+		t.Run("LockContest_ForbiddenForNonCreator", func(t *testing.T) {
+			svc, _, _, _ := setup(t)
+
+			creatorID := createTestUser(t, sqlDB, "creator_lockc2")
+			otherID := createTestUser(t, sqlDB, "other_lockc2")
+
+			circleObj, err := svc.CreateCircle(ctx, "LockC2 Circle", creatorID)
+			require.NoError(t, err)
+
+			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Lock me?", []string{"Yes", "No"}, contest.Duration1Day, 10)
+			require.NoError(t, err)
+
+			err = svc.LockContest(ctx, circleObj.ID, contestObj.ID, otherID)
+			assert.ErrorIs(t, err, service.ErrNotContestCreator)
+
+			unlockedContest, err := svc.GetContest(ctx, contestObj.ID)
+			require.NoError(t, err)
+			assert.Equal(t, contest.StatusOpen, unlockedContest.Status)
 		})
 	})
 }

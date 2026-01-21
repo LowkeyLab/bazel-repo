@@ -18,6 +18,7 @@ import (
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	circlerest "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/rest"
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
 	contestcloser "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/closer"
 	contestrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/contest/repository"
 	userrepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/user/repository"
@@ -102,12 +103,15 @@ func main() {
 	// Create clock for services
 	clk := clock.RealClock{}
 
+	sseManager := sse.NewManager()
+
 	circleSvc := circleservice.NewService(
 		circleRepo,
 		userRepo,
 		contestRepo,
 		clk,
 		txManager,
+		sseManager,
 	)
 	userSvc := userservice.NewService(userRepo)
 
@@ -117,7 +121,7 @@ func main() {
 	go contestcloser.StartCloser(ctx, circleSvc, 10*time.Minute)
 
 	authManager := auth.NewManager(jwtSecret, 15*time.Minute)
-	circleHandler := circlerest.NewHandler(circleSvc)
+	circleHandler := circlerest.NewHandler(circleSvc, sseManager)
 	userHandler := userrest.NewHandler(userSvc, authManager)
 
 	r := gin.New()

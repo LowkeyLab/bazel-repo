@@ -13,6 +13,10 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
+type EventListener interface {
+	OnEvent(event circle.DomainEvent)
+}
+
 type CircleRepository interface {
 	Save(ctx context.Context, c *circle.Circle) error
 	FindByID(ctx context.Context, id circle.ID) (*circle.Circle, error)
@@ -40,21 +44,23 @@ type TransactionManager interface {
 }
 
 type Service struct {
-	circleRepo  CircleRepository
-	userRepo    UserRepository
-	contestRepo ContestRepository
-	clock       clock.Clock
-	txm         TransactionManager
+	circleRepo    CircleRepository
+	userRepo      UserRepository
+	contestRepo   ContestRepository
+	clock         clock.Clock
+	txm           TransactionManager
+	eventListener EventListener
 }
 
 // NewService creates a service with a repository interface.
-func NewService(circleRepo CircleRepository, userRepo UserRepository, contestRepo ContestRepository, clk clock.Clock, txm TransactionManager) *Service {
+func NewService(circleRepo CircleRepository, userRepo UserRepository, contestRepo ContestRepository, clk clock.Clock, txm TransactionManager, eventListener EventListener) *Service {
 	return &Service{
-		circleRepo:  circleRepo,
-		userRepo:    userRepo,
-		contestRepo: contestRepo,
-		clock:       clk,
-		txm:         txm,
+		circleRepo:    circleRepo,
+		userRepo:      userRepo,
+		contestRepo:   contestRepo,
+		clock:         clk,
+		txm:           txm,
+		eventListener: eventListener,
 	}
 }
 
@@ -65,6 +71,12 @@ var (
 	ErrNotContestCreator = errors.New("only the contest creator can resolve this contest")
 	ErrContestNotFound   = errors.New("contest not found or does not belong to this circle")
 )
+
+func (s *Service) dispatchEvents(events []circle.DomainEvent) {
+	for _, event := range events {
+		s.eventListener.OnEvent(event)
+	}
+}
 
 // EnrichedMember contains member data with username looked up from user repository.
 type EnrichedMember struct {
@@ -112,6 +124,8 @@ func (s *Service) CreateCircle(ctx context.Context, name string, creatorID user.
 		return nil, err
 	}
 
+	s.dispatchEvents(c.PopEvents())
+
 	return c, nil
 }
 
@@ -131,6 +145,8 @@ func (s *Service) AddMember(ctx context.Context, circleID circle.ID, userID user
 	if err := s.circleRepo.AddMember(ctx, circleID, member); err != nil {
 		return fmt.Errorf("failed to add member: %w", err)
 	}
+
+	s.dispatchEvents(current.PopEvents())
 
 	return nil
 }
@@ -152,6 +168,8 @@ func (s *Service) JoinCircle(ctx context.Context, circleID circle.ID, userID use
 	if err := s.circleRepo.AddMember(ctx, circleID, member); err != nil {
 		return fmt.Errorf("failed to join circle: %w", err)
 	}
+
+	s.dispatchEvents(current.PopEvents())
 
 	return nil
 }
@@ -380,6 +398,8 @@ func (s *Service) CreateContest(ctx context.Context, circleID circle.ID, creator
 		return nil, err
 	}
 
+	s.dispatchEvents(c.PopEvents())
+
 	return c, nil
 }
 
@@ -402,6 +422,8 @@ func (s *Service) RecordPrediction(ctx context.Context, contestID contest.ID, us
 	if err != nil {
 		return fmt.Errorf("failed to save prediction: %w", err)
 	}
+
+	s.dispatchEvents(c.PopEvents())
 
 	return nil
 }
@@ -434,6 +456,8 @@ func (s *Service) LockContest(ctx context.Context, circleID circle.ID, contestID
 		return fmt.Errorf("failed to save locked contest: %w", err)
 	}
 
+	s.dispatchEvents(c.PopEvents())
+
 	return nil
 }
 
@@ -457,6 +481,8 @@ func (s *Service) LockContestSystem(ctx context.Context, contestID contest.ID) e
 	if err != nil {
 		return fmt.Errorf("failed to save locked contest: %w", err)
 	}
+
+	s.dispatchEvents(c.PopEvents())
 
 	return nil
 }
@@ -533,6 +559,8 @@ func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contest
 		return nil, fmt.Errorf("failed to save resolved contest: %w", err)
 	}
 
+	s.dispatchEvents(c.PopEvents())
+
 	return payouts, nil
 }
 
@@ -562,6 +590,8 @@ func (s *Service) ExpireContestAndCalculateRefunds(ctx context.Context, contestI
 	if err != nil {
 		return nil, fmt.Errorf("failed to save expired contest: %w", err)
 	}
+
+	s.dispatchEvents(c.PopEvents())
 
 	return refunds, nil
 }
@@ -606,6 +636,8 @@ func (s *Service) ExpireContest(ctx context.Context, contestID contest.ID) error
 				}
 			}
 		}
+
+		s.dispatchEvents(cont.PopEvents())
 
 		return nil
 	})

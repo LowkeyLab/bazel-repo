@@ -3,24 +3,22 @@ import %workspace%/tools/preset.bazelrc
 try-import %workspace%/tools/java21.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
+
+# Remote cache config
 common --bes_results_url=https://app.buildbuddy.io/invocation/
 common --bes_backend=grpcs://remote.buildbuddy.io
 common --remote_cache=grpcs://remote.buildbuddy.io
 common --remote_cache_compression
-common --noslim_profile 
+common --noslim_profile
 common --experimental_profile_include_primary_output
 common --experimental_profile_include_target_label
+
+# Remote execution config
 common:remote --remote_executor=grpcs://remote.buildbuddy.io
 common:remote-linux --config=remote
 common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --jobs=50
-
-
-# Docs: https://registry.build/flag/bazel?filter=lockfile_mode
-
-# Show timeout warnings to correctly adjust build/test timeouts
-test --test_verbose_timeout_warnings
 
 # For keep-sorted
 common --experimental_isolated_extension_usages
@@ -47,6 +45,10 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 # --config=release
 common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 
+# Ignore lockfile in CI
+# Docs: https://registry.build/flag/bazel?filter=lockfile_mode
+common:ci --lockfile_mode="off"
+
 # Don't depend on a JAVA_HOME pointing at a system JDK
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
 build --repo_env=JAVA_HOME=../bazel_tools/jdk
@@ -67,6 +69,8 @@ common:lint --keep_going
 
 # Ignore lockfile in CI
 common:ci --lockfile_mode="off"
+# Show timeout warnings to correctly adjust build/test timeouts
+test --test_verbose_timeout_warnings
 
 # To output something for xargs
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress

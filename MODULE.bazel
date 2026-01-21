@@ -7,11 +7,11 @@ module(
 )
 
 # Currently bazel-lib is only load()ed when platforms is used.
-bazel_dep(name = "bazel_lib", version = "3.1.0")
+bazel_dep(name = "bazel_lib", version = "3.1.1")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint", version = "1.13.0")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.25.0")
-bazel_dep(name = "aspect_rules_js", version = "2.9.1")
+bazel_dep(name = "aspect_rules_js", version = "2.9.2")
 bazel_dep(name = "aspect_rules_swc", version = "2.6.0")
 bazel_dep(name = "aspect_rules_ts", version = "3.8.3")
 bazel_dep(name = "bazelrc-preset.bzl", version = "1.8.0")
@@ -42,7 +42,7 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 # We have to take a dependency on rules_python in order to set bootstrap=script
 # for transitive dependencies, even if there are no Python rules used in this repo.
 # See .bazelrc
-bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_python", version = "1.8.1")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "gazelle", version = "0.47.0")
 
@@ -51,7 +51,7 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependenc
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
-    commit = "d7ae3b9744ba147b0cd88478ea26d11d6d793d34",
+    commit = "c029702902b753413f80b0549982c32912aa508a",
     remote = "https://github.com/Calsign/gazelle_rust.git",
 )
 
@@ -59,7 +59,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "7133b97",
+    commit = "7f607d44d74fd1470e51f3d55363f1684548d008",
     patch_strip = 0,
     patches = ["//3rdparty/rules_angular:visibility.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
@@ -362,7 +362,7 @@ go_deps.from_file(go_mod = "//:go.mod")
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
-use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
+use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", "com_github_gin_contrib_sse", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
 
 #########################
 # Keep Sorted
@@ -399,7 +399,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "alpine_caddy",
-    digest = "sha256:86d2ab93167b0c24f9f86e8a4214dee0ba25f86808002bfd29a78677824a2483",
+    digest = "sha256:2adb640cdc0ce1d8870887c30af1e21edfb3cdfd8433431b2a15f40119a7d654",
     image = "caddy",
     platforms = [
         "linux/amd64",

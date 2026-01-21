@@ -69,6 +69,26 @@ type Contest struct {
 	LockedAt       time.Time // Time when predictions are locked
 	ExpiresAt      time.Time // Time when contest is auto-expired and refunded
 	Duration       string    // "1h", "1d", or "1w"
+	events         []circle.DomainEvent
+}
+
+// ContestUpdated event.
+type ContestUpdated struct {
+	ContestID ID
+}
+
+func (e ContestUpdated) EventName() string { return "ContestUpdated" }
+
+// AddEvent adds a domain event to the contest.
+func (c *Contest) AddEvent(event circle.DomainEvent) {
+	c.events = append(c.events, event)
+}
+
+// PopEvents returns all domain events and clears them.
+func (c *Contest) PopEvents() []circle.DomainEvent {
+	events := c.events
+	c.events = nil
+	return events
 }
 
 const (
@@ -143,7 +163,7 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 	now := clk.Now()
 	lockedAt := now.Add(durationValue)
 
-	return &Contest{
+	c := &Contest{
 		ID:        0, // ID will be set by database
 		CircleID:  circleID,
 		CreatorID: creatorID,
@@ -156,7 +176,8 @@ func New(clk clock.Clock, circleID circle.ID, creatorID user.ID, question string
 		LockedAt:  lockedAt,
 		ExpiresAt: lockedAt.Add(DefaultExpirationAfterLock),
 		Duration:  duration,
-	}, nil
+	}
+	return c, nil
 }
 
 // Predict adds a prediction to the contest.
@@ -182,6 +203,7 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 		if prediction.UserID == userID && prediction.OptionID == optionID {
 			prediction.Clout = clout
 			prediction.Timestamp = now
+			c.AddEvent(ContestUpdated{ContestID: c.ID})
 			return nil
 		}
 	}
@@ -193,6 +215,7 @@ func (c *Contest) Predict(userID user.ID, optionID int, clout int) error {
 		Timestamp: now,
 	}
 	c.Predictions = append(c.Predictions, prediction)
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 
@@ -221,6 +244,7 @@ func (c *Contest) Lock() error {
 	}
 
 	c.Status = StatusLocked
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 
@@ -239,6 +263,7 @@ func (c *Contest) Expire() error {
 	}
 
 	c.Status = StatusExpired
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 
@@ -256,6 +281,7 @@ func (c *Contest) Resolve(winningOptionID int) error {
 
 	c.ResultOptionID = &winningOptionID
 	c.Status = StatusResolved
+	c.AddEvent(ContestUpdated{ContestID: c.ID})
 	return nil
 }
 

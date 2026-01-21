@@ -3,6 +3,7 @@ package rest
 import (
 	"database/sql"
 	"errors"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -14,18 +15,24 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/contest"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/user"
 )
 
+type EventSubscriber interface {
+	Subscribe(contestID contest.ID) (chan sse.Event, func())
+}
+
 // Handler wires circle HTTP endpoints.
 type Handler struct {
-	svc *service.Service
+	svc        *service.Service
+	subscriber EventSubscriber
 }
 
 // NewHandler constructs a circle REST handler.
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *service.Service, subscriber EventSubscriber) *Handler {
+	return &Handler{svc: svc, subscriber: subscriber}
 }
 
 // RegisterRoutes registers circle routes on the provided router.
@@ -38,6 +45,7 @@ func (h *Handler) RegisterRoutes(r gin.IRoutes) {
 	r.GET("/circles/:id/contests", h.getCircleContests)
 	r.POST("/circles/:id/contests", h.createContest)
 	r.GET("/circles/:id/contests/:contestID", h.getContest)
+	r.GET("/circles/:id/contests/:contestID/stream", sseHeadersMiddleware(), h.streamContestEvents)
 	r.POST("/circles/:id/contests/:contestID/predictions", h.makePrediction)
 	r.POST("/circles/:id/contests/:contestID/lock", h.lockContest)
 	r.POST("/circles/:id/contests/:contestID/resolve-distribute", h.resolveAndDistribute)
@@ -714,5 +722,68 @@ func toContestResponse(cont *contest.Contest) contestResponse {
 		CreatedAt:      cont.CreatedAt,
 		LockedAt:       cont.LockedAt,
 		Duration:       cont.Duration,
+	}
+}
+
+func (h *Handler) streamContestEvents(c *gin.Context) {
+	circleID, ok := parseCircleID(c)
+	if !ok {
+		return
+	}
+
+	contestID, ok := parseContestIDFromRoute(c)
+	if !ok {
+		return
+	}
+
+	// Verify contest belongs to circle
+	_, err := h.svc.GetContestInCircle(c.Request.Context(), circleID, contestID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, service.ErrContestNotFound) {
+			sloggin.Get(c).Warn("contest not found for streaming", "contest_id", contestID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "contest not found"})
+			return
+		}
+		sloggin.Get(c).Error("failed to get contest for streaming", "contest_id", contestID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Subscribe to events
+	events, unsubscribe := h.subscriber.Subscribe(contestID)
+	defer unsubscribe()
+
+	sloggin.Get(c).Info("client subscribed to contest events", "contest_id", contestID)
+
+	init := make(chan struct{}, 1)
+
+	init <- struct{}{}
+
+	c.Stream(func(w io.Writer) bool {
+		select {
+		case <-c.Request.Context().Done():
+			sloggin.Get(c).Info("client disconnected from contest event stream", "contest_id", contestID)
+			return false
+		case event := <-events:
+			c.SSEvent(
+				"contest_updated",
+				event,
+			)
+			return true
+
+		case <-init:
+			c.SSEvent("init", "connected")
+			return true
+		}
+	})
+}
+
+func sseHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("Transfer-Encoding", "chunked")
+		c.Next()
 	}
 }
