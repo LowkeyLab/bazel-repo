@@ -64,9 +64,6 @@ common:lint --aspects=//tools/lint:linters.bzl%ktlint
 common:lint --aspects=//tools/lint:linters.bzl%keep_sorted
 common:lint --aspects=//tools/lint:linters.bzl%stylelint
 
-common:lint --output_groups=+rules_lint_report
-common:lint --keep_going
-
 # Ignore lockfile in CI
 common:ci --lockfile_mode="off"
 # Show timeout warnings to correctly adjust build/test timeouts
