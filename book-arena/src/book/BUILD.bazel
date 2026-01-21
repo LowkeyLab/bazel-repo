@@ -1,0 +1,38 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "book",
+    srcs = ["book.rs"],
+    visibility = ["//book-arena:__subpackages__"],
+    deps = [
+        "//book-arena/src/author",
+        "@crates//:sqlx",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "book_test",
+    size = "small",
+    crate = ":book",
+)
+
+rust_library(
+    name = "service",
+    srcs = ["service.rs"],
+    deps = [
+        ":book",
+        ":repo",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_library(
+    name = "repo",
+    srcs = ["repo.rs"],
+    deps = [
+        ":book",
+        "@crates//:sqlx",
+        "@crates//:uuid",
+    ],
+)

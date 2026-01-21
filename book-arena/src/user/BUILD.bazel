@@ -1,0 +1,11 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "user",
+    srcs = ["user.rs"],
+    visibility = ["//book-arena:__subpackages__"],
+    deps = [
+        "//book-arena/src/book",
+        "@crates//:uuid",
+    ],
+)
