@@ -1,4 +1,4 @@
-use code;
+use day1;
 use runfiles::Runfiles;
 
 fn main() {
@@ -8,8 +8,8 @@ fn main() {
 
     let input = std::fs::read_to_string(path).unwrap();
 
-    let rotations = code::Code::parse_from_str(&input);
-    let code = code::Code::new();
+    let rotations = day1::Code::parse_from_str(&input);
+    let code = day1::Code::new();
     let result = code.get_code(rotations.into_iter());
 
     println!("The code is: {}", result);

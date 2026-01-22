@@ -5,24 +5,29 @@ rust_binary(
     srcs = ["main.rs"],
     data = ["data.txt"],
     deps = [
-        ":code",
+        ":day1",
         "@rules_rust//tools/runfiles",
     ],
-)
-
-rust_library(
-    name = "code",
-    srcs = ["code.rs"],
 )
 
 rust_test(
     name = "code_test",
     size = "small",
     crate = ":code",
-    deps = ["@crates//:test-case"],
 )
 
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+)
+
+rust_library(
+    name = "day1",
+    srcs = ["day1.rs"],
+)
+
+rust_test(
+    name = "day1_test",
+    crate = ":day1",
+    deps = ["@crates//:test-case"],
 )
