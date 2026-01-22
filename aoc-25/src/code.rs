@@ -41,24 +41,28 @@ impl Code {
         I: Iterator<Item = Rotation>,
     {
         let mut count: u32 = 0;
-        let mut position: i32 = self.position as i32;
+        let mut position: i64 = self.position as i64;
 
         for rotation in rotations {
             match rotation {
                 Rotation::Left(steps) => {
-                    position = position - steps as i32;
+                    count += steps / 100;
+                    let steps = steps % 100;
+                    position = position - steps as i64;
                 }
                 Rotation::Right(steps) => {
-                    position = position + steps as i32;
+                    count += steps / 100;
+                    let steps = steps % 100;
+                    position = position + steps as i64;
                 }
             }
 
-            while position < 0 {
+            if position < 0 {
                 position += 100;
                 count += 1;
             }
 
-            while position >= 100 {
+            if position >= 100 {
                 position -= 100;
                 count += 1;
             }
