@@ -4885,6 +4885,8 @@ dependencies = [
  "insta",
  "jsonwebtoken",
  "mockall",
+ "num-bigint",
+ "num-traits",
  "regex",
  "sea-orm",
  "sea-orm-migration",
