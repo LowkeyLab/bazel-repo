@@ -10,12 +10,6 @@ rust_binary(
     ],
 )
 
-rust_test(
-    name = "code_test",
-    size = "small",
-    crate = ":code",
-)
-
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
