@@ -47,7 +47,7 @@ impl Code {
             match rotation {
                 Rotation::Left(steps) => {
                     let mut steps = steps;
-                    while (steps > 0) {
+                    while steps > 0 {
                         position -= 1;
                         if position % 100 == 0 {
                             count += 1;
@@ -57,7 +57,7 @@ impl Code {
                 }
                 Rotation::Right(steps) => {
                     let mut steps = steps;
-                    while (steps > 0) {
+                    while steps > 0 {
                         position += 1;
                         if position % 100 == 0 {
                             count += 1;
