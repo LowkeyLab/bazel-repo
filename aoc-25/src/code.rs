@@ -41,36 +41,36 @@ impl Code {
         I: Iterator<Item = Rotation>,
     {
         let mut count: u32 = 0;
-        let mut position: i64 = self.position as i64;
+        let mut position: u32 = self.position + 10000000;
 
         for rotation in rotations {
             match rotation {
                 Rotation::Left(steps) => {
-                    count += steps / 100;
-                    let steps = steps % 100;
-                    position = position - steps as i64;
+                    let mut steps = steps;
+                    while (steps > 0) {
+                        position -= 1;
+                        if position % 100 == 0 {
+                            count += 1;
+                        }
+                        steps -= 1;
+                    }
                 }
                 Rotation::Right(steps) => {
-                    count += steps / 100;
-                    let steps = steps % 100;
-                    position = position + steps as i64;
+                    let mut steps = steps;
+                    while (steps > 0) {
+                        position += 1;
+                        if position % 100 == 0 {
+                            count += 1;
+                        }
+                        steps -= 1;
+                    }
                 }
-            }
-
-            if position < 0 {
-                position += 100;
-                count += 1;
-            }
-
-            if position >= 100 {
-                position -= 100;
-                count += 1;
             }
         }
 
         CodeResult {
             passes: count,
-            final_position: position as u32,
+            final_position: position % 100,
         }
     }
 
@@ -104,7 +104,7 @@ mod tests {
 
     #[test_case(50, Rotation::Left(68), 82, 1; "50 -> L68 ends at 82")]
     #[test_case(52, Rotation::Right(48), 0, 1; "52 -> R48 ends at zero")]
-    #[test_case(0, Rotation::Left(1), 99, 1; "0 -> L1 ends at 99")]
+    #[test_case(0, Rotation::Left(1), 99, 0; "0 -> L1 ends at 99")]
     #[test_case(99, Rotation::Right(2), 1, 1; "99 -> R2 ends at 1")]
     #[test_case(0, Rotation::Right(200), 0, 2; "0 -> R200 ends at 0")]
     #[test_case(0, Rotation::Left(200), 0, 2; "0 -> L200 ends at 0")]
