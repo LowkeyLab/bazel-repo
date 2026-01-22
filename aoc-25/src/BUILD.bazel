@@ -19,6 +19,7 @@ rust_test(
     name = "code_test",
     size = "small",
     crate = ":code",
+    deps = ["@crates//:test-case"],
 )
 
 rust_library(
