@@ -60,8 +60,6 @@ bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
     commit = "e975faa54a52caa45ff932ec806292ce0988d8d4",
-    patch_strip = 0,
-    patches = ["//3rdparty/rules_angular:visibility.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
 )
 
