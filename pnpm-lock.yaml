@@ -66,9 +66,9 @@ catalogs:
     '@types/node':
       specifier: ^24.10.3
       version: 24.10.9
-    astro:
-      specifier: ^5.5.6
-      version: 5.16.14
+    '@typescript-eslint/parser':
+      specifier: ^8.29.0
+      version: 8.54.0
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
@@ -132,6 +132,9 @@ catalogs:
     typescript:
       specifier: ~5.9.3
       version: 5.9.3
+    typescript-eslint:
+      specifier: ^8.49.0
+      version: 8.54.0
     vitest:
       specifier: ^4.0.0
       version: 4.0.18
@@ -284,7 +287,7 @@ importers:
         version: 4.1.18(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.1)(yaml@2.8.1))
       astro:
         specifier: 'catalog:'
-        version: 5.16.14(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.56.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
+        version: 5.16.15(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.56.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
       sharp:
         specifier: 'catalog:'
         version: 0.34.5
@@ -315,7 +318,7 @@ importers:
         version: 21.1.1(@types/node@24.10.9)(chokidar@5.0.0)(hono@4.11.3)
       astro:
         specifier: 'catalog:'
-        version: 5.16.14(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.56.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
+        version: 5.16.15(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.56.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
 
 packages:
 
@@ -2731,8 +2734,8 @@ packages:
     resolution: {integrity: sha512-JepyLROIad6f44uyqMF6HKE2QbunNzp3mYKRcPoDGt0QkxXmH222FAFC64WTyQu2Kg8NNEXHTN/sWuUId9sSxw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  astro@5.16.14:
-    resolution: {integrity: sha512-+XtShBCwsL5IezGvSeJTIHoZl3RGDOiB2u54t5phS+3haa0A5kGWXbZAmh5O/xFIv19/1cxHbDFa2i0Ot16SMw==}
+  astro@5.16.15:
+    resolution: {integrity: sha512-+X1Z0NTi2pa5a0Te6h77Dgc44fYj63j1yx6+39Nvg05lExajxSq7b1Uj/gtY45zoum8fD0+h0nak+DnHighs3A==}
     engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0, npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
 
@@ -4095,6 +4098,10 @@ packages:
 
   lru-cache@11.2.4:
     resolution: {integrity: sha512-B5Y16Jr9LB9dHVkh6ZevG+vAbOsNOYCX+sXvFWFu7B3Iz5mijW3zdbMyhsh8ANd2mSWBYdJgnqi+mL7/LrOPYg==}
+    engines: {node: 20 || >=22}
+
+  lru-cache@11.2.5:
+    resolution: {integrity: sha512-vFrFJkWtJvJnD5hg+hJvVE8Lh/TcMzKnTgCWmtBipwI5yLX/iX+5UB2tfuyODF5E7k9xEzMdYgGqaSb1c0c5Yw==}
     engines: {node: 20 || >=22}
 
   lru-cache@5.1.1:
@@ -7182,7 +7189,7 @@ snapshots:
       agent-base: 7.1.4
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
-      lru-cache: 11.2.4
+      lru-cache: 11.2.5
       socks-proxy-agent: 8.0.5
     transitivePeerDependencies:
       - supports-color
@@ -7195,7 +7202,7 @@ snapshots:
     dependencies:
       '@npmcli/promise-spawn': 9.0.1
       ini: 6.0.0
-      lru-cache: 11.2.4
+      lru-cache: 11.2.5
       npm-pick-manifest: 11.0.3
       proc-log: 6.1.0
       promise-retry: 2.0.1
@@ -8090,7 +8097,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  astro@5.16.14(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.56.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1):
+  astro@5.16.15(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.56.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1):
     dependencies:
       '@astrojs/compiler': 2.13.0
       '@astrojs/internal-helpers': 0.7.5
@@ -8302,7 +8309,7 @@ snapshots:
       '@npmcli/fs': 5.0.0
       fs-minipass: 3.0.3
       glob: 13.0.0
-      lru-cache: 11.2.4
+      lru-cache: 11.2.5
       minipass: 7.1.2
       minipass-collect: 2.0.1
       minipass-flush: 1.0.5
@@ -9240,7 +9247,7 @@ snapshots:
 
   hosted-git-info@9.0.2:
     dependencies:
-      lru-cache: 11.2.4
+      lru-cache: 11.2.5
 
   html-encoding-sniffer@6.0.0:
     dependencies:
@@ -9724,6 +9731,8 @@ snapshots:
   longest-streak@3.1.0: {}
 
   lru-cache@11.2.4: {}
+
+  lru-cache@11.2.5: {}
 
   lru-cache@5.1.1:
     dependencies:
@@ -10448,7 +10457,7 @@ snapshots:
 
   path-scurry@2.0.1:
     dependencies:
-      lru-cache: 11.2.4
+      lru-cache: 11.2.5
       minipass: 7.1.2
 
   path-to-regexp@8.3.0: {}
@@ -11417,7 +11426,7 @@ snapshots:
       chokidar: 5.0.0
       destr: 2.0.5
       h3: 1.15.5
-      lru-cache: 11.2.4
+      lru-cache: 11.2.5
       node-fetch-native: 1.6.7
       ofetch: 1.5.1
       ufo: 1.6.3
