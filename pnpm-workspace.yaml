@@ -30,7 +30,7 @@ catalog:
   daisyui: ^5.5.5
   eslint: ^9.39.1
   eslint-plugin-astro: ^1.5.0
-  jasmine-core: ~5.13.0
+  jasmine-core: ~6.0.0
   jsdom: ^27.1.0
   karma: ~6.4.0
   karma-chrome-launcher: ~3.2.0
