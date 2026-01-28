@@ -22,7 +22,7 @@ catalog:
   '@tailwindcss/vite': ^4.0.0
   '@tsconfig/strictest': 2.0.8
   '@types/canvas-confetti': ^1.9.0
-  '@types/jasmine': ~5.1.0
+  '@types/jasmine': ~6.0.0
   '@types/node': ^24.10.3
   '@typescript-eslint/parser': ^8.29.0
   astro: ^5.5.6
