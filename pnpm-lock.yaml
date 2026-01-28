@@ -6,6 +6,12 @@ settings:
 
 catalogs:
   default:
+    '@angular/build':
+      specifier: ^21.0.1
+      version: 21.1.2
+    '@angular/cli':
+      specifier: ^21.0.3
+      version: 21.1.2
     '@angular/common':
       specifier: ^21.0.3
       version: 21.1.1
@@ -63,9 +69,6 @@ catalogs:
     '@typescript-eslint/parser':
       specifier: ^8.29.0
       version: 8.54.0
-    astro:
-      specifier: ^5.5.6
-      version: 5.16.15
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
@@ -284,7 +287,7 @@ importers:
         version: 4.1.18(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.1)(yaml@2.8.1))
       astro:
         specifier: 'catalog:'
-        version: 5.16.15(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
+        version: 5.16.16(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
       sharp:
         specifier: 'catalog:'
         version: 0.34.5
@@ -315,7 +318,7 @@ importers:
         version: 21.1.2(@types/node@24.10.9)(chokidar@5.0.0)(hono@4.11.3)
       astro:
         specifier: 'catalog:'
-        version: 5.16.15(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
+        version: 5.16.16(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
 
 packages:
 
@@ -2731,8 +2734,8 @@ packages:
     resolution: {integrity: sha512-JepyLROIad6f44uyqMF6HKE2QbunNzp3mYKRcPoDGt0QkxXmH222FAFC64WTyQu2Kg8NNEXHTN/sWuUId9sSxw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  astro@5.16.15:
-    resolution: {integrity: sha512-+X1Z0NTi2pa5a0Te6h77Dgc44fYj63j1yx6+39Nvg05lExajxSq7b1Uj/gtY45zoum8fD0+h0nak+DnHighs3A==}
+  astro@5.16.16:
+    resolution: {integrity: sha512-MFlFvQ84ixaHyqB3uGwMhNHdBLZ3vHawyq3PqzQS2TNWiNfQrxp5ag6S3lX+Cvnh0MUcXX+UnJBPMBHjP1/1ZQ==}
     engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0, npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
 
@@ -6190,7 +6193,7 @@ snapshots:
       '@csstools/css-color-parser': 3.1.0(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
-      lru-cache: 11.2.5
+      lru-cache: 11.2.4
 
   '@asamuzakjp/dom-selector@6.7.6':
     dependencies:
@@ -8098,7 +8101,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  astro@5.16.15(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1):
+  astro@5.16.16(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1):
     dependencies:
       '@astrojs/compiler': 2.13.0
       '@astrojs/internal-helpers': 0.7.5
@@ -11481,7 +11484,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.56.0
+      rollup: 4.57.0
       tinyglobby: 0.2.15
     optionalDependencies:
       '@types/node': 24.10.9
