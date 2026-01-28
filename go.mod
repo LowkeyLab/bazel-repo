@@ -10,7 +10,6 @@ tool (
 )
 
 require (
-	github.com/bazelbuild/rules_go v0.59.0
 	github.com/stretchr/testify v1.11.1
 	nmyk.io/cowsay v1.0.2
 )
@@ -85,7 +84,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.38.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
-	go.uber.org/mock v0.6.0 // indirect
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
@@ -132,7 +130,7 @@ require (
 	github.com/gertd/go-pluralize v0.2.1 // indirect
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/slog v1.2.0
-	github.com/gin-contrib/sse v1.1.0
+	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-delve/delve v1.26.0 // indirect
 	github.com/go-delve/liner v1.2.3-0.20231231155935-4726ab1d7f62 // indirect
@@ -140,7 +138,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-git/go-git/v5 v5.16.4 // indirect
 	github.com/go-sprout/sprout v1.0.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
