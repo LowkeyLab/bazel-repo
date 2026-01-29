@@ -8,10 +8,11 @@ pub enum Error {
     DbError(String),
 }
 
-trait UserSaver {
+pub trait UserSaver {
     async fn save(&self, user: User) -> Result<(), Error>;
 }
 
+#[derive(Debug)]
 pub struct UserRepo {
     pool: PgPool,
 }

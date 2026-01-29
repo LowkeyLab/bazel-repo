@@ -18,6 +18,10 @@ rust_test(
 rust_library(
     name = "service",
     srcs = ["service.rs"],
+    deps = [
+        ":repo",
+        ":user",
+    ],
 )
 
 rust_library(
