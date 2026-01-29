@@ -1,5 +1,4 @@
 use chrono::prelude::*;
-use name::Name;
 use uuid::Uuid;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -38,7 +37,6 @@ impl User {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
     #[test]
     fn test_user_creation() {
         let discord_id = 123456789;

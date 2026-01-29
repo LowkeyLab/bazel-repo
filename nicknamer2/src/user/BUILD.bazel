@@ -4,16 +4,6 @@ rust_library(
     name = "user",
     srcs = ["user.rs"],
     deps = [
-        ":name",
-        "@crates//:chrono",
-        "@crates//:uuid",
-    ],
-)
-
-rust_library(
-    name = "name",
-    srcs = ["name.rs"],
-    deps = [
         "@crates//:chrono",
         "@crates//:uuid",
     ],
@@ -25,8 +15,17 @@ rust_test(
     crate = ":user",
 )
 
-rust_test(
-    name = "name_test",
-    size = "small",
-    crate = ":name",
+rust_library(
+    name = "service",
+    srcs = ["service.rs"],
+)
+
+rust_library(
+    name = "repo",
+    srcs = ["repo.rs"],
+    deps = [
+        ":user",
+        "@crates//:sqlx",
+        "@crates//:thiserror",
+    ],
 )

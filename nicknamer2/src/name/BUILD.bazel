@@ -1,0 +1,15 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "name",
+    srcs = ["name.rs"],
+    deps = [
+        "@crates//:chrono",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "name_test",
+    crate = ":name",
+)

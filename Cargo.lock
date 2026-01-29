@@ -4858,6 +4858,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sqlx",
  "testcontainers-modules",
  "thiserror",
  "time",
