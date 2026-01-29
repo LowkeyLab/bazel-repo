@@ -1,4 +1,5 @@
 use sqlx::PgPool;
+use std::sync::Arc;
 use thiserror;
 use user::User;
 
@@ -8,6 +9,7 @@ pub enum Error {
     DbError(String),
 }
 
+/// Saves a user to the database.
 pub trait UserSaver {
     async fn save(&self, user: User) -> Result<(), Error>;
 }

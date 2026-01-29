@@ -25,17 +25,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use migrations::run_migrations;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
-
-    const MIGRATION_SQL: &str = r#"
-        CREATE TABLE IF NOT EXISTS users (
-            id UUID PRIMARY KEY,
-            discord_id BIGINT NOT NULL UNIQUE,
-            created_at TIMESTAMPTZ NOT NULL,
-            updated_at TIMESTAMPTZ NOT NULL
-        );
-    "#;
 
     async fn setup_db() -> (
         sqlx::PgPool,
@@ -59,9 +51,8 @@ mod tests {
             .await
             .expect("Failed to connect to database");
 
-        // Run migrations
-        sqlx::query(MIGRATION_SQL)
-            .execute(&pool)
+        // Run migrations using the shared migrations library
+        run_migrations(&pool)
             .await
             .expect("Failed to run migrations");
 

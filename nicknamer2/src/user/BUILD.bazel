@@ -27,6 +27,7 @@ rust_library(
 rust_test(
     name = "service_test",
     size = "medium",
+    timeout = "short",
     crate = ":service",
     tags = [
         "requires-network",
@@ -34,11 +35,11 @@ rust_test(
     deps = [
         ":repo",
         ":user",
+        "//nicknamer2/migrations",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],
-    timeout = "short"
 )
 
 rust_library(

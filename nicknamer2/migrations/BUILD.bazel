@@ -1,1 +1,28 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
 exports_files(["001_create_users_table.sql"])
+
+rust_library(
+    name = "migrations",
+    srcs = ["lib.rs"],
+    compile_data = ["001_create_users_table.sql"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "@crates//:sqlx",
+    ],
+)
+
+rust_test(
+    name = "migrations_test",
+    size = "medium",
+    timeout = "short",
+    crate = ":migrations",
+    tags = [
+        "requires-network",
+    ],
+    deps = [
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)
