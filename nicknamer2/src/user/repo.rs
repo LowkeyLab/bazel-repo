@@ -1,4 +1,5 @@
 use sqlx::PgPool;
+use std::future::Future;
 use std::sync::Arc;
 use thiserror;
 use user::User;
@@ -10,22 +11,29 @@ pub enum Error {
 }
 
 /// Saves a user to the database.
-pub trait UserSaver {
-    async fn save(&self, user: User) -> Result<(), Error>;
+pub trait Saver {
+    fn save(&self, user: User) -> impl Future<Output = Result<(), Error>> + Send;
+}
+
+pub trait ByDiscordIdGetter {
+    fn get_by_discord_id(
+        &self,
+        discord_id: u64,
+    ) -> impl Future<Output = Result<Option<User>, Error>> + Send;
 }
 
 #[derive(Debug)]
-pub struct UserRepo {
+pub struct Repo {
     pool: PgPool,
 }
 
-impl UserRepo {
+impl Repo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
-impl UserSaver for UserRepo {
+impl Saver for Repo {
     async fn save(&self, user: User) -> Result<(), Error> {
         sqlx::query(
             r#"

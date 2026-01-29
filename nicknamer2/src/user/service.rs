@@ -1,16 +1,16 @@
-use repo::{UserRepo, UserSaver};
+use repo::{Repo, Saver};
 use user::User;
 
 struct Service<T>
 where
-    T: UserSaver,
+    T: Saver,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: UserSaver,
+    T: Saver,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
@@ -62,7 +62,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_user() {
         let (pool, _container) = setup_db().await;
-        let repo = UserRepo::new(pool.clone());
+        let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
         let discord_id = 123456789;
