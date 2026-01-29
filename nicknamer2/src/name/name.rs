@@ -9,7 +9,6 @@ pub struct Name {
     pub name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub valid_at: DateTime<Utc>,
 }
 
 impl Name {
@@ -22,7 +21,6 @@ impl Name {
             name,
             created_at: now,
             updated_at: now,
-            valid_at: now,
         }
     }
 }

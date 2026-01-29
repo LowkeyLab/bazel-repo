@@ -7,7 +7,6 @@ pub struct User {
     pub discord_id: u64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub valid_at: DateTime<Utc>,
 }
 
 impl Default for User {
@@ -18,7 +17,6 @@ impl Default for User {
             discord_id: 0,
             created_at: now,
             updated_at: now,
-            valid_at: now,
         }
     }
 }

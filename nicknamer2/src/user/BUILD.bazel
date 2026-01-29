@@ -24,6 +24,23 @@ rust_library(
     ],
 )
 
+rust_test(
+    name = "service_test",
+    size = "medium",
+    crate = ":service",
+    tags = [
+        "requires-network",
+    ],
+    deps = [
+        ":repo",
+        ":user",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+    timeout = "short"
+)
+
 rust_library(
     name = "repo",
     srcs = ["repo.rs"],
