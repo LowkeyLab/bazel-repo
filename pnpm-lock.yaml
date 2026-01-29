@@ -12,6 +12,27 @@ catalogs:
     '@angular/cli':
       specifier: ^21.0.3
       version: 21.1.2
+    '@angular/common':
+      specifier: ^21.0.3
+      version: 21.1.2
+    '@angular/compiler':
+      specifier: ^21.0.3
+      version: 21.1.2
+    '@angular/compiler-cli':
+      specifier: ^21.0.2
+      version: 21.1.2
+    '@angular/core':
+      specifier: ^21.0.3
+      version: 21.1.2
+    '@angular/forms':
+      specifier: ^21.0.3
+      version: 21.1.2
+    '@angular/platform-browser':
+      specifier: ^21.0.3
+      version: 21.1.2
+    '@angular/router':
+      specifier: ^21.0.3
+      version: 21.1.2
     '@astrojs/check':
       specifier: ^0.9.6
       version: 0.9.6
@@ -48,9 +69,6 @@ catalogs:
     '@typescript-eslint/parser':
       specifier: ^8.29.0
       version: 8.54.0
-    astro:
-      specifier: ^5.5.6
-      version: 5.16.16
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
@@ -269,7 +287,7 @@ importers:
         version: 4.1.18(vite@7.3.1(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.1)(yaml@2.8.1))
       astro:
         specifier: 'catalog:'
-        version: 5.16.16(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
+        version: 5.17.0(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
       sharp:
         specifier: 'catalog:'
         version: 0.34.5
@@ -300,7 +318,7 @@ importers:
         version: 21.1.2(@types/node@24.10.9)(chokidar@5.0.0)(hono@4.11.3)
       astro:
         specifier: 'catalog:'
-        version: 5.16.16(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
+        version: 5.17.0(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1)
 
 packages:
 
@@ -2716,8 +2734,8 @@ packages:
     resolution: {integrity: sha512-JepyLROIad6f44uyqMF6HKE2QbunNzp3mYKRcPoDGt0QkxXmH222FAFC64WTyQu2Kg8NNEXHTN/sWuUId9sSxw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  astro@5.16.16:
-    resolution: {integrity: sha512-MFlFvQ84ixaHyqB3uGwMhNHdBLZ3vHawyq3PqzQS2TNWiNfQrxp5ag6S3lX+Cvnh0MUcXX+UnJBPMBHjP1/1ZQ==}
+  astro@5.17.0:
+    resolution: {integrity: sha512-6ltLRcs2WrVBMEcgHLntabSdJqz+z2PxzCS2Iw20g60y6hP2AXVn53Y7PCCIprMHsGXEkk1h+PoTkgKp4dDugA==}
     engines: {node: 18.20.8 || ^20.3.0 || >=22.0.0, npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
 
@@ -5086,6 +5104,10 @@ packages:
 
   string-width@8.1.0:
     resolution: {integrity: sha512-Kxl3KJGb/gxkaUMOjRsQ8IrXiGW75O4E3RPjFIINOVH8AMl2SQ/yWdTzWwF3FevIX9LcMAjJW+GRwAlAbTSXdg==}
+    engines: {node: '>=20'}
+
+  string-width@8.1.1:
+    resolution: {integrity: sha512-KpqHIdDL9KwYk22wEOg/VIqYbrnLeSApsKT/bSj6Ez7pn3CftUiLAv2Lccpq1ALcpLV9UX1Ppn92npZWu2w/aw==}
     engines: {node: '>=20'}
 
   stringify-entities@4.0.4:
@@ -8083,7 +8105,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  astro@5.16.16(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1):
+  astro@5.17.0(@types/node@24.10.9)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.57.0)(sass@1.97.1)(typescript@5.9.3)(yaml@2.8.1):
     dependencies:
       '@astrojs/compiler': 2.13.0
       '@astrojs/internal-helpers': 0.7.5
@@ -8384,7 +8406,7 @@ snapshots:
   cli-truncate@5.1.1:
     dependencies:
       slice-ansi: 7.1.2
-      string-width: 8.1.0
+      string-width: 8.1.1
 
   cli-width@4.1.0: {}
 
@@ -10345,7 +10367,7 @@ snapshots:
       is-unicode-supported: 2.1.0
       log-symbols: 7.0.1
       stdin-discarder: 0.2.2
-      string-width: 8.1.0
+      string-width: 8.1.1
       strip-ansi: 7.1.2
 
   ordered-binary@1.6.1:
@@ -11111,6 +11133,11 @@ snapshots:
       strip-ansi: 7.1.2
 
   string-width@8.1.0:
+    dependencies:
+      get-east-asian-width: 1.4.0
+      strip-ansi: 7.1.2
+
+  string-width@8.1.1:
     dependencies:
       get-east-asian-width: 1.4.0
       strip-ansi: 7.1.2
