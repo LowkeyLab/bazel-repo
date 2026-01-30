@@ -39,7 +39,7 @@ rust_test(
     timeout = "short",
     crate = ":service",
     tags = [
-        "requires_network",
+        "requires-network",
     ],
     deps = [
         "//nicknamer2/src/migrations",

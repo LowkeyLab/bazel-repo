@@ -13,7 +13,7 @@ rust_test(
     timeout = "short",
     crate = ":migrations",
     tags = [
-        "requires_network",
+        "requires-network",
     ],
     deps = [
         "@crates//:testcontainers-modules",
