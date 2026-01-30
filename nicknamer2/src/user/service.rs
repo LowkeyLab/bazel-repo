@@ -31,69 +31,37 @@ mod tests {
     use super::*;
     use migrations::run_migrations;
     use repo::Repo;
-    use std::sync::OnceLock;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
 
-    static DB_SETUP: OnceLock<(
+    /// Spins up a fresh PostgreSQL container for a single test
+    /// Returns the pool and container. Container is dropped when test completes.
+    async fn setup_test_db() -> (
         sqlx::PgPool,
         testcontainers::ContainerAsync<postgres::Postgres>,
-    )> = OnceLock::new();
+    ) {
+        let container = postgres::Postgres::default()
+            .start()
+            .await
+            .expect("Failed to start PostgreSQL container");
 
-    /// Cleanup guard that truncates all tables when dropped
-    struct DbCleanup {
-        pool: sqlx::PgPool,
-    }
+        let host = container.get_host().await.unwrap();
+        let port = container.get_host_port_ipv4(5432).await.unwrap();
 
-    impl Drop for DbCleanup {
-        fn drop(&mut self) {
-            let pool = self.pool.clone();
-            // Use spawn_blocking to run the cleanup in a blocking context
-            tokio::task::spawn_blocking(move || {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    let _ = sqlx::query("TRUNCATE TABLE users RESTART IDENTITY CASCADE")
-                        .execute(&pool)
-                        .await;
-                });
-            });
-        }
-    }
+        let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
 
-    /// Gets the shared test database, initializing it once per module
-    async fn get_test_db() -> (DbCleanup, sqlx::PgPool) {
-        let (pool, _container) = DB_SETUP.get_or_init(|| {
-            // We need to block on initialization since OnceLock requires a sync closure
-            // This is safe because it only happens once per test run
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    let container = postgres::Postgres::default()
-                        .start()
-                        .await
-                        .expect("Failed to start PostgreSQL container");
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(5)
+            .acquire_timeout(std::time::Duration::from_secs(30))
+            .connect(&db_url)
+            .await
+            .expect("Failed to connect to database");
 
-                    let host = container.get_host().await.unwrap();
-                    let port = container.get_host_port_ipv4(5432).await.unwrap();
+        run_migrations(&pool)
+            .await
+            .expect("Failed to run migrations");
 
-                    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
-
-                    let pool = sqlx::postgres::PgPoolOptions::new()
-                        .max_connections(5)
-                        .acquire_timeout(std::time::Duration::from_secs(30))
-                        .connect(&db_url)
-                        .await
-                        .expect("Failed to connect to database");
-
-                    run_migrations(&pool)
-                        .await
-                        .expect("Failed to run migrations");
-
-                    (pool, container)
-                })
-            })
-        });
-
-        (DbCleanup { pool: pool.clone() }, pool.clone())
+        (pool, container)
     }
 
     #[test]
@@ -104,7 +72,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_create_user() {
-        let (_cleanup, pool) = get_test_db().await;
+        let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
@@ -125,7 +93,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_by_discord_id() {
-        let (_cleanup, pool) = get_test_db().await;
+        let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool);
         let service = Service::new(repo);
 
