@@ -1,4 +1,6 @@
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
+use sqlx::types::Uuid;
+use sqlx::types::chrono::{DateTime, Utc};
 use std::future::Future;
 use thiserror;
 use user::User;
@@ -7,6 +9,37 @@ use user::User;
 pub enum Error {
     #[error("Database error: {0}")]
     DbError(String),
+}
+
+/// Data Access Object for User table mapping
+#[derive(Debug, sqlx::FromRow)]
+struct UserDAO {
+    id: Uuid,
+    discord_id: i64,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+impl From<UserDAO> for User {
+    fn from(dao: UserDAO) -> Self {
+        User {
+            id: dao.id,
+            discord_id: dao.discord_id as u64,
+            created_at: dao.created_at,
+            updated_at: dao.updated_at,
+        }
+    }
+}
+
+impl From<User> for UserDAO {
+    fn from(user: User) -> Self {
+        UserDAO {
+            id: user.id,
+            discord_id: user.discord_id as i64,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
+    }
 }
 
 /// Saves a user to the database.
@@ -34,16 +67,17 @@ impl Repo {
 
 impl Saver for Repo {
     async fn save(&self, user: User) -> Result<(), Error> {
+        let dao: UserDAO = user.into();
         sqlx::query(
             r#"
             INSERT INTO users (id, discord_id, created_at, updated_at)
             VALUES ($1, $2, $3, $4)
             "#,
         )
-        .bind(user.id)
-        .bind(user.discord_id as i64)
-        .bind(user.created_at)
-        .bind(user.updated_at)
+        .bind(dao.id)
+        .bind(dao.discord_id)
+        .bind(dao.created_at)
+        .bind(dao.updated_at)
         .execute(&self.pool)
         .await
         .map_err(|e| Error::DbError(e.to_string()))?;
@@ -54,7 +88,7 @@ impl Saver for Repo {
 
 impl ByDiscordIdGetter for Repo {
     async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, Error> {
-        let row = sqlx::query(
+        let dao = sqlx::query_as::<_, UserDAO>(
             r#"
             SELECT id, discord_id, created_at, updated_at
             FROM users
@@ -66,13 +100,6 @@ impl ByDiscordIdGetter for Repo {
         .await
         .map_err(|e| Error::DbError(e.to_string()))?;
 
-        let user = row.map(|r| User {
-            id: r.get("id"),
-            discord_id: r.get::<i64, _>("discord_id") as u64,
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        });
-
-        Ok(user)
+        Ok(dao.map(Into::into))
     }
 }

@@ -11,5 +11,6 @@ rust_library(
 
 rust_test(
     name = "name_test",
+    size = "small",
     crate = ":name",
 )

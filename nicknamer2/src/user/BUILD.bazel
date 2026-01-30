@@ -30,12 +30,17 @@ rust_library(
 
 rust_test(
     name = "user_test",
+    size = "small",
     crate = ":user",
 )
 
 rust_test(
     name = "service_test",
+    timeout = "short",
     crate = ":service",
+    tags = [
+        "requires_network",
+    ],
     deps = [
         "//nicknamer2/src/migrations",
         "@crates//:sqlx",

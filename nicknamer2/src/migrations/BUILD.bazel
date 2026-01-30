@@ -10,7 +10,11 @@ rust_library(
 
 rust_test(
     name = "migrations_test",
+    timeout = "short",
     crate = ":migrations",
+    tags = [
+        "requires_network",
+    ],
     deps = [
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
