@@ -1,4 +1,4 @@
-use repo::{ByDiscordIdGetter, Repo, Saver};
+use repo::{ByDiscordIdGetter, Saver};
 use user::User;
 
 struct Service<T>
@@ -30,6 +30,7 @@ where
 mod tests {
     use super::*;
     use migrations::run_migrations;
+    use repo::Repo;
     use std::sync::OnceLock;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
@@ -93,6 +94,12 @@ mod tests {
         });
 
         (DbCleanup { pool: pool.clone() }, pool.clone())
+    }
+
+    #[test]
+    fn dummy() {
+        // Dummy test for gazelle
+        assert_eq!(true, true);
     }
 
     #[tokio::test(flavor = "multi_thread")]

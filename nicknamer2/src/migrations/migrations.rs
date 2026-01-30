@@ -24,6 +24,12 @@ mod tests {
     use testcontainers_modules::postgres;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
+    #[test]
+    fn dummy() {
+        // Dummy test for gazelle test discovery
+        assert_eq!(true, true);
+    }
+
     #[tokio::test]
     async fn test_migrations_run_successfully() {
         let container = postgres::Postgres::default()
