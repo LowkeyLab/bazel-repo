@@ -1,6 +1,5 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use std::future::Future;
-use std::sync::Arc;
 use thiserror;
 use user::User;
 
@@ -50,5 +49,30 @@ impl Saver for Repo {
         .map_err(|e| Error::DbError(e.to_string()))?;
 
         Ok(())
+    }
+}
+
+impl ByDiscordIdGetter for Repo {
+    async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, Error> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, discord_id, created_at, updated_at
+            FROM users
+            WHERE discord_id = $1
+            "#,
+        )
+        .bind(discord_id as i64)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| Error::DbError(e.to_string()))?;
+
+        let user = row.map(|r| User {
+            id: r.get("id"),
+            discord_id: r.get::<i64, _>("discord_id") as u64,
+            created_at: r.get("created_at"),
+            updated_at: r.get("updated_at"),
+        });
+
+        Ok(user)
     }
 }

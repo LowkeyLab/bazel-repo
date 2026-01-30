@@ -26,7 +26,6 @@ rust_library(
 
 rust_test(
     name = "service_test",
-    size = "medium",
     timeout = "short",
     crate = ":service",
     tags = [
