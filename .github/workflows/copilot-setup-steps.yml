@@ -42,7 +42,7 @@ jobs:
           echo "=== Bazel version ==="
           bazel version
       - name: Log in to Docker Hub
-        uses: docker/login-action@8e2a0b642a6296f5b70071b54b587ef363155acd
+        uses: docker/login-action@3227f5311cb93ffd14d13e65d8cc400d30f4dd8a
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
