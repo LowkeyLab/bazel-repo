@@ -26,7 +26,7 @@ jobs:
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
       - name: Log in to Docker Hub
-        uses: docker/login-action@2e1345c05f9563db17b704b7855578af55a6c8be
+        uses: docker/login-action@8e2a0b642a6296f5b70071b54b587ef363155acd
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
