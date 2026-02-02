@@ -3,7 +3,10 @@ load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 rust_library(
     name = "migrations",
     srcs = ["migrations.rs"],
-    compile_data = ["001_create_users_table.sql"],
+    compile_data = [
+        "001_create_users_table.sql",
+        "002_create_names_table.sql",
+    ],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = ["@crates//:sqlx"],
 )

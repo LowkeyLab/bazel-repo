@@ -1,5 +1,5 @@
-use repo::{ByDiscordIdGetter, Saver};
 use user::User;
+use user_repo::{ByDiscordIdGetter, Error, Saver};
 
 struct Service<T>
 where
@@ -16,12 +16,12 @@ where
         Self { repo }
     }
 
-    pub async fn create_user(&self, discord_id: u64) -> Result<(), repo::Error> {
+    pub async fn create_user(&self, discord_id: u64) -> Result<(), Error> {
         let user = User::new(discord_id);
         self.repo.save(user).await
     }
 
-    pub async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, repo::Error> {
+    pub async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, Error> {
         self.repo.get_by_discord_id(discord_id).await
     }
 }
@@ -30,9 +30,9 @@ where
 mod tests {
     use super::*;
     use migrations::run_migrations;
-    use repo::Repo;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
+    use user_repo::Repo;
 
     /// Spins up a fresh PostgreSQL container for a single test
     /// Returns the pool and container. Container is dropped when test completes.

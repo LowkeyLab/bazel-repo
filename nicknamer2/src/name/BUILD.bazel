@@ -9,8 +9,42 @@ rust_library(
     ],
 )
 
+rust_library(
+    name = "name_repo",
+    srcs = ["repo.rs"],
+    deps = [
+        ":name",
+        "@crates//:sqlx",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_library(
+    name = "name_service",
+    srcs = ["service.rs"],
+    deps = [
+        ":name",
+        ":name_repo",
+        "@crates//:uuid",
+    ],
+)
+
 rust_test(
     name = "name_test",
     size = "small",
     crate = ":name",
+)
+
+rust_test(
+    name = "name_service_test",
+    timeout = "short",
+    crate = ":name_service",
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer2/src/migrations",
+        "//nicknamer2/src/user",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
 )
