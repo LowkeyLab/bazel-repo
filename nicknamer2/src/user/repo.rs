@@ -54,6 +54,21 @@ pub trait ByDiscordIdGetter {
     ) -> impl Future<Output = Result<Option<User>, Error>> + Send;
 }
 
+/// Gets a user by their UUID.
+pub trait ByIdGetter {
+    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Option<User>, Error>> + Send;
+}
+
+/// Updates an existing user in the database.
+pub trait Updater {
+    fn update(&self, user: User) -> impl Future<Output = Result<(), Error>> + Send;
+}
+
+/// Deletes a user from the database by their UUID.
+pub trait Deleter {
+    fn delete(&self, id: Uuid) -> impl Future<Output = Result<bool, Error>> + Send;
+}
+
 #[derive(Debug)]
 pub struct Repo {
     pool: PgPool,
@@ -101,5 +116,61 @@ impl ByDiscordIdGetter for Repo {
         .map_err(|e| Error::DbError(e.to_string()))?;
 
         Ok(dao.map(Into::into))
+    }
+}
+
+impl ByIdGetter for Repo {
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, Error> {
+        let dao = sqlx::query_as::<_, UserDAO>(
+            r#"
+            SELECT id, discord_id, created_at, updated_at
+            FROM users
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| Error::DbError(e.to_string()))?;
+
+        Ok(dao.map(Into::into))
+    }
+}
+
+impl Updater for Repo {
+    async fn update(&self, user: User) -> Result<(), Error> {
+        let dao: UserDAO = user.into();
+        sqlx::query(
+            r#"
+            UPDATE users
+            SET discord_id = $2, updated_at = $3
+            WHERE id = $1
+            "#,
+        )
+        .bind(dao.id)
+        .bind(dao.discord_id)
+        .bind(Utc::now())
+        .execute(&self.pool)
+        .await
+        .map_err(|e| Error::DbError(e.to_string()))?;
+
+        Ok(())
+    }
+}
+
+impl Deleter for Repo {
+    async fn delete(&self, id: Uuid) -> Result<bool, Error> {
+        let result = sqlx::query(
+            r#"
+            DELETE FROM users
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| Error::DbError(e.to_string()))?;
+
+        Ok(result.rows_affected() > 0)
     }
 }

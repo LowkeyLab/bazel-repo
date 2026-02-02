@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use uuid::Uuid;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct User {
     pub id: Uuid,
     pub discord_id: u64,
