@@ -25,6 +25,7 @@ rust_library(
     deps = [
         ":name",
         ":name_repo",
+        "@crates//:thiserror",
         "@crates//:uuid",
     ],
 )
