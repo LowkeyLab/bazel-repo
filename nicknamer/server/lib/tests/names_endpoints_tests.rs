@@ -2188,7 +2188,7 @@ pub mod api {
             let app3 = create_api_router(name_state.clone());
             let update_request = Request::builder()
                 .method(Method::PUT)
-                .uri(&format!("/names/{}/servers/server-1", discord_id))
+                .uri(format!("/names/{}/servers/server-1", discord_id))
                 .header("content-type", "application/json")
                 .body(Body::from(update_data.to_string()))
                 .unwrap();
