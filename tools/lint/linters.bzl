@@ -35,10 +35,14 @@ ruff = lint_ruff_aspect(
     configs = [Label("//:.ruff.toml")],
 )
 
+ruff_test = lint_test(aspect = ruff)
+
 shellcheck = lint_shellcheck_aspect(
     binary = "@multitool//tools/shellcheck",
     config = Label("//:.shellcheckrc"),
 )
+
+shellcheck_test = lint_test(aspect = shellcheck)
 
 pmd = lint_pmd_aspect(
     binary = Label("//tools/lint:pmd"),
