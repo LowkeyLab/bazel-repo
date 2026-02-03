@@ -4,8 +4,6 @@ try-import %workspace%/tools/java21.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
-startup --quiet
-
 # Remote cache config
 common --bes_results_url=https://app.buildbuddy.io/invocation/
 common --bes_backend=grpcs://remote.buildbuddy.io
