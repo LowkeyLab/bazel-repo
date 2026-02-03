@@ -80,7 +80,7 @@ impl From<name::Model> for Name {
 }
 
 impl NameService<'_> {
-    pub fn new(db: &sea_orm::DatabaseConnection) -> NameService {
+    pub fn new(db: &sea_orm::DatabaseConnection) -> NameService<'_> {
         NameService { db }
     }
 

@@ -2,6 +2,7 @@
 
 load("@aspect_rules_lint//lint:buf.bzl", "lint_buf_aspect")
 load("@aspect_rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
+load("@aspect_rules_lint//lint:clippy.bzl", "lint_clippy_aspect")
 load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
 load("@aspect_rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
 load("@aspect_rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
@@ -62,4 +63,8 @@ keep_sorted = lint_keep_sorted_aspect(
 stylelint = lint_stylelint_aspect(
     binary = Label("//tools/lint:stylelint"),
     config = Label("//:stylelintrc"),
+)
+
+clippy = lint_clippy_aspect(
+    config = Label("//:.clippy.toml"),
 )
