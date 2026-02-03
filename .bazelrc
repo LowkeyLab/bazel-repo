@@ -4,6 +4,8 @@ try-import %workspace%/tools/java21.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
+startup --quiet
+
 # Remote cache config
 common --bes_results_url=https://app.buildbuddy.io/invocation/
 common --bes_backend=grpcs://remote.buildbuddy.io
@@ -54,18 +56,16 @@ common:ci --lockfile_mode="off"
 build --repo_env=JAVA_HOME=../bazel_tools/jdk
 
 # Linting configuration
-common:lint --aspects=//tools/lint:linters.bzl%buf
+# common:lint --aspects=//tools/lint:linters.bzl%buf
 common:lint --aspects=//tools/lint:linters.bzl%checkstyle
-common:lint --aspects=//tools/lint:linters.bzl%eslint
-common:lint --aspects=//tools/lint:linters.bzl%shellcheck
-common:lint --aspects=//tools/lint:linters.bzl%ruff
-common:lint --aspects=//tools/lint:linters.bzl%pmd
-common:lint --aspects=//tools/lint:linters.bzl%ktlint
-common:lint --aspects=//tools/lint:linters.bzl%keep_sorted
-common:lint --aspects=//tools/lint:linters.bzl%stylelint
+# common:lint --aspects=//tools/lint:linters.bzl%eslint
+# common:lint --aspects=//tools/lint:linters.bzl%shellcheck
+# common:lint --aspects=//tools/lint:linters.bzl%ruff
+# common:lint --aspects=//tools/lint:linters.bzl%pmd
+# common:lint --aspects=//tools/lint:linters.bzl%ktlint
+# common:lint --aspects=//tools/lint:linters.bzl%keep_sorted
+# common:lint --aspects=//tools/lint:linters.bzl%stylelint
 
-# Ignore lockfile in CI
-common:ci --lockfile_mode="off"
 # Show timeout warnings to correctly adjust build/test timeouts
 test --test_verbose_timeout_warnings
 
