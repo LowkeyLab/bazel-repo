@@ -19,6 +19,9 @@ bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2")
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
+
+# Bazel 9: Bump up rules_android to pick up fixes for Bazel 9 compatibility
+bazel_dep(name = "rules_android", version = "0.7.1")
 bazel_dep(name = "rules_java", version = "9.3.0")
 bazel_dep(name = "rules_kotlin", version = "2.2.2")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
@@ -71,10 +74,13 @@ http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_
 
 http_archive(
     name = "net_sourceforge_pmd",
-    build_file_content = """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
-    sha256 = "21acf96d43cb40d591cacccc1c20a66fc796eaddf69ea61812594447bac7a11d",
-    strip_prefix = "pmd-bin-6.55.0/lib",
-    url = "https://github.com/pmd/pmd/releases/download/pmd_releases/6.55.0/pmd-bin-6.55.0.zip",
+    build_file_content = "\n".join([
+        """load("@rules_java//java:java_import.bzl", "java_import")""",
+        """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
+    ]),
+    integrity = "sha256-vov2j2wdZphL2WRak+Yxt4ocL0L18PhxkIL+rWdVOUA=",
+    strip_prefix = "pmd-bin-7.7.0/lib",
+    url = "https://github.com/pmd/pmd/releases/download/pmd_releases/7.7.0/pmd-dist-7.7.0-bin.zip",
 )
 
 http_jar(
@@ -360,7 +366,7 @@ go_deps.from_file(go_mod = "//:go.mod")
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
-use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", "com_github_gin_contrib_sse", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
+use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
 
 #########################
 # Keep Sorted
