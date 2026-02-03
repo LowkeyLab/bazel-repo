@@ -11,6 +11,12 @@ pub enum Error {
     DbError(String),
 }
 
+impl From<sqlx::Error> for Error {
+    fn from(e: sqlx::Error) -> Self {
+        Error::DbError(e.to_string())
+    }
+}
+
 /// Data Access Object for User table mapping
 #[derive(Debug, sqlx::FromRow)]
 struct UserDAO {
@@ -94,8 +100,7 @@ impl Saver for Repo {
         .bind(dao.created_at)
         .bind(dao.updated_at)
         .execute(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(())
     }
@@ -112,8 +117,7 @@ impl ByDiscordIdGetter for Repo {
         )
         .bind(discord_id as i64)
         .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(dao.map(Into::into))
     }
@@ -130,8 +134,7 @@ impl ByIdGetter for Repo {
         )
         .bind(id)
         .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(dao.map(Into::into))
     }
@@ -151,8 +154,7 @@ impl Updater for Repo {
         .bind(dao.discord_id)
         .bind(Utc::now())
         .execute(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(())
     }
@@ -168,8 +170,7 @@ impl Deleter for Repo {
         )
         .bind(id)
         .execute(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(result.rows_affected() > 0)
     }

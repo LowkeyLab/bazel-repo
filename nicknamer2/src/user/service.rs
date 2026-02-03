@@ -26,26 +26,25 @@ where
 
     pub async fn create_user(&self, discord_id: u64) -> Result<(), Error> {
         let user = User::new(discord_id);
-        self.repo.save(user).await.map_err(Error::from)
+        self.repo.save(user).await?;
+        Ok(())
     }
 
     pub async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, Error> {
-        self.repo
-            .get_by_discord_id(discord_id)
-            .await
-            .map_err(Error::from)
+        Ok(self.repo.get_by_discord_id(discord_id).await?)
     }
 
     pub async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, Error> {
-        self.repo.get_by_id(id).await.map_err(Error::from)
+        Ok(self.repo.get_by_id(id).await?)
     }
 
     pub async fn update_user(&self, user: User) -> Result<(), Error> {
-        self.repo.update(user).await.map_err(Error::from)
+        self.repo.update(user).await?;
+        Ok(())
     }
 
     pub async fn delete_user(&self, id: Uuid) -> Result<bool, Error> {
-        self.repo.delete(id).await.map_err(Error::from)
+        Ok(self.repo.delete(id).await?)
     }
 }
 

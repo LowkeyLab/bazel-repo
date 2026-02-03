@@ -34,7 +34,8 @@ where
         name: String,
     ) -> Result<(), Error> {
         let name_entity = Name::new(user_id, server_id, name);
-        self.repo.save(name_entity).await.map_err(Error::from)
+        self.repo.save(name_entity).await?;
+        Ok(())
     }
 
     pub async fn update_name(
@@ -43,21 +44,17 @@ where
         server_id: u64,
         new_name: String,
     ) -> Result<(), Error> {
-        self.repo
-            .update(user_id, server_id, new_name)
-            .await
-            .map_err(Error::from)
+        self.repo.update(user_id, server_id, new_name).await?;
+        Ok(())
     }
 
     pub async fn get_name(&self, user_id: Uuid, server_id: u64) -> Result<Option<Name>, Error> {
-        self.repo.get(user_id, server_id).await.map_err(Error::from)
+        Ok(self.repo.get(user_id, server_id).await?)
     }
 
     pub async fn delete_name(&self, user_id: Uuid, server_id: u64) -> Result<(), Error> {
-        self.repo
-            .delete(user_id, server_id)
-            .await
-            .map_err(Error::from)
+        self.repo.delete(user_id, server_id).await?;
+        Ok(())
     }
 }
 

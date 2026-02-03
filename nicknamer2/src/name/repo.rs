@@ -11,6 +11,12 @@ pub enum Error {
     DbError(String),
 }
 
+impl From<sqlx::Error> for Error {
+    fn from(e: sqlx::Error) -> Self {
+        Error::DbError(e.to_string())
+    }
+}
+
 /// Data Access Object for Name table mapping
 #[derive(Debug, sqlx::FromRow)]
 struct NameDAO {
@@ -94,8 +100,7 @@ impl Saver for Repo {
         .bind(name.created_at)
         .bind(name.updated_at)
         .execute(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(())
     }
@@ -116,8 +121,7 @@ impl Updater for Repo {
         .bind(user_id)
         .bind(server_id as i64)
         .execute(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(())
     }
@@ -135,8 +139,7 @@ impl Getter for Repo {
         .bind(user_id)
         .bind(server_id as i64)
         .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(dao.map(Into::into))
     }
@@ -153,8 +156,7 @@ impl Deleter for Repo {
         .bind(user_id)
         .bind(server_id as i64)
         .execute(&self.pool)
-        .await
-        .map_err(|e| Error::DbError(e.to_string()))?;
+        .await?;
 
         Ok(())
     }
