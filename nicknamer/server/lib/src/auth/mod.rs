@@ -58,11 +58,11 @@ pub async fn auth_user_middleware(
     mut request: Request,
     next: Next,
 ) -> Response {
-    if let Some(token_cookie) = jar.get("auth_token") {
-        if let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await {
-            let current_user = CurrentUser::new(claims.username);
-            request.extensions_mut().insert(current_user);
-        }
+    if let Some(token_cookie) = jar.get("auth_token")
+        && let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await
+    {
+        let current_user = CurrentUser::new(claims.username);
+        request.extensions_mut().insert(current_user);
     }
 
     next.run(request).await
