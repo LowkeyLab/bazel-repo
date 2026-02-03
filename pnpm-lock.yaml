@@ -75,9 +75,6 @@ catalogs:
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
-    daisyui:
-      specifier: ^5.5.5
-      version: 5.5.16
     eslint:
       specifier: ^9.39.1
       version: 9.39.2
@@ -239,7 +236,7 @@ importers:
         version: 24.10.9
       daisyui:
         specifier: 'catalog:'
-        version: 5.5.16
+        version: 5.5.17
       jasmine-core:
         specifier: 'catalog:'
         version: 6.0.1
@@ -306,7 +303,7 @@ importers:
         version: 8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       daisyui:
         specifier: 'catalog:'
-        version: 5.5.16
+        version: 5.5.17
       eslint:
         specifier: 'catalog:'
         version: 9.39.2(jiti@2.6.1)
@@ -3190,8 +3187,8 @@ packages:
   custom-event@1.0.1:
     resolution: {integrity: sha512-GAj5FOq0Hd+RsCGVJxZuKaIDXDf3h6GQoNEjFgbLLI/trgtavwUbSnZ5pVfg27DVCaWjIohryS0JFwIJyT2cMg==}
 
-  daisyui@5.5.16:
-    resolution: {integrity: sha512-EPGcgduRIwXoQPuIl+r2BXRQsOutvf7UEB/mBfRiD2fdOYYnUqDU5PNp2eONnRqo1DxSsnD01gCRPccH65FWtQ==}
+  daisyui@5.5.17:
+    resolution: {integrity: sha512-Y8QWps/990Epp0Gn+7ReeALSXgwrd3W36waokJvHgqUdYx6t2sj0e1krW3+YqviBa57XTJqHJNTt8HMvcODL2Q==}
 
   data-urls@7.0.0:
     resolution: {integrity: sha512-23XHcCF+coGYevirZceTVD7NdJOqVn+49IHyxgszm+JIiHLoB2TkmPtsYkNWT1pvRSGkc35L6NHs0yHkN2SumA==}
@@ -8747,7 +8744,7 @@ snapshots:
 
   custom-event@1.0.1: {}
 
-  daisyui@5.5.16: {}
+  daisyui@5.5.17: {}
 
   data-urls@7.0.0:
     dependencies:
