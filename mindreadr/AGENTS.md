@@ -13,13 +13,13 @@ Ktor-based backend for Mindreadr, built and run with Bazel. For repo-wide prereq
 - Build everything under Mindreadr:
 
   ```bash
-  bazel build //mindreadr/...
+  aspect build //mindreadr/...
   ```
 
 - Build the runnable binary:
 
   ```bash
-  bazel build //mindreadr/src/main/io/lowkeylab/mindreadr/app:Application
+  aspect build //mindreadr/src/main/io/lowkeylab/mindreadr/app:Application
   ```
 
 - Run the server (Netty):
@@ -69,13 +69,13 @@ Tip: Use any WebSocket client to connect (e.g., `wscat` or browser). Create a ga
 - Run all tests for this backend:
 
   ```bash
-  bazel test //mindreadr/...
+  aspect test //mindreadr/...
   ```
 
 - Example: run game tests only:
 
   ```bash
-  bazel test //mindreadr/src/test/io/lowkeylab/mindreadr/game:game
+  aspect test //mindreadr/src/test/io/lowkeylab/mindreadr/game:game
   ```
 
 ## Logs & Observability
@@ -88,7 +88,7 @@ Tip: Use any WebSocket client to connect (e.g., `wscat` or browser). Create a ga
 - Format code and BUILD files before committing:
 
   ```bash
-  bazel run format
+  format
   bazel run //tools:buildifier
   ```
 

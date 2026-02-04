@@ -13,19 +13,19 @@ A web service for managing names with authentication, built using Axum, SeaORM, 
 - Build the server:
 
   ```bash
-  bazel build //nicknamer/server/bin
+  aspect build //nicknamer/server/bin
   ```
 
 - Run tests:
 
   ```bash
-  bazel test //nicknamer/server/lib/tests:tests
+  aspect test //nicknamer/server/lib/tests:tests
   ```
 
 - Build Docker image:
 
   ```bash
-  bazel build //nicknamer/server/bin:image
+  aspect build //nicknamer/server/bin:image
   ```
 
 ## Build System
@@ -43,13 +43,13 @@ Key targets:
 - Run all tests:
 
   ```bash
-  bazel test //nicknamer/server/lib/tests:tests
+  aspect test //nicknamer/server/lib/tests:tests
   ```
 
 - Run a subset of tests:
 
   ```bash
-  bazel test //nicknamer/server/lib/tests:tests --test_filter="test_name_pattern"
+  aspect test //nicknamer/server/lib/tests:tests --test_filter="test_name_pattern"
   ```
 
 Test structure:
@@ -61,7 +61,7 @@ Test structure:
 ## Code Style Guidelines (Rust)
 
 - Use Rust 2024 edition
-- Format with rustfmt (run `bazel run format` at repo root)
+- Format with rustfmt (run `format` at repo root)
 - Follow `cargo clippy` recommendations
 - Prefer explicit error handling with `anyhow::Result`
 - Use structured logging with `tracing`
@@ -118,7 +118,7 @@ Required environment variables (local dev):
 - Build image:
 
   ```bash
-  bazel build //nicknamer/server/bin:image
+  aspect build //nicknamer/server/bin:image
   ```
 
 - Push to registry:
@@ -138,11 +138,11 @@ The application serves on port 8080 by default.
 ## Development Workflow
 
 1. Make code changes
-2. Format code: `bazel run format`
-3. Run linters: `bazel lint`
-4. Run tests: `bazel test //nicknamer/server/lib/tests:tests`
+2. Format code: `format`
+3. Run linters: `aspect lint`
+4. Run tests: `aspect test //nicknamer/server/lib/tests:tests`
 5. Test locally: `bazel run //nicknamer:run_locally`
-6. Build image: `bazel build //nicknamer/server/bin:image`
+6. Build image: `aspect build //nicknamer/server/bin:image`
 7. Ensure all tests pass before committing
 
 ## Troubleshooting
