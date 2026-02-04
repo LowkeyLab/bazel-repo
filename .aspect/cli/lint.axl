@@ -46,7 +46,7 @@ def impl(ctx: TaskContext) -> int:
 
                 # Skip remote bytestream files that can't be read locally
                 if filepath.startswith("bytestream://"):
-                    ctx.std.io.stderr.write("Skipping remote file (not downloaded locally): " + filepath + "\n")
+                    # ctx.std.io.stderr.write("Skipping remote file (not downloaded locally): " + filepath + "\n")
                     continue
                 
                 if file.name.endswith(".out"):
