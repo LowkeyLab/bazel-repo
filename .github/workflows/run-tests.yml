@@ -34,6 +34,8 @@ jobs:
       - name: Install tools via bazel
         run: |
           bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
+      - name: Verify aspect CLI
+        run: aspect --version
       - name: Run Bazel Lints
         run: |
           aspect lint //...
