@@ -41,7 +41,7 @@ bazel run @pnpm -- --dir $PWD install
 Build the application via Bazel:
 
 ```bash
-bazel build //angular/projects/mindreadr:mindreadr
+aspect build //angular/projects/mindreadr:mindreadr
 ```
 
 Outputs will appear under `bazel-bin/angular/projects/mindreadr/` (fingerprinted build artifacts). Use these for packaging or deployment.
@@ -71,7 +71,7 @@ bazel run //tools:ng -- serve mindreadr --proxy-config angular/projects/mindread
 Execute Angular unit tests under Bazel:
 
 ```bash
-bazel test //angular/projects/mindreadr:test
+aspect test //angular/projects/mindreadr:test
 ```
 
 Add a single spec file and re-run the target for fast feedback.
@@ -79,9 +79,9 @@ Add a single spec file and re-run the target for fast feedback.
 ## Workflow Summary
 
 1. Edit components / logic in `src/app/`.
-2. Build: `bazel build //angular/projects/mindreadr:mindreadr`.
+2. Build: `aspect build //angular/projects/mindreadr:mindreadr`.
 3. Serve locally: `bazel run //tools:ng -- serve mindreadr`.
-4. Test: `bazel test //angular/projects/mindreadr:test`.
+4. Test: `aspect test //angular/projects/mindreadr:test`.
 5. Commit source changes.
 
 ## CI Usage
@@ -89,8 +89,8 @@ Add a single spec file and re-run the target for fast feedback.
 CI can perform deterministic builds directly:
 
 ```bash
-bazel build //angular/projects/mindreadr:mindreadr
-bazel test //angular/projects/mindreadr:test
+aspect build //angular/projects/mindreadr:mindreadr
+aspect test //angular/projects/mindreadr:test
 ```
 
 CSS generation is handled automatically by the build; no manual steps required.

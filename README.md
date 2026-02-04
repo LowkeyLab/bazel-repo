@@ -43,32 +43,32 @@ cd bazel-repo
 bazel run @pnpm -- --dir $PWD install
 
 # Build everything
-bazel build //...
+aspect build //...
 
 # Run all tests
-bazel test //...
+aspect test //...
 ```
 
 ## Common Commands
 
 ```bash
 # Build everything
-bazel build //...
+aspect build //...
 
 # Run all tests
-bazel test //...
+aspect test //...
 
 # Format code (Rust, BUILD files, etc.)
-bazel run format
+format
 
 # Lint (Aspect CLI)
-bazel lint
+aspect lint
 
 # Format only BUILD files
 bazel run //tools:buildifier
 
 # Keep going on failures for investigation
-bazel build //... --keep_going
+aspect build //... --keep_going
 
 # Run arbitrary pnpm command
 bazel run @pnpm -- <args>
@@ -93,7 +93,7 @@ CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
 bazel run @pnpm -- --dir $PWD install
 
 # Verbose failure output
-bazel build //... --verbose_failures
+aspect build //... --verbose_failures
 ```
 
 For service-specific environment variables, runtime instructions, or database setup, consult the respective project guide listed above.

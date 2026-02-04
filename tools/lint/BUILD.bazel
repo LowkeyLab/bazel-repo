@@ -33,6 +33,7 @@ bzl_library(
         "@aspect_rules_lint//lint:checkstyle",
         "@aspect_rules_lint//lint:eslint",
         "@aspect_rules_lint//lint:keep_sorted",
+        "@aspect_rules_lint//lint:lint_test",
         "@aspect_rules_lint//lint:pmd",
         "@aspect_rules_lint//lint:ruff",
         "@aspect_rules_lint//lint:shellcheck",
