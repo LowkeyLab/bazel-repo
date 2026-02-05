@@ -284,7 +284,7 @@ maven.artifact(
     artifact = "error_prone_annotations",
     force_version = True,
     group = "com.google.errorprone",
-    version = "2.46.0",
+    version = "2.47.0",
 )
 maven.artifact(
     artifact = "guava",
