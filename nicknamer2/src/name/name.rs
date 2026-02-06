@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use uuid::Uuid;
 
 /// A name associated with a user in a Discord server.
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Name {
     pub user_id: Uuid,
     pub server_id: u64,
