@@ -20,13 +20,13 @@ To build the nicknamer server as a Docker image:
 
 ```bash
 # Build the image (convenience alias)
-bazel build //nicknamer:build_image
+aspect build //nicknamer:build_image
 
 # Or using the direct target
-bazel build //nicknamer/server/bin:image
+aspect build //nicknamer/server/bin:image
 
 # Or using the full target name
-bazel build //nicknamer/server/bin:nicknamer_image
+aspect build //nicknamer/server/bin:nicknamer_image
 ```
 
 #### Pushing to GitHub Container Registry

@@ -7,13 +7,13 @@ Project-specific commands and notes for the Mindreadr Angular application.
 - Build the app:
 
   ```bash
-  bazel build //angular/projects/mindreadr:mindreadr
+  aspect build //angular/projects/mindreadr:mindreadr
   ```
 
 - Run unit tests:
 
   ```bash
-  bazel test //angular/projects/mindreadr:test
+  aspect test //angular/projects/mindreadr:test
   ```
 
 - Serve locally via Angular CLI:

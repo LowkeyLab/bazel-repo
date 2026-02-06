@@ -7,7 +7,7 @@ This project is an Astro-based static site integrated into a Bazel monorepo. Age
 To build the static site:
 
 ```bash
-bazel build //personal_website:build
+aspect build //personal_website:build
 ```
 
 The output will be in `bazel-bin/personal_website/dist`.
@@ -33,5 +33,5 @@ bazel run //personal_website:preview
 To lint the project files:
 
 ```bash
-bazel lint //personal_website:...
+aspect lint //personal_website:...
 ```

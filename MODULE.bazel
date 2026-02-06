@@ -7,9 +7,9 @@ module(
 )
 
 # Currently bazel-lib is only load()ed when platforms is used.
-bazel_dep(name = "bazel_lib", version = "3.1.1")
+bazel_dep(name = "bazel_lib", version = "3.2.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
-bazel_dep(name = "aspect_rules_lint", version = "1.13.0")
+bazel_dep(name = "aspect_rules_lint", version = "2.0.0")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.25.0")
 bazel_dep(name = "aspect_rules_js", version = "2.9.2")
 bazel_dep(name = "aspect_rules_swc", version = "2.6.1")
@@ -19,10 +19,13 @@ bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2")
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
+
+# Bazel 9: Bump up rules_android to pick up fixes for Bazel 9 compatibility
+bazel_dep(name = "rules_android", version = "0.7.1")
 bazel_dep(name = "rules_java", version = "9.3.0")
 bazel_dep(name = "rules_kotlin", version = "2.2.2")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.1")
+bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2")
 bazel_dep(name = "contrib_rules_jvm", version = "0.32.0")
 bazel_dep(name = "container_structure_test", version = "1.22.1")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
@@ -33,7 +36,7 @@ bazel_dep(name = "rules_rust", version = "0.68.1")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "rules_buf", version = "0.5.2")
 bazel_dep(name = "rules_proto", version = "7.1.0")
-bazel_dep(name = "rules_jvm_external", version = "6.9")
+bazel_dep(name = "rules_jvm_external", version = "6.10")
 bazel_dep(name = "rules_mypy", version = "0.40.0")
 bazel_dep(name = "rules_go", version = "0.59.0")
 bazel_dep(name = "tar.bzl", version = "0.8.1")
@@ -42,16 +45,16 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 # We have to take a dependency on rules_python in order to set bootstrap=script
 # for transitive dependencies, even if there are no Python rules used in this repo.
 # See .bazelrc
-bazel_dep(name = "rules_python", version = "1.8.1")
+bazel_dep(name = "rules_python", version = "1.8.3")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "gazelle", version = "0.47.0")
 
-bazel_dep(name = "bazel_env.bzl", version = "0.5.0", dev_dependency = True)
+bazel_dep(name = "bazel_env.bzl", version = "0.7.1", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
-    commit = "c029702902b753413f80b0549982c32912aa508a",
+    commit = "f550cc0e3b90c3d00f0b54ac0ecc4488dc52e249",
     remote = "https://github.com/Calsign/gazelle_rust.git",
 )
 
@@ -71,10 +74,13 @@ http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_
 
 http_archive(
     name = "net_sourceforge_pmd",
-    build_file_content = """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
-    sha256 = "21acf96d43cb40d591cacccc1c20a66fc796eaddf69ea61812594447bac7a11d",
-    strip_prefix = "pmd-bin-6.55.0/lib",
-    url = "https://github.com/pmd/pmd/releases/download/pmd_releases/6.55.0/pmd-bin-6.55.0.zip",
+    build_file_content = "\n".join([
+        """load("@rules_java//java:java_import.bzl", "java_import")""",
+        """java_import(name = "net_sourceforge_pmd", jars = glob(["*.jar"]), visibility = ["//visibility:public"])""",
+    ]),
+    integrity = "sha256-vov2j2wdZphL2WRak+Yxt4ocL0L18PhxkIL+rWdVOUA=",
+    strip_prefix = "pmd-bin-7.7.0/lib",
+    url = "https://github.com/pmd/pmd/releases/download/pmd_releases/7.7.0/pmd-dist-7.7.0-bin.zip",
 )
 
 http_jar(
@@ -278,7 +284,7 @@ maven.artifact(
     artifact = "error_prone_annotations",
     force_version = True,
     group = "com.google.errorprone",
-    version = "2.46.0",
+    version = "2.47.0",
 )
 maven.artifact(
     artifact = "guava",
@@ -360,7 +366,7 @@ go_deps.from_file(go_mod = "//:go.mod")
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
-use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", "com_github_gin_contrib_sse", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
+use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", "com_github_gin_gonic_gin", "com_github_go_delve_delve", "com_github_golang_jwt_jwt_v5", "com_github_golang_migrate_migrate_v4", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_jackc_pgx_v5", "com_github_stretchr_testify", "com_github_testcontainers_testcontainers_go", "com_github_testcontainers_testcontainers_go_modules_postgres", "io_nmyk_cowsay", "org_golang_x_crypto", "org_golang_x_tools", "org_golang_x_tools_gopls", "org_golang_x_vuln")
 
 #########################
 # Keep Sorted
@@ -373,7 +379,7 @@ use_repo(keep_sorted_deps, "com_github_google_keep_sorted")
 oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci_extension.pull(
     name = "distroless_cc",
-    digest = "sha256:05d26fe67a875592cd65f26b2bcfadb8830eae53e68945784e39b23e62c382e0",
+    digest = "sha256:d7ac2f9af248f31fe6270002755722afdf6875e0e49cd52b9150208e6a23875c",
     image = "gcr.io/distroless/cc-debian13",
     platforms = [
         "linux/amd64",
@@ -381,7 +387,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_java21",
-    digest = "sha256:137c0f67b5c98ab009c689f5f7e54d2dacf8466bd471a79bc3956fccc48e23a9",
+    digest = "sha256:33f7015d7fc0f075bb762e4af360a2747ca3197b050daf894e3747c865495352",
     image = "gcr.io/distroless/java21-debian13",
     platforms = [
         "linux/amd64",
@@ -389,7 +395,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_node24",
-    digest = "sha256:64cea69417af086d87b7cc75746042fa2528f33cd6e4b49c9fbfe6f97a9a38f0",
+    digest = "sha256:a12c8f277c8d4e8421788eaa6b65345550191d4c4ecfaf9384e07197503e3ef4",
     image = "gcr.io/distroless/nodejs24-debian13",
     platforms = [
         "linux/amd64",
@@ -397,7 +403,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "alpine_caddy",
-    digest = "sha256:2adb640cdc0ce1d8870887c30af1e21edfb3cdfd8433431b2a15f40119a7d654",
+    digest = "sha256:f20f80e1fb627294fb84b8515b7593aff8018c840f1396dc942a50ed0c2db648",
     image = "caddy",
     platforms = [
         "linux/amd64",

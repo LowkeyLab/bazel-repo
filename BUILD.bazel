@@ -24,6 +24,7 @@ exports_files(
         "pyproject.toml",
         ".editorconfig",
         ".ktlint-baseline.xml",
+        ".clippy.toml",
     ],
     visibility = [
         "//tools/format:__pkg__",

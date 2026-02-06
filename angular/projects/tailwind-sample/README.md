@@ -28,7 +28,7 @@ This project uses TailwindCSS v4 with DaisyUI components. CSS utilities are gene
 ### With Bazel
 
 ```bash
-bazel build //angular/projects/tailwind-sample:tailwind-sample
+aspect build //angular/projects/tailwind-sample:tailwind-sample
 ```
 
 The build includes the generated CSS automatically.
@@ -36,7 +36,7 @@ The build includes the generated CSS automatically.
 ## Running Tests
 
 ```bash
-bazel test //angular/projects/tailwind-sample:test
+aspect test //angular/projects/tailwind-sample:test
 ```
 
 ## Technology Stack
@@ -84,8 +84,8 @@ In CI environments, the build includes generated CSS automatically:
 
 ```bash
 # CI builds work without regenerating CSS
-bazel build //angular/projects/tailwind-sample:tailwind-sample
-bazel test //angular/projects/tailwind-sample:test
+aspect build //angular/projects/tailwind-sample:tailwind-sample
+aspect test //angular/projects/tailwind-sample:test
 ```
 
 ## Benefits
