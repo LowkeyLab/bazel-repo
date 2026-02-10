@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      - uses: bazel-contrib/setup-bazel@5a2f9a2f058c2371e98d3e83be4c1dff3c93e2ec
+      - uses: bazel-contrib/setup-bazel@887da5f6b9aa3c4c148b413f2cf21ee5dac91ef5
         with:
           # Avoid downloading Bazel every time.
           bazelisk-cache: true
