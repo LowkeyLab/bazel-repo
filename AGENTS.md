@@ -21,7 +21,7 @@ format
 # Run all linters
 aspect lint
 
-# Update BUILD files (ALWAYS run after adding Go, TS, or Proto files)
+# Update BUILD files (ALWAYS run after writing source code)
 bazel run gazelle
 
 # Install/update NPM dependencies
@@ -73,7 +73,7 @@ bazel clean && aspect build //...
 - **Formatting:** ALWAYS run `format` before committing or completing a task
 - **Minimal changes:** Only modify what's strictly necessary
 - **Dependencies:** Prefer existing libraries in `MODULE.bazel`
-- **BUILD files:** Run `bazel run gazelle` BEFORE manually editing BUILD files for Go/TS/Proto
+- **BUILD files:** Run `bazel run gazelle` AFTER writing source code and BEFORE manually editing BUILD files
 - **Verification:** Run `aspect build //...` to verify changes don't break the build
 - **Security:** NEVER hardcode secrets/credentials; use environment variables
 
@@ -235,7 +235,7 @@ bazel clean && aspect build //...
 **Conventions:**
 
 - Use `# keep` comments for lines that shouldn't be auto-modified by Gazelle
-- Run `bazel run gazelle` before manual edits to Go/TS/Proto BUILD files
+- Run `bazel run gazelle` before manual edits to BUILD files
 - Verify changes: `aspect build //path/to/package/...`
 
 ## 3. Repository Structure

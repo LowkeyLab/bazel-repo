@@ -1,0 +1,13 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "server",
+    srcs = ["server.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "//nicknamer2/src/graphql:graphql_context",
+        "//nicknamer2/src/graphql:graphql_schema",
+        "@crates//:axum",
+        "@crates//:juniper_axum",
+    ],
+)

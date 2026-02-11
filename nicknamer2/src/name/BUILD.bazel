@@ -3,6 +3,7 @@ load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 rust_library(
     name = "name",
     srcs = ["name.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "@crates//:chrono",
         "@crates//:uuid",
@@ -12,6 +13,7 @@ rust_library(
 rust_library(
     name = "name_repo",
     srcs = ["repo.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":name",
         "@crates//:sqlx",
@@ -22,6 +24,7 @@ rust_library(
 rust_library(
     name = "name_service",
     srcs = ["service.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":name",
         ":name_repo",
