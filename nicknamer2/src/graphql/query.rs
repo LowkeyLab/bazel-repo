@@ -1,8 +1,7 @@
-use juniper::{FieldResult, ID, graphql_object};
-
 use graphql_context::Context;
-use graphql_model::{Name, NodeValue};
+use graphql_model::{Name, NodeValue, Server};
 use graphql_relay::RelayId;
+use juniper::{FieldResult, ID, graphql_object};
 
 /// Root query for the nicknamer2 GraphQL API.
 pub struct QueryRoot;
@@ -10,6 +9,15 @@ pub struct QueryRoot;
 #[graphql_object]
 #[graphql(context = Context)]
 impl QueryRoot {
+    /// Fetch a Discord server by its ID
+    fn server(#[graphql(description = "The Discord server ID")] id: ID) -> FieldResult<Server> {
+        let server_id: &str = &id;
+        let server_id_u64 = server_id
+            .parse::<u64>()
+            .map_err(|_| "Invalid server ID format")?;
+        Ok(Server { id: server_id_u64 })
+    }
+
     /// Fetch any object by its global Relay ID.
     async fn node(
         context: &Context,
