@@ -44,6 +44,17 @@ impl QueryRoot {
 
                 Ok(result.map(Name::from).map(NodeValue::Name))
             }
+            "Server" => {
+                let server_id = relay_id
+                    .as_server()
+                    .map_err(|e| format!("Invalid Server ID: {}", e))?;
+
+                if server_id == 0 {
+                    return Err("Server ID must be greater than 0".into());
+                }
+
+                Ok(Some(NodeValue::Server(Server { id: server_id })))
+            }
             _ => Ok(None),
         }
     }

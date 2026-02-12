@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use graphql_context::Context;
-use graphql_relay::Cursor;
+use graphql_relay::{Cursor, RelayId};
 use juniper::{FieldResult, GraphQLInterface, ID, graphql_object};
 use uuid::Uuid;
 
@@ -94,9 +94,9 @@ impl NameConnection {
 #[graphql_object(context = Context)]
 #[graphql(impl = NodeValue, description = "A Discord server")]
 impl Server {
-    /// The server ID
+    /// The server ID (global Relay ID)
     fn id(&self) -> ID {
-        ID::from(self.id.to_string())
+        RelayId::encode_server(self.id)
     }
 
     /// Paginated list of names in this server
@@ -120,7 +120,7 @@ impl Server {
         // Decode cursor if provided
         let cursor_value = if let Some(after_cursor) = after {
             let cursor = Cursor::decode(&after_cursor)?;
-            Some(cursor.name_value().to_string())
+            Some(cursor.user_id_value())
         } else {
             None
         };
@@ -147,7 +147,7 @@ impl Server {
         let edges: Vec<NameEdge> = names
             .into_iter()
             .map(|name| {
-                let cursor = Cursor::new(name.name.clone());
+                let cursor = Cursor::new(name.user_id);
                 NameEdge {
                     cursor: cursor.encode(),
                     node: Name::from(name),

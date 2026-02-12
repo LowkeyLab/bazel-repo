@@ -65,7 +65,7 @@ pub trait Lister {
         &self,
         server_id: u64,
         limit: i64,
-        cursor: Option<String>,
+        cursor: Option<Uuid>,
     ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
 }
 
@@ -163,20 +163,20 @@ impl Lister for Repo {
         &self,
         server_id: u64,
         limit: i64,
-        cursor: Option<String>,
+        cursor: Option<Uuid>,
     ) -> anyhow::Result<Vec<Name>> {
-        let query = if let Some(last_name) = cursor {
+        let query = if let Some(last_user_id) = cursor {
             sqlx::query_as::<_, NameDAO>(
                 r#"
                 SELECT user_id, server_id, name, created_at, updated_at
                 FROM names
-                WHERE server_id = $1 AND name > $2
-                ORDER BY name ASC
+                WHERE server_id = $1 AND user_id > $2
+                ORDER BY user_id ASC
                 LIMIT $3
                 "#,
             )
             .bind(server_id as i64)
-            .bind(last_name)
+            .bind(last_user_id)
             .bind(limit)
         } else {
             sqlx::query_as::<_, NameDAO>(
@@ -184,7 +184,7 @@ impl Lister for Repo {
                 SELECT user_id, server_id, name, created_at, updated_at
                 FROM names
                 WHERE server_id = $1
-                ORDER BY name ASC
+                ORDER BY user_id ASC
                 LIMIT $2
                 "#,
             )
@@ -204,6 +204,11 @@ mod tests {
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
     use user::User;
+
+    #[test]
+    fn dummy() {
+        // Dummy test to help Gazelle discover this test module
+    }
 
     /// Spins up a fresh PostgreSQL container for a single test
     async fn setup_test_db() -> (
@@ -290,7 +295,7 @@ mod tests {
         let user2 = insert_user(&pool, 222).await;
         let user3 = insert_user(&pool, 333).await;
 
-        // Insert names in non-alphabetical order
+        // Insert names in any order
         insert_name(&pool, user2, server_id, "Charlie").await;
         insert_name(&pool, user1, server_id, "Alice").await;
         insert_name(&pool, user3, server_id, "Bob").await;
@@ -298,10 +303,12 @@ mod tests {
         let result = repo.list_by_server(server_id, 10, None).await.unwrap();
 
         assert_eq!(result.len(), 3);
-        // Should be sorted alphabetically
-        assert_eq!(result[0].name, "Alice");
-        assert_eq!(result[1].name, "Bob");
-        assert_eq!(result[2].name, "Charlie");
+        // Should be sorted by user_id (UUID ordering)
+        let mut user_ids = vec![user1, user2, user3];
+        user_ids.sort();
+        assert_eq!(result[0].user_id, user_ids[0]);
+        assert_eq!(result[1].user_id, user_ids[1]);
+        assert_eq!(result[2].user_id, user_ids[2]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -321,8 +328,11 @@ mod tests {
         let result = repo.list_by_server(server_id, 2, None).await.unwrap();
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0].name, "Alice");
-        assert_eq!(result[1].name, "Bob");
+        // Should get first 2 by user_id ordering
+        let mut user_ids = vec![user1, user2, user3];
+        user_ids.sort();
+        assert_eq!(result[0].user_id, user_ids[0]);
+        assert_eq!(result[1].user_id, user_ids[1]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -339,14 +349,22 @@ mod tests {
         insert_name(&pool, user2, server_id, "Bob").await;
         insert_name(&pool, user3, server_id, "Charlie").await;
 
-        // Use "Bob" as cursor to get names after Bob
+        // Get all names to determine the actual ordering by user_id
+        let all_names = repo.list_by_server(server_id, 10, None).await.unwrap();
+        assert_eq!(all_names.len(), 3);
+
+        // Use the first user_id as cursor to get names after it
+        let first_user_id = all_names[0].user_id;
         let result = repo
-            .list_by_server(server_id, 10, Some("Bob".to_string()))
+            .list_by_server(server_id, 10, Some(first_user_id))
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].name, "Charlie");
+        // Should get 2 names (the ones after the first in UUID ordering)
+        assert_eq!(result.len(), 2);
+        // Verify they match the expected ordering
+        assert_eq!(result[0].user_id, all_names[1].user_id);
+        assert_eq!(result[1].user_id, all_names[2].user_id);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -359,9 +377,10 @@ mod tests {
 
         insert_name(&pool, user1, server_id, "Alice").await;
 
-        // Use "Zzzz" as cursor - no names after this
+        // Use a UUID larger than user1 - no names after this
+        let large_uuid = Uuid::parse_str("ffffffff-ffff-ffff-ffff-ffffffffffff").unwrap();
         let result = repo
-            .list_by_server(server_id, 10, Some("Zzzz".to_string()))
+            .list_by_server(server_id, 10, Some(large_uuid))
             .await
             .unwrap();
 

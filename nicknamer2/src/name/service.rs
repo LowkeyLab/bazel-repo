@@ -51,7 +51,7 @@ where
         &self,
         server_id: u64,
         limit: i64,
-        cursor: Option<String>,
+        cursor: Option<Uuid>,
     ) -> anyhow::Result<Vec<Name>> {
         self.repo.list_by_server(server_id, limit, cursor).await
     }

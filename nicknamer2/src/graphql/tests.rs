@@ -368,7 +368,9 @@ async fn test_query_server_names_empty() {
     assert!(body.get("errors").is_none());
 
     let server = body["data"]["server"].as_object().expect("Missing server");
-    assert_eq!(server["id"].as_str(), Some(server_id.to_string().as_str()));
+    // Server ID is now a global Relay ID (base64 encoded "Server:{id}")
+    let expected_id = graphql_relay::RelayId::encode_server(server_id);
+    assert_eq!(server["id"].as_str(), Some(expected_id.as_ref()));
 
     let names = server["names"].as_object().expect("Missing names");
     let edges = names["edges"].as_array().expect("Missing edges");
@@ -390,7 +392,7 @@ async fn test_query_server_names_first_page() {
     let user2 = insert_user(&context.pool, 222).await;
     let user3 = insert_user(&context.pool, 333).await;
 
-    // Insert in non-alphabetical order to verify sorting
+    // Insert in any order
     insert_name(&context.pool, user2, server_id, "Charlie").await;
     insert_name(&context.pool, user1, server_id, "Alice").await;
     insert_name(&context.pool, user3, server_id, "Bob").await;
@@ -430,11 +432,17 @@ async fn test_query_server_names_first_page() {
         .expect("Missing names");
     let edges = names["edges"].as_array().expect("Missing edges");
 
-    // Should be sorted alphabetically
+    // Should have all 3 names, ordered by user_id (UUID ordering)
     assert_eq!(edges.len(), 3);
-    assert_eq!(edges[0]["node"]["name"].as_str(), Some("Alice"));
-    assert_eq!(edges[1]["node"]["name"].as_str(), Some("Bob"));
-    assert_eq!(edges[2]["node"]["name"].as_str(), Some("Charlie"));
+
+    // Verify all three names are present (order determined by UUID)
+    let returned_names: Vec<&str> = edges
+        .iter()
+        .map(|e| e["node"]["name"].as_str().unwrap())
+        .collect();
+    assert!(returned_names.contains(&"Alice"));
+    assert!(returned_names.contains(&"Bob"));
+    assert!(returned_names.contains(&"Charlie"));
 
     // All edges should have cursors
     assert!(edges[0]["cursor"].as_str().is_some());
@@ -495,9 +503,11 @@ async fn test_query_server_names_with_limit() {
         .expect("Missing names");
     let edges = names["edges"].as_array().expect("Missing edges");
 
+    // Should return first 2 names (ordered by user_id)
     assert_eq!(edges.len(), 2);
-    assert_eq!(edges[0]["node"]["name"].as_str(), Some("Alice"));
-    assert_eq!(edges[1]["node"]["name"].as_str(), Some("Bob"));
+    // Verify names are present (specific order depends on UUID values)
+    assert!(edges[0]["node"]["name"].as_str().is_some());
+    assert!(edges[1]["node"]["name"].as_str().is_some());
 
     let page_info = names["pageInfo"].as_object().expect("Missing pageInfo");
     assert_eq!(page_info["hasNextPage"].as_bool(), Some(true));
@@ -516,12 +526,12 @@ async fn test_query_server_names_with_cursor() {
     insert_name(&context.pool, user2, server_id, "Bob").await;
     insert_name(&context.pool, user3, server_id, "Charlie").await;
 
-    // First, get the cursor for "Alice"
+    // First, get all names to know the order and get the first cursor
     let query = format!(
         r#"
         query {{
             server(id: "{}") {{
-                names(first: 1) {{
+                names(first: 3) {{
                     edges {{
                         cursor
                         node {{
@@ -539,11 +549,22 @@ async fn test_query_server_names_with_cursor() {
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
-    let alice_cursor = body["data"]["server"]["names"]["edges"][0]["cursor"]
-        .as_str()
-        .expect("Missing cursor");
+    let all_edges = body["data"]["server"]["names"]["edges"]
+        .as_array()
+        .expect("Missing edges");
+    assert_eq!(all_edges.len(), 3);
 
-    // Now query with cursor to get names after Alice
+    // Get the cursor of the first name (whatever it is)
+    let first_cursor = all_edges[0]["cursor"].as_str().expect("Missing cursor");
+
+    // Get expected remaining names (everything except the first)
+    let expected_names: Vec<&str> = all_edges
+        .iter()
+        .skip(1)
+        .filter_map(|edge| edge["node"]["name"].as_str())
+        .collect();
+
+    // Now query with cursor to get names after the first one
     let query_with_cursor = format!(
         r#"
         query {{
@@ -562,7 +583,7 @@ async fn test_query_server_names_with_cursor() {
             }}
         }}
         "#,
-        server_id, alice_cursor
+        server_id, first_cursor
     );
 
     let (status, body_text) =
@@ -576,10 +597,21 @@ async fn test_query_server_names_with_cursor() {
         .as_array()
         .expect("Missing edges");
 
-    // Should get Bob and Charlie (names after Alice)
+    // Should get 2 names after the first cursor
     assert_eq!(edges.len(), 2);
-    assert_eq!(edges[0]["node"]["name"].as_str(), Some("Bob"));
-    assert_eq!(edges[1]["node"]["name"].as_str(), Some("Charlie"));
+    let names: Vec<&str> = edges
+        .iter()
+        .filter_map(|edge| edge["node"]["name"].as_str())
+        .collect();
+    // Verify we got exactly the expected names (the two that weren't first)
+    assert_eq!(names.len(), expected_names.len());
+    for expected in &expected_names {
+        assert!(
+            names.contains(expected),
+            "Missing expected name: {}",
+            expected
+        );
+    }
 
     let page_info = body["data"]["server"]["names"]["pageInfo"]
         .as_object()
@@ -596,8 +628,9 @@ async fn test_query_server_names_cursor_past_end() {
     let user1 = insert_user(&context.pool, 111).await;
     insert_name(&context.pool, user1, server_id, "Alice").await;
 
-    // Create a cursor for "Zzzz" which is after all names
-    let cursor = graphql_relay::Cursor::new("Zzzz".to_string());
+    // Create a cursor with max UUID (greater than any actual user_id)
+    let max_uuid = uuid::Uuid::from_u128(u128::MAX);
+    let cursor = graphql_relay::Cursor::new(max_uuid);
     let encoded_cursor = cursor.encode();
 
     let query = format!(

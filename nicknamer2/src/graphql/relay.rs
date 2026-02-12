@@ -19,12 +19,20 @@ pub struct RelayId {
 pub enum RawId {
     /// Name is identified by (user_id, server_id)
     Name { user_id: Uuid, server_id: u64 },
+    /// Server is identified by server_id
+    Server { server_id: u64 },
 }
 
 impl RelayId {
     /// Encode a Name's composite key into a Relay global ID
     pub fn encode_name(user_id: Uuid, server_id: u64) -> ID {
         let plain = format!("Name:{}:{}", user_id, server_id);
+        ID::from(BASE64.encode(plain.as_bytes()))
+    }
+
+    /// Encode a Server's ID into a Relay global ID
+    pub fn encode_server(server_id: u64) -> ID {
+        let plain = format!("Server:{}", server_id);
         ID::from(BASE64.encode(plain.as_bytes()))
     }
 
@@ -51,6 +59,16 @@ impl RelayId {
                     raw_id: RawId::Name { user_id, server_id },
                 })
             }
+            ["Server", server_id_str] => {
+                let server_id = server_id_str
+                    .parse::<u64>()
+                    .context("Invalid server ID format")?;
+
+                Ok(RelayId {
+                    type_name: "Server".to_string(),
+                    raw_id: RawId::Server { server_id },
+                })
+            }
             _ => Err(anyhow!("Unknown type in global ID: {}", plain)),
         }
     }
@@ -59,22 +77,31 @@ impl RelayId {
     pub fn as_name(&self) -> Result<(Uuid, u64)> {
         match &self.raw_id {
             RawId::Name { user_id, server_id } => Ok((*user_id, *server_id)),
+            _ => Err(anyhow!("ID is not a Name type")),
+        }
+    }
+
+    /// Extract Server components or return error
+    pub fn as_server(&self) -> Result<u64> {
+        match &self.raw_id {
+            RawId::Server { server_id } => Ok(*server_id),
+            _ => Err(anyhow!("ID is not a Server type")),
         }
     }
 }
 
 /// Cursor for pagination in Relay connections
-/// Contains the field value used for cursor-based pagination
+/// Contains the user_id used for cursor-based pagination
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cursor {
-    /// The name value used for pagination (alphabetical ordering)
-    pub name: String,
+    /// The user_id used for pagination (unique ordering)
+    pub user_id: Uuid,
 }
 
 impl Cursor {
-    /// Create a new cursor from a name value
-    pub fn new(name: String) -> Self {
-        Self { name }
+    /// Create a new cursor from a user_id value
+    pub fn new(user_id: Uuid) -> Self {
+        Self { user_id }
     }
 
     /// Encode cursor to base64 JSON string
@@ -97,9 +124,9 @@ impl Cursor {
         Ok(cursor)
     }
 
-    /// Get the name value for use in SQL queries
-    pub fn name_value(&self) -> &str {
-        &self.name
+    /// Get the user_id value for use in SQL queries
+    pub fn user_id_value(&self) -> Uuid {
+        self.user_id
     }
 }
 
@@ -192,7 +219,8 @@ mod tests {
 
     #[test]
     fn test_cursor_encode() {
-        let cursor = Cursor::new("Alice".to_string());
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let cursor = Cursor::new(user_id);
         let encoded = cursor.encode();
 
         // Should be base64 encoded
@@ -203,21 +231,23 @@ mod tests {
 
     #[test]
     fn test_cursor_round_trip() {
-        let original = Cursor::new("TestName".to_string());
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let original = Cursor::new(user_id);
         let encoded = original.encode();
         let decoded = Cursor::decode(&encoded).unwrap();
 
-        assert_eq!(decoded.name, "TestName");
+        assert_eq!(decoded.user_id, user_id);
         assert_eq!(decoded, original);
     }
 
     #[test]
-    fn test_cursor_with_special_characters() {
-        let cursor = Cursor::new("Name-With_Special.Chars!@#".to_string());
+    fn test_cursor_with_different_uuids() {
+        let user_id = Uuid::parse_str("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap();
+        let cursor = Cursor::new(user_id);
         let encoded = cursor.encode();
         let decoded = Cursor::decode(&encoded).unwrap();
 
-        assert_eq!(decoded.name, "Name-With_Special.Chars!@#");
+        assert_eq!(decoded.user_id, user_id);
     }
 
     #[test]
@@ -241,8 +271,9 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_name_value() {
-        let cursor = Cursor::new("SomeName".to_string());
-        assert_eq!(cursor.name_value(), "SomeName");
+    fn test_cursor_user_id_value() {
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let cursor = Cursor::new(user_id);
+        assert_eq!(cursor.user_id_value(), user_id);
     }
 }
