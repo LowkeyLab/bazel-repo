@@ -330,3 +330,409 @@ async fn test_query_with_future_auth_placeholder() {
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
     assert!(body.get("errors").is_none());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_empty() {
+    let context = setup_test_context().await;
+    let server_id = 12345;
+
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                id
+                names(first: 10) {{
+                    edges {{
+                        cursor
+                        node {{
+                            name
+                        }}
+                    }}
+                    pageInfo {{
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none());
+
+    let server = body["data"]["server"].as_object().expect("Missing server");
+    assert_eq!(server["id"].as_str(), Some(server_id.to_string().as_str()));
+
+    let names = server["names"].as_object().expect("Missing names");
+    let edges = names["edges"].as_array().expect("Missing edges");
+    assert_eq!(edges.len(), 0);
+
+    let page_info = names["pageInfo"].as_object().expect("Missing pageInfo");
+    assert_eq!(page_info["hasNextPage"].as_bool(), Some(false));
+    assert_eq!(page_info["hasPreviousPage"].as_bool(), Some(false));
+    assert!(page_info["startCursor"].is_null());
+    assert!(page_info["endCursor"].is_null());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_first_page() {
+    let context = setup_test_context().await;
+    let server_id = 99999;
+
+    let user1 = insert_user(&context.pool, 111).await;
+    let user2 = insert_user(&context.pool, 222).await;
+    let user3 = insert_user(&context.pool, 333).await;
+
+    // Insert in non-alphabetical order to verify sorting
+    insert_name(&context.pool, user2, server_id, "Charlie").await;
+    insert_name(&context.pool, user1, server_id, "Alice").await;
+    insert_name(&context.pool, user3, server_id, "Bob").await;
+
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10) {{
+                    edges {{
+                        cursor
+                        node {{
+                            name
+                        }}
+                    }}
+                    pageInfo {{
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none());
+
+    let names = body["data"]["server"]["names"]
+        .as_object()
+        .expect("Missing names");
+    let edges = names["edges"].as_array().expect("Missing edges");
+
+    // Should be sorted alphabetically
+    assert_eq!(edges.len(), 3);
+    assert_eq!(edges[0]["node"]["name"].as_str(), Some("Alice"));
+    assert_eq!(edges[1]["node"]["name"].as_str(), Some("Bob"));
+    assert_eq!(edges[2]["node"]["name"].as_str(), Some("Charlie"));
+
+    // All edges should have cursors
+    assert!(edges[0]["cursor"].as_str().is_some());
+    assert!(edges[1]["cursor"].as_str().is_some());
+    assert!(edges[2]["cursor"].as_str().is_some());
+
+    let page_info = names["pageInfo"].as_object().expect("Missing pageInfo");
+    assert_eq!(page_info["hasNextPage"].as_bool(), Some(false));
+    assert_eq!(page_info["hasPreviousPage"].as_bool(), Some(false));
+    assert_eq!(
+        page_info["startCursor"].as_str(),
+        edges[0]["cursor"].as_str()
+    );
+    assert_eq!(page_info["endCursor"].as_str(), edges[2]["cursor"].as_str());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_with_limit() {
+    let context = setup_test_context().await;
+    let server_id = 88888;
+
+    let user1 = insert_user(&context.pool, 111).await;
+    let user2 = insert_user(&context.pool, 222).await;
+    let user3 = insert_user(&context.pool, 333).await;
+
+    insert_name(&context.pool, user1, server_id, "Alice").await;
+    insert_name(&context.pool, user2, server_id, "Bob").await;
+    insert_name(&context.pool, user3, server_id, "Charlie").await;
+
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 2) {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                    pageInfo {{
+                        hasNextPage
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none());
+
+    let names = body["data"]["server"]["names"]
+        .as_object()
+        .expect("Missing names");
+    let edges = names["edges"].as_array().expect("Missing edges");
+
+    assert_eq!(edges.len(), 2);
+    assert_eq!(edges[0]["node"]["name"].as_str(), Some("Alice"));
+    assert_eq!(edges[1]["node"]["name"].as_str(), Some("Bob"));
+
+    let page_info = names["pageInfo"].as_object().expect("Missing pageInfo");
+    assert_eq!(page_info["hasNextPage"].as_bool(), Some(true));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_with_cursor() {
+    let context = setup_test_context().await;
+    let server_id = 77777;
+
+    let user1 = insert_user(&context.pool, 111).await;
+    let user2 = insert_user(&context.pool, 222).await;
+    let user3 = insert_user(&context.pool, 333).await;
+
+    insert_name(&context.pool, user1, server_id, "Alice").await;
+    insert_name(&context.pool, user2, server_id, "Bob").await;
+    insert_name(&context.pool, user3, server_id, "Charlie").await;
+
+    // First, get the cursor for "Alice"
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 1) {{
+                    edges {{
+                        cursor
+                        node {{
+                            name
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    let alice_cursor = body["data"]["server"]["names"]["edges"][0]["cursor"]
+        .as_str()
+        .expect("Missing cursor");
+
+    // Now query with cursor to get names after Alice
+    let query_with_cursor = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10, after: "{}") {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                    pageInfo {{
+                        hasNextPage
+                        hasPreviousPage
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id, alice_cursor
+    );
+
+    let (status, body_text) =
+        execute_graphql(&context.app, &query_with_cursor, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none());
+
+    let edges = body["data"]["server"]["names"]["edges"]
+        .as_array()
+        .expect("Missing edges");
+
+    // Should get Bob and Charlie (names after Alice)
+    assert_eq!(edges.len(), 2);
+    assert_eq!(edges[0]["node"]["name"].as_str(), Some("Bob"));
+    assert_eq!(edges[1]["node"]["name"].as_str(), Some("Charlie"));
+
+    let page_info = body["data"]["server"]["names"]["pageInfo"]
+        .as_object()
+        .expect("Missing pageInfo");
+    assert_eq!(page_info["hasNextPage"].as_bool(), Some(false));
+    assert_eq!(page_info["hasPreviousPage"].as_bool(), Some(true));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_cursor_past_end() {
+    let context = setup_test_context().await;
+    let server_id = 66666;
+
+    let user1 = insert_user(&context.pool, 111).await;
+    insert_name(&context.pool, user1, server_id, "Alice").await;
+
+    // Create a cursor for "Zzzz" which is after all names
+    let cursor = graphql_relay::Cursor::new("Zzzz".to_string());
+    let encoded_cursor = cursor.encode();
+
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10, after: "{}") {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                    pageInfo {{
+                        hasNextPage
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id, encoded_cursor
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none());
+
+    let edges = body["data"]["server"]["names"]["edges"]
+        .as_array()
+        .expect("Missing edges");
+    assert_eq!(edges.len(), 0);
+
+    let page_info = body["data"]["server"]["names"]["pageInfo"]
+        .as_object()
+        .expect("Missing pageInfo");
+    assert_eq!(page_info["hasNextPage"].as_bool(), Some(false));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_different_servers() {
+    let context = setup_test_context().await;
+    let server1 = 11111;
+    let server2 = 22222;
+
+    let user1 = insert_user(&context.pool, 111).await;
+    let user2 = insert_user(&context.pool, 222).await;
+
+    insert_name(&context.pool, user1, server1, "ServerOne").await;
+    insert_name(&context.pool, user2, server2, "ServerTwo").await;
+
+    // Query server1
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10) {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server1
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    let edges = body["data"]["server"]["names"]["edges"]
+        .as_array()
+        .expect("Missing edges");
+    assert_eq!(edges.len(), 1);
+    assert_eq!(edges[0]["node"]["name"].as_str(), Some("ServerOne"));
+
+    // Query server2
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10) {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server2
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    let edges = body["data"]["server"]["names"]["edges"]
+        .as_array()
+        .expect("Missing edges");
+    assert_eq!(edges.len(), 1);
+    assert_eq!(edges[0]["node"]["name"].as_str(), Some("ServerTwo"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_invalid_cursor() {
+    let context = setup_test_context().await;
+    let server_id = 55555;
+
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10, after: "invalid-cursor!!!") {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    // Should return an error for invalid cursor
+    let errors = body.get("errors");
+    assert!(errors.is_some());
+}

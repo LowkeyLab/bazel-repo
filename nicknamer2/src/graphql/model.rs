@@ -112,6 +112,9 @@ impl Server {
             None
         };
 
+        // Track if we have a cursor for pagination info
+        let has_cursor = cursor_value.is_some();
+
         // Request one extra item to determine if there's a next page
         let fetch_limit = (limit + 1) as i64;
 
@@ -142,7 +145,7 @@ impl Server {
         // Build page info
         let page_info = PageInfo {
             has_next_page,
-            has_previous_page: false, // We don't support backward pagination yet
+            has_previous_page: has_cursor, // If we used a cursor, there are previous pages
             start_cursor: edges.first().map(|e| e.cursor.clone()),
             end_cursor: edges.last().map(|e| e.cursor.clone()),
         };
