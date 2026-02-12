@@ -44,6 +44,8 @@ rust_test(
     timeout = "short",
     crate = ":name_repo",
     tags = ["requires-network"],
+    # Gazelle cannot auto-detect test-only dependencies for inline #[cfg(test)] modules.
+    # The '# keep' annotations prevent Gazelle from removing these manually-added deps.
     deps = [
         "//nicknamer2/src/migrations",  # keep
         "//nicknamer2/src/user",  # keep

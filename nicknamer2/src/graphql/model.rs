@@ -4,6 +4,11 @@ use graphql_relay::Cursor;
 use juniper::{FieldResult, GraphQLInterface, ID, graphql_object};
 use uuid::Uuid;
 
+/// Pagination constants for the names connection
+const DEFAULT_PAGE_SIZE: i32 = 10;
+const MAX_PAGE_SIZE: i32 = 100;
+const MIN_PAGE_SIZE: i32 = 1;
+
 /// The Relay Node interface - all types with global IDs implement this
 #[derive(GraphQLInterface)]
 #[graphql(for = [Name, Server], context = Context)]
@@ -101,8 +106,16 @@ impl Server {
         first: Option<i32>,
         after: Option<String>,
     ) -> FieldResult<NameConnection> {
-        // Default to 10 items, max 100
-        let limit = first.unwrap_or(10).min(100).max(1);
+        // Validate and apply pagination limits
+        let requested = first.unwrap_or(DEFAULT_PAGE_SIZE);
+        if requested < MIN_PAGE_SIZE {
+            return Err(format!(
+                "Argument 'first' must be at least {}, got {}",
+                MIN_PAGE_SIZE, requested
+            )
+            .into());
+        }
+        let limit = requested.min(MAX_PAGE_SIZE);
 
         // Decode cursor if provided
         let cursor_value = if let Some(after_cursor) = after {

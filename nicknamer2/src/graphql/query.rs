@@ -15,6 +15,11 @@ impl QueryRoot {
         let server_id_u64 = server_id
             .parse::<u64>()
             .map_err(|_| "Invalid server ID format")?;
+
+        if server_id_u64 == 0 {
+            return Err("Server ID must be greater than 0".into());
+        }
+
         Ok(Server { id: server_id_u64 })
     }
 
