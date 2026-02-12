@@ -15,14 +15,14 @@ aspect build //...
 # Run all tests
 aspect test //...
 
+# Update BUILD files (MUST run immediately after ANY source file edit)
+bazel run gazelle
+
 # Format all code (Rust, Kotlin, Go, JS/TS, BUILD files)
 format
 
 # Run all linters
 aspect lint
-
-# Update BUILD files (ALWAYS run after adding Go, TS, or Proto files)
-bazel run gazelle
 
 # Install/update NPM dependencies
 bazel run @pnpm -- --dir $PWD install
@@ -70,10 +70,11 @@ bazel clean && aspect build //...
 
 ### General Rules
 
+- **Gazelle:** MUST run `bazel run gazelle` immediately after editing ANY source file (.rs, .kt, .go, .ts, .js, .proto, etc.) and BEFORE running `format`
 - **Formatting:** ALWAYS run `format` before committing or completing a task
 - **Minimal changes:** Only modify what's strictly necessary
 - **Dependencies:** Prefer existing libraries in `MODULE.bazel`
-- **BUILD files:** Run `bazel run gazelle` BEFORE manually editing BUILD files for Go/TS/Proto
+- **BUILD files:** Never manually edit BUILD files before running `bazel run gazelle`
 - **Verification:** Run `aspect build //...` to verify changes don't break the build
 - **Security:** NEVER hardcode secrets/credentials; use environment variables
 
@@ -235,7 +236,7 @@ bazel clean && aspect build //...
 **Conventions:**
 
 - Use `# keep` comments for lines that shouldn't be auto-modified by Gazelle
-- Run `bazel run gazelle` before manual edits to Go/TS/Proto BUILD files
+- Run `bazel run gazelle` before manual edits to BUILD files
 - Verify changes: `aspect build //path/to/package/...`
 
 ## 3. Repository Structure
@@ -260,7 +261,7 @@ bazel-repo/
 ## 4. Development Workflow
 
 1. Make code changes in appropriate project directory
-2. **Run Gazelle** if adding Go, TypeScript, or Proto files: `bazel run gazelle`
+2. **Run Gazelle immediately:** `bazel run gazelle` (REQUIRED after ANY source file edit)
 3. **Format code:** `format` (handles all languages)
 4. **Run tests:** `aspect test //path/to/tests` or `aspect test //...`
 5. **Test locally:** Use project-specific run commands (see subproject AGENTS.md)
@@ -314,6 +315,8 @@ cd predix && sqlc generate
 
 - ❌ Using `cargo build/test` instead of `aspect build/test`
 - ❌ Using `npm install` instead of `bazel run @pnpm -- --dir $PWD install`
+- ❌ Forgetting to run `bazel run gazelle` immediately after editing source files
+- ❌ Running `format` before running `bazel run gazelle`
 - ❌ Editing BUILD files before running `bazel run gazelle`
 - ❌ Forgetting to run `format` before committing
 - ❌ Hardcoding secrets instead of using environment variables

@@ -8,35 +8,45 @@ edition = "2024"
 anyhow = "1.0.100"
 askama = "0.15.0"
 axum = "0.8.6"
+base64 = "0.22"
 axum-extra = { version = "0.12.0", features = ["cookie"] }
 chrono = "0.4.42"
 config = "0.15.18"
 jsonwebtoken = { version = "10.0.0", features = ["aws_lc_rs"] }
+juniper = { version = "0.17.1", features = ["uuid", "chrono"] }
+juniper_axum = "0.3.0"
 sea-orm = { version = "1.1.16", features = [
-    "sqlx-postgres",
-    "runtime-tokio-rustls",
-    "macros",
+  "sqlx-postgres",
+  "runtime-tokio-rustls",
+  "macros",
 ] }
 sea-orm-migration = { version = "1.1.0", default-features = false, features = [
-    "runtime-tokio-rustls",
-    "sqlx-postgres",
-    "cli",
+  "runtime-tokio-rustls",
+  "sqlx-postgres",
+  "cli",
 ] }
 serde = "1.0.228"
 serde_json = "1.0.145"
+sqlx = { version = "0.8", features = [
+  "postgres",
+  "runtime-tokio-rustls",
+  "uuid",
+  "chrono",
+  "macros",
+] }
 serde_yaml = "0.9.34"
 thiserror = "2.0.17"
 time = "0.3.44"
 tokio = { version = "1.47.1", default-features = false, features = [
-    "macros",
-    "net",
-    "rt-multi-thread",
+  "macros",
+  "net",
+  "rt-multi-thread",
 ] }
 tower = { version = "0.5.2", features = ["util"] }
 tower-http = { version = "0.6.6", features = [
-    "trace",
-    "cors",
-    "sensitive-headers",
+  "trace",
+  "cors",
+  "sensitive-headers",
 ] }
 tracing = "0.1.41"
 tracing-futures = "0.2.5"

@@ -1,3 +1,4 @@
+// Package user defines the User entity for the Predix platform.
 package user
 
 import (

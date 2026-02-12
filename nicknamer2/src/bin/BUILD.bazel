@@ -1,0 +1,22 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "nicknamer2",
+    srcs = ["main.rs"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//nicknamer2/src/config:nicknamer2_config",
+        "//nicknamer2/src/graphql:graphql_context",
+        "//nicknamer2/src/graphql:graphql_schema",
+        "//nicknamer2/src/migrations",
+        "//nicknamer2/src/name:name_repo",
+        "//nicknamer2/src/name:name_service",
+        "//nicknamer2/src/server",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:sqlx",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
+)

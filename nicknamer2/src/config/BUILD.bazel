@@ -1,0 +1,12 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "nicknamer2_config",
+    srcs = ["config.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:config",
+        "@crates//:serde",
+    ],
+)
