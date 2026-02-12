@@ -60,6 +60,16 @@ pub trait Deleter {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
+/// Lists names from the database with pagination support
+pub trait Lister {
+    fn list_by_server(
+        &self,
+        server_id: u64,
+        limit: i64,
+        cursor: Option<String>,
+    ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
+}
+
 #[derive(Debug)]
 pub struct Repo {
     pool: PgPool,
@@ -146,5 +156,44 @@ impl Deleter for Repo {
         .await?;
 
         Ok(())
+    }
+}
+
+impl Lister for Repo {
+    async fn list_by_server(
+        &self,
+        server_id: u64,
+        limit: i64,
+        cursor: Option<String>,
+    ) -> anyhow::Result<Vec<Name>> {
+        let query = if let Some(last_name) = cursor {
+            sqlx::query_as::<_, NameDAO>(
+                r#"
+                SELECT id, user_id, server_id, name, created_at, updated_at
+                FROM names
+                WHERE server_id = $1 AND name > $2
+                ORDER BY name ASC
+                LIMIT $3
+                "#,
+            )
+            .bind(server_id as i64)
+            .bind(last_name)
+            .bind(limit)
+        } else {
+            sqlx::query_as::<_, NameDAO>(
+                r#"
+                SELECT id, user_id, server_id, name, created_at, updated_at
+                FROM names
+                WHERE server_id = $1
+                ORDER BY name ASC
+                LIMIT $2
+                "#,
+            )
+            .bind(server_id as i64)
+            .bind(limit)
+        };
+
+        let daos = query.fetch_all(&self.pool).await?;
+        Ok(daos.into_iter().map(Into::into).collect())
     }
 }
