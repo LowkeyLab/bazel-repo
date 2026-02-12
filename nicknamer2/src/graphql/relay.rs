@@ -1,6 +1,7 @@
 use anyhow::{Context as _, Result, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use juniper::ID;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Relay Global Object Identification ID
@@ -59,6 +60,46 @@ impl RelayId {
         match &self.raw_id {
             RawId::Name { user_id, server_id } => Ok((*user_id, *server_id)),
         }
+    }
+}
+
+/// Cursor for pagination in Relay connections
+/// Contains the field value used for cursor-based pagination
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Cursor {
+    /// The name value used for pagination (alphabetical ordering)
+    pub name: String,
+}
+
+impl Cursor {
+    /// Create a new cursor from a name value
+    pub fn new(name: String) -> Self {
+        Self { name }
+    }
+
+    /// Encode cursor to base64 JSON string
+    pub fn encode(&self) -> String {
+        let json = serde_json::to_string(self)
+            .expect("Cursor serialization should never fail with valid data");
+        BASE64.encode(json.as_bytes())
+    }
+
+    /// Decode cursor from base64 JSON string
+    pub fn decode(encoded: &str) -> Result<Self> {
+        let bytes = BASE64
+            .decode(encoded)
+            .context("Invalid base64 encoding in cursor")?;
+
+        let json_str = String::from_utf8(bytes).context("Invalid UTF-8 in cursor")?;
+
+        let cursor: Cursor = serde_json::from_str(&json_str).context("Invalid JSON in cursor")?;
+
+        Ok(cursor)
+    }
+
+    /// Get the name value for use in SQL queries
+    pub fn name_value(&self) -> &str {
+        &self.name
     }
 }
 
@@ -147,5 +188,61 @@ mod tests {
                 .to_string()
                 .contains("Invalid server ID format")
         );
+    }
+
+    #[test]
+    fn test_cursor_encode() {
+        let cursor = Cursor::new("Alice".to_string());
+        let encoded = cursor.encode();
+
+        // Should be base64 encoded
+        assert!(!encoded.is_empty());
+        // Should be decodeable
+        assert!(BASE64.decode(&encoded).is_ok());
+    }
+
+    #[test]
+    fn test_cursor_round_trip() {
+        let original = Cursor::new("TestName".to_string());
+        let encoded = original.encode();
+        let decoded = Cursor::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.name, "TestName");
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn test_cursor_with_special_characters() {
+        let cursor = Cursor::new("Name-With_Special.Chars!@#".to_string());
+        let encoded = cursor.encode();
+        let decoded = Cursor::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.name, "Name-With_Special.Chars!@#");
+    }
+
+    #[test]
+    fn test_cursor_decode_invalid_base64() {
+        let result = Cursor::decode("not-valid-base64!!!");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid base64 encoding")
+        );
+    }
+
+    #[test]
+    fn test_cursor_decode_invalid_json() {
+        let invalid_json = BASE64.encode(b"not valid json");
+        let result = Cursor::decode(&invalid_json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_cursor_name_value() {
+        let cursor = Cursor::new("SomeName".to_string());
+        assert_eq!(cursor.name_value(), "SomeName");
     }
 }
