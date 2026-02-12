@@ -1,0 +1,27 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+rust_binary(
+    name = "main",
+    srcs = ["main.rs"],
+    data = ["day1.txt"],
+    deps = [
+        ":day1",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)
+
+rust_library(
+    name = "day1",
+    srcs = ["day1.rs"],
+)
+
+rust_test(
+    name = "day1_test",
+    crate = ":day1",
+    deps = ["@crates//:test-case"],
+)
