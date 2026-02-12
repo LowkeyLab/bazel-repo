@@ -1,13 +1,6 @@
-use thiserror;
 use user::User;
 use user_repo::{ByDiscordIdGetter, ByIdGetter, Deleter, Saver, Updater};
 use uuid::Uuid;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Repository error: {0}")]
-    RepositoryError(#[from] user_repo::Error),
-}
 
 struct Service<T>
 where
@@ -24,26 +17,26 @@ where
         Self { repo }
     }
 
-    pub async fn create_user(&self, discord_id: u64) -> Result<(), Error> {
+    pub async fn create_user(&self, discord_id: u64) -> anyhow::Result<()> {
         let user = User::new(discord_id);
         self.repo.save(user).await?;
         Ok(())
     }
 
-    pub async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, Error> {
+    pub async fn get_by_discord_id(&self, discord_id: u64) -> anyhow::Result<Option<User>> {
         Ok(self.repo.get_by_discord_id(discord_id).await?)
     }
 
-    pub async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, Error> {
+    pub async fn get_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>> {
         Ok(self.repo.get_by_id(id).await?)
     }
 
-    pub async fn update_user(&self, user: User) -> Result<(), Error> {
+    pub async fn update_user(&self, user: User) -> anyhow::Result<()> {
         self.repo.update(user).await?;
         Ok(())
     }
 
-    pub async fn delete_user(&self, id: Uuid) -> Result<bool, Error> {
+    pub async fn delete_user(&self, id: Uuid) -> anyhow::Result<bool> {
         Ok(self.repo.delete(id).await?)
     }
 }

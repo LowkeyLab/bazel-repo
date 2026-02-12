@@ -1,16 +1,6 @@
 use name::Name;
 use name_repo::{Deleter, Getter, Saver, Updater};
-use thiserror;
 use uuid::Uuid;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Repository error: {0}")]
-    RepositoryError(#[from] name_repo::Error),
-
-    #[error("Invalid name: {0}")]
-    InvalidName(String),
-}
 
 pub struct Service<T>
 where
@@ -32,7 +22,7 @@ where
         user_id: Uuid,
         server_id: u64,
         name: String,
-    ) -> Result<(), Error> {
+    ) -> anyhow::Result<()> {
         let name_entity = Name::new(user_id, server_id, name);
         self.repo.save(name_entity).await?;
         Ok(())
@@ -43,16 +33,16 @@ where
         user_id: Uuid,
         server_id: u64,
         new_name: String,
-    ) -> Result<(), Error> {
+    ) -> anyhow::Result<()> {
         self.repo.update(user_id, server_id, new_name).await?;
         Ok(())
     }
 
-    pub async fn get_name(&self, user_id: Uuid, server_id: u64) -> Result<Option<Name>, Error> {
+    pub async fn get_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
         Ok(self.repo.get(user_id, server_id).await?)
     }
 
-    pub async fn delete_name(&self, user_id: Uuid, server_id: u64) -> Result<(), Error> {
+    pub async fn delete_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
         self.repo.delete(user_id, server_id).await?;
         Ok(())
     }

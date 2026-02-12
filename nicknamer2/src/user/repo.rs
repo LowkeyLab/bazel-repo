@@ -2,20 +2,7 @@ use sqlx::PgPool;
 use sqlx::types::Uuid;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::future::Future;
-use thiserror;
 use user::User;
-
-#[derive(Debug, Eq, PartialEq, thiserror::Error)]
-pub enum Error {
-    #[error("Database error: {0}")]
-    DbError(String),
-}
-
-impl From<sqlx::Error> for Error {
-    fn from(e: sqlx::Error) -> Self {
-        Error::DbError(e.to_string())
-    }
-}
 
 /// Data Access Object for User table mapping
 #[derive(Debug, sqlx::FromRow)]
@@ -50,29 +37,29 @@ impl From<User> for UserDAO {
 
 /// Saves a user to the database.
 pub trait Saver {
-    fn save(&self, user: User) -> impl Future<Output = Result<(), Error>> + Send;
+    fn save(&self, user: User) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 pub trait ByDiscordIdGetter {
     fn get_by_discord_id(
         &self,
         discord_id: u64,
-    ) -> impl Future<Output = Result<Option<User>, Error>> + Send;
+    ) -> impl Future<Output = anyhow::Result<Option<User>>> + Send;
 }
 
 /// Gets a user by their UUID.
 pub trait ByIdGetter {
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Option<User>, Error>> + Send;
+    fn get_by_id(&self, id: Uuid) -> impl Future<Output = anyhow::Result<Option<User>>> + Send;
 }
 
 /// Updates an existing user in the database.
 pub trait Updater {
-    fn update(&self, user: User) -> impl Future<Output = Result<(), Error>> + Send;
+    fn update(&self, user: User) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 /// Deletes a user from the database by their UUID.
 pub trait Deleter {
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<bool, Error>> + Send;
+    fn delete(&self, id: Uuid) -> impl Future<Output = anyhow::Result<bool>> + Send;
 }
 
 #[derive(Debug)]
@@ -87,7 +74,7 @@ impl Repo {
 }
 
 impl Saver for Repo {
-    async fn save(&self, user: User) -> Result<(), Error> {
+    async fn save(&self, user: User) -> anyhow::Result<()> {
         let dao: UserDAO = user.into();
         sqlx::query(
             r#"
@@ -107,7 +94,7 @@ impl Saver for Repo {
 }
 
 impl ByDiscordIdGetter for Repo {
-    async fn get_by_discord_id(&self, discord_id: u64) -> Result<Option<User>, Error> {
+    async fn get_by_discord_id(&self, discord_id: u64) -> anyhow::Result<Option<User>> {
         let dao = sqlx::query_as::<_, UserDAO>(
             r#"
             SELECT id, discord_id, created_at, updated_at
@@ -124,7 +111,7 @@ impl ByDiscordIdGetter for Repo {
 }
 
 impl ByIdGetter for Repo {
-    async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, Error> {
+    async fn get_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>> {
         let dao = sqlx::query_as::<_, UserDAO>(
             r#"
             SELECT id, discord_id, created_at, updated_at
@@ -141,7 +128,7 @@ impl ByIdGetter for Repo {
 }
 
 impl Updater for Repo {
-    async fn update(&self, user: User) -> Result<(), Error> {
+    async fn update(&self, user: User) -> anyhow::Result<()> {
         let dao: UserDAO = user.into();
         sqlx::query(
             r#"
@@ -161,7 +148,7 @@ impl Updater for Repo {
 }
 
 impl Deleter for Repo {
-    async fn delete(&self, id: Uuid) -> Result<bool, Error> {
+    async fn delete(&self, id: Uuid) -> anyhow::Result<bool> {
         let result = sqlx::query(
             r#"
             DELETE FROM users

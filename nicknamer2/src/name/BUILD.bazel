@@ -16,8 +16,8 @@ rust_library(
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":name",
+        "@crates//:anyhow",
         "@crates//:sqlx",
-        "@crates//:thiserror",
     ],
 )
 
@@ -28,7 +28,7 @@ rust_library(
     deps = [
         ":name",
         ":name_repo",
-        "@crates//:thiserror",
+        "@crates//:anyhow",
         "@crates//:uuid",
     ],
 )

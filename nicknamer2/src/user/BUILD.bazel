@@ -5,8 +5,8 @@ rust_library(
     srcs = ["repo.rs"],
     deps = [
         ":user",
+        "@crates//:anyhow",
         "@crates//:sqlx",
-        "@crates//:thiserror",
     ],
 )
 
@@ -16,7 +16,7 @@ rust_library(
     deps = [
         ":user",
         ":user_repo",
-        "@crates//:thiserror",
+        "@crates//:anyhow",
         "@crates//:uuid",
     ],
 )

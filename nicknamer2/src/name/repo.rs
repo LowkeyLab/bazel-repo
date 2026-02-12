@@ -3,19 +3,6 @@ use sqlx::PgPool;
 use sqlx::types::Uuid;
 use sqlx::types::chrono::{DateTime, Utc};
 use std::future::Future;
-use thiserror;
-
-#[derive(Debug, Eq, PartialEq, thiserror::Error)]
-pub enum Error {
-    #[error("Database error: {0}")]
-    DbError(String),
-}
-
-impl From<sqlx::Error> for Error {
-    fn from(e: sqlx::Error) -> Self {
-        Error::DbError(e.to_string())
-    }
-}
 
 /// Data Access Object for Name table mapping
 #[derive(Debug, sqlx::FromRow)]
@@ -42,7 +29,7 @@ impl From<NameDAO> for Name {
 
 /// Saves a name to the database.
 pub trait Saver {
-    fn save(&self, name: Name) -> impl Future<Output = Result<(), Error>> + Send;
+    fn save(&self, name: Name) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 /// Updates a name in the database.
@@ -52,7 +39,7 @@ pub trait Updater {
         user_id: Uuid,
         server_id: u64,
         new_name: String,
-    ) -> impl Future<Output = Result<(), Error>> + Send;
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 /// Gets a name from the database.
@@ -61,7 +48,7 @@ pub trait Getter {
         &self,
         user_id: Uuid,
         server_id: u64,
-    ) -> impl Future<Output = Result<Option<Name>, Error>> + Send;
+    ) -> impl Future<Output = anyhow::Result<Option<Name>>> + Send;
 }
 
 /// Deletes a name from the database.
@@ -70,7 +57,7 @@ pub trait Deleter {
         &self,
         user_id: Uuid,
         server_id: u64,
-    ) -> impl Future<Output = Result<(), Error>> + Send;
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 #[derive(Debug)]
@@ -85,7 +72,7 @@ impl Repo {
 }
 
 impl Saver for Repo {
-    async fn save(&self, name: Name) -> Result<(), Error> {
+    async fn save(&self, name: Name) -> anyhow::Result<()> {
         let id = Uuid::new_v4();
         sqlx::query(
             r#"
@@ -107,7 +94,7 @@ impl Saver for Repo {
 }
 
 impl Updater for Repo {
-    async fn update(&self, user_id: Uuid, server_id: u64, new_name: String) -> Result<(), Error> {
+    async fn update(&self, user_id: Uuid, server_id: u64, new_name: String) -> anyhow::Result<()> {
         let now = Utc::now();
         sqlx::query(
             r#"
@@ -128,7 +115,7 @@ impl Updater for Repo {
 }
 
 impl Getter for Repo {
-    async fn get(&self, user_id: Uuid, server_id: u64) -> Result<Option<Name>, Error> {
+    async fn get(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
         let dao = sqlx::query_as::<_, NameDAO>(
             r#"
             SELECT id, user_id, server_id, name, created_at, updated_at
@@ -146,7 +133,7 @@ impl Getter for Repo {
 }
 
 impl Deleter for Repo {
-    async fn delete(&self, user_id: Uuid, server_id: u64) -> Result<(), Error> {
+    async fn delete(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
         sqlx::query(
             r#"
             DELETE FROM names
