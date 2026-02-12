@@ -591,5 +591,5 @@ mvdan.cc/gofumpt v0.8.0 h1:nZUCeC2ViFaerTcYKstMmfysj6uhQrA2vJe+2vwGU6k=
 mvdan.cc/gofumpt v0.8.0/go.mod h1:vEYnSzyGPmjvFkqJWtXkh79UwPWP9/HMxQdGEXZHjpg=
 mvdan.cc/xurls/v2 v2.6.0 h1:3NTZpeTxYVWNSokW3MKeyVkz/j7uYXYiMtXRUfmjbgI=
 mvdan.cc/xurls/v2 v2.6.0/go.mod h1:bCvEZ1XvdA6wDnxY7jPPjEmigDtvtvPXAD/Exa9IMSk=
-nmyk.io/cowsay v1.0.2 h1:IujXdeY3aa58+5FphyPt6xOBTjzuD5Y76HQfjGB+m7w=
-nmyk.io/cowsay v1.0.2/go.mod h1:y/pdjANSA2T4PL01zyNU6YuVBj1A9qaRsERHFxkDbV4=
+nmyk.io/cowsay v1.1.0 h1:XidzcmRRH2Lg34nWYD+7QKeGcnb7VP0fMTNlZjaRse4=
+nmyk.io/cowsay v1.1.0/go.mod h1:y/pdjANSA2T4PL01zyNU6YuVBj1A9qaRsERHFxkDbV4=

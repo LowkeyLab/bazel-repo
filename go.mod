@@ -11,7 +11,7 @@ tool (
 
 require (
 	github.com/stretchr/testify v1.11.1
-	nmyk.io/cowsay v1.0.2
+	nmyk.io/cowsay v1.1.0
 )
 
 require (
