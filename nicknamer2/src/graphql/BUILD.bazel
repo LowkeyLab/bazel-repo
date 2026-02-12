@@ -12,10 +12,34 @@ rust_library(
 )
 
 rust_library(
+    name = "graphql_relay",
+    srcs = ["relay.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:base64",
+        "@crates//:juniper",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "graphql_relay_test",
+    crate = ":graphql_relay",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:base64",
+        "@crates//:juniper",
+        "@crates//:uuid",
+    ],
+)
+
+rust_library(
     name = "graphql_model",
     srcs = ["model.rs"],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
+        ":graphql_relay",
         "//nicknamer2/src/name",
         "@crates//:chrono",
         "@crates//:juniper",
@@ -30,6 +54,7 @@ rust_library(
     deps = [
         ":graphql_context",
         ":graphql_model",
+        ":graphql_relay",
         "@crates//:juniper",
         "@crates//:uuid",
     ],
@@ -63,12 +88,14 @@ rust_test(
     tags = ["requires-network"],
     deps = [
         ":graphql_context",
+        ":graphql_relay",
         ":graphql_schema",
         "//nicknamer2/src/migrations",
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "//nicknamer2/src/server",
         "@crates//:axum",
+        "@crates//:base64",
         "@crates//:chrono",
         "@crates//:serde_json",
         "@crates//:sqlx",

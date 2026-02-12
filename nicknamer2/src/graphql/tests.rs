@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode};
+use base64::Engine;
 use chrono::Utc;
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -12,6 +13,7 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 use graphql_context::Context;
+use graphql_relay::RelayId;
 use graphql_schema::create_schema;
 
 struct TestContext {
@@ -150,19 +152,20 @@ async fn test_query_existing_name_success() {
     let name_value = "TestName";
     insert_name(&context.pool, user_id, server_id, name_value).await;
 
+    let relay_id = RelayId::encode_name(user_id, server_id);
     let query = r#"
         query {
-            name(userId: "USER_ID", serverId: "SERVER_ID") {
-                userId
-                serverId
-                name
-                createdAt
-                updatedAt
+            node(id: "RELAY_ID") {
+                id
+                ... on Name {
+                    name
+                    createdAt
+                    updatedAt
+                }
             }
         }
     "#
-    .replace("USER_ID", &user_id.to_string())
-    .replace("SERVER_ID", &server_id.to_string());
+    .replace("RELAY_ID", &relay_id.to_string());
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
     let body = parse_graphql_body(&body_text);
@@ -171,36 +174,34 @@ async fn test_query_existing_name_success() {
     assert!(body.get("errors").is_none());
 
     let data = body.get("data").expect("Missing data");
-    let name = data.get("name").expect("Missing name field");
+    let node = data.get("node").expect("Missing node field");
     assert_eq!(
-        name.get("userId").and_then(Value::as_str),
-        Some(user_id.to_string().as_str())
+        node.get("id").and_then(Value::as_str),
+        Some(relay_id.to_string().as_str())
     );
-    assert_eq!(
-        name.get("serverId").and_then(Value::as_str),
-        Some(server_id.to_string().as_str())
-    );
-    assert_eq!(name.get("name").and_then(Value::as_str), Some(name_value));
-    assert!(name.get("createdAt").and_then(Value::as_str).is_some());
-    assert!(name.get("updatedAt").and_then(Value::as_str).is_some());
+    assert_eq!(node.get("name").and_then(Value::as_str), Some(name_value));
+    assert!(node.get("createdAt").and_then(Value::as_str).is_some());
+    assert!(node.get("updatedAt").and_then(Value::as_str).is_some());
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_non_existent_name_returns_null() {
     let context = setup_test_context().await;
     let user_id = insert_user(&context.pool, 222333444).await;
+    let server_id = 999999999_u64;
 
+    let relay_id = RelayId::encode_name(user_id, server_id);
     let query = r#"
         query {
-            name(userId: "USER_ID", serverId: "SERVER_ID") {
-                userId
-                serverId
-                name
+            node(id: "RELAY_ID") {
+                id
+                ... on Name {
+                    name
+                }
             }
         }
     "#
-    .replace("USER_ID", &user_id.to_string())
-    .replace("SERVER_ID", "999999999");
+    .replace("RELAY_ID", &relay_id.to_string());
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
     let body = parse_graphql_body(&body_text);
@@ -209,43 +210,20 @@ async fn test_query_non_existent_name_returns_null() {
     assert!(body.get("errors").is_none());
 
     let data = body.get("data").expect("Missing data");
-    assert!(data.get("name").map(Value::is_null).unwrap_or(false));
+    assert!(data.get("node").map(Value::is_null).unwrap_or(false));
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_query_invalid_server_id_format() {
-    let context = setup_test_context().await;
-    let user_id = insert_user(&context.pool, 333444555).await;
-    insert_name(&context.pool, user_id, 12345, "ValidName").await;
-
-    let query = r#"
-        query {
-            name(userId: "USER_ID", serverId: "not-a-number") {
-                name
-            }
-        }
-    "#
-    .replace("USER_ID", &user_id.to_string());
-
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
-    let body = parse_graphql_body(&body_text);
-
-    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
-    let errors = body.get("errors").expect("Expected errors");
-    assert!(errors.as_array().is_some());
-
-    let data = body.get("data").expect("Missing data");
-    assert!(data.get("name").map(Value::is_null).unwrap_or(false));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_query_invalid_uuid_format() {
+async fn test_query_invalid_base64_id() {
     let context = setup_test_context().await;
 
     let query = r#"
         query {
-            name(userId: "not-a-uuid", serverId: "123") {
-                name
+            node(id: "not-valid-base64!!!") {
+                id
+                ... on Name {
+                    name
+                }
             }
         }
     "#;
@@ -253,9 +231,41 @@ async fn test_query_invalid_uuid_format() {
     let (status, body_text) = execute_graphql(&context.app, query, json!({}), None).await;
     let body = parse_graphql_body(&body_text);
 
-    assert!(status == StatusCode::OK || status == StatusCode::BAD_REQUEST);
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
     let errors = body.get("errors").expect("Expected errors");
     assert!(errors.as_array().is_some());
+
+    let data = body.get("data").expect("Missing data");
+    assert!(data.get("node").map(Value::is_null).unwrap_or(false));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_unknown_node_type() {
+    let context = setup_test_context().await;
+
+    // Create an ID for an unknown type "User"
+    let fake_id = base64::engine::general_purpose::STANDARD
+        .encode("User:550e8400-e29b-41d4-a716-446655440000:12345");
+
+    let query = format!(
+        r#"
+        query {{
+            node(id: "{}") {{
+                id
+            }}
+        }}
+        "#,
+        fake_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    eprintln!("Response body: {}", body_text);
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    // Unknown types should return null, not an error
+    let data = body.get("data").expect("Missing data");
+    assert!(data.get("node").map(Value::is_null).unwrap_or(false));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -265,17 +275,19 @@ async fn test_query_with_variables() {
     let server_id = 555666777_u64;
     insert_name(&context.pool, user_id, server_id, "VariableName").await;
 
+    let relay_id = RelayId::encode_name(user_id, server_id);
     let query = r#"
-        query GetName($userId: UUID!, $serverId: String!) {
-            name(userId: $userId, serverId: $serverId) {
-                name
+        query GetNode($id: ID!) {
+            node(id: $id) {
+                ... on Name {
+                    name
+                }
             }
         }
     "#;
 
     let variables = json!({
-        "userId": user_id.to_string(),
-        "serverId": server_id.to_string(),
+        "id": relay_id.to_string(),
     });
 
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
@@ -285,9 +297,9 @@ async fn test_query_with_variables() {
     assert!(body.get("errors").is_none());
 
     let data = body.get("data").expect("Missing data");
-    let name = data.get("name").expect("Missing name field");
+    let node = data.get("node").expect("Missing node field");
     assert_eq!(
-        name.get("name").and_then(Value::as_str),
+        node.get("name").and_then(Value::as_str),
         Some("VariableName")
     );
 }
@@ -299,15 +311,17 @@ async fn test_query_with_future_auth_placeholder() {
     let server_id = 888999000_u64;
     insert_name(&context.pool, user_id, server_id, "AuthPlaceholder").await;
 
+    let relay_id = RelayId::encode_name(user_id, server_id);
     let query = r#"
         query {
-            name(userId: "USER_ID", serverId: "SERVER_ID") {
-                name
+            node(id: "RELAY_ID") {
+                ... on Name {
+                    name
+                }
             }
         }
     "#
-    .replace("USER_ID", &user_id.to_string())
-    .replace("SERVER_ID", &server_id.to_string());
+    .replace("RELAY_ID", &relay_id.to_string());
 
     // TODO: Provide auth token once authentication is implemented.
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;

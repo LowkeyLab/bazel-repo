@@ -1,8 +1,8 @@
-use juniper::{FieldResult, graphql_object};
-use uuid::Uuid;
+use juniper::{FieldResult, ID, graphql_object};
 
 use graphql_context::Context;
-use graphql_model::Name;
+use graphql_model::{Name, NodeValue};
+use graphql_relay::RelayId;
 
 /// Root query for the nicknamer2 GraphQL API.
 pub struct QueryRoot;
@@ -10,22 +10,28 @@ pub struct QueryRoot;
 #[graphql_object]
 #[graphql(context = Context)]
 impl QueryRoot {
-    /// Retrieve the name for a user in a specific Discord server.
-    async fn name(
+    /// Fetch any object by its global Relay ID.
+    async fn node(
         context: &Context,
-        #[graphql(description = "The user's unique identifier.")] user_id: Uuid,
-        #[graphql(description = "The Discord server ID as a string.")] server_id: String,
-    ) -> FieldResult<Option<Name>> {
-        let server_id: u64 = server_id
-            .parse()
-            .map_err(|_| "server_id must be a valid u64")?;
+        #[graphql(description = "The global Relay ID")] id: ID,
+    ) -> FieldResult<Option<NodeValue>> {
+        let relay_id = RelayId::decode(&id).map_err(|e| format!("Invalid ID: {}", e))?;
 
-        let result = context
-            .name_service
-            .get_name(user_id, server_id)
-            .await
-            .map_err(|e| format!("{e}"))?;
+        match relay_id.type_name.as_str() {
+            "Name" => {
+                let (user_id, server_id) = relay_id
+                    .as_name()
+                    .map_err(|e| format!("Invalid Name ID: {}", e))?;
 
-        Ok(result.map(Name::from))
+                let result = context
+                    .name_service
+                    .get_name(user_id, server_id)
+                    .await
+                    .map_err(|e| format!("{e}"))?;
+
+                Ok(result.map(Name::from).map(NodeValue::Name))
+            }
+            _ => Ok(None),
+        }
     }
 }
