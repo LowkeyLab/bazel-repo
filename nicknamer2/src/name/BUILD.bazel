@@ -40,6 +40,20 @@ rust_test(
 )
 
 rust_test(
+    name = "name_repo_test",
+    timeout = "short",
+    crate = ":name_repo",
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer2/src/migrations",  # keep
+        "//nicknamer2/src/user",  # keep
+        "@crates//:sqlx",  # keep
+        "@crates//:testcontainers-modules",  # keep
+        "@crates//:tokio",  # keep
+    ],
+)
+
+rust_test(
     name = "name_service_test",
     timeout = "short",
     crate = ":name_service",
