@@ -26,12 +26,6 @@ rust_library(
 rust_test(
     name = "graphql_relay_test",
     crate = ":graphql_relay",
-    deps = [
-        "@crates//:anyhow",
-        "@crates//:base64",
-        "@crates//:juniper",
-        "@crates//:uuid",
-    ],
 )
 
 rust_library(
@@ -56,7 +50,6 @@ rust_library(
         ":graphql_model",
         ":graphql_relay",
         "@crates//:juniper",
-        "@crates//:uuid",
     ],
 )
 
