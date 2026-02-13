@@ -39,7 +39,7 @@ where
     }
 
     pub async fn get_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
-        Ok(self.repo.get(user_id, server_id).await?)
+        self.repo.get(user_id, server_id).await
     }
 
     pub async fn delete_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {

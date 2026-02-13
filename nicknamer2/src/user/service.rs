@@ -2,6 +2,7 @@ use user::User;
 use user_repo::{ByDiscordIdGetter, ByIdGetter, Deleter, Saver, Updater};
 use uuid::Uuid;
 
+#[allow(dead_code)]
 struct Service<T>
 where
     T: Saver + ByDiscordIdGetter + ByIdGetter + Updater + Deleter,
@@ -9,6 +10,7 @@ where
     repo: T,
 }
 
+#[allow(dead_code)]
 impl<T> Service<T>
 where
     T: Saver + ByDiscordIdGetter + ByIdGetter + Updater + Deleter,
@@ -24,11 +26,11 @@ where
     }
 
     pub async fn get_by_discord_id(&self, discord_id: u64) -> anyhow::Result<Option<User>> {
-        Ok(self.repo.get_by_discord_id(discord_id).await?)
+        self.repo.get_by_discord_id(discord_id).await
     }
 
     pub async fn get_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>> {
-        Ok(self.repo.get_by_id(id).await?)
+        self.repo.get_by_id(id).await
     }
 
     pub async fn update_user(&self, user: User) -> anyhow::Result<()> {
@@ -37,7 +39,7 @@ where
     }
 
     pub async fn delete_user(&self, id: Uuid) -> anyhow::Result<bool> {
-        Ok(self.repo.delete(id).await?)
+        self.repo.delete(id).await
     }
 }
 

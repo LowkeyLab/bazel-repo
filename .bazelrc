@@ -23,6 +23,9 @@ common:remote-linux --jobs=50
 # For keep-sorted
 common --experimental_isolated_extension_usages
 
+# https://github.com/aspect-build/rules_lint/issues/741
+common:lint --nobuild_event_binary_file_path_conversion
+
 # To always show a warning if githooks config is not correct
 common --workspace_status_command=githooks/check-config.sh
 
@@ -33,7 +36,6 @@ common --noexperimental_merged_skyframe_analysis_execution
 # for speed, passes an argument `--skipLibCheck` to *every* spawn of tsc
 common --@aspect_rules_ts//ts:skipLibCheck=always
 # use `tsc` for transpiling, even though it's slow.
-# TODO(alex): change to SWC by default
 common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 
 # rules_python is working to enable this default to avoid dependency on a system interpreter
@@ -70,6 +72,9 @@ test --test_verbose_timeout_warnings
 
 # To output something for xargs
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
+
+# Bazel Preset Overrides
+common:ci --remote_download_toplevel
 
 # Load any settings & overrides specific to the current user.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
