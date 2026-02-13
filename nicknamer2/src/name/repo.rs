@@ -6,6 +6,7 @@ use std::future::Future;
 
 /// Data Access Object for Name table mapping
 #[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
 struct NameDAO {
     id: Uuid,
     user_id: Uuid,

@@ -2,6 +2,7 @@ use user::User;
 use user_repo::{ByDiscordIdGetter, ByIdGetter, Deleter, Saver, Updater};
 use uuid::Uuid;
 
+#[allow(dead_code)]
 struct Service<T>
 where
     T: Saver + ByDiscordIdGetter + ByIdGetter + Updater + Deleter,
@@ -9,6 +10,7 @@ where
     repo: T,
 }
 
+#[allow(dead_code)]
 impl<T> Service<T>
 where
     T: Saver + ByDiscordIdGetter + ByIdGetter + Updater + Deleter,
