@@ -7,6 +7,7 @@ use std::future::Future;
 /// Data Access Object for Name table mapping
 #[derive(Debug, sqlx::FromRow)]
 struct NameDAO {
+    id: Uuid,
     user_id: Uuid,
     server_id: i64,
     name: String,
@@ -127,7 +128,7 @@ impl Getter for Repo {
     async fn get(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
         let dao = sqlx::query_as::<_, NameDAO>(
             r#"
-            SELECT user_id, server_id, name, created_at, updated_at
+            SELECT id, user_id, server_id, name, created_at, updated_at
             FROM names
             WHERE user_id = $1 AND server_id = $2
             "#,
@@ -168,7 +169,7 @@ impl Lister for Repo {
         let query = if let Some(last_user_id) = cursor {
             sqlx::query_as::<_, NameDAO>(
                 r#"
-                SELECT user_id, server_id, name, created_at, updated_at
+                SELECT id, user_id, server_id, name, created_at, updated_at
                 FROM names
                 WHERE server_id = $1 AND user_id > $2
                 ORDER BY user_id ASC
@@ -181,7 +182,7 @@ impl Lister for Repo {
         } else {
             sqlx::query_as::<_, NameDAO>(
                 r#"
-                SELECT user_id, server_id, name, created_at, updated_at
+                SELECT id, user_id, server_id, name, created_at, updated_at
                 FROM names
                 WHERE server_id = $1
                 ORDER BY user_id ASC

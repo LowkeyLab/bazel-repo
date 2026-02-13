@@ -769,3 +769,51 @@ async fn test_query_server_names_invalid_cursor() {
     let errors = body.get("errors");
     assert!(errors.is_some());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_names_max_page_size() {
+    let context = setup_test_context().await;
+    let server_id = 44444;
+
+    // Insert more than MAX_PAGE_SIZE (100) names to test enforcement
+    for i in 0..105 {
+        let user = insert_user(&context.pool, 1000 + i).await;
+        insert_name(&context.pool, user, server_id, &format!("User{:03}", i)).await;
+    }
+
+    // Request more than MAX_PAGE_SIZE
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 150) {{
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server_id
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none());
+
+    let edges = body["data"]["server"]["names"]["edges"]
+        .as_array()
+        .expect("Missing edges");
+
+    // Should return exactly MAX_PAGE_SIZE (100) even though we requested 150
+    assert_eq!(
+        edges.len(),
+        100,
+        "Should enforce MAX_PAGE_SIZE of 100, got {}",
+        edges.len()
+    );
+}
