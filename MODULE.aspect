@@ -5,9 +5,6 @@ axl_archive_dep(
     integrity = "sha256-iz6cRBEh1sGZqjY4wIgzqw2jZ08Nvs3gR6JqIBDEtWE=",
     strip_prefix = "rules_lint-2.0.0",
     dev = True,
-    auto_use_tasks = False,
+    auto_use_tasks = True,
 )
 
-# Configure lint and format tasks from local files
-use_task(".aspect/cli/lint.axl", "lint")
-use_task(".aspect/cli/format.axl", "format")
