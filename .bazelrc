@@ -24,7 +24,7 @@ common:remote-linux --jobs=50
 common --experimental_isolated_extension_usages
 
 # https://github.com/aspect-build/rules_lint/issues/741
-common --nobuild_event_binary_file_path_conversion
+common:lint --nobuild_event_binary_file_path_conversion
 
 # To always show a warning if githooks config is not correct
 common --workspace_status_command=githooks/check-config.sh
