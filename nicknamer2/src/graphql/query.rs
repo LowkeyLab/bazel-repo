@@ -1,8 +1,7 @@
-use juniper::{FieldResult, ID, graphql_object};
-
 use graphql_context::Context;
-use graphql_model::{Name, NodeValue};
+use graphql_model::{Name, NodeValue, Server};
 use graphql_relay::RelayId;
+use juniper::{FieldResult, ID, graphql_object};
 
 /// Root query for the nicknamer2 GraphQL API.
 pub struct QueryRoot;
@@ -10,6 +9,20 @@ pub struct QueryRoot;
 #[graphql_object]
 #[graphql(context = Context)]
 impl QueryRoot {
+    /// Fetch a Discord server by its ID
+    fn server(#[graphql(description = "The Discord server ID")] id: ID) -> FieldResult<Server> {
+        let server_id: &str = &id;
+        let server_id_u64 = server_id
+            .parse::<u64>()
+            .map_err(|_| "Invalid server ID format")?;
+
+        if server_id_u64 == 0 {
+            return Err("Server ID must be greater than 0".into());
+        }
+
+        Ok(Server { id: server_id_u64 })
+    }
+
     /// Fetch any object by its global Relay ID.
     async fn node(
         context: &Context,
@@ -30,6 +43,17 @@ impl QueryRoot {
                     .map_err(|e| format!("{e}"))?;
 
                 Ok(result.map(Name::from).map(NodeValue::Name))
+            }
+            "Server" => {
+                let server_id = relay_id
+                    .as_server()
+                    .map_err(|e| format!("Invalid Server ID: {}", e))?;
+
+                if server_id == 0 {
+                    return Err("Server ID must be greater than 0".into());
+                }
+
+                Ok(Some(NodeValue::Server(Server { id: server_id })))
             }
             _ => Ok(None),
         }

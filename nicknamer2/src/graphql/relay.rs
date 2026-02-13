@@ -1,6 +1,7 @@
 use anyhow::{Context as _, Result, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use juniper::ID;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Relay Global Object Identification ID
@@ -18,12 +19,20 @@ pub struct RelayId {
 pub enum RawId {
     /// Name is identified by (user_id, server_id)
     Name { user_id: Uuid, server_id: u64 },
+    /// Server is identified by server_id
+    Server { server_id: u64 },
 }
 
 impl RelayId {
     /// Encode a Name's composite key into a Relay global ID
     pub fn encode_name(user_id: Uuid, server_id: u64) -> ID {
         let plain = format!("Name:{}:{}", user_id, server_id);
+        ID::from(BASE64.encode(plain.as_bytes()))
+    }
+
+    /// Encode a Server's ID into a Relay global ID
+    pub fn encode_server(server_id: u64) -> ID {
+        let plain = format!("Server:{}", server_id);
         ID::from(BASE64.encode(plain.as_bytes()))
     }
 
@@ -50,6 +59,16 @@ impl RelayId {
                     raw_id: RawId::Name { user_id, server_id },
                 })
             }
+            ["Server", server_id_str] => {
+                let server_id = server_id_str
+                    .parse::<u64>()
+                    .context("Invalid server ID format")?;
+
+                Ok(RelayId {
+                    type_name: "Server".to_string(),
+                    raw_id: RawId::Server { server_id },
+                })
+            }
             _ => Err(anyhow!("Unknown type in global ID: {}", plain)),
         }
     }
@@ -58,7 +77,56 @@ impl RelayId {
     pub fn as_name(&self) -> Result<(Uuid, u64)> {
         match &self.raw_id {
             RawId::Name { user_id, server_id } => Ok((*user_id, *server_id)),
+            _ => Err(anyhow!("ID is not a Name type")),
         }
+    }
+
+    /// Extract Server components or return error
+    pub fn as_server(&self) -> Result<u64> {
+        match &self.raw_id {
+            RawId::Server { server_id } => Ok(*server_id),
+            _ => Err(anyhow!("ID is not a Server type")),
+        }
+    }
+}
+
+/// Cursor for pagination in Relay connections
+/// Contains the user_id used for cursor-based pagination
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Cursor {
+    /// The user_id used for pagination (unique ordering)
+    pub user_id: Uuid,
+}
+
+impl Cursor {
+    /// Create a new cursor from a user_id value
+    pub fn new(user_id: Uuid) -> Self {
+        Self { user_id }
+    }
+
+    /// Encode cursor to base64 JSON string
+    pub fn encode(&self) -> String {
+        let json = serde_json::to_string(self)
+            .expect("Cursor serialization should never fail with valid data");
+        BASE64.encode(json.as_bytes())
+    }
+
+    /// Decode cursor from base64 JSON string
+    pub fn decode(encoded: &str) -> Result<Self> {
+        let bytes = BASE64
+            .decode(encoded)
+            .context("Invalid base64 encoding in cursor")?;
+
+        let json_str = String::from_utf8(bytes).context("Invalid UTF-8 in cursor")?;
+
+        let cursor: Cursor = serde_json::from_str(&json_str).context("Invalid JSON in cursor")?;
+
+        Ok(cursor)
+    }
+
+    /// Get the user_id value for use in SQL queries
+    pub fn user_id_value(&self) -> Uuid {
+        self.user_id
     }
 }
 
@@ -147,5 +215,65 @@ mod tests {
                 .to_string()
                 .contains("Invalid server ID format")
         );
+    }
+
+    #[test]
+    fn test_cursor_encode() {
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let cursor = Cursor::new(user_id);
+        let encoded = cursor.encode();
+
+        // Should be base64 encoded
+        assert!(!encoded.is_empty());
+        // Should be decodeable
+        assert!(BASE64.decode(&encoded).is_ok());
+    }
+
+    #[test]
+    fn test_cursor_round_trip() {
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let original = Cursor::new(user_id);
+        let encoded = original.encode();
+        let decoded = Cursor::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.user_id, user_id);
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn test_cursor_with_different_uuids() {
+        let user_id = Uuid::parse_str("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap();
+        let cursor = Cursor::new(user_id);
+        let encoded = cursor.encode();
+        let decoded = Cursor::decode(&encoded).unwrap();
+
+        assert_eq!(decoded.user_id, user_id);
+    }
+
+    #[test]
+    fn test_cursor_decode_invalid_base64() {
+        let result = Cursor::decode("not-valid-base64!!!");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid base64 encoding")
+        );
+    }
+
+    #[test]
+    fn test_cursor_decode_invalid_json() {
+        let invalid_json = BASE64.encode(b"not valid json");
+        let result = Cursor::decode(&invalid_json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_cursor_user_id_value() {
+        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let cursor = Cursor::new(user_id);
+        assert_eq!(cursor.user_id_value(), user_id);
     }
 }

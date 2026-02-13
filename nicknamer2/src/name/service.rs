@@ -1,17 +1,17 @@
 use name::Name;
-use name_repo::{Deleter, Getter, Saver, Updater};
+use name_repo::{Deleter, Getter, Lister, Saver, Updater};
 use uuid::Uuid;
 
 pub struct Service<T>
 where
-    T: Saver + Updater + Getter + Deleter,
+    T: Saver + Updater + Getter + Deleter + Lister,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: Saver + Updater + Getter + Deleter,
+    T: Saver + Updater + Getter + Deleter + Lister,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
@@ -45,6 +45,15 @@ where
     pub async fn delete_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
         self.repo.delete(user_id, server_id).await?;
         Ok(())
+    }
+
+    pub async fn list_names(
+        &self,
+        server_id: u64,
+        limit: i64,
+        cursor: Option<Uuid>,
+    ) -> anyhow::Result<Vec<Name>> {
+        self.repo.list_by_server(server_id, limit, cursor).await
     }
 }
 
