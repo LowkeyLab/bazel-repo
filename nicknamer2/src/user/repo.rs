@@ -37,7 +37,7 @@ impl From<User> for UserDAO {
 
 /// Saves a user to the database.
 pub trait Saver {
-    fn save(&self, user: User) -> impl Future<Output = anyhow::Result<()>> + Send;
+    fn save(&self, user: User) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
 }
 
 pub trait ByDiscordIdGetter {
@@ -74,7 +74,8 @@ impl Repo {
 }
 
 impl Saver for Repo {
-    async fn save(&self, user: User) -> anyhow::Result<()> {
+    async fn save(&self, user: User) -> anyhow::Result<Uuid> {
+        let id = user.id;
         let dao: UserDAO = user.into();
         sqlx::query(
             r#"
@@ -89,7 +90,7 @@ impl Saver for Repo {
         .execute(&self.pool)
         .await?;
 
-        Ok(())
+        Ok(id)
     }
 }
 

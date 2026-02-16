@@ -22,10 +22,9 @@ where
         user_id: Uuid,
         server_id: u64,
         name: String,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Uuid> {
         let name_entity = Name::new(user_id, server_id, name);
-        self.repo.save(name_entity).await?;
-        Ok(())
+        self.repo.save(name_entity).await
     }
 
     pub async fn update_name(
