@@ -19,10 +19,9 @@ where
         Self { repo }
     }
 
-    pub async fn create_user(&self, discord_id: u64) -> anyhow::Result<()> {
+    pub async fn create_user(&self, discord_id: u64) -> anyhow::Result<Uuid> {
         let user = User::new(discord_id);
-        self.repo.save(user).await?;
-        Ok(())
+        self.repo.save(user).await
     }
 
     pub async fn get_by_discord_id(&self, discord_id: u64) -> anyhow::Result<Option<User>> {
