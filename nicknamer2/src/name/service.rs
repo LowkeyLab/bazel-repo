@@ -1,17 +1,17 @@
 use name::Name;
-use name_repo::{Deleter, Getter, Lister, Saver, Updater};
+use name_repo::{Deleter, Getter, Lister, Saver, ServerLister, Updater};
 use uuid::Uuid;
 
 pub struct Service<T>
 where
-    T: Saver + Updater + Getter + Deleter + Lister,
+    T: Saver + Updater + Getter + Deleter + Lister + ServerLister,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: Saver + Updater + Getter + Deleter + Lister,
+    T: Saver + Updater + Getter + Deleter + Lister + ServerLister,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
@@ -54,6 +54,10 @@ where
         cursor: Option<Uuid>,
     ) -> anyhow::Result<Vec<Name>> {
         self.repo.list_by_server(server_id, limit, cursor).await
+    }
+
+    pub async fn list_servers(&self, limit: i64, cursor: Option<u64>) -> anyhow::Result<Vec<u64>> {
+        self.repo.list_servers(limit, cursor).await
     }
 }
 
@@ -291,5 +295,48 @@ mod tests {
                 .unwrap();
 
         assert_eq!(count.0, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_list_servers() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+        let service = Service::new(repo);
+
+        // Create users
+        let user1 = User::new(111);
+        let user2 = User::new(222);
+        for user in [&user1, &user2] {
+            sqlx::query(
+                r#"
+                INSERT INTO users (id, discord_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4)
+                "#,
+            )
+            .bind(user.id)
+            .bind(user.discord_id as i64)
+            .bind(user.created_at)
+            .bind(user.updated_at)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        // Create names on different servers
+        service
+            .create_name(user1.id, 11111, "Alice".to_string())
+            .await
+            .unwrap();
+        service
+            .create_name(user2.id, 22222, "Bob".to_string())
+            .await
+            .unwrap();
+
+        let result = service.list_servers(10, None).await.unwrap();
+        assert_eq!(result, vec![11111, 22222]);
+
+        // With cursor
+        let result = service.list_servers(10, Some(11111)).await.unwrap();
+        assert_eq!(result, vec![22222]);
     }
 }
