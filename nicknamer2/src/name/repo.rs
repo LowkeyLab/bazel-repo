@@ -71,6 +71,15 @@ pub trait Lister {
     ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
 }
 
+/// Lists distinct server IDs from the database with pagination support
+pub trait ServerLister {
+    fn list_servers(
+        &self,
+        limit: i64,
+        cursor: Option<u64>,
+    ) -> impl Future<Output = anyhow::Result<Vec<u64>>> + Send;
+}
+
 #[derive(Debug)]
 pub struct Repo {
     pool: PgPool,
@@ -196,6 +205,40 @@ impl Lister for Repo {
 
         let daos = query.fetch_all(&self.pool).await?;
         Ok(daos.into_iter().map(Into::into).collect())
+    }
+}
+
+impl ServerLister for Repo {
+    async fn list_servers(&self, limit: i64, cursor: Option<u64>) -> anyhow::Result<Vec<u64>> {
+        let rows: Vec<(i64,)> = if let Some(last_server_id) = cursor {
+            sqlx::query_as(
+                r#"
+                SELECT DISTINCT server_id
+                FROM names
+                WHERE server_id > $1
+                ORDER BY server_id ASC
+                LIMIT $2
+                "#,
+            )
+            .bind(last_server_id as i64)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(
+                r#"
+                SELECT DISTINCT server_id
+                FROM names
+                ORDER BY server_id ASC
+                LIMIT $1
+                "#,
+            )
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?
+        };
+
+        Ok(rows.into_iter().map(|(id,)| id as u64).collect())
     }
 }
 
@@ -409,5 +452,88 @@ mod tests {
         let result = repo.list_by_server(server2, 10, None).await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "ServerTwo");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_list_servers_empty() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool);
+
+        let result = repo.list_servers(10, None).await.unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_list_servers_returns_distinct() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+
+        let server1: u64 = 11111;
+        let server2: u64 = 22222;
+        let server3: u64 = 33333;
+
+        let user1 = insert_user(&pool, 111).await;
+        let user2 = insert_user(&pool, 222).await;
+        let user3 = insert_user(&pool, 333).await;
+
+        // Two names on server1, one each on server2 and server3
+        insert_name(&pool, user1, server1, "Alice").await;
+        insert_name(&pool, user2, server1, "Bob").await;
+        insert_name(&pool, user3, server2, "Charlie").await;
+        insert_name(&pool, user1, server3, "AliceOnThree").await;
+
+        let result = repo.list_servers(10, None).await.unwrap();
+        assert_eq!(result.len(), 3);
+        // Should be sorted ascending
+        assert_eq!(result, vec![server1, server2, server3]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_list_servers_with_limit() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+
+        let user1 = insert_user(&pool, 111).await;
+        let user2 = insert_user(&pool, 222).await;
+        let user3 = insert_user(&pool, 333).await;
+
+        insert_name(&pool, user1, 11111, "Alice").await;
+        insert_name(&pool, user2, 22222, "Bob").await;
+        insert_name(&pool, user3, 33333, "Charlie").await;
+
+        let result = repo.list_servers(2, None).await.unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result, vec![11111, 22222]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_list_servers_with_cursor() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+
+        let user1 = insert_user(&pool, 111).await;
+        let user2 = insert_user(&pool, 222).await;
+        let user3 = insert_user(&pool, 333).await;
+
+        insert_name(&pool, user1, 11111, "Alice").await;
+        insert_name(&pool, user2, 22222, "Bob").await;
+        insert_name(&pool, user3, 33333, "Charlie").await;
+
+        // Cursor after server 11111 should return 22222 and 33333
+        let result = repo.list_servers(10, Some(11111)).await.unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result, vec![22222, 33333]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_list_servers_cursor_past_end() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+
+        let user1 = insert_user(&pool, 111).await;
+        insert_name(&pool, user1, 11111, "Alice").await;
+
+        let result = repo.list_servers(10, Some(99999)).await.unwrap();
+        assert_eq!(result.len(), 0);
     }
 }
