@@ -94,13 +94,11 @@ mod tests {
         let service = Service::new(repo);
 
         let discord_id = 123456789;
-        let result = service.create_user(discord_id).await;
+        let user_id = service.create_user(discord_id).await.unwrap();
 
-        assert!(result.is_ok());
-
-        // Verify in DB
-        let row: (i64,) = sqlx::query_as("SELECT discord_id FROM users WHERE discord_id = $1")
-            .bind(discord_id as i64)
+        // Verify in DB using returned ID
+        let row: (i64,) = sqlx::query_as("SELECT discord_id FROM users WHERE id = $1")
+            .bind(user_id)
             .fetch_one(&pool)
             .await
             .unwrap();
@@ -147,27 +145,20 @@ mod tests {
 
         let discord_id = 555555555;
 
-        // Create a user first
-        service
+        // Create a user and get the ID directly
+        let user_id = service
             .create_user(discord_id)
             .await
             .expect("Failed to create user");
 
-        // Get the user by discord_id to obtain the UUID
-        let created_user = service
-            .get_by_discord_id(discord_id)
-            .await
-            .expect("Failed to get user")
-            .expect("User should exist");
-
         // Test retrieval by UUID
         let result = service
-            .get_by_id(created_user.id)
+            .get_by_id(user_id)
             .await
             .expect("Failed to get user by id");
         assert!(result.is_some());
         let user = result.unwrap();
-        assert_eq!(user.id, created_user.id);
+        assert_eq!(user.id, user_id);
         assert_eq!(user.discord_id, discord_id);
 
         // Test retrieval of non-existent user
@@ -187,15 +178,15 @@ mod tests {
 
         let discord_id = 111222333;
 
-        // Create a user first
-        service
+        // Create a user and get the ID directly
+        let user_id = service
             .create_user(discord_id)
             .await
             .expect("Failed to create user");
 
-        // Get the user
+        // Get the user by ID
         let mut user = service
-            .get_by_discord_id(discord_id)
+            .get_by_id(user_id)
             .await
             .expect("Failed to get user")
             .expect("User should exist");
@@ -226,27 +217,20 @@ mod tests {
 
         let discord_id = 444555666;
 
-        // Create a user first
-        service
+        // Create a user and get the ID directly
+        let user_id = service
             .create_user(discord_id)
             .await
             .expect("Failed to create user");
 
-        // Get the user to obtain the UUID
-        let user = service
-            .get_by_discord_id(discord_id)
-            .await
-            .expect("Failed to get user")
-            .expect("User should exist");
-
         // Delete the user
-        let result = service.delete_user(user.id).await;
+        let result = service.delete_user(user_id).await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), true); // Should return true for successful deletion
+        assert_eq!(result.unwrap(), true);
 
         // Verify the user no longer exists
         let result = service
-            .get_by_id(user.id)
+            .get_by_id(user_id)
             .await
             .expect("Failed to query for deleted user");
         assert!(result.is_none());
