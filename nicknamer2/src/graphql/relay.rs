@@ -4,6 +4,13 @@ use juniper::ID;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Default number of items per page when `first` is not specified
+pub const DEFAULT_PAGE_SIZE: i32 = 10;
+/// Maximum allowed page size to prevent excessive queries
+pub const MAX_PAGE_SIZE: i32 = 100;
+/// Minimum allowed page size
+pub const MIN_PAGE_SIZE: i32 = 1;
+
 /// Relay Global Object Identification ID
 /// Format: base64("Type:identifier")
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,6 +134,47 @@ impl Cursor {
     /// Get the user_id value for use in SQL queries
     pub fn user_id_value(&self) -> Uuid {
         self.user_id
+    }
+}
+
+/// Cursor for pagination in Server connections
+/// Contains the server_id used for cursor-based pagination
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServerCursor {
+    /// The server_id used for pagination
+    pub server_id: u64,
+}
+
+impl ServerCursor {
+    /// Create a new server cursor from a server_id value
+    pub fn new(server_id: u64) -> Self {
+        Self { server_id }
+    }
+
+    /// Encode cursor to base64 JSON string
+    pub fn encode(&self) -> String {
+        let json = serde_json::to_string(self)
+            .expect("ServerCursor serialization should never fail with valid data");
+        BASE64.encode(json.as_bytes())
+    }
+
+    /// Decode cursor from base64 JSON string
+    pub fn decode(encoded: &str) -> Result<Self> {
+        let bytes = BASE64
+            .decode(encoded)
+            .context("Invalid base64 encoding in server cursor")?;
+
+        let json_str = String::from_utf8(bytes).context("Invalid UTF-8 in server cursor")?;
+
+        let cursor: ServerCursor =
+            serde_json::from_str(&json_str).context("Invalid JSON in server cursor")?;
+
+        Ok(cursor)
+    }
+
+    /// Get the server_id value for use in SQL queries
+    pub fn server_id_value(&self) -> u64 {
+        self.server_id
     }
 }
 
@@ -275,5 +323,41 @@ mod tests {
         let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
         let cursor = Cursor::new(user_id);
         assert_eq!(cursor.user_id_value(), user_id);
+    }
+
+    #[test]
+    fn test_server_cursor_encode() {
+        let cursor = ServerCursor::new(12345);
+        let encoded = cursor.encode();
+        assert!(!encoded.is_empty());
+        assert!(BASE64.decode(&encoded).is_ok());
+    }
+
+    #[test]
+    fn test_server_cursor_round_trip() {
+        let original = ServerCursor::new(987654321);
+        let encoded = original.encode();
+        let decoded = ServerCursor::decode(&encoded).unwrap();
+        assert_eq!(decoded.server_id, 987654321);
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn test_server_cursor_decode_invalid_base64() {
+        let result = ServerCursor::decode("not-valid-base64!!!");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_server_cursor_decode_invalid_json() {
+        let invalid_json = BASE64.encode(b"not valid json");
+        let result = ServerCursor::decode(&invalid_json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_server_cursor_value() {
+        let cursor = ServerCursor::new(42);
+        assert_eq!(cursor.server_id_value(), 42);
     }
 }
