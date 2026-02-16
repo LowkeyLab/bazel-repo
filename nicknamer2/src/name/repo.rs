@@ -30,7 +30,7 @@ impl From<NameDAO> for Name {
 
 /// Saves a name to the database.
 pub trait Saver {
-    fn save(&self, name: Name) -> impl Future<Output = anyhow::Result<()>> + Send;
+    fn save(&self, name: Name) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
 }
 
 /// Updates a name in the database.
@@ -83,7 +83,7 @@ impl Repo {
 }
 
 impl Saver for Repo {
-    async fn save(&self, name: Name) -> anyhow::Result<()> {
+    async fn save(&self, name: Name) -> anyhow::Result<Uuid> {
         let id = Uuid::new_v4();
         sqlx::query(
             r#"
@@ -100,7 +100,7 @@ impl Saver for Repo {
         .execute(&self.pool)
         .await?;
 
-        Ok(())
+        Ok(id)
     }
 }
 
