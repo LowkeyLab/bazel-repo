@@ -1,13 +1,8 @@
 use chrono::{DateTime, Utc};
 use graphql_context::Context;
-use graphql_relay::{Cursor, RelayId};
+use graphql_relay::{Cursor, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, RelayId};
 use juniper::{FieldResult, GraphQLInterface, ID, graphql_object};
 use uuid::Uuid;
-
-/// Pagination constants for the names connection
-const DEFAULT_PAGE_SIZE: i32 = 10;
-const MAX_PAGE_SIZE: i32 = 100;
-const MIN_PAGE_SIZE: i32 = 1;
 
 /// The Relay Node interface - all types with global IDs implement this
 #[derive(GraphQLInterface)]
@@ -164,6 +159,44 @@ impl Server {
         };
 
         Ok(NameConnection { edges, page_info })
+    }
+}
+
+/// An edge in the servers connection, containing a server and its cursor
+pub struct ServerEdge {
+    pub cursor: String,
+    pub node: Server,
+}
+
+#[graphql_object(context = Context)]
+impl ServerEdge {
+    /// The cursor for this edge, used for pagination
+    fn cursor(&self) -> &str {
+        &self.cursor
+    }
+
+    /// The Server node
+    fn node(&self) -> &Server {
+        &self.node
+    }
+}
+
+/// A connection to a list of servers
+pub struct ServerConnection {
+    pub edges: Vec<ServerEdge>,
+    pub page_info: PageInfo,
+}
+
+#[graphql_object(context = Context)]
+impl ServerConnection {
+    /// The list of edges
+    fn edges(&self) -> &[ServerEdge] {
+        &self.edges
+    }
+
+    /// Information about pagination
+    fn page_info(&self) -> &PageInfo {
+        &self.page_info
     }
 }
 

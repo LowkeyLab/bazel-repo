@@ -4,6 +4,13 @@ use juniper::ID;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Default number of items per page when `first` is not specified
+pub const DEFAULT_PAGE_SIZE: i32 = 10;
+/// Maximum allowed page size to prevent excessive queries
+pub const MAX_PAGE_SIZE: i32 = 100;
+/// Minimum allowed page size
+pub const MIN_PAGE_SIZE: i32 = 1;
+
 /// Relay Global Object Identification ID
 /// Format: base64("Type:identifier")
 #[derive(Debug, Clone, PartialEq, Eq)]
