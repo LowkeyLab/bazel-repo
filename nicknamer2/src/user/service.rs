@@ -1,11 +1,11 @@
 use user::User;
-use user_repo::{ByDiscordIdGetter, ByIdGetter, Deleter, Saver, Updater};
+use user_repo::{UserCreator, UserDeleter, UserReader, UserUpdater};
 use uuid::Uuid;
 
 #[allow(dead_code)]
 struct Service<T>
 where
-    T: Saver + ByDiscordIdGetter + ByIdGetter + Updater + Deleter,
+    T: UserCreator + UserReader + UserUpdater + UserDeleter,
 {
     repo: T,
 }
@@ -13,7 +13,7 @@ where
 #[allow(dead_code)]
 impl<T> Service<T>
 where
-    T: Saver + ByDiscordIdGetter + ByIdGetter + Updater + Deleter,
+    T: UserCreator + UserReader + UserUpdater + UserDeleter,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }

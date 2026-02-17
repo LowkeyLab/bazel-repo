@@ -35,30 +35,28 @@ impl From<User> for UserDAO {
     }
 }
 
-/// Saves a user to the database.
-pub trait Saver {
+/// Creates a user in the database.
+pub trait UserCreator {
     fn save(&self, user: User) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
 }
 
-pub trait ByDiscordIdGetter {
+/// Reads users from the database.
+pub trait UserReader {
     fn get_by_discord_id(
         &self,
         discord_id: u64,
     ) -> impl Future<Output = anyhow::Result<Option<User>>> + Send;
-}
 
-/// Gets a user by their UUID.
-pub trait ByIdGetter {
     fn get_by_id(&self, id: Uuid) -> impl Future<Output = anyhow::Result<Option<User>>> + Send;
 }
 
 /// Updates an existing user in the database.
-pub trait Updater {
+pub trait UserUpdater {
     fn update(&self, user: User) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 /// Deletes a user from the database by their UUID.
-pub trait Deleter {
+pub trait UserDeleter {
     fn delete(&self, id: Uuid) -> impl Future<Output = anyhow::Result<bool>> + Send;
 }
 
@@ -73,7 +71,7 @@ impl Repo {
     }
 }
 
-impl Saver for Repo {
+impl UserCreator for Repo {
     async fn save(&self, user: User) -> anyhow::Result<Uuid> {
         let id = user.id;
         let dao: UserDAO = user.into();
@@ -94,7 +92,7 @@ impl Saver for Repo {
     }
 }
 
-impl ByDiscordIdGetter for Repo {
+impl UserReader for Repo {
     async fn get_by_discord_id(&self, discord_id: u64) -> anyhow::Result<Option<User>> {
         let dao = sqlx::query_as::<_, UserDAO>(
             r#"
@@ -109,9 +107,7 @@ impl ByDiscordIdGetter for Repo {
 
         Ok(dao.map(Into::into))
     }
-}
 
-impl ByIdGetter for Repo {
     async fn get_by_id(&self, id: Uuid) -> anyhow::Result<Option<User>> {
         let dao = sqlx::query_as::<_, UserDAO>(
             r#"
@@ -128,7 +124,7 @@ impl ByIdGetter for Repo {
     }
 }
 
-impl Updater for Repo {
+impl UserUpdater for Repo {
     async fn update(&self, user: User) -> anyhow::Result<()> {
         let dao: UserDAO = user.into();
         sqlx::query(
@@ -148,7 +144,7 @@ impl Updater for Repo {
     }
 }
 
-impl Deleter for Repo {
+impl UserDeleter for Repo {
     async fn delete(&self, id: Uuid) -> anyhow::Result<bool> {
         let result = sqlx::query(
             r#"
