@@ -28,13 +28,35 @@ impl From<NameDAO> for Name {
     }
 }
 
-/// Saves a name to the database.
-pub trait Saver {
+/// Creates a name in the database.
+pub trait NameCreator {
     fn save(&self, name: Name) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
 }
 
+/// Reads names from the database.
+pub trait NameReader {
+    fn get(
+        &self,
+        user_id: Uuid,
+        server_id: u64,
+    ) -> impl Future<Output = anyhow::Result<Option<Name>>> + Send;
+
+    fn list_by_server(
+        &self,
+        server_id: u64,
+        limit: i64,
+        cursor: Option<Uuid>,
+    ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
+
+    fn list_servers(
+        &self,
+        limit: i64,
+        cursor: Option<u64>,
+    ) -> impl Future<Output = anyhow::Result<Vec<u64>>> + Send;
+}
+
 /// Updates a name in the database.
-pub trait Updater {
+pub trait NameUpdater {
     fn update(
         &self,
         user_id: Uuid,
@@ -43,41 +65,13 @@ pub trait Updater {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
-/// Gets a name from the database.
-pub trait Getter {
-    fn get(
-        &self,
-        user_id: Uuid,
-        server_id: u64,
-    ) -> impl Future<Output = anyhow::Result<Option<Name>>> + Send;
-}
-
 /// Deletes a name from the database.
-pub trait Deleter {
+pub trait NameDeleter {
     fn delete(
         &self,
         user_id: Uuid,
         server_id: u64,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
-}
-
-/// Lists names from the database with pagination support
-pub trait Lister {
-    fn list_by_server(
-        &self,
-        server_id: u64,
-        limit: i64,
-        cursor: Option<Uuid>,
-    ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
-}
-
-/// Lists distinct server IDs from the database with pagination support
-pub trait ServerLister {
-    fn list_servers(
-        &self,
-        limit: i64,
-        cursor: Option<u64>,
-    ) -> impl Future<Output = anyhow::Result<Vec<u64>>> + Send;
 }
 
 #[derive(Debug)]
@@ -91,7 +85,7 @@ impl Repo {
     }
 }
 
-impl Saver for Repo {
+impl NameCreator for Repo {
     async fn save(&self, name: Name) -> anyhow::Result<Uuid> {
         let id = Uuid::new_v4();
         sqlx::query(
@@ -113,7 +107,7 @@ impl Saver for Repo {
     }
 }
 
-impl Updater for Repo {
+impl NameUpdater for Repo {
     async fn update(&self, user_id: Uuid, server_id: u64, new_name: String) -> anyhow::Result<()> {
         let now = Utc::now();
         sqlx::query(
@@ -134,7 +128,7 @@ impl Updater for Repo {
     }
 }
 
-impl Getter for Repo {
+impl NameReader for Repo {
     async fn get(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
         let dao = sqlx::query_as::<_, NameDAO>(
             r#"
@@ -150,26 +144,7 @@ impl Getter for Repo {
 
         Ok(dao.map(Into::into))
     }
-}
 
-impl Deleter for Repo {
-    async fn delete(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
-        sqlx::query(
-            r#"
-            DELETE FROM names
-            WHERE user_id = $1 AND server_id = $2
-            "#,
-        )
-        .bind(user_id)
-        .bind(server_id as i64)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-}
-
-impl Lister for Repo {
     async fn list_by_server(
         &self,
         server_id: u64,
@@ -206,9 +181,7 @@ impl Lister for Repo {
         let daos = query.fetch_all(&self.pool).await?;
         Ok(daos.into_iter().map(Into::into).collect())
     }
-}
 
-impl ServerLister for Repo {
     async fn list_servers(&self, limit: i64, cursor: Option<u64>) -> anyhow::Result<Vec<u64>> {
         let rows: Vec<(i64,)> = if let Some(last_server_id) = cursor {
             sqlx::query_as(
@@ -239,6 +212,23 @@ impl ServerLister for Repo {
         };
 
         Ok(rows.into_iter().map(|(id,)| id as u64).collect())
+    }
+}
+
+impl NameDeleter for Repo {
+    async fn delete(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            DELETE FROM names
+            WHERE user_id = $1 AND server_id = $2
+            "#,
+        )
+        .bind(user_id)
+        .bind(server_id as i64)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 }
 

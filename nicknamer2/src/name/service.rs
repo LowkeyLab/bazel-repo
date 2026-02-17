@@ -1,17 +1,17 @@
 use name::Name;
-use name_repo::{Deleter, Getter, Lister, Saver, ServerLister, Updater};
+use name_repo::{NameCreator, NameDeleter, NameReader, NameUpdater};
 use uuid::Uuid;
 
 pub struct Service<T>
 where
-    T: Saver + Updater + Getter + Deleter + Lister + ServerLister,
+    T: NameCreator + NameUpdater + NameReader + NameDeleter,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: Saver + Updater + Getter + Deleter + Lister + ServerLister,
+    T: NameCreator + NameUpdater + NameReader + NameDeleter,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
