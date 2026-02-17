@@ -1,0 +1,122 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build System
+
+This is a **Bazel 9 polyglot monorepo** managed by Bazelisk. Use `aspect` (a Bazel wrapper) for build/test/lint. Never invoke `cargo`, `npm`, `go`, `mvn`, `pnpm`, or `ng` directly for building — all operations go through Bazel.
+
+## Essential Commands
+
+```bash
+# Build and test everything
+aspect build //...
+aspect test //...
+
+# Lint all code
+aspect lint //...
+
+# Format all code (Rust, Kotlin, Go, JS/TS, BUILD files)
+format
+
+# Regenerate BUILD files after editing source files
+bazel run gazelle
+
+# Install/sync NPM deps
+bazel run @pnpm -- --dir $PWD install
+```
+
+### After editing source files, always:
+1. `bazel run gazelle` — regenerates BUILD files (must run BEFORE format)
+2. `format` — formats all code
+3. `aspect build //...` — verify build
+
+### Running a single test
+```bash
+aspect test //nicknamer/server/lib/tests:tests --test_filter="test_name_pattern"
+aspect test //predix/internal/domain/circle:circle_test --test_filter="^TestCircleCreation$"
+```
+
+### Updating insta snapshots (Rust)
+```bash
+INSTA_UPDATE=always aspect test //nicknamer/server/lib/tests:tests
+```
+
+### Dependency management
+```bash
+# Rust: edit Cargo.toml, then:
+CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
+
+# Go:
+go get <package> && bazel mod tidy
+
+# NPM: edit pnpm-workspace.yaml or package.json, then:
+bazel run @pnpm -- --dir $PWD install
+
+# JVM (Kotlin/Java): edit MODULE.bazel maven artifacts, then:
+REPIN=1 bazel run @maven//:pin
+```
+
+## Architecture
+
+Polyglot monorepo with independent backend services and Angular frontends, all built with Bazel.
+
+### Services
+
+| Service | Path | Stack | Notes |
+|---|---|---|---|
+| **nicknamer** | `nicknamer/` | Rust, Axum, SeaORM, PostgreSQL | REST API with Swagger/utoipa |
+| **nicknamer2** | `nicknamer2/` | Rust, Axum, Juniper (GraphQL), sqlx, PostgreSQL | Relay-style pagination |
+| **mindreadr** | `mindreadr/` | Kotlin, Ktor 3, Exposed, JVM 21 | |
+| **predix** | `predix/` | Go, Gin, pgx, sqlc | |
+| **cowsay** | `cowsay/` | Go | Demo service |
+| **personal_website** | `personal_website/` | Astro 5, Caddy | Static site |
+
+### Frontends
+
+Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, tailwind-sample). Uses standalone components, signals, OnPush change detection, and native control flow (`@if`, `@for`).
+
+### Shared build infrastructure
+- `bzl/` — shared Bazel macros (e.g., `kotlin.bzl`)
+- `tools/format/` — multi-language format runner
+- `tools/lint/linters.bzl` — lint aspect definitions (clippy, ktlint, eslint, ruff, shellcheck, buf, pmd, stylelint, keep-sorted)
+- `3rdparty/` — build patches for third-party deps
+- `MODULE.bazel` — all external Bzlmod dependencies
+- `Cargo.toml` — Rust workspace dependency catalog
+
+### CI/CD
+- **run-tests.yml**: on push/PR to main — runs `aspect lint //...` then `aspect test //...` with BuildBuddy remote cache
+- **deploy.yml**: after tests pass on main — builds optimized and pushes all OCI images to GHCR
+
+## Code Conventions
+
+### Rust (edition 2024)
+- `anyhow::Result<T>` for binaries; `thiserror` for library error types
+- `tracing` for logging (not `println!`)
+- Tokio async runtime
+
+### Kotlin
+- Ktor patterns with Kotlin Coroutines
+- 2-space indent, max 200 char lines
+
+### Go
+- Propagate `context.Context` as first parameter
+- Table-driven tests; `fmt.Errorf("operation: %w", err)` for error wrapping
+
+### TypeScript/Angular
+- `strict: true`; standalone components (do NOT set `standalone: true` explicitly — it's the default)
+- Use `inject()` over constructor injection; signals (`input()`, `output()`, `signal()`, `computed()`)
+- `ChangeDetectionStrategy.OnPush` on all components
+
+### BUILD files
+- Always run `bazel run gazelle` before manually editing
+- Use `# keep` comments to prevent Gazelle from modifying specific lines
+- Gazelle extensions: Go, Kotlin (contrib_rules_jvm), Rust (gazelle_rust), Skylib
+
+## Tooling
+
+- **pre-commit**: runs `format` and `buildifier-lint`. Install with `pre-commit install`.
+- **direnv/.envrc**: sources `.env`, sets PATH from `bazel-out`. Run `bazel run //tools:bazel_env` to populate.
+- **ibazel**: incremental Bazel for hot reload (e.g., `ibazel run //personal_website:dev`)
+- **rust-analyzer**: regenerate project with `bazel run //:gen_rust_project`
+- **Renovate**: automated dependency updates
