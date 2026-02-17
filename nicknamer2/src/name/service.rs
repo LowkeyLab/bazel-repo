@@ -4,14 +4,14 @@ use uuid::Uuid;
 
 pub struct Service<T>
 where
-    T: NameCreator + NameUpdater + NameReader + NameDeleter,
+    T: NameCreator + NameReader + NameUpdater + NameDeleter,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: NameCreator + NameUpdater + NameReader + NameDeleter,
+    T: NameCreator + NameReader + NameUpdater + NameDeleter,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
