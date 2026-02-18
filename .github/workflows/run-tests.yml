@@ -34,7 +34,7 @@ jobs:
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878
       - name: Install tools via bazel
         run: |
-          bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
+          bazel run --config=quiet --linkopt=-fuse-ld=mold //tools:bazel_env print-path >> $GITHUB_PATH
       - name: Verify aspect CLI
         run: aspect --version
       - name: Run Bazel Lints
