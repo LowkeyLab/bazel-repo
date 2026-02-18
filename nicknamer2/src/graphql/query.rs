@@ -39,6 +39,13 @@ impl QueryRoot {
                     .as_name()
                     .map_err(|e| format!("Invalid Name ID: {}", e))?;
 
+                if discord_id == 0 {
+                    return Err("Discord ID must be greater than 0".into());
+                }
+                if discord_server == 0 {
+                    return Err("Server ID must be greater than 0".into());
+                }
+
                 let result = context
                     .name_service
                     .get_name(DiscordId(discord_id), DiscordServerId(discord_server))
