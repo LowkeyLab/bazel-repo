@@ -4,10 +4,7 @@ rust_library(
     name = "name",
     srcs = ["name.rs"],
     visibility = ["//nicknamer2:__subpackages__"],
-    deps = [
-        "@crates//:chrono",
-        "@crates//:uuid",
-    ],
+    deps = ["@crates//:chrono"],
 )
 
 rust_library(
@@ -46,7 +43,6 @@ rust_test(
     tags = ["requires-network"],
     deps = [
         "//nicknamer2/src/migrations",
-        "//nicknamer2/src/user",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],
@@ -59,7 +55,6 @@ rust_test(
     tags = ["requires-network"],
     deps = [
         "//nicknamer2/src/migrations",
-        "//nicknamer2/src/user",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
