@@ -32,6 +32,14 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878
+      - name: Prepare Linker Path
+        run: |
+          # Create a local bin that we can definitely pass to Bazel
+          mkdir -p $GITHUB_WORKSPACE/bin
+          ln -sf $(which mold) $GITHUB_WORKSPACE/bin/ld
+          # Also link it as ld.mold for GCC's -fuse-ld flag
+          ln -sf $(which mold) $GITHUB_WORKSPACE/bin/ld.mold
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
       - name: Install tools via bazel
         run: |
           bazel run --config=quiet --linkopt=-fuse-ld=mold //tools:bazel_env print-path >> $GITHUB_PATH
