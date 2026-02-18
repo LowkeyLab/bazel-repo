@@ -27,6 +27,9 @@ jobs:
             common --compilation_mode=opt
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878
+      - name: Force mold as default ld
+        run: |
+          sudo ln -sf $(which mold) /usr/bin/ld
       - name: Log in to GHCR
         uses: docker/login-action@3227f5311cb93ffd14d13e65d8cc400d30f4dd8a
         with:
