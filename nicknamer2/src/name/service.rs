@@ -1,4 +1,4 @@
-use name::{DiscordId, DiscordServerId, Name, NameId};
+use name::{DiscordId, DiscordServerId, Name};
 use name_repo::{NameCreator, NameDeleter, NameReader, NameUpdater};
 use uuid::Uuid;
 
