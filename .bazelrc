@@ -55,6 +55,9 @@ common:ci --lockfile_mode="off"
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
 build --repo_env=JAVA_HOME=../bazel_tools/jdk
 
+# Use mold linker for faster builds
+build --linkopt=-fuse-ld=mold
+
 # Linting configuration
 common:lint --aspects=//tools/lint:linters.bzl%buf
 common:lint --aspects=//tools/lint:linters.bzl%checkstyle
