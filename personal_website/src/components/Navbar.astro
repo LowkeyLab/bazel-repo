@@ -2,7 +2,7 @@
 import ThemeToggle from "./ThemeToggle.astro";
 
 interface Props {
-  activeItem?: "home" | "projects" | "work" | "contact";
+  activeItem?: "home" | "projects" | "work" | "contact" | "blog";
 }
 
 const { activeItem = "home" } = Astro.props;
@@ -51,6 +51,11 @@ const isActive = (item: string) => activeItem === item;
             >
           </li>
           <li>
+            <a class={isActive("blog") ? "menu-active" : ""} href="/blog"
+              >Blog</a
+            >
+          </li>
+          <li>
             <a
               href="mailto:timdttran2000@gmail.com"
               target="_blank"
@@ -81,6 +86,11 @@ const isActive = (item: string) => activeItem === item;
           <li>
             <a class={isActive("work") ? "menu-active" : ""} href="/work"
               >Work</a
+            >
+          </li>
+          <li>
+            <a class={isActive("blog") ? "menu-active" : ""} href="/blog"
+              >Blog</a
             >
           </li>
           <li>
