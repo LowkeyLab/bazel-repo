@@ -1,0 +1,62 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import { calculateReadingTime } from "../../utils/blog";
+
+const allPosts = await getCollection("blog");
+const posts = allPosts
+  .filter((post) => !post.data.draft)
+  .sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+---
+
+<Layout
+  title="Blog | Tim Tran"
+  description="Thoughts on software engineering and more"
+  activeItem="blog"
+>
+  <header class="mb-12 text-center">
+    <h1 class="text-4xl font-bold text-base-content mb-3 tracking-tight">Blog</h1>
+    <p class="text-xl text-base-content/80 max-w-3xl mx-auto">
+      Thoughts on software engineering, projects, and learning.
+    </p>
+  </header>
+
+  <section class="space-y-10">
+    {posts.length === 0 ? (
+      <div class="text-center py-12">
+        <p class="text-lg text-base-content/60">No posts yet. Check back soon!</p>
+      </div>
+    ) : (
+      posts.map((post) => (
+        <div class="group relative">
+          <div class="absolute -inset-y-4 -inset-x-4 z-0 scale-95 bg-base-200 opacity-0 transition group-hover:scale-100 group-hover:opacity-100 sm:-inset-x-6 rounded-xl"></div>
+          <a href={`/blog/${post.id}`} class="relative z-10 flex flex-col items-start">
+            <div class="flex flex-col md:flex-row justify-between items-baseline w-full mb-1">
+              <h2 class="text-2xl font-bold text-primary group-hover:text-primary-focus transition-colors">
+                {post.data.title}
+              </h2>
+              <span class="text-xs font-medium opacity-60">
+                {new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(post.data.publishDate)}
+              </span>
+            </div>
+            <p class="text-lg text-base-content/80 leading-relaxed mb-4 max-w-4xl">
+              {post.data.description}
+            </p>
+            <div class="flex items-center gap-4 mb-3">
+              <span class="text-sm text-base-content/60">
+                {calculateReadingTime(post.body || '')} min read
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              {post.data.tags.map(tag => (
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-wide">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </a>
+        </div>
+      ))
+    )}
+  </section>
+</Layout>
