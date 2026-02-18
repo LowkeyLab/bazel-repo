@@ -1,4 +1,4 @@
-use name::Name;
+use name::{DiscordId, DiscordServerId, Name};
 use name_repo::{NameCreator, NameDeleter, NameReader, NameUpdater};
 use uuid::Uuid;
 
@@ -19,43 +19,59 @@ where
 
     pub async fn create_name(
         &self,
-        user_id: Uuid,
-        server_id: u64,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
         name: String,
     ) -> anyhow::Result<Uuid> {
-        let name_entity = Name::new(user_id, server_id, name);
+        let name_entity = Name::new(discord_id, discord_server, name);
         self.repo.save(name_entity).await
     }
 
     pub async fn update_name(
         &self,
-        user_id: Uuid,
-        server_id: u64,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
         new_name: String,
     ) -> anyhow::Result<()> {
-        self.repo.update(user_id, server_id, new_name).await?;
+        self.repo
+            .update(discord_id, discord_server, new_name)
+            .await?;
         Ok(())
     }
 
-    pub async fn get_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
-        self.repo.get(user_id, server_id).await
+    pub async fn get_name(
+        &self,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
+    ) -> anyhow::Result<Option<Name>> {
+        self.repo.get(discord_id, discord_server).await
     }
 
-    pub async fn delete_name(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
-        self.repo.delete(user_id, server_id).await?;
+    pub async fn delete_name(
+        &self,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
+    ) -> anyhow::Result<()> {
+        self.repo.delete(discord_id, discord_server).await?;
         Ok(())
     }
 
     pub async fn list_names(
         &self,
-        server_id: u64,
+        discord_server: DiscordServerId,
         limit: i64,
-        cursor: Option<Uuid>,
+        cursor: Option<DiscordId>,
     ) -> anyhow::Result<Vec<Name>> {
-        self.repo.list_by_server(server_id, limit, cursor).await
+        self.repo
+            .list_by_server(discord_server, limit, cursor)
+            .await
     }
 
-    pub async fn list_servers(&self, limit: i64, cursor: Option<u64>) -> anyhow::Result<Vec<u64>> {
+    pub async fn list_servers(
+        &self,
+        limit: i64,
+        cursor: Option<DiscordServerId>,
+    ) -> anyhow::Result<Vec<DiscordServerId>> {
         self.repo.list_servers(limit, cursor).await
     }
 }
@@ -67,7 +83,6 @@ mod tests {
     use name_repo::Repo;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
-    use user::User;
 
     /// Spins up a fresh PostgreSQL container for a single test Returns the pool and container. Container is dropped when test completes.
     async fn setup_test_db() -> (
@@ -110,36 +125,20 @@ mod tests {
         let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
-        // First create a user since names reference users
-        let user = User::new(123456789);
-        let user_id = user.id;
-        sqlx::query(
-            r#"
-            INSERT INTO users (id, discord_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4)
-            "#,
-        )
-        .bind(user.id)
-        .bind(user.discord_id as i64)
-        .bind(user.created_at)
-        .bind(user.updated_at)
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        let server_id = 987654321;
+        let discord_id = DiscordId(123456789);
+        let discord_server = DiscordServerId(987654321);
         let name_str = "TestName".to_string();
         let result = service
-            .create_name(user_id, server_id, name_str.clone())
+            .create_name(discord_id, discord_server, name_str.clone())
             .await;
 
         assert!(result.is_ok());
 
         // Verify in DB
         let row: (String,) =
-            sqlx::query_as("SELECT name FROM names WHERE user_id = $1 AND server_id = $2")
-                .bind(user_id)
-                .bind(server_id as i64)
+            sqlx::query_as("SELECT name FROM names WHERE discord_id = $1 AND discord_server = $2")
+                .bind(discord_id.0 as i64)
+                .bind(discord_server.0 as i64)
                 .fetch_one(&pool)
                 .await
                 .unwrap();
@@ -153,44 +152,28 @@ mod tests {
         let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
-        // Create a user
-        let user = User::new(123456789);
-        let user_id = user.id;
-        sqlx::query(
-            r#"
-            INSERT INTO users (id, discord_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4)
-            "#,
-        )
-        .bind(user.id)
-        .bind(user.discord_id as i64)
-        .bind(user.created_at)
-        .bind(user.updated_at)
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        let server_id = 987654321;
+        let discord_id = DiscordId(123456789);
+        let discord_server = DiscordServerId(987654321);
 
         // Create initial name
         service
-            .create_name(user_id, server_id, "InitialName".to_string())
+            .create_name(discord_id, discord_server, "InitialName".to_string())
             .await
             .expect("Failed to create name");
 
         // Update the name
         let new_name = "UpdatedName".to_string();
         let result = service
-            .update_name(user_id, server_id, new_name.clone())
+            .update_name(discord_id, discord_server, new_name.clone())
             .await;
 
         assert!(result.is_ok());
 
         // Verify in DB
         let row: (String,) =
-            sqlx::query_as("SELECT name FROM names WHERE user_id = $1 AND server_id = $2")
-                .bind(user_id)
-                .bind(server_id as i64)
+            sqlx::query_as("SELECT name FROM names WHERE discord_id = $1 AND discord_server = $2")
+                .bind(discord_id.0 as i64)
+                .bind(discord_server.0 as i64)
                 .fetch_one(&pool)
                 .await
                 .unwrap();
@@ -204,46 +187,30 @@ mod tests {
         let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
-        // Create a user
-        let user = User::new(123456789);
-        let user_id = user.id;
-        sqlx::query(
-            r#"
-            INSERT INTO users (id, discord_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4)
-            "#,
-        )
-        .bind(user.id)
-        .bind(user.discord_id as i64)
-        .bind(user.created_at)
-        .bind(user.updated_at)
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        let server_id = 987654321;
+        let discord_id = DiscordId(123456789);
+        let discord_server = DiscordServerId(987654321);
         let name_str = "TestName".to_string();
 
         // Create a name first
         service
-            .create_name(user_id, server_id, name_str.clone())
+            .create_name(discord_id, discord_server, name_str.clone())
             .await
             .expect("Failed to create name");
 
         // Test retrieval of existing name
         let result = service
-            .get_name(user_id, server_id)
+            .get_name(discord_id, discord_server)
             .await
             .expect("Failed to get name");
         assert!(result.is_some());
         let name = result.unwrap();
-        assert_eq!(name.user_id, user_id);
-        assert_eq!(name.server_id, server_id);
+        assert_eq!(name.id.discord_id, discord_id);
+        assert_eq!(name.id.discord_server, discord_server);
         assert_eq!(name.name, name_str);
 
         // Test retrieval of non-existent name
         let result = service
-            .get_name(user_id, 111111111)
+            .get_name(discord_id, DiscordServerId(111111111))
             .await
             .expect("Failed to query for non-existent name");
         assert!(result.is_none());
@@ -255,43 +222,28 @@ mod tests {
         let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
-        // Create a user
-        let user = User::new(123456789);
-        let user_id = user.id;
-        sqlx::query(
-            r#"
-            INSERT INTO users (id, discord_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4)
-            "#,
-        )
-        .bind(user.id)
-        .bind(user.discord_id as i64)
-        .bind(user.created_at)
-        .bind(user.updated_at)
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        let server_id = 987654321;
+        let discord_id = DiscordId(123456789);
+        let discord_server = DiscordServerId(987654321);
 
         // Create a name first
         service
-            .create_name(user_id, server_id, "TestName".to_string())
+            .create_name(discord_id, discord_server, "TestName".to_string())
             .await
             .expect("Failed to create name");
 
         // Delete the name
-        let result = service.delete_name(user_id, server_id).await;
+        let result = service.delete_name(discord_id, discord_server).await;
         assert!(result.is_ok());
 
         // Verify it's gone from DB
-        let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM names WHERE user_id = $1 AND server_id = $2")
-                .bind(user_id)
-                .bind(server_id as i64)
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM names WHERE discord_id = $1 AND discord_server = $2",
+        )
+        .bind(discord_id.0 as i64)
+        .bind(discord_server.0 as i64)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         assert_eq!(count.0, 0);
     }
@@ -302,40 +254,24 @@ mod tests {
         let repo = Repo::new(pool.clone());
         let service = Service::new(repo);
 
-        // Create users
-        let user1 = User::new(111);
-        let user2 = User::new(222);
-        for user in [&user1, &user2] {
-            sqlx::query(
-                r#"
-                INSERT INTO users (id, discord_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4)
-                "#,
-            )
-            .bind(user.id)
-            .bind(user.discord_id as i64)
-            .bind(user.created_at)
-            .bind(user.updated_at)
-            .execute(&pool)
-            .await
-            .unwrap();
-        }
-
         // Create names on different servers
         service
-            .create_name(user1.id, 11111, "Alice".to_string())
+            .create_name(DiscordId(111), DiscordServerId(11111), "Alice".to_string())
             .await
             .unwrap();
         service
-            .create_name(user2.id, 22222, "Bob".to_string())
+            .create_name(DiscordId(222), DiscordServerId(22222), "Bob".to_string())
             .await
             .unwrap();
 
         let result = service.list_servers(10, None).await.unwrap();
-        assert_eq!(result, vec![11111, 22222]);
+        assert_eq!(result, vec![DiscordServerId(11111), DiscordServerId(22222)]);
 
         // With cursor
-        let result = service.list_servers(10, Some(11111)).await.unwrap();
-        assert_eq!(result, vec![22222]);
+        let result = service
+            .list_servers(10, Some(DiscordServerId(11111)))
+            .await
+            .unwrap();
+        assert_eq!(result, vec![DiscordServerId(22222)]);
     }
 }

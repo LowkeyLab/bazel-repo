@@ -16,12 +16,12 @@ rust_library(
     srcs = ["relay.rs"],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
+        "//nicknamer2/src/name",
         "@crates//:anyhow",
         "@crates//:base64",
         "@crates//:juniper",
         "@crates//:serde",
         "@crates//:serde_json",
-        "@crates//:uuid",
     ],
 )
 
@@ -40,7 +40,6 @@ rust_library(
         "//nicknamer2/src/name",
         "@crates//:chrono",
         "@crates//:juniper",
-        "@crates//:uuid",
     ],
 )
 
@@ -52,6 +51,7 @@ rust_library(
         ":graphql_context",
         ":graphql_model",
         ":graphql_relay",
+        "//nicknamer2/src/name",
         "@crates//:juniper",
     ],
 )
@@ -87,6 +87,7 @@ rust_test(
         ":graphql_relay",
         ":graphql_schema",
         "//nicknamer2/src/migrations",
+        "//nicknamer2/src/name",
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "//nicknamer2/src/server",

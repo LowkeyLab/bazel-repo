@@ -1,8 +1,8 @@
 use anyhow::{Context as _, Result, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use juniper::ID;
+use name::DiscordId;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 /// Default number of items per page when `first` is not specified
 pub const DEFAULT_PAGE_SIZE: i32 = 10;
@@ -24,22 +24,25 @@ pub struct RelayId {
 /// Raw identifier components for different types
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RawId {
-    /// Name is identified by (user_id, server_id)
-    Name { user_id: Uuid, server_id: u64 },
-    /// Server is identified by server_id
-    Server { server_id: u64 },
+    /// Name is identified by (discord_id, discord_server)
+    Name {
+        discord_id: u64,
+        discord_server: u64,
+    },
+    /// Server is identified by discord_server
+    Server { discord_server: u64 },
 }
 
 impl RelayId {
     /// Encode a Name's composite key into a Relay global ID
-    pub fn encode_name(user_id: Uuid, server_id: u64) -> ID {
-        let plain = format!("Name:{}:{}", user_id, server_id);
+    pub fn encode_name(discord_id: DiscordId, discord_server: u64) -> ID {
+        let plain = format!("Name:{}:{}", discord_id.0, discord_server);
         ID::from(BASE64.encode(plain.as_bytes()))
     }
 
     /// Encode a Server's ID into a Relay global ID
-    pub fn encode_server(server_id: u64) -> ID {
-        let plain = format!("Server:{}", server_id);
+    pub fn encode_server(discord_server: u64) -> ID {
+        let plain = format!("Server:{}", discord_server);
         ID::from(BASE64.encode(plain.as_bytes()))
     }
 
@@ -55,25 +58,30 @@ impl RelayId {
         let parts: Vec<&str> = plain.split(':').collect();
 
         match parts.as_slice() {
-            ["Name", user_id_str, server_id_str] => {
-                let user_id = Uuid::parse_str(user_id_str).context("Invalid UUID format")?;
-                let server_id = server_id_str
+            ["Name", discord_id_str, discord_server_str] => {
+                let discord_id = discord_id_str
+                    .parse::<u64>()
+                    .context("Invalid Discord ID format")?;
+                let discord_server = discord_server_str
                     .parse::<u64>()
                     .context("Invalid server ID format")?;
 
                 Ok(RelayId {
                     type_name: "Name".to_string(),
-                    raw_id: RawId::Name { user_id, server_id },
+                    raw_id: RawId::Name {
+                        discord_id,
+                        discord_server,
+                    },
                 })
             }
-            ["Server", server_id_str] => {
-                let server_id = server_id_str
+            ["Server", discord_server_str] => {
+                let discord_server = discord_server_str
                     .parse::<u64>()
                     .context("Invalid server ID format")?;
 
                 Ok(RelayId {
                     type_name: "Server".to_string(),
-                    raw_id: RawId::Server { server_id },
+                    raw_id: RawId::Server { discord_server },
                 })
             }
             _ => Err(anyhow!("Unknown type in global ID: {}", plain)),
@@ -81,9 +89,12 @@ impl RelayId {
     }
 
     /// Extract Name components or return error
-    pub fn as_name(&self) -> Result<(Uuid, u64)> {
+    pub fn as_name(&self) -> Result<(u64, u64)> {
         match &self.raw_id {
-            RawId::Name { user_id, server_id } => Ok((*user_id, *server_id)),
+            RawId::Name {
+                discord_id,
+                discord_server,
+            } => Ok((*discord_id, *discord_server)),
             _ => Err(anyhow!("ID is not a Name type")),
         }
     }
@@ -91,24 +102,26 @@ impl RelayId {
     /// Extract Server components or return error
     pub fn as_server(&self) -> Result<u64> {
         match &self.raw_id {
-            RawId::Server { server_id } => Ok(*server_id),
+            RawId::Server { discord_server } => Ok(*discord_server),
             _ => Err(anyhow!("ID is not a Server type")),
         }
     }
 }
 
 /// Cursor for pagination in Relay connections
-/// Contains the user_id used for cursor-based pagination
+/// Contains the discord_id used for cursor-based pagination
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cursor {
-    /// The user_id used for pagination (unique ordering)
-    pub user_id: Uuid,
+    /// The discord_id used for pagination (unique ordering)
+    pub discord_id: u64,
 }
 
 impl Cursor {
-    /// Create a new cursor from a user_id value
-    pub fn new(user_id: Uuid) -> Self {
-        Self { user_id }
+    /// Create a new cursor from a discord_id value
+    pub fn new(discord_id: DiscordId) -> Self {
+        Self {
+            discord_id: discord_id.0,
+        }
     }
 
     /// Encode cursor to base64 JSON string
@@ -131,9 +144,9 @@ impl Cursor {
         Ok(cursor)
     }
 
-    /// Get the user_id value for use in SQL queries
-    pub fn user_id_value(&self) -> Uuid {
-        self.user_id
+    /// Get the discord_id value for use in SQL queries
+    pub fn discord_id_value(&self) -> DiscordId {
+        DiscordId(self.discord_id)
     }
 }
 
@@ -184,10 +197,10 @@ mod tests {
 
     #[test]
     fn test_encode_name_id() {
-        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        let server_id = 987654321_u64;
+        let discord_id = DiscordId(123456789012345678u64);
+        let discord_server = 987654321_u64;
 
-        let id = RelayId::encode_name(user_id, server_id);
+        let id = RelayId::encode_name(discord_id, discord_server);
 
         // Should be base64 encoded
         let id_str: &str = &id;
@@ -199,15 +212,15 @@ mod tests {
 
     #[test]
     fn test_decode_name_id_round_trip() {
-        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        let server_id = 123456789_u64;
+        let discord_id = DiscordId(123456789012345678u64);
+        let discord_server = 123456789_u64;
 
-        let encoded = RelayId::encode_name(user_id, server_id);
+        let encoded = RelayId::encode_name(discord_id, discord_server);
         let decoded = RelayId::decode(&encoded).unwrap();
-        let (decoded_user_id, decoded_server_id) = decoded.as_name().unwrap();
+        let (decoded_discord_id, decoded_discord_server) = decoded.as_name().unwrap();
 
-        assert_eq!(decoded_user_id, user_id);
-        assert_eq!(decoded_server_id, server_id);
+        assert_eq!(decoded_discord_id, discord_id.0);
+        assert_eq!(decoded_discord_server, discord_server);
     }
 
     #[test]
@@ -238,8 +251,8 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_malformed_uuid() {
-        let plain = "Name:not-a-uuid:123";
+    fn test_decode_malformed_discord_id() {
+        let plain = "Name:not-a-number:123";
         let encoded = ID::from(BASE64.encode(plain.as_bytes()));
         let result = RelayId::decode(&encoded);
         assert!(result.is_err());
@@ -247,13 +260,13 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("Invalid UUID format")
+                .contains("Invalid Discord ID format")
         );
     }
 
     #[test]
     fn test_decode_malformed_server_id() {
-        let plain = "Name:550e8400-e29b-41d4-a716-446655440000:not-a-number";
+        let plain = "Name:123456789012345678:not-a-number";
         let encoded = ID::from(BASE64.encode(plain.as_bytes()));
         let result = RelayId::decode(&encoded);
         assert!(result.is_err());
@@ -267,8 +280,8 @@ mod tests {
 
     #[test]
     fn test_cursor_encode() {
-        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        let cursor = Cursor::new(user_id);
+        let discord_id = DiscordId(123456789012345678u64);
+        let cursor = Cursor::new(discord_id);
         let encoded = cursor.encode();
 
         // Should be base64 encoded
@@ -279,23 +292,23 @@ mod tests {
 
     #[test]
     fn test_cursor_round_trip() {
-        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        let original = Cursor::new(user_id);
+        let discord_id = DiscordId(123456789012345678u64);
+        let original = Cursor::new(discord_id);
         let encoded = original.encode();
         let decoded = Cursor::decode(&encoded).unwrap();
 
-        assert_eq!(decoded.user_id, user_id);
+        assert_eq!(decoded.discord_id, discord_id.0);
         assert_eq!(decoded, original);
     }
 
     #[test]
-    fn test_cursor_with_different_uuids() {
-        let user_id = Uuid::parse_str("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap();
-        let cursor = Cursor::new(user_id);
+    fn test_cursor_with_different_discord_ids() {
+        let discord_id = DiscordId(987654321098765432u64);
+        let cursor = Cursor::new(discord_id);
         let encoded = cursor.encode();
         let decoded = Cursor::decode(&encoded).unwrap();
 
-        assert_eq!(decoded.user_id, user_id);
+        assert_eq!(decoded.discord_id, discord_id.0);
     }
 
     #[test]
@@ -319,10 +332,10 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_user_id_value() {
-        let user_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
-        let cursor = Cursor::new(user_id);
-        assert_eq!(cursor.user_id_value(), user_id);
+    fn test_cursor_discord_id_value() {
+        let discord_id = DiscordId(123456789012345678u64);
+        let cursor = Cursor::new(discord_id);
+        assert_eq!(cursor.discord_id_value(), discord_id);
     }
 
     #[test]

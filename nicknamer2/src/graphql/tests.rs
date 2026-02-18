@@ -4,6 +4,8 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode};
 use base64::Engine;
 use chrono::Utc;
+use name::DiscordId;
+use name::DiscordServerId;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use testcontainers_modules::postgres;
@@ -60,38 +62,18 @@ async fn setup_test_context() -> TestContext {
     }
 }
 
-async fn insert_user(pool: &PgPool, discord_id: u64) -> Uuid {
+async fn insert_name(pool: &PgPool, discord_id: u64, discord_server: u64, name: &str) {
     let id = Uuid::new_v4();
     let now = Utc::now();
     sqlx::query(
         r#"
-        INSERT INTO users (id, discord_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4)
-        "#,
-    )
-    .bind(id)
-    .bind(discord_id as i64)
-    .bind(now)
-    .bind(now)
-    .execute(pool)
-    .await
-    .expect("Failed to insert user");
-
-    id
-}
-
-async fn insert_name(pool: &PgPool, user_id: Uuid, server_id: u64, name: &str) {
-    let id = Uuid::new_v4();
-    let now = Utc::now();
-    sqlx::query(
-        r#"
-        INSERT INTO names (id, user_id, server_id, name, created_at, updated_at)
+        INSERT INTO names (id, discord_id, discord_server, name, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6)
         "#,
     )
     .bind(id)
-    .bind(user_id)
-    .bind(server_id as i64)
+    .bind(discord_id as i64)
+    .bind(discord_server as i64)
     .bind(name)
     .bind(now)
     .bind(now)
@@ -147,12 +129,12 @@ fn parse_graphql_body(body_text: &str) -> Value {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_existing_name_success() {
     let context = setup_test_context().await;
-    let user_id = insert_user(&context.pool, 123456789).await;
-    let server_id = 987654321_u64;
+    let discord_id = 123456789u64;
+    let discord_server = 987654321_u64;
     let name_value = "TestName";
-    insert_name(&context.pool, user_id, server_id, name_value).await;
+    insert_name(&context.pool, discord_id, discord_server, name_value).await;
 
-    let relay_id = RelayId::encode_name(user_id, server_id);
+    let relay_id = RelayId::encode_name(name::DiscordId(discord_id), discord_server);
     let query = r#"
         query {
             node(id: "RELAY_ID") {
@@ -187,10 +169,10 @@ async fn test_query_existing_name_success() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_non_existent_name_returns_null() {
     let context = setup_test_context().await;
-    let user_id = insert_user(&context.pool, 222333444).await;
-    let server_id = 999999999_u64;
+    let discord_id = 222333444u64;
+    let discord_server = 999999999_u64;
 
-    let relay_id = RelayId::encode_name(user_id, server_id);
+    let relay_id = RelayId::encode_name(DiscordId(discord_id), discord_server);
     let query = r#"
         query {
             node(id: "RELAY_ID") {
@@ -271,11 +253,11 @@ async fn test_query_unknown_node_type() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_with_variables() {
     let context = setup_test_context().await;
-    let user_id = insert_user(&context.pool, 444555666).await;
-    let server_id = 555666777_u64;
-    insert_name(&context.pool, user_id, server_id, "VariableName").await;
+    let discord_id = 444555666u64;
+    let discord_server = 555666777_u64;
+    insert_name(&context.pool, discord_id, discord_server, "VariableName").await;
 
-    let relay_id = RelayId::encode_name(user_id, server_id);
+    let relay_id = RelayId::encode_name(DiscordId(discord_id), discord_server);
     let query = r#"
         query GetNode($id: ID!) {
             node(id: $id) {
@@ -307,11 +289,11 @@ async fn test_query_with_variables() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_with_future_auth_placeholder() {
     let context = setup_test_context().await;
-    let user_id = insert_user(&context.pool, 555666777).await;
-    let server_id = 888999000_u64;
-    insert_name(&context.pool, user_id, server_id, "AuthPlaceholder").await;
+    let discord_id = 555666777u64;
+    let discord_server = 888999000_u64;
+    insert_name(&context.pool, discord_id, discord_server, "AuthPlaceholder").await;
 
-    let relay_id = RelayId::encode_name(user_id, server_id);
+    let relay_id = RelayId::encode_name(DiscordId(discord_id), discord_server);
     let query = r#"
         query {
             node(id: "RELAY_ID") {
@@ -334,7 +316,7 @@ async fn test_query_with_future_auth_placeholder() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_empty() {
     let context = setup_test_context().await;
-    let server_id = 12345;
+    let discord_server = DiscordServerId(12345);
 
     let query = format!(
         r#"
@@ -358,7 +340,7 @@ async fn test_query_server_names_empty() {
             }}
         }}
         "#,
-        server_id
+        discord_server.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -369,7 +351,7 @@ async fn test_query_server_names_empty() {
 
     let server = body["data"]["server"].as_object().expect("Missing server");
     // Server ID is now a global Relay ID (base64 encoded "Server:{id}")
-    let expected_id = graphql_relay::RelayId::encode_server(server_id);
+    let expected_id = graphql_relay::RelayId::encode_server(discord_server.0);
     assert_eq!(server["id"].as_str(), Some(expected_id.as_ref()));
 
     let names = server["names"].as_object().expect("Missing names");
@@ -386,16 +368,16 @@ async fn test_query_server_names_empty() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_first_page() {
     let context = setup_test_context().await;
-    let server_id = 99999;
+    let discord_server = DiscordServerId(99999);
 
-    let user1 = insert_user(&context.pool, 111).await;
-    let user2 = insert_user(&context.pool, 222).await;
-    let user3 = insert_user(&context.pool, 333).await;
+    let discord_id1 = DiscordId(111);
+    let discord_id2 = DiscordId(222);
+    let discord_id3 = DiscordId(333);
 
     // Insert in any order
-    insert_name(&context.pool, user2, server_id, "Charlie").await;
-    insert_name(&context.pool, user1, server_id, "Alice").await;
-    insert_name(&context.pool, user3, server_id, "Bob").await;
+    insert_name(&context.pool, discord_id2.0, discord_server.0, "Charlie").await;
+    insert_name(&context.pool, discord_id1.0, discord_server.0, "Alice").await;
+    insert_name(&context.pool, discord_id3.0, discord_server.0, "Bob").await;
 
     let query = format!(
         r#"
@@ -418,7 +400,7 @@ async fn test_query_server_names_first_page() {
             }}
         }}
         "#,
-        server_id
+        discord_server.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -462,15 +444,15 @@ async fn test_query_server_names_first_page() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_with_limit() {
     let context = setup_test_context().await;
-    let server_id = 88888;
+    let discord_server = DiscordServerId(88888);
 
-    let user1 = insert_user(&context.pool, 111).await;
-    let user2 = insert_user(&context.pool, 222).await;
-    let user3 = insert_user(&context.pool, 333).await;
+    let discord_id1 = DiscordId(111);
+    let discord_id2 = DiscordId(222);
+    let discord_id3 = DiscordId(333);
 
-    insert_name(&context.pool, user1, server_id, "Alice").await;
-    insert_name(&context.pool, user2, server_id, "Bob").await;
-    insert_name(&context.pool, user3, server_id, "Charlie").await;
+    insert_name(&context.pool, discord_id1.0, discord_server.0, "Alice").await;
+    insert_name(&context.pool, discord_id2.0, discord_server.0, "Bob").await;
+    insert_name(&context.pool, discord_id3.0, discord_server.0, "Charlie").await;
 
     let query = format!(
         r#"
@@ -489,7 +471,7 @@ async fn test_query_server_names_with_limit() {
             }}
         }}
         "#,
-        server_id
+        discord_server.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -516,15 +498,15 @@ async fn test_query_server_names_with_limit() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_with_cursor() {
     let context = setup_test_context().await;
-    let server_id = 77777;
+    let discord_server = DiscordServerId(77777);
 
-    let user1 = insert_user(&context.pool, 111).await;
-    let user2 = insert_user(&context.pool, 222).await;
-    let user3 = insert_user(&context.pool, 333).await;
+    let discord_id1 = DiscordId(111);
+    let discord_id2 = DiscordId(222);
+    let discord_id3 = DiscordId(333);
 
-    insert_name(&context.pool, user1, server_id, "Alice").await;
-    insert_name(&context.pool, user2, server_id, "Bob").await;
-    insert_name(&context.pool, user3, server_id, "Charlie").await;
+    insert_name(&context.pool, discord_id1.0, discord_server.0, "Alice").await;
+    insert_name(&context.pool, discord_id2.0, discord_server.0, "Bob").await;
+    insert_name(&context.pool, discord_id3.0, discord_server.0, "Charlie").await;
 
     // First, get all names to know the order and get the first cursor
     let query = format!(
@@ -542,7 +524,7 @@ async fn test_query_server_names_with_cursor() {
             }}
         }}
         "#,
-        server_id
+        discord_server.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -583,7 +565,7 @@ async fn test_query_server_names_with_cursor() {
             }}
         }}
         "#,
-        server_id, first_cursor
+        discord_server.0, first_cursor
     );
 
     let (status, body_text) =
@@ -623,14 +605,14 @@ async fn test_query_server_names_with_cursor() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_cursor_past_end() {
     let context = setup_test_context().await;
-    let server_id = 66666;
+    let discord_server = DiscordServerId(66666);
 
-    let user1 = insert_user(&context.pool, 111).await;
-    insert_name(&context.pool, user1, server_id, "Alice").await;
+    let discord_id1 = DiscordId(111);
+    insert_name(&context.pool, discord_id1.0, discord_server.0, "Alice").await;
 
-    // Create a cursor with max UUID (greater than any actual user_id)
-    let max_uuid = uuid::Uuid::from_u128(u128::MAX);
-    let cursor = graphql_relay::Cursor::new(max_uuid);
+    // Create a cursor with a DiscordId larger than any existing (but fits in i64)
+    let max_id = i64::MAX as u64;
+    let cursor = graphql_relay::Cursor::new(DiscordId(max_id));
     let encoded_cursor = cursor.encode();
 
     let query = format!(
@@ -650,7 +632,7 @@ async fn test_query_server_names_cursor_past_end() {
             }}
         }}
         "#,
-        server_id, encoded_cursor
+        discord_server.0, encoded_cursor
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -673,14 +655,14 @@ async fn test_query_server_names_cursor_past_end() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_different_servers() {
     let context = setup_test_context().await;
-    let server1 = 11111;
-    let server2 = 22222;
+    let discord_server1 = DiscordServerId(11111);
+    let discord_server2 = DiscordServerId(22222);
 
-    let user1 = insert_user(&context.pool, 111).await;
-    let user2 = insert_user(&context.pool, 222).await;
+    let discord_id1 = DiscordId(111);
+    let discord_id2 = DiscordId(222);
 
-    insert_name(&context.pool, user1, server1, "ServerOne").await;
-    insert_name(&context.pool, user2, server2, "ServerTwo").await;
+    insert_name(&context.pool, discord_id1.0, discord_server1.0, "ServerOne").await;
+    insert_name(&context.pool, discord_id2.0, discord_server2.0, "ServerTwo").await;
 
     // Query server1
     let query = format!(
@@ -697,7 +679,7 @@ async fn test_query_server_names_different_servers() {
             }}
         }}
         "#,
-        server1
+        discord_server1.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -725,7 +707,7 @@ async fn test_query_server_names_different_servers() {
             }}
         }}
         "#,
-        server2
+        discord_server2.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -742,7 +724,7 @@ async fn test_query_server_names_different_servers() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_invalid_cursor() {
     let context = setup_test_context().await;
-    let server_id = 55555;
+    let discord_server = DiscordServerId(55555);
 
     let query = format!(
         r#"
@@ -758,7 +740,7 @@ async fn test_query_server_names_invalid_cursor() {
             }}
         }}
         "#,
-        server_id
+        discord_server.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -773,12 +755,18 @@ async fn test_query_server_names_invalid_cursor() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_max_page_size() {
     let context = setup_test_context().await;
-    let server_id = 44444;
+    let discord_server = DiscordServerId(44444);
 
     // Insert more than MAX_PAGE_SIZE (100) names to test enforcement
     for i in 0..105 {
-        let user = insert_user(&context.pool, 1000 + i).await;
-        insert_name(&context.pool, user, server_id, &format!("User{:03}", i)).await;
+        let discord_id = DiscordId(1000 + i);
+        insert_name(
+            &context.pool,
+            discord_id.0,
+            discord_server.0,
+            &format!("User{:03}", i),
+        )
+        .await;
     }
 
     // Request more than MAX_PAGE_SIZE
@@ -796,7 +784,7 @@ async fn test_query_server_names_max_page_size() {
             }}
         }}
         "#,
-        server_id
+        discord_server.0
     );
 
     let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
@@ -864,19 +852,19 @@ async fn test_query_servers_empty() {
 async fn test_query_servers_distinct() {
     let context = setup_test_context().await;
 
-    let server1: u64 = 11111;
-    let server2: u64 = 22222;
-    let server3: u64 = 33333;
+    let server1 = DiscordServerId(11111);
+    let server2 = DiscordServerId(22222);
+    let server3 = DiscordServerId(33333);
 
-    let user1 = insert_user(&context.pool, 111).await;
-    let user2 = insert_user(&context.pool, 222).await;
-    let user3 = insert_user(&context.pool, 333).await;
+    let discord_id1 = DiscordId(111);
+    let discord_id2 = DiscordId(222);
+    let discord_id3 = DiscordId(333);
 
     // Two names on server1, one each on server2 and server3
-    insert_name(&context.pool, user1, server1, "Alice").await;
-    insert_name(&context.pool, user2, server1, "Bob").await;
-    insert_name(&context.pool, user3, server2, "Charlie").await;
-    insert_name(&context.pool, user1, server3, "AliceOnThree").await;
+    insert_name(&context.pool, discord_id1.0, server1.0, "Alice").await;
+    insert_name(&context.pool, discord_id2.0, server1.0, "Bob").await;
+    insert_name(&context.pool, discord_id3.0, server2.0, "Charlie").await;
+    insert_name(&context.pool, discord_id1.0, server3.0, "AliceOnThree").await;
 
     let query = r#"
         query {
@@ -924,13 +912,13 @@ async fn test_query_servers_distinct() {
 async fn test_query_servers_pagination() {
     let context = setup_test_context().await;
 
-    let user1 = insert_user(&context.pool, 111).await;
-    let user2 = insert_user(&context.pool, 222).await;
-    let user3 = insert_user(&context.pool, 333).await;
+    let discord_id1 = DiscordId(111);
+    let discord_id2 = DiscordId(222);
+    let discord_id3 = DiscordId(333);
 
-    insert_name(&context.pool, user1, 11111, "Alice").await;
-    insert_name(&context.pool, user2, 22222, "Bob").await;
-    insert_name(&context.pool, user3, 33333, "Charlie").await;
+    insert_name(&context.pool, discord_id1.0, 11111, "Alice").await;
+    insert_name(&context.pool, discord_id2.0, 22222, "Bob").await;
+    insert_name(&context.pool, discord_id3.0, 33333, "Charlie").await;
 
     // Page 1: first 2
     let query = r#"
@@ -1011,8 +999,8 @@ async fn test_query_servers_pagination() {
 async fn test_query_servers_cursor_past_end() {
     let context = setup_test_context().await;
 
-    let user1 = insert_user(&context.pool, 111).await;
-    insert_name(&context.pool, user1, 11111, "Alice").await;
+    let discord_id1 = DiscordId(111);
+    insert_name(&context.pool, discord_id1.0, 11111, "Alice").await;
 
     // Create a cursor with a server_id larger than any existing
     // Use a value that fits in i64 since server_id is stored as i64 in PostgreSQL

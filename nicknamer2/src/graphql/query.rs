@@ -2,6 +2,7 @@ use graphql_context::Context;
 use graphql_model::{Name, NodeValue, PageInfo, Server, ServerConnection, ServerEdge};
 use graphql_relay::{DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, RelayId, ServerCursor};
 use juniper::{FieldResult, ID, graphql_object};
+use name::{DiscordId, DiscordServerId};
 
 /// Root query for the nicknamer2 GraphQL API.
 pub struct QueryRoot;
@@ -20,7 +21,9 @@ impl QueryRoot {
             return Err("Server ID must be greater than 0".into());
         }
 
-        Ok(Server { id: server_id_u64 })
+        Ok(Server {
+            id: DiscordServerId(server_id_u64),
+        })
     }
 
     /// Fetch any object by its global Relay ID.
@@ -32,28 +35,37 @@ impl QueryRoot {
 
         match relay_id.type_name.as_str() {
             "Name" => {
-                let (user_id, server_id) = relay_id
+                let (discord_id, discord_server) = relay_id
                     .as_name()
                     .map_err(|e| format!("Invalid Name ID: {}", e))?;
 
+                if discord_id == 0 {
+                    return Err("Discord ID must be greater than 0".into());
+                }
+                if discord_server == 0 {
+                    return Err("Server ID must be greater than 0".into());
+                }
+
                 let result = context
                     .name_service
-                    .get_name(user_id, server_id)
+                    .get_name(DiscordId(discord_id), DiscordServerId(discord_server))
                     .await
                     .map_err(|e| format!("{e}"))?;
 
                 Ok(result.map(Name::from).map(NodeValue::Name))
             }
             "Server" => {
-                let server_id = relay_id
+                let discord_server = relay_id
                     .as_server()
                     .map_err(|e| format!("Invalid Server ID: {}", e))?;
 
-                if server_id == 0 {
+                if discord_server == 0 {
                     return Err("Server ID must be greater than 0".into());
                 }
 
-                Ok(Some(NodeValue::Server(Server { id: server_id })))
+                Ok(Some(NodeValue::Server(Server {
+                    id: DiscordServerId(discord_server),
+                })))
             }
             _ => Ok(None),
         }
@@ -79,7 +91,7 @@ impl QueryRoot {
         // Decode cursor if provided
         let cursor_value = if let Some(after_cursor) = after {
             let cursor = ServerCursor::decode(&after_cursor)?;
-            Some(cursor.server_id_value())
+            Some(DiscordServerId(cursor.server_id_value()))
         } else {
             None
         };
@@ -105,11 +117,11 @@ impl QueryRoot {
         // Build edges with cursors
         let edges: Vec<ServerEdge> = servers
             .into_iter()
-            .map(|server_id| {
-                let cursor = ServerCursor::new(server_id);
+            .map(|discord_server| {
+                let cursor = ServerCursor::new(discord_server.0);
                 ServerEdge {
                     cursor: cursor.encode(),
-                    node: Server { id: server_id },
+                    node: Server { id: discord_server },
                 }
             })
             .collect();

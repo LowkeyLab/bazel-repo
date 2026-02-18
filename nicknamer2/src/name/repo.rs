@@ -1,4 +1,4 @@
-use name::Name;
+use name::{DiscordId, DiscordServerId, Name, NameId};
 use sqlx::PgPool;
 use sqlx::types::Uuid;
 use sqlx::types::chrono::{DateTime, Utc};
@@ -9,8 +9,8 @@ use std::future::Future;
 struct NameDAO {
     #[allow(dead_code)]
     id: Uuid,
-    user_id: Uuid,
-    server_id: i64,
+    discord_id: i64,
+    discord_server: i64,
     name: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
@@ -19,8 +19,10 @@ struct NameDAO {
 impl From<NameDAO> for Name {
     fn from(dao: NameDAO) -> Self {
         Name {
-            user_id: dao.user_id,
-            server_id: dao.server_id as u64,
+            id: NameId {
+                discord_id: DiscordId(dao.discord_id as u64),
+                discord_server: DiscordServerId(dao.discord_server as u64),
+            },
             name: dao.name,
             created_at: dao.created_at,
             updated_at: dao.updated_at,
@@ -37,30 +39,30 @@ pub trait NameCreator {
 pub trait NameReader {
     fn get(
         &self,
-        user_id: Uuid,
-        server_id: u64,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
     ) -> impl Future<Output = anyhow::Result<Option<Name>>> + Send;
 
     fn list_by_server(
         &self,
-        server_id: u64,
+        discord_server: DiscordServerId,
         limit: i64,
-        cursor: Option<Uuid>,
+        cursor: Option<DiscordId>,
     ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
 
     fn list_servers(
         &self,
         limit: i64,
-        cursor: Option<u64>,
-    ) -> impl Future<Output = anyhow::Result<Vec<u64>>> + Send;
+        cursor: Option<DiscordServerId>,
+    ) -> impl Future<Output = anyhow::Result<Vec<DiscordServerId>>> + Send;
 }
 
 /// Updates a name in the database.
 pub trait NameUpdater {
     fn update(
         &self,
-        user_id: Uuid,
-        server_id: u64,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
         new_name: String,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
@@ -69,8 +71,8 @@ pub trait NameUpdater {
 pub trait NameDeleter {
     fn delete(
         &self,
-        user_id: Uuid,
-        server_id: u64,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
@@ -90,13 +92,13 @@ impl NameCreator for Repo {
         let id = Uuid::new_v4();
         sqlx::query(
             r#"
-            INSERT INTO names (id, user_id, server_id, name, created_at, updated_at)
+            INSERT INTO names (id, discord_id, discord_server, name, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             "#,
         )
         .bind(id)
-        .bind(name.user_id)
-        .bind(name.server_id as i64)
+        .bind(name.id.discord_id.0 as i64)
+        .bind(name.id.discord_server.0 as i64)
         .bind(name.name)
         .bind(name.created_at)
         .bind(name.updated_at)
@@ -108,19 +110,24 @@ impl NameCreator for Repo {
 }
 
 impl NameUpdater for Repo {
-    async fn update(&self, user_id: Uuid, server_id: u64, new_name: String) -> anyhow::Result<()> {
+    async fn update(
+        &self,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
+        new_name: String,
+    ) -> anyhow::Result<()> {
         let now = Utc::now();
         sqlx::query(
             r#"
             UPDATE names
             SET name = $1, updated_at = $2
-            WHERE user_id = $3 AND server_id = $4
+            WHERE discord_id = $3 AND discord_server = $4
             "#,
         )
         .bind(new_name)
         .bind(now)
-        .bind(user_id)
-        .bind(server_id as i64)
+        .bind(discord_id.0 as i64)
+        .bind(discord_server.0 as i64)
         .execute(&self.pool)
         .await?;
 
@@ -129,16 +136,20 @@ impl NameUpdater for Repo {
 }
 
 impl NameReader for Repo {
-    async fn get(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<Option<Name>> {
+    async fn get(
+        &self,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
+    ) -> anyhow::Result<Option<Name>> {
         let dao = sqlx::query_as::<_, NameDAO>(
             r#"
-            SELECT id, user_id, server_id, name, created_at, updated_at
+            SELECT id, discord_id, discord_server, name, created_at, updated_at
             FROM names
-            WHERE user_id = $1 AND server_id = $2
+            WHERE discord_id = $1 AND discord_server = $2
             "#,
         )
-        .bind(user_id)
-        .bind(server_id as i64)
+        .bind(discord_id.0 as i64)
+        .bind(discord_server.0 as i64)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -147,34 +158,34 @@ impl NameReader for Repo {
 
     async fn list_by_server(
         &self,
-        server_id: u64,
+        discord_server: DiscordServerId,
         limit: i64,
-        cursor: Option<Uuid>,
+        cursor: Option<DiscordId>,
     ) -> anyhow::Result<Vec<Name>> {
-        let query = if let Some(last_user_id) = cursor {
+        let query = if let Some(last_discord_id) = cursor {
             sqlx::query_as::<_, NameDAO>(
                 r#"
-                SELECT id, user_id, server_id, name, created_at, updated_at
+                SELECT id, discord_id, discord_server, name, created_at, updated_at
                 FROM names
-                WHERE server_id = $1 AND user_id > $2
-                ORDER BY user_id ASC
+                WHERE discord_server = $1 AND discord_id > $2
+                ORDER BY discord_id ASC
                 LIMIT $3
                 "#,
             )
-            .bind(server_id as i64)
-            .bind(last_user_id)
+            .bind(discord_server.0 as i64)
+            .bind(last_discord_id.0 as i64)
             .bind(limit)
         } else {
             sqlx::query_as::<_, NameDAO>(
                 r#"
-                SELECT id, user_id, server_id, name, created_at, updated_at
+                SELECT id, discord_id, discord_server, name, created_at, updated_at
                 FROM names
-                WHERE server_id = $1
-                ORDER BY user_id ASC
+                WHERE discord_server = $1
+                ORDER BY discord_id ASC
                 LIMIT $2
                 "#,
             )
-            .bind(server_id as i64)
+            .bind(discord_server.0 as i64)
             .bind(limit)
         };
 
@@ -182,27 +193,31 @@ impl NameReader for Repo {
         Ok(daos.into_iter().map(Into::into).collect())
     }
 
-    async fn list_servers(&self, limit: i64, cursor: Option<u64>) -> anyhow::Result<Vec<u64>> {
+    async fn list_servers(
+        &self,
+        limit: i64,
+        cursor: Option<DiscordServerId>,
+    ) -> anyhow::Result<Vec<DiscordServerId>> {
         let rows: Vec<(i64,)> = if let Some(last_server_id) = cursor {
             sqlx::query_as(
                 r#"
-                SELECT DISTINCT server_id
+                SELECT DISTINCT discord_server
                 FROM names
-                WHERE server_id > $1
-                ORDER BY server_id ASC
+                WHERE discord_server > $1
+                ORDER BY discord_server ASC
                 LIMIT $2
                 "#,
             )
-            .bind(last_server_id as i64)
+            .bind(last_server_id.0 as i64)
             .bind(limit)
             .fetch_all(&self.pool)
             .await?
         } else {
             sqlx::query_as(
                 r#"
-                SELECT DISTINCT server_id
+                SELECT DISTINCT discord_server
                 FROM names
-                ORDER BY server_id ASC
+                ORDER BY discord_server ASC
                 LIMIT $1
                 "#,
             )
@@ -211,20 +226,27 @@ impl NameReader for Repo {
             .await?
         };
 
-        Ok(rows.into_iter().map(|(id,)| id as u64).collect())
+        Ok(rows
+            .into_iter()
+            .map(|(id,)| DiscordServerId(id as u64))
+            .collect())
     }
 }
 
 impl NameDeleter for Repo {
-    async fn delete(&self, user_id: Uuid, server_id: u64) -> anyhow::Result<()> {
+    async fn delete(
+        &self,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
+    ) -> anyhow::Result<()> {
         sqlx::query(
             r#"
             DELETE FROM names
-            WHERE user_id = $1 AND server_id = $2
+            WHERE discord_id = $1 AND discord_server = $2
             "#,
         )
-        .bind(user_id)
-        .bind(server_id as i64)
+        .bind(discord_id.0 as i64)
+        .bind(discord_server.0 as i64)
         .execute(&self.pool)
         .await?;
 
@@ -238,7 +260,6 @@ mod tests {
     use migrations::run_migrations;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
     use testcontainers_modules::{postgres, testcontainers};
-    use user::User;
 
     #[test]
     fn dummy() {
@@ -274,35 +295,22 @@ mod tests {
         (pool, container)
     }
 
-    async fn insert_user(pool: &sqlx::PgPool, discord_id: u64) -> Uuid {
-        let user = User::new(discord_id);
+    async fn insert_name(
+        pool: &sqlx::PgPool,
+        discord_id: DiscordId,
+        discord_server: DiscordServerId,
+        name: &str,
+    ) {
+        let name_entity = Name::new(discord_id, discord_server, name.to_string());
         sqlx::query(
             r#"
-            INSERT INTO users (id, discord_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4)
-            "#,
-        )
-        .bind(user.id)
-        .bind(user.discord_id as i64)
-        .bind(user.created_at)
-        .bind(user.updated_at)
-        .execute(pool)
-        .await
-        .unwrap();
-        user.id
-    }
-
-    async fn insert_name(pool: &sqlx::PgPool, user_id: Uuid, server_id: u64, name: &str) {
-        let name_entity = Name::new(user_id, server_id, name.to_string());
-        sqlx::query(
-            r#"
-            INSERT INTO names (id, user_id, server_id, name, created_at, updated_at)
+            INSERT INTO names (id, discord_id, discord_server, name, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             "#,
         )
         .bind(Uuid::new_v4())
-        .bind(name_entity.user_id)
-        .bind(name_entity.server_id as i64)
+        .bind(name_entity.id.discord_id.0 as i64)
+        .bind(name_entity.id.discord_server.0 as i64)
         .bind(&name_entity.name)
         .bind(name_entity.created_at)
         .bind(name_entity.updated_at)
@@ -316,7 +324,10 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool);
 
-        let result = repo.list_by_server(12345, 10, None).await.unwrap();
+        let result = repo
+            .list_by_server(DiscordServerId(12345), 10, None)
+            .await
+            .unwrap();
         assert_eq!(result.len(), 0);
     }
 
@@ -325,25 +336,23 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let server_id = 99999;
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
-        let user3 = insert_user(&pool, 333).await;
+        let discord_server = DiscordServerId(99999);
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
+        let discord_id3 = DiscordId(333);
 
         // Insert names in any order
-        insert_name(&pool, user2, server_id, "Charlie").await;
-        insert_name(&pool, user1, server_id, "Alice").await;
-        insert_name(&pool, user3, server_id, "Bob").await;
+        insert_name(&pool, discord_id2, discord_server, "Charlie").await;
+        insert_name(&pool, discord_id1, discord_server, "Alice").await;
+        insert_name(&pool, discord_id3, discord_server, "Bob").await;
 
-        let result = repo.list_by_server(server_id, 10, None).await.unwrap();
+        let result = repo.list_by_server(discord_server, 10, None).await.unwrap();
 
         assert_eq!(result.len(), 3);
-        // Should be sorted by user_id (UUID ordering)
-        let mut user_ids = vec![user1, user2, user3];
-        user_ids.sort();
-        assert_eq!(result[0].user_id, user_ids[0]);
-        assert_eq!(result[1].user_id, user_ids[1]);
-        assert_eq!(result[2].user_id, user_ids[2]);
+        // Should be sorted by discord_id (numeric ordering)
+        assert_eq!(result[0].id.discord_id, discord_id1);
+        assert_eq!(result[1].id.discord_id, discord_id2);
+        assert_eq!(result[2].id.discord_id, discord_id3);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -351,23 +360,21 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let server_id = 88888;
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
-        let user3 = insert_user(&pool, 333).await;
+        let discord_server = DiscordServerId(88888);
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
+        let discord_id3 = DiscordId(333);
 
-        insert_name(&pool, user1, server_id, "Alice").await;
-        insert_name(&pool, user2, server_id, "Bob").await;
-        insert_name(&pool, user3, server_id, "Charlie").await;
+        insert_name(&pool, discord_id1, discord_server, "Alice").await;
+        insert_name(&pool, discord_id2, discord_server, "Bob").await;
+        insert_name(&pool, discord_id3, discord_server, "Charlie").await;
 
-        let result = repo.list_by_server(server_id, 2, None).await.unwrap();
+        let result = repo.list_by_server(discord_server, 2, None).await.unwrap();
 
         assert_eq!(result.len(), 2);
-        // Should get first 2 by user_id ordering
-        let mut user_ids = vec![user1, user2, user3];
-        user_ids.sort();
-        assert_eq!(result[0].user_id, user_ids[0]);
-        assert_eq!(result[1].user_id, user_ids[1]);
+        // Should get first 2 by discord_id ordering
+        assert_eq!(result[0].id.discord_id, discord_id1);
+        assert_eq!(result[1].id.discord_id, discord_id2);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -375,31 +382,31 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let server_id = 77777;
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
-        let user3 = insert_user(&pool, 333).await;
+        let discord_server = DiscordServerId(77777);
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
+        let discord_id3 = DiscordId(333);
 
-        insert_name(&pool, user1, server_id, "Alice").await;
-        insert_name(&pool, user2, server_id, "Bob").await;
-        insert_name(&pool, user3, server_id, "Charlie").await;
+        insert_name(&pool, discord_id1, discord_server, "Alice").await;
+        insert_name(&pool, discord_id2, discord_server, "Bob").await;
+        insert_name(&pool, discord_id3, discord_server, "Charlie").await;
 
-        // Get all names to determine the actual ordering by user_id
-        let all_names = repo.list_by_server(server_id, 10, None).await.unwrap();
+        // Get all names to determine the actual ordering by discord_id
+        let all_names = repo.list_by_server(discord_server, 10, None).await.unwrap();
         assert_eq!(all_names.len(), 3);
 
-        // Use the first user_id as cursor to get names after it
-        let first_user_id = all_names[0].user_id;
+        // Use the first discord_id as cursor to get names after it
+        let first_discord_id = all_names[0].id.discord_id;
         let result = repo
-            .list_by_server(server_id, 10, Some(first_user_id))
+            .list_by_server(discord_server, 10, Some(first_discord_id))
             .await
             .unwrap();
 
-        // Should get 2 names (the ones after the first in UUID ordering)
+        // Should get 2 names (the ones after the first in ordering)
         assert_eq!(result.len(), 2);
         // Verify they match the expected ordering
-        assert_eq!(result[0].user_id, all_names[1].user_id);
-        assert_eq!(result[1].user_id, all_names[2].user_id);
+        assert_eq!(result[0].id.discord_id, all_names[1].id.discord_id);
+        assert_eq!(result[1].id.discord_id, all_names[2].id.discord_id);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -407,15 +414,15 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let server_id = 66666;
-        let user1 = insert_user(&pool, 111).await;
+        let discord_server = DiscordServerId(66666);
+        let discord_id1 = DiscordId(111);
 
-        insert_name(&pool, user1, server_id, "Alice").await;
+        insert_name(&pool, discord_id1, discord_server, "Alice").await;
 
-        // Use a UUID larger than user1 - no names after this
-        let large_uuid = Uuid::parse_str("ffffffff-ffff-ffff-ffff-ffffffffffff").unwrap();
+        // Use a discord_id larger than all - no names after this
+        let large_id = DiscordId(999999999999999);
         let result = repo
-            .list_by_server(server_id, 10, Some(large_uuid))
+            .list_by_server(discord_server, 10, Some(large_id))
             .await
             .unwrap();
 
@@ -427,13 +434,13 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let server1 = 11111;
-        let server2 = 22222;
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
+        let server1 = DiscordServerId(11111);
+        let server2 = DiscordServerId(22222);
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
 
-        insert_name(&pool, user1, server1, "ServerOne").await;
-        insert_name(&pool, user2, server2, "ServerTwo").await;
+        insert_name(&pool, discord_id1, server1, "ServerOne").await;
+        insert_name(&pool, discord_id2, server2, "ServerTwo").await;
 
         let result = repo.list_by_server(server1, 10, None).await.unwrap();
         assert_eq!(result.len(), 1);
@@ -458,19 +465,19 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let server1: u64 = 11111;
-        let server2: u64 = 22222;
-        let server3: u64 = 33333;
+        let server1 = DiscordServerId(11111);
+        let server2 = DiscordServerId(22222);
+        let server3 = DiscordServerId(33333);
 
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
-        let user3 = insert_user(&pool, 333).await;
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
+        let discord_id3 = DiscordId(333);
 
         // Two names on server1, one each on server2 and server3
-        insert_name(&pool, user1, server1, "Alice").await;
-        insert_name(&pool, user2, server1, "Bob").await;
-        insert_name(&pool, user3, server2, "Charlie").await;
-        insert_name(&pool, user1, server3, "AliceOnThree").await;
+        insert_name(&pool, discord_id1, server1, "Alice").await;
+        insert_name(&pool, discord_id2, server1, "Bob").await;
+        insert_name(&pool, discord_id3, server2, "Charlie").await;
+        insert_name(&pool, discord_id1, server3, "AliceOnThree").await;
 
         let result = repo.list_servers(10, None).await.unwrap();
         assert_eq!(result.len(), 3);
@@ -483,17 +490,17 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
-        let user3 = insert_user(&pool, 333).await;
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
+        let discord_id3 = DiscordId(333);
 
-        insert_name(&pool, user1, 11111, "Alice").await;
-        insert_name(&pool, user2, 22222, "Bob").await;
-        insert_name(&pool, user3, 33333, "Charlie").await;
+        insert_name(&pool, discord_id1, DiscordServerId(11111), "Alice").await;
+        insert_name(&pool, discord_id2, DiscordServerId(22222), "Bob").await;
+        insert_name(&pool, discord_id3, DiscordServerId(33333), "Charlie").await;
 
         let result = repo.list_servers(2, None).await.unwrap();
         assert_eq!(result.len(), 2);
-        assert_eq!(result, vec![11111, 22222]);
+        assert_eq!(result, vec![DiscordServerId(11111), DiscordServerId(22222)]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -501,18 +508,21 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let user1 = insert_user(&pool, 111).await;
-        let user2 = insert_user(&pool, 222).await;
-        let user3 = insert_user(&pool, 333).await;
+        let discord_id1 = DiscordId(111);
+        let discord_id2 = DiscordId(222);
+        let discord_id3 = DiscordId(333);
 
-        insert_name(&pool, user1, 11111, "Alice").await;
-        insert_name(&pool, user2, 22222, "Bob").await;
-        insert_name(&pool, user3, 33333, "Charlie").await;
+        insert_name(&pool, discord_id1, DiscordServerId(11111), "Alice").await;
+        insert_name(&pool, discord_id2, DiscordServerId(22222), "Bob").await;
+        insert_name(&pool, discord_id3, DiscordServerId(33333), "Charlie").await;
 
         // Cursor after server 11111 should return 22222 and 33333
-        let result = repo.list_servers(10, Some(11111)).await.unwrap();
+        let result = repo
+            .list_servers(10, Some(DiscordServerId(11111)))
+            .await
+            .unwrap();
         assert_eq!(result.len(), 2);
-        assert_eq!(result, vec![22222, 33333]);
+        assert_eq!(result, vec![DiscordServerId(22222), DiscordServerId(33333)]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -520,10 +530,13 @@ mod tests {
         let (pool, _container) = setup_test_db().await;
         let repo = Repo::new(pool.clone());
 
-        let user1 = insert_user(&pool, 111).await;
-        insert_name(&pool, user1, 11111, "Alice").await;
+        let discord_id1 = DiscordId(111);
+        insert_name(&pool, discord_id1, DiscordServerId(11111), "Alice").await;
 
-        let result = repo.list_servers(10, Some(99999)).await.unwrap();
+        let result = repo
+            .list_servers(10, Some(DiscordServerId(99999)))
+            .await
+            .unwrap();
         assert_eq!(result.len(), 0);
     }
 }

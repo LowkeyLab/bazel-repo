@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use graphql_context::Context;
 use graphql_relay::{Cursor, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, RelayId};
 use juniper::{FieldResult, GraphQLInterface, ID, graphql_object};
-use uuid::Uuid;
+use name::{DiscordId, DiscordServerId, Name as NameEntity, NameId};
 
 /// The Relay Node interface - all types with global IDs implement this
 #[derive(GraphQLInterface)]
@@ -14,7 +14,7 @@ pub struct Node {
 
 /// A Discord server
 pub struct Server {
-    pub id: u64,
+    pub id: DiscordServerId,
 }
 
 /// An edge in the names connection, containing a name and its cursor
@@ -91,7 +91,7 @@ impl NameConnection {
 impl Server {
     /// The server ID (global Relay ID)
     fn id(&self) -> ID {
-        RelayId::encode_server(self.id)
+        RelayId::encode_server(self.id.0)
     }
 
     /// Paginated list of names in this server
@@ -115,7 +115,7 @@ impl Server {
         // Decode cursor if provided
         let cursor_value = if let Some(after_cursor) = after {
             let cursor = Cursor::decode(&after_cursor)?;
-            Some(cursor.user_id_value())
+            Some(cursor.discord_id_value())
         } else {
             None
         };
@@ -142,7 +142,7 @@ impl Server {
         let edges: Vec<NameEdge> = names
             .into_iter()
             .map(|name| {
-                let cursor = Cursor::new(name.user_id);
+                let cursor = Cursor::new(name.id.discord_id);
                 NameEdge {
                     cursor: cursor.encode(),
                     node: Name::from(name),
@@ -203,8 +203,7 @@ impl ServerConnection {
 /// A name associated with a user in a Discord server, exposed via GraphQL.
 /// Internal storage for GraphQL Name type
 pub struct Name {
-    pub user_id: Uuid,
-    pub server_id: u64,
+    pub id: NameId,
     pub name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -215,7 +214,7 @@ pub struct Name {
 impl Name {
     /// The globally unique Relay ID for this Name
     fn id(&self) -> ID {
-        graphql_relay::RelayId::encode_name(self.user_id, self.server_id)
+        graphql_relay::RelayId::encode_name(self.id.discord_id, self.id.discord_server.0)
     }
 
     fn name(&self) -> &str {
@@ -231,11 +230,10 @@ impl Name {
     }
 }
 
-impl From<name::Name> for Name {
-    fn from(n: name::Name) -> Self {
+impl From<NameEntity> for Name {
+    fn from(n: NameEntity) -> Self {
         Self {
-            user_id: n.user_id,
-            server_id: n.server_id,
+            id: n.id,
             name: n.name,
             created_at: n.created_at,
             updated_at: n.updated_at,
