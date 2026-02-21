@@ -59,4 +59,4 @@ uuid = { version = "1.18.1", features = ["v4"] }
 insta = { version = "1.43.2", features = ["yaml"] }
 mockall = "0.14.0"
 regex = "1.11.3"
-testcontainers-modules = { version = "0.14.0", features = ["postgres"] }
+testcontainers-modules = { version = "0.15.0", features = ["postgres"] }
