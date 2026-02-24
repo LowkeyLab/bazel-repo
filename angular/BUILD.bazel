@@ -1,11 +1,56 @@
+load("@aspect_bazel_lib//lib:jq.bzl", "jq")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_angular//src/architect:ng_config.bzl", "ng_config")
 
 npm_link_all_packages(name = "node_modules")
 
-ng_config(
+# Inline ng_config logic to strip tsconfig references that break TSConfck in the Bazel sandbox.
+# See @rules_angular//src/architect:ng_config.bzl for the original JQ filters.
+
+jq(
+    name = "angular",
+    srcs = ["angular.json"],
+    filter = """
+(
+  .projects | to_entries | map(
+    if .value.architect.test.builder != "@angular/build:unit-test" then
+      .value.architect.test.options.preserveSymlinks = true
+    else
+      .
+    end
+    |
+    if .value.projectType == "application" then
+      .value.architect.build.options.outputPath = "./" + .value.root + "/dist"
+      |
+      .value.architect.build.options.preserveSymlinks = true
+    else
+      .
+    end
+  ) | from_entries
+) as $updated |
+. * {projects: $updated}
+""",
+)
+
+jq(
+    name = "tsconfig",
+    srcs = ["tsconfig.json"],
+    filter = """
+    .compilerOptions.paths |= if . then map_values(
+      map(
+        gsub("^dist/(?<p>.+)$"; "projects/"+.p+"/dist")
+      )
+    ) else {} end
+    | del(.references)
+""",
+)
+
+filegroup(
     name = "ng-config",
+    srcs = [
+        ":angular",
+        ":tsconfig",
+    ],
     visibility = [
         "//angular:__subpackages__",
         "//tools/lint:__subpackages__",

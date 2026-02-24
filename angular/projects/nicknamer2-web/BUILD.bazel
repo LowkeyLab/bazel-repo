@@ -1,0 +1,80 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
+
+package(default_visibility = ["//visibility:public"])
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+        exclude = [
+            "dist/",
+            "src/styles.css",
+        ],
+    ),
+)
+
+process_styles(
+    name = "processed_styles",
+    src = "src/styles.css",
+    srcs = glob([
+        "src/**/*.ts",
+    ]),
+    out = "src/processed_styles.css",
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
+ng_application(
+    name = "nicknamer2-web",
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
+    tailwindcss = True,
+    deps = [
+        # keep-sorted start
+        "//angular:node_modules/@angular/forms",
+        "//angular:node_modules/@angular/router",
+        "//angular:node_modules/@apollo/client",
+        "//angular:node_modules/@graphql-typed-document-node/core",
+        "//angular:node_modules/@wry/caches",
+        "//angular:node_modules/@wry/context",
+        "//angular:node_modules/@wry/equality",
+        "//angular:node_modules/@wry/trie",
+        "//angular:node_modules/apollo-angular",
+        "//angular:node_modules/daisyui",
+        "//angular:node_modules/graphql",
+        "//angular:node_modules/graphql-tag",
+        "//angular:node_modules/optimism",
+        # keep-sorted end
+    ],
+)
+
+ng_test(
+    name = "test",
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+    ],
+    tailwindcss = True,
+    vitest = True,
+    deps = [
+        # keep-sorted start
+        "//angular:node_modules/@angular/forms",
+        "//angular:node_modules/@angular/router",
+        "//angular:node_modules/@apollo/client",
+        "//angular:node_modules/@graphql-typed-document-node/core",
+        "//angular:node_modules/@wry/caches",
+        "//angular:node_modules/@wry/context",
+        "//angular:node_modules/@wry/equality",
+        "//angular:node_modules/@wry/trie",
+        "//angular:node_modules/apollo-angular",
+        "//angular:node_modules/daisyui",
+        "//angular:node_modules/graphql",
+        "//angular:node_modules/graphql-tag",
+        "//angular:node_modules/optimism",
+        # keep-sorted end
+    ],
+)

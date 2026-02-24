@@ -59,3 +59,4 @@ user.bazelrc
 # https://github.com/bazelbuild/bazel/issues/20272
 # https://github.com/bazelbuild/bazel/issues/20369
 MODULE.bazel.lock
+.worktrees/

@@ -23,6 +23,16 @@
   "private": true,
   "dependencies": {
     "@angular/common": "catalog:",
+    "@apollo/client": "catalog:",
+    "@graphql-typed-document-node/core": "catalog:",
+    "@wry/caches": "catalog:",
+    "@wry/context": "catalog:",
+    "@wry/equality": "catalog:",
+    "@wry/trie": "catalog:",
+    "apollo-angular": "catalog:",
+    "graphql": "catalog:",
+    "graphql-tag": "catalog:",
+    "optimism": "catalog:",
     "@angular/compiler": "catalog:",
     "@angular/core": "catalog:",
     "@angular/forms": "catalog:",
@@ -34,6 +44,7 @@
     "zone.js": "catalog:"
   },
   "devDependencies": {
+    "@angular-devkit/architect": "catalog:",
     "@angular/build": "catalog:",
     "@angular/cli": "catalog:",
     "@angular/compiler-cli": "catalog:",
@@ -54,6 +65,7 @@
     "postcss-cli": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

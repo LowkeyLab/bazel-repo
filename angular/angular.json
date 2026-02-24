@@ -314,6 +314,70 @@
           }
         }
       }
+    },
+    "nicknamer2-web": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/nicknamer2-web",
+      "sourceRoot": "projects/nicknamer2-web/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/nicknamer2-web/src/main.ts",
+            "tsConfig": "projects/nicknamer2-web/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/nicknamer2-web/public"
+              }
+            ],
+            "styles": ["projects/nicknamer2-web/src/processed_styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "nicknamer2-web:build:production"
+            },
+            "development": {
+              "buildTarget": "nicknamer2-web:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/nicknamer2-web/tsconfig.spec.json"
+          }
+        }
+      }
     }
   },
   "cli": {

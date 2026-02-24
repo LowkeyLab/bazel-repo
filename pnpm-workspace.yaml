@@ -4,7 +4,21 @@ packages:
   - tools
   - personal_website
 catalog:
+  '@analogjs/platform': ^2.2.0
+  '@analogjs/vite-plugin-angular': ^2.2.0
+  '@analogjs/vitest-angular': ^2.2.3
+  '@angular-devkit/architect': ^0.2101.0
   '@angular/build': ^21.0.1
+  '@apollo/client': ^4.0.0
+  '@graphql-typed-document-node/core': ^3.2.0
+  '@wry/caches': ^1.0.1
+  '@wry/context': ^0.7.4
+  '@wry/equality': ^0.5.7
+  '@wry/trie': ^0.5.0
+  apollo-angular: ^13.0.0
+  graphql: ^16.10.0
+  graphql-tag: ^2.12.6
+  optimism: ^0.18.1
   '@angular/cli': ^21.0.3
   '@angular/common': ^21.0.3
   '@angular/compiler': ^21.0.3
