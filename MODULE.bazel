@@ -22,7 +22,7 @@ bazel_dep(name = "rules_nodejs", version = "6.7.3")
 
 # Bazel 9: Bump up rules_android to pick up fixes for Bazel 9 compatibility
 bazel_dep(name = "rules_android", version = "0.7.1")
-bazel_dep(name = "rules_java", version = "9.6.0")
+bazel_dep(name = "rules_java", version = "9.6.1")
 bazel_dep(name = "rules_kotlin", version = "2.3.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2")
