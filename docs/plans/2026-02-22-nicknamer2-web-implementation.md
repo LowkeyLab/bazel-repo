@@ -6,7 +6,7 @@
 
 **Architecture:** A standard Angular Single Page Application situated in the `angular/` workspace, customized to use the Vite builder from `@analogjs/platform`, Apollo Angular for GraphQL, and Tailwind+DaisyUI for styling.
 
-**Tech Stack:** Angular 19, Analog.js Vite Plugin, Apollo Angular, GraphQL Codegen, Tailwind CSS, DaisyUI, Bazel.
+**Tech Stack:** Angular 21, Analog.js Vite Plugin, Apollo Angular, GraphQL Codegen, Tailwind CSS, DaisyUI, Bazel.
 
 ---
 
