@@ -22,6 +22,23 @@
       "esbuild",
       "lmdb",
       "msgpackr-extract"
-    ]
+    ],
+    "packageExtensions": {
+      "@analogjs/vite-plugin-angular": {
+        "dependencies": {
+          "@angular-devkit/architect": "*",
+          "@angular/compiler": "*",
+          "@angular/compiler-cli": "*",
+          "tinyglobby": "*",
+          "typescript": "*",
+          "vite": "*"
+        }
+      },
+      "apollo-angular": {
+        "dependencies": {
+          "@angular/common": "*"
+        }
+      }
+    }
   }
 }

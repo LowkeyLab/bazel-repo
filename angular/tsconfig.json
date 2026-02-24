@@ -40,6 +40,12 @@
     },
     {
       "path": "./projects/predix/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/nicknamer2-web/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/nicknamer2-web/tsconfig.spec.json"
     }
   ]
 }

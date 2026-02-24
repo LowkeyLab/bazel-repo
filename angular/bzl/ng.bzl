@@ -64,7 +64,7 @@ def ng_application(zonejs = False, tailwindcss = False, deps = [], **kwargs):
         **kwargs
     )
 
-def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = [], **kwargs):
+def ng_test(zonejs = False, tailwindcss = False, karma = False, vitest = False, deps = [], **kwargs):
     """
     Defines an ng_test with optional dependencies on zone.js and tailwindcss.
 
@@ -72,6 +72,7 @@ def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = [], **kwa
         zonejs (bool): If True, includes zone.js as a dependency.
         tailwindcss (bool): If True, includes tailwindcss and related packages as dependencies.
         karma (bool): If True, includes karma as a dependency.
+        vitest (bool): If True, includes jsdom and vitest as dependencies.
         deps (list): Additional dependencies to include.
         **kwargs: Additional keyword arguments passed to ng_test.
     """
@@ -96,6 +97,13 @@ def ng_test(zonejs = False, tailwindcss = False, karma = False, deps = [], **kwa
             "//angular:node_modules/karma-coverage",
             "//angular:node_modules/karma-jasmine",
             "//angular:node_modules/karma-jasmine-html-reporter",
+            # keep-sorted end
+        ]
+    if vitest:
+        extra_deps += [
+            # keep-sorted start
+            "//angular:node_modules/jsdom",
+            "//angular:node_modules/vitest",
             # keep-sorted end
         ]
 
