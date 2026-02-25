@@ -6,23 +6,11 @@ load("@npm//angular:postcss-cli/package_json.bzl", postcss_cli = "bin")
 load("@rules_angular//src/architect:ng_application.bzl", orig_ng_application = "ng_application")
 load("@rules_angular//src/architect:ng_test.bzl", orig_ng_test = "ng_test")
 
-def process_styles(name, src, out, config = "//angular:postcssrc", deps = [], **kwargs):
-    """
-    Processes a CSS file using PostCSS with Tailwind CSS support.
-
-    Args:
-        name: The name of the target.
-        src: The source CSS file.
-        out: The output CSS file.
-        config: The PostCSS configuration file (default: //angular:postcssrc).
-        deps: Additional dependencies (e.g., daisyui).
-        **kwargs: Additional arguments passed to js_run_binary (e.g. srcs for content scanning).
-    """
-    extra_srcs = kwargs.pop("srcs", [])
-
+def _process_styles_impl(name, visibility, src, out, config, deps, srcs):
     postcss_cli.postcss(
         name = name,
-        srcs = [src, config] + deps + extra_srcs + [
+        visibility = visibility,
+        srcs = [src, config] + deps + srcs + [
             "//angular:node_modules/@tailwindcss/postcss",
             "//angular:node_modules/postcss",
             "//angular:node_modules/tailwindcss",
@@ -37,16 +25,36 @@ def process_styles(name, src, out, config = "//angular:postcssrc", deps = [], **
         ],
     )
 
-def ng_application(zonejs = False, tailwindcss = False, deps = [], **kwargs):
-    """
-    Defines an ng_application with optional dependencies on zone.js and tailwindcss.
+process_styles = macro(
+    doc = "Processes a CSS file using PostCSS with Tailwind CSS support.",
+    implementation = _process_styles_impl,
+    attrs = {
+        "src": attr.label(
+            doc = "The source CSS file.",
+            configurable = False,
+        ),
+        "out": attr.output(
+            doc = "The output CSS file.",
+        ),
+        "config": attr.label(
+            doc = "The PostCSS configuration file.",
+            default = "//angular:postcssrc",
+            configurable = False,
+        ),
+        "deps": attr.label_list(
+            doc = "Additional dependencies (e.g., daisyui).",
+            default = [],
+            configurable = False,
+        ),
+        "srcs": attr.label_list(
+            doc = "Extra source files for content scanning.",
+            default = [],
+            configurable = False,
+        ),
+    },
+)
 
-    Args:
-        zonejs (bool): If True, includes zone.js as a dependency.
-        tailwindcss (bool): If True, includes tailwindcss and related packages as dependencies.
-        deps (list): Additional dependencies to include.
-        **kwargs: Additional keyword arguments passed to ng_application.
-    """
+def _ng_application_impl(name, visibility, zonejs, tailwindcss, deps, srcs):
     extra_deps = []
     if zonejs:
         extra_deps.append("//angular:node_modules/zone.js")
@@ -58,24 +66,42 @@ def ng_application(zonejs = False, tailwindcss = False, deps = [], **kwargs):
             "//angular:postcssrc",
         ]
     orig_ng_application(
+        name = name,
+        visibility = visibility,
+        srcs = srcs,
         deps = deps + extra_deps,
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
-        **kwargs
     )
 
-def ng_test(zonejs = False, tailwindcss = False, karma = False, vitest = False, deps = [], **kwargs):
-    """
-    Defines an ng_test with optional dependencies on zone.js and tailwindcss.
+ng_application = macro(
+    doc = "Defines an ng_application with optional dependencies on zone.js and tailwindcss.",
+    implementation = _ng_application_impl,
+    attrs = {
+        "zonejs": attr.bool(
+            doc = "If True, includes zone.js as a dependency.",
+            default = False,
+            configurable = False,
+        ),
+        "tailwindcss": attr.bool(
+            doc = "If True, includes tailwindcss and related packages as dependencies.",
+            default = False,
+            configurable = False,
+        ),
+        "deps": attr.label_list(
+            doc = "Additional dependencies to include.",
+            default = [],
+            configurable = False,
+        ),
+        "srcs": attr.label_list(
+            doc = "Source files.",
+            default = [],
+            configurable = False,
+        ),
+    },
+)
 
-    Args:
-        zonejs (bool): If True, includes zone.js as a dependency.
-        tailwindcss (bool): If True, includes tailwindcss and related packages as dependencies.
-        karma (bool): If True, includes karma as a dependency.
-        vitest (bool): If True, includes jsdom and vitest as dependencies.
-        deps (list): Additional dependencies to include.
-        **kwargs: Additional keyword arguments passed to ng_test.
-    """
+def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, srcs):
     extra_deps = []
     if zonejs:
         extra_deps.append("//angular:node_modules/zone.js")
@@ -108,9 +134,48 @@ def ng_test(zonejs = False, tailwindcss = False, karma = False, vitest = False, 
         ]
 
     orig_ng_test(
+        name = name,
+        visibility = visibility,
+        srcs = srcs,
         deps = deps + extra_deps,
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
         size = "small",
-        **kwargs
     )
+
+ng_test = macro(
+    doc = "Defines an ng_test with optional dependencies on zone.js, tailwindcss, karma, and vitest.",
+    implementation = _ng_test_impl,
+    attrs = {
+        "zonejs": attr.bool(
+            doc = "If True, includes zone.js as a dependency.",
+            default = False,
+            configurable = False,
+        ),
+        "tailwindcss": attr.bool(
+            doc = "If True, includes tailwindcss and related packages as dependencies.",
+            default = False,
+            configurable = False,
+        ),
+        "karma": attr.bool(
+            doc = "If True, includes karma as a dependency.",
+            default = False,
+            configurable = False,
+        ),
+        "vitest": attr.bool(
+            doc = "If True, includes jsdom and vitest as dependencies.",
+            default = False,
+            configurable = False,
+        ),
+        "deps": attr.label_list(
+            doc = "Additional dependencies to include.",
+            default = [],
+            configurable = False,
+        ),
+        "srcs": attr.label_list(
+            doc = "Source files.",
+            default = [],
+            configurable = False,
+        ),
+    },
+)
