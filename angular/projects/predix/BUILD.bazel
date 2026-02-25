@@ -3,6 +3,11 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
 
+exports_files([
+    "tsconfig.app.json",
+    "tsconfig.spec.json",
+])
+
 copy_to_bin(
     name = "srcs",
     srcs = glob(

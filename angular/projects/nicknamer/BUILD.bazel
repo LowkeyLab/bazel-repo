@@ -4,6 +4,11 @@ load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
 
+exports_files([
+    "tsconfig.app.json",
+    "tsconfig.spec.json",
+])
+
 copy_to_bin(
     name = "srcs",
     srcs = glob(
@@ -14,6 +19,7 @@ copy_to_bin(
 
 ng_application(
     name = "nicknamer",
+    srcs = [":srcs"],
     zonejs = True,
 )
 

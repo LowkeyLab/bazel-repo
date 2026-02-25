@@ -1,0 +1,28 @@
+diff --git a/src/architect/ng_application.bzl b/src/architect/ng_application.bzl
+--- a/src/architect/ng_application.bzl
++++ b/src/architect/ng_application.bzl
+@@ -43,9 +43,9 @@ def ng_application(
+     project_name = project_name if project_name else name
+
+     ng_bin(
+-        name = "_%s.ng_cli" % name,
++        name = "%s_ng_cli" % name,
+         node_modules = node_modules,
+     )
+
+-    tool = ":_%s.ng_cli" % name
++    tool = ":%s_ng_cli" % name
+
+     js_run_binary(
+diff --git a/src/architect/utils.bzl b/src/architect/utils.bzl
+--- a/src/architect/utils.bzl
++++ b/src/architect/utils.bzl
+@@ -14,7 +14,7 @@ TEST_PATTERNS = [
+ # Reproduce the behavior of the logic a user would get from
+ # load("@npm//angular:@angular/cli/package_json.bzl", angular_cli = "bin")
+ def ng_entry_point(name, node_modules):
+-    entry_point_target = "_{}.ng_entry_point".format(name)
++    entry_point_target = "{}_ng_entry_point".format(name)
+     directory_path(
+         name = entry_point_target,
+         directory = "{}/@angular/cli/dir".format(node_modules),
