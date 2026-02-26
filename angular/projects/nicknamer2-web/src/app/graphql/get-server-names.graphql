@@ -1,0 +1,21 @@
+query GetServerNames($id: ID!, $first: Int!, $after: String) {
+  server(id: $id) {
+    id
+    serverId
+    names(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          id
+          name
+          createdAt
+          updatedAt
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

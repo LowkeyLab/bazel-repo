@@ -1,0 +1,15 @@
+query GetServers($first: Int!, $after: String) {
+  servers(first: $first, after: $after) {
+    edges {
+      cursor
+      node {
+        id
+        serverId
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
