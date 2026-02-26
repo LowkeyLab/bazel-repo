@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ApolloTestingController, ApolloTestingModule } from 'apollo-angular/testing';
+import {
+  ApolloTestingController,
+  ApolloTestingModule,
+} from 'apollo-angular/testing';
 import { ServerListComponent } from './server-list.component';
 import { GetServersDocument } from '../generated/graphql';
 
@@ -44,7 +47,9 @@ describe('ServerListComponent', () => {
 
     fixture.detectChanges();
 
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="server-row"]');
+    const rows = fixture.nativeElement.querySelectorAll(
+      '[data-testid="server-row"]',
+    );
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('111');
     expect(rows[1].textContent).toContain('222');
@@ -57,9 +62,7 @@ describe('ServerListComponent', () => {
     op.flush({
       data: {
         servers: {
-          edges: [
-            { cursor: 'c1', node: { id: 'relay-1', serverId: '111' } },
-          ],
+          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111' } }],
           pageInfo: { hasNextPage: true, endCursor: 'c1' },
         },
       },
@@ -67,7 +70,9 @@ describe('ServerListComponent', () => {
 
     fixture.detectChanges();
 
-    const btn = fixture.nativeElement.querySelector('[data-testid="load-more"]');
+    const btn = fixture.nativeElement.querySelector(
+      '[data-testid="load-more"]',
+    );
     expect(btn).toBeTruthy();
   });
 
@@ -78,9 +83,7 @@ describe('ServerListComponent', () => {
     op.flush({
       data: {
         servers: {
-          edges: [
-            { cursor: 'c1', node: { id: 'relay-1', serverId: '111' } },
-          ],
+          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111' } }],
           pageInfo: { hasNextPage: false, endCursor: 'c1' },
         },
       },
@@ -88,7 +91,9 @@ describe('ServerListComponent', () => {
 
     fixture.detectChanges();
 
-    const btn = fixture.nativeElement.querySelector('[data-testid="load-more"]');
+    const btn = fixture.nativeElement.querySelector(
+      '[data-testid="load-more"]',
+    );
     expect(btn).toBeFalsy();
   });
 });

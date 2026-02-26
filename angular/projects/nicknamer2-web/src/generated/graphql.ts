@@ -3,18 +3,31 @@ import { Injectable } from '@angular/core';
 import * as Apollo from 'apollo-angular';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
-export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+export type Exact<T extends { [key: string]: unknown }> = {
+  [K in keyof T]: T[K];
+};
+export type MakeOptional<T, K extends keyof T> = Omit<T, K> & {
+  [SubKey in K]?: Maybe<T[SubKey]>;
+};
+export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & {
+  [SubKey in K]: Maybe<T[SubKey]>;
+};
+export type MakeEmpty<
+  T extends { [key: string]: unknown },
+  K extends keyof T,
+> = { [_ in K]?: never };
+export type Incremental<T> =
+  | T
+  | {
+      [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never;
+    };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: { input: string; output: string; }
-  String: { input: string; output: string; }
-  Boolean: { input: boolean; output: boolean; }
-  Int: { input: number; output: number; }
-  Float: { input: number; output: number; }
+  ID: { input: string; output: string };
+  String: { input: string; output: string };
+  Boolean: { input: boolean; output: boolean };
+  Int: { input: number; output: number };
+  Float: { input: number; output: number };
   /**
    * Combined date and time (with time zone) in [RFC 3339][0] format.
    *
@@ -29,7 +42,7 @@ export type Scalars = {
    * [1]: https://graphql-scalars.dev/docs/scalars/date-time
    * [2]: https://docs.rs/chrono/latest/chrono/struct.DateTime.html
    */
-  DateTime: { input: any; output: any; }
+  DateTime: { input: any; output: any };
 };
 
 /** A name associated with a user in a Discord server */
@@ -86,16 +99,13 @@ export type QueryRoot = {
   servers: ServerConnection;
 };
 
-
 export type QueryRootNodeArgs = {
   id: Scalars['ID']['input'];
 };
 
-
 export type QueryRootServerArgs = {
   id: Scalars['ID']['input'];
 };
-
 
 export type QueryRootServersArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
@@ -112,7 +122,6 @@ export type Server = Node & {
   /** The Discord server ID */
   serverId: Scalars['String']['output'];
 };
-
 
 /** A Discord server */
 export type ServerNamesArgs = {
@@ -142,30 +151,101 @@ export type GetServerNamesQueryVariables = Exact<{
   after?: InputMaybe<Scalars['String']['input']>;
 }>;
 
-
-export type GetServerNamesQuery = { __typename?: 'QueryRoot', server: { __typename?: 'Server', id: string, serverId: string, names: { __typename?: 'NameConnection', edges: Array<{ __typename?: 'NameEdge', cursor: string, node: { __typename?: 'Name', id: string, name: string, createdAt: any, updatedAt: any } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null } } } };
+export type GetServerNamesQuery = {
+  __typename?: 'QueryRoot';
+  server: {
+    __typename?: 'Server';
+    id: string;
+    serverId: string;
+    names: {
+      __typename?: 'NameConnection';
+      edges: Array<{
+        __typename?: 'NameEdge';
+        cursor: string;
+        node: {
+          __typename?: 'Name';
+          id: string;
+          name: string;
+          createdAt: any;
+          updatedAt: any;
+        };
+      }>;
+      pageInfo: {
+        __typename?: 'PageInfo';
+        hasNextPage: boolean;
+        endCursor?: string | null;
+      };
+    };
+  };
+};
 
 export type GetServersQueryVariables = Exact<{
   first: Scalars['Int']['input'];
   after?: InputMaybe<Scalars['String']['input']>;
 }>;
 
-
-export type GetServersQuery = { __typename?: 'QueryRoot', servers: { __typename?: 'ServerConnection', edges: Array<{ __typename?: 'ServerEdge', cursor: string, node: { __typename?: 'Server', id: string, serverId: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null } } };
+export type GetServersQuery = {
+  __typename?: 'QueryRoot';
+  servers: {
+    __typename?: 'ServerConnection';
+    edges: Array<{
+      __typename?: 'ServerEdge';
+      cursor: string;
+      node: { __typename?: 'Server'; id: string; serverId: string };
+    }>;
+    pageInfo: {
+      __typename?: 'PageInfo';
+      hasNextPage: boolean;
+      endCursor?: string | null;
+    };
+  };
+};
 
 export const GetServerNamesDocument = gql`
-    query GetServerNames($id: ID!, $first: Int!, $after: String) {
-  server(id: $id) {
-    id
-    serverId
-    names(first: $first, after: $after) {
+  query GetServerNames($id: ID!, $first: Int!, $after: String) {
+    server(id: $id) {
+      id
+      serverId
+      names(first: $first, after: $after) {
+        edges {
+          cursor
+          node {
+            id
+            name
+            createdAt
+            updatedAt
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+`;
+
+@Injectable({
+  providedIn: 'root',
+})
+export class GetServerNamesGQL extends Apollo.Query<
+  GetServerNamesQuery,
+  GetServerNamesQueryVariables
+> {
+  document = GetServerNamesDocument;
+
+  constructor(apollo: Apollo.Apollo) {
+    super(apollo);
+  }
+}
+export const GetServersDocument = gql`
+  query GetServers($first: Int!, $after: String) {
+    servers(first: $first, after: $after) {
       edges {
         cursor
         node {
           id
-          name
-          createdAt
-          updatedAt
+          serverId
         }
       }
       pageInfo {
@@ -174,44 +254,18 @@ export const GetServerNamesDocument = gql`
       }
     }
   }
-}
-    `;
+`;
 
-  @Injectable({
-    providedIn: 'root'
-  })
-  export class GetServerNamesGQL extends Apollo.Query<GetServerNamesQuery, GetServerNamesQueryVariables> {
-    document = GetServerNamesDocument;
-    
-    constructor(apollo: Apollo.Apollo) {
-      super(apollo);
-    }
-  }
-export const GetServersDocument = gql`
-    query GetServers($first: Int!, $after: String) {
-  servers(first: $first, after: $after) {
-    edges {
-      cursor
-      node {
-        id
-        serverId
-      }
-    }
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
+@Injectable({
+  providedIn: 'root',
+})
+export class GetServersGQL extends Apollo.Query<
+  GetServersQuery,
+  GetServersQueryVariables
+> {
+  document = GetServersDocument;
+
+  constructor(apollo: Apollo.Apollo) {
+    super(apollo);
   }
 }
-    `;
-
-  @Injectable({
-    providedIn: 'root'
-  })
-  export class GetServersGQL extends Apollo.Query<GetServersQuery, GetServersQueryVariables> {
-    document = GetServersDocument;
-    
-    constructor(apollo: Apollo.Apollo) {
-      super(apollo);
-    }
-  }

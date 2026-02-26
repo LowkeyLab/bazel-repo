@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ApolloTestingController, ApolloTestingModule } from 'apollo-angular/testing';
+import {
+  ApolloTestingController,
+  ApolloTestingModule,
+} from 'apollo-angular/testing';
 import { ServerNamesComponent } from './server-names.component';
 import { GetServerNamesDocument } from '../generated/graphql';
 
@@ -12,7 +15,9 @@ describe('ServerNamesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ServerNamesComponent, ApolloTestingModule],
-      providers: [provideRouter([{ path: '**', component: ServerNamesComponent }])],
+      providers: [
+        provideRouter([{ path: '**', component: ServerNamesComponent }]),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ServerNamesComponent);
@@ -66,7 +71,9 @@ describe('ServerNamesComponent', () => {
 
     fixture.detectChanges();
 
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="name-row"]');
+    const rows = fixture.nativeElement.querySelectorAll(
+      '[data-testid="name-row"]',
+    );
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('Alice');
     expect(rows[1].textContent).toContain('Bob');
@@ -101,7 +108,9 @@ describe('ServerNamesComponent', () => {
 
     fixture.detectChanges();
 
-    const btn = fixture.nativeElement.querySelector('[data-testid="load-more"]');
+    const btn = fixture.nativeElement.querySelector(
+      '[data-testid="load-more"]',
+    );
     expect(btn).toBeTruthy();
   });
 

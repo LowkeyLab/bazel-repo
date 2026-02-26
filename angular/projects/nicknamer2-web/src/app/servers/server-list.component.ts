@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { GetServersGQL, GetServersQuery } from '../generated/graphql';
@@ -69,17 +76,17 @@ export class ServerListComponent implements OnInit {
     this.queryRef.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-      next: ({ data, loading }) => {
-        this.edges.set(data.servers.edges);
-        this.hasNextPage.set(data.servers.pageInfo.hasNextPage);
-        this.endCursor.set(data.servers.pageInfo.endCursor ?? null);
-        this.loading.set(loading);
-      },
-      error: (err) => {
-        this.error.set(err.message);
-        this.loading.set(false);
-      },
-    });
+        next: ({ data, loading }) => {
+          this.edges.set(data.servers.edges);
+          this.hasNextPage.set(data.servers.pageInfo.hasNextPage);
+          this.endCursor.set(data.servers.pageInfo.endCursor ?? null);
+          this.loading.set(loading);
+        },
+        error: (err) => {
+          this.error.set(err.message);
+          this.loading.set(false);
+        },
+      });
   }
 
   protected loadMore(): void {

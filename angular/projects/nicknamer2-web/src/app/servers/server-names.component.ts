@@ -26,9 +26,7 @@ type NameEdge = NonNullable<
         &larr; Back to servers
       </a>
 
-      <h1 class="text-2xl font-bold mb-4">
-        Names for Server {{ serverId() }}
-      </h1>
+      <h1 class="text-2xl font-bold mb-4">Names for Server {{ serverId() }}</h1>
 
       @if (loading() && edges().length === 0) {
         <span class="loading loading-spinner loading-md"></span>
@@ -103,17 +101,17 @@ export class ServerNamesComponent implements OnInit {
     this.queryRef.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-      next: ({ data, loading }) => {
-        this.edges.set(data.server.names.edges);
-        this.hasNextPage.set(data.server.names.pageInfo.hasNextPage);
-        this.endCursor.set(data.server.names.pageInfo.endCursor ?? null);
-        this.loading.set(loading);
-      },
-      error: (err) => {
-        this.error.set(err.message);
-        this.loading.set(false);
-      },
-    });
+        next: ({ data, loading }) => {
+          this.edges.set(data.server.names.edges);
+          this.hasNextPage.set(data.server.names.pageInfo.hasNextPage);
+          this.endCursor.set(data.server.names.pageInfo.endCursor ?? null);
+          this.loading.set(loading);
+        },
+        error: (err) => {
+          this.error.set(err.message);
+          this.loading.set(false);
+        },
+      });
   }
 
   protected loadMore(): void {
