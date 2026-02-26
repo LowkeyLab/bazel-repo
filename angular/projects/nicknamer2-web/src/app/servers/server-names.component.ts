@@ -1,11 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   input,
   OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { GetServerNamesGQL, GetServerNamesQuery } from '../generated/graphql';
@@ -81,6 +83,7 @@ export class ServerNamesComponent implements OnInit {
   readonly serverId = input.required<string>();
 
   private readonly getServerNamesGQL = inject(GetServerNamesGQL);
+  private readonly destroyRef = inject(DestroyRef);
   private queryRef?: ReturnType<GetServerNamesGQL['watch']>;
 
   protected readonly edges = signal<NameEdge[]>([]);
@@ -97,7 +100,9 @@ export class ServerNamesComponent implements OnInit {
       { fetchPolicy: 'cache-and-network' },
     );
 
-    this.queryRef.valueChanges.subscribe({
+    this.queryRef.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
       next: ({ data, loading }) => {
         this.edges.set(data.server.names.edges);
         this.hasNextPage.set(data.server.names.pageInfo.hasNextPage);

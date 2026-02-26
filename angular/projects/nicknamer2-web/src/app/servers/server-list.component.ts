@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { GetServersGQL, GetServersQuery } from '../generated/graphql';
 
@@ -48,6 +49,7 @@ type ServerEdge = NonNullable<GetServersQuery['servers']['edges']>[number];
 })
 export class ServerListComponent implements OnInit {
   private readonly getServersGQL = inject(GetServersGQL);
+  private readonly destroyRef = inject(DestroyRef);
   private queryRef?: ReturnType<GetServersGQL['watch']>;
 
   protected readonly edges = signal<ServerEdge[]>([]);
@@ -64,7 +66,9 @@ export class ServerListComponent implements OnInit {
       { fetchPolicy: 'cache-and-network' },
     );
 
-    this.queryRef.valueChanges.subscribe({
+    this.queryRef.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
       next: ({ data, loading }) => {
         this.edges.set(data.servers.edges);
         this.hasNextPage.set(data.servers.pageInfo.hasNextPage);
