@@ -51,6 +51,7 @@ genhtml/
 
 # User-specific files
 user.bazelrc
+.env
 
 # Don't check in lockfile for now. It is unstable.
 # https://github.com/bazelbuild/bazel/issues/19026
