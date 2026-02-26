@@ -61,7 +61,7 @@ export class ServerListComponent implements OnInit {
 
   protected readonly edges = signal<ServerEdge[]>([]);
   protected readonly hasNextPage = signal(false);
-  protected readonly endCursor = signal<string | null>(null);
+  private readonly endCursor = signal<string | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
 

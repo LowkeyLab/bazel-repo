@@ -12,6 +12,7 @@ Run the following pipeline in order, stopping on first failure:
 3. `aspect build //...` — verify build
 
 If `$ARGUMENTS` is provided, use it as the build target pattern instead of `//...`:
+
 - Example: `/bazel-workflow //nicknamer/...` builds only the nicknamer service
 - Gazelle and format always run against the full repo
 
