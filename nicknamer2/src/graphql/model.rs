@@ -94,6 +94,11 @@ impl Server {
         RelayId::encode_server(self.id.0)
     }
 
+    /// The Discord server ID
+    fn server_id(&self) -> String {
+        self.id.0.to_string()
+    }
+
     /// Paginated list of names in this server
     async fn names(
         &self,
