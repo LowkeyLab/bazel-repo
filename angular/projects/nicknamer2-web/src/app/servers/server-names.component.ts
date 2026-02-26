@@ -10,7 +10,10 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { GetServerNamesGQL, GetServerNamesQuery } from '../generated/graphql';
+import {
+  GetServerNamesGQL,
+  GetServerNamesQuery,
+} from '../../generated/graphql';
 
 type NameEdge = NonNullable<
   GetServerNamesQuery['server']['names']['edges']
@@ -93,21 +96,28 @@ export class ServerNamesComponent implements OnInit {
   private static readonly PAGE_SIZE = 20;
 
   ngOnInit(): void {
-    this.queryRef = this.getServerNamesGQL.watch(
-      { id: this.serverId(), first: ServerNamesComponent.PAGE_SIZE },
-      { fetchPolicy: 'cache-and-network' },
-    );
+    this.queryRef = this.getServerNamesGQL.watch({
+      variables: {
+        id: this.serverId(),
+        first: ServerNamesComponent.PAGE_SIZE,
+      },
+      fetchPolicy: 'cache-and-network',
+    });
 
     this.queryRef.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ data, loading }) => {
-          this.edges.set(data.server.names.edges);
-          this.hasNextPage.set(data.server.names.pageInfo.hasNextPage);
-          this.endCursor.set(data.server.names.pageInfo.endCursor ?? null);
+          if (data?.server?.names?.edges) {
+            this.edges.set(data.server.names.edges as NameEdge[]);
+          }
+          this.hasNextPage.set(
+            data?.server?.names?.pageInfo?.hasNextPage ?? false,
+          );
+          this.endCursor.set(data?.server?.names?.pageInfo?.endCursor ?? null);
           this.loading.set(loading);
         },
-        error: (err) => {
+        error: (err: Error) => {
           this.error.set(err.message);
           this.loading.set(false);
         },

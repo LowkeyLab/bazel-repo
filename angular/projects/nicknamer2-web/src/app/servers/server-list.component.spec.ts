@@ -5,7 +5,7 @@ import {
   ApolloTestingModule,
 } from 'apollo-angular/testing';
 import { ServerListComponent } from './server-list.component';
-import { GetServersDocument } from '../generated/graphql';
+import { GetServersDocument } from '../../generated/graphql';
 
 describe('ServerListComponent', () => {
   let fixture: ComponentFixture<ServerListComponent>;
