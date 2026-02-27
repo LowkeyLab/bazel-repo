@@ -76,6 +76,16 @@ pub trait NameDeleter {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
+/// Counts names and servers in the database.
+pub trait NameCounter {
+    fn count_names_by_server(
+        &self,
+        discord_server: DiscordServerId,
+    ) -> impl Future<Output = anyhow::Result<i64>> + Send;
+
+    fn count_servers(&self) -> impl Future<Output = anyhow::Result<i64>> + Send;
+}
+
 #[derive(Debug)]
 pub struct Repo {
     pool: PgPool,
@@ -254,26 +264,24 @@ impl NameDeleter for Repo {
     }
 }
 
-impl Repo {
-    pub async fn count_names_by_server(
+impl NameCounter for Repo {
+    async fn count_names_by_server(
         &self,
         discord_server: DiscordServerId,
     ) -> anyhow::Result<i64> {
-        let (count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM names WHERE discord_server = $1",
-        )
-        .bind(discord_server.0 as i64)
-        .fetch_one(&self.pool)
-        .await?;
+        let (count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM names WHERE discord_server = $1")
+                .bind(discord_server.0 as i64)
+                .fetch_one(&self.pool)
+                .await?;
         Ok(count)
     }
 
-    pub async fn count_servers(&self) -> anyhow::Result<i64> {
-        let (count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(DISTINCT discord_server) FROM names",
-        )
-        .fetch_one(&self.pool)
-        .await?;
+    async fn count_servers(&self) -> anyhow::Result<i64> {
+        let (count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(DISTINCT discord_server) FROM names")
+                .fetch_one(&self.pool)
+                .await?;
         Ok(count)
     }
 }
