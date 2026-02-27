@@ -102,7 +102,9 @@ impl QueryRoot {
         // Request one extra item to determine if there's a next page
         let fetch_limit = (limit + 1) as i64;
 
-        // Fetch servers from the service
+        // Fetch total count and servers from the service
+        let total_count = context.name_service.count_servers().await? as i32;
+
         let mut servers = context
             .name_service
             .list_servers(fetch_limit, cursor_value)
@@ -134,6 +136,10 @@ impl QueryRoot {
             end_cursor: edges.last().map(|e| e.cursor.clone()),
         };
 
-        Ok(ServerConnection { edges, page_info })
+        Ok(ServerConnection {
+            edges,
+            page_info,
+            total_count,
+        })
     }
 }

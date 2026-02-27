@@ -71,6 +71,7 @@ impl PageInfo {
 pub struct NameConnection {
     pub edges: Vec<NameEdge>,
     pub page_info: PageInfo,
+    pub total_count: i32,
 }
 
 #[graphql_object(context = Context)]
@@ -83,6 +84,11 @@ impl NameConnection {
     /// Information about pagination
     fn page_info(&self) -> &PageInfo {
         &self.page_info
+    }
+
+    /// The total number of names in this server
+    fn total_count(&self) -> i32 {
+        self.total_count
     }
 }
 
@@ -131,7 +137,9 @@ impl Server {
         // Request one extra item to determine if there's a next page
         let fetch_limit = (limit + 1) as i64;
 
-        // Fetch names from the service
+        // Fetch total count and names from the service
+        let total_count = context.name_service.count_names_by_server(self.id).await? as i32;
+
         let mut names = context
             .name_service
             .list_names(self.id, fetch_limit, cursor_value)
@@ -163,7 +171,11 @@ impl Server {
             end_cursor: edges.last().map(|e| e.cursor.clone()),
         };
 
-        Ok(NameConnection { edges, page_info })
+        Ok(NameConnection {
+            edges,
+            page_info,
+            total_count,
+        })
     }
 }
 
@@ -190,6 +202,7 @@ impl ServerEdge {
 pub struct ServerConnection {
     pub edges: Vec<ServerEdge>,
     pub page_info: PageInfo,
+    pub total_count: i32,
 }
 
 #[graphql_object(context = Context)]
@@ -202,6 +215,11 @@ impl ServerConnection {
     /// Information about pagination
     fn page_info(&self) -> &PageInfo {
         &self.page_info
+    }
+
+    /// The total number of servers
+    fn total_count(&self) -> i32 {
+        self.total_count
     }
 }
 

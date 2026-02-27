@@ -265,10 +265,7 @@ impl NameDeleter for Repo {
 }
 
 impl NameCounter for Repo {
-    async fn count_names_by_server(
-        &self,
-        discord_server: DiscordServerId,
-    ) -> anyhow::Result<i64> {
+    async fn count_names_by_server(&self, discord_server: DiscordServerId) -> anyhow::Result<i64> {
         let (count,): (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM names WHERE discord_server = $1")
                 .bind(discord_server.0 as i64)
@@ -278,10 +275,9 @@ impl NameCounter for Repo {
     }
 
     async fn count_servers(&self) -> anyhow::Result<i64> {
-        let (count,): (i64,) =
-            sqlx::query_as("SELECT COUNT(DISTINCT discord_server) FROM names")
-                .fetch_one(&self.pool)
-                .await?;
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(DISTINCT discord_server) FROM names")
+            .fetch_one(&self.pool)
+            .await?;
         Ok(count)
     }
 }
