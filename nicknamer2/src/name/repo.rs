@@ -254,6 +254,30 @@ impl NameDeleter for Repo {
     }
 }
 
+impl Repo {
+    pub async fn count_names_by_server(
+        &self,
+        discord_server: DiscordServerId,
+    ) -> anyhow::Result<i64> {
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM names WHERE discord_server = $1",
+        )
+        .bind(discord_server.0 as i64)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count)
+    }
+
+    pub async fn count_servers(&self) -> anyhow::Result<i64> {
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(DISTINCT discord_server) FROM names",
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -538,5 +562,31 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.len(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_count_names_by_server() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+
+        let server = DiscordServerId(11111);
+        insert_name(&pool, DiscordId(1), server, "Alice").await;
+        insert_name(&pool, DiscordId(2), server, "Bob").await;
+
+        let count = repo.count_names_by_server(server).await.unwrap();
+        assert_eq!(count, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_count_servers() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+
+        insert_name(&pool, DiscordId(1), DiscordServerId(100), "Alice").await;
+        insert_name(&pool, DiscordId(2), DiscordServerId(200), "Bob").await;
+        insert_name(&pool, DiscordId(3), DiscordServerId(200), "Carol").await;
+
+        let count = repo.count_servers().await.unwrap();
+        assert_eq!(count, 2);
     }
 }
