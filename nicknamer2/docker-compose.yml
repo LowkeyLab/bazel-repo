@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: nicknamer2
+      POSTGRES_USER: nicknamer2
+      POSTGRES_PASSWORD: nicknamer2
+    ports:
+      - "5433:5432"
+    volumes:
+      - nicknamer2_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nicknamer2 -d nicknamer2"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  nicknamer2_postgres_data:
