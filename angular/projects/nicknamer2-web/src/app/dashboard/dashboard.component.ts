@@ -74,17 +74,17 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.getDashboardGQL
-      .watch(
-        { first: DashboardComponent.PAGE_SIZE },
-        { fetchPolicy: 'cache-and-network' },
-      )
+      .watch({
+        variables: { first: DashboardComponent.PAGE_SIZE },
+        fetchPolicy: 'cache-and-network',
+      })
       .valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ data, loading }) => {
           this.loading.set(loading);
           if (data?.servers) {
             this.edges.set(data.servers.edges as ServerEdge[]);
-            this.totalServers.set(data.servers.totalCount);
+            this.totalServers.set(data.servers.totalCount ?? 0);
           }
         },
         error: (err: Error) => {
