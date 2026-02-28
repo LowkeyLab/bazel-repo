@@ -83,7 +83,7 @@ describe('DashboardComponent', () => {
     fixture.detectChanges();
 
     const op = apolloController.expectOne(GetDashboardDocument);
-    op.graphqlErrors([{ message: 'Network error' }]);
+    op.networkError(new Error('Network error'));
 
     fixture.detectChanges();
 
