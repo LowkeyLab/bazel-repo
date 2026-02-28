@@ -145,6 +145,23 @@ export type ServerEdge = {
   node: Server;
 };
 
+export type CreateNameMutationVariables = Exact<{
+  discordId: Scalars['String']['input'];
+  discordServerId: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+}>;
+
+export type CreateNameMutation = {
+  __typename?: 'MutationRoot';
+  createName: {
+    __typename?: 'Name';
+    id: string;
+    name: string;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
 export type GetServerNamesQueryVariables = Exact<{
   id: Scalars['ID']['input'];
   first: Scalars['Int']['input'];
@@ -264,6 +281,38 @@ export class GetServersGQL extends Apollo.Query<
   GetServersQueryVariables
 > {
   document = GetServersDocument;
+
+  constructor(apollo: Apollo.Apollo) {
+    super(apollo);
+  }
+}
+export const CreateNameDocument = gql`
+  mutation CreateName(
+    $discordId: String!
+    $discordServerId: String!
+    $name: String!
+  ) {
+    createName(
+      discordId: $discordId
+      discordServerId: $discordServerId
+      name: $name
+    ) {
+      id
+      name
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+@Injectable({
+  providedIn: 'root',
+})
+export class CreateNameGQL extends Apollo.Mutation<
+  CreateNameMutation,
+  CreateNameMutationVariables
+> {
+  document = CreateNameDocument;
 
   constructor(apollo: Apollo.Apollo) {
     super(apollo);

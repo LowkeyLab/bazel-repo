@@ -1,0 +1,8 @@
+mutation CreateName($discordId: String!, $discordServerId: String!, $name: String!) {
+  createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
+    id
+    name
+    createdAt
+    updatedAt
+  }
+}
