@@ -13,7 +13,7 @@ catalogs:
       specifier: ^21.0.1
       version: 21.2.0
     '@angular/cli':
-      specifier: ~21.1.0
+      specifier: 21.1.5
       version: 21.1.5
     '@angular/common':
       specifier: ^21.0.3

@@ -23,7 +23,7 @@ catalog:
   graphql: ^16.10.0
   graphql-tag: ^2.12.6
   optimism: ^0.18.1
-  '@angular/cli': ~21.1.0
+  '@angular/cli': 21.1.5
   '@angular/common': ^21.0.3
   '@angular/compiler': ^21.0.3
   '@angular/compiler-cli': ^21.0.2
