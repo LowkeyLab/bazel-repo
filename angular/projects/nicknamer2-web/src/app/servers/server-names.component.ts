@@ -9,8 +9,10 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
+  CreateNameGQL,
   GetServerNamesGQL,
   GetServerNamesQuery,
 } from '../../generated/graphql';
@@ -22,7 +24,7 @@ type NameEdge = NonNullable<
 @Component({
   selector: 'app-server-names',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, FormsModule],
   template: `
     <div class="p-4">
       <a routerLink="/servers" class="link link-hover mb-4 inline-block">
@@ -30,6 +32,52 @@ type NameEdge = NonNullable<
       </a>
 
       <h1 class="text-2xl font-bold mb-4">Names for Server {{ serverId() }}</h1>
+
+      <form
+        class="flex gap-2 mb-4 items-end"
+        (ngSubmit)="onSubmit()"
+        data-testid="add-name-form"
+      >
+        <label class="form-control">
+          <span class="label-text">Discord ID</span>
+          <input
+            type="text"
+            class="input input-bordered"
+            [(ngModel)]="discordId"
+            name="discordId"
+            required
+            data-testid="discord-id-input"
+          />
+        </label>
+        <label class="form-control">
+          <span class="label-text">Nickname</span>
+          <input
+            type="text"
+            class="input input-bordered"
+            [(ngModel)]="nickname"
+            name="nickname"
+            required
+            data-testid="nickname-input"
+          />
+        </label>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="submitting() || !discordId() || !nickname()"
+          data-testid="submit-name"
+        >
+          @if (submitting()) {
+            <span class="loading loading-spinner loading-sm"></span>
+          }
+          Add Name
+        </button>
+      </form>
+
+      @if (submitError()) {
+        <div class="alert alert-error mb-4" data-testid="submit-error">
+          {{ submitError() }}
+        </div>
+      }
 
       @if (loading() && edges().length === 0) {
         <span class="loading loading-spinner loading-md"></span>
@@ -84,6 +132,7 @@ export class ServerNamesComponent implements OnInit {
   readonly serverId = input.required<string>();
 
   private readonly getServerNamesGQL = inject(GetServerNamesGQL);
+  private readonly createNameGQL = inject(CreateNameGQL);
   private readonly destroyRef = inject(DestroyRef);
   private queryRef?: ReturnType<GetServerNamesGQL['watch']>;
 
@@ -92,6 +141,12 @@ export class ServerNamesComponent implements OnInit {
   private readonly endCursor = signal<string | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+
+  // Form state
+  protected readonly discordId = signal('');
+  protected readonly nickname = signal('');
+  protected readonly submitting = signal(false);
+  protected readonly submitError = signal<string | null>(null);
 
   private static readonly PAGE_SIZE = 20;
 
@@ -129,11 +184,37 @@ export class ServerNamesComponent implements OnInit {
     this.loading.set(true);
 
     this.queryRef.fetchMore({
-      variables: {
-        id: this.serverId(),
-        first: ServerNamesComponent.PAGE_SIZE,
-        after: this.endCursor(),
+      options: {
+        variables: {
+          id: this.serverId(),
+          first: ServerNamesComponent.PAGE_SIZE,
+          after: this.endCursor(),
+        },
       },
     });
+  }
+
+  protected onSubmit(): void {
+    this.submitting.set(true);
+    this.submitError.set(null);
+
+    this.createNameGQL
+      .mutate({
+        discordId: this.discordId(),
+        discordServerId: this.serverId(),
+        name: this.nickname(),
+      })
+      .subscribe({
+        next: () => {
+          this.discordId.set('');
+          this.nickname.set('');
+          this.submitting.set(false);
+          this.queryRef?.refetch();
+        },
+        error: (err: Error) => {
+          this.submitError.set(err.message);
+          this.submitting.set(false);
+        },
+      });
   }
 }
