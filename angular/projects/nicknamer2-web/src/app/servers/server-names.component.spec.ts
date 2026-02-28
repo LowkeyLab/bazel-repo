@@ -5,7 +5,7 @@ import {
   ApolloTestingModule,
 } from 'apollo-angular/testing';
 import { ServerNamesComponent } from './server-names.component';
-import { GetServerNamesDocument } from '../../generated/graphql';
+import { GetServerNamesDocument, CreateNameDocument } from '../../generated/graphql';
 
 describe('ServerNamesComponent', () => {
   let fixture: ComponentFixture<ServerNamesComponent>;
@@ -112,6 +112,88 @@ describe('ServerNamesComponent', () => {
       '[data-testid="load-more"]',
     );
     expect(btn).toBeTruthy();
+  });
+
+  it('should submit the form and refetch names', async () => {
+    fixture.detectChanges();
+
+    // Flush initial query
+    const initialOp = apolloController.expectOne(GetServerNamesDocument);
+    initialOp.flush({
+      data: {
+        server: {
+          id: 'relay-1',
+          serverId: '12345',
+          names: {
+            edges: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    });
+    fixture.detectChanges();
+
+    // Fill in the form by directly updating the component signals
+    component['discordId'].set('999');
+    component['nickname'].set('NewNickname');
+    fixture.detectChanges();
+
+    // Submit the form by triggering ngSubmit on the form element
+    const form: HTMLFormElement = fixture.nativeElement.querySelector('[data-testid="add-name-form"]');
+    form.dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+
+    // Expect mutation
+    const mutationOp = apolloController.expectOne(CreateNameDocument);
+    expect(mutationOp.operation.variables['discordId']).toBe('999');
+    expect(mutationOp.operation.variables['discordServerId']).toBe('12345');
+    expect(mutationOp.operation.variables['name']).toBe('NewNickname');
+
+    mutationOp.flush({
+      data: {
+        createName: {
+          id: 'name-new',
+          name: 'NewNickname',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      },
+    });
+    // Allow microtasks to run so the refetch triggered by the mutation's next callback can execute
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    // Expect refetch
+    const refetchOp = apolloController.expectOne(GetServerNamesDocument);
+    refetchOp.flush({
+      data: {
+        server: {
+          id: 'relay-1',
+          serverId: '12345',
+          names: {
+            edges: [
+              {
+                cursor: 'c1',
+                node: {
+                  id: 'name-new',
+                  name: 'NewNickname',
+                  createdAt: '2026-01-01T00:00:00Z',
+                  updatedAt: '2026-01-01T00:00:00Z',
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: 'c1' },
+          },
+        },
+      },
+    });
+    fixture.detectChanges();
+
+    const rows = fixture.nativeElement.querySelectorAll('[data-testid="name-row"]');
+    expect(rows.length).toBe(1);
+    expect(rows[0].textContent).toContain('NewNickname');
   });
 
   it('should display the server ID in the heading', () => {

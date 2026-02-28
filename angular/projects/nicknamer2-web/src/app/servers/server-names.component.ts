@@ -43,7 +43,8 @@ type NameEdge = NonNullable<
           <input
             type="text"
             class="input input-bordered"
-            [(ngModel)]="discordId"
+            [ngModel]="discordId()"
+            (ngModelChange)="discordId.set($event)"
             name="discordId"
             required
             data-testid="discord-id-input"
@@ -54,7 +55,8 @@ type NameEdge = NonNullable<
           <input
             type="text"
             class="input input-bordered"
-            [(ngModel)]="nickname"
+            [ngModel]="nickname()"
+            (ngModelChange)="nickname.set($event)"
             name="nickname"
             required
             data-testid="nickname-input"
@@ -184,12 +186,10 @@ export class ServerNamesComponent implements OnInit {
     this.loading.set(true);
 
     this.queryRef.fetchMore({
-      options: {
-        variables: {
-          id: this.serverId(),
-          first: ServerNamesComponent.PAGE_SIZE,
-          after: this.endCursor(),
-        },
+      variables: {
+        id: this.serverId(),
+        first: ServerNamesComponent.PAGE_SIZE,
+        after: this.endCursor(),
       },
     });
   }
@@ -200,9 +200,11 @@ export class ServerNamesComponent implements OnInit {
 
     this.createNameGQL
       .mutate({
-        discordId: this.discordId(),
-        discordServerId: this.serverId(),
-        name: this.nickname(),
+        variables: {
+          discordId: this.discordId(),
+          discordServerId: this.serverId(),
+          name: this.nickname(),
+        },
       })
       .subscribe({
         next: () => {
