@@ -88,11 +88,11 @@ export class DashboardComponent implements OnInit {
         errorPolicy: 'all',
       })
       .valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ data, loading, errors }) => {
+      .subscribe(({ data, loading, error }) => {
         this.loading.set(loading);
-        if (errors?.length) {
+        if (error) {
           this.loading.set(false);
-          this.error.set(errors.map((e) => e.message).join(', '));
+          this.error.set(error.message);
           return;
         }
         if (data?.servers) {
