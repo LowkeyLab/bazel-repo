@@ -1,12 +1,12 @@
-use juniper::{EmptyMutation, EmptySubscription, RootNode};
+use juniper::{EmptySubscription, RootNode};
 
 use graphql_context::Context;
+use graphql_mutation::MutationRoot;
 use graphql_query::QueryRoot;
 
 /// The GraphQL schema type for the nicknamer2 API.
-pub type Schema = RootNode<QueryRoot, EmptyMutation<Context>, EmptySubscription<Context>>;
+pub type Schema = RootNode<QueryRoot, MutationRoot, EmptySubscription<Context>>;
 
-/// Creates a new GraphQL schema instance.
 pub fn create_schema() -> Schema {
-    Schema::new(QueryRoot, EmptyMutation::new(), EmptySubscription::new())
+    Schema::new(QueryRoot, MutationRoot, EmptySubscription::new())
 }
