@@ -21,18 +21,22 @@ type ServerEdge = GetDashboardQuery['servers']['edges'][number];
       <h1 class="text-3xl font-bold mb-6">Nicknamer2</h1>
 
       @if (loading()) {
-        <div class="flex gap-4 mb-6">
+        <div data-testid="loading-skeleton" class="flex gap-4 mb-6">
           <div class="skeleton h-24 w-40"></div>
           <div class="skeleton h-24 w-40"></div>
         </div>
         <div class="skeleton h-48 w-full"></div>
       } @else if (error()) {
-        <div class="alert alert-error mb-4">{{ error() }}</div>
+        <div data-testid="error-alert" class="alert alert-error mb-4">
+          {{ error() }}
+        </div>
       } @else {
         <div class="stats shadow mb-6">
           <div class="stat">
             <div class="stat-title">Servers</div>
-            <div class="stat-value">{{ totalServers() }}</div>
+            <div data-testid="server-count" class="stat-value">
+              {{ totalServers() }}
+            </div>
           </div>
         </div>
 
@@ -40,6 +44,7 @@ type ServerEdge = GetDashboardQuery['servers']['edges'][number];
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           @for (edge of edges(); track edge.node.id) {
             <a
+              data-testid="server-card"
               [routerLink]="['/servers', edge.node.serverId, 'names']"
               class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
             >
@@ -52,7 +57,10 @@ type ServerEdge = GetDashboardQuery['servers']['edges'][number];
 
         @if (edges().length > 0) {
           <div class="mt-4">
-            <a routerLink="/servers" class="btn btn-outline"
+            <a
+              data-testid="view-all-servers"
+              routerLink="/servers"
+              class="btn btn-outline"
               >View all servers</a
             >
           </div>
