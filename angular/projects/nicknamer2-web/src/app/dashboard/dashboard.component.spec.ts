@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import {
   ApolloTestingController,
@@ -79,11 +79,12 @@ describe('DashboardComponent', () => {
     });
   });
 
-  it('should show error message on query failure', () => {
+  it('should show error message on query failure', fakeAsync(() => {
     fixture.detectChanges();
 
     const op = apolloController.expectOne(GetDashboardDocument);
     op.networkError(new Error('Network error'));
+    tick();
 
     fixture.detectChanges();
 
@@ -92,7 +93,7 @@ describe('DashboardComponent', () => {
     );
     expect(alert).toBeTruthy();
     expect(alert.textContent).toContain('Network error');
-  });
+  }));
 
   it('should send correct variables', () => {
     fixture.detectChanges();
