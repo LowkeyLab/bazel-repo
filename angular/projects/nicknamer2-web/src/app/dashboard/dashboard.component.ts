@@ -85,20 +85,20 @@ export class DashboardComponent implements OnInit {
       .watch({
         variables: { first: DashboardComponent.PAGE_SIZE },
         fetchPolicy: 'cache-and-network',
+        errorPolicy: 'all',
       })
       .valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ data, loading }) => {
-          this.loading.set(loading);
-          if (data?.servers) {
-            this.edges.set(data.servers.edges as ServerEdge[]);
-            this.totalServers.set(data.servers.totalCount ?? 0);
-          }
-        },
-        error: (err: Error) => {
+      .subscribe(({ data, loading, errors }) => {
+        this.loading.set(loading);
+        if (errors?.length) {
           this.loading.set(false);
-          this.error.set(err.message);
-        },
+          this.error.set(errors.map((e) => e.message).join(', '));
+          return;
+        }
+        if (data?.servers) {
+          this.edges.set(data.servers.edges as ServerEdge[]);
+          this.totalServers.set(data.servers.totalCount ?? 0);
+        }
       });
   }
 }

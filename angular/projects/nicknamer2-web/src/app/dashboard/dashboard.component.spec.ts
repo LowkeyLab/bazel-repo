@@ -79,19 +79,19 @@ describe('DashboardComponent', () => {
     });
   });
 
-  it('should show error message on query failure', async () => {
+  it('should show error message on query failure', () => {
     fixture.detectChanges();
 
     const op = apolloController.expectOne(GetDashboardDocument);
-    op.networkError(new Error('Network error'));
+    op.graphqlErrors([{ message: 'Something went wrong' }]);
 
-    await fixture.whenStable();
+    fixture.detectChanges();
 
     const alert = fixture.nativeElement.querySelector(
       '[data-testid="error-alert"]',
     );
     expect(alert).toBeTruthy();
-    expect(alert.textContent).toContain('Network error');
+    expect(alert.textContent).toContain('Something went wrong');
   });
 
   it('should send correct variables', () => {
