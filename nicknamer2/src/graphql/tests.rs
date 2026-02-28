@@ -1066,3 +1066,73 @@ async fn test_query_servers_invalid_cursor() {
     let errors = body.get("errors");
     assert!(errors.is_some());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_name_mutation() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        mutation CreateName($discordId: String!, $discordServerId: String!, $name: String!) {
+            createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
+                id
+                name
+                createdAt
+                updatedAt
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "discordId": "123456789",
+        "discordServerId": "987654321",
+        "name": "TestNickname"
+    });
+
+    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    assert!(body.get("errors").is_none());
+    assert_eq!(body["data"]["createName"]["name"], "TestNickname");
+    assert!(body["data"]["createName"]["id"].is_string());
+    assert!(body["data"]["createName"]["createdAt"].is_string());
+    assert!(body["data"]["createName"]["updatedAt"].is_string());
+
+    // Verify it was persisted in the database
+    let row: (String,) =
+        sqlx::query_as("SELECT name FROM names WHERE discord_id = $1 AND discord_server = $2")
+            .bind(123456789_i64)
+            .bind(987654321_i64)
+            .fetch_one(&context.pool)
+            .await
+            .unwrap();
+    assert_eq!(row.0, "TestNickname");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_name_mutation_duplicate_returns_error() {
+    let context = setup_test_context().await;
+    insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
+
+    let query = r#"
+        mutation CreateName($discordId: String!, $discordServerId: String!, $name: String!) {
+            createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
+                id
+                name
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "discordId": "123456789",
+        "discordServerId": "987654321",
+        "name": "DuplicateName"
+    });
+
+    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected errors");
+    assert!(errors.as_array().is_some());
+}
