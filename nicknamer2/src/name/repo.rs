@@ -35,6 +35,11 @@ pub trait NameCreator {
     fn save(&self, name: Name) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
 }
 
+/// Creates multiple names in the database in a single transaction (upsert).
+pub trait NameBatchCreator {
+    fn save_batch(&self, names: Vec<Name>) -> impl Future<Output = anyhow::Result<Vec<Uuid>>> + Send;
+}
+
 /// Reads names from the database.
 pub trait NameReader {
     fn get(
@@ -116,6 +121,35 @@ impl NameCreator for Repo {
         .await?;
 
         Ok(id)
+    }
+}
+
+impl NameBatchCreator for Repo {
+    async fn save_batch(&self, names: Vec<Name>) -> anyhow::Result<Vec<Uuid>> {
+        let mut tx = self.pool.begin().await?;
+        let mut ids = Vec::with_capacity(names.len());
+
+        for name in &names {
+            let id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO names (id, discord_id, discord_server, name, created_at, updated_at) \
+                 VALUES ($1, $2, $3, $4, $5, $6) \
+                 ON CONFLICT (discord_id, discord_server) \
+                 DO UPDATE SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at",
+            )
+            .bind(id)
+            .bind(name.id.discord_id.0 as i64)
+            .bind(name.id.discord_server.0 as i64)
+            .bind(&name.name)
+            .bind(name.created_at)
+            .bind(name.updated_at)
+            .execute(&mut *tx)
+            .await?;
+            ids.push(id);
+        }
+
+        tx.commit().await?;
+        Ok(ids)
     }
 }
 
@@ -592,5 +626,35 @@ mod tests {
 
         let count = repo.count_servers().await.unwrap();
         assert_eq!(count, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn save_batch_upserts_names() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool);
+
+        let names = vec![
+            Name::new(DiscordId(111), DiscordServerId(1), "Alice".to_string()),
+            Name::new(DiscordId(222), DiscordServerId(1), "Bob".to_string()),
+        ];
+
+        let ids = repo.save_batch(names).await.unwrap();
+        assert_eq!(ids.len(), 2);
+
+        // Verify upsert: re-insert with different names
+        let updated = vec![
+            Name::new(DiscordId(111), DiscordServerId(1), "AliceUpdated".to_string()),
+            Name::new(DiscordId(333), DiscordServerId(1), "Charlie".to_string()),
+        ];
+        let ids2 = repo.save_batch(updated).await.unwrap();
+        assert_eq!(ids2.len(), 2);
+
+        // Verify Alice was updated, not duplicated
+        let alice = repo
+            .get(DiscordId(111), DiscordServerId(1))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(alice.name, "AliceUpdated");
     }
 }
