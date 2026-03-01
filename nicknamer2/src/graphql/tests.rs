@@ -1216,25 +1216,42 @@ async fn test_create_names_mutation() {
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
 
     let body = parse_graphql_body(&body_text);
-    assert!(body.get("errors").is_none(), "unexpected errors: {body_text}");
+    assert!(
+        body.get("errors").is_none(),
+        "unexpected errors: {body_text}"
+    );
 
     let payload = &body["data"]["createNames"];
     assert_eq!(payload["clientMutationId"], "batch-test-1");
 
-    let names = payload["names"].as_array().expect("names should be an array");
+    let names = payload["names"]
+        .as_array()
+        .expect("names should be an array");
     assert_eq!(names.len(), 2);
 
     let returned_names: Vec<&str> = names
         .iter()
         .map(|n| n["name"].as_str().expect("name should be a string"))
         .collect();
-    assert!(returned_names.contains(&"Alice"), "Alice missing from {returned_names:?}");
-    assert!(returned_names.contains(&"Bob"), "Bob missing from {returned_names:?}");
+    assert!(
+        returned_names.contains(&"Alice"),
+        "Alice missing from {returned_names:?}"
+    );
+    assert!(
+        returned_names.contains(&"Bob"),
+        "Bob missing from {returned_names:?}"
+    );
 
     for name in names {
         assert!(name["id"].is_string(), "id should be a string");
-        assert!(name["createdAt"].is_string(), "createdAt should be a string");
-        assert!(name["updatedAt"].is_string(), "updatedAt should be a string");
+        assert!(
+            name["createdAt"].is_string(),
+            "createdAt should be a string"
+        );
+        assert!(
+            name["updatedAt"].is_string(),
+            "updatedAt should be a string"
+        );
     }
 }
 

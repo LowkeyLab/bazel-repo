@@ -154,10 +154,7 @@ impl MutationRoot {
         }
 
         let server = DiscordServerId(discord_server_id);
-        let name_ids = context
-            .name_service
-            .create_names(server, entries)
-            .await?;
+        let name_ids = context.name_service.create_names(server, entries).await?;
 
         let mut names = Vec::with_capacity(name_ids.len());
         for id in &name_ids {

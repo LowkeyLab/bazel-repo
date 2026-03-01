@@ -37,7 +37,10 @@ pub trait NameCreator {
 
 /// Creates multiple names in the database in a single transaction (upsert).
 pub trait NameBatchCreator {
-    fn save_batch(&self, names: Vec<Name>) -> impl Future<Output = anyhow::Result<Vec<Uuid>>> + Send;
+    fn save_batch(
+        &self,
+        names: Vec<Name>,
+    ) -> impl Future<Output = anyhow::Result<Vec<Uuid>>> + Send;
 }
 
 /// Reads names from the database.
@@ -643,7 +646,11 @@ mod tests {
 
         // Verify upsert: re-insert with different names
         let updated = vec![
-            Name::new(DiscordId(111), DiscordServerId(1), "AliceUpdated".to_string()),
+            Name::new(
+                DiscordId(111),
+                DiscordServerId(1),
+                "AliceUpdated".to_string(),
+            ),
             Name::new(DiscordId(333), DiscordServerId(1), "Charlie".to_string()),
         ];
         let ids2 = repo.save_batch(updated).await.unwrap();

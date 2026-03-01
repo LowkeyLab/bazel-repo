@@ -21,11 +21,16 @@ interface NameEntry {
   imports: [FormsModule, RouterLink],
   template: `
     <div class="p-4">
-      <a [routerLink]="'/servers/' + serverId() + '/names'" class="link link-hover mb-4 inline-block">
+      <a
+        [routerLink]="'/servers/' + serverId() + '/names'"
+        class="link link-hover mb-4 inline-block"
+      >
         &larr; Back to names
       </a>
 
-      <h1 class="text-2xl font-bold mb-4">Batch Add Names — Server {{ serverId() }}</h1>
+      <h1 class="text-2xl font-bold mb-4">
+        Batch Add Names — Server {{ serverId() }}
+      </h1>
 
       <form (ngSubmit)="onSubmit()" data-testid="batch-form">
         <label class="form-control mb-4">
@@ -35,7 +40,7 @@ interface NameEntry {
             [ngModel]="yamlInput()"
             (ngModelChange)="yamlInput.set($event)"
             name="yamlInput"
-            placeholder="- discordId: &quot;123456789&quot;&#10;  name: Alice&#10;- discordId: &quot;987654321&quot;&#10;  name: Bob"
+            placeholder='- discordId: "123456789"&#10;  name: Alice&#10;- discordId: "987654321"&#10;  name: Bob'
             data-testid="yaml-input"
           ></textarea>
         </label>
@@ -87,7 +92,10 @@ export class BatchAddNamesComponent {
         throw new Error(`Entry ${i + 1}: must be an object`);
       }
       const obj = item as Record<string, unknown>;
-      if (typeof obj['discordId'] !== 'string' && typeof obj['discordId'] !== 'number') {
+      if (
+        typeof obj['discordId'] !== 'string' &&
+        typeof obj['discordId'] !== 'number'
+      ) {
         throw new Error(`Entry ${i + 1}: missing or invalid discordId`);
       }
       if (typeof obj['name'] !== 'string') {
