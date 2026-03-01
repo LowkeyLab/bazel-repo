@@ -1,16 +1,16 @@
 use name::{DiscordId, DiscordServerId, Name, NameId};
-use name_repo::{NameCounter, NameCreator, NameDeleter, NameReader, NameUpdater};
+use name_repo::{NameBatchCreator, NameCounter, NameCreator, NameDeleter, NameReader, NameUpdater};
 
 pub struct Service<T>
 where
-    T: NameCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
+    T: NameCreator + NameBatchCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: NameCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
+    T: NameCreator + NameBatchCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
@@ -26,6 +26,21 @@ where
         let id = name_entity.id;
         self.repo.save(name_entity).await?;
         Ok(id)
+    }
+
+    pub async fn create_names(
+        &self,
+        discord_server: DiscordServerId,
+        entries: Vec<(DiscordId, String)>,
+    ) -> anyhow::Result<Vec<NameId>> {
+        let names: Vec<Name> = entries
+            .into_iter()
+            .map(|(discord_id, name)| Name::new(discord_id, discord_server, name))
+            .collect();
+
+        self.repo.save_batch(names.clone()).await?;
+
+        Ok(names.into_iter().map(|n| n.id).collect())
     }
 
     pub async fn update_name(
@@ -324,5 +339,31 @@ mod tests {
 
         let count = service.count_servers().await.unwrap();
         assert_eq!(count, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn create_names_returns_name_ids() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool);
+        let service = Service::new(repo);
+
+        let entries = vec![
+            (DiscordId(111), "Alice".to_string()),
+            (DiscordId(222), "Bob".to_string()),
+        ];
+
+        let ids = service
+            .create_names(DiscordServerId(1), entries)
+            .await
+            .unwrap();
+        assert_eq!(ids.len(), 2);
+
+        // Verify both names are retrievable
+        let alice = service
+            .get_name(DiscordId(111), DiscordServerId(1))
+            .await
+            .unwrap();
+        assert!(alice.is_some());
+        assert_eq!(alice.unwrap().name, "Alice");
     }
 }
