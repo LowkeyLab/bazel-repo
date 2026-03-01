@@ -16,6 +16,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'servers/:serverId/names/batch',
+    loadComponent: () =>
+      import('./servers/batch-add-names.component').then(
+        (m) => m.BatchAddNamesComponent,
+      ),
+  },
+  {
     path: 'servers/:serverId/names',
     loadComponent: () =>
       import('./servers/server-names.component').then(
