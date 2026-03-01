@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   input,
   output,
   signal,
@@ -69,12 +70,25 @@ export class AddNameFormComponent {
   protected readonly discordId = signal('');
   protected readonly nickname = signal('');
 
+  private wasSubmitting = false;
+
+  constructor() {
+    effect(() => {
+      const isSubmitting = this.submitting();
+      const hasError = this.error();
+
+      if (this.wasSubmitting && !isSubmitting && !hasError) {
+        this.discordId.set('');
+        this.nickname.set('');
+      }
+      this.wasSubmitting = isSubmitting;
+    });
+  }
+
   protected onSubmit(): void {
     this.nameSubmitted.emit({
       discordId: this.discordId(),
       name: this.nickname(),
     });
-    this.discordId.set('');
-    this.nickname.set('');
   }
 }

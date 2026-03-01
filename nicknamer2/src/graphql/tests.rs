@@ -1072,7 +1072,7 @@ async fn test_create_name_mutation() {
     let context = setup_test_context().await;
 
     let query = r#"
-        mutation CreateName($discordId: String!, $discordServerId: String!, $name: String!) {
+        mutation CreateName($discordId: ID!, $discordServerId: ID!, $name: String!) {
             createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
                 id
                 name
@@ -1115,7 +1115,7 @@ async fn test_create_name_mutation_duplicate_returns_error() {
     insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
 
     let query = r#"
-        mutation CreateName($discordId: String!, $discordServerId: String!, $name: String!) {
+        mutation CreateName($discordId: ID!, $discordServerId: ID!, $name: String!) {
             createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
                 id
                 name
@@ -1134,5 +1134,11 @@ async fn test_create_name_mutation_duplicate_returns_error() {
 
     let body = parse_graphql_body(&body_text);
     let errors = body.get("errors").expect("Expected errors");
-    assert!(errors.as_array().is_some());
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+    assert!(
+        body.pointer("/data/createName").is_none()
+            || body.pointer("/data/createName").unwrap().is_null(),
+        "data.createName should be null on error"
+    );
 }

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import {
   ApolloTestingController,
@@ -9,6 +10,7 @@ import {
   GetServerNamesDocument,
   CreateNameDocument,
 } from '../../generated/graphql';
+import { AddNameFormComponent } from './add-name-form.component';
 
 describe('ServerNamesComponent', () => {
   let fixture: ComponentFixture<ServerNamesComponent>;
@@ -136,8 +138,14 @@ describe('ServerNamesComponent', () => {
     });
     fixture.detectChanges();
 
-    // Trigger the mutation via the component's handler directly
-    component['onNameSubmitted']({ discordId: '999', name: 'NewNickname' });
+    // Trigger via child component's output to verify template wiring
+    const addNameForm = fixture.debugElement.query(
+      By.directive(AddNameFormComponent),
+    );
+    addNameForm.componentInstance.nameSubmitted.emit({
+      discordId: '999',
+      name: 'NewNickname',
+    });
     fixture.detectChanges();
 
     // Expect mutation with correct variables

@@ -1,6 +1,5 @@
 use name::{DiscordId, DiscordServerId, Name};
 use name_repo::{NameCreator, NameDeleter, NameReader, NameUpdater};
-use uuid::Uuid;
 
 pub struct Service<T>
 where
@@ -22,9 +21,11 @@ where
         discord_id: DiscordId,
         discord_server: DiscordServerId,
         name: String,
-    ) -> anyhow::Result<Uuid> {
+    ) -> anyhow::Result<Name> {
         let name_entity = Name::new(discord_id, discord_server, name);
-        self.repo.save(name_entity).await
+        let created = name_entity.clone();
+        self.repo.save(name_entity).await?;
+        Ok(created)
     }
 
     pub async fn update_name(
