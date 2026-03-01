@@ -32,15 +32,13 @@ where
         &self,
         discord_server: DiscordServerId,
         entries: Vec<(DiscordId, String)>,
-    ) -> anyhow::Result<Vec<NameId>> {
+    ) -> anyhow::Result<Vec<Name>> {
         let names: Vec<Name> = entries
             .into_iter()
             .map(|(discord_id, name)| Name::new(discord_id, discord_server, name))
             .collect();
 
-        self.repo.save_batch(names.clone()).await?;
-
-        Ok(names.into_iter().map(|n| n.id).collect())
+        self.repo.save_batch(names).await
     }
 
     pub async fn update_name(
@@ -352,17 +350,14 @@ mod tests {
             (DiscordId(222), "Bob".to_string()),
         ];
 
-        let ids = service
+        let names = service
             .create_names(DiscordServerId(1), entries)
             .await
             .unwrap();
-        assert_eq!(ids.len(), 2);
+        assert_eq!(names.len(), 2);
 
-        // Verify both names are retrievable
-        let alice = service
-            .get_name(DiscordId(111), DiscordServerId(1))
-            .await
-            .unwrap();
+        // Verify returned names have correct data
+        let alice = names.iter().find(|n| n.id.discord_id == DiscordId(111));
         assert!(alice.is_some());
         assert_eq!(alice.unwrap().name, "Alice");
     }

@@ -146,7 +146,7 @@ impl MutationRoot {
             let discord_id: u64 = entry
                 .discord_id
                 .parse()
-                .map_err(|_| format!("Invalid discord_id: {}", entry.discord_id))?;
+                .map_err(|_| format!("Invalid discordId: {}", entry.discord_id))?;
             if discord_id == 0 {
                 return Err("Discord ID must be greater than 0".into());
             }
@@ -154,18 +154,9 @@ impl MutationRoot {
         }
 
         let server = DiscordServerId(discord_server_id);
-        let name_ids = context.name_service.create_names(server, entries).await?;
+        let created_names = context.name_service.create_names(server, entries).await?;
 
-        let mut names = Vec::with_capacity(name_ids.len());
-        for id in &name_ids {
-            if let Some(name) = context
-                .name_service
-                .get_name(id.discord_id, id.discord_server)
-                .await?
-            {
-                names.push(Name::from(name));
-            }
-        }
+        let names = created_names.into_iter().map(Name::from).collect();
 
         Ok(CreateNamesPayload {
             client_mutation_id: input.client_mutation_id,
