@@ -40,7 +40,7 @@ interface NameEntry {
             [ngModel]="yamlInput()"
             (ngModelChange)="yamlInput.set($event)"
             name="yamlInput"
-            placeholder='- discordId: "123456789"&#10;  name: Alice&#10;- discordId: "987654321"&#10;  name: Bob'
+            placeholder='- discordId: "123456789012345678"&#10;  name: Alice&#10;- discordId: "987654321098765432"&#10;  name: Bob'
             data-testid="yaml-input"
           ></textarea>
         </label>
@@ -92,10 +92,12 @@ export class BatchAddNamesComponent {
         throw new Error(`Entry ${i + 1}: must be an object`);
       }
       const obj = item as Record<string, unknown>;
-      if (
-        typeof obj['discordId'] !== 'string' &&
-        typeof obj['discordId'] !== 'number'
-      ) {
+      if (typeof obj['discordId'] === 'number') {
+        throw new Error(
+          `Entry ${i + 1}: discordId must be a quoted string to avoid precision loss`,
+        );
+      }
+      if (typeof obj['discordId'] !== 'string') {
         throw new Error(`Entry ${i + 1}: missing or invalid discordId`);
       }
       if (typeof obj['name'] !== 'string') {
