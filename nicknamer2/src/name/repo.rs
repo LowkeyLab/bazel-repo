@@ -48,10 +48,7 @@ pub trait NameReader {
         discord_server: DiscordServerId,
     ) -> impl Future<Output = anyhow::Result<Option<Name>>> + Send;
 
-    fn get_many(
-        &self,
-        ids: &[NameId],
-    ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
+    fn get_many(&self, ids: &[NameId]) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
 
     fn list_by_server(
         &self,
