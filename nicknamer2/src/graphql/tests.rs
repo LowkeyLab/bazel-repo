@@ -1184,6 +1184,158 @@ async fn test_create_name_mutation() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_create_names_mutation() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        mutation CreateNames($input: CreateNamesInput!) {
+            createNames(input: $input) {
+                clientMutationId
+                names {
+                    id
+                    name
+                    createdAt
+                    updatedAt
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "clientMutationId": "batch-test-1",
+            "discordServerId": "1",
+            "names": [
+                { "discordId": "111", "name": "Alice" },
+                { "discordId": "222", "name": "Bob" }
+            ]
+        }
+    });
+
+    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+
+    let body = parse_graphql_body(&body_text);
+    assert!(
+        body.get("errors").is_none(),
+        "unexpected errors: {body_text}"
+    );
+
+    let payload = &body["data"]["createNames"];
+    assert_eq!(payload["clientMutationId"], "batch-test-1");
+
+    let names = payload["names"]
+        .as_array()
+        .expect("names should be an array");
+    assert_eq!(names.len(), 2);
+
+    let returned_names: Vec<&str> = names
+        .iter()
+        .map(|n| n["name"].as_str().expect("name should be a string"))
+        .collect();
+    assert!(
+        returned_names.contains(&"Alice"),
+        "Alice missing from {returned_names:?}"
+    );
+    assert!(
+        returned_names.contains(&"Bob"),
+        "Bob missing from {returned_names:?}"
+    );
+
+    for name in names {
+        assert!(name["id"].is_string(), "id should be a string");
+        assert!(
+            name["createdAt"].is_string(),
+            "createdAt should be a string"
+        );
+        assert!(
+            name["updatedAt"].is_string(),
+            "updatedAt should be a string"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_names_mutation_upserts_duplicates() {
+    let context = setup_test_context().await;
+
+    // First, create a name via createName
+    let create_query = r#"
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                name {
+                    name
+                }
+            }
+        }
+    "#;
+
+    let create_variables = json!({
+        "input": {
+            "discordId": "111",
+            "discordServerId": "999",
+            "name": "OriginalName"
+        }
+    });
+
+    let (status, body_text) =
+        execute_graphql(&context.app, create_query, create_variables, None).await;
+    assert_eq!(status, StatusCode::OK, "create failed: {body_text}");
+    let body = parse_graphql_body(&body_text);
+    assert!(body.get("errors").is_none(), "create errors: {body_text}");
+    assert_eq!(body["data"]["createName"]["name"]["name"], "OriginalName");
+
+    // Now batch upsert with overlapping discord_id (111) and a new one (222)
+    let batch_query = r#"
+        mutation CreateNames($input: CreateNamesInput!) {
+            createNames(input: $input) {
+                names {
+                    name
+                }
+            }
+        }
+    "#;
+
+    let batch_variables = json!({
+        "input": {
+            "discordServerId": "999",
+            "names": [
+                { "discordId": "111", "name": "UpdatedName" },
+                { "discordId": "222", "name": "NewUser" }
+            ]
+        }
+    });
+
+    let (status, body_text) =
+        execute_graphql(&context.app, batch_query, batch_variables, None).await;
+    assert_eq!(status, StatusCode::OK, "batch upsert failed: {body_text}");
+
+    let body = parse_graphql_body(&body_text);
+    assert!(
+        body.get("errors").is_none(),
+        "unexpected errors in batch upsert: {body_text}"
+    );
+
+    let names = body["data"]["createNames"]["names"]
+        .as_array()
+        .expect("names should be an array");
+    assert_eq!(names.len(), 2);
+
+    let returned_names: Vec<&str> = names
+        .iter()
+        .map(|n| n["name"].as_str().expect("name should be a string"))
+        .collect();
+    assert!(
+        returned_names.contains(&"UpdatedName"),
+        "UpdatedName missing: {returned_names:?}"
+    );
+    assert!(
+        returned_names.contains(&"NewUser"),
+        "NewUser missing: {returned_names:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_create_name_mutation_duplicate_returns_error() {
     let context = setup_test_context().await;
     insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;

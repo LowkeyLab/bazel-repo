@@ -83,6 +83,7 @@ Output the report exactly in this format:
 ```
 
 Use these status values:
+
 - **PASS** — Requirement is met. Cite the file and line where it's implemented.
 - **FAIL** — Requirement is violated. Explain what's wrong and where.
 - **MISSING** — Expected pattern not found anywhere in the codebase.

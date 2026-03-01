@@ -33,6 +33,14 @@ type NameEdge = NonNullable<
 
       <h1 class="text-2xl font-bold mb-4">Names for Server {{ serverId() }}</h1>
 
+      <a
+        [routerLink]="'/servers/' + serverId() + '/names/batch'"
+        class="btn btn-outline btn-sm mb-4"
+        data-testid="batch-import-link"
+      >
+        Batch Import
+      </a>
+
       <app-add-name-form
         [submitting]="submitting()"
         [error]="submitError()"

@@ -44,6 +44,7 @@ ng_application(
         "//angular:node_modules/@angular/router",
         "//angular:node_modules/@apollo/client",
         "//angular:node_modules/@graphql-typed-document-node/core",
+        "//angular:node_modules/@types/js-yaml",
         "//angular:node_modules/@wry/caches",
         "//angular:node_modules/@wry/context",
         "//angular:node_modules/@wry/equality",
@@ -52,6 +53,7 @@ ng_application(
         "//angular:node_modules/daisyui",
         "//angular:node_modules/graphql",
         "//angular:node_modules/graphql-tag",
+        "//angular:node_modules/js-yaml",
         "//angular:node_modules/optimism",
         # keep-sorted end
     ],
@@ -71,6 +73,7 @@ ng_test(
         "//angular:node_modules/@angular/router",
         "//angular:node_modules/@apollo/client",
         "//angular:node_modules/@graphql-typed-document-node/core",
+        "//angular:node_modules/@types/js-yaml",
         "//angular:node_modules/@wry/caches",
         "//angular:node_modules/@wry/context",
         "//angular:node_modules/@wry/equality",
@@ -79,6 +82,7 @@ ng_test(
         "//angular:node_modules/daisyui",
         "//angular:node_modules/graphql",
         "//angular:node_modules/graphql-tag",
+        "//angular:node_modules/js-yaml",
         "//angular:node_modules/optimism",
         # keep-sorted end
     ],

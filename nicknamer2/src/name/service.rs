@@ -28,6 +28,20 @@ where
         Ok(id)
     }
 
+    pub async fn create_names(
+        &self,
+        discord_server: DiscordServerId,
+        entries: Vec<(DiscordId, String)>,
+    ) -> anyhow::Result<Vec<Name>> {
+        let names: Vec<Name> = entries
+            .into_iter()
+            .map(|(discord_id, name)| Name::new(discord_id, discord_server, name))
+            .collect();
+
+        let ids = self.repo.save_batch(names).await?;
+        self.repo.get_many(&ids).await
+    }
+
     pub async fn update_name(
         &self,
         discord_id: DiscordId,
@@ -324,5 +338,28 @@ mod tests {
 
         let count = service.count_servers().await.unwrap();
         assert_eq!(count, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn create_names_returns_name_ids() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool);
+        let service = Service::new(repo);
+
+        let entries = vec![
+            (DiscordId(111), "Alice".to_string()),
+            (DiscordId(222), "Bob".to_string()),
+        ];
+
+        let names = service
+            .create_names(DiscordServerId(1), entries)
+            .await
+            .unwrap();
+        assert_eq!(names.len(), 2);
+
+        // Verify returned names have correct data
+        let alice = names.iter().find(|n| n.id.discord_id == DiscordId(111));
+        assert!(alice.is_some());
+        assert_eq!(alice.unwrap().name, "Alice");
     }
 }
