@@ -37,6 +37,48 @@ impl CreateNamePayload {
     }
 }
 
+/// A single entry in a batch name creation request.
+#[derive(GraphQLInputObject)]
+#[graphql(description = "A Discord user ID and nickname pair")]
+pub struct NameEntry {
+    /// The Discord user ID.
+    pub discord_id: String,
+    /// The nickname to assign.
+    pub name: String,
+}
+
+/// Input for the createNames batch mutation.
+#[derive(GraphQLInputObject)]
+#[graphql(description = "Input for creating multiple names for Discord users in a server")]
+pub struct CreateNamesInput {
+    /// An opaque identifier for the client performing the mutation.
+    pub client_mutation_id: Option<String>,
+    /// The Discord server ID.
+    pub discord_server_id: String,
+    /// The list of user/name entries to create or update.
+    pub names: Vec<NameEntry>,
+}
+
+/// Payload returned by the createNames batch mutation.
+pub struct CreateNamesPayload {
+    pub client_mutation_id: Option<String>,
+    pub names: Vec<Name>,
+}
+
+#[graphql_object]
+#[graphql(context = Context)]
+impl CreateNamesPayload {
+    /// The client mutation ID that was passed in.
+    fn client_mutation_id(&self) -> Option<&str> {
+        self.client_mutation_id.as_deref()
+    }
+
+    /// The created or updated names.
+    fn names(&self) -> &[Name] {
+        &self.names
+    }
+}
+
 /// Root mutation for the nicknamer2 GraphQL API.
 pub struct MutationRoot;
 
@@ -82,6 +124,55 @@ impl MutationRoot {
         Ok(CreateNamePayload {
             client_mutation_id: input.client_mutation_id,
             name: Name::from(created),
+        })
+    }
+
+    /// Create or update names for multiple Discord users in a server (batch upsert).
+    async fn create_names(
+        context: &Context,
+        input: CreateNamesInput,
+    ) -> FieldResult<CreateNamesPayload> {
+        let discord_server_id: u64 = input
+            .discord_server_id
+            .parse()
+            .map_err(|_| "Invalid server ID format")?;
+
+        if discord_server_id == 0 {
+            return Err("Server ID must be greater than 0".into());
+        }
+
+        let mut entries = Vec::with_capacity(input.names.len());
+        for entry in &input.names {
+            let discord_id: u64 = entry
+                .discord_id
+                .parse()
+                .map_err(|_| format!("Invalid discord_id: {}", entry.discord_id))?;
+            if discord_id == 0 {
+                return Err("Discord ID must be greater than 0".into());
+            }
+            entries.push((DiscordId(discord_id), entry.name.clone()));
+        }
+
+        let server = DiscordServerId(discord_server_id);
+        let name_ids = context
+            .name_service
+            .create_names(server, entries)
+            .await?;
+
+        let mut names = Vec::with_capacity(name_ids.len());
+        for id in &name_ids {
+            if let Some(name) = context
+                .name_service
+                .get_name(id.discord_id, id.discord_server)
+                .await?
+            {
+                names.push(Name::from(name));
+            }
+        }
+
+        Ok(CreateNamesPayload {
+            client_mutation_id: input.client_mutation_id,
+            names,
         })
     }
 }
