@@ -16,9 +16,7 @@ describe('BatchAddNamesComponent', () => {
     await TestBed.configureTestingModule({
       imports: [BatchAddNamesComponent, ApolloTestingModule],
       providers: [
-        provideRouter([
-          { path: '**', component: BatchAddNamesComponent },
-        ]),
+        provideRouter([{ path: '**', component: BatchAddNamesComponent }]),
       ],
     }).compileComponents();
 
@@ -129,7 +127,9 @@ describe('BatchAddNamesComponent', () => {
       component['onSubmit']();
       fixture.detectChanges();
 
-      expect(component['error']()).toBe('Entry 1: missing or invalid discordId');
+      expect(component['error']()).toBe(
+        'Entry 1: missing or invalid discordId',
+      );
 
       const errorDiv = fixture.nativeElement.querySelector(
         '[data-testid="batch-error"]',
