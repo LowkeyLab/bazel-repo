@@ -1132,3 +1132,92 @@ async fn test_names_total_count() {
     let names = &body["data"]["server"]["names"];
     assert_eq!(names["totalCount"].as_i64(), Some(3));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_name_mutation() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                clientMutationId
+                name {
+                    id
+                    name
+                    createdAt
+                    updatedAt
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "clientMutationId": "test-1",
+            "discordId": "123456789",
+            "discordServerId": "987654321",
+            "name": "TestNickname"
+        }
+    });
+
+    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    assert!(body.get("errors").is_none());
+    let payload = &body["data"]["createName"];
+    assert_eq!(payload["clientMutationId"], "test-1");
+    assert_eq!(payload["name"]["name"], "TestNickname");
+    assert!(payload["name"]["id"].is_string());
+    assert!(payload["name"]["createdAt"].is_string());
+    assert!(payload["name"]["updatedAt"].is_string());
+
+    // Verify it was persisted in the database
+    let row: (String,) =
+        sqlx::query_as("SELECT name FROM names WHERE discord_id = $1 AND discord_server = $2")
+            .bind(123456789_i64)
+            .bind(987654321_i64)
+            .fetch_one(&context.pool)
+            .await
+            .unwrap();
+    assert_eq!(row.0, "TestNickname");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_name_mutation_duplicate_returns_error() {
+    let context = setup_test_context().await;
+    insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
+
+    let query = r#"
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                clientMutationId
+                name {
+                    id
+                    name
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "discordId": "123456789",
+            "discordServerId": "987654321",
+            "name": "DuplicateName"
+        }
+    });
+
+    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected errors");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+    assert!(
+        body.pointer("/data/createName").is_none()
+            || body.pointer("/data/createName").unwrap().is_null(),
+        "data.createName should be null on error"
+    );
+}

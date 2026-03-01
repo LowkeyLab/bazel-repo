@@ -26,7 +26,6 @@ rust_library(
         ":name",
         ":name_repo",
         "@crates//:anyhow",
-        "@crates//:uuid",
     ],
 )
 

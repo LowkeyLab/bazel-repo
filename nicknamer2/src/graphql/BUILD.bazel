@@ -57,11 +57,24 @@ rust_library(
 )
 
 rust_library(
+    name = "graphql_mutation",
+    srcs = ["mutation.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        ":graphql_context",
+        ":graphql_model",
+        "//nicknamer2/src/name",
+        "@crates//:juniper",
+    ],
+)
+
+rust_library(
     name = "graphql_schema",
     srcs = ["schema.rs"],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":graphql_context",
+        ":graphql_mutation",
         ":graphql_query",
         "@crates//:juniper",
     ],

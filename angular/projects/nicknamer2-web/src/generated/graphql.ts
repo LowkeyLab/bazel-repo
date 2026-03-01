@@ -149,6 +149,34 @@ export type ServerEdge = {
   node: Server;
 };
 
+export type CreateNameInput = {
+  clientMutationId?: InputMaybe<Scalars['String']['input']>;
+  discordId: Scalars['String']['input'];
+  discordServerId: Scalars['String']['input'];
+  name: Scalars['String']['input'];
+};
+
+export type CreateNamePayload = {
+  __typename?: 'CreateNamePayload';
+  clientMutationId?: Maybe<Scalars['String']['output']>;
+  name: {
+    __typename?: 'Name';
+    id: string;
+    name: string;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type CreateNameMutationVariables = Exact<{
+  input: CreateNameInput;
+}>;
+
+export type CreateNameMutation = {
+  __typename?: 'MutationRoot';
+  createName: CreateNamePayload;
+};
+
 export type GetDashboardQueryVariables = Exact<{
   first: Scalars['Int']['input'];
 }>;
@@ -311,6 +339,33 @@ export class GetServersGQL extends Apollo.Query<
   GetServersQueryVariables
 > {
   document = GetServersDocument;
+
+  constructor(apollo: Apollo.Apollo) {
+    super(apollo);
+  }
+}
+export const CreateNameDocument = gql`
+  mutation CreateName($input: CreateNameInput!) {
+    createName(input: $input) {
+      clientMutationId
+      name {
+        id
+        name
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+@Injectable({
+  providedIn: 'root',
+})
+export class CreateNameGQL extends Apollo.Mutation<
+  CreateNameMutation,
+  CreateNameMutationVariables
+> {
+  document = CreateNameDocument;
 
   constructor(apollo: Apollo.Apollo) {
     super(apollo);
