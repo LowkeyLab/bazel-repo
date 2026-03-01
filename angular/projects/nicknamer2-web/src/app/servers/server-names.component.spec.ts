@@ -5,7 +5,10 @@ import {
   ApolloTestingModule,
 } from 'apollo-angular/testing';
 import { ServerNamesComponent } from './server-names.component';
-import { GetServerNamesDocument, CreateNameDocument } from '../../generated/graphql';
+import {
+  GetServerNamesDocument,
+  CreateNameDocument,
+} from '../../generated/graphql';
 
 describe('ServerNamesComponent', () => {
   let fixture: ComponentFixture<ServerNamesComponent>;
@@ -114,7 +117,7 @@ describe('ServerNamesComponent', () => {
     expect(btn).toBeTruthy();
   });
 
-  it('should submit the form and refetch names', async () => {
+  it('should call createName mutation when form emits nameSubmitted', async () => {
     fixture.detectChanges();
 
     // Flush initial query
@@ -133,17 +136,11 @@ describe('ServerNamesComponent', () => {
     });
     fixture.detectChanges();
 
-    // Fill in the form by directly updating the component signals
-    component['discordId'].set('999');
-    component['nickname'].set('NewNickname');
+    // Trigger the mutation via the component's handler directly
+    component['onNameSubmitted']({ discordId: '999', name: 'NewNickname' });
     fixture.detectChanges();
 
-    // Submit the form by triggering ngSubmit on the form element
-    const form: HTMLFormElement = fixture.nativeElement.querySelector('[data-testid="add-name-form"]');
-    form.dispatchEvent(new Event('submit'));
-    fixture.detectChanges();
-
-    // Expect mutation
+    // Expect mutation with correct variables
     const mutationOp = apolloController.expectOne(CreateNameDocument);
     expect(mutationOp.operation.variables['discordId']).toBe('999');
     expect(mutationOp.operation.variables['discordServerId']).toBe('12345');
@@ -159,7 +156,7 @@ describe('ServerNamesComponent', () => {
         },
       },
     });
-    // Allow microtasks to run so the refetch triggered by the mutation's next callback can execute
+
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -191,7 +188,9 @@ describe('ServerNamesComponent', () => {
     });
     fixture.detectChanges();
 
-    const rows = fixture.nativeElement.querySelectorAll('[data-testid="name-row"]');
+    const rows = fixture.nativeElement.querySelectorAll(
+      '[data-testid="name-row"]',
+    );
     expect(rows.length).toBe(1);
     expect(rows[0].textContent).toContain('NewNickname');
   });
