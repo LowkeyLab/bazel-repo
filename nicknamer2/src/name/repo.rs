@@ -37,7 +37,7 @@ pub trait NameCreator {
     fn save_batch(
         &self,
         names: Vec<Name>,
-    ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
+    ) -> impl Future<Output = anyhow::Result<Vec<NameId>>> + Send;
 }
 
 /// Reads names from the database.
@@ -47,6 +47,11 @@ pub trait NameReader {
         discord_id: DiscordId,
         discord_server: DiscordServerId,
     ) -> impl Future<Output = anyhow::Result<Option<Name>>> + Send;
+
+    fn get_many(
+        &self,
+        ids: &[NameId],
+    ) -> impl Future<Output = anyhow::Result<Vec<Name>>> + Send;
 
     fn list_by_server(
         &self,
@@ -123,18 +128,17 @@ impl NameCreator for Repo {
         Ok(id)
     }
 
-    async fn save_batch(&self, names: Vec<Name>) -> anyhow::Result<Vec<Name>> {
+    async fn save_batch(&self, names: Vec<Name>) -> anyhow::Result<Vec<NameId>> {
         let mut tx = self.pool.begin().await?;
-        let mut results = Vec::with_capacity(names.len());
+        let mut ids = Vec::with_capacity(names.len());
 
         for name in &names {
             let id = Uuid::new_v4();
-            let dao: NameDAO = sqlx::query_as(
+            sqlx::query(
                 "INSERT INTO names (id, discord_id, discord_server, name, created_at, updated_at) \
                  VALUES ($1, $2, $3, $4, $5, $6) \
                  ON CONFLICT (discord_id, discord_server) \
-                 DO UPDATE SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at \
-                 RETURNING *",
+                 DO UPDATE SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at",
             )
             .bind(id)
             .bind(name.id.discord_id.0 as i64)
@@ -142,13 +146,13 @@ impl NameCreator for Repo {
             .bind(&name.name)
             .bind(name.created_at)
             .bind(name.updated_at)
-            .fetch_one(&mut *tx)
+            .execute(&mut *tx)
             .await?;
-            results.push(Name::from(dao));
+            ids.push(name.id);
         }
 
         tx.commit().await?;
-        Ok(results)
+        Ok(ids)
     }
 }
 
@@ -197,6 +201,26 @@ impl NameReader for Repo {
         .await?;
 
         Ok(dao.map(Into::into))
+    }
+
+    async fn get_many(&self, ids: &[NameId]) -> anyhow::Result<Vec<Name>> {
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let discord_ids: Vec<i64> = ids.iter().map(|id| id.discord_id.0 as i64).collect();
+        let discord_servers: Vec<i64> = ids.iter().map(|id| id.discord_server.0 as i64).collect();
+
+        let rows: Vec<NameDAO> = sqlx::query_as(
+            "SELECT * FROM names WHERE (discord_id, discord_server) IN \
+             (SELECT UNNEST($1::bigint[]), UNNEST($2::bigint[]))",
+        )
+        .bind(&discord_ids)
+        .bind(&discord_servers)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(Name::from).collect())
     }
 
     async fn list_by_server(
@@ -637,8 +661,8 @@ mod tests {
             Name::new(DiscordId(222), DiscordServerId(1), "Bob".to_string()),
         ];
 
-        let results = repo.save_batch(names).await.unwrap();
-        assert_eq!(results.len(), 2);
+        let ids = repo.save_batch(names).await.unwrap();
+        assert_eq!(ids.len(), 2);
 
         // Verify upsert: re-insert with different names
         let updated = vec![
@@ -649,15 +673,56 @@ mod tests {
             ),
             Name::new(DiscordId(333), DiscordServerId(1), "Charlie".to_string()),
         ];
-        let results2 = repo.save_batch(updated).await.unwrap();
-        assert_eq!(results2.len(), 2);
+        let ids2 = repo.save_batch(updated).await.unwrap();
+        assert_eq!(ids2.len(), 2);
 
-        // Verify Alice was updated, not duplicated
+        // Verify Alice was updated via get
         let alice = repo
             .get(DiscordId(111), DiscordServerId(1))
             .await
             .unwrap()
             .unwrap();
         assert_eq!(alice.name, "AliceUpdated");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn get_many_returns_matching_names() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool);
+
+        // Insert some names
+        let names = vec![
+            Name::new(DiscordId(111), DiscordServerId(1), "Alice".to_string()),
+            Name::new(DiscordId(222), DiscordServerId(1), "Bob".to_string()),
+            Name::new(DiscordId(333), DiscordServerId(1), "Charlie".to_string()),
+        ];
+        repo.save_batch(names).await.unwrap();
+
+        // Fetch a subset
+        let ids = vec![
+            NameId {
+                discord_id: DiscordId(111),
+                discord_server: DiscordServerId(1),
+            },
+            NameId {
+                discord_id: DiscordId(333),
+                discord_server: DiscordServerId(1),
+            },
+        ];
+        let results = repo.get_many(&ids).await.unwrap();
+        assert_eq!(results.len(), 2);
+
+        let result_names: Vec<&str> = results.iter().map(|n| n.name.as_str()).collect();
+        assert!(result_names.contains(&"Alice"));
+        assert!(result_names.contains(&"Charlie"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn get_many_empty_ids_returns_empty() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool);
+
+        let results = repo.get_many(&[]).await.unwrap();
+        assert!(results.is_empty());
     }
 }

@@ -38,7 +38,8 @@ where
             .map(|(discord_id, name)| Name::new(discord_id, discord_server, name))
             .collect();
 
-        self.repo.save_batch(names).await
+        let ids = self.repo.save_batch(names).await?;
+        self.repo.get_many(&ids).await
     }
 
     pub async fn update_name(
