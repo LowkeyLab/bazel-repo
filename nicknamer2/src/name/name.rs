@@ -16,7 +16,7 @@ pub struct NameId {
 }
 
 /// A name associated with a user in a Discord server.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Name {
     pub id: NameId,
     pub name: String,

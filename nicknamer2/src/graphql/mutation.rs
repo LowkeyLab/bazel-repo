@@ -64,7 +64,7 @@ impl MutationRoot {
             return Err("Server ID must be greater than 0".into());
         }
 
-        let created = context
+        let id = context
             .name_service
             .create_name(
                 DiscordId(discord_id),
@@ -72,6 +72,12 @@ impl MutationRoot {
                 input.name,
             )
             .await?;
+
+        let created = context
+            .name_service
+            .get_name(id.discord_id, id.discord_server)
+            .await?
+            .ok_or("Failed to retrieve created name")?;
 
         Ok(CreateNamePayload {
             client_mutation_id: input.client_mutation_id,

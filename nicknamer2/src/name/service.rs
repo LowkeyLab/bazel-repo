@@ -1,4 +1,4 @@
-use name::{DiscordId, DiscordServerId, Name};
+use name::{DiscordId, DiscordServerId, Name, NameId};
 use name_repo::{NameCounter, NameCreator, NameDeleter, NameReader, NameUpdater};
 
 pub struct Service<T>
@@ -21,11 +21,11 @@ where
         discord_id: DiscordId,
         discord_server: DiscordServerId,
         name: String,
-    ) -> anyhow::Result<Name> {
+    ) -> anyhow::Result<NameId> {
         let name_entity = Name::new(discord_id, discord_server, name);
-        let created = name_entity.clone();
+        let id = name_entity.id;
         self.repo.save(name_entity).await?;
-        Ok(created)
+        Ok(id)
     }
 
     pub async fn update_name(
