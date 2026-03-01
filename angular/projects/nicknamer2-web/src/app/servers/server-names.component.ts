@@ -156,9 +156,11 @@ export class ServerNamesComponent implements OnInit {
     this.createNameGQL
       .mutate({
         variables: {
-          discordId: event.discordId,
-          discordServerId: this.serverId(),
-          name: event.name,
+          input: {
+            discordId: event.discordId,
+            discordServerId: this.serverId(),
+            name: event.name,
+          },
         },
       })
       .subscribe({

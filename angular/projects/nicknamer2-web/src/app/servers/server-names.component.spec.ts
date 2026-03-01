@@ -150,17 +150,21 @@ describe('ServerNamesComponent', () => {
 
     // Expect mutation with correct variables
     const mutationOp = apolloController.expectOne(CreateNameDocument);
-    expect(mutationOp.operation.variables['discordId']).toBe('999');
-    expect(mutationOp.operation.variables['discordServerId']).toBe('12345');
-    expect(mutationOp.operation.variables['name']).toBe('NewNickname');
+    const input = mutationOp.operation.variables['input'];
+    expect(input['discordId']).toBe('999');
+    expect(input['discordServerId']).toBe('12345');
+    expect(input['name']).toBe('NewNickname');
 
     mutationOp.flush({
       data: {
         createName: {
-          id: 'name-new',
-          name: 'NewNickname',
-          createdAt: '2026-01-01T00:00:00Z',
-          updatedAt: '2026-01-01T00:00:00Z',
+          clientMutationId: null,
+          name: {
+            id: 'name-new',
+            name: 'NewNickname',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+          },
         },
       },
     });

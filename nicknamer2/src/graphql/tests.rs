@@ -1072,20 +1072,26 @@ async fn test_create_name_mutation() {
     let context = setup_test_context().await;
 
     let query = r#"
-        mutation CreateName($discordId: ID!, $discordServerId: ID!, $name: String!) {
-            createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
-                id
-                name
-                createdAt
-                updatedAt
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                clientMutationId
+                name {
+                    id
+                    name
+                    createdAt
+                    updatedAt
+                }
             }
         }
     "#;
 
     let variables = json!({
-        "discordId": "123456789",
-        "discordServerId": "987654321",
-        "name": "TestNickname"
+        "input": {
+            "clientMutationId": "test-1",
+            "discordId": "123456789",
+            "discordServerId": "987654321",
+            "name": "TestNickname"
+        }
     });
 
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
@@ -1093,10 +1099,12 @@ async fn test_create_name_mutation() {
 
     let body = parse_graphql_body(&body_text);
     assert!(body.get("errors").is_none());
-    assert_eq!(body["data"]["createName"]["name"], "TestNickname");
-    assert!(body["data"]["createName"]["id"].is_string());
-    assert!(body["data"]["createName"]["createdAt"].is_string());
-    assert!(body["data"]["createName"]["updatedAt"].is_string());
+    let payload = &body["data"]["createName"];
+    assert_eq!(payload["clientMutationId"], "test-1");
+    assert_eq!(payload["name"]["name"], "TestNickname");
+    assert!(payload["name"]["id"].is_string());
+    assert!(payload["name"]["createdAt"].is_string());
+    assert!(payload["name"]["updatedAt"].is_string());
 
     // Verify it was persisted in the database
     let row: (String,) =
@@ -1115,18 +1123,23 @@ async fn test_create_name_mutation_duplicate_returns_error() {
     insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
 
     let query = r#"
-        mutation CreateName($discordId: ID!, $discordServerId: ID!, $name: String!) {
-            createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
-                id
-                name
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                clientMutationId
+                name {
+                    id
+                    name
+                }
             }
         }
     "#;
 
     let variables = json!({
-        "discordId": "123456789",
-        "discordServerId": "987654321",
-        "name": "DuplicateName"
+        "input": {
+            "discordId": "123456789",
+            "discordServerId": "987654321",
+            "name": "DuplicateName"
+        }
     });
 
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;

@@ -1,8 +1,11 @@
-mutation CreateName($discordId: String!, $discordServerId: String!, $name: String!) {
-  createName(discordId: $discordId, discordServerId: $discordServerId, name: $name) {
-    id
-    name
-    createdAt
-    updatedAt
+mutation CreateName($input: CreateNameInput!) {
+  createName(input: $input) {
+    clientMutationId
+    name {
+      id
+      name
+      createdAt
+      updatedAt
+    }
   }
 }
