@@ -61,6 +61,8 @@ export type NameConnection = {
   edges: Array<NameEdge>;
   /** Information about pagination */
   pageInfo: PageInfo;
+  /** Total number of names */
+  totalCount: Scalars['Int']['output'];
 };
 
 export type NameEdge = {
@@ -135,6 +137,8 @@ export type ServerConnection = {
   edges: Array<ServerEdge>;
   /** Information about pagination */
   pageInfo: PageInfo;
+  /** Total number of servers */
+  totalCount: Scalars['Int']['output'];
 };
 
 export type ServerEdge = {
@@ -171,6 +175,22 @@ export type CreateNameMutationVariables = Exact<{
 export type CreateNameMutation = {
   __typename?: 'MutationRoot';
   createName: CreateNamePayload;
+};
+
+export type GetDashboardQueryVariables = Exact<{
+  first: Scalars['Int']['input'];
+}>;
+
+export type GetDashboardQuery = {
+  __typename?: 'QueryRoot';
+  servers: {
+    __typename?: 'ServerConnection';
+    totalCount: number;
+    edges: Array<{
+      __typename?: 'ServerEdge';
+      node: { __typename?: 'Server'; id: string; serverId: string };
+    }>;
+  };
 };
 
 export type GetServerNamesQueryVariables = Exact<{
@@ -229,6 +249,33 @@ export type GetServersQuery = {
   };
 };
 
+export const GetDashboardDocument = gql`
+  query GetDashboard($first: Int!) {
+    servers(first: $first) {
+      totalCount
+      edges {
+        node {
+          id
+          serverId
+        }
+      }
+    }
+  }
+`;
+
+@Injectable({
+  providedIn: 'root',
+})
+export class GetDashboardGQL extends Apollo.Query<
+  GetDashboardQuery,
+  GetDashboardQueryVariables
+> {
+  document = GetDashboardDocument;
+
+  constructor(apollo: Apollo.Apollo) {
+    super(apollo);
+  }
+}
 export const GetServerNamesDocument = gql`
   query GetServerNames($id: ID!, $first: Int!, $after: String) {
     server(id: $id) {

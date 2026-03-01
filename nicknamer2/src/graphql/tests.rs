@@ -1068,6 +1068,72 @@ async fn test_query_servers_invalid_cursor() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_servers_total_count() {
+    let context = setup_test_context().await;
+    insert_name(&context.pool, 1, 100, "Alice").await;
+    insert_name(&context.pool, 2, 200, "Bob").await;
+    insert_name(&context.pool, 3, 200, "Carol").await;
+
+    let query = r#"
+        query {
+            servers(first: 10) {
+                totalCount
+                edges {
+                    node {
+                        serverId
+                    }
+                }
+            }
+        }
+    "#;
+
+    let (status, body_text) = execute_graphql(&context.app, query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none(), "errors: {body_text}");
+
+    let servers = &body["data"]["servers"];
+    assert_eq!(servers["totalCount"].as_i64(), Some(2));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_names_total_count() {
+    let context = setup_test_context().await;
+    let server = 100u64;
+    insert_name(&context.pool, 1, server, "Alice").await;
+    insert_name(&context.pool, 2, server, "Bob").await;
+    insert_name(&context.pool, 3, server, "Carol").await;
+
+    let query = format!(
+        r#"
+        query {{
+            server(id: "{}") {{
+                names(first: 10) {{
+                    totalCount
+                    edges {{
+                        node {{
+                            name
+                        }}
+                    }}
+                }}
+            }}
+        }}
+        "#,
+        server
+    );
+
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(body.get("errors").is_none(), "errors: {body_text}");
+
+    let names = &body["data"]["server"]["names"];
+    assert_eq!(names["totalCount"].as_i64(), Some(3));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_create_name_mutation() {
     let context = setup_test_context().await;
 

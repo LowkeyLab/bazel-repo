@@ -1,16 +1,16 @@
 use name::{DiscordId, DiscordServerId, Name};
-use name_repo::{NameCreator, NameDeleter, NameReader, NameUpdater};
+use name_repo::{NameCounter, NameCreator, NameDeleter, NameReader, NameUpdater};
 
 pub struct Service<T>
 where
-    T: NameCreator + NameReader + NameUpdater + NameDeleter,
+    T: NameCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: NameCreator + NameReader + NameUpdater + NameDeleter,
+    T: NameCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }
@@ -74,6 +74,17 @@ where
         cursor: Option<DiscordServerId>,
     ) -> anyhow::Result<Vec<DiscordServerId>> {
         self.repo.list_servers(limit, cursor).await
+    }
+
+    pub async fn count_names_by_server(
+        &self,
+        discord_server: DiscordServerId,
+    ) -> anyhow::Result<i64> {
+        self.repo.count_names_by_server(discord_server).await
+    }
+
+    pub async fn count_servers(&self) -> anyhow::Result<i64> {
+        self.repo.count_servers().await
     }
 }
 
@@ -274,5 +285,44 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result, vec![DiscordServerId(22222)]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_count_names_by_server() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+        let service = Service::new(repo);
+
+        let server = DiscordServerId(11111);
+        service
+            .create_name(DiscordId(1), server, "Alice".to_string())
+            .await
+            .unwrap();
+        service
+            .create_name(DiscordId(2), server, "Bob".to_string())
+            .await
+            .unwrap();
+
+        let count = service.count_names_by_server(server).await.unwrap();
+        assert_eq!(count, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_count_servers() {
+        let (pool, _container) = setup_test_db().await;
+        let repo = Repo::new(pool.clone());
+        let service = Service::new(repo);
+
+        service
+            .create_name(DiscordId(1), DiscordServerId(100), "Alice".to_string())
+            .await
+            .unwrap();
+        service
+            .create_name(DiscordId(2), DiscordServerId(200), "Bob".to_string())
+            .await
+            .unwrap();
+
+        let count = service.count_servers().await.unwrap();
+        assert_eq!(count, 2);
     }
 }

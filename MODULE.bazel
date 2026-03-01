@@ -381,7 +381,7 @@ use_repo(keep_sorted_deps, "com_github_google_keep_sorted")
 oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci_extension.pull(
     name = "distroless_cc",
-    digest = "sha256:5c21e542a03a94d9598ddf9a985c790fd574171610c1b87d464a294b305bca2a",
+    digest = "sha256:8c1a496b055d36c222e95ebd5c53bdd1fee447689a97ad889febca8380d578ec",
     image = "gcr.io/distroless/cc-debian13",
     platforms = [
         "linux/amd64",
