@@ -1,16 +1,16 @@
 use name::{DiscordId, DiscordServerId, Name, NameId};
-use name_repo::{NameBatchCreator, NameCounter, NameCreator, NameDeleter, NameReader, NameUpdater};
+use name_repo::{NameCounter, NameCreator, NameDeleter, NameReader, NameUpdater};
 
 pub struct Service<T>
 where
-    T: NameCreator + NameBatchCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
+    T: NameCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
 {
     repo: T,
 }
 
 impl<T> Service<T>
 where
-    T: NameCreator + NameBatchCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
+    T: NameCreator + NameReader + NameUpdater + NameDeleter + NameCounter,
 {
     pub fn new(repo: T) -> Self {
         Self { repo }

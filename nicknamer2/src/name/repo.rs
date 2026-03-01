@@ -30,13 +30,10 @@ impl From<NameDAO> for Name {
     }
 }
 
-/// Creates a name in the database.
+/// Creates names in the database.
 pub trait NameCreator {
     fn save(&self, name: Name) -> impl Future<Output = anyhow::Result<Uuid>> + Send;
-}
 
-/// Creates multiple names in the database in a single transaction (upsert).
-pub trait NameBatchCreator {
     fn save_batch(
         &self,
         names: Vec<Name>,
@@ -125,9 +122,7 @@ impl NameCreator for Repo {
 
         Ok(id)
     }
-}
 
-impl NameBatchCreator for Repo {
     async fn save_batch(&self, names: Vec<Name>) -> anyhow::Result<Vec<Uuid>> {
         let mut tx = self.pool.begin().await?;
         let mut ids = Vec::with_capacity(names.len());
