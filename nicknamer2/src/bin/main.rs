@@ -24,14 +24,16 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Database migrations applied successfully");
 
     let repo = name_repo::Repo::new(pool);
-    let service = Arc::new(name_service::Service::new(repo));
+    let name_service = Arc::new(name_service::Service::new(repo));
+
+    let jwks_validator = Arc::new(
+        auth::JwksValidator::new(&config.casdoor_issuer_url, &config.casdoor_client_id).await?,
+    );
+    tracing::info!("JWKS keys loaded from {}", config.casdoor_issuer_url);
 
     let schema = Arc::new(graphql_schema::create_schema());
-    let context = Arc::new(graphql_context::Context {
-        name_service: service,
-    });
 
-    let app = server::create_router(schema, context);
+    let app = server::create_router(schema, name_service, jwks_validator);
 
     let address = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&address).await?;

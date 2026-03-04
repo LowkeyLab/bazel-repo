@@ -1,0 +1,25 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "auth_claims",
+    srcs = ["claims.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "@crates//:serde",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_library(
+    name = "auth",
+    srcs = ["auth.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        ":auth_claims",
+        "@crates//:anyhow",
+        "@crates//:jsonwebtoken",
+        "@crates//:reqwest",
+        "@crates//:serde",
+        "@crates//:tracing",
+    ],
+)

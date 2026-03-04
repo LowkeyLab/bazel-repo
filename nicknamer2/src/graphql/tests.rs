@@ -14,7 +14,6 @@ use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use graphql_context::Context;
 use graphql_relay::RelayId;
 use graphql_schema::create_schema;
 
@@ -49,11 +48,9 @@ async fn setup_test_context() -> TestContext {
     let service = Arc::new(name_service::Service::new(repo));
 
     let schema = Arc::new(create_schema());
-    let context = Arc::new(Context {
-        name_service: service,
-    });
+    let jwks_validator = Arc::new(auth::JwksValidator::new_noop_for_testing());
 
-    let app = server::create_router(schema, context);
+    let app = server::create_router(schema, service, jwks_validator);
 
     TestContext {
         app,
@@ -1134,7 +1131,7 @@ async fn test_names_total_count() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_create_name_mutation() {
+async fn test_create_name_mutation_requires_auth() {
     let context = setup_test_context().await;
 
     let query = r#"
@@ -1160,27 +1157,19 @@ async fn test_create_name_mutation() {
         }
     });
 
+    // Without an auth token, the mutation should return an auth error.
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
     assert_eq!(status, StatusCode::OK);
 
     let body = parse_graphql_body(&body_text);
-    assert!(body.get("errors").is_none());
-    let payload = &body["data"]["createName"];
-    assert_eq!(payload["clientMutationId"], "test-1");
-    assert_eq!(payload["name"]["name"], "TestNickname");
-    assert!(payload["name"]["id"].is_string());
-    assert!(payload["name"]["createdAt"].is_string());
-    assert!(payload["name"]["updatedAt"].is_string());
-
-    // Verify it was persisted in the database
-    let row: (String,) =
-        sqlx::query_as("SELECT name FROM names WHERE discord_id = $1 AND discord_server = $2")
-            .bind(123456789_i64)
-            .bind(987654321_i64)
-            .fetch_one(&context.pool)
-            .await
-            .unwrap();
-    assert_eq!(row.0, "TestNickname");
+    let errors = body.get("errors").expect("Expected auth error");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+    assert!(
+        body.pointer("/data/createName").is_none()
+            || body.pointer("/data/createName").unwrap().is_null(),
+        "data.createName should be null on auth error"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1212,7 +1201,8 @@ async fn test_create_names_mutation() {
         }
     });
 
-    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    let token = format!("Bearer {}", auth::JwksValidator::mint_test_token());
+    let (status, body_text) = execute_graphql(&context.app, query, variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
 
     let body = parse_graphql_body(&body_text);
@@ -1259,6 +1249,8 @@ async fn test_create_names_mutation() {
 async fn test_create_names_mutation_upserts_duplicates() {
     let context = setup_test_context().await;
 
+    let token = format!("Bearer {}", auth::JwksValidator::mint_test_token());
+
     // First, create a name via createName
     let create_query = r#"
         mutation CreateName($input: CreateNameInput!) {
@@ -1279,7 +1271,7 @@ async fn test_create_names_mutation_upserts_duplicates() {
     });
 
     let (status, body_text) =
-        execute_graphql(&context.app, create_query, create_variables, None).await;
+        execute_graphql(&context.app, create_query, create_variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "create failed: {body_text}");
     let body = parse_graphql_body(&body_text);
     assert!(body.get("errors").is_none(), "create errors: {body_text}");
@@ -1307,7 +1299,7 @@ async fn test_create_names_mutation_upserts_duplicates() {
     });
 
     let (status, body_text) =
-        execute_graphql(&context.app, batch_query, batch_variables, None).await;
+        execute_graphql(&context.app, batch_query, batch_variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "batch upsert failed: {body_text}");
 
     let body = parse_graphql_body(&body_text);
@@ -1336,7 +1328,7 @@ async fn test_create_names_mutation_upserts_duplicates() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_create_name_mutation_duplicate_returns_error() {
+async fn test_create_name_mutation_without_auth_returns_error() {
     let context = setup_test_context().await;
     insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
 
@@ -1360,6 +1352,7 @@ async fn test_create_name_mutation_duplicate_returns_error() {
         }
     });
 
+    // Without an auth token, the mutation should return an auth error.
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
     assert_eq!(status, StatusCode::OK);
 

@@ -1,25 +1,46 @@
 use std::sync::Arc;
 
+use auth::JwksValidator;
 use axum::Extension;
+use axum::http::HeaderMap;
 use axum::routing::{MethodFilter, get, on};
 use juniper_axum::extract::JuniperRequest;
 use juniper_axum::graphiql;
 use juniper_axum::response::JuniperResponse;
+use name_repo::Repo;
+use name_service::Service;
 
 use graphql_context::Context;
 use graphql_schema::Schema;
 
-/// Custom GraphQL handler that injects our application context.
+/// Custom GraphQL handler that creates a per-request context with auth info.
 async fn graphql_handler(
     Extension(schema): Extension<Arc<Schema>>,
-    Extension(context): Extension<Arc<Context>>,
+    Extension(name_service): Extension<Arc<Service<Repo>>>,
+    Extension(jwks_validator): Extension<Arc<JwksValidator>>,
+    headers: HeaderMap,
     JuniperRequest(request): JuniperRequest,
 ) -> JuniperResponse {
-    JuniperResponse(request.execute(&*schema, &*context).await)
+    let auth_token = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let context = Context {
+        name_service,
+        jwks_validator,
+        auth_token,
+    };
+
+    JuniperResponse(request.execute(&*schema, &context).await)
 }
 
 /// Creates the axum Router with GraphQL and GraphiQL endpoints.
-pub fn create_router(schema: Arc<Schema>, context: Arc<Context>) -> axum::Router {
+pub fn create_router(
+    schema: Arc<Schema>,
+    name_service: Arc<Service<Repo>>,
+    jwks_validator: Arc<JwksValidator>,
+) -> axum::Router {
     axum::Router::new()
         .route(
             "/graphql",
@@ -27,5 +48,6 @@ pub fn create_router(schema: Arc<Schema>, context: Arc<Context>) -> axum::Router
         )
         .route("/graphiql", get(graphiql("/graphql", None)))
         .layer(Extension(schema))
-        .layer(Extension(context))
+        .layer(Extension(name_service))
+        .layer(Extension(jwks_validator))
 }
