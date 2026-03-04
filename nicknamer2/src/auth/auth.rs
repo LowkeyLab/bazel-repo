@@ -160,11 +160,16 @@ impl JwksValidator {
         struct TestClaims {
             sub: &'static str,
             iss: &'static str,
+            exp: u64,
+            iat: u64,
         }
 
         let claims = TestClaims {
             sub: "test-user",
             iss: "test-issuer",
+            // Far-future expiry; exp validation is disabled in the noop validator.
+            exp: 9_999_999_999,
+            iat: 0,
         };
         jsonwebtoken::encode(
             &header,
