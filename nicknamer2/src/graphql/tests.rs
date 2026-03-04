@@ -1173,6 +1173,53 @@ async fn test_create_name_mutation_requires_auth() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_create_name_mutation_rejects_invalid_token() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                clientMutationId
+                name {
+                    id
+                    name
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "discordId": "123",
+            "discordServerId": "456",
+            "name": "TestName"
+        }
+    });
+
+    let (status, body_text) = execute_graphql(
+        &context.app,
+        query,
+        variables,
+        Some("Bearer invalid.jwt.token"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected auth error");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+    assert!(
+        errors_arr[0]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("Invalid authentication token"),
+        "Expected 'Invalid authentication token' error, got: {}",
+        errors_arr[0]["message"]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_create_names_mutation() {
     let context = setup_test_context().await;
 
