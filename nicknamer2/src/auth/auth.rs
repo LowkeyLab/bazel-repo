@@ -96,20 +96,31 @@ impl JwksValidator {
     ///
     /// This handles OIDC key rotation gracefully: if the `kid` in the token header is not
     /// found in the local cache, the cache is refreshed from the OIDC provider and the
-    /// validation is retried once.
+    /// validation is retried once. Other validation failures (bad signature, expired, etc.)
+    /// do **not** trigger a refresh to avoid unnecessary outbound requests.
     pub async fn validate_token_with_refresh(&self, token: &str) -> Result<Claims, AuthError> {
-        match self.validate_token(token) {
-            Ok(claims) => Ok(claims),
-            Err(AuthError::InvalidToken) => {
-                // Attempt a key refresh in case the OIDC provider rotated its keys.
-                if self.refresh_keys().await.is_ok() {
-                    self.validate_token(token)
-                } else {
-                    Err(AuthError::InvalidToken)
+        // Pre-check: does the token's kid exist in our cache?
+        let kid_missing = match decode_header(token) {
+            Ok(header) => match header.kid.as_deref() {
+                Some(kid) => {
+                    let keys = self.keys.read().unwrap();
+                    !keys.iter().any(|e| e.kid == kid)
                 }
+                None => false, // No kid in token — let validate_token handle the error
+            },
+            Err(_) => false, // Malformed header — let validate_token handle the error
+        };
+
+        if kid_missing {
+            // Unknown kid — refresh keys once in case the OIDC provider rotated.
+            tracing::debug!("Unknown kid in token, refreshing JWKS keys");
+            if self.refresh_keys().await.is_ok() {
+                return self.validate_token(token);
             }
-            Err(e) => Err(e),
+            return Err(AuthError::InvalidToken);
         }
+
+        self.validate_token(token)
     }
 
     /// Extracts and validates a Bearer token from an auth header value.
@@ -123,6 +134,19 @@ impl JwksValidator {
             return Err(AuthError::InvalidToken);
         };
         self.validate_token_with_refresh(token).await
+    }
+
+    /// Creates a validator with an empty keyset that rejects **all** tokens.
+    ///
+    /// Used when no Casdoor client ID is configured — the server still starts,
+    /// but any authenticated mutation will fail with `InvalidToken`.
+    pub fn new_noop_rejecting() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            jwks_url: String::new(),
+            keys: RwLock::new(Vec::new()),
+            validation: Validation::new(Algorithm::RS256),
+        }
     }
 
     /// Secret used for test-only HMAC-based JWT signing and validation.

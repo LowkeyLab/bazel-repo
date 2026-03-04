@@ -11,8 +11,10 @@ pub struct Config {
     /// Casdoor issuer URL (e.g., "http://localhost:8000").
     #[serde(default = "default_casdoor_issuer_url")]
     pub casdoor_issuer_url: String,
-    /// Casdoor application client ID.
-    pub casdoor_client_id: String,
+    /// Casdoor application client ID. When absent, the server starts without
+    /// OIDC validation — mutations will reject all requests as unauthenticated.
+    #[serde(default)]
+    pub casdoor_client_id: Option<String>,
 }
 
 impl Config {

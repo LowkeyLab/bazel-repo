@@ -14,7 +14,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
   casdoor-db:
     image: postgres:17
     environment:
@@ -28,9 +27,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
   casdoor:
-    image: casbin/casdoor:latest
+    image: casbin/casdoor:v2.337.0
     ports:
       - "8000:8000"
     environment:
@@ -40,7 +38,6 @@ services:
     depends_on:
       casdoor-db:
         condition: service_healthy
-
 volumes:
   nicknamer2_postgres_data:
   casdoor_postgres_data:

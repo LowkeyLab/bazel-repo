@@ -6,7 +6,7 @@ const TOKEN_KEY = 'casdoor_access_token';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly tokenSignal = signal<string | null>(
-    localStorage.getItem(TOKEN_KEY),
+    sessionStorage.getItem(TOKEN_KEY),
   );
 
   readonly isAuthenticated = computed(() => this.tokenSignal() !== null);
@@ -31,13 +31,13 @@ export class AuthService {
     const response = await casdoorSdk.exchangeForAccessToken();
     const accessToken = response.access_token;
 
-    localStorage.setItem(TOKEN_KEY, accessToken);
+    sessionStorage.setItem(TOKEN_KEY, accessToken);
     this.tokenSignal.set(accessToken);
     return accessToken;
   }
 
   logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
     this.tokenSignal.set(null);
   }
 }
