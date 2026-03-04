@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
 import {
   ApolloTestingController,
   ApolloTestingModule,
@@ -11,17 +12,27 @@ import {
   CreateNameDocument,
 } from '../../generated/graphql';
 import { AddNameFormComponent } from './add-name-form.component';
+import { AuthService } from '../auth/auth.service';
 
 describe('ServerNamesComponent', () => {
   let fixture: ComponentFixture<ServerNamesComponent>;
   let component: ServerNamesComponent;
   let apolloController: ApolloTestingController;
 
+  const mockAuthService = {
+    isAuthenticated: signal(true),
+    login: () => {},
+    logout: () => {},
+    getToken: () => 'fake-token',
+    handleCallback: async () => 'fake-token',
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ServerNamesComponent, ApolloTestingModule],
       providers: [
         provideRouter([{ path: '**', component: ServerNamesComponent }]),
+        { provide: AuthService, useValue: mockAuthService },
       ],
     }).compileComponents();
 

@@ -3,7 +3,8 @@ import { InMemoryCache } from '@apollo/client';
 import { provideApollo } from 'apollo-angular';
 import { HttpLink } from 'apollo-angular/http';
 
-const GRAPHQL_URI = 'http://localhost:8080/graphql';
+export const BACKEND_URL = 'http://localhost:8080';
+const GRAPHQL_URI = `${BACKEND_URL}/graphql`;
 
 export function provideGraphql() {
   return provideApollo(() => {

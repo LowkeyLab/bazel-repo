@@ -46,12 +46,16 @@ catalog:
   '@typescript-eslint/parser': ^8.29.0
   astro: ^5.5.6
   canvas-confetti: ^1.9.4
+  casdoor-js-sdk: ^0.18.0
+  crypto-js: ^4.2.0
   daisyui: ^5.5.5
   eslint: ^10.0.0
   eslint-plugin-astro: ^1.5.0
   jasmine-core: ~6.1.0
+  js-pkce: ^1.5.1
   js-yaml: ^4.1.0
   jsdom: ^28.0.0
+  jwt-decode: ^4.0.0
   karma: ~6.4.0
   karma-chrome-launcher: ~3.2.0
   karma-coverage: ~2.2.0
