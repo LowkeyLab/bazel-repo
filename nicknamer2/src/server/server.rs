@@ -9,6 +9,7 @@ use juniper_axum::graphiql;
 use juniper_axum::response::JuniperResponse;
 use name_repo::Repo;
 use name_service::Service;
+use tower_http::cors::CorsLayer;
 
 use graphql_context::Context;
 use graphql_schema::Schema;
@@ -47,6 +48,7 @@ pub fn create_router(
             on(MethodFilter::GET.or(MethodFilter::POST), graphql_handler),
         )
         .route("/graphiql", get(graphiql("/graphql", None)))
+        .layer(CorsLayer::permissive())
         .layer(Extension(schema))
         .layer(Extension(name_service))
         .layer(Extension(jwks_validator))

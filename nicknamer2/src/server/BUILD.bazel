@@ -12,5 +12,6 @@ rust_library(
         "//nicknamer2/src/name:name_service",
         "@crates//:axum",
         "@crates//:juniper_axum",
+        "@crates//:tower-http",
     ],
 )

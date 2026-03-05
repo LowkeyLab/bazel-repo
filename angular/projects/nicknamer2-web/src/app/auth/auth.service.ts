@@ -16,8 +16,7 @@ export class AuthService {
   }
 
   login(): void {
-    const url = casdoorSdk.getSigninUrl();
-    window.location.href = url;
+    casdoorSdk.signin_redirect();
   }
 
   async handleCallback(): Promise<string> {
