@@ -42,7 +42,7 @@ Build artifacts appear under `bazel-bin/angular/projects/<project-name>/`.
 
 ## Running unit tests
 
-To execute unit tests, use the Bazel test target:
+To execute unit tests with the `aspect` Bazel frontend, run:
 
 ```bash
 aspect test //angular/projects/<project-name>:test
