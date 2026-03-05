@@ -16,10 +16,10 @@ Project-specific commands and notes for the Mindreadr Angular application.
   aspect test //angular/projects/mindreadr:test
   ```
 
-- Serve locally via Angular CLI:
+- Serve locally:
 
   ```bash
-  ng serve --project mindreadr
+  bazel run //tools:ng -- serve mindreadr
   ```
 
 ## Notes
