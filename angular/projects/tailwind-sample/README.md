@@ -72,7 +72,7 @@ The sample application demonstrates:
 For local development with hot-reload:
 
 ```bash
-bazel run //tools:ng -- serve tailwind-sample
+ibazel run //angular/projects/tailwind-sample:tailwind-sample.serve
 ```
 
 CSS changes are picked up automatically during builds.

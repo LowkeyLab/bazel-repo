@@ -10,14 +10,18 @@ This guide covers Angular development within this Bazel monorepo. For repo-wide 
   pnpm install
   ```
 
-- Run Angular CLI via Bazel:
+- Run Angular CLI via Bazel (for scaffolding only):
 
   ```bash
   bazel run //tools:ng -- <args>
   # examples
-  bazel run //tools:ng -- version
   bazel run //tools:ng -- generate component feature/example --project mindreadr
-  bazel run //tools:ng -- serve mindreadr
+  ```
+
+- Serve a project (dev server):
+
+  ```bash
+  ibazel run //angular/projects/mindreadr:mindreadr.serve
   ```
 
 ## Project Guides

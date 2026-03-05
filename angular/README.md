@@ -4,13 +4,17 @@ This workspace contains Angular projects built with Bazel (`rules_angular`).
 
 ## Development server
 
-To start a local development server for a project, run:
+To start a local development server for a project, run the `.serve` Bazel target:
 
 ```bash
-bazel run //tools:ng -- serve <project-name>
+# One-shot dev server
+bazel run //angular/projects/<project-name>:<project-name>.serve
+
+# With hot-reload (recommended)
+ibazel run //angular/projects/<project-name>:<project-name>.serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Once the server is running, open your browser and navigate to `http://localhost:4200/`. Using `ibazel` will automatically reload whenever you modify any of the source files.
 
 ## Code scaffolding
 
