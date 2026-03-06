@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use auth::JwksValidator;
+use auth_claims::AuthService;
 use axum::Extension;
 use axum::http::HeaderMap;
 use axum::routing::{MethodFilter, get, on};
@@ -18,7 +18,7 @@ use graphql_schema::Schema;
 async fn graphql_handler(
     Extension(schema): Extension<Arc<Schema>>,
     Extension(name_service): Extension<Arc<Service<Repo>>>,
-    Extension(jwks_validator): Extension<Arc<JwksValidator>>,
+    Extension(jwks_validator): Extension<Arc<dyn AuthService>>,
     headers: HeaderMap,
     JuniperRequest(request): JuniperRequest,
 ) -> JuniperResponse {
@@ -40,7 +40,7 @@ async fn graphql_handler(
 pub fn create_router(
     schema: Arc<Schema>,
     name_service: Arc<Service<Repo>>,
-    jwks_validator: Arc<JwksValidator>,
+    jwks_validator: Arc<dyn AuthService>,
 ) -> axum::Router {
     axum::Router::new()
         .route(
