@@ -124,19 +124,6 @@ impl JwksValidator {
 
         self.validate_token(token)
     }
-
-    /// Creates a validator with an empty keyset that rejects **all** tokens.
-    ///
-    /// Used when no Casdoor client ID is configured — the server still starts,
-    /// but any authenticated mutation will fail with `InvalidToken`.
-    pub fn new_noop_rejecting() -> Self {
-        Self {
-            client: reqwest::Client::new(),
-            jwks_url: String::new(),
-            keys: RwLock::new(Vec::new()),
-            validation: Validation::new(Algorithm::RS256),
-        }
-    }
 }
 
 impl AuthService for JwksValidator {

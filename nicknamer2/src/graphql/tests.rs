@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use auth_claims::AuthService;
 use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode};
 use base64::Engine;
@@ -48,7 +49,7 @@ async fn setup_test_context() -> TestContext {
     let service = Arc::new(name_service::Service::new(repo));
 
     let schema = Arc::new(create_schema());
-    let jwks_validator = Arc::new(auth::JwksValidator::new_noop_for_testing());
+    let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
     let app = server::create_router(schema, service, jwks_validator);
 
@@ -1248,7 +1249,7 @@ async fn test_create_names_mutation() {
         }
     });
 
-    let token = auth::JwksValidator::mint_test_token();
+    let token = "Bearer test-token".to_string();
     let (status, body_text) = execute_graphql(&context.app, query, variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
 
@@ -1296,7 +1297,7 @@ async fn test_create_names_mutation() {
 async fn test_create_names_mutation_upserts_duplicates() {
     let context = setup_test_context().await;
 
-    let token = auth::JwksValidator::mint_test_token();
+    let token = "Bearer test-token".to_string();
 
     // First, create a name via createName
     let create_query = r#"

@@ -100,7 +100,7 @@ rust_test(
     deps = [
         ":graphql_relay",
         ":graphql_schema",
-        "//nicknamer2/src/auth",
+        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/migrations",
         "//nicknamer2/src/name",
         "//nicknamer2/src/name:name_repo",
