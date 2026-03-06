@@ -29,6 +29,7 @@ impl JwksValidator {
         let mut validation = Validation::new(Algorithm::RS256);
         validation.set_audience(&[client_id]);
         validation.set_issuer(&[issuer_url]);
+        validation.set_required_spec_claims(&["exp", "iss", "aud"]);
 
         let validator = Self {
             client,
