@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::pin::Pin;
+
 use serde::Deserialize;
 
 /// JWT claims from a Casdoor-issued token.
@@ -30,25 +33,35 @@ pub enum AuthError {
 ///
 /// Implementors validate a raw HTTP `Authorization` header value and
 /// return decoded [`Claims`] on success.
-#[trait_variant::make(Send)]
+///
+/// The method uses an explicit `BoxFuture` return type so the trait is
+/// dyn-compatible and can be stored behind `Arc<dyn AuthService>`.
 pub trait AuthService: Send + Sync {
     /// Validates an `Authorization` header value (e.g. `"Bearer <token>"`)
     /// and returns the decoded claims.
-    async fn validate_auth_header(&self, header_value: &str) -> Result<Claims, AuthError>;
+    fn validate_auth_header<'a>(
+        &'a self,
+        header_value: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<Claims, AuthError>> + Send + 'a>>;
 }
 
 /// Test double that accepts any token and returns fixed claims.
 pub struct AlwaysAllow;
 
 impl AuthService for AlwaysAllow {
-    async fn validate_auth_header(&self, _header_value: &str) -> Result<Claims, AuthError> {
-        Ok(Claims {
-            sub: "test-user".to_string(),
-            iss: "test-issuer".to_string(),
-            exp: 0,
-            iat: 0,
-            name: None,
-            email: None,
+    fn validate_auth_header<'a>(
+        &'a self,
+        _header_value: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<Claims, AuthError>> + Send + 'a>> {
+        Box::pin(async move {
+            Ok(Claims {
+                sub: "test-user".to_string(),
+                iss: "test-issuer".to_string(),
+                exp: 0,
+                iat: 0,
+                name: None,
+                email: None,
+            })
         })
     }
 }
@@ -57,7 +70,10 @@ impl AuthService for AlwaysAllow {
 pub struct AlwaysDeny;
 
 impl AuthService for AlwaysDeny {
-    async fn validate_auth_header(&self, _header_value: &str) -> Result<Claims, AuthError> {
-        Err(AuthError::InvalidToken)
+    fn validate_auth_header<'a>(
+        &'a self,
+        _header_value: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<Claims, AuthError>> + Send + 'a>> {
+        Box::pin(async move { Err(AuthError::InvalidToken) })
     }
 }

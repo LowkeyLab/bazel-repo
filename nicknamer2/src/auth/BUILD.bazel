@@ -3,7 +3,6 @@ load("@rules_rust//rust:defs.bzl", "rust_library")
 rust_library(
     name = "auth_claims",
     srcs = ["claims.rs"],
-    proc_macro_deps = ["@crates//:trait-variant"],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "@crates//:serde",

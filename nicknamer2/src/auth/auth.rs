@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::RwLock;
 
 use anyhow::Context as _;
@@ -138,12 +140,18 @@ impl JwksValidator {
 }
 
 impl AuthService for JwksValidator {
-    async fn validate_auth_header(&self, header_value: &str) -> Result<Claims, AuthError> {
-        let token = if header_value.len() > 7 && header_value[..7].eq_ignore_ascii_case("bearer ") {
-            &header_value[7..]
-        } else {
-            return Err(AuthError::InvalidToken);
-        };
-        self.validate_token_with_refresh(token).await
+    fn validate_auth_header<'a>(
+        &'a self,
+        header_value: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<Claims, AuthError>> + Send + 'a>> {
+        Box::pin(async move {
+            let token =
+                if header_value.len() > 7 && header_value[..7].eq_ignore_ascii_case("bearer ") {
+                    &header_value[7..]
+                } else {
+                    return Err(AuthError::InvalidToken);
+                };
+            self.validate_token_with_refresh(token).await
+        })
     }
 }
