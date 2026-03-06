@@ -43,6 +43,7 @@ tokio = { version = "1.47.1", default-features = false, features = [
   "net",
   "rt-multi-thread",
 ] }
+trait-variant = "0.1.2"
 tower = { version = "0.5.2", features = ["util"] }
 tower-http = { version = "0.6.6", features = [
   "trace",
