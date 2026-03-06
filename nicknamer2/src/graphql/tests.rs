@@ -60,6 +60,42 @@ async fn setup_test_context() -> TestContext {
     }
 }
 
+async fn setup_test_context_with_auth_denial() -> TestContext {
+    let container = postgres::Postgres::default()
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
+
+    let host = container.get_host().await.unwrap();
+    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(std::time::Duration::from_secs(30))
+        .connect(&db_url)
+        .await
+        .expect("Failed to connect to database");
+
+    migrations::run_migrations(&pool)
+        .await
+        .expect("Failed to run migrations");
+
+    let repo = name_repo::Repo::new(pool.clone());
+    let service = Arc::new(name_service::Service::new(repo));
+
+    let schema = Arc::new(create_schema());
+    let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysDeny);
+
+    let app = server::create_router(schema, service, jwks_validator);
+
+    TestContext {
+        app,
+        pool,
+        _container: container,
+    }
+}
+
 async fn insert_name(pool: &PgPool, discord_id: u64, discord_server: u64, name: &str) {
     let id = Uuid::new_v4();
     let now = Utc::now();
@@ -1133,7 +1169,7 @@ async fn test_names_total_count() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_name_mutation_requires_auth() {
-    let context = setup_test_context().await;
+    let context = setup_test_context_with_auth_denial().await;
 
     let query = r#"
         mutation CreateName($input: CreateNameInput!) {
@@ -1175,7 +1211,7 @@ async fn test_create_name_mutation_requires_auth() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_name_mutation_rejects_invalid_token() {
-    let context = setup_test_context().await;
+    let context = setup_test_context_with_auth_denial().await;
 
     let query = r#"
         mutation CreateName($input: CreateNameInput!) {
@@ -1377,7 +1413,7 @@ async fn test_create_names_mutation_upserts_duplicates() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_name_mutation_without_auth_returns_error() {
-    let context = setup_test_context().await;
+    let context = setup_test_context_with_auth_denial().await;
     insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
 
     let query = r#"

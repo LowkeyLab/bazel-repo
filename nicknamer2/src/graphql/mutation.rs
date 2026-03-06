@@ -1,4 +1,4 @@
-use auth_claims::{AuthError, AuthService as _};
+use auth_claims::AuthError;
 use graphql_context::Context;
 use graphql_model::Name;
 use juniper::{FieldResult, GraphQLInputObject, graphql_object};
@@ -91,7 +91,7 @@ async fn require_auth(context: &Context) -> FieldResult<()> {
         .jwks_validator
         .validate_auth_header(header_value)
         .await
-        .map_err(|e| juniper::FieldError::from(e))?;
+        .map_err(juniper::FieldError::from)?;
 
     Ok(())
 }
