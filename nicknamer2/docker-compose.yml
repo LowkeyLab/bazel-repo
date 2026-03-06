@@ -14,5 +14,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  casdoor-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: casdoor
+      POSTGRES_USER: casdoor
+      POSTGRES_PASSWORD: casdoor
+    volumes:
+      - casdoor_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casdoor -d casdoor"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  casdoor:
+    image: casbin/casdoor:2.337.0
+    ports:
+      - "8000:8000"
+    environment:
+      RUNNING_IN_DOCKER: "true"
+    volumes:
+      - ./casdoor/conf:/conf
+    depends_on:
+      casdoor-db:
+        condition: service_healthy
 volumes:
   nicknamer2_postgres_data:
+  casdoor_postgres_data:

@@ -40,6 +40,10 @@
     "@angular/platform-browser": "catalog:",
     "@angular/router": "catalog:",
     "canvas-confetti": "catalog:",
+    "casdoor-js-sdk": "catalog:",
+    "crypto-js": "catalog:",
+    "js-pkce": "catalog:",
+    "jwt-decode": "catalog:",
     "rxjs": "catalog:",
     "tslib": "catalog:",
     "zone.js": "catalog:"

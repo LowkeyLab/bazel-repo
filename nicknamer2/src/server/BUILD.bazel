@@ -5,9 +5,13 @@ rust_library(
     srcs = ["server.rs"],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
+        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/graphql:graphql_context",
         "//nicknamer2/src/graphql:graphql_schema",
+        "//nicknamer2/src/name:name_repo",
+        "//nicknamer2/src/name:name_service",
         "@crates//:axum",
         "@crates//:juniper_axum",
+        "@crates//:tower-http",
     ],
 )

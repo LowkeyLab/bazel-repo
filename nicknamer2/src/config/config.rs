@@ -8,6 +8,13 @@ pub struct Config {
     /// Port to bind the HTTP server to.
     #[serde(default = "default_port")]
     pub port: u16,
+    /// Casdoor issuer URL (e.g., "http://localhost:8000").
+    #[serde(default = "default_casdoor_issuer_url")]
+    pub casdoor_issuer_url: String,
+    /// Casdoor application client ID. When absent, the server starts without
+    /// OIDC validation — mutations will reject all requests as unauthenticated.
+    #[serde(default)]
+    pub casdoor_client_id: Option<String>,
 }
 
 impl Config {
@@ -24,4 +31,8 @@ impl Config {
 
 fn default_port() -> u16 {
     8080
+}
+
+fn default_casdoor_issuer_url() -> String {
+    "http://localhost:8000".to_string()
 }

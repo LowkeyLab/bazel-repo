@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use auth_claims::AuthService;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -24,14 +25,25 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Database migrations applied successfully");
 
     let repo = name_repo::Repo::new(pool);
-    let service = Arc::new(name_service::Service::new(repo));
+    let name_service = Arc::new(name_service::Service::new(repo));
+
+    let jwks_validator: Arc<dyn AuthService> = match &config.casdoor_client_id {
+        Some(client_id) => {
+            let v = auth::JwksValidator::new(&config.casdoor_issuer_url, client_id).await?;
+            tracing::info!("JWKS keys loaded from {}", config.casdoor_issuer_url);
+            Arc::new(v)
+        }
+        None => {
+            tracing::warn!(
+                "CASDOOR_CLIENT_ID not set — mutations will reject all requests as unauthenticated"
+            );
+            Arc::new(auth_claims::AlwaysDeny)
+        }
+    };
 
     let schema = Arc::new(graphql_schema::create_schema());
-    let context = Arc::new(graphql_context::Context {
-        name_service: service,
-    });
 
-    let app = server::create_router(schema, context);
+    let app = server::create_router(schema, name_service, jwks_validator);
 
     let address = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&address).await?;

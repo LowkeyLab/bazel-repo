@@ -29,4 +29,9 @@ export const routes: Routes = [
         (m) => m.ServerNamesComponent,
       ),
   },
+  {
+    path: 'callback',
+    loadComponent: () =>
+      import('./auth/callback.component').then((m) => m.CallbackComponent),
+  },
 ];

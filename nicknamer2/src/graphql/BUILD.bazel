@@ -5,6 +5,7 @@ rust_library(
     srcs = ["context.rs"],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
+        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "@crates//:juniper",
@@ -63,6 +64,7 @@ rust_library(
     deps = [
         ":graphql_context",
         ":graphql_model",
+        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/name",
         "@crates//:juniper",
     ],
@@ -96,9 +98,9 @@ rust_test(
     srcs = ["tests.rs"],
     tags = ["requires-network"],
     deps = [
-        ":graphql_context",
         ":graphql_relay",
         ":graphql_schema",
+        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/migrations",
         "//nicknamer2/src/name",
         "//nicknamer2/src/name:name_repo",

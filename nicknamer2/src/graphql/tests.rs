@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use auth_claims::AuthService;
 use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode};
 use base64::Engine;
@@ -14,7 +15,6 @@ use testcontainers_modules::testcontainers::runners::AsyncRunner;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use graphql_context::Context;
 use graphql_relay::RelayId;
 use graphql_schema::create_schema;
 
@@ -49,11 +49,45 @@ async fn setup_test_context() -> TestContext {
     let service = Arc::new(name_service::Service::new(repo));
 
     let schema = Arc::new(create_schema());
-    let context = Arc::new(Context {
-        name_service: service,
-    });
+    let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
-    let app = server::create_router(schema, context);
+    let app = server::create_router(schema, service, jwks_validator);
+
+    TestContext {
+        app,
+        pool,
+        _container: container,
+    }
+}
+
+async fn setup_test_context_with_auth_denial() -> TestContext {
+    let container = postgres::Postgres::default()
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
+
+    let host = container.get_host().await.unwrap();
+    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(std::time::Duration::from_secs(30))
+        .connect(&db_url)
+        .await
+        .expect("Failed to connect to database");
+
+    migrations::run_migrations(&pool)
+        .await
+        .expect("Failed to run migrations");
+
+    let repo = name_repo::Repo::new(pool.clone());
+    let service = Arc::new(name_service::Service::new(repo));
+
+    let schema = Arc::new(create_schema());
+    let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysDeny);
+
+    let app = server::create_router(schema, service, jwks_validator);
 
     TestContext {
         app,
@@ -1134,8 +1168,8 @@ async fn test_names_total_count() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_create_name_mutation() {
-    let context = setup_test_context().await;
+async fn test_create_name_mutation_requires_auth() {
+    let context = setup_test_context_with_auth_denial().await;
 
     let query = r#"
         mutation CreateName($input: CreateNameInput!) {
@@ -1160,27 +1194,66 @@ async fn test_create_name_mutation() {
         }
     });
 
+    // Without an auth token, the mutation should return an auth error.
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
     assert_eq!(status, StatusCode::OK);
 
     let body = parse_graphql_body(&body_text);
-    assert!(body.get("errors").is_none());
-    let payload = &body["data"]["createName"];
-    assert_eq!(payload["clientMutationId"], "test-1");
-    assert_eq!(payload["name"]["name"], "TestNickname");
-    assert!(payload["name"]["id"].is_string());
-    assert!(payload["name"]["createdAt"].is_string());
-    assert!(payload["name"]["updatedAt"].is_string());
+    let errors = body.get("errors").expect("Expected auth error");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+    assert!(
+        body.pointer("/data/createName").is_none()
+            || body.pointer("/data/createName").unwrap().is_null(),
+        "data.createName should be null on auth error"
+    );
+}
 
-    // Verify it was persisted in the database
-    let row: (String,) =
-        sqlx::query_as("SELECT name FROM names WHERE discord_id = $1 AND discord_server = $2")
-            .bind(123456789_i64)
-            .bind(987654321_i64)
-            .fetch_one(&context.pool)
-            .await
-            .unwrap();
-    assert_eq!(row.0, "TestNickname");
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_name_mutation_rejects_invalid_token() {
+    let context = setup_test_context_with_auth_denial().await;
+
+    let query = r#"
+        mutation CreateName($input: CreateNameInput!) {
+            createName(input: $input) {
+                clientMutationId
+                name {
+                    id
+                    name
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "discordId": "123",
+            "discordServerId": "456",
+            "name": "TestName"
+        }
+    });
+
+    let (status, body_text) = execute_graphql(
+        &context.app,
+        query,
+        variables,
+        Some("Bearer invalid.jwt.token"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected auth error");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+    assert!(
+        errors_arr[0]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("Invalid authentication token"),
+        "Expected 'Invalid authentication token' error, got: {}",
+        errors_arr[0]["message"]
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1212,7 +1285,8 @@ async fn test_create_names_mutation() {
         }
     });
 
-    let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
+    let token = "test-token".to_string();
+    let (status, body_text) = execute_graphql(&context.app, query, variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
 
     let body = parse_graphql_body(&body_text);
@@ -1259,6 +1333,8 @@ async fn test_create_names_mutation() {
 async fn test_create_names_mutation_upserts_duplicates() {
     let context = setup_test_context().await;
 
+    let token = "test-token".to_string();
+
     // First, create a name via createName
     let create_query = r#"
         mutation CreateName($input: CreateNameInput!) {
@@ -1279,7 +1355,7 @@ async fn test_create_names_mutation_upserts_duplicates() {
     });
 
     let (status, body_text) =
-        execute_graphql(&context.app, create_query, create_variables, None).await;
+        execute_graphql(&context.app, create_query, create_variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "create failed: {body_text}");
     let body = parse_graphql_body(&body_text);
     assert!(body.get("errors").is_none(), "create errors: {body_text}");
@@ -1307,7 +1383,7 @@ async fn test_create_names_mutation_upserts_duplicates() {
     });
 
     let (status, body_text) =
-        execute_graphql(&context.app, batch_query, batch_variables, None).await;
+        execute_graphql(&context.app, batch_query, batch_variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "batch upsert failed: {body_text}");
 
     let body = parse_graphql_body(&body_text);
@@ -1336,8 +1412,8 @@ async fn test_create_names_mutation_upserts_duplicates() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_create_name_mutation_duplicate_returns_error() {
-    let context = setup_test_context().await;
+async fn test_create_name_mutation_without_auth_returns_error() {
+    let context = setup_test_context_with_auth_denial().await;
     insert_name(&context.pool, 123456789, 987654321, "ExistingName").await;
 
     let query = r#"
@@ -1360,6 +1436,7 @@ async fn test_create_name_mutation_duplicate_returns_error() {
         }
     });
 
+    // Without an auth token, the mutation should return an auth error.
     let (status, body_text) = execute_graphql(&context.app, query, variables, None).await;
     assert_eq!(status, StatusCode::OK);
 
