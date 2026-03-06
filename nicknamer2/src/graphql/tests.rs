@@ -1285,7 +1285,7 @@ async fn test_create_names_mutation() {
         }
     });
 
-    let token = "Bearer test-token".to_string();
+    let token = "test-token".to_string();
     let (status, body_text) = execute_graphql(&context.app, query, variables, Some(&token)).await;
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
 
@@ -1333,7 +1333,7 @@ async fn test_create_names_mutation() {
 async fn test_create_names_mutation_upserts_duplicates() {
     let context = setup_test_context().await;
 
-    let token = "Bearer test-token".to_string();
+    let token = "test-token".to_string();
 
     // First, create a name via createName
     let create_query = r#"
