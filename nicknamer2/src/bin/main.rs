@@ -43,12 +43,20 @@ async fn main() -> anyhow::Result<()> {
 
     let schema = Arc::new(graphql_schema::create_schema());
 
-    let app = server::create_router(schema, name_service, jwks_validator);
+    let app = server::create_router(
+        schema,
+        name_service,
+        jwks_validator,
+        config.static_dir.as_deref(),
+    );
 
     let address = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&address).await?;
     tracing::info!("GraphQL server running on http://{}", address);
     tracing::info!("GraphiQL IDE available at http://{}/graphiql", address);
+    if let Some(ref dir) = config.static_dir {
+        tracing::info!("Serving frontend from {}", dir);
+    }
 
     axum::serve(listener, app).await?;
     Ok(())

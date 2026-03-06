@@ -15,6 +15,11 @@ pub struct Config {
     /// OIDC validation — mutations will reject all requests as unauthenticated.
     #[serde(default)]
     pub casdoor_client_id: Option<String>,
+    /// Directory containing the Angular frontend build output.
+    /// When set, the server serves these static files and falls back to
+    /// index.html for client-side routing.
+    #[serde(default)]
+    pub static_dir: Option<String>,
 }
 
 impl Config {
