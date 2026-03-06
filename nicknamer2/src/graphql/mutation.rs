@@ -1,4 +1,4 @@
-use auth_claims::AuthError;
+use auth_claims::{AuthError, AuthService as _};
 use graphql_context::Context;
 use graphql_model::Name;
 use juniper::{FieldResult, GraphQLInputObject, graphql_object};

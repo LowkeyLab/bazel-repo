@@ -20,7 +20,6 @@ rust_library(
         "@crates//:anyhow",
         "@crates//:jsonwebtoken",
         "@crates//:reqwest",
-        "@crates//:serde",
         "@crates//:tracing",
     ],
 )

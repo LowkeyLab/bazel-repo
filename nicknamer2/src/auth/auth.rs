@@ -3,7 +3,7 @@ use std::sync::RwLock;
 use anyhow::Context as _;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 
-use auth_claims::{AuthError, Claims};
+use auth_claims::{AuthError, AuthService, Claims};
 
 struct JwkEntry {
     kid: String,
@@ -123,19 +123,6 @@ impl JwksValidator {
         self.validate_token(token)
     }
 
-    /// Extracts and validates a Bearer token from an auth header value.
-    ///
-    /// Per RFC 7235 the authentication scheme is case-insensitive, so both
-    /// `Bearer` and `bearer` (and any other casing) are accepted.
-    pub async fn validate_auth_header(&self, header_value: &str) -> Result<Claims, AuthError> {
-        let token = if header_value.len() > 7 && header_value[..7].eq_ignore_ascii_case("bearer ") {
-            &header_value[7..]
-        } else {
-            return Err(AuthError::InvalidToken);
-        };
-        self.validate_token_with_refresh(token).await
-    }
-
     /// Creates a validator with an empty keyset that rejects **all** tokens.
     ///
     /// Used when no Casdoor client ID is configured — the server still starts,
@@ -148,58 +135,15 @@ impl JwksValidator {
             validation: Validation::new(Algorithm::RS256),
         }
     }
+}
 
-    /// Secret used for test-only HMAC-based JWT signing and validation.
-    const TEST_SECRET: &[u8] = b"nicknamer2-test-secret-do-not-use-in-production";
-    const TEST_KID: &str = "test-kid";
-
-    /// Creates a validator that accepts tokens minted by [`Self::mint_test_token`].
-    ///
-    /// # WARNING
-    /// This bypasses real OIDC validation and must **never** be used in production.
-    pub fn new_noop_for_testing() -> Self {
-        let mut validation = Validation::new(Algorithm::HS256);
-        validation.validate_aud = false;
-        validation.validate_exp = false;
-        validation.set_required_spec_claims::<&str>(&[]);
-        Self {
-            client: reqwest::Client::new(),
-            jwks_url: String::new(),
-            keys: RwLock::new(vec![JwkEntry {
-                kid: Self::TEST_KID.to_string(),
-                decoding_key: DecodingKey::from_secret(Self::TEST_SECRET),
-            }]),
-            validation,
-        }
-    }
-
-    /// Mints a test JWT token that the noop validator will accept.
-    pub fn mint_test_token() -> String {
-        use jsonwebtoken::{EncodingKey, Header};
-
-        let mut header = Header::new(Algorithm::HS256);
-        header.kid = Some(Self::TEST_KID.to_string());
-
-        #[derive(serde::Serialize)]
-        struct TestClaims {
-            sub: &'static str,
-            iss: &'static str,
-            exp: u64,
-            iat: u64,
-        }
-
-        let claims = TestClaims {
-            sub: "test-user",
-            iss: "test-issuer",
-            // Far-future expiry; exp validation is disabled in the noop validator.
-            exp: 9_999_999_999,
-            iat: 0,
+impl AuthService for JwksValidator {
+    async fn validate_auth_header(&self, header_value: &str) -> Result<Claims, AuthError> {
+        let token = if header_value.len() > 7 && header_value[..7].eq_ignore_ascii_case("bearer ") {
+            &header_value[7..]
+        } else {
+            return Err(AuthError::InvalidToken);
         };
-        jsonwebtoken::encode(
-            &header,
-            &claims,
-            &EncodingKey::from_secret(Self::TEST_SECRET),
-        )
-        .expect("test token encoding should never fail")
+        self.validate_token_with_refresh(token).await
     }
 }
