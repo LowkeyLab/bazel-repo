@@ -6,6 +6,7 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//nicknamer2/src/auth",
+        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/config:nicknamer2_config",
         "//nicknamer2/src/graphql:graphql_schema",
         "//nicknamer2/src/migrations",
