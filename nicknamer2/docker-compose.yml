@@ -8,7 +8,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - nicknamer2_postgres_data:/var/lib/postgresql/data
+      - nicknamer2_postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U nicknamer2 -d nicknamer2"]
       interval: 5s
@@ -21,7 +21,7 @@ services:
       POSTGRES_USER: casdoor
       POSTGRES_PASSWORD: casdoor
     volumes:
-      - casdoor_postgres_data:/var/lib/postgresql/data
+      - casdoor_postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U casdoor -d casdoor"]
       interval: 5s
