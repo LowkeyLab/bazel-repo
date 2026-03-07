@@ -13,7 +13,7 @@ aspect test //angular/projects/nicknamer2-web:test
 aspect lint //angular/projects/nicknamer2-web/...
 
 # Regenerate GraphQL types (backend must be running)
-npx graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts
+graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts
 ```
 
 ## Patterns

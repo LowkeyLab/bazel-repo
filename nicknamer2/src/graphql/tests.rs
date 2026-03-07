@@ -1505,7 +1505,10 @@ async fn test_static_file_serving_with_spa_fallback() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    assert_eq!(String::from_utf8(body.to_vec()).unwrap(), "body { color: red; }");
+    assert_eq!(
+        String::from_utf8(body.to_vec()).unwrap(),
+        "body { color: red; }"
+    );
 
     // Unknown route falls back to index.html (SPA routing)
     let response = app

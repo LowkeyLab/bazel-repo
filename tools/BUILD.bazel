@@ -4,6 +4,7 @@ load("@bazelrc-preset.bzl", "bazelrc_preset")
 load("@gazelle//:go_tools.bzl", "GO_TOOLS")
 load("@multitool//:tools.bzl", MULTITOOLS = "TOOLS")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//angular:@graphql-codegen/cli/package_json.bzl", graphql_codegen = "bin")
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
 load("@npm//tools:astro/package_json.bzl", astro = "bin")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
@@ -14,6 +15,8 @@ bazelrc_preset(
 )
 
 npm_link_all_packages(name = "node_modules")
+
+graphql_codegen.graphql_codegen_binary(name = "graphql-codegen")
 
 angular_cli.ng_binary(name = "ng")
 
@@ -29,6 +32,7 @@ astro.astro_binary(
 LOCAL_TOOLS = {
     t: "//tools:" + t
     for t in [
+        "graphql-codegen",
         "ng",
         "astro",
     ]
