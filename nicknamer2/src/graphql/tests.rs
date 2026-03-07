@@ -51,7 +51,7 @@ async fn setup_test_context() -> TestContext {
     let schema = Arc::new(create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
-    let app = server::create_router(schema, service, jwks_validator);
+    let app = server::create_router(schema, service, jwks_validator, None);
 
     TestContext {
         app,
@@ -87,7 +87,7 @@ async fn setup_test_context_with_auth_denial() -> TestContext {
     let schema = Arc::new(create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysDeny);
 
-    let app = server::create_router(schema, service, jwks_validator);
+    let app = server::create_router(schema, service, jwks_validator, None);
 
     TestContext {
         app,
@@ -1449,4 +1449,93 @@ async fn test_create_name_mutation_without_auth_returns_error() {
             || body.pointer("/data/createName").unwrap().is_null(),
         "data.createName should be null on error"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_static_file_serving_with_spa_fallback() {
+    let tmp_dir = std::env::temp_dir().join(format!("nicknamer2-test-{}", Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp_dir).expect("Failed to create temp dir");
+    std::fs::write(tmp_dir.join("index.html"), "<html><body>SPA</body></html>")
+        .expect("Failed to write index.html");
+    std::fs::write(tmp_dir.join("style.css"), "body { color: red; }")
+        .expect("Failed to write style.css");
+
+    let container = postgres::Postgres::default()
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
+
+    let host = container.get_host().await.unwrap();
+    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(std::time::Duration::from_secs(30))
+        .connect(&db_url)
+        .await
+        .expect("Failed to connect to database");
+
+    migrations::run_migrations(&pool)
+        .await
+        .expect("Failed to run migrations");
+
+    let repo = name_repo::Repo::new(pool);
+    let service = Arc::new(name_service::Service::new(repo));
+    let schema = Arc::new(graphql_schema::create_schema());
+    let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
+
+    let app = server::create_router(
+        schema,
+        service,
+        jwks_validator,
+        Some(tmp_dir.to_str().unwrap()),
+    );
+
+    // Known static file returns its content
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/style.css")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(String::from_utf8(body.to_vec()).unwrap(), "body { color: red; }");
+
+    // Unknown route falls back to index.html (SPA routing)
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/some/unknown/route")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert!(String::from_utf8(body.to_vec()).unwrap().contains("SPA"));
+
+    // GraphQL endpoint still works
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/graphql")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"query": "{ __typename }"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    std::fs::remove_dir_all(&tmp_dir).ok();
 }

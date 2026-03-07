@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use auth_claims::AuthService;
@@ -57,7 +58,7 @@ pub fn create_router(
 
     match static_dir {
         Some(dir) => {
-            let index = format!("{}/index.html", dir);
+            let index = Path::new(dir).join("index.html");
             let serve_dir = ServeDir::new(dir).fallback(ServeFile::new(index));
             router.fallback_service(serve_dir)
         }
