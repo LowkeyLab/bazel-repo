@@ -1,4 +1,4 @@
-use graphql_context::Context;
+use graphql_context::{Context, require_auth};
 use graphql_model::{Name, NodeValue, PageInfo, Server, ServerConnection, ServerEdge};
 use graphql_relay::{DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, RelayId, ServerCursor};
 use juniper::{FieldResult, ID, graphql_object};
@@ -11,7 +11,12 @@ pub struct QueryRoot;
 #[graphql(context = Context)]
 impl QueryRoot {
     /// Fetch a Discord server by its ID
-    fn server(#[graphql(description = "The Discord server ID")] id: ID) -> FieldResult<Server> {
+    async fn server(
+        context: &Context,
+        #[graphql(description = "The Discord server ID")] id: ID,
+    ) -> FieldResult<Server> {
+        require_auth(context).await?;
+
         let server_id: &str = &id;
         let server_id_u64 = server_id
             .parse::<u64>()
@@ -31,6 +36,8 @@ impl QueryRoot {
         context: &Context,
         #[graphql(description = "The global Relay ID")] id: ID,
     ) -> FieldResult<Option<NodeValue>> {
+        require_auth(context).await?;
+
         let relay_id = RelayId::decode(&id).map_err(|e| format!("Invalid ID: {}", e))?;
 
         match relay_id.type_name.as_str() {
@@ -77,6 +84,8 @@ impl QueryRoot {
         #[graphql(description = "Number of servers to return")] first: Option<i32>,
         #[graphql(description = "Cursor to paginate after")] after: Option<String>,
     ) -> FieldResult<ServerConnection> {
+        require_auth(context).await?;
+
         // Validate and apply pagination limits
         let requested = first.unwrap_or(DEFAULT_PAGE_SIZE);
         if requested < MIN_PAGE_SIZE {

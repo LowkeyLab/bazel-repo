@@ -16,7 +16,6 @@ import {
   GetServerNamesQuery,
 } from '../../generated/graphql';
 import { AddNameFormComponent } from './add-name-form.component';
-import { AuthService } from '../auth/auth.service';
 
 type NameEdge = NonNullable<
   GetServerNamesQuery['server']['names']['edges']
@@ -34,33 +33,19 @@ type NameEdge = NonNullable<
 
       <h1 class="text-2xl font-bold mb-4">Names for Server {{ serverId() }}</h1>
 
-      @if (authService.isAuthenticated()) {
-        <a
-          [routerLink]="'/servers/' + serverId() + '/names/batch'"
-          class="btn btn-outline btn-sm mb-4"
-          data-testid="batch-import-link"
-        >
-          Batch Import
-        </a>
+      <a
+        [routerLink]="'/servers/' + serverId() + '/names/batch'"
+        class="btn btn-outline btn-sm mb-4"
+        data-testid="batch-import-link"
+      >
+        Batch Import
+      </a>
 
-        <app-add-name-form
-          [submitting]="submitting()"
-          [error]="submitError()"
-          (nameSubmitted)="onNameSubmitted($event)"
-        />
-      } @else {
-        <div class="alert alert-info mb-4" data-testid="login-prompt">
-          <span>
-            <button
-              class="link link-hover font-bold"
-              (click)="authService.login()"
-            >
-              Log in
-            </button>
-            to add names.
-          </span>
-        </div>
-      }
+      <app-add-name-form
+        [submitting]="submitting()"
+        [error]="submitError()"
+        (nameSubmitted)="onNameSubmitted($event)"
+      />
 
       @if (loading() && edges().length === 0) {
         <span class="loading loading-spinner loading-md"></span>
@@ -117,7 +102,6 @@ export class ServerNamesComponent implements OnInit {
   private readonly getServerNamesGQL = inject(GetServerNamesGQL);
   private readonly createNameGQL = inject(CreateNameGQL);
   private readonly destroyRef = inject(DestroyRef);
-  protected readonly authService = inject(AuthService);
   private queryRef?: ReturnType<GetServerNamesGQL['watch']>;
 
   protected readonly edges = signal<NameEdge[]>([]);
