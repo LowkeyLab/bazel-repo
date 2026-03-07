@@ -38,7 +38,7 @@ pkg_tar(
     name = "frontend_layer",
     srcs = ["//angular/projects/nicknamer2-web"],
     package_dir = "/app",
-    strip_prefix = "dist",
+    strip_prefix = "/angular/projects/nicknamer2-web/dist",
 )
 
 # Create a container image with the nicknamer2 server and embedded frontend
@@ -47,7 +47,7 @@ oci_image(
     base = "@distroless_cc",
     entrypoint = ["/nicknamer2"],
     env = {
-        "STATIC_DIR": "/app/nicknamer2-web/browser",
+        "STATIC_DIR": "/app/browser",
     },
     tars = [
         ":nicknamer2_layer",
