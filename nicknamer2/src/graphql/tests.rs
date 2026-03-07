@@ -355,11 +355,8 @@ async fn test_query_node_with_auth_succeeds() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_node_requires_auth() {
     let context = setup_test_context().await;
-    let discord_id = 123456789u64;
-    let discord_server = 987654321_u64;
-    insert_name(&context.pool, discord_id, discord_server, "AuthTest").await;
 
-    let relay_id = RelayId::encode_name(DiscordId(discord_id), discord_server);
+    let relay_id = RelayId::encode_name(DiscordId(123456789), 987654321);
     let query = r#"
         query {
             node(id: "RELAY_ID") {
