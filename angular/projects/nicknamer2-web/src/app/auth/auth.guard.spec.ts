@@ -23,7 +23,7 @@ describe('authGuard', () => {
     mockAuthService.isAuthenticated = signal(true);
 
     const result = TestBed.runInInjectionContext(() =>
-      authGuard(),
+      authGuard({} as any, {} as any),
     );
 
     expect(result).toBe(true);
@@ -33,7 +33,7 @@ describe('authGuard', () => {
     mockAuthService.isAuthenticated = signal(false);
 
     const result = TestBed.runInInjectionContext(() =>
-      authGuard(),
+      authGuard({} as any, {} as any),
     );
 
     expect(result).toBe(false);
@@ -43,7 +43,7 @@ describe('authGuard', () => {
   it('should not call login when authenticated', () => {
     mockAuthService.isAuthenticated = signal(true);
 
-    TestBed.runInInjectionContext(() => authGuard());
+    TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
 
     expect(mockAuthService.login).not.toHaveBeenCalled();
   });
