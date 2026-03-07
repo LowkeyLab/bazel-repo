@@ -64,7 +64,6 @@ rust_library(
     deps = [
         ":graphql_context",
         ":graphql_model",
-        "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/name",
         "@crates//:juniper",
     ],

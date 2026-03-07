@@ -183,7 +183,8 @@ async fn test_query_existing_name_success() {
     "#
     .replace("RELAY_ID", &relay_id.to_string());
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -219,7 +220,8 @@ async fn test_query_non_existent_name_returns_null() {
     "#
     .replace("RELAY_ID", &relay_id.to_string());
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -244,7 +246,8 @@ async fn test_query_invalid_base64_id() {
         }
     "#;
 
-    let (status, body_text) = execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -274,7 +277,8 @@ async fn test_query_unknown_node_type() {
         fake_id
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     eprintln!("Response body: {}", body_text);
@@ -306,7 +310,8 @@ async fn test_query_with_variables() {
         "id": relay_id.to_string(),
     });
 
-    let (status, body_text) = execute_graphql(&context.app, query, variables, Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, variables, Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -339,7 +344,8 @@ async fn test_query_node_with_auth_succeeds() {
     "#
     .replace("RELAY_ID", &relay_id.to_string());
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -443,7 +449,8 @@ async fn test_query_server_names_empty() {
         discord_server.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -503,7 +510,8 @@ async fn test_query_server_names_first_page() {
         discord_server.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -574,7 +582,8 @@ async fn test_query_server_names_with_limit() {
         discord_server.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -627,7 +636,8 @@ async fn test_query_server_names_with_cursor() {
         discord_server.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -668,8 +678,13 @@ async fn test_query_server_names_with_cursor() {
         discord_server.0, first_cursor
     );
 
-    let (status, body_text) =
-        execute_graphql(&context.app, &query_with_cursor, json!({}), Some("test-token")).await;
+    let (status, body_text) = execute_graphql(
+        &context.app,
+        &query_with_cursor,
+        json!({}),
+        Some("test-token"),
+    )
+    .await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -735,7 +750,8 @@ async fn test_query_server_names_cursor_past_end() {
         discord_server.0, encoded_cursor
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -782,7 +798,8 @@ async fn test_query_server_names_different_servers() {
         discord_server1.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -810,7 +827,8 @@ async fn test_query_server_names_different_servers() {
         discord_server2.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -843,7 +861,8 @@ async fn test_query_server_names_invalid_cursor() {
         discord_server.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -887,7 +906,8 @@ async fn test_query_server_names_max_page_size() {
         discord_server.0
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -929,7 +949,8 @@ async fn test_query_servers_empty() {
         }
     "#;
 
-    let (status, body_text) = execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -983,7 +1004,8 @@ async fn test_query_servers_distinct() {
         }
     "#;
 
-    let (status, body_text) = execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -1039,7 +1061,8 @@ async fn test_query_servers_pagination() {
         }
     "#;
 
-    let (status, body_text) = execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -1078,7 +1101,8 @@ async fn test_query_servers_pagination() {
         end_cursor
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query2, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query2, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -1125,7 +1149,8 @@ async fn test_query_servers_cursor_past_end() {
         encoded_cursor
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -1158,7 +1183,8 @@ async fn test_query_servers_invalid_cursor() {
         }
     "#;
 
-    let (status, body_text) = execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -1187,7 +1213,8 @@ async fn test_servers_total_count() {
         }
     "#;
 
-    let (status, body_text) = execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
@@ -1223,7 +1250,8 @@ async fn test_names_total_count() {
         server
     );
 
-    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
+    let (status, body_text) =
+        execute_graphql(&context.app, &query, json!({}), Some("test-token")).await;
     let body = parse_graphql_body(&body_text);
 
     assert_eq!(status, StatusCode::OK, "response body: {body_text}");
