@@ -1,5 +1,4 @@
-use auth_claims::AuthError;
-use graphql_context::Context;
+use graphql_context::{Context, require_auth};
 use graphql_model::Name;
 use juniper::{FieldResult, GraphQLInputObject, graphql_object};
 use name::{DiscordId, DiscordServerId};
@@ -78,22 +77,6 @@ impl CreateNamesPayload {
     fn names(&self) -> &[Name] {
         &self.names
     }
-}
-
-/// Validates the auth token from the context. Returns Ok(()) if valid.
-async fn require_auth(context: &Context) -> FieldResult<()> {
-    let header_value = context
-        .auth_token
-        .as_deref()
-        .ok_or(AuthError::MissingToken)?;
-
-    context
-        .jwks_validator
-        .validate_auth_header(header_value)
-        .await
-        .map_err(juniper::FieldError::from)?;
-
-    Ok(())
 }
 
 /// Root mutation for the nicknamer2 GraphQL API.
