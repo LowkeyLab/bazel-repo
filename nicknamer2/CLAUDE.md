@@ -8,13 +8,13 @@ Rust (edition 2024), Axum, Juniper (GraphQL), sqlx (PostgreSQL), Casdoor (OIDC/J
 
 ## Architecture
 
-```
-main.rs (entry point)
-  → server.rs (Axum router, GraphQL handler, static files)
-    → graphql/ (schema, query, mutation, relay, model, context)
-      → name/service.rs (business logic)
-        → name/repo.rs (sqlx data access, trait-based)
-          → PostgreSQL
+```mermaid
+graph TD
+    A[main.rs] --> B[server.rs<br/>Axum router, GraphQL handler, static files]
+    B --> C[graphql/<br/>schema, query, mutation, relay, model, context]
+    C --> D[name/service.rs<br/>Business logic]
+    D --> E[name/repo.rs<br/>sqlx data access, trait-based]
+    E --> F[(PostgreSQL)]
 ```
 
 Key patterns:
@@ -44,10 +44,42 @@ Migrations run on startup via `migrations::run_migrations()` with embedded SQL.
 
 ## GraphQL Schema
 
-- **Types**: `Name`, `Server` (both implement `Node` interface)
-- **Connections**: `NameConnection`, `ServerConnection` with `PageInfo`
-- **Queries**: `server(id: ID!)`, `servers(first, after)`, `node(id: ID!)`
-- **Mutations**: `createName(input)`, `createNames(input)` — both require JWT auth
+```mermaid
+graph LR
+    subgraph Queries
+        Q1[server&#40id: ID!&#41]
+        Q2[servers&#40first, after&#41]
+        Q3[node&#40id: ID!&#41]
+    end
+
+    subgraph Mutations
+        M1[createName&#40input&#41]
+        M2[createNames&#40input&#41]
+    end
+
+    subgraph Types
+        Node["«interface» Node"]
+        Name[Name]
+        Server[Server]
+        Node -.-> Name
+        Node -.-> Server
+    end
+
+    subgraph Connections
+        NC[NameConnection] --> NE[NameEdge] --> Name
+        SC[ServerConnection] --> SE[ServerEdge] --> Server
+        NC --> PI1[PageInfo]
+        SC --> PI2[PageInfo]
+    end
+
+    Q1 --> Server
+    Q2 --> SC
+    Q3 --> Node
+    Server -->|"names(first, after)"| NC
+    M1 --> Name
+    M2 --> Name
+    Mutations -.-|JWT required| Auth[🔒 AuthService]
+```
 
 ## Environment Variables
 
