@@ -1,3 +1,5 @@
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 rust_binary(
@@ -20,4 +22,56 @@ rust_binary(
         "@crates//:tracing",
         "@crates//:tracing-subscriber",
     ],
+)
+
+# Docker Image Targets
+# ===================
+
+# Package the binary into a tar layer
+pkg_tar(
+    name = "nicknamer2_layer",
+    srcs = [":nicknamer2"],
+)
+
+# Package the Angular frontend into a tar layer
+pkg_tar(
+    name = "frontend_layer",
+    srcs = ["//angular/projects/nicknamer2-web"],
+    package_dir = "/app",
+    strip_prefix = "/angular/projects/nicknamer2-web/dist",
+)
+
+# Create a container image with the nicknamer2 server and embedded frontend
+oci_image(
+    name = "nicknamer2_image",
+    base = "@distroless_cc",
+    entrypoint = ["/nicknamer2"],
+    env = {
+        "STATIC_DIR": "/app/browser",
+    },
+    tars = [
+        ":nicknamer2_layer",
+        ":frontend_layer",
+    ],
+)
+
+# Alias for easier building
+alias(
+    name = "image",
+    actual = ":nicknamer2_image",
+)
+
+# Push the image to GitHub Container Registry
+oci_push(
+    name = "push_image",
+    image = ":nicknamer2_image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/nicknamer2_server",
+)
+
+# Load the image into the local Docker daemon
+oci_load(
+    name = "load_image",
+    image = ":nicknamer2_image",
+    repo_tags = ["local/nicknamer2-server:latest"],
 )

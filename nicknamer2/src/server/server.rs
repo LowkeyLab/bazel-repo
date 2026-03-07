@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use auth_claims::AuthService;
@@ -10,6 +11,7 @@ use juniper_axum::response::JuniperResponse;
 use name_repo::Repo;
 use name_service::Service;
 use tower_http::cors::CorsLayer;
+use tower_http::services::{ServeDir, ServeFile};
 
 use graphql_context::Context;
 use graphql_schema::Schema;
@@ -36,13 +38,14 @@ async fn graphql_handler(
     JuniperResponse(request.execute(&*schema, &context).await)
 }
 
-/// Creates the axum Router with GraphQL and GraphiQL endpoints.
+/// Creates the axum Router with GraphQL, GraphiQL, and optional static file serving.
 pub fn create_router(
     schema: Arc<Schema>,
     name_service: Arc<Service<Repo>>,
     jwks_validator: Arc<dyn AuthService>,
+    static_dir: Option<&str>,
 ) -> axum::Router {
-    axum::Router::new()
+    let router = axum::Router::new()
         .route(
             "/graphql",
             on(MethodFilter::GET.or(MethodFilter::POST), graphql_handler),
@@ -51,5 +54,14 @@ pub fn create_router(
         .layer(CorsLayer::permissive())
         .layer(Extension(schema))
         .layer(Extension(name_service))
-        .layer(Extension(jwks_validator))
+        .layer(Extension(jwks_validator));
+
+    match static_dir {
+        Some(dir) => {
+            let index = Path::new(dir).join("index.html");
+            let serve_dir = ServeDir::new(dir).fallback(ServeFile::new(index));
+            router.fallback_service(serve_dir)
+        }
+        None => router,
+    }
 }
