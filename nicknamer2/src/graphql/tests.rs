@@ -348,6 +348,73 @@ async fn test_query_with_future_auth_placeholder() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_query_node_requires_auth() {
+    let context = setup_test_context().await;
+    let discord_id = 123456789u64;
+    let discord_server = 987654321_u64;
+    insert_name(&context.pool, discord_id, discord_server, "AuthTest").await;
+
+    let relay_id = RelayId::encode_name(DiscordId(discord_id), discord_server);
+    let query = r#"
+        query {
+            node(id: "RELAY_ID") {
+                ... on Name { name }
+            }
+        }
+    "#
+    .replace("RELAY_ID", &relay_id.to_string());
+
+    // No auth token — should fail
+    let (status, body_text) = execute_graphql(&context.app, &query, json!({}), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected auth error");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_requires_auth() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        query {
+            server(id: "123456789") {
+                serverId
+            }
+        }
+    "#;
+
+    let (status, body_text) = execute_graphql(&context.app, query, json!({}), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected auth error");
+    assert!(!errors.as_array().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_servers_requires_auth() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        query {
+            servers(first: 10) {
+                edges { node { serverId } }
+            }
+        }
+    "#;
+
+    let (status, body_text) = execute_graphql(&context.app, query, json!({}), None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let body = parse_graphql_body(&body_text);
+    let errors = body.get("errors").expect("Expected auth error");
+    assert!(!errors.as_array().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_query_server_names_empty() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(12345);
