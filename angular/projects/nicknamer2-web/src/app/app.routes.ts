@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -7,6 +8,7 @@ export const routes: Routes = [
       import('./dashboard/dashboard.component').then(
         (m) => m.DashboardComponent,
       ),
+    canActivate: [authGuard],
   },
   {
     path: 'servers',
@@ -14,6 +16,7 @@ export const routes: Routes = [
       import('./servers/server-list.component').then(
         (m) => m.ServerListComponent,
       ),
+    canActivate: [authGuard],
   },
   {
     path: 'servers/:serverId/names/batch',
@@ -21,6 +24,7 @@ export const routes: Routes = [
       import('./servers/batch-add-names.component').then(
         (m) => m.BatchAddNamesComponent,
       ),
+    canActivate: [authGuard],
   },
   {
     path: 'servers/:serverId/names',
@@ -28,6 +32,7 @@ export const routes: Routes = [
       import('./servers/server-names.component').then(
         (m) => m.ServerNamesComponent,
       ),
+    canActivate: [authGuard],
   },
   {
     path: 'callback',
