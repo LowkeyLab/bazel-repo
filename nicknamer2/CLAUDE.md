@@ -13,11 +13,17 @@ aspect build //nicknamer2/...
 aspect test //nicknamer2/...
 
 # Run server
-aspect run //nicknamer2/src/bin:nicknamer2
+bazel run //nicknamer2/src/bin:nicknamer2
 
 # Single test
 aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 ```
+
+## Environment
+
+- `DB_URL` — connection string env var (not `DATABASE_URL`); format: `postgres://user:pass@host:port/db`
+- `STATIC_DIR` — optional path to serve frontend static files (e.g., built Angular output)
+- `CASDOOR_CLIENT_ID` — required for auth validation; without it, mutations reject all requests
 
 ## Patterns
 

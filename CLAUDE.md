@@ -8,6 +8,10 @@ This is a **Bazel 9 polyglot monorepo** managed by Bazelisk. Use `aspect` (a Baz
 
 ## Essential Commands
 
+### Running targets
+
+Use `bazel run` (not `aspect run`) — the `aspect` wrapper only supports `build`, `test`, and `lint`.
+
 ```bash
 # Build and test everything
 aspect build //...
