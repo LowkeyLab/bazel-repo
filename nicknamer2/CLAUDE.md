@@ -13,7 +13,7 @@ aspect build //nicknamer2/...
 aspect test //nicknamer2/...
 
 # Run server
-aspect run //nicknamer2/src/bin:nicknamer2
+bazel run //nicknamer2/src/bin:nicknamer2
 
 # Single test
 aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
