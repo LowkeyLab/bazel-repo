@@ -22,8 +22,19 @@ pub struct JwksValidator {
 
 impl JwksValidator {
     /// Creates a new validator and fetches the initial JWKS keyset.
-    pub async fn new(issuer_url: &str, client_id: &str) -> anyhow::Result<Self> {
-        let jwks_url = format!("{}/.well-known/jwks", issuer_url.trim_end_matches('/'));
+    ///
+    /// When `jwks_url` is `None`, the JWKS endpoint is derived from `issuer_url`.
+    /// Pass an explicit `jwks_url` when the OIDC provider is reachable at an
+    /// internal address that differs from the public issuer URL in tokens.
+    pub async fn new(
+        issuer_url: &str,
+        client_id: &str,
+        jwks_url: Option<&str>,
+    ) -> anyhow::Result<Self> {
+        let jwks_url = match jwks_url {
+            Some(url) => url.to_string(),
+            None => format!("{}/.well-known/jwks", issuer_url.trim_end_matches('/')),
+        };
         let client = reqwest::Client::new();
 
         let mut validation = Validation::new(Algorithm::RS256);

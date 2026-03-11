@@ -29,8 +29,17 @@ async fn main() -> anyhow::Result<()> {
 
     let jwks_validator: Arc<dyn AuthService> = match &config.casdoor_client_id {
         Some(client_id) => {
-            let v = auth::JwksValidator::new(&config.casdoor_issuer_url, client_id).await?;
-            tracing::info!("JWKS keys loaded from {}", config.casdoor_issuer_url);
+            let v = auth::JwksValidator::new(
+                &config.casdoor_issuer_url,
+                client_id,
+                config.casdoor_jwks_url.as_deref(),
+            )
+            .await?;
+            let jwks_source = config
+                .casdoor_jwks_url
+                .as_deref()
+                .unwrap_or(&config.casdoor_issuer_url);
+            tracing::info!("JWKS keys loaded from {}", jwks_source);
             Arc::new(v)
         }
         None => {
