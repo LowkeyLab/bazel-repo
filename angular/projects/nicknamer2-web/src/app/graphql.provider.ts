@@ -2,8 +2,9 @@ import { inject } from '@angular/core';
 import { InMemoryCache } from '@apollo/client';
 import { provideApollo } from 'apollo-angular';
 import { HttpLink } from 'apollo-angular/http';
+import { environment } from '../environments/environment';
 
-export const BACKEND_URL = 'http://localhost:8080';
+export const BACKEND_URL = environment.backendUrl;
 const GRAPHQL_URI = `${BACKEND_URL}/graphql`;
 
 export function provideGraphql() {

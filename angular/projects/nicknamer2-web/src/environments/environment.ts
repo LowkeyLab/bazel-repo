@@ -1,7 +1,8 @@
 export const environment = {
   production: true,
-  casdoorServerUrl: 'https://auth.example.com',
-  casdoorClientId: '',
+  backendUrl: '',
+  casdoorServerUrl: 'https://casdoor-production-7bcb.up.railway.app',
+  casdoorClientId: 'abb000c14e6696944608',
   casdoorAppName: 'nicknamer2',
-  casdoorOrgName: 'built-in',
+  casdoorOrgName: 'nicknamer',
 };
