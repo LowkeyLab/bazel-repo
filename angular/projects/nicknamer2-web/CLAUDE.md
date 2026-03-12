@@ -6,6 +6,9 @@
 # Build
 aspect build //angular/projects/nicknamer2-web
 
+# Dev server (port 4200, hot reload)
+bazel run //angular/projects/nicknamer2-web:nicknamer2-web.serve
+
 # Test (Vitest + jsdom)
 aspect test //angular/projects/nicknamer2-web:test
 
@@ -25,5 +28,5 @@ graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts
 - **Auth**: Casdoor OAuth2 PKCE via `casdoor-js-sdk`; JWT in `sessionStorage`; `authInterceptor` adds Bearer token
 - **Styling**: Tailwind CSS v4 + DaisyUI; inline templates with utility classes; no component-level CSS files; `process_styles` Bazel macro for PostCSS
 - **Testing**: Vitest (not Karma); `ApolloTestingModule` + `ApolloTestingController` for GraphQL mocking; `data-testid` for DOM queries; `fixture.componentRef.setInput()` for signal inputs; `apolloController.verify()` in `afterEach`
-- **No `:serve` target**: No Angular dev server in Bazel. For local testing, build with `aspect build //angular/projects/nicknamer2-web` and serve via backend's `STATIC_DIR` config
+- **Dev server**: `bazel run //angular/projects/nicknamer2-web:nicknamer2-web.serve` runs `ng serve` on port 4200 with hot reload
 - **Functional guard testing**: `CanActivateFn` guards must be called with `{} as any, {} as any` args inside `TestBed.runInInjectionContext()` — TypeScript enforces the type signature even if the guard ignores params

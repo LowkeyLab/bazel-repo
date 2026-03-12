@@ -128,6 +128,11 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 - Use `# keep` comments to prevent Gazelle from modifying specific lines
 - Gazelle extensions: Go, Kotlin (contrib_rules_jvm), Rust (gazelle_rust), Skylib
 
+### Worktree gotchas
+
+- `format` (from `.envrc`) doesn't work in worktrees — use `bazel run //tools/format` instead
+- `aspect test` doesn't support `--cache_test_results` or `--test_output` — use `bazel test` directly for those flags
+
 ## Tooling
 
 - **pre-commit**: runs `format` and `buildifier-lint`. Install with `pre-commit install`.
