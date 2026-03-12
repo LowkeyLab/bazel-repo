@@ -9,7 +9,11 @@ import { AuthService } from './auth/auth.service';
   template: `
     <div class="navbar bg-base-200 px-4">
       <div class="flex-1">
-        <a routerLink="/" class="text-xl font-bold">nicknamer2</a>
+        <a
+          [routerLink]="authService.isAuthenticated() ? '/dashboard' : '/'"
+          class="text-xl font-bold"
+          >nicknamer2</a
+        >
       </div>
       <div class="flex-none">
         @if (authService.isAuthenticated()) {
