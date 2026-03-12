@@ -35,7 +35,7 @@ export class CallbackComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       await this.authService.handleCallback();
-      this.router.navigate(['/']);
+      this.router.navigate(['/dashboard']);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Login failed');
     }

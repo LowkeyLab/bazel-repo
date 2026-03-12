@@ -35,3 +35,16 @@ aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 - **DI via GraphQL context**: `Context` holds `Arc<Service<Repo>>`, `Arc<dyn AuthService>`, optional auth token
 - **Unit tests**: in-source `#[cfg(test)]` modules
 - **Integration tests**: spin up PostgreSQL via `testcontainers`, tagged `requires-network`
+
+## E2E Testing with Casdoor
+
+Casdoor's React SPA doesn't render in headless Chromium on the `/login/oauth/authorize` page.
+To get a JWT for E2E tests, use the password grant directly:
+
+```bash
+curl -s 'http://localhost:8000/api/login/oauth/access_token' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=password&client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>&username=<USER>&password=<PASS>&scope=profile'
+```
+
+Requires `password` in the application's `grantTypes` list in Casdoor.
