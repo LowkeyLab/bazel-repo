@@ -32,6 +32,8 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
       - name: Install Aspect CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release download v2026.4.2 --repo aspect-build/aspect-cli --pattern 'aspect-cli-x86_64-unknown-linux-musl' --output /usr/local/bin/aspect
           chmod +x /usr/local/bin/aspect
