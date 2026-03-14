@@ -36,6 +36,8 @@ jobs:
         with:
           repo: aspect-build/aspect-cli
           tag: v2026.4.2
+          extension-matching: disable
+          rename-to: aspect
       - name: Run Bazel Lints
         run: |
           aspect lint //...
