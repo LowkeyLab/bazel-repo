@@ -19,6 +19,10 @@ common:remote-linux --config=remote
 common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --jobs=50
+common:remote-linux --linkopt=-fuse-ld=bfd
+common:remote-linux --host_linkopt=-fuse-ld=bfd
+common:remote-linux --@rules_rust//:extra_rustc_flags=-Clink-arg=-fuse-ld=bfd
+common:remote-linux --@rules_rust//:extra_exec_rustc_flags=-Clink-arg=-fuse-ld=bfd
 
 # For keep-sorted
 common --experimental_isolated_extension_usages
@@ -71,6 +75,7 @@ run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
 # Use GNU ld (bfd) as the linker on Linux
 common:linux --linkopt=-fuse-ld=bfd
+common:linux --host_linkopt=-fuse-ld=bfd
 common:linux --@rules_rust//:extra_rustc_flags=-Clink-arg=-fuse-ld=bfd
 common:linux --@rules_rust//:extra_exec_rustc_flags=-Clink-arg=-fuse-ld=bfd
 
