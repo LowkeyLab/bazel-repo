@@ -25,6 +25,7 @@ jobs:
           bazelisk-cache: true
           bazelrc: |
             common --config=ci
+            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Discover OCI push targets
         id: query
         run: |
@@ -35,6 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: discover
     strategy:
+      fail-fast: false
       matrix:
         target: ${{ fromJson(needs.discover.outputs.targets) }}
     steps:
