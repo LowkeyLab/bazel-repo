@@ -29,7 +29,7 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.5.1")
 bazel_dep(name = "contrib_rules_jvm", version = "0.32.0")
 bazel_dep(name = "container_structure_test", version = "1.22.1")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
-bazel_dep(name = "rules_oci", version = "2.2.7")
+bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.6.2")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rust", version = "0.69.0")
@@ -62,7 +62,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "b27e6bbe04bff138a168793bf35d7ebaa08b5f19",
+    commit = "2d6de06a64f559d115ea019923561690484677cc",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
