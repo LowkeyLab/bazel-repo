@@ -69,6 +69,9 @@ test --test_verbose_timeout_warnings
 # To output something for xargs
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
+# Use GNU ld (bfd) as the linker for CC toolchain
+common:linux --linkopt=-fuse-ld=bfd
+
 # Bazel Preset Overrides
 # CI preset sets remote_download_minimal; lint needs toplevel downloads for report files
 common:ci-lint --remote_download_toplevel
