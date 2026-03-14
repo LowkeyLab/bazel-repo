@@ -39,7 +39,7 @@ jobs:
           chmod +x /usr/local/bin/aspect
       - name: Run Bazel Lints
         run: |
-          aspect lint //...
+          aspect lint //... --remote_download_toplevel
       - name: Run Bazel tests
         run: |
           aspect test //...
