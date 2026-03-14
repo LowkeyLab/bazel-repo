@@ -47,10 +47,6 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 # --config=release
 common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 
-# Ignore lockfile in CI
-# Docs: https://registry.build/flag/bazel?filter=lockfile_mode
-common:ci --lockfile_mode="off"
-
 # Don't depend on a JAVA_HOME pointing at a system JDK
 # see https://github.com/bazelbuild/rules_jvm_external/issues/445
 build --repo_env=JAVA_HOME=../bazel_tools/jdk
