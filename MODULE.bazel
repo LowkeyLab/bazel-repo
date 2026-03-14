@@ -308,7 +308,14 @@ rust.toolchain(
         "nightly/2026-01-11",
     ],
 )
-use_repo(rust, "rust_toolchains")
+use_repo(
+    rust,
+    "rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
+    "rust_toolchains",
+)
+
+# Custom toolchain using CC toolchain linker (must be registered before defaults)
+register_toolchains("//toolchains/rust:rust_toolchain_linux_x86_64")
 
 register_toolchains("@rust_toolchains//:all")
 
