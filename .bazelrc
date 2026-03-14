@@ -70,7 +70,8 @@ test --test_verbose_timeout_warnings
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
 # Bazel Preset Overrides
-common:ci --remote_download_toplevel
+# CI preset sets remote_download_minimal; lint needs toplevel downloads for report files
+common:ci-lint --remote_download_toplevel
 
 # Load any settings & overrides specific to the current user.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
