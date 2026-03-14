@@ -9,7 +9,7 @@ rust_toolchain(
     default_edition = "2024",
     dylib_ext = ".so",
     exec_triple = "x86_64-unknown-linux-gnu",
-    # Use the CC toolchain linker (GNU ld) instead of rust-lld
+    # Delegate linking to the CC toolchain instead of using rust-lld
     linker_preference = "cc",
     llvm_cov = "@rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:llvm_cov_bin",
     llvm_lib = "@rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:llvm_lib",

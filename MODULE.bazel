@@ -314,7 +314,7 @@ use_repo(
     "rust_toolchains",
 )
 
-# Custom toolchain with GNU ld linker (must be registered before defaults)
+# Custom toolchain using CC toolchain linker (must be registered before defaults)
 register_toolchains("//toolchains/rust:rust_toolchain_linux_x86_64")
 
 register_toolchains("@rust_toolchains//:all")
