@@ -31,7 +31,7 @@ cc_toolchain_config(
         "-lstdc++",
         "-lm",
     ],
-    supports_start_end_lib = True,
+    supports_start_end_lib = False,
     target_libc = "glibc",
     target_system_name = "x86_64-pc-linux-gnu",
     tool_paths = {
