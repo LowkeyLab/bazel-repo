@@ -1,0 +1,81 @@
+load("@bazel_tools//tools/cpp:unix_cc_toolchain_config.bzl", "cc_toolchain_config")
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+
+cc_toolchain_config(
+    name = "linux_x86_64_cc_config",
+    abi_libc_version = "glibc",
+    abi_version = "gcc",
+    compile_flags = [
+        "-fstack-protector",
+        "-Wall",
+        "-Wunused-but-set-parameter",
+        "-Wno-free-nonheap-object",
+        "-fno-omit-frame-pointer",
+    ],
+    compiler = "gcc",
+    cpu = "k8",
+    cxx_builtin_include_directories = [
+        "/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include",
+        "/usr/local/include",
+        "/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include-fixed",
+        "/usr/include",
+    ],
+    cxx_flags = ["-std=c++17"],
+    host_system_name = "x86_64-pc-linux-gnu",
+    link_flags = [
+        "-fuse-ld=bfd",
+        "-B/usr/bin",
+        "-pass-exit-codes",
+    ],
+    link_libs = [
+        "-lstdc++",
+        "-lm",
+    ],
+    supports_start_end_lib = True,
+    target_libc = "glibc",
+    target_system_name = "x86_64-pc-linux-gnu",
+    tool_paths = {
+        "ar": "/usr/bin/ar",
+        "cpp": "/usr/bin/cpp",
+        "dwp": "/usr/bin/dwp",
+        "gcc": "/usr/bin/gcc",
+        "gcov": "/usr/bin/gcov",
+        "ld": "/usr/bin/ld",
+        "llvm-cov": "/usr/bin/llvm-cov",
+        "nm": "/usr/bin/nm",
+        "objcopy": "/usr/bin/objcopy",
+        "objdump": "/usr/bin/objdump",
+        "strip": "/usr/bin/strip",
+    },
+    toolchain_identifier = "linux_x86_64_gcc_ld",
+)
+
+cc_toolchain(
+    name = "linux_x86_64_cc",
+    all_files = ":empty",
+    ar_files = ":empty",
+    as_files = ":empty",
+    compiler_files = ":empty",
+    dwp_files = ":empty",
+    linker_files = ":empty",
+    objcopy_files = ":empty",
+    strip_files = ":empty",
+    toolchain_config = ":linux_x86_64_cc_config",
+)
+
+filegroup(name = "empty")
+
+toolchain(
+    name = "cc_toolchain_linux_x86_64",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    toolchain = ":linux_x86_64_cc",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+    visibility = ["//visibility:public"],
+)
