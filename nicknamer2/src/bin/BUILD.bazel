@@ -10,6 +10,8 @@ rust_binary(
         "//nicknamer2/src/auth",
         "//nicknamer2/src/auth:auth_claims",
         "//nicknamer2/src/config:nicknamer2_config",
+        "//nicknamer2/src/discord_server:discord_server_repo",
+        "//nicknamer2/src/discord_server:discord_server_service",
         "//nicknamer2/src/graphql:graphql_schema",
         "//nicknamer2/src/migrations",
         "//nicknamer2/src/name:name_repo",

@@ -48,10 +48,13 @@ async fn setup_test_context() -> TestContext {
     let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
 
+    let server_repo = discord_server_repo::Repo::new(pool.clone());
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
+
     let schema = Arc::new(create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
-    let app = server::create_router(schema, service, jwks_validator, None);
+    let app = server::create_router(schema, service, server_service, jwks_validator, None);
 
     TestContext {
         app,
@@ -84,10 +87,13 @@ async fn setup_test_context_with_auth_denial() -> TestContext {
     let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
 
+    let server_repo = discord_server_repo::Repo::new(pool.clone());
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
+
     let schema = Arc::new(create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysDeny);
 
-    let app = server::create_router(schema, service, jwks_validator, None);
+    let app = server::create_router(schema, service, server_service, jwks_validator, None);
 
     TestContext {
         app,
@@ -1571,14 +1577,19 @@ async fn test_static_file_serving_with_spa_fallback() {
         .await
         .expect("Failed to run migrations");
 
-    let repo = name_repo::Repo::new(pool);
+    let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
+
+    let server_repo = discord_server_repo::Repo::new(pool);
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
+
     let schema = Arc::new(graphql_schema::create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
     let app = server::create_router(
         schema,
         service,
+        server_service,
         jwks_validator,
         Some(tmp_dir.to_str().unwrap()),
     );

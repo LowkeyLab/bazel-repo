@@ -5,6 +5,8 @@ use auth_claims::AuthService;
 use axum::Extension;
 use axum::http::HeaderMap;
 use axum::routing::{MethodFilter, get, on};
+use discord_server_repo::Repo as ServerRepo;
+use discord_server_service::Service as ServerService;
 use juniper_axum::extract::JuniperRequest;
 use juniper_axum::graphiql;
 use juniper_axum::response::JuniperResponse;
@@ -20,6 +22,7 @@ use graphql_schema::Schema;
 async fn graphql_handler(
     Extension(schema): Extension<Arc<Schema>>,
     Extension(name_service): Extension<Arc<Service<Repo>>>,
+    Extension(server_service): Extension<Arc<ServerService<ServerRepo>>>,
     Extension(jwks_validator): Extension<Arc<dyn AuthService>>,
     headers: HeaderMap,
     JuniperRequest(request): JuniperRequest,
@@ -31,6 +34,7 @@ async fn graphql_handler(
 
     let context = Context {
         name_service,
+        server_service,
         jwks_validator,
         auth_token,
     };
@@ -42,6 +46,7 @@ async fn graphql_handler(
 pub fn create_router(
     schema: Arc<Schema>,
     name_service: Arc<Service<Repo>>,
+    server_service: Arc<ServerService<ServerRepo>>,
     jwks_validator: Arc<dyn AuthService>,
     static_dir: Option<&str>,
 ) -> axum::Router {
@@ -54,6 +59,7 @@ pub fn create_router(
         .layer(CorsLayer::permissive())
         .layer(Extension(schema))
         .layer(Extension(name_service))
+        .layer(Extension(server_service))
         .layer(Extension(jwks_validator));
 
     match static_dir {
