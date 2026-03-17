@@ -117,12 +117,18 @@ export type QueryRootServersArgs = {
 /** A Discord server */
 export type Server = Node & {
   __typename?: 'Server';
+  /** When the server was created */
+  createdAt: Scalars['DateTime']['output'];
+  /** The display name of the server */
+  displayName: Scalars['String']['output'];
   /** The server ID (global Relay ID) */
   id: Scalars['ID']['output'];
   /** Paginated list of names in this server */
   names: NameConnection;
   /** The Discord server ID */
   serverId: Scalars['String']['output'];
+  /** When the server was last updated */
+  updatedAt: Scalars['DateTime']['output'];
 };
 
 /** A Discord server */
@@ -209,6 +215,34 @@ export type CreateNameMutation = {
   createName: CreateNamePayload;
 };
 
+export type CreateServerInput = {
+  clientMutationId?: InputMaybe<Scalars['String']['input']>;
+  discordServerId: Scalars['String']['input'];
+  displayName: Scalars['String']['input'];
+};
+
+export type CreateServerPayload = {
+  __typename?: 'CreateServerPayload';
+  clientMutationId?: Maybe<Scalars['String']['output']>;
+  server: {
+    __typename?: 'Server';
+    id: string;
+    serverId: string;
+    displayName: string;
+    createdAt: any;
+    updatedAt: any;
+  };
+};
+
+export type CreateServerMutationVariables = Exact<{
+  input: CreateServerInput;
+}>;
+
+export type CreateServerMutation = {
+  __typename?: 'MutationRoot';
+  createServer: CreateServerPayload;
+};
+
 export type GetDashboardQueryVariables = Exact<{
   first: Scalars['Int']['input'];
 }>;
@@ -271,7 +305,7 @@ export type GetServersQuery = {
     edges: Array<{
       __typename?: 'ServerEdge';
       cursor: string;
-      node: { __typename?: 'Server'; id: string; serverId: string };
+      node: { __typename?: 'Server'; id: string; serverId: string; displayName: string };
     }>;
     pageInfo: {
       __typename?: 'PageInfo';
@@ -353,6 +387,7 @@ export const GetServersDocument = gql`
         node {
           id
           serverId
+          displayName
         }
       }
       pageInfo {
@@ -425,6 +460,34 @@ export class CreateNamesGQL extends Apollo.Mutation<
   CreateNamesMutationVariables
 > {
   document = CreateNamesDocument;
+
+  constructor(apollo: Apollo.Apollo) {
+    super(apollo);
+  }
+}
+export const CreateServerDocument = gql`
+  mutation CreateServer($input: CreateServerInput!) {
+    createServer(input: $input) {
+      clientMutationId
+      server {
+        id
+        serverId
+        displayName
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+@Injectable({
+  providedIn: 'root',
+})
+export class CreateServerGQL extends Apollo.Mutation<
+  CreateServerMutation,
+  CreateServerMutationVariables
+> {
+  document = CreateServerDocument;
 
   constructor(apollo: Apollo.Apollo) {
     super(apollo);
