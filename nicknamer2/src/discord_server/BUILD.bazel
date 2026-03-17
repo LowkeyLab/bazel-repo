@@ -15,3 +15,27 @@ rust_test(
     size = "small",
     crate = ":discord_server",
 )
+
+rust_library(
+    name = "discord_server_repo",
+    srcs = ["repo.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        ":discord_server",
+        "//nicknamer2/src/name",
+        "@crates//:anyhow",
+        "@crates//:sqlx",
+    ],
+)
+
+rust_test(
+    name = "discord_server_repo_test",
+    timeout = "short",
+    crate = ":discord_server_repo",
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer2/src/migrations",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)
