@@ -39,3 +39,28 @@ rust_test(
         "@crates//:tokio",
     ],
 )
+
+rust_library(
+    name = "discord_server_service",
+    srcs = ["service.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        ":discord_server",
+        ":discord_server_repo",
+        "//nicknamer2/src/name",
+        "@crates//:anyhow",
+    ],
+)
+
+rust_test(
+    name = "discord_server_service_test",
+    timeout = "short",
+    crate = ":discord_server_service",
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer2/src/migrations",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)
