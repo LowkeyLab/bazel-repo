@@ -37,8 +37,8 @@ describe('ServerListComponent', () => {
       data: {
         servers: {
           edges: [
-            { cursor: 'c1', node: { id: 'relay-1', serverId: '111' } },
-            { cursor: 'c2', node: { id: 'relay-2', serverId: '222' } },
+            { cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } },
+            { cursor: 'c2', node: { id: 'relay-2', serverId: '222', displayName: 'Server Two' } },
           ],
           pageInfo: { hasNextPage: false, endCursor: 'c2' },
         },
@@ -51,7 +51,9 @@ describe('ServerListComponent', () => {
       '[data-testid="server-row"]',
     );
     expect(rows.length).toBe(2);
+    expect(rows[0].textContent).toContain('Server One');
     expect(rows[0].textContent).toContain('111');
+    expect(rows[1].textContent).toContain('Server Two');
     expect(rows[1].textContent).toContain('222');
   });
 
@@ -62,7 +64,7 @@ describe('ServerListComponent', () => {
     op.flush({
       data: {
         servers: {
-          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111' } }],
+          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } }],
           pageInfo: { hasNextPage: true, endCursor: 'c1' },
         },
       },
@@ -83,7 +85,7 @@ describe('ServerListComponent', () => {
     op.flush({
       data: {
         servers: {
-          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111' } }],
+          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } }],
           pageInfo: { hasNextPage: false, endCursor: 'c1' },
         },
       },
@@ -95,5 +97,28 @@ describe('ServerListComponent', () => {
       '[data-testid="load-more"]',
     );
     expect(btn).toBeFalsy();
+  });
+
+  it('should show "Add Server" button', () => {
+    fixture.detectChanges();
+
+    const op = apolloController.expectOne(GetServersDocument);
+    op.flush({
+      data: {
+        servers: {
+          edges: [],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    });
+
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement.querySelector(
+      '[data-testid="add-server-btn"]',
+    );
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toContain('Add Server');
+    expect(btn.getAttribute('href')).toBe('/servers/new');
   });
 });
