@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use discord_server;
 use graphql_context::Context;
 use graphql_relay::{Cursor, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, RelayId};
 use juniper::{FieldResult, GraphQLInterface, ID, graphql_object};
@@ -15,6 +16,9 @@ pub struct Node {
 /// A Discord server
 pub struct Server {
     pub id: DiscordServerId,
+    pub display_name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// An edge in the names connection, containing a name and its cursor
@@ -103,6 +107,21 @@ impl Server {
     /// The Discord server ID
     fn server_id(&self) -> String {
         self.id.0.to_string()
+    }
+
+    /// The display name of the server
+    fn display_name(&self) -> &str {
+        &self.display_name
+    }
+
+    /// When the server was created
+    fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
+    }
+
+    /// When the server was last updated
+    fn updated_at(&self) -> DateTime<Utc> {
+        self.updated_at
     }
 
     /// Paginated list of names in this server
@@ -260,6 +279,17 @@ impl From<NameEntity> for Name {
             name: n.name,
             created_at: n.created_at,
             updated_at: n.updated_at,
+        }
+    }
+}
+
+impl From<discord_server::Server> for Server {
+    fn from(s: discord_server::Server) -> Self {
+        Self {
+            id: s.id,
+            display_name: s.display_name,
+            created_at: s.created_at,
+            updated_at: s.updated_at,
         }
     }
 }

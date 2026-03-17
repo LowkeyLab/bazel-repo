@@ -40,6 +40,7 @@ rust_library(
     deps = [
         ":graphql_context",
         ":graphql_relay",
+        "//nicknamer2/src/discord_server",
         "//nicknamer2/src/name",
         "@crates//:chrono",
         "@crates//:juniper",
