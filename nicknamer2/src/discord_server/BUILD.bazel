@@ -1,0 +1,17 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "discord_server",
+    srcs = ["server.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "//nicknamer2/src/name",
+        "@crates//:chrono",
+    ],
+)
+
+rust_test(
+    name = "discord_server_test",
+    size = "small",
+    crate = ":discord_server",
+)
