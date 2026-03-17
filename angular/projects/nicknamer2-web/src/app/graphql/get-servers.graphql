@@ -5,6 +5,7 @@ query GetServers($first: Int!, $after: String) {
       node {
         id
         serverId
+        displayName
       }
     }
     pageInfo {
