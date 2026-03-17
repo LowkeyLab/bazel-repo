@@ -4,7 +4,7 @@ rust_library(
     name = "migrations",
     srcs = ["migrations.rs"],
     compile_data = [
-        "003_drop_users_recreate_names.sql",
+        "//nicknamer2/migrations",
     ],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = ["@crates//:sqlx"],
@@ -14,6 +14,9 @@ rust_test(
     name = "migrations_test",
     timeout = "short",
     crate = ":migrations",
+    compile_data = [
+        "//nicknamer2/migrations",
+    ],
     tags = [
         "requires-network",
     ],

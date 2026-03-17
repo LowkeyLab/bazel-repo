@@ -1,11 +1,8 @@
 use sqlx::PgPool;
 
-const MIGRATION_003: &str = include_str!("003_drop_users_recreate_names.sql");
-
 /// Runs all migrations for the nicknamer2 database.
-pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
-    sqlx::raw_sql(MIGRATION_003).execute(pool).await?;
-    Ok(())
+pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
+    sqlx::migrate!("../../migrations").run(pool).await
 }
 
 #[cfg(test)]
