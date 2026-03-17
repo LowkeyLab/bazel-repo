@@ -14,13 +14,7 @@ mod tests {
     use testcontainers_modules::postgres;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
-    #[test]
-    fn dummy() {
-        assert_eq!(true, true);
-    }
-
-    #[tokio::test]
-    async fn test_migrations_run_successfully() {
+    async fn setup_pool() -> (sqlx::PgPool, impl std::any::Any) {
         let container = postgres::Postgres::default()
             .start()
             .await
@@ -38,11 +32,18 @@ mod tests {
             .await
             .expect("Failed to connect to database");
 
-        let result = run_migrations(&pool).await;
-        assert!(result.is_ok(), "Migrations should run successfully");
+        (pool, container)
+    }
 
-        // Verify the names table exists
-        let names_table_exists: (bool,) = sqlx::query_as(
+    #[tokio::test]
+    async fn test_migration_creates_names_table() {
+        let (pool, _container) = setup_pool().await;
+
+        run_migrations(&pool)
+            .await
+            .expect("Migrations should run successfully");
+
+        let names_exists: (bool,) = sqlx::query_as(
             r#"
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
@@ -53,30 +54,29 @@ mod tests {
         )
         .fetch_one(&pool)
         .await
-        .expect("Failed to check if names table exists");
+        .expect("Failed to check names table");
 
-        assert!(
-            names_table_exists.0,
-            "Names table should exist after migration"
-        );
+        assert!(names_exists.0, "Names table should exist after migration");
+    }
 
-        // Verify users table does NOT exist
-        let users_table_exists: (bool,) = sqlx::query_as(
-            r#"
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables
-                WHERE table_schema = 'public'
-                AND table_name = 'users'
-            )
-            "#,
+    #[tokio::test]
+    async fn test_migration_tracking_table_exists() {
+        let (pool, _container) = setup_pool().await;
+
+        run_migrations(&pool)
+            .await
+            .expect("Migrations should run successfully");
+
+        let migration_count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM _sqlx_migrations",
         )
         .fetch_one(&pool)
         .await
-        .expect("Failed to check if users table exists");
+        .expect("Failed to query _sqlx_migrations");
 
-        assert!(
-            !users_table_exists.0,
-            "Users table should NOT exist after migration"
+        assert_eq!(
+            migration_count.0, 1,
+            "_sqlx_migrations should contain exactly one applied migration"
         );
     }
 }
