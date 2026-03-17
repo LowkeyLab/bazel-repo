@@ -5,6 +5,7 @@ rust_library(
     srcs = ["migrations.rs"],
     compile_data = [
         "003_drop_users_recreate_names.sql",
+        "004_create_servers_table.sql",
     ],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = ["@crates//:sqlx"],
