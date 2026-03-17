@@ -42,32 +42,32 @@ Migration files use zero-padded sequential numbers: `001_create_names_table.sql`
 
 ### New
 
-| File | Purpose |
-|------|---------|
+| File                                               | Purpose                                                                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `nicknamer2/migrations/001_create_names_table.sql` | V1 migration — `CREATE TABLE IF NOT EXISTS names` only (no `DROP TABLE` statements since this is a fresh start) |
-| `nicknamer2/migrations/BUILD.bazel` | `filegroup` for Bazel visibility |
+| `nicknamer2/migrations/BUILD.bazel`                | `filegroup` for Bazel visibility                                                                                |
 
 ### Modified
 
-| File | Change |
-|------|--------|
-| `Cargo.toml` (workspace root) | Add `"migrate"` to sqlx features, then run `CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index` |
-| `nicknamer2/src/migrations/migrations.rs` | Rewrite `run_migrations` to use `sqlx::migrate!("../../migrations")` instead of `raw_sql()` |
-| `nicknamer2/src/migrations/BUILD.bazel` | Update `compile_data` to reference `//nicknamer2/migrations` filegroup; remove old SQL file deps |
+| File                                      | Change                                                                                           |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `Cargo.toml` (workspace root)             | Add `"migrate"` to sqlx features, then run `CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index`   |
+| `nicknamer2/src/migrations/migrations.rs` | Rewrite `run_migrations` to use `sqlx::migrate!("../../migrations")` instead of `raw_sql()`      |
+| `nicknamer2/src/migrations/BUILD.bazel`   | Update `compile_data` to reference `//nicknamer2/migrations` filegroup; remove old SQL file deps |
 
 ### Deleted
 
-| File | Reason |
-|------|--------|
-| `nicknamer2/src/migrations/001_create_users_table.sql` | Superseded — dead code |
-| `nicknamer2/src/migrations/002_create_names_table.sql` | Superseded — dead code |
+| File                                                          | Reason                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------- |
+| `nicknamer2/src/migrations/001_create_users_table.sql`        | Superseded — dead code                                         |
+| `nicknamer2/src/migrations/002_create_names_table.sql`        | Superseded — dead code                                         |
 | `nicknamer2/src/migrations/003_drop_users_recreate_names.sql` | Replaced by `nicknamer2/migrations/001_create_names_table.sql` |
 
 ### Unchanged
 
-| File | Note |
-|------|------|
-| `nicknamer2/src/bin/main.rs` | Keeps calling `migrations::run_migrations(&pool)` — no change needed |
+| File                             | Note                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `nicknamer2/src/bin/main.rs`     | Keeps calling `migrations::run_migrations(&pool)` — no change needed       |
 | `nicknamer2/src/bin/BUILD.bazel` | No change — binary depends on `migrations` library, not SQL files directly |
 
 ## Code Shape
@@ -98,9 +98,11 @@ const M001: &str = include_str!("../../migrations/001_create_names_table.sql");
 Migration tests stay in `nicknamer2/src/migrations/` as a `rust_test` target using testcontainers (tagged `requires-network`).
 
 **Existing assertions** (updated to use new runner):
+
 - `names` table exists with correct columns after migration
 
 **New assertion:**
+
 - `_sqlx_migrations` table contains exactly one entry with version 1
 
 ## Out of Scope

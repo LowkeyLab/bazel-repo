@@ -15,6 +15,7 @@
 ## File Structure
 
 ### Backend — New Files
+
 - `nicknamer2/src/discord_server/server.rs` — Server domain model (reuses `DiscordServerId` from `name`)
 - `nicknamer2/src/discord_server/repo.rs` — Repository traits (`ServerCreator`, `ServerReader`) + `Repo` impl
 - `nicknamer2/src/discord_server/service.rs` — Service layer for server operations
@@ -22,6 +23,7 @@
 - `nicknamer2/src/migrations/004_create_servers_table.sql` — Migration SQL
 
 ### Backend — Modified Files
+
 - `nicknamer2/src/migrations/migrations.rs:3,6-8` — Add migration 004
 - `nicknamer2/src/migrations/BUILD.bazel:6-8` — Add SQL to compile_data
 - `nicknamer2/src/graphql/context.rs:5,9-10` — Add `server_service` to Context
@@ -36,10 +38,12 @@
 - `nicknamer2/src/bin/BUILD.bazel:9-17` — Add discord_server deps
 
 ### Frontend — New Files
+
 - `angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql` — Mutation definition
 - `angular/projects/nicknamer2-web/src/app/servers/add-server.component.ts` — Form component
 
 ### Frontend — Modified Files
+
 - `angular/projects/nicknamer2-web/src/generated/graphql.ts` — Add CreateServer types + GQL service (hand-edited to match codegen patterns; run codegen after backend is deployed to verify)
 - `angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql` — Add `displayName` to query
 - `angular/projects/nicknamer2-web/src/app/servers/server-list.component.ts` — Add "Add Server" button, show display name
@@ -55,6 +59,7 @@
 ### Task 1: Create migration SQL
 
 **Files:**
+
 - Create: `nicknamer2/src/migrations/004_create_servers_table.sql`
 
 - [ ] **Step 1: Write the migration SQL**
@@ -121,6 +126,7 @@ git commit -m "feat(nicknamer2): add servers table migration"
 ### Task 2: Create Server domain model
 
 **Files:**
+
 - Create: `nicknamer2/src/discord_server/server.rs`
 - Create: `nicknamer2/src/discord_server/BUILD.bazel`
 
@@ -209,6 +215,7 @@ git commit -m "feat(nicknamer2): add Server domain model"
 ### Task 3: Create Server repository
 
 **Files:**
+
 - Create: `nicknamer2/src/discord_server/repo.rs`
 - Modify: `nicknamer2/src/discord_server/BUILD.bazel`
 
@@ -564,6 +571,7 @@ git commit -m "feat(nicknamer2): add Server repository with CRUD operations"
 ### Task 4: Create Server service
 
 **Files:**
+
 - Create: `nicknamer2/src/discord_server/service.rs`
 - Modify: `nicknamer2/src/discord_server/BUILD.bazel`
 
@@ -804,6 +812,7 @@ git commit -m "feat(nicknamer2): add Server service layer with validation"
 ### Task 5: Update GraphQL Context
 
 **Files:**
+
 - Modify: `nicknamer2/src/graphql/context.rs`
 - Modify: `nicknamer2/src/graphql/BUILD.bazel` (graphql_context target)
 
@@ -883,6 +892,7 @@ git commit -m "feat(nicknamer2): add server_service to GraphQL context"
 ### Task 6: Update Server GraphQL model
 
 **Files:**
+
 - Modify: `nicknamer2/src/graphql/model.rs`
 - Modify: `nicknamer2/src/graphql/BUILD.bazel` (graphql_model target)
 
@@ -891,6 +901,7 @@ git commit -m "feat(nicknamer2): add server_service to GraphQL context"
 In `nicknamer2/src/graphql/model.rs`, replace the `Server` struct (lines 16-18):
 
 Old:
+
 ```rust
 /// A Discord server
 pub struct Server {
@@ -899,6 +910,7 @@ pub struct Server {
 ```
 
 New:
+
 ```rust
 /// A Discord server
 pub struct Server {
@@ -1069,6 +1081,7 @@ git commit -m "feat(nicknamer2): add displayName field to Server GraphQL type"
 ### Task 7: Update queries to use server_service
 
 **Files:**
+
 - Modify: `nicknamer2/src/graphql/query.rs`
 - Modify: `nicknamer2/src/graphql/BUILD.bazel` (graphql_query target)
 
@@ -1110,6 +1123,7 @@ Replace the `server` query method (lines 14-32) to fetch from `server_service`:
 Replace the `"Server"` arm in the `node()` method (lines 64-76). The old code constructs a bare `Server { id }` which no longer compiles since `Server` now has additional required fields:
 
 Old:
+
 ```rust
             "Server" => {
                 let discord_server = relay_id
@@ -1127,6 +1141,7 @@ Old:
 ```
 
 New:
+
 ```rust
             "Server" => {
                 let discord_server = relay_id
@@ -1253,6 +1268,7 @@ git commit -m "feat(nicknamer2): use server_service for server queries"
 ### Task 8: Add createServer mutation
 
 **Files:**
+
 - Modify: `nicknamer2/src/graphql/mutation.rs`
 
 - [ ] **Step 1: Add imports**
@@ -1379,6 +1395,7 @@ git commit -m "feat(nicknamer2): add createServer GraphQL mutation"
 ### Task 9: Update Axum server and main.rs
 
 **Files:**
+
 - Modify: `nicknamer2/src/server/server.rs`
 - Modify: `nicknamer2/src/server/BUILD.bazel`
 - Modify: `nicknamer2/src/bin/main.rs`
@@ -1614,6 +1631,7 @@ Modify `nicknamer2/src/graphql/tests.rs`. Update both `setup_test_context()` and
 In `setup_test_context()` (around lines 48-54), change:
 
 Old:
+
 ```rust
     let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
@@ -1625,6 +1643,7 @@ Old:
 ```
 
 New:
+
 ```rust
     let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
@@ -1694,6 +1713,7 @@ git commit -m "feat(nicknamer2): wire server_service through Axum to GraphQL"
 ### Task 10: Add create-server GraphQL mutation
 
 **Files:**
+
 - Create: `angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql`
 
 - [ ] **Step 1: Write the mutation file**
@@ -1723,6 +1743,7 @@ git commit -m "feat(nicknamer2-web): add createServer GraphQL mutation"
 ### Task 11: Update generated GraphQL types
 
 **Files:**
+
 - Modify: `angular/projects/nicknamer2-web/src/generated/graphql.ts`
 
 > **Note:** These are hand-written changes matching codegen output patterns. Run `graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts` after the backend is deployed to verify/regenerate.
@@ -1732,36 +1753,38 @@ git commit -m "feat(nicknamer2-web): add createServer GraphQL mutation"
 In `graphql.ts`, update the `Server` type (around lines 118-126):
 
 Old:
+
 ```typescript
 /** A Discord server */
 export type Server = Node & {
-  __typename?: 'Server';
+  __typename?: "Server";
   /** The server ID (global Relay ID) */
-  id: Scalars['ID']['output'];
+  id: Scalars["ID"]["output"];
   /** Paginated list of names in this server */
   names: NameConnection;
   /** The Discord server ID */
-  serverId: Scalars['String']['output'];
+  serverId: Scalars["String"]["output"];
 };
 ```
 
 New:
+
 ```typescript
 /** A Discord server */
 export type Server = Node & {
-  __typename?: 'Server';
+  __typename?: "Server";
   /** When the server was created */
-  createdAt: Scalars['DateTime']['output'];
+  createdAt: Scalars["DateTime"]["output"];
   /** The display name of the server */
-  displayName: Scalars['String']['output'];
+  displayName: Scalars["String"]["output"];
   /** The server ID (global Relay ID) */
-  id: Scalars['ID']['output'];
+  id: Scalars["ID"]["output"];
   /** Paginated list of names in this server */
   names: NameConnection;
   /** The Discord server ID */
-  serverId: Scalars['String']['output'];
+  serverId: Scalars["String"]["output"];
   /** When the server was last updated */
-  updatedAt: Scalars['DateTime']['output'];
+  updatedAt: Scalars["DateTime"]["output"];
 };
 ```
 
@@ -1771,16 +1794,16 @@ Add after the existing `CreateNameInput`/`CreateNamePayload` types (around line 
 
 ```typescript
 export type CreateServerInput = {
-  clientMutationId?: InputMaybe<Scalars['String']['input']>;
-  discordServerId: Scalars['String']['input'];
-  displayName: Scalars['String']['input'];
+  clientMutationId?: InputMaybe<Scalars["String"]["input"]>;
+  discordServerId: Scalars["String"]["input"];
+  displayName: Scalars["String"]["input"];
 };
 
 export type CreateServerPayload = {
-  __typename?: 'CreateServerPayload';
-  clientMutationId?: Maybe<Scalars['String']['output']>;
+  __typename?: "CreateServerPayload";
+  clientMutationId?: Maybe<Scalars["String"]["output"]>;
   server: {
-    __typename?: 'Server';
+    __typename?: "Server";
     id: string;
     serverId: string;
     displayName: string;
@@ -1794,7 +1817,7 @@ export type CreateServerMutationVariables = Exact<{
 }>;
 
 export type CreateServerMutation = {
-  __typename?: 'MutationRoot';
+  __typename?: "MutationRoot";
   createServer: CreateServerPayload;
 };
 ```
@@ -1804,11 +1827,13 @@ export type CreateServerMutation = {
 Update the `GetServersQuery` type (around line 267) — add `displayName` to node:
 
 Old:
+
 ```typescript
       node: { __typename?: 'Server'; id: string; serverId: string };
 ```
 
 New:
+
 ```typescript
       node: { __typename?: 'Server'; id: string; serverId: string; displayName: string };
 ```
@@ -1816,16 +1841,18 @@ New:
 Update the `GetServersDocument` gql template (around line 348) — add `displayName`:
 
 Old:
+
 ```typescript
-          id
-          serverId
+id;
+serverId;
 ```
 
 New:
+
 ```typescript
-          id
-          serverId
-          displayName
+id;
+serverId;
+displayName;
 ```
 
 - [ ] **Step 4: Add CreateServer GQL document and service**
@@ -1849,7 +1876,7 @@ export const CreateServerDocument = gql`
 `;
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: "root",
 })
 export class CreateServerGQL extends Apollo.Mutation<
   CreateServerMutation,
@@ -1873,6 +1900,7 @@ git commit -m "feat(nicknamer2-web): add CreateServer types and displayName to g
 ### Task 12: Update get-servers.graphql to include displayName
 
 **Files:**
+
 - Modify: `angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql`
 
 - [ ] **Step 1: Add displayName to the query**
@@ -1908,6 +1936,7 @@ git commit -m "feat(nicknamer2-web): add displayName to GetServers query"
 ### Task 13: Create AddServerComponent
 
 **Files:**
+
 - Create: `angular/projects/nicknamer2-web/src/app/servers/add-server.component.ts`
 
 - [ ] **Step 1: Write the component**
@@ -1919,14 +1948,14 @@ import {
   DestroyRef,
   inject,
   signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { CreateServerGQL } from '../../generated/graphql';
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { CreateServerGQL } from "../../generated/graphql";
 
 @Component({
-  selector: 'app-add-server',
+  selector: "app-add-server",
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule],
   template: `
@@ -1988,8 +2017,8 @@ export class AddServerComponent {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly serverId = signal('');
-  protected readonly displayName = signal('');
+  protected readonly serverId = signal("");
+  protected readonly displayName = signal("");
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -2012,7 +2041,7 @@ export class AddServerComponent {
           this.submitting.set(false);
           const serverId = result.data?.createServer?.server?.serverId;
           if (serverId) {
-            this.router.navigate(['/servers', serverId, 'names']);
+            this.router.navigate(["/servers", serverId, "names"]);
           }
         },
         error: (err: Error) => {
@@ -2034,6 +2063,7 @@ git commit -m "feat(nicknamer2-web): add AddServerComponent with form UI"
 ### Task 14: Add route and update server list
 
 **Files:**
+
 - Modify: `angular/projects/nicknamer2-web/src/app/app.routes.ts`
 - Modify: `angular/projects/nicknamer2-web/src/app/servers/server-list.component.ts`
 
@@ -2042,59 +2072,59 @@ git commit -m "feat(nicknamer2-web): add AddServerComponent with form UI"
 Replace `angular/projects/nicknamer2-web/src/app/app.routes.ts`:
 
 ```typescript
-import { Routes } from '@angular/router';
-import { authGuard } from './auth/auth.guard';
+import { Routes } from "@angular/router";
+import { authGuard } from "./auth/auth.guard";
 
 export const routes: Routes = [
   {
-    path: '',
+    path: "",
     loadComponent: () =>
-      import('./landing/landing.component').then((m) => m.LandingComponent),
+      import("./landing/landing.component").then((m) => m.LandingComponent),
   },
   {
-    path: 'dashboard',
+    path: "dashboard",
     loadComponent: () =>
-      import('./dashboard/dashboard.component').then(
+      import("./dashboard/dashboard.component").then(
         (m) => m.DashboardComponent,
       ),
     canActivate: [authGuard],
   },
   {
-    path: 'servers/new',
+    path: "servers/new",
     loadComponent: () =>
-      import('./servers/add-server.component').then(
+      import("./servers/add-server.component").then(
         (m) => m.AddServerComponent,
       ),
     canActivate: [authGuard],
   },
   {
-    path: 'servers',
+    path: "servers",
     loadComponent: () =>
-      import('./servers/server-list.component').then(
+      import("./servers/server-list.component").then(
         (m) => m.ServerListComponent,
       ),
     canActivate: [authGuard],
   },
   {
-    path: 'servers/:serverId/names/batch',
+    path: "servers/:serverId/names/batch",
     loadComponent: () =>
-      import('./servers/batch-add-names.component').then(
+      import("./servers/batch-add-names.component").then(
         (m) => m.BatchAddNamesComponent,
       ),
     canActivate: [authGuard],
   },
   {
-    path: 'servers/:serverId/names',
+    path: "servers/:serverId/names",
     loadComponent: () =>
-      import('./servers/server-names.component').then(
+      import("./servers/server-names.component").then(
         (m) => m.ServerNamesComponent,
       ),
     canActivate: [authGuard],
   },
   {
-    path: 'callback',
+    path: "callback",
     loadComponent: () =>
-      import('./auth/callback.component').then((m) => m.CallbackComponent),
+      import("./auth/callback.component").then((m) => m.CallbackComponent),
   },
 ];
 ```
@@ -2162,6 +2192,7 @@ git commit -m "feat(nicknamer2-web): add server creation route and update server
 ### Task 15: Update frontend tests
 
 **Files:**
+
 - Modify: `angular/projects/nicknamer2-web/src/app/servers/server-list.component.spec.ts`
 
 - [ ] **Step 1: Update mock data to include displayName**
@@ -2169,12 +2200,14 @@ git commit -m "feat(nicknamer2-web): add server creation route and update server
 In `server-list.component.spec.ts`, update all mocked server nodes to include `displayName`. For example:
 
 Old:
+
 ```typescript
             { cursor: 'c1', node: { id: 'relay-1', serverId: '111' } },
             { cursor: 'c2', node: { id: 'relay-2', serverId: '222' } },
 ```
 
 New:
+
 ```typescript
             { cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } },
             { cursor: 'c2', node: { id: 'relay-2', serverId: '222', displayName: 'Server Two' } },
@@ -2187,17 +2220,19 @@ Apply this to ALL `op.flush()` calls in the spec file (there are 3 tests with mo
 In the 'should display servers after loading' test, update assertions:
 
 Old:
+
 ```typescript
-    expect(rows[0].textContent).toContain('111');
-    expect(rows[1].textContent).toContain('222');
+expect(rows[0].textContent).toContain("111");
+expect(rows[1].textContent).toContain("222");
 ```
 
 New:
+
 ```typescript
-    expect(rows[0].textContent).toContain('Server One');
-    expect(rows[0].textContent).toContain('111');
-    expect(rows[1].textContent).toContain('Server Two');
-    expect(rows[1].textContent).toContain('222');
+expect(rows[0].textContent).toContain("Server One");
+expect(rows[0].textContent).toContain("111");
+expect(rows[1].textContent).toContain("Server Two");
+expect(rows[1].textContent).toContain("222");
 ```
 
 - [ ] **Step 3: Add test for "Add Server" button**
@@ -2205,28 +2240,28 @@ New:
 Add a new test:
 
 ```typescript
-  it('should show "Add Server" button', () => {
-    fixture.detectChanges();
+it('should show "Add Server" button', () => {
+  fixture.detectChanges();
 
-    const op = apolloController.expectOne(GetServersDocument);
-    op.flush({
-      data: {
-        servers: {
-          edges: [],
-          pageInfo: { hasNextPage: false, endCursor: null },
-        },
+  const op = apolloController.expectOne(GetServersDocument);
+  op.flush({
+    data: {
+      servers: {
+        edges: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
       },
-    });
-
-    fixture.detectChanges();
-
-    const btn = fixture.nativeElement.querySelector(
-      '[data-testid="add-server-btn"]',
-    );
-    expect(btn).toBeTruthy();
-    expect(btn.textContent).toContain('Add Server');
-    expect(btn.getAttribute('href')).toBe('/servers/new');
+    },
   });
+
+  fixture.detectChanges();
+
+  const btn = fixture.nativeElement.querySelector(
+    '[data-testid="add-server-btn"]',
+  );
+  expect(btn).toBeTruthy();
+  expect(btn.textContent).toContain("Add Server");
+  expect(btn.getAttribute("href")).toBe("/servers/new");
+});
 ```
 
 - [ ] **Step 4: Commit**

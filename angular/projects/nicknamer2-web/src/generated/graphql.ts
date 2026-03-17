@@ -305,7 +305,12 @@ export type GetServersQuery = {
     edges: Array<{
       __typename?: 'ServerEdge';
       cursor: string;
-      node: { __typename?: 'Server'; id: string; serverId: string; displayName: string };
+      node: {
+        __typename?: 'Server';
+        id: string;
+        serverId: string;
+        displayName: string;
+      };
     }>;
     pageInfo: {
       __typename?: 'PageInfo';

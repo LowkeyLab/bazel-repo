@@ -219,10 +219,7 @@ impl MutationRoot {
 
         let id = context
             .server_service
-            .create_server(
-                DiscordServerId(discord_server_id),
-                input.display_name,
-            )
+            .create_server(DiscordServerId(discord_server_id), input.display_name)
             .await?;
 
         let created = context

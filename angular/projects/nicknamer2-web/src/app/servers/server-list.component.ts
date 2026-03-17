@@ -20,7 +20,11 @@ type ServerEdge = NonNullable<GetServersQuery['servers']['edges']>[number];
     <div class="p-4">
       <div class="flex items-center justify-between mb-4">
         <h1 class="text-2xl font-bold">Servers</h1>
-        <a routerLink="/servers/new" class="btn btn-primary" data-testid="add-server-btn">
+        <a
+          routerLink="/servers/new"
+          class="btn btn-primary"
+          data-testid="add-server-btn"
+        >
           Add Server
         </a>
       </div>

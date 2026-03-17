@@ -37,8 +37,22 @@ describe('ServerListComponent', () => {
       data: {
         servers: {
           edges: [
-            { cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } },
-            { cursor: 'c2', node: { id: 'relay-2', serverId: '222', displayName: 'Server Two' } },
+            {
+              cursor: 'c1',
+              node: {
+                id: 'relay-1',
+                serverId: '111',
+                displayName: 'Server One',
+              },
+            },
+            {
+              cursor: 'c2',
+              node: {
+                id: 'relay-2',
+                serverId: '222',
+                displayName: 'Server Two',
+              },
+            },
           ],
           pageInfo: { hasNextPage: false, endCursor: 'c2' },
         },
@@ -64,7 +78,16 @@ describe('ServerListComponent', () => {
     op.flush({
       data: {
         servers: {
-          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } }],
+          edges: [
+            {
+              cursor: 'c1',
+              node: {
+                id: 'relay-1',
+                serverId: '111',
+                displayName: 'Server One',
+              },
+            },
+          ],
           pageInfo: { hasNextPage: true, endCursor: 'c1' },
         },
       },
@@ -85,7 +108,16 @@ describe('ServerListComponent', () => {
     op.flush({
       data: {
         servers: {
-          edges: [{ cursor: 'c1', node: { id: 'relay-1', serverId: '111', displayName: 'Server One' } }],
+          edges: [
+            {
+              cursor: 'c1',
+              node: {
+                id: 'relay-1',
+                serverId: '111',
+                displayName: 'Server One',
+              },
+            },
+          ],
           pageInfo: { hasNextPage: false, endCursor: 'c1' },
         },
       },

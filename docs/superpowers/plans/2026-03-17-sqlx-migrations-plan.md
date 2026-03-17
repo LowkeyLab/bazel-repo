@@ -17,6 +17,7 @@
 ### Task 1: Add `migrate` feature to sqlx and repin
 
 **Files:**
+
 - Modify: `Cargo.toml:31-37`
 
 - [ ] **Step 1: Add `migrate` feature**
@@ -49,6 +50,7 @@ sqlx = { version = "0.8", features = [
 - [ ] **Step 2: Repin crate index**
 
 Run:
+
 ```bash
 CARGO_BAZEL_REPIN=1 bazel sync --only=crate_index
 ```
@@ -69,6 +71,7 @@ Note: if `bazel sync` modified other Bazel lock files, include those too.
 ### Task 2: Create the V1 migration SQL file
 
 **Files:**
+
 - Create: `nicknamer2/migrations/001_create_names_table.sql`
 - Create: `nicknamer2/migrations/BUILD.bazel`
 
@@ -114,6 +117,7 @@ git commit -m "feat(nicknamer2): add V1 migration SQL and BUILD target"
 ### Task 3: Write failing test for sqlx migration tracking
 
 **Files:**
+
 - Modify: `nicknamer2/src/migrations/migrations.rs:11-79`
 
 - [ ] **Step 1: Rewrite the test module**
@@ -198,6 +202,7 @@ mod tests {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run:
+
 ```bash
 aspect test //nicknamer2/src/migrations:migrations_test
 ```
@@ -216,6 +221,7 @@ git commit -m "test(nicknamer2): add migration tracking table assertion (failing
 ### Task 4: Implement the sqlx migrate!() runner
 
 **Files:**
+
 - Modify: `nicknamer2/src/migrations/migrations.rs:1-9`
 - Modify: `nicknamer2/src/migrations/BUILD.bazel`
 
@@ -233,6 +239,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 ```
 
 Key changes:
+
 - Removed the `include_str!()` + `raw_sql()` approach
 - Return type changed from `sqlx::Error` to `sqlx::migrate::MigrateError` (the type returned by the migrator)
 - Path `"../../migrations"` is relative to `CARGO_MANIFEST_DIR` which points to `nicknamer2/src/migrations/` under rules_rust
@@ -272,12 +279,14 @@ rust_test(
 ```
 
 Changes:
+
 - `compile_data` on `rust_library` references the `//nicknamer2/migrations` filegroup instead of the local SQL file
 - `compile_data` duplicated on `rust_test` because `rules_rust` does not propagate `compile_data` from the `crate` dependency — the `sqlx::migrate!()` macro re-expands during test compilation and needs the SQL files in the sandbox
 
 - [ ] **Step 3: Build to verify compilation**
 
 Run:
+
 ```bash
 aspect build //nicknamer2/src/migrations:migrations
 ```
@@ -287,6 +296,7 @@ Expected: compiles successfully. If it fails with `CARGO_MANIFEST_DIR` issues, p
 - [ ] **Step 4: Run tests**
 
 Run:
+
 ```bash
 aspect test //nicknamer2/src/migrations:migrations_test
 ```
@@ -307,6 +317,7 @@ git commit -m "feat(nicknamer2): switch to sqlx migrate!() for migration runner"
 **Skip this task if Task 4 succeeded.**
 
 **Files:**
+
 - Modify: `nicknamer2/src/migrations/migrations.rs`
 
 - [ ] **Step 1: Replace migrate!() with manual Migrator construction**
@@ -352,6 +363,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 - [ ] **Step 2: Run tests**
 
 Run:
+
 ```bash
 aspect test //nicknamer2/src/migrations:migrations_test
 ```
@@ -372,6 +384,7 @@ git commit -m "feat(nicknamer2): use include_str fallback for sqlx migrator"
 ### Task 6: Delete old migration SQL files
 
 **Files:**
+
 - Delete: `nicknamer2/src/migrations/001_create_users_table.sql`
 - Delete: `nicknamer2/src/migrations/002_create_names_table.sql`
 - Delete: `nicknamer2/src/migrations/003_drop_users_recreate_names.sql`
@@ -387,6 +400,7 @@ rm nicknamer2/src/migrations/003_drop_users_recreate_names.sql
 - [ ] **Step 2: Build to verify nothing references them**
 
 Run:
+
 ```bash
 aspect build //nicknamer2/...
 ```
@@ -407,6 +421,7 @@ git commit -m "chore(nicknamer2): remove superseded migration SQL files"
 - [ ] **Step 1: Build everything**
 
 Run:
+
 ```bash
 aspect build //nicknamer2/...
 ```
@@ -416,6 +431,7 @@ Expected: all nicknamer2 targets build successfully.
 - [ ] **Step 2: Run all nicknamer2 tests**
 
 Run:
+
 ```bash
 aspect test //nicknamer2/...
 ```
@@ -425,6 +441,7 @@ Expected: all tests pass.
 - [ ] **Step 3: Lint nicknamer2**
 
 Run:
+
 ```bash
 aspect lint //nicknamer2/...
 ```
@@ -434,6 +451,7 @@ Expected: no lint errors. The `migrate` feature addition and code changes should
 - [ ] **Step 4: Run the full repo build and test (catch cross-package issues from workspace Cargo.toml change)**
 
 Run:
+
 ```bash
 aspect build //...
 aspect test //...
