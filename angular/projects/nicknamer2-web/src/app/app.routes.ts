@@ -16,6 +16,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'servers/new',
+    loadComponent: () =>
+      import('./servers/add-server.component').then(
+        (m) => m.AddServerComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'servers',
     loadComponent: () =>
       import('./servers/server-list.component').then(
