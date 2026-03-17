@@ -55,6 +55,7 @@ rust_library(
         ":graphql_context",
         ":graphql_model",
         ":graphql_relay",
+        "//nicknamer2/src/discord_server",
         "//nicknamer2/src/name",
         "@crates//:juniper",
     ],

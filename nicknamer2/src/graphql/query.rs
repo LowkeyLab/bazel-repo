@@ -26,9 +26,13 @@ impl QueryRoot {
             return Err("Server ID must be greater than 0".into());
         }
 
-        Ok(Server {
-            id: DiscordServerId(server_id_u64),
-        })
+        let server = context
+            .server_service
+            .get_server(DiscordServerId(server_id_u64))
+            .await?
+            .ok_or("Server not found")?;
+
+        Ok(Server::from(server))
     }
 
     /// Fetch any object by its global Relay ID.
@@ -70,9 +74,13 @@ impl QueryRoot {
                     return Err("Server ID must be greater than 0".into());
                 }
 
-                Ok(Some(NodeValue::Server(Server {
-                    id: DiscordServerId(discord_server),
-                })))
+                let server = context
+                    .server_service
+                    .get_server(DiscordServerId(discord_server))
+                    .await
+                    .map_err(|e| format!("{e}"))?;
+
+                Ok(server.map(|s| NodeValue::Server(Server::from(s))))
             }
             _ => Ok(None),
         }
@@ -111,33 +119,29 @@ impl QueryRoot {
         // Request one extra item to determine if there's a next page
         let fetch_limit = (limit + 1) as i64;
 
-        // Fetch total count and servers from the service
-        let total_count = context.name_service.count_servers().await? as i32;
+        let total_count = context.server_service.count_servers().await? as i32;
 
         let mut servers = context
-            .name_service
+            .server_service
             .list_servers(fetch_limit, cursor_value)
             .await?;
 
-        // Determine if there's a next page
         let has_next_page = servers.len() > limit as usize;
         if has_next_page {
-            servers.pop(); // Remove the extra item
+            servers.pop();
         }
 
-        // Build edges with cursors
         let edges: Vec<ServerEdge> = servers
             .into_iter()
-            .map(|discord_server| {
-                let cursor = ServerCursor::new(discord_server.0);
+            .map(|server| {
+                let cursor = ServerCursor::new(server.id.0);
                 ServerEdge {
                     cursor: cursor.encode(),
-                    node: Server { id: discord_server },
+                    node: Server::from(server),
                 }
             })
             .collect();
 
-        // Build page info
         let page_info = PageInfo {
             has_next_page,
             has_previous_page: has_cursor,
