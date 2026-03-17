@@ -4,7 +4,7 @@ rust_library(
     name = "migrations",
     srcs = ["migrations.rs"],
     compile_data = [
-        "//nicknamer2/migrations",
+        "//nicknamer2/migrations",  # keep
     ],
     visibility = ["//nicknamer2:__subpackages__"],
     deps = ["@crates//:sqlx"],
@@ -15,7 +15,7 @@ rust_test(
     timeout = "short",
     crate = ":migrations",
     compile_data = [
-        "//nicknamer2/migrations",
+        "//nicknamer2/migrations",  # keep
     ],
     tags = [
         "requires-network",
