@@ -53,22 +53,10 @@ describe('AddServerComponent', () => {
     expect(submitButton.disabled).toBe(true);
   });
 
-  it('should enable submit button when both fields filled', async () => {
+  it('should enable submit button when both fields filled', () => {
+    component['serverId'].set('123456');
+    component['displayName'].set('Test Server');
     fixture.detectChanges();
-
-    const serverIdInput: HTMLInputElement = fixture.nativeElement.querySelector(
-      '[data-testid="server-id-input"]',
-    );
-    const displayNameInput: HTMLInputElement =
-      fixture.nativeElement.querySelector('[data-testid="display-name-input"]');
-
-    serverIdInput.value = '123456';
-    serverIdInput.dispatchEvent(new Event('input'));
-    displayNameInput.value = 'Test Server';
-    displayNameInput.dispatchEvent(new Event('input'));
-
-    fixture.detectChanges();
-    await fixture.whenStable();
 
     const submitButton: HTMLButtonElement = fixture.nativeElement.querySelector(
       '[data-testid="submit-server"]',
@@ -80,21 +68,9 @@ describe('AddServerComponent', () => {
     const router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate');
 
+    component['serverId'].set('123456');
+    component['displayName'].set('Test Server');
     fixture.detectChanges();
-
-    const serverIdInput: HTMLInputElement = fixture.nativeElement.querySelector(
-      '[data-testid="server-id-input"]',
-    );
-    const displayNameInput: HTMLInputElement =
-      fixture.nativeElement.querySelector('[data-testid="display-name-input"]');
-
-    serverIdInput.value = '123456';
-    serverIdInput.dispatchEvent(new Event('input'));
-    displayNameInput.value = 'Test Server';
-    displayNameInput.dispatchEvent(new Event('input'));
-
-    fixture.detectChanges();
-    await fixture.whenStable();
 
     const form: HTMLFormElement = fixture.nativeElement.querySelector(
       '[data-testid="add-server-form"]',
@@ -119,6 +95,9 @@ describe('AddServerComponent', () => {
       },
     });
 
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     fixture.detectChanges();
 
     expect(router.navigate).toHaveBeenCalledWith([
@@ -129,21 +108,9 @@ describe('AddServerComponent', () => {
   });
 
   it('should display error on mutation failure', async () => {
+    component['serverId'].set('123456');
+    component['displayName'].set('Test Server');
     fixture.detectChanges();
-
-    const serverIdInput: HTMLInputElement = fixture.nativeElement.querySelector(
-      '[data-testid="server-id-input"]',
-    );
-    const displayNameInput: HTMLInputElement =
-      fixture.nativeElement.querySelector('[data-testid="display-name-input"]');
-
-    serverIdInput.value = '123456';
-    serverIdInput.dispatchEvent(new Event('input'));
-    displayNameInput.value = 'Test Server';
-    displayNameInput.dispatchEvent(new Event('input'));
-
-    fixture.detectChanges();
-    await fixture.whenStable();
 
     const form: HTMLFormElement = fixture.nativeElement.querySelector(
       '[data-testid="add-server-form"]',
@@ -155,6 +122,9 @@ describe('AddServerComponent', () => {
     const op = apolloController.expectOne(CreateServerDocument);
     op.networkError(new Error('Server unavailable'));
 
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     fixture.detectChanges();
 
     const errorAlert = fixture.nativeElement.querySelector(
