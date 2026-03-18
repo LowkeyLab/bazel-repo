@@ -1644,3 +1644,76 @@ async fn test_static_file_serving_with_spa_fallback() {
 
     std::fs::remove_dir_all(&tmp_dir).ok();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_server_success() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        mutation CreateServer($input: CreateServerInput!) {
+            createServer(input: $input) {
+                server {
+                    serverId
+                    displayName
+                    createdAt
+                    updatedAt
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "serverId": "123456",
+            "displayName": "My Test Server"
+        }
+    });
+
+    let (status, body_text) =
+        execute_graphql(&context.app, query, variables, Some("test-token")).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(
+        body.get("errors").is_none(),
+        "unexpected errors: {body_text}"
+    );
+
+    let server = &body["data"]["createServer"]["server"];
+    assert_eq!(server["serverId"].as_str(), Some("123456"));
+    assert_eq!(server["displayName"].as_str(), Some("My Test Server"));
+    assert!(
+        server["createdAt"].is_string(),
+        "createdAt should be a string"
+    );
+    assert!(
+        server["updatedAt"].is_string(),
+        "updatedAt should be a string"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_not_found() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        query {
+            server(id: "12345") {
+                serverId
+                displayName
+            }
+        }
+    "#;
+
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+
+    let errors = body
+        .get("errors")
+        .expect("Expected errors for non-existent server");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
+}

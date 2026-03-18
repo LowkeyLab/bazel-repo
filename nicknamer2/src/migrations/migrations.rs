@@ -57,6 +57,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_migration_creates_servers_table() {
+        let (pool, _container) = setup_pool().await;
+
+        run_migrations(&pool)
+            .await
+            .expect("Migrations should run successfully");
+
+        let servers_exists: (bool,) = sqlx::query_as(
+            r#"
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_name = 'servers'
+            )
+            "#,
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("Failed to check servers table");
+
+        assert!(
+            servers_exists.0,
+            "Servers table should exist after migration"
+        );
+    }
+
+    #[tokio::test]
     async fn test_migration_tracking_table_exists() {
         let (pool, _container) = setup_pool().await;
 
@@ -64,12 +91,10 @@ mod tests {
             .await
             .expect("Migrations should run successfully");
 
-        let migration_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM _sqlx_migrations",
-        )
-        .fetch_one(&pool)
-        .await
-        .expect("Failed to query _sqlx_migrations");
+        let migration_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_migrations")
+            .fetch_one(&pool)
+            .await
+            .expect("Failed to query _sqlx_migrations");
 
         assert_eq!(
             migration_count.0, 2,
