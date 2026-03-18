@@ -28,7 +28,7 @@ services:
       timeout: 5s
       retries: 5
   casdoor:
-    image: casbin/casdoor:2.357.0
+    image: casbin/casdoor:2.359.0
     ports:
       - "8000:8000"
     environment:
