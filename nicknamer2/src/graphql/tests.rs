@@ -48,10 +48,13 @@ async fn setup_test_context() -> TestContext {
     let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
 
+    let server_repo = discord_server_repo::Repo::new(pool.clone());
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
+
     let schema = Arc::new(create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
-    let app = server::create_router(schema, service, jwks_validator, None);
+    let app = server::create_router(schema, service, server_service, jwks_validator, None);
 
     TestContext {
         app,
@@ -84,10 +87,13 @@ async fn setup_test_context_with_auth_denial() -> TestContext {
     let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
 
+    let server_repo = discord_server_repo::Repo::new(pool.clone());
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
+
     let schema = Arc::new(create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysDeny);
 
-    let app = server::create_router(schema, service, jwks_validator, None);
+    let app = server::create_router(schema, service, server_service, jwks_validator, None);
 
     TestContext {
         app,
@@ -114,6 +120,25 @@ async fn insert_name(pool: &PgPool, discord_id: u64, discord_server: u64, name: 
     .execute(pool)
     .await
     .expect("Failed to insert name");
+}
+
+async fn insert_server(pool: &PgPool, discord_server: u64, display_name: &str) {
+    let id = Uuid::new_v4();
+    let now = Utc::now();
+    sqlx::query(
+        r#"
+        INSERT INTO servers (id, discord_server, display_name, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5)
+        "#,
+    )
+    .bind(id)
+    .bind(discord_server as i64)
+    .bind(display_name)
+    .bind(now)
+    .bind(now)
+    .execute(pool)
+    .await
+    .expect("Failed to insert server");
 }
 
 async fn execute_graphql(
@@ -420,6 +445,7 @@ async fn test_query_servers_requires_auth() {
 async fn test_query_server_names_empty() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(12345);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     let query = format!(
         r#"
@@ -473,6 +499,7 @@ async fn test_query_server_names_empty() {
 async fn test_query_server_names_first_page() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(99999);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     let discord_id1 = DiscordId(111);
     let discord_id2 = DiscordId(222);
@@ -550,6 +577,7 @@ async fn test_query_server_names_first_page() {
 async fn test_query_server_names_with_limit() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(88888);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     let discord_id1 = DiscordId(111);
     let discord_id2 = DiscordId(222);
@@ -605,6 +633,7 @@ async fn test_query_server_names_with_limit() {
 async fn test_query_server_names_with_cursor() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(77777);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     let discord_id1 = DiscordId(111);
     let discord_id2 = DiscordId(222);
@@ -718,6 +747,7 @@ async fn test_query_server_names_with_cursor() {
 async fn test_query_server_names_cursor_past_end() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(66666);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     let discord_id1 = DiscordId(111);
     insert_name(&context.pool, discord_id1.0, discord_server.0, "Alice").await;
@@ -770,6 +800,8 @@ async fn test_query_server_names_different_servers() {
     let context = setup_test_context().await;
     let discord_server1 = DiscordServerId(11111);
     let discord_server2 = DiscordServerId(22222);
+    insert_server(&context.pool, discord_server1.0, "Test Server 1").await;
+    insert_server(&context.pool, discord_server2.0, "Test Server 2").await;
 
     let discord_id1 = DiscordId(111);
     let discord_id2 = DiscordId(222);
@@ -840,6 +872,7 @@ async fn test_query_server_names_different_servers() {
 async fn test_query_server_names_invalid_cursor() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(55555);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     let query = format!(
         r#"
@@ -872,6 +905,7 @@ async fn test_query_server_names_invalid_cursor() {
 async fn test_query_server_names_max_page_size() {
     let context = setup_test_context().await;
     let discord_server = DiscordServerId(44444);
+    insert_server(&context.pool, discord_server.0, "Test Server").await;
 
     // Insert more than MAX_PAGE_SIZE (100) names to test enforcement
     for i in 0..105 {
@@ -973,6 +1007,9 @@ async fn test_query_servers_distinct() {
     let server1 = DiscordServerId(11111);
     let server2 = DiscordServerId(22222);
     let server3 = DiscordServerId(33333);
+    insert_server(&context.pool, server1.0, "Server 1").await;
+    insert_server(&context.pool, server2.0, "Server 2").await;
+    insert_server(&context.pool, server3.0, "Server 3").await;
 
     let discord_id1 = DiscordId(111);
     let discord_id2 = DiscordId(222);
@@ -1030,6 +1067,9 @@ async fn test_query_servers_distinct() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_servers_pagination() {
     let context = setup_test_context().await;
+    insert_server(&context.pool, 11111, "Server 1").await;
+    insert_server(&context.pool, 22222, "Server 2").await;
+    insert_server(&context.pool, 33333, "Server 3").await;
 
     let discord_id1 = DiscordId(111);
     let discord_id2 = DiscordId(222);
@@ -1119,6 +1159,7 @@ async fn test_query_servers_pagination() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_query_servers_cursor_past_end() {
     let context = setup_test_context().await;
+    insert_server(&context.pool, 11111, "Test Server").await;
 
     let discord_id1 = DiscordId(111);
     insert_name(&context.pool, discord_id1.0, 11111, "Alice").await;
@@ -1193,6 +1234,8 @@ async fn test_query_servers_invalid_cursor() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_servers_total_count() {
     let context = setup_test_context().await;
+    insert_server(&context.pool, 100, "Server 100").await;
+    insert_server(&context.pool, 200, "Server 200").await;
     insert_name(&context.pool, 1, 100, "Alice").await;
     insert_name(&context.pool, 2, 200, "Bob").await;
     insert_name(&context.pool, 3, 200, "Carol").await;
@@ -1225,6 +1268,7 @@ async fn test_servers_total_count() {
 async fn test_names_total_count() {
     let context = setup_test_context().await;
     let server = 100u64;
+    insert_server(&context.pool, server, "Test Server").await;
     insert_name(&context.pool, 1, server, "Alice").await;
     insert_name(&context.pool, 2, server, "Bob").await;
     insert_name(&context.pool, 3, server, "Carol").await;
@@ -1571,14 +1615,19 @@ async fn test_static_file_serving_with_spa_fallback() {
         .await
         .expect("Failed to run migrations");
 
-    let repo = name_repo::Repo::new(pool);
+    let repo = name_repo::Repo::new(pool.clone());
     let service = Arc::new(name_service::Service::new(repo));
+
+    let server_repo = discord_server_repo::Repo::new(pool);
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
+
     let schema = Arc::new(graphql_schema::create_schema());
     let jwks_validator: Arc<dyn AuthService> = Arc::new(auth_claims::AlwaysAllow);
 
     let app = server::create_router(
         schema,
         service,
+        server_service,
         jwks_validator,
         Some(tmp_dir.to_str().unwrap()),
     );
@@ -1632,4 +1681,77 @@ async fn test_static_file_serving_with_spa_fallback() {
     assert_eq!(response.status(), StatusCode::OK);
 
     std::fs::remove_dir_all(&tmp_dir).ok();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_create_server_success() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        mutation CreateServer($input: CreateServerInput!) {
+            createServer(input: $input) {
+                server {
+                    serverId
+                    displayName
+                    createdAt
+                    updatedAt
+                }
+            }
+        }
+    "#;
+
+    let variables = json!({
+        "input": {
+            "discordServerId": "123456",
+            "displayName": "My Test Server"
+        }
+    });
+
+    let (status, body_text) =
+        execute_graphql(&context.app, query, variables, Some("test-token")).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+    assert!(
+        body.get("errors").is_none(),
+        "unexpected errors: {body_text}"
+    );
+
+    let server = &body["data"]["createServer"]["server"];
+    assert_eq!(server["serverId"].as_str(), Some("123456"));
+    assert_eq!(server["displayName"].as_str(), Some("My Test Server"));
+    assert!(
+        server["createdAt"].is_string(),
+        "createdAt should be a string"
+    );
+    assert!(
+        server["updatedAt"].is_string(),
+        "updatedAt should be a string"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_query_server_not_found() {
+    let context = setup_test_context().await;
+
+    let query = r#"
+        query {
+            server(id: "12345") {
+                serverId
+                displayName
+            }
+        }
+    "#;
+
+    let (status, body_text) =
+        execute_graphql(&context.app, query, json!({}), Some("test-token")).await;
+    let body = parse_graphql_body(&body_text);
+
+    assert_eq!(status, StatusCode::OK, "response body: {body_text}");
+
+    let errors = body
+        .get("errors")
+        .expect("Expected errors for non-existent server");
+    let errors_arr = errors.as_array().expect("errors should be an array");
+    assert!(!errors_arr.is_empty(), "errors array should not be empty");
 }

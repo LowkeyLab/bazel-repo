@@ -1,0 +1,66 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "discord_server",
+    srcs = ["server.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        "//nicknamer2/src/name",
+        "@crates//:chrono",
+    ],
+)
+
+rust_test(
+    name = "discord_server_test",
+    size = "small",
+    crate = ":discord_server",
+)
+
+rust_library(
+    name = "discord_server_repo",
+    srcs = ["repo.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        ":discord_server",
+        "//nicknamer2/src/name",
+        "@crates//:anyhow",
+        "@crates//:sqlx",
+    ],
+)
+
+rust_test(
+    name = "discord_server_repo_test",
+    timeout = "short",
+    crate = ":discord_server_repo",
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer2/src/migrations",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)
+
+rust_library(
+    name = "discord_server_service",
+    srcs = ["service.rs"],
+    visibility = ["//nicknamer2:__subpackages__"],
+    deps = [
+        ":discord_server",
+        ":discord_server_repo",
+        "//nicknamer2/src/name",
+        "@crates//:anyhow",
+    ],
+)
+
+rust_test(
+    name = "discord_server_service_test",
+    timeout = "short",
+    crate = ":discord_server_service",
+    tags = ["requires-network"],
+    deps = [
+        "//nicknamer2/src/migrations",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)

@@ -24,8 +24,11 @@ async fn main() -> anyhow::Result<()> {
     migrations::run_migrations(&pool).await?;
     tracing::info!("Database migrations applied successfully");
 
-    let repo = name_repo::Repo::new(pool);
-    let name_service = Arc::new(name_service::Service::new(repo));
+    let name_repo = name_repo::Repo::new(pool.clone());
+    let name_service = Arc::new(name_service::Service::new(name_repo));
+
+    let server_repo = discord_server_repo::Repo::new(pool);
+    let server_service = Arc::new(discord_server_service::Service::new(server_repo));
 
     let jwks_validator: Arc<dyn AuthService> = match &config.casdoor_client_id {
         Some(client_id) => {
@@ -55,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
     let app = server::create_router(
         schema,
         name_service,
+        server_service,
         jwks_validator,
         config.static_dir.as_deref(),
     );

@@ -1,4 +1,5 @@
 use graphql_context::{Context, require_auth};
+use graphql_model;
 use graphql_model::Name;
 use juniper::{FieldResult, GraphQLInputObject, graphql_object};
 use name::{DiscordId, DiscordServerId};
@@ -76,6 +77,38 @@ impl CreateNamesPayload {
     /// The created or updated names.
     fn names(&self) -> &[Name] {
         &self.names
+    }
+}
+
+/// Input for the createServer mutation.
+#[derive(GraphQLInputObject)]
+#[graphql(description = "Input for creating a Discord server")]
+pub struct CreateServerInput {
+    /// An opaque identifier for the client performing the mutation.
+    pub client_mutation_id: Option<String>,
+    /// The Discord server ID.
+    pub discord_server_id: String,
+    /// The display name for this server.
+    pub display_name: String,
+}
+
+/// Payload returned by the createServer mutation.
+pub struct CreateServerPayload {
+    pub client_mutation_id: Option<String>,
+    pub server: graphql_model::Server,
+}
+
+#[graphql_object]
+#[graphql(context = Context)]
+impl CreateServerPayload {
+    /// The client mutation ID that was passed in.
+    fn client_mutation_id(&self) -> Option<&str> {
+        self.client_mutation_id.as_deref()
+    }
+
+    /// The newly created server.
+    fn server(&self) -> &graphql_model::Server {
+        &self.server
     }
 }
 
@@ -165,6 +198,39 @@ impl MutationRoot {
         Ok(CreateNamesPayload {
             client_mutation_id: input.client_mutation_id,
             names,
+        })
+    }
+
+    /// Create a new Discord server.
+    async fn create_server(
+        context: &Context,
+        input: CreateServerInput,
+    ) -> FieldResult<CreateServerPayload> {
+        require_auth(context).await?;
+
+        let discord_server_id: u64 = input
+            .discord_server_id
+            .parse()
+            .map_err(|_| "Invalid server ID format")?;
+
+        if discord_server_id == 0 {
+            return Err("Server ID must be greater than 0".into());
+        }
+
+        let id = context
+            .server_service
+            .create_server(DiscordServerId(discord_server_id), input.display_name)
+            .await?;
+
+        let created = context
+            .server_service
+            .get_server(id)
+            .await?
+            .ok_or("Failed to retrieve created server")?;
+
+        Ok(CreateServerPayload {
+            client_mutation_id: input.client_mutation_id,
+            server: graphql_model::Server::from(created),
         })
     }
 }

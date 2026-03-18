@@ -18,7 +18,16 @@ type ServerEdge = NonNullable<GetServersQuery['servers']['edges']>[number];
   imports: [RouterLink],
   template: `
     <div class="p-4">
-      <h1 class="text-2xl font-bold mb-4">Servers</h1>
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold">Servers</h1>
+        <a
+          routerLink="/servers/new"
+          class="btn btn-primary"
+          data-testid="add-server-btn"
+        >
+          Add Server
+        </a>
+      </div>
 
       @if (loading() && edges().length === 0) {
         <span class="loading loading-spinner loading-md"></span>
@@ -32,7 +41,7 @@ type ServerEdge = NonNullable<GetServersQuery['servers']['edges']>[number];
         @for (edge of edges(); track edge.node.id) {
           <li data-testid="server-row">
             <a [routerLink]="['/servers', edge.node.serverId, 'names']">
-              Server {{ edge.node.serverId }}
+              {{ edge.node.displayName }} ({{ edge.node.serverId }})
             </a>
           </li>
         }

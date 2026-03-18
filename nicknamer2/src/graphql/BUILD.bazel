@@ -6,6 +6,8 @@ rust_library(
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "//nicknamer2/src/auth:auth_claims",
+        "//nicknamer2/src/discord_server:discord_server_repo",
+        "//nicknamer2/src/discord_server:discord_server_service",
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "@crates//:juniper",
@@ -38,6 +40,7 @@ rust_library(
     deps = [
         ":graphql_context",
         ":graphql_relay",
+        "//nicknamer2/src/discord_server",
         "//nicknamer2/src/name",
         "@crates//:chrono",
         "@crates//:juniper",
@@ -100,6 +103,8 @@ rust_test(
         ":graphql_relay",
         ":graphql_schema",
         "//nicknamer2/src/auth:auth_claims",
+        "//nicknamer2/src/discord_server:discord_server_repo",
+        "//nicknamer2/src/discord_server:discord_server_service",
         "//nicknamer2/src/migrations",
         "//nicknamer2/src/name",
         "//nicknamer2/src/name:name_repo",

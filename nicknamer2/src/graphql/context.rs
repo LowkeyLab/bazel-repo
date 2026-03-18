@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use auth_claims::{AuthError, AuthService};
+use discord_server_repo::Repo as ServerRepo;
+use discord_server_service::Service as ServerService;
 use juniper::FieldResult;
 use name_repo::Repo;
 use name_service::Service;
 
-/// GraphQL context providing access to the name service and authentication.
+/// GraphQL context providing access to services and authentication.
 pub struct Context {
     pub name_service: Arc<Service<Repo>>,
+    pub server_service: Arc<ServerService<ServerRepo>>,
     pub jwks_validator: Arc<dyn AuthService>,
     pub auth_token: Option<String>,
 }
