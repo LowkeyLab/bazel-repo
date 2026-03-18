@@ -227,6 +227,7 @@ maven.install(
         "protobuf",
     ],
     lock_file = "//:maven_install.json",
+    repositories = ["https://repo1.maven.org/maven2/"],
 )
 maven.artifact(
     testonly = True,

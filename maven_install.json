@@ -37,7 +37,7 @@
     "org.junit.jupiter:junit-jupiter-params": 670022237,
     "org.junit.platform:junit-platform-console": -839067120,
     "org.postgresql:postgresql": -102491637,
-    "repositories": -1949687017
+    "repositories": 65937588
   },
   "__RESOLVED_ARTIFACTS_HASH": {
     "ch.qos.logback:logback-classic": 1829698158,
