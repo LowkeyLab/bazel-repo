@@ -1,5 +1,4 @@
 node_modules
 target
-.worktree/
-.worktrees/
-.claude/
+.worktrees
+.claude
