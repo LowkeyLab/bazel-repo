@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { By } from '@angular/platform-browser';
+import { RouterLink, provideRouter } from '@angular/router';
 import {
   ApolloTestingController,
   ApolloTestingModule,
@@ -167,10 +168,11 @@ describe('DashboardComponent', () => {
 
     fixture.detectChanges();
 
-    const btn = fixture.nativeElement.querySelector(
-      '[data-testid="add-server-btn"]',
+    const linkDe = fixture.debugElement.query(
+      By.css('[data-testid="add-server-btn"]'),
     );
-    expect(btn).toBeTruthy();
-    expect(btn.getAttribute('href')).toBe('/servers/new');
+    expect(linkDe).toBeTruthy();
+    const routerLink = linkDe.injector.get(RouterLink);
+    expect(routerLink.urlTree?.toString()).toBe('/servers/new');
   });
 });
