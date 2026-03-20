@@ -151,4 +151,26 @@ describe('DashboardComponent', () => {
     );
     expect(link).toBeFalsy();
   });
+
+  it('should show "Add Server" button linking to /servers/new', () => {
+    fixture.detectChanges();
+
+    const op = apolloController.expectOne(GetDashboardDocument);
+    op.flush({
+      data: {
+        servers: {
+          totalCount: 0,
+          edges: [],
+        },
+      },
+    });
+
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement.querySelector(
+      '[data-testid="add-server-btn"]',
+    );
+    expect(btn).toBeTruthy();
+    expect(btn.getAttribute('href')).toBe('/servers/new');
+  });
 });
