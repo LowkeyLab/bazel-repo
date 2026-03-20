@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { By } from '@angular/platform-browser';
+import { RouterLink, provideRouter } from '@angular/router';
 import {
   ApolloTestingController,
   ApolloTestingModule,
@@ -150,5 +151,28 @@ describe('DashboardComponent', () => {
       '[data-testid="view-all-servers"]',
     );
     expect(link).toBeFalsy();
+  });
+
+  it('should show "Add Server" button linking to /servers/new', () => {
+    fixture.detectChanges();
+
+    const op = apolloController.expectOne(GetDashboardDocument);
+    op.flush({
+      data: {
+        servers: {
+          totalCount: 0,
+          edges: [],
+        },
+      },
+    });
+
+    fixture.detectChanges();
+
+    const linkDe = fixture.debugElement.query(
+      By.css('[data-testid="add-server-btn"]'),
+    );
+    expect(linkDe).toBeTruthy();
+    const routerLink = linkDe.injector.get(RouterLink);
+    expect(routerLink.urlTree?.toString()).toBe('/servers/new');
   });
 });

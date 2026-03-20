@@ -13,10 +13,10 @@ rust_library(
 rust_test(
     name = "migrations_test",
     timeout = "short",
-    crate = ":migrations",
     compile_data = [
         "//nicknamer2/migrations",  # keep
     ],
+    crate = ":migrations",
     tags = [
         "requires-network",
     ],

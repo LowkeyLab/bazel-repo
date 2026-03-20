@@ -18,7 +18,16 @@ type ServerEdge = GetDashboardQuery['servers']['edges'][number];
   imports: [RouterLink],
   template: `
     <div class="p-4">
-      <h1 class="text-3xl font-bold mb-6">Nicknamer2</h1>
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold">Nicknamer2</h1>
+        <a
+          routerLink="/servers/new"
+          class="btn btn-primary"
+          data-testid="add-server-btn"
+        >
+          Add Server
+        </a>
+      </div>
 
       @if (loading()) {
         <div data-testid="loading-skeleton" class="flex gap-4 mb-6">
