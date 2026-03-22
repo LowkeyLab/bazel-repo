@@ -1,0 +1,13 @@
+diff --git a/dist/node/chunks/config.js b/dist/node/chunks/config.js
+index 2b39a20c497ee5c9f1cefdf1781df9955b50b97d..9559ab1fc0269f8fcf651a16dc4e07737894cd5b 100644
+--- a/dist/node/chunks/config.js
++++ b/dist/node/chunks/config.js
+@@ -29428,7 +29428,7 @@ function manifestPlugin() {
+ 				}
+ 				return manifestChunk;
+ 			}
+-			const entryCssReferenceIds = cssEntriesMap.get(this.environment);
++			const entryCssReferenceIds = cssEntriesMap.get(this.environment) ?? /* @__PURE__ */ new Map();
+ 			const entryCssAssetFileNames = /* @__PURE__ */ new Map();
+ 			for (const [name, id] of entryCssReferenceIds) try {
+ 				const fileName = this.getFileName(id);
