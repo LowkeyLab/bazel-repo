@@ -210,7 +210,7 @@ packageExtensionsChecksum: sha256-uuFxQBKCAZM0xCqDN1qynGPS3/9Yg8Ja0OW0KFj/5BM=
 patchedDependencies:
   vite@7.3.1:
     hash: 3a60c2100983d91d12d627c457b615458b67c5a8b1dce205f98c789854ec9a43
-    path: patches/vite@7.3.1.patch
+    path: 3rdparty/vite/vite@7.3.1.patch
 
 importers:
 
