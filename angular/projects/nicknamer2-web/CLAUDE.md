@@ -30,3 +30,35 @@ graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts
 - **Testing**: Vitest (not Karma); `ApolloTestingModule` + `ApolloTestingController` for GraphQL mocking; `data-testid` for DOM queries; `fixture.componentRef.setInput()` for signal inputs; `apolloController.verify()` in `afterEach`
 - **Dev server**: `bazel run //angular/projects/nicknamer2-web:nicknamer2-web.serve` runs `ng serve` on port 4200 with hot reload
 - **Functional guard testing**: `CanActivateFn` guards must be called with `{} as any, {} as any` args inside `TestBed.runInInjectionContext()` — TypeScript enforces the type signature even if the guard ignores params
+
+## E2E Testing with agent-browser
+
+After UI changes, run an E2E smoke test using `agent-browser`. Requires the full stack running:
+
+```bash
+# 1. Start infrastructure
+docker compose -f nicknamer2/docker-compose.yml up -d
+
+# 2. Start backend (from repo root)
+DB_URL=postgres://nicknamer2:nicknamer2@localhost:5433/nicknamer2 \
+  CASDOOR_CLIENT_ID=nicknamer2-local-dev \
+  bazel run //nicknamer2/src/bin:nicknamer2
+
+# 3. Start frontend dev server
+bazel run //angular/projects/nicknamer2-web:nicknamer2-web.serve
+
+# 4. Get a JWT via Casdoor password grant
+TOKEN=$(curl -s 'http://localhost:8000/api/login/oauth/access_token' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=password&client_id=nicknamer2-local-dev&client_secret=nicknamer2-local-secret&username=testuser&password=testpass123&scope=profile' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# 5. Inject token and test
+agent-browser open http://localhost:4200
+agent-browser eval "sessionStorage.setItem('casdoor_access_token', '${TOKEN}')"
+agent-browser open http://localhost:4200/servers
+agent-browser wait --load networkidle
+agent-browser snapshot -i  # verify UI state
+```
+
+Use `agent-browser snapshot -i` after each navigation to verify element counts and content. Close with `agent-browser close` when done.
