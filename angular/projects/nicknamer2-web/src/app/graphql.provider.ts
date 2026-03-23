@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { InMemoryCache } from '@apollo/client';
+import { relayStylePagination } from '@apollo/client/utilities';
 import { provideApollo } from 'apollo-angular';
 import { HttpLink } from 'apollo-angular/http';
 import { environment } from '../environments/environment';
@@ -21,28 +22,12 @@ export function provideGraphql() {
         typePolicies: {
           Query: {
             fields: {
-              servers: {
-                keyArgs: false,
-                merge(existing, incoming) {
-                  const edges = existing
-                    ? [...existing.edges, ...incoming.edges]
-                    : incoming.edges;
-                  return { ...incoming, edges };
-                },
-              },
+              servers: relayStylePagination(),
             },
           },
           Server: {
             fields: {
-              names: {
-                keyArgs: false,
-                merge(existing, incoming) {
-                  const edges = existing
-                    ? [...existing.edges, ...incoming.edges]
-                    : incoming.edges;
-                  return { ...incoming, edges };
-                },
-              },
+              names: relayStylePagination(),
             },
           },
         },
