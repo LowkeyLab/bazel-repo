@@ -4,11 +4,12 @@ use crate::web::api::v1::ServerErrorResponse;
 use axum::{
     Router,
     extract::{Path, Query, State},
-    http::StatusCode,
-    response::Json,
+    http::{StatusCode, header},
+    response::{IntoResponse, Json},
     routing::{get, put},
 };
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use utoipa::ToSchema;
 
@@ -225,10 +226,75 @@ pub async fn update_name_by_discord_server_handler(
     }
 }
 
+/// Handler for GET /api/v1/names/export - Exports all names as a YAML file.
+#[tracing::instrument(skip(state))]
+#[utoipa::path(
+    get,
+    path = "/api/v1/names/export",
+    params(
+        ("server_id" = Option<String>, Query, description = "Optional server ID to filter names by")
+    ),
+    responses(
+        (status = 200, description = "YAML file with discord_id: name mappings", content_type = "application/x-yaml"),
+        (status = 500, description = "Internal server error", body = ServerErrorResponse)
+    ),
+    tag = "Names"
+)]
+pub async fn export_names_handler(
+    State(state): State<Arc<NameState>>,
+    Query(query): Query<NamesQuery>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ServerErrorResponse>)> {
+    let service = NameService::new(&state.db);
+
+    let names = match query.server_id {
+        Some(server_id) => service.get_names_by_server(&server_id).await,
+        None => service.get_all_names().await,
+    }
+    .map_err(|err| {
+        tracing::error!("Failed to get names for export: {}", err);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ServerErrorResponse::new(
+                "Failed to retrieve names for export".to_string(),
+            )),
+        )
+    })?;
+
+    // NOTE: If the same discord_id exists across multiple servers and no server_id
+    // filter is applied, only the last entry per discord_id is kept. This matches
+    // the bulk-import format which also uses flat discord_id: name mappings.
+    let yaml_map: BTreeMap<u64, String> = names
+        .into_iter()
+        .map(|n| (n.discord_id(), n.name().to_string()))
+        .collect();
+
+    let yaml = serde_yaml::to_string(&yaml_map).map_err(|err| {
+        tracing::error!("Failed to serialize names to YAML: {}", err);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ServerErrorResponse::new(
+                "Failed to serialize names to YAML".to_string(),
+            )),
+        )
+    })?;
+
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/x-yaml"),
+            (
+                header::CONTENT_DISPOSITION,
+                "attachment; filename=\"names.yaml\"",
+            ),
+        ],
+        yaml,
+    ))
+}
+
 /// Creates and returns the names API router.
 pub fn create_api_router(state: Arc<NameState>) -> Router {
     Router::new()
         .route("/names", get(get_names_handler).post(create_name_handler))
+        .route("/names/export", get(export_names_handler))
         .route(
             "/names/{discord_id}/servers/{server_id}",
             put(update_name_by_discord_server_handler),

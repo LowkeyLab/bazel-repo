@@ -45,6 +45,7 @@ pub(crate) mod v1 {
             crate::name::api::v1::get_names_handler,
             crate::name::api::v1::create_name_handler,
             crate::name::api::v1::update_name_by_discord_server_handler,
+            crate::name::api::v1::export_names_handler,
         ),
         components(
             schemas(

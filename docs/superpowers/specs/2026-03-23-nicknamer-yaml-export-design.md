@@ -7,6 +7,7 @@ Add functionality to bulk-export names from the nicknamer service as a YAML file
 ## API
 
 **`GET /api/v1/names/export`**
+
 - Query param: `server_id` (optional) — filters by server
 - Response: `Content-Type: application/x-yaml`, `Content-Disposition: attachment; filename="names.yaml"`
 - Body: `discord_id: name` YAML mapping (matches bulk import format)

@@ -12,13 +12,13 @@
 
 ## File Structure
 
-| Action | File | Responsibility |
-|--------|------|---------------|
-| Modify | `nicknamer/server/lib/src/name/api/v1.rs` | Add `export_names_handler`, wire into API router |
-| Modify | `nicknamer/server/lib/src/name/web.rs` | Add `export_names_handler` for web download |
-| Modify | `nicknamer/server/lib/templates/names.html` | Add download button |
-| Modify | `nicknamer/server/lib/src/web/api.rs` | Register new endpoint in OpenAPI spec |
-| Modify | `nicknamer/server/lib/tests/name_service_tests.rs` | Add export endpoint tests |
+| Action | File                                               | Responsibility                                   |
+| ------ | -------------------------------------------------- | ------------------------------------------------ |
+| Modify | `nicknamer/server/lib/src/name/api/v1.rs`          | Add `export_names_handler`, wire into API router |
+| Modify | `nicknamer/server/lib/src/name/web.rs`             | Add `export_names_handler` for web download      |
+| Modify | `nicknamer/server/lib/templates/names.html`        | Add download button                              |
+| Modify | `nicknamer/server/lib/src/web/api.rs`              | Register new endpoint in OpenAPI spec            |
+| Modify | `nicknamer/server/lib/tests/name_service_tests.rs` | Add export endpoint tests                        |
 
 ---
 
@@ -27,6 +27,7 @@
 ### Task 1: Add export handler to API
 
 **Files:**
+
 - Modify: `nicknamer/server/lib/src/name/api/v1.rs`
 - Modify: `nicknamer/server/lib/src/web/api.rs`
 
@@ -251,6 +252,7 @@ git commit -m "feat(nicknamer): add YAML export API endpoint"
 ### Task 2: Add download button to names page
 
 **Files:**
+
 - Modify: `nicknamer/server/lib/src/name/web.rs`
 - Modify: `nicknamer/server/lib/templates/names.html`
 
@@ -306,9 +308,7 @@ In `create_name_router()` in `nicknamer/server/lib/src/name/web.rs`, add:
 In `nicknamer/server/lib/templates/names.html`, add a download button alongside the existing action buttons (Add Name, Bulk Add, Bulk Delete). It should be a plain `<a>` tag (not HTMX) since it triggers a file download:
 
 ```html
-<a href="/names/export" class="btn btn-secondary">
-    Export YAML
-</a>
+<a href="/names/export" class="btn btn-secondary"> Export YAML </a>
 ```
 
 Place this in the button group at the top of the names page.
