@@ -3,7 +3,7 @@ use axum::{
     Form, Router,
     extract::{RawQuery, State},
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode},
-    response::Html,
+    response::{Html, IntoResponse},
     routing::get,
 };
 use serde::Deserialize;
@@ -64,6 +64,9 @@ enum NameError {
     /// Represents an I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+    /// Represents a serialization error (e.g., YAML serialization failure).
+    #[error("Serialization error: {0}")]
+    Serialization(String),
 }
 
 impl axum::response::IntoResponse for NameError {
@@ -482,6 +485,37 @@ async fn bulk_delete_names_delete_handler(
     template.render().map(Html).map_err(NameError::from)
 }
 
+/// Handler for GET /names/export that exports all names as a YAML file download.
+#[tracing::instrument(skip(state))]
+async fn export_names_handler(
+    State(state): State<Arc<NameState>>,
+) -> Result<impl IntoResponse, NameError> {
+    let name_service = NameService::new(&state.db);
+    let names = name_service.get_all_names().await?;
+
+    // NOTE: If the same discord_id exists across multiple servers, only the last
+    // entry per discord_id is kept. This matches the bulk-import format which
+    // also uses flat discord_id: name mappings.
+    let yaml_map: std::collections::BTreeMap<u64, String> = names
+        .into_iter()
+        .map(|n| (n.discord_id(), n.name().to_string()))
+        .collect();
+
+    let yaml =
+        serde_yaml::to_string(&yaml_map).map_err(|e| NameError::Serialization(e.to_string()))?;
+
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, "application/x-yaml"),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                "attachment; filename=\"names.yaml\"",
+            ),
+        ],
+        yaml,
+    ))
+}
+
 /// Creates and returns the name router with all name-related routes.
 pub fn create_name_router(state: Arc<NameState>) -> Router {
     Router::new()
@@ -501,6 +535,7 @@ pub fn create_name_router(state: Arc<NameState>) -> Router {
             get(bulk_delete_page_handler).delete(bulk_delete_names_delete_handler),
         )
         .route("/names/delete/table", get(bulk_delete_table_handler))
+        .route("/names/export", get(export_names_handler))
         .route(
             "/names/{id}",
             get(get_name_row_handler)
