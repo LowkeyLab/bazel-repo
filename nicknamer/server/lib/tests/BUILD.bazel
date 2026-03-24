@@ -27,6 +27,7 @@ rust_test_suite(
         "@crates//:sea-orm",
         "@crates//:serde",
         "@crates//:serde_json",
+        "@crates//:serde_yaml",  # keep
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
         "@crates//:tower",
