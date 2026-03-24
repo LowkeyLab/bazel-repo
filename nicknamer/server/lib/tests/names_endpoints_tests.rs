@@ -2243,7 +2243,160 @@ pub mod api {
 
             assert_yaml_snapshot!(snapshot_data);
         }
+
+        #[tokio::test]
+        async fn can_export_names_as_yaml_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names/export")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            let status = response.status();
+            let headers = response.headers().clone();
+
+            // Verify status and headers
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(headers.get("content-type").unwrap(), "application/x-yaml");
+            assert!(
+                headers
+                    .get("content-disposition")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .contains("names.yaml")
+            );
+
+            // Verify YAML body
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+            let parsed: std::collections::BTreeMap<u64, String> =
+                serde_yaml::from_str(body_text).expect("Should be valid YAML");
+
+            assert_eq!(parsed.len(), 2);
+            assert_eq!(parsed.get(&123456789), Some(&"TestUser1".to_string()));
+            assert_eq!(parsed.get(&987654321), Some(&"TestUser2".to_string()));
+        }
+
+        #[tokio::test]
+        async fn can_export_names_filtered_by_server_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+            create_test_names_multiple_servers(&state.db).await;
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names/export?server_id=server1")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+            let parsed: std::collections::BTreeMap<u64, String> =
+                serde_yaml::from_str(body_text).expect("Should be valid YAML");
+
+            // Should only contain server1 names
+            assert_eq!(parsed.len(), 2);
+            assert_eq!(parsed.get(&123456789), Some(&"Alice".to_string()));
+            assert_eq!(parsed.get(&987654321), Some(&"Bob".to_string()));
+            // Should NOT contain server2 names
+            assert!(!parsed.contains_key(&555666777));
+            assert!(!parsed.contains_key(&444333222));
+        }
+
+        #[tokio::test]
+        async fn can_export_empty_names_as_yaml_via_api() {
+            let state = setup().await.expect("Failed to setup test context");
+
+            let name_state = create_name_state(state.db);
+            let app = create_api_router(name_state);
+
+            let request = Request::builder()
+                .method(Method::GET)
+                .uri("/names/export")
+                .body(Body::empty())
+                .unwrap();
+
+            let response = app.oneshot(request).await.unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get("content-type").unwrap(),
+                "application/x-yaml"
+            );
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body_text = std::str::from_utf8(&body).unwrap();
+            let parsed: std::collections::BTreeMap<u64, String> =
+                serde_yaml::from_str(body_text).expect("Should be valid YAML");
+
+            assert!(parsed.is_empty());
+        }
     }
+}
+
+#[tokio::test]
+async fn can_export_names_as_yaml_via_web() {
+    let state = setup().await.expect("Failed to setup test context");
+    create_test_names(&state.db).await;
+
+    let name_state = create_name_state(state.db);
+    let app = create_name_router(name_state);
+
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/names/export")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    let status = response.status();
+    let headers = response.headers().clone();
+
+    // Verify status and headers
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers.get("content-type").unwrap(), "application/x-yaml");
+    assert!(
+        headers
+            .get("content-disposition")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("names.yaml")
+    );
+
+    // Verify YAML body
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body_text = std::str::from_utf8(&body).unwrap();
+    let parsed: std::collections::BTreeMap<u64, String> =
+        serde_yaml::from_str(body_text).expect("Should be valid YAML");
+
+    assert_eq!(parsed.len(), 2);
+    assert_eq!(parsed.get(&123456789), Some(&"TestUser1".to_string()));
+    assert_eq!(parsed.get(&987654321), Some(&"TestUser2".to_string()));
 }
 
 #[tokio::test]

@@ -261,8 +261,11 @@ pub async fn export_names_handler(
     })?;
 
     // NOTE: If the same discord_id exists across multiple servers and no server_id
-    // filter is applied, only the last entry per discord_id is kept. This matches
-    // the bulk-import format which also uses flat discord_id: name mappings.
+    // filter is applied, only one entry per discord_id is kept (the most recently
+    // created, by database ID). This matches the bulk-import format which also
+    // uses flat discord_id: name mappings. Sort by ID for deterministic output.
+    let mut names = names;
+    names.sort_by_key(|n| n.id());
     let yaml_map: BTreeMap<u64, String> = names
         .into_iter()
         .map(|n| (n.discord_id(), n.name().to_string()))
