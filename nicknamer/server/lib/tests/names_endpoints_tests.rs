@@ -2280,12 +2280,18 @@ pub mod api {
                 .await
                 .unwrap();
             let body_text = std::str::from_utf8(&body).unwrap();
-            let parsed: std::collections::BTreeMap<u64, String> =
-                serde_yaml::from_str(body_text).expect("Should be valid YAML");
+            let parsed: std::collections::BTreeMap<
+                String,
+                std::collections::BTreeMap<u64, String>,
+            > = serde_yaml::from_str(body_text).expect("Should be valid YAML");
 
-            assert_eq!(parsed.len(), 2);
-            assert_eq!(parsed.get(&123456789), Some(&"TestUser1".to_string()));
-            assert_eq!(parsed.get(&987654321), Some(&"TestUser2".to_string()));
+            assert_eq!(parsed.len(), 1);
+            let server = parsed
+                .get("test-server-1")
+                .expect("test-server-1 key missing");
+            assert_eq!(server.len(), 2);
+            assert_eq!(server.get(&123456789), Some(&"TestUser1".to_string()));
+            assert_eq!(server.get(&987654321), Some(&"TestUser2".to_string()));
         }
 
         #[tokio::test]
@@ -2310,16 +2316,19 @@ pub mod api {
                 .await
                 .unwrap();
             let body_text = std::str::from_utf8(&body).unwrap();
-            let parsed: std::collections::BTreeMap<u64, String> =
-                serde_yaml::from_str(body_text).expect("Should be valid YAML");
+            let parsed: std::collections::BTreeMap<
+                String,
+                std::collections::BTreeMap<u64, String>,
+            > = serde_yaml::from_str(body_text).expect("Should be valid YAML");
 
-            // Should only contain server1 names
-            assert_eq!(parsed.len(), 2);
-            assert_eq!(parsed.get(&123456789), Some(&"Alice".to_string()));
-            assert_eq!(parsed.get(&987654321), Some(&"Bob".to_string()));
-            // Should NOT contain server2 names
-            assert!(!parsed.contains_key(&555666777));
-            assert!(!parsed.contains_key(&444333222));
+            // Should only contain server1
+            assert_eq!(parsed.len(), 1);
+            let server1 = parsed.get("server1").expect("server1 key missing");
+            assert_eq!(server1.len(), 2);
+            assert_eq!(server1.get(&123456789), Some(&"Alice".to_string()));
+            assert_eq!(server1.get(&987654321), Some(&"Bob".to_string()));
+            // Should NOT contain server2
+            assert!(!parsed.contains_key("server2"));
         }
 
         #[tokio::test]
@@ -2347,8 +2356,10 @@ pub mod api {
                 .await
                 .unwrap();
             let body_text = std::str::from_utf8(&body).unwrap();
-            let parsed: std::collections::BTreeMap<u64, String> =
-                serde_yaml::from_str(body_text).expect("Should be valid YAML");
+            let parsed: std::collections::BTreeMap<
+                String,
+                std::collections::BTreeMap<u64, String>,
+            > = serde_yaml::from_str(body_text).expect("Should be valid YAML");
 
             assert!(parsed.is_empty());
         }
@@ -2391,12 +2402,16 @@ async fn can_export_names_as_yaml_via_web() {
         .await
         .unwrap();
     let body_text = std::str::from_utf8(&body).unwrap();
-    let parsed: std::collections::BTreeMap<u64, String> =
+    let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(body_text).expect("Should be valid YAML");
 
-    assert_eq!(parsed.len(), 2);
-    assert_eq!(parsed.get(&123456789), Some(&"TestUser1".to_string()));
-    assert_eq!(parsed.get(&987654321), Some(&"TestUser2".to_string()));
+    assert_eq!(parsed.len(), 1);
+    let server = parsed
+        .get("test-server-1")
+        .expect("test-server-1 key missing");
+    assert_eq!(server.len(), 2);
+    assert_eq!(server.get(&123456789), Some(&"TestUser1".to_string()));
+    assert_eq!(server.get(&987654321), Some(&"TestUser2".to_string()));
 }
 
 #[tokio::test]
