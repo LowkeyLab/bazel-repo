@@ -1098,6 +1098,7 @@ async fn can_export_names_as_yaml() {
     let state = setup().await.expect("Failed to setup test context");
     let name_service = NameService::new(&state.db);
 
+    // Same discord_id (111) in both servers to verify no collision
     name_service
         .create_name(111, "Alice".to_string(), "server1".to_string())
         .await
@@ -1106,22 +1107,37 @@ async fn can_export_names_as_yaml() {
         .create_name(222, "Bob".to_string(), "server1".to_string())
         .await
         .expect("Failed to create name");
+    name_service
+        .create_name(111, "AliceOther".to_string(), "server2".to_string())
+        .await
+        .expect("Failed to create name");
 
     let names = name_service
         .get_all_names()
         .await
         .expect("Failed to get names");
-    let yaml_map: std::collections::BTreeMap<u64, String> = names
-        .into_iter()
-        .map(|n| (n.discord_id(), n.name().to_string()))
-        .collect();
+    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
+        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
+            std::collections::BTreeMap::new();
+        for n in names {
+            map.entry(n.server_id().to_string())
+                .or_default()
+                .insert(n.discord_id(), n.name().to_string());
+        }
+        map
+    };
     let yaml = serde_yaml::to_string(&yaml_map).expect("Failed to serialize");
 
-    let parsed: std::collections::BTreeMap<u64, String> =
+    let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(&yaml).expect("Failed to parse YAML");
     assert_eq!(parsed.len(), 2);
-    assert_eq!(parsed.get(&111), Some(&"Alice".to_string()));
-    assert_eq!(parsed.get(&222), Some(&"Bob".to_string()));
+    let server1 = parsed.get("server1").expect("server1 key missing");
+    assert_eq!(server1.len(), 2);
+    assert_eq!(server1.get(&111), Some(&"Alice".to_string()));
+    assert_eq!(server1.get(&222), Some(&"Bob".to_string()));
+    let server2 = parsed.get("server2").expect("server2 key missing");
+    assert_eq!(server2.len(), 1);
+    assert_eq!(server2.get(&111), Some(&"AliceOther".to_string()));
 }
 
 #[tokio::test]
@@ -1142,17 +1158,25 @@ async fn can_export_names_filtered_by_server() {
         .get_names_by_server("server1")
         .await
         .expect("Failed to get names");
-    let yaml_map: std::collections::BTreeMap<u64, String> = names
-        .into_iter()
-        .map(|n| (n.discord_id(), n.name().to_string()))
-        .collect();
+    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
+        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
+            std::collections::BTreeMap::new();
+        for n in names {
+            map.entry(n.server_id().to_string())
+                .or_default()
+                .insert(n.discord_id(), n.name().to_string());
+        }
+        map
+    };
     let yaml = serde_yaml::to_string(&yaml_map).expect("Failed to serialize");
 
-    let parsed: std::collections::BTreeMap<u64, String> =
+    let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(&yaml).expect("Failed to parse YAML");
     assert_eq!(parsed.len(), 1);
-    assert_eq!(parsed.get(&111), Some(&"Alice".to_string()));
-    assert!(!parsed.contains_key(&222));
+    let server1 = parsed.get("server1").expect("server1 key missing");
+    assert_eq!(server1.len(), 1);
+    assert_eq!(server1.get(&111), Some(&"Alice".to_string()));
+    assert!(!parsed.contains_key("server2"));
 }
 
 #[tokio::test]
@@ -1164,13 +1188,19 @@ async fn can_export_empty_names_as_yaml() {
         .get_all_names()
         .await
         .expect("Failed to get names");
-    let yaml_map: std::collections::BTreeMap<u64, String> = names
-        .into_iter()
-        .map(|n| (n.discord_id(), n.name().to_string()))
-        .collect();
+    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
+        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
+            std::collections::BTreeMap::new();
+        for n in names {
+            map.entry(n.server_id().to_string())
+                .or_default()
+                .insert(n.discord_id(), n.name().to_string());
+        }
+        map
+    };
     let yaml = serde_yaml::to_string(&yaml_map).expect("Failed to serialize");
 
-    let parsed: std::collections::BTreeMap<u64, String> =
+    let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(&yaml).expect("Failed to parse YAML");
     assert!(parsed.is_empty());
 }

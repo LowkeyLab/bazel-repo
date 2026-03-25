@@ -493,16 +493,16 @@ async fn export_names_handler(
     let name_service = NameService::new(&state.db);
     let names = name_service.get_all_names().await?;
 
-    // NOTE: If the same discord_id exists across multiple servers, only one entry
-    // per discord_id is kept (the most recently created, by database ID). This
-    // matches the bulk-import format which also uses flat discord_id: name mappings.
-    // Sort by ID for deterministic output.
-    let mut names = names;
-    names.sort_by_key(|n| n.id());
-    let yaml_map: std::collections::BTreeMap<u64, String> = names
-        .into_iter()
-        .map(|n| (n.discord_id(), n.name().to_string()))
-        .collect();
+    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
+        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
+            std::collections::BTreeMap::new();
+        for n in names {
+            map.entry(n.server_id().to_string())
+                .or_default()
+                .insert(n.discord_id(), n.name().to_string());
+        }
+        map
+    };
 
     let yaml =
         serde_yaml::to_string(&yaml_map).map_err(|e| NameError::Serialization(e.to_string()))?;

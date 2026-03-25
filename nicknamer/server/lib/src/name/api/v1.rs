@@ -235,7 +235,7 @@ pub async fn update_name_by_discord_server_handler(
         ("server_id" = Option<String>, Query, description = "Optional server ID to filter names by")
     ),
     responses(
-        (status = 200, description = "YAML file with discord_id: name mappings", content_type = "application/x-yaml"),
+        (status = 200, description = "YAML file with server_id -> discord_id: name mappings", content_type = "application/x-yaml"),
         (status = 500, description = "Internal server error", body = ServerErrorResponse)
     ),
     tag = "Names"
@@ -260,16 +260,15 @@ pub async fn export_names_handler(
         )
     })?;
 
-    // NOTE: If the same discord_id exists across multiple servers and no server_id
-    // filter is applied, only one entry per discord_id is kept (the most recently
-    // created, by database ID). This matches the bulk-import format which also
-    // uses flat discord_id: name mappings. Sort by ID for deterministic output.
-    let mut names = names;
-    names.sort_by_key(|n| n.id());
-    let yaml_map: BTreeMap<u64, String> = names
-        .into_iter()
-        .map(|n| (n.discord_id(), n.name().to_string()))
-        .collect();
+    let yaml_map: BTreeMap<String, BTreeMap<u64, String>> = {
+        let mut map: BTreeMap<String, BTreeMap<u64, String>> = BTreeMap::new();
+        for n in names {
+            map.entry(n.server_id().to_string())
+                .or_default()
+                .insert(n.discord_id(), n.name().to_string());
+        }
+        map
+    };
 
     let yaml = serde_yaml::to_string(&yaml_map).map_err(|err| {
         tracing::error!("Failed to serialize names to YAML: {}", err);
