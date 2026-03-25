@@ -2247,7 +2247,7 @@ pub mod api {
         #[tokio::test]
         async fn can_export_names_as_yaml_via_api() {
             let state = setup().await.expect("Failed to setup test context");
-            create_test_names(&state.db).await;
+            create_test_names_multiple_servers(&state.db).await;
 
             let name_state = create_name_state(state.db);
             let app = create_api_router(name_state);
@@ -2275,7 +2275,7 @@ pub mod api {
                     .contains("names.yaml")
             );
 
-            // Verify YAML body
+            // Verify YAML body contains both servers
             let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
@@ -2285,13 +2285,15 @@ pub mod api {
                 std::collections::BTreeMap<u64, String>,
             > = serde_yaml::from_str(body_text).expect("Should be valid YAML");
 
-            assert_eq!(parsed.len(), 1);
-            let server = parsed
-                .get("test-server-1")
-                .expect("test-server-1 key missing");
-            assert_eq!(server.len(), 2);
-            assert_eq!(server.get(&123456789), Some(&"TestUser1".to_string()));
-            assert_eq!(server.get(&987654321), Some(&"TestUser2".to_string()));
+            assert_eq!(parsed.len(), 2);
+            let server1 = parsed.get("server1").expect("server1 key missing");
+            assert_eq!(server1.len(), 2);
+            assert_eq!(server1.get(&123456789), Some(&"Alice".to_string()));
+            assert_eq!(server1.get(&987654321), Some(&"Bob".to_string()));
+            let server2 = parsed.get("server2").expect("server2 key missing");
+            assert_eq!(server2.len(), 2);
+            assert_eq!(server2.get(&555666777), Some(&"Charlie".to_string()));
+            assert_eq!(server2.get(&444333222), Some(&"David".to_string()));
         }
 
         #[tokio::test]
@@ -2369,7 +2371,7 @@ pub mod api {
 #[tokio::test]
 async fn can_export_names_as_yaml_via_web() {
     let state = setup().await.expect("Failed to setup test context");
-    create_test_names(&state.db).await;
+    create_test_names_multiple_servers(&state.db).await;
 
     let name_state = create_name_state(state.db);
     let app = create_name_router(name_state);
@@ -2397,7 +2399,7 @@ async fn can_export_names_as_yaml_via_web() {
             .contains("names.yaml")
     );
 
-    // Verify YAML body
+    // Verify YAML body contains both servers
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -2405,13 +2407,15 @@ async fn can_export_names_as_yaml_via_web() {
     let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(body_text).expect("Should be valid YAML");
 
-    assert_eq!(parsed.len(), 1);
-    let server = parsed
-        .get("test-server-1")
-        .expect("test-server-1 key missing");
-    assert_eq!(server.len(), 2);
-    assert_eq!(server.get(&123456789), Some(&"TestUser1".to_string()));
-    assert_eq!(server.get(&987654321), Some(&"TestUser2".to_string()));
+    assert_eq!(parsed.len(), 2);
+    let server1 = parsed.get("server1").expect("server1 key missing");
+    assert_eq!(server1.len(), 2);
+    assert_eq!(server1.get(&123456789), Some(&"Alice".to_string()));
+    assert_eq!(server1.get(&987654321), Some(&"Bob".to_string()));
+    let server2 = parsed.get("server2").expect("server2 key missing");
+    assert_eq!(server2.len(), 2);
+    assert_eq!(server2.get(&555666777), Some(&"Charlie".to_string()));
+    assert_eq!(server2.get(&444333222), Some(&"David".to_string()));
 }
 
 #[tokio::test]
