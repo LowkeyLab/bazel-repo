@@ -102,7 +102,7 @@ export class BatchAddNamesComponent {
       if (typeof value !== 'string' || value.trim() === '') {
         throw new Error(`Entry '${key}': missing or invalid name`);
       }
-      return { discordId: key, name: value };
+      return { discordId: key, name: value.trim() };
     });
   }
 
