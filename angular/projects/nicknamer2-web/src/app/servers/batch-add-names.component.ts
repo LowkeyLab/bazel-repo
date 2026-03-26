@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { load } from 'js-yaml';
+import { FAILSAFE_SCHEMA, load } from 'js-yaml';
 import { CreateNamesGQL } from '../../generated/graphql';
 
 interface NameEntry {
@@ -34,13 +34,13 @@ interface NameEntry {
 
       <form (ngSubmit)="onSubmit()" data-testid="batch-form">
         <label class="form-control mb-4">
-          <span class="label-text mb-1">Paste YAML (one entry per item)</span>
+          <span class="label-text mb-1">Paste YAML (discord ID: name)</span>
           <textarea
             class="textarea textarea-bordered font-mono h-64 w-full max-w-2xl"
             [ngModel]="yamlInput()"
             (ngModelChange)="yamlInput.set($event)"
             name="yamlInput"
-            placeholder='- discordId: "123456789012345678"&#10;  name: Alice&#10;- discordId: "987654321098765432"&#10;  name: Bob'
+            placeholder="123456789012345678: Alice&#10;987654321098765432: Bob"
             data-testid="yaml-input"
           ></textarea>
         </label>
@@ -83,27 +83,26 @@ export class BatchAddNamesComponent {
   protected readonly successCount = signal<number | null>(null);
 
   private parseYaml(raw: string): NameEntry[] {
-    const parsed = load(raw);
-    if (!Array.isArray(parsed)) {
-      throw new Error('YAML must be a list of entries');
+    const parsed = load(raw, { schema: FAILSAFE_SCHEMA });
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
+      throw new Error('YAML must be a mapping of discord IDs to names');
     }
-    return parsed.map((item: unknown, i: number) => {
-      if (typeof item !== 'object' || item === null) {
-        throw new Error(`Entry ${i + 1}: must be an object`);
-      }
-      const obj = item as Record<string, unknown>;
-      if (typeof obj['discordId'] === 'number') {
+    const map = parsed as Record<string, unknown>;
+    const entries = Object.entries(map);
+    return entries.map(([key, value]) => {
+      if (!/^\d+$/.test(key)) {
         throw new Error(
-          `Entry ${i + 1}: discordId must be a quoted string to avoid precision loss`,
+          `Entry '${key}': invalid Discord ID (must be a number)`,
         );
       }
-      if (typeof obj['discordId'] !== 'string') {
-        throw new Error(`Entry ${i + 1}: missing or invalid discordId`);
+      if (typeof value !== 'string' || value.trim() === '') {
+        throw new Error(`Entry '${key}': missing or invalid name`);
       }
-      if (typeof obj['name'] !== 'string') {
-        throw new Error(`Entry ${i + 1}: missing or invalid name`);
-      }
-      return { discordId: String(obj['discordId']), name: String(obj['name']) };
+      return { discordId: key, name: value.trim() };
     });
   }
 

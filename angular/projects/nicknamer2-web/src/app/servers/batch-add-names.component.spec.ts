@@ -35,7 +35,7 @@ describe('BatchAddNamesComponent', () => {
       fixture.detectChanges();
 
       component['yamlInput'].set(
-        '- discordId: "123456789012345678"\n  name: Alice\n- discordId: "987654321098765432"\n  name: Bob',
+        '123456789012345678: Alice\n987654321098765432: Bob',
       );
       fixture.detectChanges();
 
@@ -91,7 +91,7 @@ describe('BatchAddNamesComponent', () => {
     });
   });
 
-  describe('YAML parsing — not an array', () => {
+  describe('YAML parsing — not a map', () => {
     it('should show error when YAML is a plain string', () => {
       fixture.detectChanges();
 
@@ -101,90 +101,69 @@ describe('BatchAddNamesComponent', () => {
       component['onSubmit']();
       fixture.detectChanges();
 
-      expect(component['error']()).toBe('YAML must be a list of entries');
+      expect(component['error']()).toBe(
+        'YAML must be a mapping of discord IDs to names',
+      );
     });
 
-    it('should show error when YAML is an object', () => {
+    it('should show error when YAML is an array', () => {
       fixture.detectChanges();
 
-      component['yamlInput'].set('discordId: "123"\nname: Alice');
-      fixture.detectChanges();
-
-      component['onSubmit']();
-      fixture.detectChanges();
-
-      expect(component['error']()).toBe('YAML must be a list of entries');
-    });
-  });
-
-  describe('YAML parsing — missing discordId', () => {
-    it('should show error when entry is missing discordId', () => {
-      fixture.detectChanges();
-
-      component['yamlInput'].set('- name: Alice');
+      component['yamlInput'].set('- discordId: "123"\n  name: Alice');
       fixture.detectChanges();
 
       component['onSubmit']();
       fixture.detectChanges();
 
       expect(component['error']()).toBe(
-        'Entry 1: missing or invalid discordId',
-      );
-
-      const errorDiv = fixture.nativeElement.querySelector(
-        '[data-testid="batch-error"]',
-      );
-      expect(errorDiv).toBeTruthy();
-      expect(errorDiv.textContent).toContain(
-        'Entry 1: missing or invalid discordId',
+        'YAML must be a mapping of discord IDs to names',
       );
     });
   });
 
-  describe('YAML parsing — missing name', () => {
-    it('should show error when entry is missing name', () => {
+  describe('YAML parsing — invalid discord ID key', () => {
+    it('should show error when key is not a number', () => {
       fixture.detectChanges();
 
-      component['yamlInput'].set('- discordId: "123456789012345678"');
-      fixture.detectChanges();
-
-      component['onSubmit']();
-      fixture.detectChanges();
-
-      expect(component['error']()).toBe('Entry 1: missing or invalid name');
-    });
-  });
-
-  describe('YAML parsing — numeric discordId rejected', () => {
-    it('should show precision loss error when discordId is an unquoted number', () => {
-      fixture.detectChanges();
-
-      // Unquoted large number — js-yaml parses this as a JS number
-      component['yamlInput'].set(
-        '- discordId: 123456789012345678\n  name: Alice',
-      );
+      component['yamlInput'].set('not-a-number: Alice');
       fixture.detectChanges();
 
       component['onSubmit']();
       fixture.detectChanges();
 
       expect(component['error']()).toBe(
-        'Entry 1: discordId must be a quoted string to avoid precision loss',
+        "Entry 'not-a-number': invalid Discord ID (must be a number)",
       );
 
       const errorDiv = fixture.nativeElement.querySelector(
         '[data-testid="batch-error"]',
       );
       expect(errorDiv).toBeTruthy();
-      expect(errorDiv.textContent).toContain('precision loss');
+      expect(errorDiv.textContent).toContain('invalid Discord ID');
     });
   });
 
-  describe('YAML parsing — empty array', () => {
-    it('should show error when YAML is an empty array', () => {
+  describe('YAML parsing — empty name value', () => {
+    it('should show error when value is empty', () => {
       fixture.detectChanges();
 
-      component['yamlInput'].set('[]');
+      component['yamlInput'].set('123456789012345678:');
+      fixture.detectChanges();
+
+      component['onSubmit']();
+      fixture.detectChanges();
+
+      expect(component['error']()).toBe(
+        "Entry '123456789012345678': missing or invalid name",
+      );
+    });
+  });
+
+  describe('YAML parsing — empty map', () => {
+    it('should show error when YAML is an empty map', () => {
+      fixture.detectChanges();
+
+      component['yamlInput'].set('{}');
       fixture.detectChanges();
 
       component['onSubmit']();
@@ -198,9 +177,7 @@ describe('BatchAddNamesComponent', () => {
     it('should show error message when mutation fails', async () => {
       fixture.detectChanges();
 
-      component['yamlInput'].set(
-        '- discordId: "123456789012345678"\n  name: Alice',
-      );
+      component['yamlInput'].set('123456789012345678: Alice');
       fixture.detectChanges();
 
       component['onSubmit']();
