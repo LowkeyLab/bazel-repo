@@ -18,6 +18,11 @@
 
 set -euo pipefail
 
+# When invoked via `bazel run`, change to the workspace root
+if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
+	cd "${BUILD_WORKSPACE_DIRECTORY}"
+fi
+
 TARGETS="${*:-//...}"
 REPORT_DIR="coverage-report"
 COMBINED_LCOV="coverage-report.lcov"
