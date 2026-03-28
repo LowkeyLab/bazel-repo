@@ -32,7 +32,8 @@ bazel run @pnpm -- --dir $PWD install
 
 ### Remote execution
 
-CI uses `--config=ci-remote` for remote build execution via BuildBuddy. To test locally:
+Remote build execution via BuildBuddy is configured but not yet enabled in CI due to GLIBC
+compatibility between the remote worker (Ubuntu 24.04) and CI runner. To test locally:
 
 ```bash
 bazel build //... --config=remote-linux
