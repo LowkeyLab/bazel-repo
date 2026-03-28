@@ -67,8 +67,8 @@ common:lint --aspects=//tools/lint:linters.bzl%clippy
 test --test_verbose_timeout_warnings
 
 # Coverage configuration
-# Usage: bazel coverage //... --config=coverage
-# Or run: tools/coverage/coverage.sh
+# Usage: bazel coverage //...
+# Or run: coverage (via bazel_env)
 coverage --combined_report=lcov
 coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindreadr[:/],^//predix[:/],^//cowsay[:/],^//angular[:/]"
 
