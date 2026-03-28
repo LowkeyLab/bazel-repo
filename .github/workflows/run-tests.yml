@@ -40,7 +40,7 @@ jobs:
           chmod +x /usr/local/bin/aspect
       - name: Run Bazel Lints
         run: |
-          aspect lint //...
+          aspect lint //... --config=ci-remote
       - name: Run Bazel tests
         run: |
-          aspect test //...
+          aspect test //... --config=ci-remote

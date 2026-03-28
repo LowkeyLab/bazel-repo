@@ -30,6 +30,15 @@ bazel run gazelle
 bazel run @pnpm -- --dir $PWD install
 ```
 
+### Remote execution
+
+CI uses `--config=ci-remote` for remote build execution via BuildBuddy. To test locally:
+
+```bash
+aspect build //... --config=remote-linux
+aspect test //... --config=remote-linux
+```
+
 ### After editing source files, always:
 
 1. `bazel run gazelle` — regenerates BUILD files (must run BEFORE format)
