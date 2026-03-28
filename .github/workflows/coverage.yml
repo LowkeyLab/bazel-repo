@@ -1,0 +1,54 @@
+name: Coverage
+permissions:
+  contents: read
+  pull-requests: write
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+env:
+  MISE_EXPERIMENTAL: true
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+        with:
+          bazelisk-cache: true
+          bazelrc: |
+            common --config=ci
+            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            test --test_env=XDG_CACHE_HOME
+      - name: Log in to Docker Hub
+        uses: docker/login-action@a0d57b8e43b6ef1cca20559d68cec2227e63fccd
+        with:
+          username: ${{ vars.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
+      - name: Install lcov
+        run: sudo apt-get install -y lcov
+      - name: Run Bazel Coverage
+        run: bazel coverage //...
+      - name: Generate HTML Report
+        run: |
+          COVERAGE_DAT="$(bazel info output_path)/_coverage/_coverage_report.dat"
+          if [ -f "${COVERAGE_DAT}" ]; then
+            cp "${COVERAGE_DAT}" coverage-report.lcov
+            genhtml coverage-report.lcov \
+              --output-directory coverage-report \
+              --title "bazel-repo Coverage" \
+              --legend \
+              --show-details \
+              --quiet
+          fi
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage-report/
+            coverage-report.lcov
+          retention-days: 30

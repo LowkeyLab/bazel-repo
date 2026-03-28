@@ -36,6 +36,22 @@ bazel run @pnpm -- --dir $PWD install
 2. `format` — formats all code
 3. `aspect build //...` — verify build
 
+### Coverage
+
+```bash
+# Run coverage for all targets
+bazel coverage //...
+
+# Run coverage for a specific service
+bazel coverage //nicknamer/...
+
+# Generate HTML report (requires lcov/genhtml)
+tools/coverage/coverage.sh
+
+# Coverage for a specific service with HTML report
+tools/coverage/coverage.sh //predix/...
+```
+
 ### Running a single test
 
 ```bash

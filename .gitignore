@@ -48,6 +48,8 @@ lerna-debug.log*
 
 # Generated files
 genhtml/
+coverage-report/
+coverage-report.lcov
 
 # User-specific files
 user.bazelrc
