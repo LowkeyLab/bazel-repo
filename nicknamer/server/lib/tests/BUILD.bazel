@@ -16,7 +16,10 @@ rust_test_suite(
         "test.init-dockerd": "true",
     },
     shared_srcs = glob(["common/**"]),
-    tags = ["requires-network"],
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
     deps = [
         "//nicknamer/migration/lib",
         "//nicknamer/server/lib",

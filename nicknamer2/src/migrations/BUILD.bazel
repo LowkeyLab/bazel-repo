@@ -17,7 +17,12 @@ rust_test(
         "//nicknamer2/migrations",  # keep
     ],
     crate = ":migrations",
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
     tags = [
+        "requires-docker",
         "requires-network",
     ],
     deps = [

@@ -41,6 +41,9 @@ jobs:
       - name: Run Bazel Lints
         run: |
           aspect lint //... --config=ci-remote
-      - name: Run Bazel tests
+      - name: Run Bazel tests (non-Docker)
         run: |
-          aspect test //... --config=ci-remote
+          aspect test //... --config=ci-remote --test_tag_filters=-requires-docker
+      - name: Run Bazel tests (Docker)
+        run: |
+          aspect test //... --config=ci-remote --test_tag_filters=requires-docker

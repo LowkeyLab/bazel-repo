@@ -20,6 +20,10 @@ go_test(
     timeout = "short",
     srcs = ["handlers_test.go"],
     embed = [":rest"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
     tags = [
         # keep
         "requires-docker",
@@ -41,6 +45,10 @@ go_test(
     timeout = "short",
     srcs = ["handlers_test.go"],
     embed = [":rest"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
     tags = [
         # keep
         "requires-docker",

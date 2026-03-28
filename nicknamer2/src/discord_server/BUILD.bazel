@@ -32,7 +32,14 @@ rust_test(
     name = "discord_server_repo_test",
     timeout = "short",
     crate = ":discord_server_repo",
-    tags = ["requires-network"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
     deps = [
         "//nicknamer2/src/migrations",
         "@crates//:testcontainers-modules",
@@ -56,7 +63,14 @@ rust_test(
     name = "discord_server_service_test",
     timeout = "short",
     crate = ":discord_server_service",
-    tags = ["requires-network"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
     deps = [
         "//nicknamer2/src/migrations",
         "@crates//:sqlx",

@@ -16,6 +16,10 @@ go_test(
     name = "contest_test",
     size = "small",
     srcs = ["contest_test.go"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
     tags = [
         # keep
         "requires-docker",
