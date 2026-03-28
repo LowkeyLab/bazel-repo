@@ -31,12 +31,9 @@ jobs:
         run: sudo apt-get install -y lcov
       - name: Run Coverage
         run: bazel run //tools/coverage -- //...
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-report
-          path: |
-            coverage-report/
-            coverage-report.lcov
-          retention-days: 30
+          files: coverage-report.lcov
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
