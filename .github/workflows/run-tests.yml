@@ -43,7 +43,7 @@ jobs:
           aspect lint //...
       - name: Run Bazel tests (non-Docker)
         run: |
-          aspect test //... --test_tag_filters=-requires-docker
+          bazel test //... --test_tag_filters=-requires-docker
       - name: Run Bazel tests (Docker)
         run: |
-          aspect test //... --test_tag_filters=requires-docker
+          bazel test //... --test_tag_filters=requires-docker
