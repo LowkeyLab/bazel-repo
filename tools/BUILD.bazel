@@ -47,6 +47,7 @@ bazel_env(
     tools = {
         "buildifier": "@buildifier_prebuilt//:buildifier",
         "jar": "$(JAVABASE)/bin/jar",
+        "coverage": "//tools/coverage",
         "format": "//tools/format:format",
         "java": "$(JAVA)",
         "node": "$(NODE_PATH)",
