@@ -20,7 +20,7 @@ jobs:
       targets: ${{ steps.query.outputs.targets }}
     steps:
       - uses: actions/checkout@v6
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
           bazelrc: |
@@ -40,7 +40,7 @@ jobs:
         target: ${{ fromJson(needs.discover.outputs.targets) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
           bazelrc: |
