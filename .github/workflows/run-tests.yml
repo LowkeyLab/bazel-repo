@@ -40,10 +40,10 @@ jobs:
           chmod +x /usr/local/bin/aspect
       - name: Run Bazel Lints
         run: |
-          aspect lint //... --config=ci-remote
+          aspect lint //...
       - name: Run Bazel tests (non-Docker)
         run: |
-          aspect test //... --config=ci-remote --test_tag_filters=-requires-docker
+          bazel test //... --config=ci-remote --test_tag_filters=-requires-docker
       - name: Run Bazel tests (Docker)
         run: |
-          aspect test //... --config=ci-remote --test_tag_filters=requires-docker
+          bazel test //... --config=ci-remote --test_tag_filters=requires-docker

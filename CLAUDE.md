@@ -35,9 +35,11 @@ bazel run @pnpm -- --dir $PWD install
 CI uses `--config=ci-remote` for remote build execution via BuildBuddy. To test locally:
 
 ```bash
-aspect build //... --config=remote-linux
-aspect test //... --config=remote-linux
+bazel build //... --config=remote-linux
+bazel test //... --config=remote-linux
 ```
+
+Note: Use `bazel` (not `aspect`) for remote execution — the Aspect CLI does not support `--config` flags.
 
 ### After editing source files, always:
 
