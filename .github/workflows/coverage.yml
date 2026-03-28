@@ -29,20 +29,8 @@ jobs:
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
       - name: Install lcov
         run: sudo apt-get install -y lcov
-      - name: Run Bazel Coverage
-        run: bazel coverage //...
-      - name: Generate HTML Report
-        run: |
-          COVERAGE_DAT="$(bazel info output_path)/_coverage/_coverage_report.dat"
-          if [ -f "${COVERAGE_DAT}" ]; then
-            cp "${COVERAGE_DAT}" coverage-report.lcov
-            genhtml coverage-report.lcov \
-              --output-directory coverage-report \
-              --title "bazel-repo Coverage" \
-              --legend \
-              --show-details \
-              --quiet
-          fi
+      - name: Run Coverage
+        run: bazel run //tools/coverage -- //...
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         if: always()
