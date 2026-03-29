@@ -24,7 +24,7 @@ jobs:
           bazelrc: |
             common --config=ci
             common:lint --config=ci-lint
-            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
       - name: Log in to Docker Hub
         uses: docker/login-action@a0d57b8e43b6ef1cca20559d68cec2227e63fccd
@@ -43,4 +43,4 @@ jobs:
           aspect lint //...
       - name: Run Bazel tests
         run: |
-          aspect test //...
+          bazel test //... --config=ci-remote

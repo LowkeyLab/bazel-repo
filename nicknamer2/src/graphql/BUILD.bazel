@@ -98,7 +98,14 @@ rust_test(
     name = "graphql_integration_test",
     timeout = "short",
     srcs = ["tests.rs"],
-    tags = ["requires-network"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
     deps = [
         ":graphql_relay",
         ":graphql_schema",

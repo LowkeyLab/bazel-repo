@@ -23,6 +23,10 @@ go_test(
         "memory_test.go",
         "postgres_test.go",
     ],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
     tags = [
         # keep
         "requires-docker",

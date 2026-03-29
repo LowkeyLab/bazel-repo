@@ -133,6 +133,10 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, sr
             # keep-sorted end
         ]
 
+    tags = []
+    if karma:
+        tags.append("no-remote")
+
     orig_ng_test(
         name = name,
         visibility = visibility,
@@ -141,6 +145,7 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, sr
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
         size = "small",
+        tags = tags,
     )
 
 ng_test = macro(

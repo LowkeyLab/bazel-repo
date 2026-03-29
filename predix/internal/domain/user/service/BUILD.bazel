@@ -17,6 +17,10 @@ go_test(
     timeout = "short",
     srcs = ["service_test.go"],
     embed = [":service"],
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
     tags = [
         # keep
         "requires-docker",

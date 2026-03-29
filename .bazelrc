@@ -19,6 +19,13 @@ common:remote-linux --config=remote
 common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
 common:remote-linux --jobs=50
+common:remote-linux --extra_toolchains=@buildbuddy_toolchain//:ubuntu_cc_toolchain
+common:remote-linux --host_platform=@toolchains_buildbuddy//platforms:linux_x86_64
+
+# CI remote execution config (combines remote-linux with CI tuning)
+common:ci-remote --config=remote-linux
+common:ci-remote --remote_timeout=3600
+common:ci-remote --incompatible_strict_action_env
 
 # For keep-sorted
 common --experimental_isolated_extension_usages
