@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "nix-ld": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1773650902,
+        "narHash": "sha256-UnIRWlac4n6Kv48IeJ5Atjv61cOY3/eC+W9AnrPF3vo=",
+        "owner": "Mic92",
+        "repo": "nix-ld",
+        "rev": "0e73836dc3d9811288050b9b1905cc653a5e52c5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Mic92",
+        "repo": "nix-ld",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1775095191,
+        "narHash": "sha256-CsqRiYbgQyv01LS0NlC7shwzhDhjNDQSrhBX8VuD3nM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "106eb93cbb9d4e4726bf6bc367a3114f7ed6b32f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nix-ld": "nix-ld",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
