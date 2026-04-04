@@ -56,3 +56,9 @@ user.bazelrc
 .env
 
 .worktrees/
+
+# Nix
+.direnv/
+.local/
+/result
+/result-*

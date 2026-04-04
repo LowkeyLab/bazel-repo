@@ -167,3 +167,25 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 - **ibazel**: incremental Bazel for hot reload (e.g., `ibazel run //personal_website:dev`)
 - **rust-analyzer**: regenerate project with `bazel run //:gen_rust_project`
 - **Renovate**: automated dependency updates
+
+## Nix Development Shell (Optional)
+
+The repo includes a Nix flake for reproducible dev tooling. This is optional — existing workflows work without Nix.
+
+> **Note:** The Nix dev shell is not CI-validated. If `flake.nix` breaks, it will only be caught by developers using Nix.
+
+### Prerequisites
+- [Nix](https://nixos.org/download/) with flakes enabled (`experimental-features = nix-command flakes` in `~/.config/nix/nix.conf`)
+- [direnv](https://direnv.net/) >= 2.29
+- **NixOS only:** `programs.nix-ld.enable = true` in your NixOS configuration (needed for bazelisk to run downloaded Bazel binaries)
+
+### Usage
+```bash
+direnv allow   # Automatically enters Nix dev shell + existing .envrc setup
+```
+
+This provides `bazelisk` and `pre-commit` via Nix. All other tools come from Bazel (`bazel run //tools:bazel_env`).
+
+### Performance
+
+The `.envrc` automatically sources [nix-direnv](https://github.com/nix-community/nix-direnv) 3.1.1 for cached flake evaluations. After the first `direnv allow`, subsequent shell entries are near-instant.
