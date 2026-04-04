@@ -59,5 +59,6 @@ user.bazelrc
 
 # Nix
 .direnv/
+.local/
 /result
 /result-*

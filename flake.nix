@@ -26,6 +26,7 @@
           default = pkgs.mkShell {
             packages = [
               pkgs.bazelisk
+              pkgs.gcc
               pkgs.pre-commit
             ];
 
