@@ -30,8 +30,8 @@
               pkgs.pre-commit
             ];
 
-            # NixOS: set NIX_LD so bazelisk can run downloaded Bazel binaries
-            # Requires `programs.nix-ld.enable = true` in NixOS configuration
+            # Linux: set NIX_LD so bazelisk can run downloaded Bazel binaries
+            # On NixOS, this additionally requires `programs.nix-ld.enable = true`
             env = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
               NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
               NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
