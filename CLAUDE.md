@@ -188,4 +188,4 @@ This provides `bazelisk` and `pre-commit` via Nix. All other tools come from Baz
 
 ### Performance
 
-If `direnv reload` feels slow, install [nix-direnv](https://github.com/nix-community/nix-direnv) for cached evaluations.
+The `.envrc` automatically sources [nix-direnv](https://github.com/nix-community/nix-direnv) 3.1.1 for cached flake evaluations. After the first `direnv allow`, subsequent shell entries are near-instant.
