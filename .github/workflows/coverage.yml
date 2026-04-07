@@ -26,7 +26,7 @@ jobs:
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
-      - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
+      - uses: browser-actions/setup-chrome@b82ad5d9e2916c124431a79b72e20138d46b05ba
       - name: Install lcov
         run: sudo apt-get install -y lcov
       - name: Run Coverage
