@@ -11,7 +11,7 @@ axum = "0.8.6"
 base64 = "0.22"
 axum-extra = { version = "0.12.0", features = ["cookie"] }
 chrono = "0.4.42"
-config = "0.15.18"
+config = "0.15.22"
 jsonwebtoken = { version = "10.0.0", features = ["aws_lc_rs"] }
 juniper = { version = "0.17.1", features = ["uuid", "chrono"] }
 juniper_axum = "0.3.0"
