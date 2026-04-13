@@ -3,39 +3,39 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: cargo
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: npm
     directory: /angular
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: npm
     directory: /personal_website
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: npm
     directory: /tools
     schedule:
-      interval: weekly
+      interval: daily
 
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
