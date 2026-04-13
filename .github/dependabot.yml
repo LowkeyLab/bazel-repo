@@ -35,6 +35,11 @@ updates:
     schedule:
       interval: daily
 
+  - package-ecosystem: bazel
+    directory: /
+    schedule:
+      interval: daily
+
   - package-ecosystem: docker
     directory: /
     schedule:
