@@ -39,7 +39,7 @@ sqlx = { version = "0.8", features = [
 serde_yaml = "0.9.34"
 thiserror = "2.0.17"
 time = "0.3.44"
-tokio = { version = "1.47.1", default-features = false, features = [
+tokio = { version = "1.51.1", default-features = false, features = [
   "macros",
   "net",
   "rt-multi-thread",
