@@ -1,0 +1,46 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /angular
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /personal_website
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /tools
+    schedule:
+      interval: daily
+
+  - package-ecosystem: bazel
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: daily
