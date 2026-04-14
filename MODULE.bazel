@@ -9,7 +9,7 @@ module(
 # Currently bazel-lib is only load()ed when platforms is used.
 bazel_dep(name = "bazel_lib", version = "3.2.2")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
-bazel_dep(name = "aspect_rules_lint", version = "2.3.0")
+bazel_dep(name = "aspect_rules_lint", version = "2.5.0")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.25.1")
 bazel_dep(name = "aspect_rules_js", version = "3.0.3")
 bazel_dep(name = "aspect_rules_swc", version = "2.7.1")
