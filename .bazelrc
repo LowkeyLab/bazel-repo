@@ -21,6 +21,7 @@ common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platform
 common:remote-linux --jobs=50
 common:remote-linux --extra_toolchains=@buildbuddy_toolchain//:ubuntu_cc_toolchain
 common:remote-linux --host_platform=@toolchains_buildbuddy//platforms:linux_x86_64
+test:remote-linux --test_tag_filters=-no-remote
 
 # CI remote execution config (combines remote-linux with CI tuning)
 common:ci-remote --config=remote-linux
@@ -79,6 +80,13 @@ test --test_verbose_timeout_warnings
 coverage --combined_report=lcov
 coverage --build_tests_only
 coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindreadr[:/],^//predix[:/],^//cowsay[:/],^//angular[:/]"
+
+# Coverage with remote execution: download toplevel outputs so coverage data
+# is available locally, and merge coverage reports with a local strategy
+coverage:remote-linux --remote_download_toplevel
+coverage:remote-linux --strategy=CoverageReport=local
+coverage:ci-remote --remote_download_toplevel
+coverage:ci-remote --strategy=CoverageReport=local
 
 # To output something for xargs
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress

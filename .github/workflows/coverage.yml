@@ -30,7 +30,7 @@ jobs:
       - name: Install lcov
         run: sudo apt-get install -y lcov
       - name: Run Coverage
-        run: bazel run //tools/coverage -- //...
+        run: bazel run //tools/coverage -- //... --config=ci-remote
       - name: Upload to Codecov
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
