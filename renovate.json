@@ -4,6 +4,7 @@
   "packageRules": [
     {
       "matchManagers": ["bazel"],
+      "matchDatasources": ["maven"],
       "postUpgradeTasks": {
         "commands": ["REPIN=1 bazel run @maven//:pin"],
         "fileFilters": ["maven_install.json"],
