@@ -9,6 +9,14 @@
         "fileFilters": ["maven_install.json"],
         "executionMode": "update"
       }
+    },
+    {
+      "matchManagers": ["cargo"],
+      "postUpgradeTasks": {
+        "commands": ["bazel mod deps --lockfile_mode=update"],
+        "fileFilters": ["MODULE.bazel.lock"],
+        "executionMode": "update"
+      }
     }
   ],
   "postUpdateOptions": ["gomodTidy"]
