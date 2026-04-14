@@ -169,55 +169,36 @@ use_repo(buf, "rules_buf_toolchains")
 # In the Maven support variation, the dependencies are conveniently listed here
 # in the MODULE.bazel file.
 
-# Version variables for JVM dependencies
-KTOR_VERSION = "3.3.3"
-
-KOTLIN_VERSION = "2.3.0"
-
-POSTGRES_VERSION = "42.7.8"
-
-H2_VERSION = "2.4.240"
-
-EXPOSED_VERSION = "0.61.0"
-
-LOGBACK_VERSION = "1.5.24"
-
-JSON_PATH_VERSION = "2.10.0"
-
-JUNIT_VERSION = "6.0.2"
-
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
-        "io.ktor:ktor-client-content-negotiation-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-client-websockets-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-serialization-kotlinx-json-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-call-id-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-call-logging-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-config-yaml-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-content-negotiation-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-core-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-di-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-host-common-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-netty-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-sessions-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-status-pages-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-thymeleaf-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-websockets-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-cors-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-call-id-jvm:%s" % KTOR_VERSION,
-        "io.ktor:ktor-server-call-logging-jvm:%s" % KTOR_VERSION,
+        # Ktor dependencies (using the -jvm artifact variants for Kotlin Multiplatform)
+        "io.ktor:ktor-client-content-negotiation-jvm:3.3.3",
+        "io.ktor:ktor-client-websockets-jvm:3.3.3",
+        "io.ktor:ktor-serialization-kotlinx-json-jvm:3.3.3",
+        "io.ktor:ktor-server-call-id-jvm:3.3.3",
+        "io.ktor:ktor-server-call-logging-jvm:3.3.3",
+        "io.ktor:ktor-server-config-yaml-jvm:3.3.3",
+        "io.ktor:ktor-server-content-negotiation-jvm:3.3.3",
+        "io.ktor:ktor-server-core-jvm:3.3.3",
+        "io.ktor:ktor-server-di-jvm:3.3.3",
+        "io.ktor:ktor-server-host-common-jvm:3.3.3",
+        "io.ktor:ktor-server-netty-jvm:3.3.3",
+        "io.ktor:ktor-server-sessions-jvm:3.3.3",
+        "io.ktor:ktor-server-status-pages-jvm:3.3.3",
+        "io.ktor:ktor-server-thymeleaf-jvm:3.3.3",
+        "io.ktor:ktor-server-websockets-jvm:3.3.3",
+        "io.ktor:ktor-server-cors-jvm:3.3.3",
         # Database dependencies
-        "com.h2database:h2:%s" % H2_VERSION,
-        "org.jetbrains.exposed:exposed-core:%s" % EXPOSED_VERSION,
-        "org.jetbrains.exposed:exposed-dao:%s" % EXPOSED_VERSION,
-        "org.jetbrains.exposed:exposed-jdbc:%s" % EXPOSED_VERSION,
-        "org.postgresql:postgresql:%s" % POSTGRES_VERSION,
+        "com.h2database:h2:2.4.240",
+        "org.jetbrains.exposed:exposed-core:0.61.0",
+        "org.jetbrains.exposed:exposed-dao:0.61.0",
+        "org.jetbrains.exposed:exposed-jdbc:0.61.0",
+        "org.postgresql:postgresql:42.7.8",
         # Logging
-        "ch.qos.logback:logback-classic:%s" % LOGBACK_VERSION,
+        "ch.qos.logback:logback-classic:1.5.24",
         # JSON Path
-        "com.jayway.jsonpath:json-path:%s" % JSON_PATH_VERSION,
+        "com.jayway.jsonpath:json-path:2.10.0",
     ],
     fetch_javadoc = True,
     fetch_sources = True,
@@ -233,49 +214,49 @@ maven.artifact(
     testonly = True,
     artifact = "kotlin-test-junit",
     group = "org.jetbrains.kotlin",
-    version = KOTLIN_VERSION,
+    version = "2.3.0",
 )
 maven.artifact(
     testonly = True,
     artifact = "kotlin-test-junit5",
     group = "org.jetbrains.kotlin",
-    version = KOTLIN_VERSION,
+    version = "2.3.0",
 )
 maven.artifact(
     testonly = True,
     artifact = "junit-jupiter-api",
     group = "org.junit.jupiter",
-    version = JUNIT_VERSION,
+    version = "6.0.2",
 )
 maven.artifact(
     testonly = True,
     artifact = "junit-jupiter-engine",
     group = "org.junit.jupiter",
-    version = JUNIT_VERSION,
+    version = "6.0.2",
 )
 maven.artifact(
     testonly = True,
     artifact = "junit-jupiter-params",
     group = "org.junit.jupiter",
-    version = JUNIT_VERSION,
+    version = "6.0.2",
 )
 maven.artifact(
     testonly = True,
     artifact = "junit-platform-console",
     group = "org.junit.platform",
-    version = JUNIT_VERSION,
+    version = "6.0.2",
 )
 maven.artifact(
     testonly = True,
     artifact = "junit-jupiter",
     group = "org.junit.jupiter",
-    version = JUNIT_VERSION,
+    version = "6.0.2",
 )
 maven.artifact(
     testonly = True,
     artifact = "ktor-server-test-host-jvm",
     group = "io.ktor",
-    version = KTOR_VERSION,
+    version = "3.3.3",
 )
 maven.artifact(
     artifact = "gson",
