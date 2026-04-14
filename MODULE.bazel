@@ -293,7 +293,7 @@ maven.artifact(
     artifact = "guava",
     force_version = True,
     group = "com.google.guava",
-    version = "33.5.0-jre",
+    version = "33.6.0-jre",
 )
 use_repo(maven, "maven")
 
