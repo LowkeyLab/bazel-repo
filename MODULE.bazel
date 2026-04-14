@@ -172,7 +172,7 @@ use_repo(buf, "rules_buf_toolchains")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        # Ktor dependencies (using -jvm classifier for Kotlin Multiplatform)
+        # Ktor dependencies (using the -jvm artifact variants for Kotlin Multiplatform)
         "io.ktor:ktor-client-content-negotiation-jvm:3.3.3",
         "io.ktor:ktor-client-websockets-jvm:3.3.3",
         "io.ktor:ktor-serialization-kotlinx-json-jvm:3.3.3",
