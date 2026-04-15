@@ -90,6 +90,9 @@ catalogs:
     '@types/node':
       specifier: ^24.10.3
       version: 24.12.2
+    '@typescript-eslint/parser':
+      specifier: ^8.29.0
+      version: 8.58.2
     '@wry/caches':
       specifier: ^1.0.1
       version: 1.0.1
@@ -180,9 +183,6 @@ catalogs:
     sharp:
       specifier: ^0.34.2
       version: 0.34.5
-    stylelint:
-      specifier: ^17.0.0
-      version: 17.7.0
     tailwindcss:
       specifier: ^4.1.17
       version: 4.2.2
@@ -195,6 +195,9 @@ catalogs:
     typescript:
       specifier: ~6.0.0
       version: 6.0.2
+    typescript-eslint:
+      specifier: ^8.49.0
+      version: 8.58.2
     vite:
       specifier: ^8.0.0
       version: 8.0.8
@@ -239,7 +242,7 @@ importers:
         version: 3.8.3
       stylelint:
         specifier: 'catalog:'
-        version: 17.7.0(typescript@6.0.2)
+        version: 17.8.0(typescript@6.0.2)
       tsconfig-to-swcconfig:
         specifier: 'catalog:'
         version: 2.8.1
@@ -5958,8 +5961,8 @@ packages:
     resolution: {integrity: sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w==}
     engines: {node: '>=12'}
 
-  stylelint@17.7.0:
-    resolution: {integrity: sha512-n/+4RheCRl+cecGnF+S/Adz59iCRaK9BVznJYB+a7GOksfwNzjiOPnYv17pTO0HgRse9IiqbMtekGNhOb2tVYQ==}
+  stylelint@17.8.0:
+    resolution: {integrity: sha512-oHkld9T60LDSaUQ4CSVc+tlt9eUoDlxhaGWShsUCKyIL14boZfmK5bSphZqx64aiC5tCqX+BsQMTMoSz8D1zIg==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -12984,7 +12987,7 @@ snapshots:
     dependencies:
       ansi-regex: 6.2.2
 
-  stylelint@17.7.0(typescript@6.0.2):
+  stylelint@17.8.0(typescript@6.0.2):
     dependencies:
       '@csstools/css-calc': 3.2.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
