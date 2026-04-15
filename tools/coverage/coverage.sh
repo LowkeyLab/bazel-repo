@@ -23,13 +23,17 @@ if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
 	cd "${BUILD_WORKSPACE_DIRECTORY}"
 fi
 
-TARGETS="${*:-//...}"
+if [ $# -eq 0 ]; then
+	ARGS=("//...")
+else
+	ARGS=("$@")
+fi
 REPORT_DIR="coverage-report"
 COMBINED_LCOV="coverage-report.lcov"
 COVERAGE_DAT="$(bazel info output_path)/_coverage/_coverage_report.dat"
 
-echo "==> Running bazel coverage for: ${TARGETS}"
-bazel coverage "${TARGETS}" 2>&1
+echo "==> Running bazel coverage for: ${ARGS[*]}"
+bazel coverage "${ARGS[@]}" 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then
 	echo "ERROR: Combined coverage report not found at ${COVERAGE_DAT}"
