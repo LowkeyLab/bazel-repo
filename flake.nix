@@ -73,8 +73,9 @@
                 pkgs.nss
                 pkgs.nspr
               ];
-              # Point agent-browser at Nix-provided Chromium
-              CHROME_PATH = "${pkgs.chromium}/bin/chromium";
+              # Point agent-browser at Nix-provided Chromium (Linux-only;
+              # on Darwin, agent-browser auto-detects Chrome from /Applications)
+              CHROME_PATH = pkgs.lib.getExe pkgs.chromium;
             };
           };
         }
