@@ -36,7 +36,7 @@
     "org.junit.jupiter:junit-jupiter-engine": 448698649,
     "org.junit.jupiter:junit-jupiter-params": 670022237,
     "org.junit.platform:junit-platform-console": -839067120,
-    "org.postgresql:postgresql": -102491637,
+    "org.postgresql:postgresql": -155897584,
     "repositories": 65937588
   },
   "__RESOLVED_ARTIFACTS_HASH": {
@@ -284,9 +284,9 @@
     "org.attoparser:attoparser": 784153812,
     "org.attoparser:attoparser:jar:javadoc": 755948575,
     "org.attoparser:attoparser:jar:sources": -745600142,
-    "org.checkerframework:checker-qual": 1860567376,
-    "org.checkerframework:checker-qual:jar:javadoc": 479621567,
-    "org.checkerframework:checker-qual:jar:sources": -1118620439,
+    "org.checkerframework:checker-qual": -1286069869,
+    "org.checkerframework:checker-qual:jar:javadoc": -1081465188,
+    "org.checkerframework:checker-qual:jar:sources": 1329524901,
     "org.eclipse.jetty.alpn:alpn-api": -1911847709,
     "org.eclipse.jetty.alpn:alpn-api:jar:javadoc": 844777982,
     "org.eclipse.jetty.alpn:alpn-api:jar:sources": 2120202618,
@@ -398,9 +398,9 @@
     "org.ow2.asm:asm": -1101379267,
     "org.ow2.asm:asm:jar:javadoc": -1828579052,
     "org.ow2.asm:asm:jar:sources": -1707020066,
-    "org.postgresql:postgresql": -65557181,
-    "org.postgresql:postgresql:jar:javadoc": -448680906,
-    "org.postgresql:postgresql:jar:sources": -398495755,
+    "org.postgresql:postgresql": 2077473025,
+    "org.postgresql:postgresql:jar:javadoc": 261636006,
+    "org.postgresql:postgresql:jar:sources": 115218962,
     "org.slf4j:slf4j-api": -1521593912,
     "org.slf4j:slf4j-api:jar:javadoc": 469507244,
     "org.slf4j:slf4j-api:jar:sources": -1050183387,
@@ -1071,11 +1071,11 @@
     },
     "org.checkerframework:checker-qual": {
       "shasums": {
-        "jar": "508c83c62c344f6f7ee28f47b88a8797d6116d043bfd1ca0576c828dd1df2880",
-        "javadoc": "20147311d4949bd43dea1f394d272fc99adb0ffa104d8bb1690d6e6ff89f371d",
-        "sources": "7a5b44b1fcad095b5677ab31819cbd82aa3579a7bec9ddf4f21a3571a117b5ff"
+        "jar": "0b5bb1a4bdc4e4b1217482fe598efcaab4e1fba7b37f9412639178fc8116fc05",
+        "javadoc": "c3b4ff7d71a646d3ebcc17a6b3ef08f2fdbc942d5c96947f850bc8461e94f49e",
+        "sources": "fbc4bee8d87f7812d5df2175f5afc247091e3bdf1d641768e91bfe8837539741"
       },
-      "version": "3.49.5"
+      "version": "3.52.0"
     },
     "org.eclipse.jetty.alpn:alpn-api": {
       "shasums": {
@@ -1375,11 +1375,11 @@
     },
     "org.postgresql:postgresql": {
       "shasums": {
-        "jar": "2a32a9dcbc42d67a50ad3a0de5efd102c8d2be46720045f2cbd6689f160ab7c7",
-        "javadoc": "4773db21b98dc96ff452f5559fae2bb45e2112fd56220d7af84a7d895499c866",
-        "sources": "8087bf75602dc078b65953e11a7667e8a03611262a90edf0d31541c628c12bfa"
+        "jar": "cab1cd67cfa25c25de4348e532298028288a877ba01c77d1619fe45416193387",
+        "javadoc": "82d96d37c459c0d2786798dcc610ccf822d11f05be51e8490418fd9fa383adc3",
+        "sources": "67c81c4c33327a7da3b80d8f65c479cf70439f522de340f364c49f8482f7e1d3"
       },
-      "version": "42.7.8"
+      "version": "42.7.10"
     },
     "org.slf4j:slf4j-api": {
       "shasums": {
