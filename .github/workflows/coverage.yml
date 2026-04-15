@@ -29,8 +29,15 @@ jobs:
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
       - name: Install lcov
         run: sudo apt-get install -y lcov
-      - name: Run Coverage
+      - name: Run Coverage (remote)
         run: bazel run //tools/coverage -- //... --config=ci-remote
+      - name: Run Coverage (local-only tests)
+        run: |
+          bazel coverage //... --test_tag_filters=no-remote
+          LOCAL_DAT="$(bazel info output_path)/_coverage/_coverage_report.dat"
+          if [[ -f "$LOCAL_DAT" ]]; then
+            lcov --add-tracefile coverage-report.lcov --add-tracefile "$LOCAL_DAT" --output-file coverage-report.lcov
+          fi
       - name: Upload to Codecov
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
