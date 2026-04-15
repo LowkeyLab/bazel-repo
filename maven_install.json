@@ -27,7 +27,7 @@
     "io.ktor:ktor-server-thymeleaf-jvm": 758669479,
     "io.ktor:ktor-server-websockets-jvm": -392663200,
     "org.jetbrains.exposed:exposed-core": 1364925967,
-    "org.jetbrains.exposed:exposed-dao": 1246943660,
+    "org.jetbrains.exposed:exposed-dao": -23155958,
     "org.jetbrains.exposed:exposed-jdbc": 605992243,
     "org.jetbrains.kotlin:kotlin-test-junit": -702381876,
     "org.jetbrains.kotlin:kotlin-test-junit5": -1210406503,
@@ -290,15 +290,15 @@
     "org.javassist:javassist": -1460003306,
     "org.javassist:javassist:jar:javadoc": 1262034680,
     "org.javassist:javassist:jar:sources": 200392990,
-    "org.jetbrains.exposed:exposed-core": 606110500,
-    "org.jetbrains.exposed:exposed-core:jar:javadoc": 995947006,
-    "org.jetbrains.exposed:exposed-core:jar:sources": 150513449,
-    "org.jetbrains.exposed:exposed-dao": -633843284,
-    "org.jetbrains.exposed:exposed-dao:jar:javadoc": 1985841853,
-    "org.jetbrains.exposed:exposed-dao:jar:sources": -1683708915,
-    "org.jetbrains.exposed:exposed-jdbc": -1306758130,
-    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 1469608925,
-    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 780810394,
+    "org.jetbrains.exposed:exposed-core": 638117044,
+    "org.jetbrains.exposed:exposed-core:jar:javadoc": -304684644,
+    "org.jetbrains.exposed:exposed-core:jar:sources": 1372016958,
+    "org.jetbrains.exposed:exposed-dao": -1124263596,
+    "org.jetbrains.exposed:exposed-dao:jar:javadoc": -843574201,
+    "org.jetbrains.exposed:exposed-dao:jar:sources": -1864166864,
+    "org.jetbrains.exposed:exposed-jdbc": 1941209258,
+    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 837862559,
+    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 2093647314,
     "org.jetbrains.kotlin:kotlin-reflect": 1218130165,
     "org.jetbrains.kotlin:kotlin-reflect:jar:javadoc": -352830472,
     "org.jetbrains.kotlin:kotlin-reflect:jar:sources": -90386502,
@@ -332,6 +332,9 @@
     "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm": -1222134786,
     "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:jar:javadoc": -647897121,
     "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:jar:sources": -691470482,
+    "org.jetbrains.kotlinx:kotlinx-datetime-jvm": -1694734195,
+    "org.jetbrains.kotlinx:kotlinx-datetime-jvm:jar:javadoc": 890774462,
+    "org.jetbrains.kotlinx:kotlinx-datetime-jvm:jar:sources": -303460518,
     "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm": 1414274440,
     "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm:jar:javadoc": -1249281263,
     "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm:jar:sources": -550344809,
@@ -403,7 +406,9 @@
     "org.unbescape:unbescape:jar:sources": 1350857716
   },
   "conflict_resolution": {
-    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1"
+    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1",
+    "org.jetbrains.exposed:exposed-core:0.61.0": "org.jetbrains.exposed:exposed-core:1.2.0",
+    "org.jetbrains.exposed:exposed-jdbc:0.61.0": "org.jetbrains.exposed:exposed-jdbc:1.2.0"
   },
   "artifacts": {
     "ch.qos.logback:logback-classic": {
@@ -1078,27 +1083,27 @@
     },
     "org.jetbrains.exposed:exposed-core": {
       "shasums": {
-        "jar": "72fcfdf7508d19ff4f5d91ee0a174d45149f985f717a432c6e426defca431889",
-        "javadoc": "b40f9efdf2c616a8cd57464e22affbcb7f21408f86e7513a85c46b6ec0bf02d1",
-        "sources": "e477b3a9a7bdd542b0a4f5f684a0dcf5d7fd1300aaa5e55ce302ea44525f397c"
+        "jar": "df05d355e96e2d9617bd5532b60b1e2b1b47a28cb3f5ebca6c8958422e8d2a49",
+        "javadoc": "4465871dde125a69bfb12fda0a4dc2d84b778c4aebe81b8eb15f15877e0b8ffe",
+        "sources": "08f28515e22089958db358aa4ca80bd893e1bfb2c4e355988522e1621386b161"
       },
-      "version": "0.61.0"
+      "version": "1.2.0"
     },
     "org.jetbrains.exposed:exposed-dao": {
       "shasums": {
-        "jar": "d9b4ca9ff352a64796f7e1a79e34260a9922e7e35d3d8bd8c4a18a64adb39520",
-        "javadoc": "00f7c28975503610a74bebb096f68601bfb3308bd4c5920f8f8af6700e7daee8",
-        "sources": "4e23f2679789fa18728bfee8e1b28728d168aae74b80228ef821d2097921380c"
+        "jar": "123edee9a27bc9c180efe5b6f644d1e5bb1952e19e79b1b37b3a8e73d6e683e0",
+        "javadoc": "060e8ffb187c18e5f748a56caba7bf06469c2227360784e22febdd4845323a9e",
+        "sources": "ad3d6ff5a9167a2b0d3c59d743510a608317e5b7d2d3366d4b1ddcedad9f0f42"
       },
-      "version": "0.61.0"
+      "version": "1.2.0"
     },
     "org.jetbrains.exposed:exposed-jdbc": {
       "shasums": {
-        "jar": "ee2942be22886e7491ba8c14bc3803aaeddc7b2b41aaf5e2da4fa9fe62be0b5b",
-        "javadoc": "c7716956828eec7d828691d700089f03968914173934a3359ca755bfe9565349",
-        "sources": "be15c331fa2fcff0eb1fb5bd25a4b2a0aaafce708859a9322d6e12cf8eb50a40"
+        "jar": "bcbdb4fe6a37bec5b1cffdd4fea34aee169633dfe4bfcbdc6457b6294648a633",
+        "javadoc": "e9a9ac91ddcfc16c052d993b4032b85bf6136fe5d379359d09f4ea5a436d117d",
+        "sources": "2577600b3811cbacdb67febc728903a90efae5cc4f65cf4b7967d531b9de2cfb"
       },
-      "version": "0.61.0"
+      "version": "1.2.0"
     },
     "org.jetbrains.kotlin:kotlin-reflect": {
       "shasums": {
@@ -1187,6 +1192,14 @@
         "sources": "03c2bbc551541ef7b7fdcda0c3be67a51e4ddb0e553fdb9df0493acdaebf7ba7"
       },
       "version": "1.10.2"
+    },
+    "org.jetbrains.kotlinx:kotlinx-datetime-jvm": {
+      "shasums": {
+        "jar": "cf9cdf7b3074044657a1a80bc1bb5280b58545a967ac7fe42b1aa3cf93305714",
+        "javadoc": "f38eb77006620fc05322ed49da287f3f266e1375a2feabb627ac10f814788d07",
+        "sources": "c9b064d79c497897174feb81252d048063c038a363dcdc8559a397c1ddc693f3"
+      },
+      "version": "0.7.1-0.6.x-compat"
     },
     "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm": {
       "shasums": {
@@ -1779,10 +1792,12 @@
       "org.jetbrains.kotlin:kotlin-reflect",
       "org.jetbrains.kotlin:kotlin-stdlib",
       "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm",
+      "org.jetbrains.kotlinx:kotlinx-datetime-jvm",
       "org.slf4j:slf4j-api"
     ],
     "org.jetbrains.exposed:exposed-dao": [
       "org.jetbrains.exposed:exposed-core",
+      "org.jetbrains.exposed:exposed-jdbc",
       "org.jetbrains.kotlin:kotlin-stdlib"
     ],
     "org.jetbrains.exposed:exposed-jdbc": [
@@ -1836,6 +1851,9 @@
       "org.jetbrains.kotlin:kotlin-stdlib",
       "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm",
       "org.jetbrains:annotations"
+    ],
+    "org.jetbrains.kotlinx:kotlinx-datetime-jvm": [
+      "org.jetbrains.kotlin:kotlin-stdlib"
     ],
     "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm": [
       "org.jetbrains.kotlin:kotlin-stdlib"
@@ -2696,25 +2714,35 @@
       "javassist.util.proxy"
     ],
     "org.jetbrains.exposed:exposed-core": [
-      "org.jetbrains.exposed.dao.id",
-      "org.jetbrains.exposed.exceptions",
-      "org.jetbrains.exposed.sql",
-      "org.jetbrains.exposed.sql.functions.array",
-      "org.jetbrains.exposed.sql.functions.math",
-      "org.jetbrains.exposed.sql.ops",
-      "org.jetbrains.exposed.sql.statements",
-      "org.jetbrains.exposed.sql.statements.api",
-      "org.jetbrains.exposed.sql.transactions",
-      "org.jetbrains.exposed.sql.transactions.experimental",
-      "org.jetbrains.exposed.sql.vendors"
+      "org.jetbrains.exposed.v1.core",
+      "org.jetbrains.exposed.v1.core.dao.id",
+      "org.jetbrains.exposed.v1.core.dao.id.java",
+      "org.jetbrains.exposed.v1.core.datetime",
+      "org.jetbrains.exposed.v1.core.functions.array",
+      "org.jetbrains.exposed.v1.core.functions.math",
+      "org.jetbrains.exposed.v1.core.java",
+      "org.jetbrains.exposed.v1.core.ops",
+      "org.jetbrains.exposed.v1.core.statements",
+      "org.jetbrains.exposed.v1.core.statements.api",
+      "org.jetbrains.exposed.v1.core.transactions",
+      "org.jetbrains.exposed.v1.core.transactions.suspend",
+      "org.jetbrains.exposed.v1.core.utils",
+      "org.jetbrains.exposed.v1.core.vendors",
+      "org.jetbrains.exposed.v1.exceptions"
     ],
     "org.jetbrains.exposed:exposed-dao": [
-      "org.jetbrains.exposed.dao",
-      "org.jetbrains.exposed.dao.exceptions"
+      "org.jetbrains.exposed.v1.dao",
+      "org.jetbrains.exposed.v1.dao.exceptions",
+      "org.jetbrains.exposed.v1.dao.java"
     ],
     "org.jetbrains.exposed:exposed-jdbc": [
-      "org.jetbrains.exposed.jdbc",
-      "org.jetbrains.exposed.sql.statements.jdbc"
+      "org.jetbrains.exposed.v1.jdbc",
+      "org.jetbrains.exposed.v1.jdbc.statements",
+      "org.jetbrains.exposed.v1.jdbc.statements.api",
+      "org.jetbrains.exposed.v1.jdbc.statements.jdbc",
+      "org.jetbrains.exposed.v1.jdbc.transactions",
+      "org.jetbrains.exposed.v1.jdbc.transactions.experimental",
+      "org.jetbrains.exposed.v1.jdbc.vendors"
     ],
     "org.jetbrains.kotlin:kotlin-reflect": [
       "kotlin.reflect.full",
@@ -2875,6 +2903,15 @@
     "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm": [
       "kotlinx.coroutines.test",
       "kotlinx.coroutines.test.internal"
+    ],
+    "org.jetbrains.kotlinx:kotlinx-datetime-jvm": [
+      "kotlinx.datetime",
+      "kotlinx.datetime.format",
+      "kotlinx.datetime.internal",
+      "kotlinx.datetime.internal.format",
+      "kotlinx.datetime.internal.format.formatter",
+      "kotlinx.datetime.internal.format.parser",
+      "kotlinx.datetime.serializers"
     ],
     "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm": [
       "kotlinx.io.bytestring",
@@ -3394,6 +3431,9 @@
       "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm",
       "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:jar:javadoc",
       "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:jar:sources",
+      "org.jetbrains.kotlinx:kotlinx-datetime-jvm",
+      "org.jetbrains.kotlinx:kotlinx-datetime-jvm:jar:javadoc",
+      "org.jetbrains.kotlinx:kotlinx-datetime-jvm:jar:sources",
       "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm",
       "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm:jar:javadoc",
       "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm:jar:sources",
@@ -3533,29 +3573,29 @@
       ]
     },
     "org.jetbrains.exposed:exposed-dao": {
-      "org.jetbrains.exposed.dao.id.EntityIDFactory": [
-        "org.jetbrains.exposed.dao.DaoEntityIDFactory"
+      "org.jetbrains.exposed.v1.core.dao.id.EntityIDFactory": [
+        "org.jetbrains.exposed.v1.dao.DaoEntityIDFactory"
       ],
-      "org.jetbrains.exposed.sql.statements.GlobalStatementInterceptor": [
-        "org.jetbrains.exposed.dao.EntityLifecycleInterceptor"
+      "org.jetbrains.exposed.v1.core.statements.GlobalStatementInterceptor": [
+        "org.jetbrains.exposed.v1.dao.EntityLifecycleInterceptor"
       ]
     },
     "org.jetbrains.exposed:exposed-dao:jar:sources": {
-      "org.jetbrains.exposed.dao.id.EntityIDFactory": [
-        "org.jetbrains.exposed.dao.DaoEntityIDFactory"
+      "org.jetbrains.exposed.v1.core.dao.id.EntityIDFactory": [
+        "org.jetbrains.exposed.v1.dao.DaoEntityIDFactory"
       ],
-      "org.jetbrains.exposed.sql.statements.GlobalStatementInterceptor": [
-        "org.jetbrains.exposed.dao.EntityLifecycleInterceptor"
+      "org.jetbrains.exposed.v1.core.statements.GlobalStatementInterceptor": [
+        "org.jetbrains.exposed.v1.dao.EntityLifecycleInterceptor"
       ]
     },
     "org.jetbrains.exposed:exposed-jdbc": {
-      "org.jetbrains.exposed.sql.DatabaseConnectionAutoRegistration": [
-        "org.jetbrains.exposed.jdbc.ExposedConnectionImpl"
+      "org.jetbrains.exposed.v1.jdbc.DatabaseConnectionAutoRegistration": [
+        "org.jetbrains.exposed.v1.jdbc.ExposedConnectionImpl"
       ]
     },
     "org.jetbrains.exposed:exposed-jdbc:jar:sources": {
-      "org.jetbrains.exposed.sql.DatabaseConnectionAutoRegistration": [
-        "org.jetbrains.exposed.jdbc.ExposedConnectionImpl"
+      "org.jetbrains.exposed.v1.jdbc.DatabaseConnectionAutoRegistration": [
+        "org.jetbrains.exposed.v1.jdbc.ExposedConnectionImpl"
       ]
     },
     "org.jetbrains.kotlin:kotlin-reflect": {
