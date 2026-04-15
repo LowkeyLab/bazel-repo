@@ -26,8 +26,8 @@
     "io.ktor:ktor-server-test-host-jvm": 2014256994,
     "io.ktor:ktor-server-thymeleaf-jvm": 758669479,
     "io.ktor:ktor-server-websockets-jvm": -392663200,
-    "org.jetbrains.exposed:exposed-core": 1364925967,
-    "org.jetbrains.exposed:exposed-dao": 1246943660,
+    "org.jetbrains.exposed:exposed-core": 119197255,
+    "org.jetbrains.exposed:exposed-dao": -23155958,
     "org.jetbrains.exposed:exposed-jdbc": 1203094179,
     "org.jetbrains.kotlin:kotlin-test-junit": -702381876,
     "org.jetbrains.kotlin:kotlin-test-junit5": -1210406503,
@@ -293,9 +293,9 @@
     "org.jetbrains.exposed:exposed-core": 638117044,
     "org.jetbrains.exposed:exposed-core:jar:javadoc": -304684644,
     "org.jetbrains.exposed:exposed-core:jar:sources": 1372016958,
-    "org.jetbrains.exposed:exposed-dao": -455170145,
-    "org.jetbrains.exposed:exposed-dao:jar:javadoc": 1985841853,
-    "org.jetbrains.exposed:exposed-dao:jar:sources": -1683708915,
+    "org.jetbrains.exposed:exposed-dao": -1124263596,
+    "org.jetbrains.exposed:exposed-dao:jar:javadoc": -843574201,
+    "org.jetbrains.exposed:exposed-dao:jar:sources": -1864166864,
     "org.jetbrains.exposed:exposed-jdbc": 1941209258,
     "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 837862559,
     "org.jetbrains.exposed:exposed-jdbc:jar:sources": 2093647314,
@@ -406,8 +406,7 @@
     "org.unbescape:unbescape:jar:sources": 1350857716
   },
   "conflict_resolution": {
-    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1",
-    "org.jetbrains.exposed:exposed-core:0.61.0": "org.jetbrains.exposed:exposed-core:1.2.0"
+    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1"
   },
   "artifacts": {
     "ch.qos.logback:logback-classic": {
@@ -1090,11 +1089,11 @@
     },
     "org.jetbrains.exposed:exposed-dao": {
       "shasums": {
-        "jar": "d9b4ca9ff352a64796f7e1a79e34260a9922e7e35d3d8bd8c4a18a64adb39520",
-        "javadoc": "00f7c28975503610a74bebb096f68601bfb3308bd4c5920f8f8af6700e7daee8",
-        "sources": "4e23f2679789fa18728bfee8e1b28728d168aae74b80228ef821d2097921380c"
+        "jar": "123edee9a27bc9c180efe5b6f644d1e5bb1952e19e79b1b37b3a8e73d6e683e0",
+        "javadoc": "060e8ffb187c18e5f748a56caba7bf06469c2227360784e22febdd4845323a9e",
+        "sources": "ad3d6ff5a9167a2b0d3c59d743510a608317e5b7d2d3366d4b1ddcedad9f0f42"
       },
-      "version": "0.61.0"
+      "version": "1.2.0"
     },
     "org.jetbrains.exposed:exposed-jdbc": {
       "shasums": {
@@ -1796,6 +1795,7 @@
     ],
     "org.jetbrains.exposed:exposed-dao": [
       "org.jetbrains.exposed:exposed-core",
+      "org.jetbrains.exposed:exposed-jdbc",
       "org.jetbrains.kotlin:kotlin-stdlib"
     ],
     "org.jetbrains.exposed:exposed-jdbc": [
@@ -2729,8 +2729,9 @@
       "org.jetbrains.exposed.v1.exceptions"
     ],
     "org.jetbrains.exposed:exposed-dao": [
-      "org.jetbrains.exposed.dao",
-      "org.jetbrains.exposed.dao.exceptions"
+      "org.jetbrains.exposed.v1.dao",
+      "org.jetbrains.exposed.v1.dao.exceptions",
+      "org.jetbrains.exposed.v1.dao.java"
     ],
     "org.jetbrains.exposed:exposed-jdbc": [
       "org.jetbrains.exposed.v1.jdbc",
@@ -3570,19 +3571,19 @@
       ]
     },
     "org.jetbrains.exposed:exposed-dao": {
-      "org.jetbrains.exposed.dao.id.EntityIDFactory": [
-        "org.jetbrains.exposed.dao.DaoEntityIDFactory"
+      "org.jetbrains.exposed.v1.core.dao.id.EntityIDFactory": [
+        "org.jetbrains.exposed.v1.dao.DaoEntityIDFactory"
       ],
-      "org.jetbrains.exposed.sql.statements.GlobalStatementInterceptor": [
-        "org.jetbrains.exposed.dao.EntityLifecycleInterceptor"
+      "org.jetbrains.exposed.v1.core.statements.GlobalStatementInterceptor": [
+        "org.jetbrains.exposed.v1.dao.EntityLifecycleInterceptor"
       ]
     },
     "org.jetbrains.exposed:exposed-dao:jar:sources": {
-      "org.jetbrains.exposed.dao.id.EntityIDFactory": [
-        "org.jetbrains.exposed.dao.DaoEntityIDFactory"
+      "org.jetbrains.exposed.v1.core.dao.id.EntityIDFactory": [
+        "org.jetbrains.exposed.v1.dao.DaoEntityIDFactory"
       ],
-      "org.jetbrains.exposed.sql.statements.GlobalStatementInterceptor": [
-        "org.jetbrains.exposed.dao.EntityLifecycleInterceptor"
+      "org.jetbrains.exposed.v1.core.statements.GlobalStatementInterceptor": [
+        "org.jetbrains.exposed.v1.dao.EntityLifecycleInterceptor"
       ]
     },
     "org.jetbrains.exposed:exposed-jdbc": {
