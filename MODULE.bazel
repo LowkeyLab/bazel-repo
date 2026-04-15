@@ -198,7 +198,7 @@ maven.install(
         # Logging
         "ch.qos.logback:logback-classic:1.5.32",
         # JSON Path
-        "com.jayway.jsonpath:json-path:2.10.0",
+        "com.jayway.jsonpath:json-path:3.0.0",
     ],
     fetch_javadoc = True,
     fetch_sources = True,
