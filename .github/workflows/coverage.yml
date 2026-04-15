@@ -35,7 +35,7 @@ jobs:
         run: |
           bazel coverage //... --test_tag_filters=no-remote
           LOCAL_DAT="$(bazel info output_path)/_coverage/_coverage_report.dat"
-          if [[ -f "$LOCAL_DAT" ]]; then
+          if [[ -f "$LOCAL_DAT" ]] && lcov --summary "$LOCAL_DAT" &>/dev/null; then
             lcov --add-tracefile coverage-report.lcov --add-tracefile "$LOCAL_DAT" --output-file coverage-report.lcov
           fi
       - name: Upload to Codecov
