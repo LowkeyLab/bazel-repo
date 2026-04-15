@@ -41,6 +41,9 @@ jobs:
       - name: Run Bazel Lints
         run: |
           aspect lint //...
-      - name: Run Bazel tests
+      - name: Run Bazel tests (remote)
         run: |
           bazel test //... --config=ci-remote
+      - name: Run Bazel tests (local-only)
+        run: |
+          bazel test //... --test_tag_filters=no-remote
