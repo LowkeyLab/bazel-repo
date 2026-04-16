@@ -33,10 +33,10 @@ bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rust", version = "0.69.0")
-single_version_override(
+git_override(
     module_name = "rules_rust",
-    patch_strip = 1,
-    patches = ["//3rdparty/rules_rust:coverage.patch"],
+    commit = "fa96218e9a060b002144592d29a0b1846e636266",
+    remote = "https://github.com/bazelbuild/rules_rust",
 )
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_buf", version = "0.5.2")
