@@ -41,8 +41,13 @@ if [[ ! -f "${COVERAGE_DAT}" ]]; then
 	exit 1
 fi
 
-# Copy combined report with workspace-relative paths
+# Copy combined report with workspace-relative paths.
+# Make it user-writable so downstream lcov merges (e.g. CI's local-only
+# coverage step in .github/workflows/coverage.yml) can overwrite it; the
+# Bazel coverage dat in the cache is read-only, so a plain `cp` would
+# preserve those mode bits.
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
+chmod u+w "${COMBINED_LCOV}"
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

@@ -65,6 +65,8 @@
         "test": {
           "builder": "@angular/build:karma",
           "options": {
+            "codeCoverage": true,
+            "karmaConfig": "karma-bazel.conf.js",
             "tsConfig": "projects/nicknamer/tsconfig.spec.json",
             "browsers": "ChromeHeadlessNoSandbox",
             "assets": [
@@ -140,6 +142,8 @@
         "test": {
           "builder": "@angular/build:karma",
           "options": {
+            "codeCoverage": true,
+            "karmaConfig": "karma-bazel.conf.js",
             "tsConfig": "projects/tailwind-sample/tsconfig.spec.json",
             "browsers": "ChromeHeadlessNoSandbox",
             "assets": [
@@ -223,6 +227,8 @@
         "test": {
           "builder": "@angular/build:karma",
           "options": {
+            "codeCoverage": true,
+            "karmaConfig": "karma-bazel.conf.js",
             "browsers": "ChromeHeadlessNoSandbox",
             "polyfills": ["zone.js", "zone.js/testing"],
             "tsConfig": "projects/mindreadr/tsconfig.spec.json",
@@ -302,6 +308,8 @@
         "test": {
           "builder": "@angular/build:karma",
           "options": {
+            "codeCoverage": true,
+            "karmaConfig": "karma-bazel.conf.js",
             "browsers": "ChromeHeadlessNoSandbox",
             "tsConfig": "projects/predix/tsconfig.spec.json",
             "assets": [
@@ -380,7 +388,10 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "tsConfig": "projects/nicknamer2-web/tsconfig.spec.json"
+            "tsConfig": "projects/nicknamer2-web/tsconfig.spec.json",
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/nicknamer2-web/vitest-base.config.ts"
           }
         }
       }

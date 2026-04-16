@@ -64,3 +64,11 @@ js_library(
     tags = ["no-lint"],
     visibility = ["//angular:__subpackages__"],
 )
+
+js_library(
+    name = "karma-bazel-conf",
+    srcs = ["karma-bazel.conf.js"],
+    # prevent conflicting actions when linting
+    tags = ["no-lint"],
+    visibility = ["//angular:__subpackages__"],
+)
