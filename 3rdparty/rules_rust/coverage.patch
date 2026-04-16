@@ -1,0 +1,11 @@
+--- a/rust/private/rust.bzl
++++ b/rust/private/rust.bzl
+@@ -541,6 +541,8 @@ def _rust_test_impl(ctx):
+
+         env["RUST_LLVM_COV"] = llvm_cov_path
+         env["RUST_LLVM_PROFDATA"] = llvm_profdata_path
++        env["GENERATE_LLVM_LCOV"] = "1"
++        env["CC_CODE_COVERAGE_SCRIPT"] = ctx.executable._collect_cc_coverage.path
+     components = "{}/{}".format(ctx.label.workspace_root, ctx.label.package).split("/")
+     env["CARGO_MANIFEST_DIR"] = "/".join([c for c in components if c])
+     providers.append(RunEnvironmentInfo(
