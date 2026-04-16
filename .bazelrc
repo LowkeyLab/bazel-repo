@@ -73,6 +73,9 @@ common:lint --aspects=//tools/lint:linters.bzl%clippy
 
 # Show timeout warnings to correctly adjust build/test timeouts
 test --test_verbose_timeout_warnings
+# Pass CHROME_BIN from the host environment into the Bazel test sandbox
+# so karma-chrome-launcher can find the Chromium binary (e.g. from Nix).
+test --test_env=CHROME_BIN
 
 # Coverage configuration
 # Usage: bazel coverage //...

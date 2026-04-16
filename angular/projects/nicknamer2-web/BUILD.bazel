@@ -19,6 +19,14 @@ copy_to_bin(
     ),
 )
 
+copy_to_bin(
+    name = "vitest_config_files",
+    srcs = [
+        "vitest-base.config.ts",
+        "vitest-global-setup.ts",
+    ],
+)
+
 process_styles(
     name = "processed_styles",
     src = "src/styles.css",
@@ -68,6 +76,7 @@ ng_test(
     srcs = [
         ":processed_styles",
         ":srcs",
+        ":vitest_config_files",
     ],
     tailwindcss = True,
     vitest = True,

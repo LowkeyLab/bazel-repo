@@ -74,8 +74,11 @@
                 pkgs.nspr
               ];
               # Point agent-browser at Nix-provided Chromium (Linux-only;
-              # on Darwin, agent-browser auto-detects Chrome from /Applications)
+              # on Darwin, agent-browser auto-detects Chrome from /Applications).
+              # CHROME_BIN is the same path under a different name — karma-chrome-launcher
+              # reads CHROME_BIN to locate the browser for `bazel coverage` on Karma tests.
               CHROME_PATH = pkgs.lib.getExe pkgs.chromium;
+              CHROME_BIN = pkgs.lib.getExe pkgs.chromium;
             };
           };
         }

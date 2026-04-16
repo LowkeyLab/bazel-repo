@@ -15,6 +15,27 @@ catalogs:
     '@angular/cli':
       specifier: 21.2.7
       version: 21.2.7
+    '@angular/common':
+      specifier: ^21.0.3
+      version: 21.2.9
+    '@angular/compiler':
+      specifier: ^21.0.3
+      version: 21.2.9
+    '@angular/compiler-cli':
+      specifier: ^21.0.2
+      version: 21.2.9
+    '@angular/core':
+      specifier: ^21.0.3
+      version: 21.2.9
+    '@angular/forms':
+      specifier: ^21.0.3
+      version: 21.2.9
+    '@angular/platform-browser':
+      specifier: ^21.0.3
+      version: 21.2.9
+    '@angular/router':
+      specifier: ^21.0.3
+      version: 21.2.9
     '@apollo/client':
       specifier: ^4.0.0
       version: 4.1.7
@@ -72,6 +93,9 @@ catalogs:
     '@typescript-eslint/parser':
       specifier: ^8.29.0
       version: 8.58.2
+    '@vitest/coverage-v8':
+      specifier: ^4.0.0
+      version: 4.1.4
     '@wry/caches':
       specifier: ^1.0.1
       version: 1.0.1
@@ -318,7 +342,7 @@ importers:
         version: 0.2102.5(chokidar@5.0.0)
       '@angular/build':
         specifier: 'catalog:'
-        version: 21.2.5(@angular/compiler-cli@21.2.9(@angular/compiler@21.2.9)(typescript@6.0.2))(@angular/compiler@21.2.9)(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(@angular/platform-browser@21.2.9(@angular/common@21.2.9(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(rxjs@7.8.2))(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1)))(@types/node@24.12.2)(chokidar@5.0.0)(jiti@2.6.1)(karma@6.4.4)(lightningcss@1.32.0)(postcss@8.5.10)(tailwindcss@4.2.2)(tslib@2.8.1)(typescript@6.0.2)(vitest@4.1.4(@types/node@24.12.2)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3)))(yaml@2.8.3)
+        version: 21.2.5(@angular/compiler-cli@21.2.9(@angular/compiler@21.2.9)(typescript@6.0.2))(@angular/compiler@21.2.9)(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(@angular/platform-browser@21.2.9(@angular/common@21.2.9(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(rxjs@7.8.2))(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1)))(@types/node@24.12.2)(chokidar@5.0.0)(jiti@2.6.1)(karma@6.4.4)(lightningcss@1.32.0)(postcss@8.5.10)(tailwindcss@4.2.2)(tslib@2.8.1)(typescript@6.0.2)(vitest@4.1.4)(yaml@2.8.3)
       '@angular/cli':
         specifier: 'catalog:'
         version: 21.2.7(@types/node@24.12.2)(chokidar@5.0.0)
@@ -355,6 +379,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.2
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.1.4(vitest@4.1.4)
       daisyui:
         specifier: 'catalog:'
         version: 5.5.19
@@ -396,7 +423,7 @@ importers:
         version: 8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.4(@types/node@24.12.2)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3))
+        version: 4.1.4(@types/node@24.12.2)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3))
 
   personal_website:
     dependencies:
@@ -838,6 +865,10 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@bcoe/v8-coverage@1.0.2':
+    resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
+    engines: {node: '>=18'}
 
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
@@ -3081,6 +3112,15 @@ packages:
     peerDependencies:
       vite: ^6.0.0 || ^7.0.0
 
+  '@vitest/coverage-v8@4.1.4':
+    resolution: {integrity: sha512-x7FptB5oDruxNPDNY2+S8tCh0pcq7ymCe1gTHcsp733jYjrJl8V1gMUlVysuCD9Kz46Xz9t1akkv08dPcYDs1w==}
+    peerDependencies:
+      '@vitest/browser': 4.1.4
+      vitest: 4.1.4
+    peerDependenciesMeta:
+      '@vitest/browser':
+        optional: true
+
   '@vitest/expect@4.1.4':
     resolution: {integrity: sha512-iPBpra+VDuXmBFI3FMKHSFXp3Gx5HfmSCE8X67Dn+bwephCnQCaB7qWK2ldHa+8ncN8hJU8VTMcxjPpyMkUjww==}
 
@@ -3273,6 +3313,9 @@ packages:
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
+
+  ast-v8-to-istanbul@1.0.0:
+    resolution: {integrity: sha512-1fSfIwuDICFA4LKkCzRPO7F0hzFf0B7+Xqrl27ynQaa+Rh0e1Es0v6kWHPott3lU10AyAr7oKHa65OppjLn3Rg==}
 
   astral-regex@2.0.0:
     resolution: {integrity: sha512-Z7tMw1ytTXt5jqMcOP+OQteU1VuNK9Y02uuJtKQ1Sv69jXQKKg5cibLwGJow8yzZP+eAc18EmLGPal0bp36rvQ==}
@@ -4587,6 +4630,9 @@ packages:
 
   js-pkce@2.0.0:
     resolution: {integrity: sha512-U7XEWBdI36P/977t6TC8zD2QdLlopiYy6SFG4tOojvuUSQsc4S7nH3vNUhzY5IgNwyyba/wfN0NbwEYeI31YXg==}
+
+  js-tokens@10.0.0:
+    resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -6935,7 +6981,7 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
-  '@angular/build@21.2.5(@angular/compiler-cli@21.2.9(@angular/compiler@21.2.9)(typescript@6.0.2))(@angular/compiler@21.2.9)(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(@angular/platform-browser@21.2.9(@angular/common@21.2.9(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(rxjs@7.8.2))(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1)))(@types/node@24.12.2)(chokidar@5.0.0)(jiti@2.6.1)(karma@6.4.4)(lightningcss@1.32.0)(postcss@8.5.10)(tailwindcss@4.2.2)(tslib@2.8.1)(typescript@6.0.2)(vitest@4.1.4(@types/node@24.12.2)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3)))(yaml@2.8.3)':
+  '@angular/build@21.2.5(@angular/compiler-cli@21.2.9(@angular/compiler@21.2.9)(typescript@6.0.2))(@angular/compiler@21.2.9)(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(@angular/platform-browser@21.2.9(@angular/common@21.2.9(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1))(rxjs@7.8.2))(@angular/core@21.2.9(@angular/compiler@21.2.9)(rxjs@7.8.2)(zone.js@0.16.1)))(@types/node@24.12.2)(chokidar@5.0.0)(jiti@2.6.1)(karma@6.4.4)(lightningcss@1.32.0)(postcss@8.5.10)(tailwindcss@4.2.2)(tslib@2.8.1)(typescript@6.0.2)(vitest@4.1.4)(yaml@2.8.3)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@angular-devkit/architect': 0.2102.5(chokidar@5.0.0)
@@ -6975,7 +7021,7 @@ snapshots:
       lmdb: 3.5.1
       postcss: 8.5.10
       tailwindcss: 4.2.2
-      vitest: 4.1.4(@types/node@24.12.2)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3))
+      vitest: 4.1.4(@types/node@24.12.2)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3))
     transitivePeerDependencies:
       - '@types/node'
       - chokidar
@@ -7338,6 +7384,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@bcoe/v8-coverage@1.0.2': {}
 
   '@bramus/specificity@2.4.2':
     dependencies:
@@ -9287,6 +9335,20 @@ snapshots:
     dependencies:
       vite: 7.3.1(patch_hash=3a60c2100983d91d12d627c457b615458b67c5a8b1dce205f98c789854ec9a43)(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3)(yaml@2.8.3)
 
+  '@vitest/coverage-v8@4.1.4(vitest@4.1.4)':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.4
+      ast-v8-to-istanbul: 1.0.0
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.2
+      obug: 2.1.1
+      std-env: 4.0.0
+      tinyrainbow: 3.1.0
+      vitest: 4.1.4(@types/node@24.12.2)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3))
+
   '@vitest/expect@4.1.4':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -9513,6 +9575,12 @@ snapshots:
   array-union@2.1.0: {}
 
   assertion-error@2.0.1: {}
+
+  ast-v8-to-istanbul@1.0.0:
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      estree-walker: 3.0.3
+      js-tokens: 10.0.0
 
   astral-regex@2.0.0: {}
 
@@ -11184,6 +11252,8 @@ snapshots:
   js-pkce@2.0.0:
     dependencies:
       crypto-js: 4.2.0
+
+  js-tokens@10.0.0: {}
 
   js-tokens@4.0.0: {}
 
@@ -13397,7 +13467,7 @@ snapshots:
     optionalDependencies:
       vite: 7.3.2(patch_hash=caabbe9f97c8c9ed6fb2dadfdcffbf08039814d81b94b9722fb9cdfda9246f10)(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.97.3)(yaml@2.8.3)
 
-  vitest@4.1.4(@types/node@24.12.2)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3)):
+  vitest@4.1.4(@types/node@24.12.2)(@vitest/coverage-v8@4.1.4)(jsdom@29.0.2)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.4
       '@vitest/mocker': 4.1.4(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(sass@1.97.3)(yaml@2.8.3))
@@ -13421,6 +13491,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.12.2
+      '@vitest/coverage-v8': 4.1.4(vitest@4.1.4)
       jsdom: 29.0.2
     transitivePeerDependencies:
       - msw

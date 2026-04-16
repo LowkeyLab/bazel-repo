@@ -115,6 +115,7 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, sr
     if karma:
         extra_deps += [
             # keep-sorted start
+            "//angular:karma-bazel-conf",
             "//angular:node_modules/@types/jasmine",
             "//angular:node_modules/@types/node",
             "//angular:node_modules/jasmine-core",
@@ -128,6 +129,7 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, sr
     if vitest:
         extra_deps += [
             # keep-sorted start
+            "//angular:node_modules/@vitest/coverage-v8",
             "//angular:node_modules/jsdom",
             "//angular:node_modules/vitest",
             # keep-sorted end
