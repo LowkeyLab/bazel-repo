@@ -24,7 +24,7 @@ jobs:
         with:
           bazelisk-cache: true
           bazelrc: |
-            common --config=ci
+            common --config=ci-remote
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Discover OCI push targets
         id: query
@@ -44,7 +44,7 @@ jobs:
         with:
           bazelisk-cache: true
           bazelrc: |
-            common --config=ci
+            common --config=ci-remote
             common --compilation_mode=opt
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Log in to GHCR
