@@ -67,11 +67,18 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "19a4a8fb4d6f035b5506ca21bbbd309ab5f5e729",
+    commit = "c85cdb4a0f132ab84a890003f49c2f6cf0b75937",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
 )
+
+rules_angular_ext = use_extension("@rules_angular//setup:extensions.bzl", "rules_angular")
+rules_angular_ext.setup(
+    angular_compiler_cli = "//:node_modules/@angular/compiler-cli",
+    typescript = "//:node_modules/typescript",
+)
+use_repo(rules_angular_ext, "rules_angular_configurable_deps")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
