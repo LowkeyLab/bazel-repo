@@ -41,7 +41,7 @@
       "matchFileNames": ["tools/tools.lock.json"],
       "groupName": "multitool managed tools",
       "postUpgradeTasks": {
-        "commands": ["multitool --lockfile tools/tools.lock.json update"],
+        "commands": ["bazel run @multitool//tools/multitool:cwd -- --lockfile tools/tools.lock.json update"],
         "fileFilters": ["tools/tools.lock.json"],
         "executionMode": "branch"
       }
