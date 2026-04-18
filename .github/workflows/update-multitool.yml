@@ -1,0 +1,26 @@
+name: Update Multitool
+permissions:
+  contents: write
+  pull-requests: write
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
+        with:
+          bazelisk-cache: true
+      - name: Update multitool lockfile
+        run: bazel run @multitool//tools/multitool:cwd -- --lockfile tools/tools.lock.json update
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b31e2c788f8122c6d27f
+        with:
+          commit-message: "chore(deps): update multitool managed tools"
+          title: "chore(deps): update multitool managed tools"
+          body: Automated update of tools managed by multitool.
+          branch: automated/update-multitool
+          labels: dependencies

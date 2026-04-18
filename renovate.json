@@ -1,24 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":approveMajorUpdates", ":automergeAll"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "fileMatch": ["^tools/tools\\.lock\\.json$"],
-      "matchStrings": [
-        "\"url\":\\s*\"https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/v(?<currentValue>[^/]+)/[^\"]*\""
-      ],
-      "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": ["^tools/tools\\.lock\\.json$"],
-      "matchStrings": [
-        "\"url\":\\s*\"https://releases\\.hashicorp\\.com/(?<depName>[^/]+)/(?<currentValue>[^/]+)/[^\"]*\""
-      ],
-      "datasourceTemplate": "hashicorp"
-    }
-  ],
   "packageRules": [
     {
       "matchManagers": ["bazel-module"],
@@ -35,15 +17,6 @@
         "commands": ["bazel mod deps --lockfile_mode=update"],
         "fileFilters": ["MODULE.bazel.lock"],
         "executionMode": "update"
-      }
-    },
-    {
-      "matchFileNames": ["tools/tools.lock.json"],
-      "groupName": "multitool managed tools",
-      "postUpgradeTasks": {
-        "commands": ["bazel run @multitool//tools/multitool:cwd -- --lockfile tools/tools.lock.json update"],
-        "fileFilters": ["tools/tools.lock.json"],
-        "executionMode": "branch"
       }
     }
   ],
