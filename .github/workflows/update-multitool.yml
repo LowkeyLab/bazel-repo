@@ -17,7 +17,7 @@ jobs:
       - name: Update multitool lockfile
         run: bazel run @multitool//tools/multitool:cwd -- --lockfile tools/tools.lock.json update
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b31e2c788f8122c6d27f
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
           commit-message: "chore(deps): update multitool managed tools"
           title: "chore(deps): update multitool managed tools"
