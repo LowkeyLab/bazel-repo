@@ -35,7 +35,7 @@ bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rust", version = "0.69.0")
 git_override(
     module_name = "rules_rust",
-    commit = "ae1be23677cf3baccf00b48a0ea4cf8e0adc12a9",
+    commit = "4028aa710820340fcdda481f43e4f28c510496f0",
     remote = "https://github.com/bazelbuild/rules_rust",
 )
 bazel_dep(name = "rules_shell", version = "0.8.0")
