@@ -937,7 +937,7 @@
     },
     "@@rules_rust+//crate_universe:extension.bzl%crate%gazelle_rust@_+crate": {
       "general": {
-        "bzlTransitiveDigest": "4OVSEo2iqNGNZ/3RiZI1PMKBjX2gNcd1IN/iwVqYpa4=",
+        "bzlTransitiveDigest": "dGEmAWBrHaS72lEeOSMQmfdHOv5p3ufnFtjc9o8w/X8=",
         "usagesDigest": "tP9CoqSpN7h+UzP+YrEso5WtxKA5qYb9+fMqxWJApG0=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
@@ -1826,7 +1826,7 @@
     },
     "@@rules_rust+//crate_universe:extensions.bzl%crate": {
       "general": {
-        "bzlTransitiveDigest": "fjWkCCtHUAPHGxlEknMXOXZbjcgNwGpojufJolSGdrI=",
+        "bzlTransitiveDigest": "aVdnRDh5q4gCSBVxPl6fvBlQjUSt1e5RN/ZRYoCov0g=",
         "usagesDigest": "V1dYDhaG68O3emzQvAUB1rnNzqhnsaZVEt4MqRyTA8c=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
@@ -9000,7 +9000,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "fLNZM/JY5fCQeQ7N94o6/s0Nx512uJ88Q6X/JI6DBpA=",
+        "bzlTransitiveDigest": "3o5qNCr3wi/1jGOQwTEs+7HTsJrVdFAKByv19z89bs0=",
         "usagesDigest": "qhmy4zrnFb6knNQRx2XBCVfHObom0vnflm+sibd7SA0=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
@@ -9080,7 +9080,7 @@
               "binary": "cargo-bazel",
               "cargo_lockfile": "@@rules_rust+//crate_universe:Cargo.lock",
               "cargo_toml": "@@rules_rust+//crate_universe:Cargo.toml",
-              "version": "1.94.1",
+              "version": "1.95.0",
               "timeout": 900,
               "rust_toolchain_cargo_template": "@rust_host_tools//:bin/{tool}",
               "rust_toolchain_rustc_template": "@rust_host_tools//:bin/{tool}",
