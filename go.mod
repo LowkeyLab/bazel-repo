@@ -129,7 +129,7 @@ require (
 	github.com/gin-contrib/slog v1.2.1
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/gin-gonic/gin v1.12.0
-	github.com/go-delve/delve v1.26.1 // indirect
+	github.com/go-delve/delve v1.26.2 // indirect
 	github.com/go-delve/liner v1.2.3-0.20231231155935-4726ab1d7f62 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.8.0 // indirect
