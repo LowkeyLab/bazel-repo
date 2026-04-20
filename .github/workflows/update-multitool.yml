@@ -1,7 +1,4 @@
 name: Update Multitool
-permissions:
-  contents: write
-  pull-requests: write
 on:
   schedule:
     - cron: "0 * * * *"
@@ -10,7 +7,15 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
+      - name: Get token
+        id: get_token
+        uses: actions/create-github-app-token@v3
+        with:
+          private-key: ${{ secrets.automation_private_key }}
+          app-id: ${{ secrets.automation_app_id }}
       - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.get_token.outputs.token }}
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
@@ -19,6 +24,8 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
+          token: ${{ steps.get_token.outputs.token }}
+          sign-commits: true
           commit-message: "chore(deps): update multitool managed tools"
           title: "chore(deps): update multitool managed tools"
           body: Automated update of tools managed by multitool.
