@@ -4,22 +4,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/vercel-labs/agent-browser/releases/download/v0.23.0/agent-browser-linux-arm64",
-        "sha256": "bb9243ea0d989d856e7df052b93b8bd1c6748a0dbfe96284aba7a5caa2e58613",
+        "url": "https://github.com/vercel-labs/agent-browser/releases/download/v0.26.0/agent-browser-linux-arm64",
+        "sha256": "b3901b17298f6ce6511fcae5c576068a3e8a510ecb365c8ccd876b9b82db4447",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/vercel-labs/agent-browser/releases/download/v0.23.0/agent-browser-linux-x64",
-        "sha256": "8a699c73fb697d6df4260c6a3e7f9c4a5dec8e08e33248ed01b0ae83fd8c7a4a",
+        "url": "https://github.com/vercel-labs/agent-browser/releases/download/v0.26.0/agent-browser-linux-x64",
+        "sha256": "8784dc259abf72ee04e751b45677d956387af50c99aec5dcd7a41a9bc498e3c3",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/vercel-labs/agent-browser/releases/download/v0.23.0/agent-browser-darwin-arm64",
-        "sha256": "354c1cdaf6b50ea01bbb7b20aef4ab67b45a3e1db8a32269edf8fd970e532683",
+        "url": "https://github.com/vercel-labs/agent-browser/releases/download/v0.26.0/agent-browser-darwin-arm64",
+        "sha256": "18f7af7c57ab522bd80f64112b8d7ff43e63a98d98064ba13a96363aa9ae2650",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -29,15 +29,15 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-x86_64-unknown-linux-musl",
-        "sha256": "58057a7bfb94838749cbb3fedc015baeefa1887caf00e1ed4dd5eb8ef00c6cef",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.16.4/aspect-cli-x86_64-unknown-linux-musl",
+        "sha256": "61d33f46f7670f833d066a44ca695389dad6a9f9edbae25093b046b80af2a8a2",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-aarch64-apple-darwin",
-        "sha256": "5cae50dcd8a2548ec433833a80d8e0ef3d41965c3673db700f8bbc52e5f15600",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.16.4/aspect-cli-aarch64-apple-darwin",
+        "sha256": "16fcd8f9beaebfef3fec270e0cc82a0719a51d3ef701070dd351721420718a5e",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -47,29 +47,29 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Linux-aarch64",
-        "sha256": "ea7df0f8bd470f07becd4874dfafa90351bf2cd2845fc0c288446626aa575359",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.2/buf-Linux-aarch64",
+        "sha256": "b489cda2308a70f941c27f26a1cb1da31980bb9f9759eaa3e9a89b3a0175f28c",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Linux-x86_64",
-        "sha256": "c00596ea1fae1772d6aed88e5e72fcb48daf643dfc6a2f39618790a59e0c137a",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.2/buf-Linux-x86_64",
+        "sha256": "d32c14c1820bd994621b9b8c35cb6fd4acf2554f9e2edcd0db0df1e969bd575b",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Darwin-arm64",
-        "sha256": "de80d6e6f7dd7f68e2c818622390c135727982d24deee0c58885b92c843a0510",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.2/buf-Darwin-arm64",
+        "sha256": "8fb7bdf712f4e2bed4bd36101666402db6cce473a49db9f2001f4edc9c0f7639",
         "os": "macos",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.63.0/buf-Darwin-x86_64",
-        "sha256": "63f21018b0a43875ea1f4624d1631e357648eb4a6126ae210ce9a64ed3762780",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.2/buf-Darwin-x86_64",
+        "sha256": "8aa639660f31cb296dbed028b9e2223693b75be93db75947b7e032003bac8440",
         "os": "macos",
         "cpu": "x86_64"
       }
@@ -79,29 +79,29 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.2.1/buildozer-linux-arm64",
-        "sha256": "e55b56861a390cc993402d2974d5b74a097694f64eb08599dc704bdd7dde6484",
+        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.5.1/buildozer-linux-arm64",
+        "sha256": "87ee1d2d81d08ccae8f9147fc58503967c85878279e892f2990912412feef1a1",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.2.1/buildozer-linux-amd64",
-        "sha256": "04454a6a89c64c603027cc3371eb1c36e48727e04558e077c20ec37c9c2f831a",
+        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.5.1/buildozer-linux-amd64",
+        "sha256": "2b745ca2ad41f1e01673fb59ac50af6b45ca26105c1d20fad64c3d05a95522f5",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.2.1/buildozer-darwin-arm64",
-        "sha256": "a981182561f67ed697b0e810714307c8475bce68c069f819212fe36f12d77872",
+        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.5.1/buildozer-darwin-arm64",
+        "sha256": "d0cf2f6e11031d62bfd4584e46eb6bb708a883ff948be76538b34b83de833262",
         "os": "macos",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.2.1/buildozer-darwin-amd64",
-        "sha256": "1284b7416d9ebbb50033645fc648985f9b2e0f38e7f22f79c0398c97d38d146c",
+        "url": "https://github.com/bazelbuild/buildtools/releases/download/v8.5.1/buildozer-darwin-amd64",
+        "sha256": "b85b9ad59c1543999a5d8bc8bee6e42b9f025be3ff520bc2d090213698850b43",
         "os": "macos",
         "cpu": "x86_64"
       }
@@ -111,25 +111,25 @@
     "binaries": [
       {
         "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_arm64.tar.gz",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.2/caddy_2.11.2_linux_arm64.tar.gz",
         "file": "caddy",
-        "sha256": "3d6e959a05a184aaf58625c287d4218a238ea05578ffb33d03198a33cab456d3",
+        "sha256": "b9d88bec4254d0a98bd415ad60f97f37e4222dec96235c00b442437f5e303a32",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_amd64.tar.gz",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.2/caddy_2.11.2_linux_amd64.tar.gz",
         "file": "caddy",
-        "sha256": "5c218bc34c9197369263da7e9317a83acdbd80ef45d94dca5eff76e727c67cdd",
+        "sha256": "94391dfefe1f278ac8f387ab86162f0e88d87ff97df367f360e51e3cda3df56f",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_mac_arm64.tar.gz",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.2/caddy_2.11.2_mac_arm64.tar.gz",
         "file": "caddy",
-        "sha256": "cc9ad20742ea7bfee5dd1d435d42ab7fcf8592294f9ec43bf08fd21cbe448bc4",
+        "sha256": "7ab765777e953574d5713a69cab3f5a2f643a5c1cc264d4239a60ff845b465d8",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -139,17 +139,17 @@
     "binaries": [
       {
         "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Linux_x86_64.tar.gz",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.21.5/go-containerregistry_Linux_x86_64.tar.gz",
         "file": "crane",
-        "sha256": "8ef3564d264e6b5ca93f7b7f5652704c4dd29d33935aff6947dd5adefd05953e",
+        "sha256": "9f823ae5ee25803161110f957b5fd4538f714d40cdf25dacb4914fefafd246bf",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.7/go-containerregistry_Darwin_arm64.tar.gz",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.21.5/go-containerregistry_Darwin_arm64.tar.gz",
         "file": "crane",
-        "sha256": "210da17a7269a9904a9b6797efbf97f4b1e5567c0962f168d1489a7bd375f14a",
+        "sha256": "a41938cdbd8becc59e90f4bb491a557d52dce5681f9812c961854cab706f5f59",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -159,22 +159,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.0.1/docker-compose-linux-aarch64",
-        "sha256": "e3b36491a75f92c35ebfbbe6e4741bd2429664edf3971427983d67c0b21e7d1d",
+        "url": "https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-linux-aarch64",
+        "sha256": "e8105a3e687ea7e0b0f81abe4bf9269c8a2801fb72c2b498b5ff2472bc54145f",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.0.1/docker-compose-linux-x86_64",
-        "sha256": "cdc1df64412ed009312afbc044b3625144d06c07736e2f7a77fb0460531b9327",
+        "url": "https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-linux-x86_64",
+        "sha256": "a0298760c9772d2c06888fc8703a487c94c3c3b0134adeef830742a2fc7647b4",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.0.1/docker-compose-darwin-aarch64",
-        "sha256": "74ddfae9ca673e11babe45b0945fe825c0fb1f16e56f9772b4ee7a2a9d00bf19",
+        "url": "https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-darwin-aarch64",
+        "sha256": "b8461a8a53f7e0ce677139516b17661e7ccd54ac4f2dabae03ad79f2f2ae35c6",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -184,22 +184,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_linux_arm64",
-        "sha256": "85ef4c7a9a1429e1b3d17ba4f6702e61acb24e5510d006e1fd99d0de4bcd07c0",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.29.0/ibazel_linux_arm64",
+        "sha256": "47ce8a532663f2d5ec18181f8ad2d9f514afa1359a459dbfdc249827808b97e6",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_linux_amd64",
-        "sha256": "17d412c34afeba69f9d05b6d1ea44848ffd4fdc18ebcd1f524b3699d1de0630e",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.29.0/ibazel_linux_amd64",
+        "sha256": "2be290ae7348c7c5b45e4bbd2cc37da70937b7b1bdf611b11cd01868bee454ee",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_darwin_arm64",
-        "sha256": "5dddbfe170ab2063d1517fea526b27731893ed561c78776c9bea20b4caafa11e",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.29.0/ibazel_darwin_arm64",
+        "sha256": "4d809cef681d4f25437f270422e5a986f3bca0e4e5a4b93d7be8507076deed71",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -237,17 +237,17 @@
     "binaries": [
       {
         "kind": "archive",
-        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_linux_amd64.tar.gz",
+        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.31.0/sqlc_1.31.0_linux_amd64.tar.gz",
         "file": "sqlc",
-        "sha256": "468aecee071bfe55e97fcbcac52ea0208eeca444f67736f3b8f0f3d6a106132e",
+        "sha256": "e35394ba3df5e62669e76627f45172d18c6cbb1479e4762c51b29b0eafc16dc0",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_darwin_arm64.tar.gz",
+        "url": "https://github.com/sqlc-dev/sqlc/releases/download/v1.31.0/sqlc_1.31.0_darwin_arm64.tar.gz",
         "file": "sqlc",
-        "sha256": "ff18793b97715d08dde364446f43082a06da87b7797b9ec79ef2b31aeb0894e5",
+        "sha256": "55322a83a913fcafef8659a0a583a79f86e9c7124a6bbc21317f3288c6004b06",
         "os": "macos",
         "cpu": "arm64"
       }
