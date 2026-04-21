@@ -1,6 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":approveMajorUpdates", ":automergeAll"],
+  "nix": {
+    "enabled": true
+  },
   "packageRules": [
     {
       "matchManagers": ["bazel-module"],
