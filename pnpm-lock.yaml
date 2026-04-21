@@ -73,7 +73,7 @@ catalogs:
       specifier: ^0.5.15
       version: 0.5.19
     '@tailwindcss/vite':
-      specifier: '>=4.0.0 <4.2.3'
+      specifier: '>=4.0.0 <4.2.5'
       version: 4.2.2
     '@tsconfig/strictest':
       specifier: 2.0.8
