@@ -937,7 +937,7 @@
     },
     "@@rules_rust+//crate_universe:extension.bzl%crate%gazelle_rust@_+crate": {
       "general": {
-        "bzlTransitiveDigest": "dGEmAWBrHaS72lEeOSMQmfdHOv5p3ufnFtjc9o8w/X8=",
+        "bzlTransitiveDigest": "sl1qean1Kb3+aV1qBfsx38DkcuvXQOFRvd3bOOChwkA=",
         "usagesDigest": "tP9CoqSpN7h+UzP+YrEso5WtxKA5qYb9+fMqxWJApG0=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
@@ -1826,7 +1826,7 @@
     },
     "@@rules_rust+//crate_universe:extensions.bzl%crate": {
       "general": {
-        "bzlTransitiveDigest": "aVdnRDh5q4gCSBVxPl6fvBlQjUSt1e5RN/ZRYoCov0g=",
+        "bzlTransitiveDigest": "nm7LXp4ymPM7JI3OgGMfuITO6A+Z5cqjtn8N1LA5Nmg=",
         "usagesDigest": "V1dYDhaG68O3emzQvAUB1rnNzqhnsaZVEt4MqRyTA8c=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
@@ -9000,7 +9000,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "3o5qNCr3wi/1jGOQwTEs+7HTsJrVdFAKByv19z89bs0=",
+        "bzlTransitiveDigest": "rivoEqALgqTCLGdvXm7GtzsuPBvJm7npjQjhTrarAQo=",
         "usagesDigest": "qhmy4zrnFb6knNQRx2XBCVfHObom0vnflm+sibd7SA0=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
