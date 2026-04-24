@@ -1,23 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { JoinCircleComponent } from './join-circle.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
 import { of, throwError } from 'rxjs';
+import { createMockObject } from '../../../testing/create-mock-object';
 
 describe('JoinCircleComponent', () => {
+  const circleServiceMethods = ['joinCircle'] as const;
+  const routerMethods = ['navigate'] as const;
   let component: JoinCircleComponent;
   let fixture: ComponentFixture<JoinCircleComponent>;
-  let mockCircleService: jasmine.SpyObj<CircleService>;
-  let mockRouter: jasmine.SpyObj<Router>;
+  let mockCircleService = createMockObject(circleServiceMethods);
+  let mockRouter = createMockObject(routerMethods);
   let mockActivatedRoute: Partial<ActivatedRoute>;
 
   beforeEach(async () => {
-    mockCircleService = jasmine.createSpyObj('CircleService', ['joinCircle']);
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockCircleService = createMockObject(circleServiceMethods);
+    mockRouter = createMockObject(routerMethods);
     mockActivatedRoute = {
       snapshot: {
         paramMap: {
-          get: jasmine.createSpy('get').and.returnValue('123'),
+          get: vi.fn().mockReturnValue('123'),
         },
       } as any,
     };
@@ -25,8 +29,11 @@ describe('JoinCircleComponent', () => {
     await TestBed.configureTestingModule({
       imports: [JoinCircleComponent],
       providers: [
-        { provide: CircleService, useValue: mockCircleService },
-        { provide: Router, useValue: mockRouter },
+        {
+          provide: CircleService,
+          useValue: mockCircleService as unknown as CircleService,
+        },
+        { provide: Router, useValue: mockRouter as unknown as Router },
         { provide: ActivatedRoute, useValue: mockActivatedRoute },
       ],
     }).compileComponents();
@@ -40,7 +47,7 @@ describe('JoinCircleComponent', () => {
   });
 
   it('should successfully join a circle', () => {
-    mockCircleService.joinCircle.and.returnValue(of(undefined));
+    mockCircleService.joinCircle.mockReturnValue(of(undefined));
 
     fixture.detectChanges();
 
@@ -52,7 +59,7 @@ describe('JoinCircleComponent', () => {
 
   it('should handle join circle error', () => {
     const errorResponse = { error: { error: 'User already a member' } };
-    mockCircleService.joinCircle.and.returnValue(
+    mockCircleService.joinCircle.mockReturnValue(
       throwError(() => errorResponse),
     );
 
@@ -65,7 +72,7 @@ describe('JoinCircleComponent', () => {
   });
 
   it('should navigate to circle detail on viewCircle', () => {
-    mockCircleService.joinCircle.and.returnValue(of(undefined));
+    mockCircleService.joinCircle.mockReturnValue(of(undefined));
     fixture.detectChanges();
 
     component['viewCircle']();
@@ -74,7 +81,7 @@ describe('JoinCircleComponent', () => {
   });
 
   it('should navigate to circles list on goToCircles', () => {
-    mockCircleService.joinCircle.and.returnValue(
+    mockCircleService.joinCircle.mockReturnValue(
       throwError(() => new Error('test error')),
     );
     fixture.detectChanges();

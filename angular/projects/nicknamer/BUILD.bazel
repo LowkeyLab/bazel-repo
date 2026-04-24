@@ -17,6 +17,14 @@ copy_to_bin(
     ),
 )
 
+copy_to_bin(
+    name = "vitest_config_files",
+    srcs = [
+        "vitest-base.config.ts",
+        "vitest-global-setup.ts",
+    ],
+)
+
 ng_application(
     name = "nicknamer",
     srcs = [":srcs"],
@@ -25,7 +33,10 @@ ng_application(
 
 ng_test(
     name = "test",
-    srcs = [":srcs"],
-    karma = True,
+    srcs = [
+        ":srcs",
+        ":vitest_config_files",
+    ],
+    vitest = True,
     zonejs = True,
 )

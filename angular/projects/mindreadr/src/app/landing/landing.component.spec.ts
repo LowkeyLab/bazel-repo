@@ -1,11 +1,5 @@
-import {
-  ComponentFixture,
-  TestBed,
-  fakeAsync,
-  tick,
-  discardPeriodicTasks,
-} from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { Location } from '@angular/common';
 import { LandingComponent } from './landing.component';
 import { GameService } from '../services/game.service';
@@ -17,9 +11,9 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 // Mock GameService
 class MockGameService {
-  getSummary = jasmine
-    .createSpy()
-    .and.returnValue(
+  getSummary = vi
+    .fn()
+    .mockReturnValue(
       of({ inProgressGames: 0, waitingForPlayerGames: 0, completedGames: 0 }),
     );
 }
@@ -27,7 +21,6 @@ class MockGameService {
 describe('LandingComponent', () => {
   let component: LandingComponent;
   let fixture: ComponentFixture<LandingComponent>;
-  let router: Router;
   let location: Location;
 
   beforeEach(async () => {
@@ -43,7 +36,6 @@ describe('LandingComponent', () => {
 
     fixture = TestBed.createComponent(LandingComponent);
     component = fixture.componentInstance;
-    router = TestBed.inject(Router);
     location = TestBed.inject(Location);
     fixture.detectChanges();
   });
@@ -65,21 +57,18 @@ describe('LandingComponent', () => {
     expect(button).toBeTruthy();
   });
 
-  it('should navigate to /games when Browse Games button is clicked', fakeAsync(() => {
+  it('should navigate to /games when Browse Games button is clicked', async () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const button = compiled.querySelector(
       'button.btn-primary',
     ) as HTMLButtonElement;
     expect(button).toBeTruthy();
 
-    // Click the button
     button.click();
-    tick(0);
+    await fixture.whenStable();
 
-    // Verify navigation occurred
     expect(location.path()).toBe('/games');
-    discardPeriodicTasks();
-  }));
+  });
 
   it('should display the component title', () => {
     const compiled = fixture.nativeElement as HTMLElement;

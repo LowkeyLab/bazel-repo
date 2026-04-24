@@ -140,7 +140,9 @@ describe('CircleService', () => {
       const circleId = 1;
 
       service.getCircleContests(circleId).subscribe({
-        next: () => fail('should have failed'),
+        next: () => {
+          throw new Error('should have failed');
+        },
         error: (error) => {
           expect(error.status).toBe(500);
         },

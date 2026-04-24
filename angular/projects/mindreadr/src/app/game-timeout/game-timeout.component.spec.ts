@@ -1,4 +1,5 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameTimeoutComponent } from './game-timeout.component';
 import { GameDto } from '../services/game.types';
@@ -6,10 +7,14 @@ import { GameDto } from '../services/game.types';
 describe('GameTimeoutComponent', () => {
   const TEST_ANIMATION_DELAY = 50; // Use faster delay for tests
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   function createComponentWithNavState(state: any, id: string | null = 'g1') {
     const routerSpy = {
       currentNavigation: () => ({ extras: { state } }),
-      navigate: jasmine.createSpy('navigate'),
+      navigate: vi.fn(),
     } as any as Router;
     TestBed.configureTestingModule({
       imports: [GameTimeoutComponent],
@@ -49,16 +54,16 @@ describe('GameTimeoutComponent', () => {
     expect(comp.game()).toEqual(finalGame);
   });
 
-  it('shows inline error and redirects when finalGame is missing', (done) => {
+  it('shows inline error and redirects when finalGame is missing', async () => {
+    vi.useFakeTimers();
     const { comp, routerSpy } = createComponentWithNavState({}, 'g1');
     expect(comp.error()).toContain('Game data unavailable');
-    setTimeout(() => {
-      expect(routerSpy.navigate).toHaveBeenCalledWith(['/games']);
-      done();
-    }, 1600);
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['/games']);
   });
 
-  it('orders rounds ascending by round number', fakeAsync(() => {
+  it('orders rounds ascending by round number', async () => {
+    vi.useFakeTimers();
     const finalGame: GameDto = {
       id: 'g2',
       playerLimit: 2,
@@ -76,8 +81,7 @@ describe('GameTimeoutComponent', () => {
       finalGame,
     });
 
-    // Wait for animation delays (3 rounds * delay)
-    tick(3 * TEST_ANIMATION_DELAY);
+    await vi.advanceTimersByTimeAsync(3 * TEST_ANIMATION_DELAY);
     fixture.detectChanges();
 
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
@@ -86,9 +90,10 @@ describe('GameTimeoutComponent', () => {
     expect(roundHeaders[0].textContent?.trim()).toContain('Round #1');
     expect(roundHeaders[1].textContent?.trim()).toContain('Round #2');
     expect(roundHeaders[2].textContent?.trim()).toContain('Round #3');
-  }));
+  });
 
-  it('orders player names alphabetically in guesses', fakeAsync(() => {
+  it('orders player names alphabetically in guesses', async () => {
+    vi.useFakeTimers();
     const finalGame: GameDto = {
       id: 'g3',
       playerLimit: 2,
@@ -102,8 +107,7 @@ describe('GameTimeoutComponent', () => {
       finalGame,
     });
 
-    // Wait for animation delay (1 round * delay)
-    tick(TEST_ANIMATION_DELAY);
+    await vi.advanceTimersByTimeAsync(TEST_ANIMATION_DELAY);
     fixture.detectChanges();
 
     const el: HTMLElement = fixture.nativeElement as HTMLElement;
@@ -111,9 +115,10 @@ describe('GameTimeoutComponent', () => {
       el.querySelectorAll('div.font-semibold'),
     ).map((n) => (n.textContent || '').replace(':', '').trim());
     expect(guessLabels).toEqual(['Alice', 'Bob']);
-  }));
+  });
 
-  it('shows all rounds when game times out', fakeAsync(() => {
+  it('shows all rounds when game times out', async () => {
+    vi.useFakeTimers();
     const finalGame: GameDto = {
       id: 'g4',
       playerLimit: 2,
@@ -131,8 +136,7 @@ describe('GameTimeoutComponent', () => {
       finalGame,
     });
 
-    // Wait for animation delays (3 rounds * delay)
-    tick(3 * TEST_ANIMATION_DELAY);
+    await vi.advanceTimersByTimeAsync(3 * TEST_ANIMATION_DELAY);
     fixture.detectChanges();
 
     expect(comp.roundsCount()).toBe(3);
@@ -142,5 +146,5 @@ describe('GameTimeoutComponent', () => {
     expect(roundHeaders.length).toBe(3);
     expect(roundHeaders[0].textContent?.trim()).toContain('Round #1');
     expect(roundHeaders[2].textContent?.trim()).toContain('Round #3');
-  }));
+  });
 });

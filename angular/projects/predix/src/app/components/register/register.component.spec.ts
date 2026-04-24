@@ -1,42 +1,42 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { provideRouter, Router } from '@angular/router';
 import { provideLocationMocks } from '@angular/common/testing';
 import { of } from 'rxjs';
 
 import { RegisterComponent } from './register.component';
 import { AuthService, type LoginResponse } from '../../services/auth.service';
+import { createMockObject } from '../../../testing/create-mock-object';
 
 describe('RegisterComponent', () => {
+  const authMethods = ['isAuthenticated', 'register'] as const;
   let fixture: ComponentFixture<RegisterComponent>;
   let component: RegisterComponent;
-  let auth: jasmine.SpyObj<AuthService>;
+  let auth = createMockObject(authMethods);
   let router: Router;
 
   beforeEach(async () => {
-    auth = jasmine.createSpyObj<AuthService>('AuthService', [
-      'isAuthenticated',
-      'register',
-    ]);
+    auth = createMockObject(authMethods);
     const loginResponse: LoginResponse = {
       token: 'token',
       user: { id: 1, username: 'alice', role: 'member' },
     };
-    auth.isAuthenticated.and.returnValue(false);
-    auth.register.and.returnValue(of(loginResponse));
+    auth.isAuthenticated.mockReturnValue(false);
+    auth.register.mockReturnValue(of(loginResponse));
 
     await TestBed.configureTestingModule({
       imports: [RegisterComponent],
       providers: [
         provideRouter([]),
         provideLocationMocks(),
-        { provide: AuthService, useValue: auth },
+        { provide: AuthService, useValue: auth as unknown as AuthService },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RegisterComponent);
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
-    spyOn(router, 'navigateByUrl');
+    vi.spyOn(router, 'navigateByUrl');
     fixture.detectChanges();
   });
 

@@ -107,7 +107,7 @@ describe('StakeAdjustmentComponent', () => {
   });
 
   describe('Stake Updates via Input', () => {
-    it('should emit stakeChanged when input value changes', (done) => {
+    it('should emit stakeChanged when input value changes', async () => {
       const input = wrapperFixture.debugElement.query(
         By.css('input[type="number"]'),
       ).nativeElement;
@@ -116,10 +116,8 @@ describe('StakeAdjustmentComponent', () => {
       input.dispatchEvent(new Event('input'));
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.stakeChangedValue).toBe(2000);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(2000);
     });
 
     it('should update displayed stake when config changes', () => {
@@ -155,57 +153,47 @@ describe('StakeAdjustmentComponent', () => {
   });
 
   describe('Stake Adjustment via Buttons', () => {
-    it('should adjust stake up by 100', (done) => {
+    it('should adjust stake up by 100', async () => {
       const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
       // +100 is the 4th button
       buttons[3].nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        // Component logic would add 100 to current stake
-        expect(wrapperComponent.stakeChangedValue).toBe(1100);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(1100);
     });
 
-    it('should adjust stake down by 100', (done) => {
+    it('should adjust stake down by 100', async () => {
       const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
       // -100 is the 1st button
       buttons[0].nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.stakeChangedValue).toBe(900);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(900);
     });
 
-    it('should adjust stake up by 1000', (done) => {
+    it('should adjust stake up by 1000', async () => {
       const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
       // +1000 is the 5th button
       buttons[4].nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.stakeChangedValue).toBe(2000);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(2000);
     });
 
-    it('should adjust stake down by 1000', (done) => {
+    it('should adjust stake down by 1000', async () => {
       const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
       // -1000 is the 2nd button
       buttons[1].nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        // Current stake is 1000, min stake is 100, so 1000 - 1000 = 0 but clamped to 100
-        expect(wrapperComponent.stakeChangedValue).toBe(100);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(100);
     });
 
-    it('should clamp to minimum stake when adjusting down', (done) => {
+    it('should clamp to minimum stake when adjusting down', async () => {
       wrapperComponent.config.set({
         minStake: 100,
         currentStake: 150,
@@ -218,13 +206,11 @@ describe('StakeAdjustmentComponent', () => {
       buttons[0].nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.stakeChangedValue).toBe(100);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(100);
     });
 
-    it('should clamp large decrements to minimum stake', (done) => {
+    it('should clamp large decrements to minimum stake', async () => {
       wrapperComponent.config.set({
         minStake: 100,
         currentStake: 500,
@@ -237,10 +223,8 @@ describe('StakeAdjustmentComponent', () => {
       buttons[2].nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.stakeChangedValue).toBe(100);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(100);
     });
   });
 
@@ -322,7 +306,7 @@ describe('StakeAdjustmentComponent', () => {
   });
 
   describe('Form Submission', () => {
-    it('should emit predictionSubmitted when submit button clicked', (done) => {
+    it('should emit predictionSubmitted when submit button clicked', async () => {
       const submitButton = wrapperFixture.debugElement.queryAll(
         By.css('button'),
       );
@@ -331,13 +315,11 @@ describe('StakeAdjustmentComponent', () => {
       placeButton.nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.predictionSubmittedCalled).toBe(true);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.predictionSubmittedCalled).toBe(true);
     });
 
-    it('should emit predictionSubmitted once per click', (done) => {
+    it('should emit predictionSubmitted once per click', async () => {
       let emitCount = 0;
       wrapperComponent.onPredictionSubmitted = () => {
         emitCount++;
@@ -351,10 +333,8 @@ describe('StakeAdjustmentComponent', () => {
       placeButton.nativeElement.click();
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(emitCount).toBe(1);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(emitCount).toBe(1);
     });
   });
 
@@ -389,7 +369,7 @@ describe('StakeAdjustmentComponent', () => {
   });
 
   describe('Integration Scenarios', () => {
-    it('should handle rapid stake changes', (done) => {
+    it('should handle rapid stake changes', async () => {
       const input = wrapperFixture.debugElement.query(
         By.css('input[type="number"]'),
       ).nativeElement;
@@ -407,13 +387,11 @@ describe('StakeAdjustmentComponent', () => {
       input.dispatchEvent(new Event('input'));
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        expect(wrapperComponent.stakeChangedValue).toBe(2500);
-        done();
-      });
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(2500);
     });
 
-    it('should handle mixed input and button adjustments', (done) => {
+    it('should handle mixed input and button adjustments', async () => {
       const input = wrapperFixture.debugElement.query(
         By.css('input[type="number"]'),
       ).nativeElement;
@@ -423,29 +401,22 @@ describe('StakeAdjustmentComponent', () => {
       input.dispatchEvent(new Event('input'));
       wrapperFixture.detectChanges();
 
-      wrapperFixture.whenStable().then(() => {
-        // After input, stakeChangedValue should be 2000
-        expect(wrapperComponent.stakeChangedValue).toBe(2000);
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(2000);
 
-        // Update config to reflect the new stake
-        wrapperComponent.config.set({
-          minStake: 100,
-          currentStake: 2000,
-          isLoading: false,
-        });
-        wrapperFixture.detectChanges();
-
-        // Then button adjustment
-        const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
-        buttons[4].nativeElement.click(); // +1000
-        wrapperFixture.detectChanges();
-
-        wrapperFixture.whenStable().then(() => {
-          // 2000 + 1000 = 3000
-          expect(wrapperComponent.stakeChangedValue).toBe(3000);
-          done();
-        });
+      wrapperComponent.config.set({
+        minStake: 100,
+        currentStake: 2000,
+        isLoading: false,
       });
+      wrapperFixture.detectChanges();
+
+      const buttons = wrapperFixture.debugElement.queryAll(By.css('button'));
+      buttons[4].nativeElement.click();
+      wrapperFixture.detectChanges();
+
+      await wrapperFixture.whenStable();
+      expect(wrapperComponent.stakeChangedValue).toBe(3000);
     });
   });
 });

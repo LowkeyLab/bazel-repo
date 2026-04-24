@@ -1,17 +1,29 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { ContestDetailComponent } from './contest-detail.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContestService } from '../../services/contest.service';
 import { AuthService } from '../../services/auth.service';
 import { of, throwError, Subject } from 'rxjs';
 import type { Contest, PayoutBreakdown } from '../../models/contest.model';
+import { createMockObject } from '../../../testing/create-mock-object';
 
 describe('ContestDetailComponent - Payout Breakdown', () => {
+  const contestServiceMethods = [
+    'getContest',
+    'makePrediction',
+    'lockContest',
+    'resolveContest',
+    'getPayoutBreakdown',
+    'streamContestDetails',
+  ] as const;
+  const authMethods = ['currentUser'] as const;
+  const routerMethods = ['navigate'] as const;
   let component: ContestDetailComponent;
   let fixture: ComponentFixture<ContestDetailComponent>;
-  let mockContestService: jasmine.SpyObj<ContestService>;
-  let mockAuthService: jasmine.SpyObj<AuthService>;
-  let mockRouter: jasmine.SpyObj<Router>;
+  let mockContestService = createMockObject(contestServiceMethods);
+  let mockAuthService = createMockObject(authMethods);
+  let mockRouter = createMockObject(routerMethods);
   let mockActivatedRoute: Partial<ActivatedRoute>;
 
   const mockResolvedContest: Contest = {
@@ -78,20 +90,13 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
   };
 
   beforeEach(async () => {
-    mockContestService = jasmine.createSpyObj('ContestService', [
-      'getContest',
-      'makePrediction',
-      'lockContest',
-      'resolveContest',
-      'getPayoutBreakdown',
-      'streamContestDetails',
-    ]);
-    mockAuthService = jasmine.createSpyObj('AuthService', ['currentUser']);
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockContestService = createMockObject(contestServiceMethods);
+    mockAuthService = createMockObject(authMethods);
+    mockRouter = createMockObject(routerMethods);
     mockActivatedRoute = {
       snapshot: {
         paramMap: {
-          get: jasmine.createSpy('get').and.callFake((key: string) => {
+          get: vi.fn().mockImplementation((key: string) => {
             if (key === 'id') return '1';
             if (key === 'circleId') return '1';
             return null;
@@ -100,7 +105,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       } as any,
     };
 
-    mockAuthService.currentUser.and.returnValue({
+    mockAuthService.currentUser.mockReturnValue({
       id: 1,
       username: 'alice',
       role: 'member',
@@ -109,21 +114,27 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     await TestBed.configureTestingModule({
       imports: [ContestDetailComponent],
       providers: [
-        { provide: ContestService, useValue: mockContestService },
-        { provide: AuthService, useValue: mockAuthService },
-        { provide: Router, useValue: mockRouter },
+        {
+          provide: ContestService,
+          useValue: mockContestService as unknown as ContestService,
+        },
+        {
+          provide: AuthService,
+          useValue: mockAuthService as unknown as AuthService,
+        },
+        { provide: Router, useValue: mockRouter as unknown as Router },
         { provide: ActivatedRoute, useValue: mockActivatedRoute },
       ],
     }).compileComponents();
 
     // Default mock for streamContestDetails (can be overridden in specific tests)
-    mockContestService.streamContestDetails.and.returnValue(
+    mockContestService.streamContestDetails.mockReturnValue(
       of({
         ...mockOpenContest,
         totals: { byOption: new Map() },
       }),
     );
-    mockContestService.getContest.and.returnValue(of(mockOpenContest));
+    mockContestService.getContest.mockReturnValue(of(mockOpenContest));
 
     fixture = TestBed.createComponent(ContestDetailComponent);
     component = fixture.componentInstance;
@@ -144,10 +155,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
           ]),
         },
       };
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of(contestWithTotals),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         of(mockPayoutBreakdown),
       );
 
@@ -166,7 +177,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         ...mockOpenContest,
         totals: { byOption: new Map() },
       };
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of(contestWithTotals),
       );
 
@@ -179,32 +190,29 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
     });
 
-    it('should set payoutLoading signal to true while fetching', (done) => {
+    it('should set payoutLoading signal to true while fetching', async () => {
       const contestWithTotals = {
         ...mockResolvedContest,
         totals: { byOption: new Map() },
       };
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of(contestWithTotals),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         of(mockPayoutBreakdown),
       );
 
       fixture.detectChanges();
 
-      // Check that payoutLoading is false after loading completes
-      setTimeout(() => {
-        expect(component.payoutLoading()).toBe(false);
-        done();
-      }, 0);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(component.payoutLoading()).toBe(false);
     });
 
     it('should handle payout breakdown fetch error', () => {
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockResolvedContest, totals: { byOption: new Map() } }),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         throwError(() => ({
           error: { error: 'Failed to load payout breakdown' },
         })),
@@ -217,10 +225,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should handle generic payout breakdown fetch error', () => {
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockResolvedContest, totals: { byOption: new Map() } }),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         throwError(() => new Error('Network error')),
       );
 
@@ -233,7 +241,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
   describe('Payout Breakdown Not Shown for Non-Resolved Contests', () => {
     it('should not load payout breakdown when contest status is OPEN', () => {
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockOpenContest, totals: { byOption: new Map() } }),
       );
 
@@ -249,7 +257,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         status: 'LOCKED',
         result_option_id: undefined,
       };
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...lockedContest, totals: { byOption: new Map() } }),
       );
 
@@ -265,7 +273,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         status: 'EXPIRED',
         result_option_id: undefined,
       };
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...closedContest, totals: { byOption: new Map() } }),
       );
 
@@ -278,7 +286,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
   describe('Contest Resolution Flow', () => {
     it('should load payout breakdown after resolving contest', () => {
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockOpenContest, totals: { byOption: new Map() } }),
       );
 
@@ -286,11 +294,11 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       expect(mockContestService.getPayoutBreakdown).not.toHaveBeenCalled();
 
       // Simulate resolution
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockResolvedContest, totals: { byOption: new Map() } }),
       );
-      mockContestService.getContest.and.returnValue(of(mockResolvedContest)); // Add getContest mock for loadContest method
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getContest.mockReturnValue(of(mockResolvedContest)); // Add getContest mock for loadContest method
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         of(mockPayoutBreakdown),
       );
 
@@ -301,10 +309,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should handle error when loading payout breakdown after resolution', () => {
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockResolvedContest, totals: { byOption: new Map() } }),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         throwError(() => ({
           error: { error: 'Contest not found' },
         })),
@@ -331,10 +339,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
     });
 
     it('should update all three signals when loading succeeds', () => {
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockResolvedContest, totals: { byOption: new Map() } }),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         of(mockPayoutBreakdown),
       );
 
@@ -351,10 +359,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
 
     it('should update signals correctly when loading fails', () => {
       const errorMessage = 'Connection timeout';
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of({ ...mockResolvedContest, totals: { byOption: new Map() } }),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         throwError(() => ({
           error: { error: errorMessage },
         })),
@@ -374,7 +382,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         ...mockOpenContest,
         totals: { byOption: new Map() },
       };
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         of(contestWithTotals),
       );
 
@@ -392,21 +400,21 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
         totals: { byOption: Map<number, { clout: number; count: number }> };
       };
       const pollSubject = new Subject<ContestWithTotals>();
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         pollSubject.asObservable(),
       );
 
       fixture.detectChanges();
 
       const subscription = (component as any).pollingSubscription;
-      spyOn(subscription, 'unsubscribe');
+      vi.spyOn(subscription, 'unsubscribe');
 
       fixture.destroy();
 
       expect(subscription.unsubscribe).toHaveBeenCalled();
     });
 
-    it('should update contest state on each poll emission', (done) => {
+    it('should update contest state on each poll emission', () => {
       const contestOpen = {
         ...mockOpenContest,
         totals: { byOption: new Map([[1, { clout: 100, count: 1 }]]) },
@@ -417,7 +425,7 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       };
 
       const pollSubject = new Subject<typeof contestOpen>();
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         pollSubject.asObservable(),
       );
 
@@ -432,7 +440,6 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       expect(component.contest()).toEqual(contestUpdated);
 
       pollSubject.complete();
-      done();
     });
 
     it('should load payout breakdown only once when contest becomes resolved', () => {
@@ -447,10 +454,10 @@ describe('ContestDetailComponent - Payout Breakdown', () => {
       };
 
       const pollSubject = new Subject<any>();
-      mockContestService.streamContestDetails.and.returnValue(
+      mockContestService.streamContestDetails.mockReturnValue(
         pollSubject.asObservable(),
       );
-      mockContestService.getPayoutBreakdown.and.returnValue(
+      mockContestService.getPayoutBreakdown.mockReturnValue(
         of(mockPayoutBreakdown),
       );
 
