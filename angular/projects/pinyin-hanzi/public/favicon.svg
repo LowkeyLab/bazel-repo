@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pinyin Hanzi favicon">
+  <defs>
+    <linearGradient id="tile" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f6ecdf" />
+      <stop offset="100%" stop-color="#dcb791" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#7d2f1a" />
+  <rect x="6" y="6" width="52" height="52" rx="12" fill="url(#tile)" />
+  <path d="M20 20h24v4H34v6h8v4h-8v10h-4V34h-8v-4h8v-6H20z" fill="#7d2f1a" />
+</svg>
