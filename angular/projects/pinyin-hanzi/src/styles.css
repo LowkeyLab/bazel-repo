@@ -1,0 +1,92 @@
+:root {
+  color-scheme: light;
+  --font-body: "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-pill: 999px;
+
+  --size-shell-max: 76rem;
+  --size-column-min: 20rem;
+  --size-field-min-height: 10rem;
+  --size-ruby-min: 5rem;
+  --size-card-min: 14rem;
+  --border-width: 1px;
+  --measure-title: 16ch;
+  --measure-copy: 44rem;
+  --tracking-wide: 0.08em;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: clamp(2.25rem, 5vw, 4rem);
+  --line-tight: 1.1;
+  --line-body: 1.6;
+
+  --color-canvas: #f4ede4;
+  --color-panel: #fffaf3;
+  --color-panel-strong: #f0e1d0;
+  --color-panel-muted: #ede3d7;
+  --color-border: #d0bcaa;
+  --color-border-strong: #b58b67;
+  --color-text: #2b2119;
+  --color-text-muted: #6d5846;
+  --color-text-inverse: #fffaf3;
+  --color-accent: #8b3a22;
+  --color-accent-strong: #632819;
+  --color-accent-soft: #f6e0d6;
+  --color-secondary: #2b6078;
+  --color-secondary-soft: #daeaf2;
+  --color-success: #2f7757;
+  --color-success-soft: #dcefe5;
+  --color-warning: #9f6d12;
+  --color-warning-soft: #f5ead4;
+  --color-danger: #aa463d;
+  --color-danger-soft: #f5ddda;
+  --gradient-page: radial-gradient(circle at top, #fff4e3 0%, #f4ede4 52%);
+  --gradient-hero: linear-gradient(135deg, #fffaf3 0%, #f1dfc8 100%);
+  --shadow-panel: 0 1.5rem 4rem rgb(79 53 28 / 0.12);
+  --shadow-soft: 0 0.75rem 2rem rgb(79 53 28 / 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--gradient-page);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: var(--line-body);
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+code {
+  font-family: var(--font-mono);
+}
