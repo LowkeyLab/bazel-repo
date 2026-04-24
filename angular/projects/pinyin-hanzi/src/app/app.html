@@ -1,0 +1,175 @@
+<main class="shell">
+  <section class="panel hero">
+    <p class="eyebrow">Client-side pinyin → hanzi</p>
+    <h1 class="hero-title">Compose hanzi with local remembered choices.</h1>
+    <p class="hero-copy">
+      Enter space-separated pinyin. Tone marks and number suffixes normalize
+      automatically, ambiguous syllables expose candidates, and your picks stay
+      in this browser until you clear them.
+    </p>
+    <div class="chip-row" aria-label="Feature highlights">
+      <span class="chip">Standalone Angular</span>
+      <span class="chip">Embedded dictionary</span>
+      <span class="chip">Ruby pronunciation</span>
+      <span class="chip">Remembered selections</span>
+    </div>
+  </section>
+
+  <section class="workspace">
+    <article class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="section-label">Input</p>
+          <h2 class="section-title">Pinyin workspace</h2>
+        </div>
+      </div>
+
+      <label class="field-label" for="pinyin-input"
+        >Space-separated pinyin</label
+      >
+      <textarea
+        id="pinyin-input"
+        class="input-field"
+        data-testid="pinyin-input"
+        spellcheck="false"
+        autocapitalize="off"
+        autocomplete="off"
+        autocorrect="off"
+        [value]="inputValue()"
+        (input)="updateInput(pinyinInput.value)"
+        #pinyinInput
+      ></textarea>
+
+      <div class="info-stack">
+        <p class="note">
+          <span class="note-label">Normalized</span>
+          <code>{{ parsedInput().normalizedInput || '—' }}</code>
+        </p>
+
+        @if (parsedInput().invalidTokens.length > 0) {
+        <p class="note note--warning">
+          <span class="note-label">Ignored tokens</span>
+          {{ parsedInput().invalidTokens.join(', ') }}
+        </p>
+        } @if (composition().unknownKeys.length > 0) {
+        <p class="note note--danger">
+          <span class="note-label">Missing from dictionary</span>
+          {{ composition().unknownKeys.join(', ') }}
+        </p>
+        }
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="section-label">Output</p>
+          <h2 class="section-title">Ruby rendering</h2>
+        </div>
+
+        @if (rememberedChoiceCount() > 0) {
+        <button
+          type="button"
+          class="action-button"
+          data-testid="clear-memory"
+          (click)="clearRememberedChoices()"
+        >
+          {{ rememberedChoiceLabel() }}
+        </button>
+        }
+      </div>
+
+      @if (composition().segments.length > 0) {
+      <p class="plain-output" data-testid="plain-output">
+        {{ composition().selectedText }}
+      </p>
+      <div class="ruby-strip" aria-live="polite" data-testid="rendered-output">
+        @for (segment of composition().segments; track segment.key + '-' +
+        $index) { @if (segment.isKnown && segment.selectedHanzi) {
+        <ruby
+          class="ruby-token"
+          [class.ruby-token--remembered]="segment.isRemembered"
+        >
+          <span class="ruby-base">{{ segment.selectedHanzi }}</span>
+          <rt>{{ segment.pinyin }}</rt>
+        </ruby>
+        } @else {
+        <span class="ruby-token ruby-token--unknown">
+          <span class="ruby-base">?</span>
+          <span class="fallback-pinyin">{{ segment.pinyin }}</span>
+        </span>
+        } }
+      </div>
+      } @else {
+      <p class="empty-state">Type pinyin above to see composed hanzi here.</p>
+      }
+    </article>
+  </section>
+
+  @if (ambiguousSegments().length > 0) {
+  <section class="panel">
+    <div class="section-heading">
+      <div>
+        <p class="section-label">Disambiguation</p>
+        <h2 class="section-title">Choose how ambiguous pinyin should render</h2>
+      </div>
+      <p class="section-copy">Selections persist per normalized pinyin key.</p>
+    </div>
+
+    <div class="candidate-grid">
+      @for (segment of ambiguousSegments(); track segment.key + '-' + $index) {
+      <article class="candidate-card">
+        <div class="candidate-heading">
+          <div>
+            <p class="candidate-key">{{ segment.key }}</p>
+            <p class="candidate-copy">Tap one candidate to remember it.</p>
+          </div>
+        </div>
+
+        <div class="candidate-options">
+          @for (option of segment.options; track option.hanzi) {
+          <button
+            type="button"
+            class="candidate-button"
+            data-testid="candidate-choice"
+            [attr.data-key]="segment.key"
+            [attr.data-hanzi]="option.hanzi"
+            [class.candidate-button--active]="segment.selectedHanzi === option.hanzi"
+            (click)="rememberChoice(segment.key, option.hanzi)"
+          >
+            <span class="candidate-hanzi">{{ option.hanzi }}</span>
+            <span class="candidate-gloss">{{ option.gloss }}</span>
+          </button>
+          }
+        </div>
+      </article>
+      }
+    </div>
+  </section>
+  }
+
+  <section class="panel">
+    <div class="section-heading">
+      <div>
+        <p class="section-label">Embedded dictionary</p>
+        <h2 class="section-title">Built-in local coverage</h2>
+      </div>
+      <p class="section-copy">
+        Small by design so the app stays self-contained.
+      </p>
+    </div>
+
+    <div class="dictionary-grid">
+      @for (entry of dictionaryEntries; track entry.key) {
+      <article class="dictionary-card">
+        <p class="dictionary-key">{{ entry.key }}</p>
+        <div class="dictionary-values">
+          @for (option of entry.options; track option.hanzi) {
+          <span class="dictionary-value">{{ option.hanzi }}</span>
+          }
+        </div>
+      </article>
+      }
+    </div>
+  </section>
+</main>
