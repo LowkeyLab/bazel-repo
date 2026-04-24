@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { LiveGameComponent } from './live-game.component';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameWsService } from '../services/game-ws.service';
@@ -19,7 +20,7 @@ describe('LiveGameComponent logic', () => {
         { provide: GameWsService, useValue: {} },
         {
           provide: Router,
-          useValue: { navigate: jasmine.createSpy('navigate') },
+          useValue: { navigate: vi.fn() },
         },
       ],
     });
@@ -49,8 +50,8 @@ describe('LiveGameComponent logic', () => {
     component.game.set(game);
     component.currentPlayer.set(p1);
 
-    expect(component.shouldHideGuesses(round, game)).toBeTrue();
-    expect(component.waitingForOtherPlayer()).toBeTrue();
+    expect(component.shouldHideGuesses(round, game)).toBe(true);
+    expect(component.waitingForOtherPlayer()).toBe(true);
   });
 
   it('reveals guesses and not waiting when all players have guessed', () => {
@@ -71,8 +72,8 @@ describe('LiveGameComponent logic', () => {
     component.game.set(game);
     component.currentPlayer.set(p1);
 
-    expect(component.shouldHideGuesses(round, game)).toBeFalse();
-    expect(component.waitingForOtherPlayer()).toBeFalse();
+    expect(component.shouldHideGuesses(round, game)).toBe(false);
+    expect(component.waitingForOtherPlayer()).toBe(false);
   });
 
   it('detects player guess via id fallback when name key missing', () => {
@@ -94,8 +95,8 @@ describe('LiveGameComponent logic', () => {
     component.currentPlayer.set(p1);
 
     // All guessed -> not hidden
-    expect(component.shouldHideGuesses(round, game)).toBeFalse();
-    expect(component.waitingForOtherPlayer()).toBeFalse();
+    expect(component.shouldHideGuesses(round, game)).toBe(false);
+    expect(component.waitingForOtherPlayer()).toBe(false);
   });
 
   it('returns empty array for reversedRounds when game is null', () => {
@@ -202,8 +203,8 @@ describe('LiveGameComponent navigation', () => {
       terminated$,
       playerJoined$,
       playerLeft$,
-      submitGuess: jasmine.createSpy('submitGuess'),
-      close: jasmine.createSpy('close'),
+      submitGuess: vi.fn(),
+      close: vi.fn(),
     };
 
     TestBed.configureTestingModule({
@@ -216,7 +217,7 @@ describe('LiveGameComponent navigation', () => {
         { provide: GameWsService, useValue: { connect: () => mockConn } },
         {
           provide: Router,
-          useValue: { navigate: jasmine.createSpy('navigate') },
+          useValue: { navigate: vi.fn() },
         },
       ],
     });
@@ -238,7 +239,7 @@ describe('LiveGameComponent navigation', () => {
     };
     gameState$.next(game);
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/summary'], {
-      state: jasmine.objectContaining({
+      state: expect.objectContaining({
         playerName: 'Player',
         finalGame: game,
       }),
@@ -248,7 +249,7 @@ describe('LiveGameComponent navigation', () => {
   it('navigates to summary when terminated with COMPLETED', () => {
     terminated$.next('COMPLETED');
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/summary'], {
-      state: jasmine.objectContaining({ playerName: 'Player' }),
+      state: expect.objectContaining({ playerName: 'Player' }),
     });
   });
 
@@ -266,7 +267,7 @@ describe('LiveGameComponent navigation', () => {
     };
     gameState$.next(game);
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/timeout'], {
-      state: jasmine.objectContaining({
+      state: expect.objectContaining({
         playerName: 'Player',
         finalGame: game,
       }),
@@ -302,7 +303,7 @@ describe('LiveGameComponent navigation', () => {
     component.game.set(game);
     terminated$.next('TERMINATED');
     expect(router.navigate).toHaveBeenCalledWith(['/games/g1/timeout'], {
-      state: jasmine.objectContaining({ playerName: 'Player' }),
+      state: expect.objectContaining({ playerName: 'Player' }),
     });
   });
 

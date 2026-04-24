@@ -1,4 +1,5 @@
 import { GameWsService, ServerMessage } from './game-ws.service';
+import { vi } from 'vitest';
 import { Subject, firstValueFrom, take } from 'rxjs';
 
 // Allow mutating API_BASE_URL during tests
@@ -40,10 +41,12 @@ describe('GameWsService', () => {
     };
 
     capturedUrl = undefined;
-    spyOn<any>(service as any, 'createSocket').and.callFake((config: any) => {
-      capturedUrl = config?.url;
-      return fake as any;
-    });
+    vi.spyOn(service as never, 'createSocket' as never).mockImplementation(
+      (config: { url?: string }) => {
+        capturedUrl = config?.url;
+        return fake as never;
+      },
+    );
   });
 
   it('builds a ws URL and encodes gameId', () => {
@@ -90,13 +93,13 @@ describe('GameWsService', () => {
 
     // Termination is covered by a dedicated test to avoid race conditions
 
-    await expectAsync(gameStateP).toBeResolvedTo(
-      jasmine.objectContaining({ id: 'g1' }),
+    await expect(gameStateP).resolves.toEqual(
+      expect.objectContaining({ id: 'g1' }),
     );
-    await expectAsync(playerJoinedP).toBeResolvedTo(
-      jasmine.objectContaining({ name: 'Alice' }),
+    await expect(playerJoinedP).resolves.toEqual(
+      expect.objectContaining({ name: 'Alice' }),
     );
-    await expectAsync(errorP).toBeResolvedTo('nope');
+    await expect(errorP).resolves.toBe('nope');
   });
 
   it('submitGuess sends the correct payload', () => {
@@ -105,7 +108,7 @@ describe('GameWsService', () => {
 
     conn.submitGuess('word');
     expect(fake.sent).toEqual(
-      jasmine.arrayContaining([{ type: 'submit_guess', guess: 'word' }]),
+      expect.arrayContaining([{ type: 'submit_guess', guess: 'word' }]),
     );
   });
 
@@ -114,7 +117,7 @@ describe('GameWsService', () => {
     const conn = service.connect('game');
     const termP = firstValueFrom(conn.terminated$);
 
-    expect(fake.completed).toBeFalse();
+    expect(fake.completed).toBe(false);
     // Emulate server sending a completed game state
     fake.incoming$.next({
       type: 'game_state',
@@ -129,9 +132,9 @@ describe('GameWsService', () => {
       },
     } as ServerMessage);
 
-    await expectAsync(termP).toBeResolvedTo('COMPLETED');
+    await expect(termP).resolves.toBe('COMPLETED');
     // Auto-close should have completed the fake socket
-    expect(fake.completed).toBeTrue();
+    expect(fake.completed).toBe(true);
   });
 
   it('auto-closes and emits TERMINATED state', async () => {
@@ -152,8 +155,8 @@ describe('GameWsService', () => {
       },
     } as ServerMessage);
 
-    await expectAsync(termP).toBeResolvedTo('TERMINATED');
-    expect(fake.completed).toBeTrue();
+    await expect(termP).resolves.toBe('TERMINATED');
+    expect(fake.completed).toBe(true);
   });
 
   it('stops forwarding messages after close()', async () => {

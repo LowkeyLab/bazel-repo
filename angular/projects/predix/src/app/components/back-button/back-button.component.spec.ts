@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { BackButtonComponent } from './back-button.component';
@@ -18,13 +19,13 @@ describe('BackButtonComponent', () => {
         {
           provide: Router,
           useValue: {
-            navigate: jasmine.createSpy('navigate'),
+            navigate: vi.fn(),
           },
         },
         {
           provide: Location,
           useValue: {
-            back: jasmine.createSpy('back'),
+            back: vi.fn(),
           },
         },
       ],

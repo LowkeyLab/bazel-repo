@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { GamesCountComponent } from './games-count.component';
 import { GameService } from '../services/game.service';
 import { of, throwError } from 'rxjs';
@@ -6,9 +7,9 @@ import { Component } from '@angular/core';
 
 // Mock GameService
 class MockGameService {
-  getSummary = jasmine
-    .createSpy()
-    .and.returnValue(
+  getSummary = vi
+    .fn()
+    .mockReturnValue(
       of({ inProgressGames: 5, waitingForPlayerGames: 3, completedGames: 2 }),
     );
 }
@@ -51,7 +52,7 @@ describe('GamesCountComponent', () => {
   });
 
   it('should handle errors from either service', () => {
-    gameService.getSummary.and.returnValue(
+    gameService.getSummary.mockReturnValue(
       throwError(() => ({ message: 'fail' })),
     );
     component.fetchCounts();

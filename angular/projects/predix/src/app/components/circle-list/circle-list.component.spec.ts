@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -6,12 +7,15 @@ import { of, throwError } from 'rxjs';
 import { CircleListComponent } from './circle-list.component';
 import { CircleService } from '../../services/circle.service';
 import type { Circle } from '../../models/circle.model';
+import { createMockObject } from '../../../testing/create-mock-object';
 
 describe('CircleListComponent', () => {
+  const circleServiceMethods = ['listUserCircles'] as const;
+  const routerMethods = ['navigate'] as const;
   let fixture: ComponentFixture<CircleListComponent>;
   let component: CircleListComponent;
-  let mockCircleService: jasmine.SpyObj<CircleService>;
-  let mockRouter: jasmine.SpyObj<Router>;
+  let mockCircleService = createMockObject(circleServiceMethods);
+  let mockRouter = createMockObject(routerMethods);
 
   const mockCircle1: Circle = {
     id: 1,
@@ -34,16 +38,17 @@ describe('CircleListComponent', () => {
   };
 
   beforeEach(async () => {
-    mockCircleService = jasmine.createSpyObj('CircleService', [
-      'listUserCircles',
-    ]);
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockCircleService = createMockObject(circleServiceMethods);
+    mockRouter = createMockObject(routerMethods);
 
     await TestBed.configureTestingModule({
       imports: [CircleListComponent],
       providers: [
-        { provide: CircleService, useValue: mockCircleService },
-        { provide: Router, useValue: mockRouter },
+        {
+          provide: CircleService,
+          useValue: mockCircleService as unknown as CircleService,
+        },
+        { provide: Router, useValue: mockRouter as unknown as Router },
       ],
     }).compileComponents();
 
@@ -57,7 +62,7 @@ describe('CircleListComponent', () => {
 
   describe('Initial Load Flow', () => {
     it('should load circles on init', () => {
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         of([mockCircle1, mockCircle2]),
       );
 
@@ -69,8 +74,8 @@ describe('CircleListComponent', () => {
     });
 
     it('should handle error on init', () => {
-      spyOn(console, 'error');
-      mockCircleService.listUserCircles.and.returnValue(
+      vi.spyOn(console, 'error');
+      mockCircleService.listUserCircles.mockReturnValue(
         throwError(() => new Error('Failed to fetch circles')),
       );
 
@@ -80,7 +85,7 @@ describe('CircleListComponent', () => {
       expect(component.circles()).toEqual([]);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to load circles:',
-        jasmine.any(Error),
+        expect.any(Error),
       );
     });
   });
@@ -88,12 +93,12 @@ describe('CircleListComponent', () => {
   describe('Refresh Flow', () => {
     it('should call service and update circles on refresh', () => {
       // initial
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
       fixture.detectChanges();
       expect(component.circles().length).toBe(1);
 
       // refresh with new data
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle2]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle2]));
       component.refreshCircles();
 
       expect(mockCircleService.listUserCircles).toHaveBeenCalledTimes(2);
@@ -103,12 +108,12 @@ describe('CircleListComponent', () => {
     });
 
     it('should set loading state during refresh and reset after', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
       fixture.detectChanges();
       expect(component.loading()).toBe(false);
 
       // Set up next call
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle2]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle2]));
       component.refreshCircles();
 
       // After synchronous subscription, loading should be false again
@@ -116,11 +121,11 @@ describe('CircleListComponent', () => {
     });
 
     it('should handle errors during refresh', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
       fixture.detectChanges();
 
-      spyOn(console, 'error');
-      mockCircleService.listUserCircles.and.returnValue(
+      vi.spyOn(console, 'error');
+      mockCircleService.listUserCircles.mockReturnValue(
         throwError(() => new Error('Network error')),
       );
 
@@ -129,14 +134,14 @@ describe('CircleListComponent', () => {
       expect(component.loading()).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to load circles:',
-        jasmine.any(Error),
+        expect.any(Error),
       );
     });
   });
 
   describe('Template Rendering Flow', () => {
     it('should render refresh button', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
@@ -147,8 +152,8 @@ describe('CircleListComponent', () => {
     });
 
     it('should call refreshCircles when refresh button is clicked', () => {
-      spyOn(component, 'refreshCircles');
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      vi.spyOn(component, 'refreshCircles');
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
@@ -160,7 +165,7 @@ describe('CircleListComponent', () => {
     });
 
     it('should disable refresh button when loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(true);
@@ -173,7 +178,7 @@ describe('CircleListComponent', () => {
     });
 
     it('should show "Refreshing..." text when loading and "Refresh" when not', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(true);
@@ -192,7 +197,7 @@ describe('CircleListComponent', () => {
     });
 
     it('should toggle animate-spin class on icon based on loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(true);

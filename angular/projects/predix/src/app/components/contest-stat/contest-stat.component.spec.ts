@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { ContestStatComponent } from './contest-stat.component';
 import { By } from '@angular/platform-browser';
 
@@ -7,10 +8,7 @@ describe('ContestStatComponent', () => {
   let fixture: ComponentFixture<ContestStatComponent>;
 
   beforeEach(async () => {
-    try {
-      jasmine.clock().uninstall();
-    } catch (e) {}
-    jasmine.clock().install();
+    vi.useFakeTimers();
 
     await TestBed.configureTestingModule({
       imports: [ContestStatComponent],
@@ -26,7 +24,7 @@ describe('ContestStatComponent', () => {
   });
 
   afterEach(() => {
-    jasmine.clock().uninstall();
+    vi.useRealTimers();
   });
 
   it('should create', () => {
@@ -45,7 +43,7 @@ describe('ContestStatComponent', () => {
     expect(valueEl.textContent).toContain('100');
   });
 
-  it('should flash green (up) when value increases', () => {
+  it('should flash green (up) when value increases', async () => {
     // Initial state
     const valueEl = fixture.debugElement.query(By.css('.stat-value'));
     expect(valueEl.classes['text-green-500']).toBeFalsy();
@@ -60,13 +58,13 @@ describe('ContestStatComponent', () => {
     expect(valueEl.classes['text-red-500']).toBeFalsy();
 
     // Wait for flash duration
-    jasmine.clock().tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     fixture.detectChanges();
 
     expect(valueEl.classes['text-green-500']).toBeFalsy();
   });
 
-  it('should flash red (down) when value decreases', () => {
+  it('should flash red (down) when value decreases', async () => {
     // Initial state
     const valueEl = fixture.debugElement.query(By.css('.stat-value'));
     expect(valueEl.classes['text-green-500']).toBeFalsy();
@@ -81,7 +79,7 @@ describe('ContestStatComponent', () => {
     expect(valueEl.classes['text-red-500']).toBe(true);
 
     // Wait for flash duration
-    jasmine.clock().tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     fixture.detectChanges();
 
     expect(valueEl.classes['text-red-500']).toBeFalsy();

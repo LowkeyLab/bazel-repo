@@ -1,11 +1,6 @@
-import {
-  ComponentFixture,
-  TestBed,
-  fakeAsync,
-  tick,
-  discardPeriodicTasks,
-} from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GamesComponent } from './games.component';
+import { vi } from 'vitest';
 import { GameService } from '../services/game.service';
 import { GameDto } from '../services/game.types';
 import { Component } from '@angular/core';
@@ -14,12 +9,8 @@ import { Router } from '@angular/router';
 
 // Mock GameService with spies
 class MockGameService {
-  createGame = jasmine
-    .createSpy()
-    .and.returnValue(of({ id: 'new-game' } as GameDto));
-  getGamesByStatus = jasmine
-    .createSpy()
-    .and.returnValue(of([{ id: 'g1' } as GameDto]));
+  createGame = vi.fn().mockReturnValue(of({ id: 'new-game' } as GameDto));
+  getGamesByStatus = vi.fn().mockReturnValue(of([{ id: 'g1' } as GameDto]));
 }
 
 // Optional host for template mounting scenarios
@@ -42,7 +33,7 @@ describe('GamesComponent', () => {
         { provide: GameService, useClass: MockGameService },
         {
           provide: Router,
-          useValue: { navigate: jasmine.createSpy('navigate') },
+          useValue: { navigate: vi.fn() },
         },
       ],
     }).compileComponents();
@@ -57,23 +48,23 @@ describe('GamesComponent', () => {
   });
 
   it('fetches waiting games on init and sets state', () => {
-    gameService.getGamesByStatus.and.returnValue(of([{ id: 'a' } as GameDto]));
+    gameService.getGamesByStatus.mockReturnValue(of([{ id: 'a' } as GameDto]));
     fixture.detectChanges();
     expect(gameService.getGamesByStatus).toHaveBeenCalledWith(
       'WAITING_FOR_PLAYERS',
     );
     expect(component.games().length).toBe(1);
-    expect(component.loading()).toBeFalse();
+    expect(component.loading()).toBe(false);
     expect(component.error()).toBeNull();
   });
 
   it('handles error when fetching games', () => {
-    gameService.getGamesByStatus.and.returnValue(
+    gameService.getGamesByStatus.mockReturnValue(
       throwError(() => new Error('boom')),
     );
     component.fetchWaitingGames();
     expect(component.error()).toBe('Failed to load games');
-    expect(component.loading()).toBeFalse();
+    expect(component.loading()).toBe(false);
   });
 
   it('shows spinner while loading', () => {
@@ -89,7 +80,7 @@ describe('GamesComponent', () => {
 
   it('renders list items when games exist', () => {
     // Prevent ngOnInit fetch from overwriting our state
-    gameService.getGamesByStatus.and.returnValue(of([]));
+    gameService.getGamesByStatus.mockReturnValue(of([]));
     fixture.detectChanges();
     component.loading.set(false);
     component.games.set([{ id: '1' } as GameDto, { id: '2' } as GameDto]);
@@ -110,16 +101,19 @@ describe('GamesComponent', () => {
       b.textContent?.includes('Create Game'),
     ) as HTMLButtonElement;
     expect(createBtn).toBeTruthy();
-    expect(createBtn.disabled).toBeTrue();
+    expect(createBtn.disabled).toBe(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('calls createGame and refreshes list on createNewGame()', () => {
-    // Avoid ngOnInit interference: reset spies for clarity
-    gameService.getGamesByStatus.calls.reset();
-    gameService.createGame.calls.reset();
+    gameService.getGamesByStatus.mockClear();
+    gameService.createGame.mockClear();
 
-    gameService.createGame.and.returnValue(of({ id: 'created' } as GameDto));
-    gameService.getGamesByStatus.and.returnValue(
+    gameService.createGame.mockReturnValue(of({ id: 'created' } as GameDto));
+    gameService.getGamesByStatus.mockReturnValue(
       of([{ id: 'created' } as GameDto]),
     );
 
@@ -129,7 +123,7 @@ describe('GamesComponent', () => {
     expect(gameService.getGamesByStatus).toHaveBeenCalledWith(
       'WAITING_FOR_PLAYERS',
     );
-    expect(component.loading()).toBeFalse();
+    expect(component.loading()).toBe(false);
     expect(component.games().length).toBe(1);
   });
 
@@ -139,88 +133,74 @@ describe('GamesComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/games', '123', 'live']);
   });
 
-  it('starts polling for games every 1 second after init', fakeAsync(() => {
-    gameService.getGamesByStatus.calls.reset();
-    gameService.getGamesByStatus.and.returnValue(
+  it('starts polling for games every 1 second after init', async () => {
+    vi.useFakeTimers();
+    gameService.getGamesByStatus.mockClear();
+    gameService.getGamesByStatus.mockReturnValue(
       of([{ id: 'game1' } as GameDto]),
     );
 
-    fixture.detectChanges(); // triggers ngOnInit
-
-    // Initial fetch happens immediately
+    fixture.detectChanges();
     expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(1);
 
-    // After 1 second, polling should trigger another fetch
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(2);
 
-    // After another second, another fetch
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(3);
+  });
 
-    discardPeriodicTasks();
-  }));
-
-  it('stops polling when component is destroyed', fakeAsync(() => {
-    gameService.getGamesByStatus.calls.reset();
-    gameService.getGamesByStatus.and.returnValue(
+  it('stops polling when component is destroyed', async () => {
+    vi.useFakeTimers();
+    gameService.getGamesByStatus.mockClear();
+    gameService.getGamesByStatus.mockReturnValue(
       of([{ id: 'game1' } as GameDto]),
     );
 
-    fixture.detectChanges(); // triggers ngOnInit
+    fixture.detectChanges();
 
-    // Initial fetch + first poll
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(2);
 
-    // Destroy the component
     component.ngOnDestroy();
 
-    // After another second, no more fetches should occur
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(gameService.getGamesByStatus).toHaveBeenCalledTimes(2);
+  });
 
-    discardPeriodicTasks();
-  }));
-
-  it('updates games list when polling returns new data', fakeAsync(() => {
-    gameService.getGamesByStatus.and.returnValue(
+  it('updates games list when polling returns new data', async () => {
+    vi.useFakeTimers();
+    gameService.getGamesByStatus.mockReturnValue(
       of([{ id: 'initial' } as GameDto]),
     );
-    fixture.detectChanges(); // triggers ngOnInit
+    fixture.detectChanges();
     expect(component.games().length).toBe(1);
     expect(component.games()[0].id).toBe('initial');
 
-    // Simulate new game appearing
-    gameService.getGamesByStatus.and.returnValue(
+    gameService.getGamesByStatus.mockReturnValue(
       of([{ id: 'initial' } as GameDto, { id: 'new' } as GameDto]),
     );
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
 
     expect(component.games().length).toBe(2);
     expect(component.games()[1].id).toBe('new');
+  });
 
-    discardPeriodicTasks();
-  }));
-
-  it('silently handles polling errors without affecting displayed games', fakeAsync(() => {
-    gameService.getGamesByStatus.and.returnValue(
+  it('silently handles polling errors without affecting displayed games', async () => {
+    vi.useFakeTimers();
+    gameService.getGamesByStatus.mockReturnValue(
       of([{ id: 'game1' } as GameDto]),
     );
     fixture.detectChanges();
     expect(component.games().length).toBe(1);
     expect(component.error()).toBeNull();
 
-    // Make the next poll fail
-    gameService.getGamesByStatus.and.returnValue(
+    gameService.getGamesByStatus.mockReturnValue(
       throwError(() => new Error('network error')),
     );
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
 
-    // Games should still be displayed (no error shown for polling failures)
     expect(component.games().length).toBe(1);
     expect(component.error()).toBeNull();
-
-    discardPeriodicTasks();
-  }));
+  });
 });

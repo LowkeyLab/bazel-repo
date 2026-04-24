@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { ContestListComponent } from './contest-list.component';
 import { Router } from '@angular/router';
 import { CircleService } from '../../services/circle.service';
@@ -6,12 +7,18 @@ import { of, throwError } from 'rxjs';
 import type { Circle } from '../../models/circle.model';
 import type { Contest } from '../../models/contest.model';
 import { By } from '@angular/platform-browser';
+import { createMockObject } from '../../../testing/create-mock-object';
 
 describe('ContestListComponent', () => {
+  const circleServiceMethods = [
+    'listUserCircles',
+    'getCircleContests',
+  ] as const;
+  const routerMethods = ['navigate'] as const;
   let component: ContestListComponent;
   let fixture: ComponentFixture<ContestListComponent>;
-  let mockCircleService: jasmine.SpyObj<CircleService>;
-  let mockRouter: jasmine.SpyObj<Router>;
+  let mockCircleService = createMockObject(circleServiceMethods);
+  let mockRouter = createMockObject(routerMethods);
 
   const mockCircle1: Circle = {
     id: 1,
@@ -155,18 +162,24 @@ describe('ContestListComponent', () => {
     duration: '7d',
   };
 
+  const mockContestResponses = (responses: Record<number, Contest[]>) => {
+    mockCircleService.getCircleContests.mockImplementation((circleId: number) =>
+      of(responses[circleId] ?? []),
+    );
+  };
+
   beforeEach(async () => {
-    mockCircleService = jasmine.createSpyObj('CircleService', [
-      'listUserCircles',
-      'getCircleContests',
-    ]);
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockCircleService = createMockObject(circleServiceMethods);
+    mockRouter = createMockObject(routerMethods);
 
     await TestBed.configureTestingModule({
       imports: [ContestListComponent],
       providers: [
-        { provide: CircleService, useValue: mockCircleService },
-        { provide: Router, useValue: mockRouter },
+        {
+          provide: CircleService,
+          useValue: mockCircleService as unknown as CircleService,
+        },
+        { provide: Router, useValue: mockRouter as unknown as Router },
       ],
     }).compileComponents();
 
@@ -180,15 +193,13 @@ describe('ContestListComponent', () => {
 
   describe('Contest Loading Flow', () => {
     it('should load contests from multiple circles on init', () => {
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         of([mockCircle1, mockCircle2]),
       );
-      mockCircleService.getCircleContests
-        .withArgs(1)
-        .and.returnValue(of([mockContest1, mockContest2]));
-      mockCircleService.getCircleContests
-        .withArgs(2)
-        .and.returnValue(of([mockContest3, mockContest4]));
+      mockContestResponses({
+        1: [mockContest1, mockContest2],
+        2: [mockContest3, mockContest4],
+      });
 
       fixture.detectChanges(); // Triggers ngOnInit
 
@@ -201,8 +212,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should set loading to true initially, then false after completion', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
 
       expect(component.loading()).toBe(false); // Initial state
 
@@ -213,7 +224,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should handle empty circles list', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
 
       fixture.detectChanges();
 
@@ -224,16 +235,14 @@ describe('ContestListComponent', () => {
     });
 
     it('should handle mixed scenario with some circles having contests and others empty', () => {
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         of([mockCircle1, mockCircle2, mockCircle3]),
       );
-      mockCircleService.getCircleContests
-        .withArgs(1)
-        .and.returnValue(of([mockContest1]));
-      mockCircleService.getCircleContests.withArgs(2).and.returnValue(of([]));
-      mockCircleService.getCircleContests
-        .withArgs(3)
-        .and.returnValue(of([mockContest2]));
+      mockContestResponses({
+        1: [mockContest1],
+        2: [],
+        3: [mockContest2],
+      });
 
       fixture.detectChanges();
 
@@ -244,15 +253,13 @@ describe('ContestListComponent', () => {
     });
 
     it('should properly flatten nested contest arrays from multiple circles', () => {
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         of([mockCircle1, mockCircle2]),
       );
-      mockCircleService.getCircleContests
-        .withArgs(1)
-        .and.returnValue(of([mockContest1, mockContest2]));
-      mockCircleService.getCircleContests
-        .withArgs(2)
-        .and.returnValue(of([mockContest3]));
+      mockContestResponses({
+        1: [mockContest1, mockContest2],
+        2: [mockContest3],
+      });
 
       fixture.detectChanges();
 
@@ -270,15 +277,13 @@ describe('ContestListComponent', () => {
       // mockContest1: '2024-01-05T10:00:00Z' (newest)
       // mockContest3: '2024-01-04T10:00:00Z' (middle)
       // mockContest2: '2024-01-03T10:00:00Z' (oldest)
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         of([mockCircle1, mockCircle2]),
       );
-      mockCircleService.getCircleContests
-        .withArgs(1)
-        .and.returnValue(of([mockContest2])); // Oldest first
-      mockCircleService.getCircleContests
-        .withArgs(2)
-        .and.returnValue(of([mockContest1, mockContest3])); // Newest and middle
+      mockContestResponses({
+        1: [mockContest2],
+        2: [mockContest1, mockContest3],
+      });
 
       fixture.detectChanges();
 
@@ -293,8 +298,8 @@ describe('ContestListComponent', () => {
       const contest1 = { ...mockContest1, created_at: '2024-01-05T10:00:00Z' };
       const contest2 = { ...mockContest2, created_at: '2024-01-05T10:00:00Z' };
 
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(
         of([contest1, contest2]),
       );
 
@@ -310,8 +315,8 @@ describe('ContestListComponent', () => {
 
   describe('Error Handling Flow', () => {
     it('should handle error when fetching circles fails', () => {
-      spyOn(console, 'error');
-      mockCircleService.listUserCircles.and.returnValue(
+      vi.spyOn(console, 'error');
+      mockCircleService.listUserCircles.mockReturnValue(
         throwError(() => new Error('Failed to fetch circles')),
       );
 
@@ -321,14 +326,14 @@ describe('ContestListComponent', () => {
       expect(component.contests()).toEqual([]);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to load contests:',
-        jasmine.any(Error),
+        expect.any(Error),
       );
     });
 
     it('should handle error when fetching contests for a circle fails', () => {
-      spyOn(console, 'error');
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(
+      vi.spyOn(console, 'error');
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(
         throwError(() => new Error('Failed to fetch contests')),
       );
 
@@ -337,7 +342,7 @@ describe('ContestListComponent', () => {
       expect(component.loading()).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to load contests:',
-        jasmine.any(Error),
+        expect.any(Error),
       );
     });
   });
@@ -394,16 +399,16 @@ describe('ContestListComponent', () => {
 
   describe('Refresh Flow', () => {
     it('should reload contests when refreshContests is called', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
 
       fixture.detectChanges(); // Initial load via ngOnInit
 
       expect(mockCircleService.listUserCircles).toHaveBeenCalledTimes(1);
 
       // Clear previous calls
-      mockCircleService.listUserCircles.calls.reset();
-      mockCircleService.getCircleContests.calls.reset();
+      mockCircleService.listUserCircles.mockClear();
+      mockCircleService.getCircleContests.mockClear();
 
       // Now refresh
       component.refreshContests();
@@ -413,8 +418,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should set loading state during refresh', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
 
       fixture.detectChanges(); // Initial load
 
@@ -428,8 +433,8 @@ describe('ContestListComponent', () => {
 
     it('should update contests with new data on refresh', () => {
       // Initial load
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
 
       fixture.detectChanges();
 
@@ -437,8 +442,8 @@ describe('ContestListComponent', () => {
       expect(component.contests()[0]).toBe(mockContest1);
 
       // Update mock to return different data
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle2]));
-      mockCircleService.getCircleContests.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle2]));
+      mockCircleService.getCircleContests.mockReturnValue(
         of([mockContest3, mockContest4]),
       );
 
@@ -450,14 +455,14 @@ describe('ContestListComponent', () => {
     });
 
     it('should handle errors during refresh', () => {
-      spyOn(console, 'error');
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      vi.spyOn(console, 'error');
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
 
       fixture.detectChanges(); // Initial load succeeds
 
       // Make next call fail
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         throwError(() => new Error('Network error')),
       );
 
@@ -466,7 +471,7 @@ describe('ContestListComponent', () => {
       expect(component.loading()).toBe(false);
       expect(console.error).toHaveBeenCalledWith(
         'Failed to load contests:',
-        jasmine.any(Error),
+        expect.any(Error),
       );
     });
   });
@@ -474,7 +479,7 @@ describe('ContestListComponent', () => {
   describe('Template Rendering Flow', () => {
     it('should show loading spinner when loading is true', () => {
       // Set up mocks to prevent ngOnInit errors
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
 
       fixture.detectChanges(); // First detectChanges for ngOnInit
 
@@ -486,7 +491,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should show empty state message when contests list is empty', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       const alert = fixture.debugElement.query(By.css('.alert-info'));
@@ -497,8 +502,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should render contest cards with correct question text', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(
         of([mockContest1, mockContest2]),
       );
       fixture.detectChanges();
@@ -514,8 +519,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should display status badge with correct text', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
       fixture.detectChanges();
 
       const badge = fixture.debugElement.query(
@@ -525,15 +530,13 @@ describe('ContestListComponent', () => {
     });
 
     it('should display status badges with correct CSS classes', () => {
-      mockCircleService.listUserCircles.and.returnValue(
+      mockCircleService.listUserCircles.mockReturnValue(
         of([mockCircle1, mockCircle2]),
       );
-      mockCircleService.getCircleContests
-        .withArgs(1)
-        .and.returnValue(of([mockContest1, mockContest2]));
-      mockCircleService.getCircleContests
-        .withArgs(2)
-        .and.returnValue(of([mockContest3]));
+      mockContestResponses({
+        1: [mockContest1, mockContest2],
+        2: [mockContest3],
+      });
       fixture.detectChanges();
 
       const badges = fixture.debugElement.queryAll(
@@ -555,8 +558,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should display total pot and house rake from mock data', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -570,8 +573,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should display correct prediction count', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -579,8 +582,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should display min stake value', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -588,8 +591,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should navigate when contest card is clicked', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
       fixture.detectChanges();
 
       const card = fixture.debugElement.query(By.css('.card'));
@@ -604,8 +607,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should navigate with correct parameters when different contest card is clicked', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle2]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest3]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle2]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest3]));
       fixture.detectChanges();
 
       const card = fixture.debugElement.query(By.css('.card'));
@@ -620,8 +623,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should display contest options as badges', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([mockCircle1]));
-      mockCircleService.getCircleContests.and.returnValue(of([mockContest1]));
+      mockCircleService.listUserCircles.mockReturnValue(of([mockCircle1]));
+      mockCircleService.getCircleContests.mockReturnValue(of([mockContest1]));
       fixture.detectChanges();
 
       const optionBadges = fixture.debugElement.queryAll(
@@ -637,7 +640,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should render refresh button', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
@@ -648,8 +651,8 @@ describe('ContestListComponent', () => {
     });
 
     it('should call refreshContests when refresh button is clicked', () => {
-      spyOn(component, 'refreshContests');
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      vi.spyOn(component, 'refreshContests');
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       const refreshButton = fixture.debugElement.query(
@@ -661,7 +664,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should disable refresh button when loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(true);
@@ -674,7 +677,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should enable refresh button when not loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(false);
@@ -687,7 +690,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should show "Refreshing..." text when loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(true);
@@ -702,7 +705,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should show "Refresh" text when not loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(false);
@@ -715,7 +718,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should have animate-spin class on icon when loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(true);
@@ -726,7 +729,7 @@ describe('ContestListComponent', () => {
     });
 
     it('should not have animate-spin class on icon when not loading', () => {
-      mockCircleService.listUserCircles.and.returnValue(of([]));
+      mockCircleService.listUserCircles.mockReturnValue(of([]));
       fixture.detectChanges();
 
       component.loading.set(false);

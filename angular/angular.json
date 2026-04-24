@@ -63,19 +63,12 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "codeCoverage": true,
-            "karmaConfig": "karma-bazel.conf.js",
             "tsConfig": "projects/nicknamer/tsconfig.spec.json",
-            "browsers": "ChromeHeadlessNoSandbox",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "projects/nicknamer/public"
-              }
-            ],
-            "styles": ["projects/nicknamer/src/styles.css"]
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/nicknamer/vitest-base.config.ts"
           }
         }
       }
@@ -140,19 +133,12 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "codeCoverage": true,
-            "karmaConfig": "karma-bazel.conf.js",
             "tsConfig": "projects/tailwind-sample/tsconfig.spec.json",
-            "browsers": "ChromeHeadlessNoSandbox",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "projects/tailwind-sample/public"
-              }
-            ],
-            "styles": ["projects/tailwind-sample/src/processed_styles.css"]
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/tailwind-sample/vitest-base.config.ts"
           }
         }
       }
@@ -225,20 +211,12 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "codeCoverage": true,
-            "karmaConfig": "karma-bazel.conf.js",
-            "browsers": "ChromeHeadlessNoSandbox",
-            "polyfills": ["zone.js", "zone.js/testing"],
             "tsConfig": "projects/mindreadr/tsconfig.spec.json",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "projects/mindreadr/public"
-              }
-            ],
-            "styles": ["projects/mindreadr/src/processed_styles.css"]
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/mindreadr/vitest-base.config.ts"
           }
         }
       }
@@ -306,19 +284,12 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "codeCoverage": true,
-            "karmaConfig": "karma-bazel.conf.js",
-            "browsers": "ChromeHeadlessNoSandbox",
             "tsConfig": "projects/predix/tsconfig.spec.json",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "projects/predix/public"
-              }
-            ],
-            "styles": ["projects/predix/src/processed_styles.css"]
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/predix/vitest-base.config.ts"
           }
         }
       }

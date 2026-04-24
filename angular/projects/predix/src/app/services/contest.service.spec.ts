@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { TestScheduler } from 'rxjs/testing';
-import { of } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { take } from 'rxjs/operators';
 import { ContestService } from './contest.service';
 import { environment } from '../../environments/environment';
@@ -17,23 +17,24 @@ describe('ContestService', () => {
   let httpMock: HttpTestingController;
   const apiUrl = `${environment.apiUrl}/protected`;
   const mockAuthService = {
-    token: jasmine.createSpy('token').and.returnValue('test-token'),
+    token: vi.fn().mockReturnValue('test-token'),
   };
-  let mockEventSource: any;
-  let EventSourceSpy: jasmine.Spy;
+  let mockEventSource: MockEventSource;
+
+  class MockEventSource {
+    onopen: (() => void) | null = null;
+    onerror: ((error: unknown) => void) | null = null;
+    addEventListener = vi.fn();
+    close = vi.fn();
+    readyState = 1;
+
+    constructor(public url: string) {
+      mockEventSource = this;
+    }
+  }
 
   beforeEach(() => {
-    mockEventSource = {
-      onopen: null,
-      onerror: null,
-      addEventListener: jasmine.createSpy('addEventListener'),
-      close: jasmine.createSpy('close'),
-      readyState: 1,
-    };
-    EventSourceSpy = jasmine
-      .createSpy('EventSource')
-      .and.returnValue(mockEventSource);
-    (window as any).EventSource = EventSourceSpy;
+    (window as any).EventSource = MockEventSource as typeof EventSource;
 
     TestBed.configureTestingModule({
       providers: [
@@ -53,7 +54,7 @@ describe('ContestService', () => {
   });
 
   describe('getContest', () => {
-    it('should fetch a contest by circleId and contestId', (done) => {
+    it('should fetch a contest by circleId and contestId', async () => {
       const circleId = 1;
       const contestId = 42;
       const mockContest: Contest = {
@@ -75,23 +76,21 @@ describe('ContestService', () => {
         duration: '1d',
       };
 
-      service.getContest(circleId, contestId).subscribe({
-        next: (contest) => {
-          expect(contest).toEqual(mockContest);
-          done();
-        },
-      });
+      const contestPromise = firstValueFrom(
+        service.getContest(circleId, contestId),
+      );
 
       const req = httpMock.expectOne(
         `${apiUrl}/circles/${circleId}/contests/${contestId}`,
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockContest);
+      await expect(contestPromise).resolves.toEqual(mockContest);
     });
   });
 
   describe('streamContestDetails', () => {
-    it('should stream contest updates with totals', (done) => {
+    it('should stream contest updates with totals', async () => {
       const circleId = 1;
       const contestId = 42;
       const mockContest: Contest = {
@@ -126,27 +125,20 @@ describe('ContestService', () => {
         duration: '1d',
       };
 
-      service
-        .streamContestDetails(circleId, contestId)
-        .pipe(take(1))
-        .subscribe({
-          next: (result) => {
-            expect(result.id).toBe(contestId);
-            expect(result.totals.byOption.get(1)?.clout).toBe(80);
-            expect(result.totals.byOption.get(1)?.count).toBe(2);
-            done();
-          },
-        });
+      const resultPromise = firstValueFrom(
+        service.streamContestDetails(circleId, contestId).pipe(take(1)),
+      );
 
-      setTimeout(() => {
-        if (mockEventSource.onopen) {
-          mockEventSource.onopen();
-        }
-        const req = httpMock.expectOne(
-          `${apiUrl}/circles/${circleId}/contests/${contestId}`,
-        );
-        req.flush(mockContest);
-      }, 0);
+      mockEventSource.onopen?.();
+      const req = httpMock.expectOne(
+        `${apiUrl}/circles/${circleId}/contests/${contestId}`,
+      );
+      req.flush(mockContest);
+
+      const result = await resultPromise;
+      expect(result.id).toBe(contestId);
+      expect(result.totals.byOption.get(1)?.clout).toBe(80);
+      expect(result.totals.byOption.get(1)?.count).toBe(2);
     });
   });
 });

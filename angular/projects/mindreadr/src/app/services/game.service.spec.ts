@@ -3,6 +3,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
 import { GameService, GameSummary } from './game.service';
 import { GameDto } from '../services/game.types';
 import { environment } from '../../environments/environment';
@@ -25,24 +26,22 @@ describe('GameService', () => {
     httpMock.verify();
   });
 
-  it('should fetch summary from /games/summary', (done) => {
+  it('should fetch summary from /games/summary', async () => {
     const mock: GameSummary = {
       waitingForPlayerGames: 2,
       inProgressGames: 3,
       completedGames: 4,
     };
 
-    service.getSummary().subscribe((res) => {
-      expect(res).toEqual(mock);
-      done();
-    });
+    const summaryPromise = firstValueFrom(service.getSummary());
 
     const req = httpMock.expectOne(`${environment.API_BASE_URL}/games/summary`);
     expect(req.request.method).toBe('GET');
     req.flush(mock);
+    await expect(summaryPromise).resolves.toEqual(mock);
   });
 
-  it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', (done) => {
+  it('getGamesByStatus should fetch /games?status=WAITING_FOR_PLAYERS', async () => {
     const mockGames: GameDto[] = [
       {
         id: 'G1',
@@ -62,20 +61,19 @@ describe('GameService', () => {
       },
     ];
 
-    service.getGamesByStatus('WAITING_FOR_PLAYERS').subscribe((games) => {
-      expect(games).toEqual(mockGames);
-      expect(games.length).toBe(2);
-      done();
-    });
+    const gamesPromise = firstValueFrom(
+      service.getGamesByStatus('WAITING_FOR_PLAYERS'),
+    );
 
     const req = httpMock.expectOne(
       `${environment.API_BASE_URL}/games?status=WAITING_FOR_PLAYERS`,
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockGames);
+    await expect(gamesPromise).resolves.toEqual(mockGames);
   });
 
-  it('getGamesByStatus should fetch /games?status=IN_PROGRESS', (done) => {
+  it('getGamesByStatus should fetch /games?status=IN_PROGRESS', async () => {
     const mockGames: GameDto[] = [
       {
         id: 'IP1',
@@ -103,20 +101,19 @@ describe('GameService', () => {
       },
     ];
 
-    service.getGamesByStatus('IN_PROGRESS').subscribe((games) => {
-      expect(games).toEqual(mockGames);
-      expect(games.every((g) => g.state === 'IN_PROGRESS')).toBeTrue();
-      done();
-    });
+    const gamesPromise = firstValueFrom(
+      service.getGamesByStatus('IN_PROGRESS'),
+    );
 
     const req = httpMock.expectOne(
       `${environment.API_BASE_URL}/games?status=IN_PROGRESS`,
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockGames);
+    await expect(gamesPromise).resolves.toEqual(mockGames);
   });
 
-  it('getGamesByStatus should fetch /games?status=COMPLETED', (done) => {
+  it('getGamesByStatus should fetch /games?status=COMPLETED', async () => {
     const mockGames: GameDto[] = [
       {
         id: 'C1',
@@ -128,17 +125,13 @@ describe('GameService', () => {
       },
     ];
 
-    service.getGamesByStatus('COMPLETED').subscribe((games) => {
-      expect(games).toEqual(mockGames);
-      expect(games.length).toBe(1);
-      expect(games[0].state).toBe('COMPLETED');
-      done();
-    });
+    const gamesPromise = firstValueFrom(service.getGamesByStatus('COMPLETED'));
 
     const req = httpMock.expectOne(
       `${environment.API_BASE_URL}/games?status=COMPLETED`,
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockGames);
+    await expect(gamesPromise).resolves.toEqual(mockGames);
   });
 });
