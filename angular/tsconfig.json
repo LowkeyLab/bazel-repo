@@ -30,6 +30,12 @@
       "path": "./projects/nicknamer/tsconfig.spec.json"
     },
     {
+      "path": "./projects/pinyin-hanzi/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/pinyin-hanzi/tsconfig.spec.json"
+    },
+    {
       "path": "./projects/mindreadr/tsconfig.app.json"
     },
     {
