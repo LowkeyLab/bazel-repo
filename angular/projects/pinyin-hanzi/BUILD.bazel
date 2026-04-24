@@ -1,0 +1,42 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+
+# aspect:generation_mode update_only
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "tsconfig.app.json",
+    "tsconfig.spec.json",
+])
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+        exclude = ["dist/"],
+    ),
+)
+
+copy_to_bin(
+    name = "vitest_config_files",
+    srcs = [
+        "vitest-base.config.ts",
+        "vitest-global-setup.ts",
+    ],
+)
+
+ng_application(
+    name = "pinyin-hanzi",
+    srcs = [":srcs"],
+    zonejs = True,
+)
+
+ng_test(
+    name = "test",
+    srcs = [
+        ":srcs",
+        ":vitest_config_files",
+    ],
+    vitest = True,
+    zonejs = True,
+)
