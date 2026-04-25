@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Setup
 
-This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` wrapper commands.
+This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands.
 
 ### Prerequisites
 
@@ -182,8 +182,8 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ## Tooling
 
-- **pre-commit**: runs `format` and `buildifier-lint` (provided by the Nix dev shell). Install hooks with `pre-commit install`.
-- **direnv/.envrc**: sources `.env`, enters the flake shell when Nix is available, and still generates the NixOS Bazel wrapper files under `.local/`.
+- **pre-commit**: runs `format` directly from PATH when available and falls back to `bazel run //tools/format`. Install hooks with `pre-commit install` or `git config core.hooksPath githooks`.
+- **direnv/.envrc**: sources `.env` and enters the flake shell when Nix is available.
 - **ibazel**: incremental Bazel for hot reload (e.g., `ibazel run //personal_website:dev`)
 - **rust-analyzer**: regenerate project with `bazel run //:gen_rust_project`
 - **Renovate**: automated dependency updates

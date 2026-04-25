@@ -52,7 +52,19 @@
               '';
             };
           aspectBinary = binaryReleases.aspect.binaries.${system} or null;
-          bazel = pkgs.writeShellScriptBin "bazel" ''exec bazelisk "$@"'';
+          bazel =
+            if pkgs.stdenv.isLinux then
+              pkgs.buildFHSEnv {
+                name = "bazel";
+                targetPkgs = pkgs: [
+                  pkgs.bashInteractive
+                  pkgs.bazelisk
+                  pkgs.zlib
+                ];
+                runScript = "bazelisk";
+              }
+            else
+              pkgs.writeShellScriptBin "bazel" ''exec bazelisk "$@"'';
           aspect =
             if aspectBinary == null then
               null
@@ -62,52 +74,13 @@
                 inherit (binaryReleases.aspect) version;
                 inherit (aspectBinary) url sha256;
               };
-          format = pkgs.writeShellScriptBin "format" ''
-            set -euo pipefail
-            workspace="$(bazel info workspace)"
-            bazel_bin="$(cd "$workspace" && bazel info bazel-bin)"
-            format_dir="$bazel_bin/tools/format"
-
-            (cd "$workspace" && bazel build //tools/format >/dev/null)
-
-            for script in "$format_dir"/*.bash; do
-              if [[ "$(head -n 1 "$script")" == '#!/bin/bash' ]]; then
-                tmp="$(mktemp)"
-                {
-                  printf '%s\n' '#!/usr/bin/env bash'
-                  tail -n +2 "$script"
-                } >"$tmp"
-                chmod --reference="$script" "$tmp"
-                mv "$tmp" "$script"
-              fi
-            done
-
-            export RUNFILES_DIR="$format_dir/format.bash.runfiles"
-            export RUNFILES="$RUNFILES_DIR"
-            export JAVA_RUNFILES="$RUNFILES_DIR"
-            export PYTHON_RUNFILES="$RUNFILES_DIR"
-            export JS_BINARY__NO_CD_BINDIR=1
-            export BUILD_WORKING_DIRECTORY="$PWD"
-            export BUILD_WORKSPACE_DIRECTORY="$workspace"
-
-            exec "$format_dir/format.bash" "$@"
-          '';
-          coverage = pkgs.writeShellScriptBin "coverage" ''
-            set -euo pipefail
-            workspace="$(bazel info workspace)"
-            bazel_bin="$(cd "$workspace" && bazel info bazel-bin)"
-
-            (cd "$workspace" && bazel build //tools/coverage >/dev/null)
-
-            export BUILD_WORKING_DIRECTORY="$PWD"
-            export BUILD_WORKSPACE_DIRECTORY="$workspace"
-
-            exec bash "$bazel_bin/tools/coverage/coverage" "$@"
-          '';
+          format = pkgs.writeShellScriptBin "format" ''exec bazel run //tools/format -- "$@"'';
+          coverage = pkgs.writeShellScriptBin "coverage" ''exec bazel run //tools/coverage -- "$@"'';
         in
         {
           default = pkgs.mkShell {
             packages = [
+              pkgs.bashInteractive
               pkgs.bazelisk
               bazel
               pkgs.bazel-watcher
