@@ -25,7 +25,7 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          aspect = lowkeylab-nix.packages.x86_64-linux.aspect;
+          aspect = lowkeylab-nix.packages.${system}.aspect;
         in
         {
           inherit pkgs aspect;
