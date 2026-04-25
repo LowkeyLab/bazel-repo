@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package pinyin_hanzi.v1;
+
+service HanziGuesser {
+  rpc GuessHanzi(GuessHanziRequest) returns (GuessHanziResponse);
+}
+
+message GuessHanziRequest {
+  repeated string pinyin_words = 1;
+  uint32 top_k = 2;
+}
+
+message HanziCandidate {
+  string hanzi = 1;
+  double score = 2;
+  repeated string segments = 3;
+}
+
+message GuessHanziResponse {
+  repeated HanziCandidate candidates = 1;
+}
