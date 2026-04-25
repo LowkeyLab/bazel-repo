@@ -33,8 +33,6 @@ jobs:
             test --test_env=XDG_CACHE_HOME
       - uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
         with:
-          determinate: true
-          trust-runner-user: true
           extra-conf: |
             experimental-features = nix-command flakes
       - name: Install tools via flake
