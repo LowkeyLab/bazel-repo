@@ -3,8 +3,8 @@
 git diff --cached --diff-filter=AM --name-only -z | xargs --null --no-run-if-empty bash -c '
   if [ $# -gt 0 ]; then
     echo "Formatting staged files: $@"
-    if [ -e "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format" ]; then
-      bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format "$@"
+    if command -v format &>/dev/null; then
+      format "$@"
     else
       bazel run //tools/format -- "$@"
     fi

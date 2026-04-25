@@ -1,8 +1,5 @@
 # BUILD file for Bazel tools and extensions
-load("@bazel_env.bzl", "bazel_env")
 load("@bazelrc-preset.bzl", "bazelrc_preset")
-load("@gazelle//:go_tools.bzl", "GO_TOOLS")
-load("@multitool//:tools.bzl", MULTITOOLS = "TOOLS")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//angular:@graphql-codegen/cli/package_json.bzl", graphql_codegen = "bin")
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
@@ -26,36 +23,6 @@ astro.astro_binary(
     env = {
         "ASTRO_TELEMETRY_DISABLED": "1",
     },
-)
-
-# Tools found in this package
-LOCAL_TOOLS = {
-    t: "//tools:" + t
-    for t in [
-        "graphql-codegen",
-        "ng",
-        "astro",
-    ]
-}
-
-bazel_env(
-    name = "bazel_env",
-    toolchains = {
-        "nodejs": "@nodejs_toolchains//:resolved_toolchain",
-        "jdk": "@rules_java//toolchains:current_host_java_runtime",
-    },
-    tools = {
-        "buildifier": "@buildifier_prebuilt//:buildifier",
-        "jar": "$(JAVABASE)/bin/jar",
-        "coverage": "//tools/coverage",
-        "format": "//tools/format:format",
-        "java": "$(JAVA)",
-        "node": "$(NODE_PATH)",
-        "pnpm": "@pnpm",
-        "go": "@rules_go//go",
-        "prettier": "//tools/format:prettier",
-        "cargo": "@rules_rust//tools/upstream_wrapper:cargo",
-    } | LOCAL_TOOLS | MULTITOOLS | GO_TOOLS,
 )
 
 sh_binary(

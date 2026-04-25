@@ -31,13 +31,16 @@ Windows (PowerShell):
 choco install bazelisk
 ```
 
-Node.js, PNPM, Rust and other toolchains are provisioned via Bazel under `tools/`; do not install them manually.
+If you use Nix + direnv, `direnv allow` enters a flake shell that provides the common local CLI tools (`bazel`, `bazelisk`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, plus `format`/`coverage` commands). Bazel still owns the build, test, format, and coverage behavior for the repo.
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/LowkeyLab/bazel-repo.git
 cd bazel-repo
+
+# (Optional) enter the flake-based dev shell
+direnv allow
 
 # (Optional) install NPM deps when touching frontend code
 bazel run @pnpm -- --dir $PWD install

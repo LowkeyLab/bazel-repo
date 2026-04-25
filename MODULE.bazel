@@ -38,6 +38,7 @@ git_override(
     commit = "6d8595965412b9ca37704ed53e289c4c4be2a0bf",
     remote = "https://github.com/bazelbuild/rules_rust",
 )
+
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_buf", version = "0.5.2")
 bazel_dep(name = "rules_proto", version = "7.1.0")
@@ -54,7 +55,6 @@ bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "gazelle", version = "0.50.0")
 
-bazel_dep(name = "bazel_env.bzl", version = "0.7.2", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(

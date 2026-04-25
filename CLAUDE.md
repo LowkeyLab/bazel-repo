@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Setup
 
-This repo uses a **Nix flake** for reproducible dev tooling. Nix provides `bazelisk`, `bazel`, `gcc`, and `pre-commit` — no manual installation needed.
+This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands.
 
 ### Prerequisites
 
@@ -20,7 +20,7 @@ direnv allow   # Enters Nix dev shell + sources .envrc
 
 The `.envrc` automatically sources [nix-direnv](https://github.com/nix-community/nix-direnv) 3.1.1 for cached flake evaluations. After the first `direnv allow`, subsequent shell entries are near-instant.
 
-> **Note:** The Nix dev shell is not CI-validated. If `flake.nix` breaks, it will only be caught by developers using Nix. Bazel still works without Nix if you install `bazelisk` and `pre-commit` manually.
+> **Note:** Bazel still works without Nix if you install the required tools manually, but the flake is the supported way to get the local developer-facing toolchain.
 
 ## Build System
 
@@ -177,14 +177,13 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### Worktree gotchas
 
-- `format` (from `.envrc`) doesn't work in worktrees — use `bazel run //tools/format` instead
+- In worktrees, `format` and `coverage` come from the flake shell just like the main checkout; if you are outside the shell, use `bazel run //tools/format` or `bazel run //tools/coverage` directly.
 - `aspect test` doesn't support `--cache_test_results` or `--test_output` — use `bazel test` directly for those flags
 
 ## Tooling
 
-- **pre-commit**: runs `format` and `buildifier-lint` (provided by the Nix dev shell). Install hooks with `pre-commit install`.
-- **direnv/.envrc**: sources `.env`, sets PATH from `bazel-out`. Run `bazel run //tools:bazel_env` to populate.
+- **pre-commit**: runs `format` directly from PATH when available and falls back to `bazel run //tools/format`. Install hooks with `pre-commit install` or `git config core.hooksPath githooks`.
+- **direnv/.envrc**: sources `.env` and enters the flake shell when Nix is available.
 - **ibazel**: incremental Bazel for hot reload (e.g., `ibazel run //personal_website:dev`)
 - **rust-analyzer**: regenerate project with `bazel run //:gen_rust_project`
 - **Renovate**: automated dependency updates
-

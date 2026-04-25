@@ -31,9 +31,13 @@ jobs:
             common --config=ci
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
-      - name: Install tools via bazel
+      - uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Install tools via flake
         run: |
-          bazel run --config=quiet //tools:bazel_env print-path >> $GITHUB_PATH
+          nix develop --command bash -lc 'echo "$PATH" | tr ":" "\n" >> "$GITHUB_PATH"'
       - name: Verify tool installations
         run: |
           echo "=== Java version ==="
@@ -41,6 +45,19 @@ jobs:
 
           echo "=== Bazel version ==="
           bazel version
+
+          echo "=== Aspect version ==="
+          aspect --version
+
+          echo "=== Tool locations ==="
+          command -v aspect
+          command -v buildifier
+          command -v prettier
+          command -v starpls
+          command -v pnpm
+          command -v go
+          command -v format
+          command -v coverage
       - name: Log in to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
