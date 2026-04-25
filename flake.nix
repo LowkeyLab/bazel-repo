@@ -18,9 +18,15 @@
       binaryReleases = {
         aspect = {
           version = "2026.4.2";
-          # Note: aspect-cli does not publish aarch64-linux binaries.
-          # The tool will be unavailable on that platform.
           binaries = {
+            "aarch64-linux" = {
+              url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-aarch64-unknown-linux-musl";
+              sha256 = "a1f5735753a0417740ab13f69c3591c7e5ba08499e3654f8c8af031008ae8fb6";
+            };
+            "x86_64-darwin" = {
+              url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-x86_64-apple-darwin";
+              sha256 = "51173ac14cad639e281ed467b6db789b0a14d053b74cb5436d1b8b56e230d275";
+            };
             "x86_64-linux" = {
               url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-x86_64-unknown-linux-musl";
               sha256 = "58057a7bfb94838749cbb3fedc015baeefa1887caf00e1ed4dd5eb8ef00c6cef";
@@ -96,12 +102,9 @@
               pkgs.jdk21_headless
               pkgs.gcc
               pkgs.pre-commit
-              pkgs.nodejs_24
+              pkgs.nodejs_24 # provides node/npm for agent-browser
               pkgs.cargo
               pkgs.lcov
-
-              # agent-browser: AI browser automation CLI (https://github.com/vercel-labs/agent-browser)
-              pkgs.nodejs # npm shim launcher for agent-browser
             ] ++ pkgs.lib.optionals (aspect != null) [
               aspect
             ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [

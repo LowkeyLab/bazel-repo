@@ -6,7 +6,6 @@
     "bazel-*/**": true
   },
   "C_Cpp.workspaceParsingPriority": "medium",
-  "prettier.prettierPath": "prettier",
   "bazel.buildifierFixOnFormat": true,
   "bazel.enableCodeLens": true,
   "bazel.buildifierExecutable": "buildifier",
