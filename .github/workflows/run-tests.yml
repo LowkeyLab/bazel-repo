@@ -17,6 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Configure Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           # Avoid downloading Bazel every time.
@@ -32,12 +39,10 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
-      - name: Install Aspect CLI
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Install Aspect from flake
         run: |
-          gh release download v2026.4.2 --repo aspect-build/aspect-cli --pattern 'aspect-cli-x86_64-unknown-linux-musl' --output /usr/local/bin/aspect
-          chmod +x /usr/local/bin/aspect
+          nix build .#aspect
+          install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
       - name: Run Bazel Lints
         run: |
           aspect lint //...

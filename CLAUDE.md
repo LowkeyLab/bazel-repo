@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Setup
 
-This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands.
+This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands. For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`.
 
 ### Prerequisites
 
@@ -142,7 +142,7 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### CI/CD
 
-- **run-tests.yml**: on push/PR to main — runs `aspect lint //...` then `aspect test //...` with BuildBuddy remote cache
+- **run-tests.yml**: on push/PR to main — installs `aspect` from `.#aspect`, then runs `aspect lint //...` and `aspect test //...` with BuildBuddy remote cache
 - **deploy.yml**: after tests pass on main — builds optimized and pushes all OCI images to GHCR
 
 ## Code Conventions

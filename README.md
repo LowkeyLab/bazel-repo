@@ -31,7 +31,7 @@ Windows (PowerShell):
 choco install bazelisk
 ```
 
-If you use Nix + direnv, `direnv allow` enters a flake shell that provides the common local CLI tools (`bazel`, `bazelisk`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, plus `format`/`coverage` commands). Bazel still owns the build, test, format, and coverage behavior for the repo.
+If you use Nix + direnv, `direnv allow` enters a flake shell that provides the common local CLI tools (`bazel`, `bazelisk`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, plus `format`/`coverage` commands). For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`. Bazel still owns the build, test, format, and coverage behavior for the repo.
 
 ## Quick Start
 
