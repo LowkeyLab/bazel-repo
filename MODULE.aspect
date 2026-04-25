@@ -5,5 +5,5 @@ axl_archive_dep(
     integrity = "sha256-qWqBKcNP3dILV0Jwoa1ovT1NkwcRGej+KC2Fld83UrM=",
     strip_prefix = "rules_lint-2.1.0",
     dev = True,
-    auto_use_tasks = False,
+    auto_use_tasks = True,
 )
