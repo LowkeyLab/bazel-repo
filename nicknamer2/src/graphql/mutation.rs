@@ -1,5 +1,4 @@
 use graphql_context::{Context, require_auth};
-use graphql_model;
 use graphql_model::Name;
 use juniper::{FieldResult, GraphQLInputObject, graphql_object};
 use name::{DiscordId, DiscordServerId};

@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use discord_server;
 use graphql_context::Context;
 use graphql_relay::{Cursor, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, RelayId};
 use juniper::{FieldResult, GraphQLInterface, ID, graphql_object};
