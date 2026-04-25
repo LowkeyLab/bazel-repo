@@ -3,11 +3,33 @@
 git diff --cached --diff-filter=AM --name-only -z | xargs --null --no-run-if-empty bash -c '
   if [ $# -gt 0 ]; then
     echo "Formatting staged files: $@"
-    if [ -e "bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format" ]; then
-      bazel-out/bazel_env-opt/bin/tools/bazel_env/bin/format "$@"
-    else
-      bazel run //tools/format -- "$@"
-    fi
+    workspace="$(bazel info workspace)"
+    bazel_bin="$(cd "$workspace" && bazel info bazel-bin)"
+    format_dir="$bazel_bin/tools/format"
+
+    (cd "$workspace" && bazel build //tools/format >/dev/null)
+
+    for script in "$format_dir"/*.bash; do
+      if [[ "$(head -n 1 "$script")" == '#!/bin/bash' ]]; then
+        tmp="$(mktemp)"
+        {
+          printf '%s\n' '#!/usr/bin/env bash'
+          tail -n +2 "$script"
+        } >"$tmp"
+        chmod --reference="$script" "$tmp"
+        mv "$tmp" "$script"
+      fi
+    done
+
+    export RUNFILES_DIR="$format_dir/format.bash.runfiles"
+    export RUNFILES="$RUNFILES_DIR"
+    export JAVA_RUNFILES="$RUNFILES_DIR"
+    export PYTHON_RUNFILES="$RUNFILES_DIR"
+    export JS_BINARY__NO_CD_BINDIR=1
+    export BUILD_WORKING_DIRECTORY="$PWD"
+    export BUILD_WORKSPACE_DIRECTORY="$workspace"
+
+    "$format_dir/format.bash" "$@"
     
     # Check if any of the staged files were modified by the formatter
     if ! git diff --quiet -- "$@"; then

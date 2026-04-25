@@ -4,6 +4,10 @@
   "nix": {
     "enabled": true
   },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 4 * * *"]
+  },
   "packageRules": [
     {
       "matchManagers": ["bazel-module"],
