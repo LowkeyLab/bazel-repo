@@ -1,0 +1,15 @@
+# GENERATED FILE - DO NOT EDIT!
+#
+# To update this file, run:
+#   bazel run //:gazelle_python_manifest.update
+
+---
+manifest:
+  modules_mapping:
+    Pinyin2Hanzi: pinyin2hanzi
+    google.protobuf: protobuf
+    grpc: grpcio
+    typing_extensions: typing_extensions
+  pip_repository:
+    name: pypi
+integrity: 0294ee0d7958e23df1d5747bad88e9dbd80da0fbca962ff94d2e74cb98572ce0

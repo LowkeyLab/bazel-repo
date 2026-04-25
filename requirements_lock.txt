@@ -1,0 +1,4 @@
+grpcio==1.76.0
+Pinyin2Hanzi==0.1.1
+protobuf==7.34.1
+typing_extensions==4.15.0
