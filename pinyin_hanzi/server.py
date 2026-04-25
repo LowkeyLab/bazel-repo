@@ -6,27 +6,13 @@ from concurrent import futures
 
 import grpc
 
-from pinyin_hanzi import hanzi_pb2
+from pinyin_hanzi.rpc import add_hanzi_guesser_to_server
 from pinyin_hanzi.service import HanziGuesserService
 
 
 def create_server() -> grpc.Server:
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    service = HanziGuesserService()
-    server.add_generic_rpc_handlers(
-        (
-            grpc.method_handlers_generic_handler(
-                "pinyin_hanzi.v1.HanziGuesser",
-                {
-                    "GuessHanzi": grpc.unary_unary_rpc_method_handler(
-                        service.GuessHanzi,
-                        request_deserializer=hanzi_pb2.GuessHanziRequest.FromString,
-                        response_serializer=hanzi_pb2.GuessHanziResponse.SerializeToString,
-                    ),
-                },
-            ),
-        )
-    )
+    add_hanzi_guesser_to_server(HanziGuesserService(), server)
     return server
 
 

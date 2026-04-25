@@ -69,6 +69,7 @@ class HanziGuesserService:
             candidates = guess_hanzi_candidates(request.pinyin_words, request.top_k)
         except InvalidPinyinError as exc:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
+            return hanzi_pb2.GuessHanziResponse()
 
         return hanzi_pb2.GuessHanziResponse(
             candidates=[
