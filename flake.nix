@@ -3,61 +3,49 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    aspect-cli-src = {
+      url = "github:aspect-build/aspect-cli/v2026.4.2";
+      flake = false;
+    };
+    lowkeylab-nix = {
+      url = "github:LowkeyLab/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.aspect-cli-src.follows = "aspect-cli-src";
+    };
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, lowkeylab-nix, ... }:
     let
       supportedSystems = [
         "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      binaryReleases = {
-        aspect = {
-          version = "2026.4.2";
-          binaries = {
-            "aarch64-linux" = {
-              url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-aarch64-unknown-linux-musl";
-              sha256 = "a1f5735753a0417740ab13f69c3591c7e5ba08499e3654f8c8af031008ae8fb6";
-            };
-            "x86_64-darwin" = {
-              url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-x86_64-apple-darwin";
-              sha256 = "51173ac14cad639e281ed467b6db789b0a14d053b74cb5436d1b8b56e230d275";
-            };
-            "x86_64-linux" = {
-              url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-x86_64-unknown-linux-musl";
-              sha256 = "58057a7bfb94838749cbb3fedc015baeefa1887caf00e1ed4dd5eb8ef00c6cef";
-            };
-            "aarch64-darwin" = {
-              url = "https://github.com/aspect-build/aspect-cli/releases/download/v2026.4.2/aspect-cli-aarch64-apple-darwin";
-              sha256 = "5cae50dcd8a2548ec433833a80d8e0ef3d41965c3673db700f8bbc52e5f15600";
-            };
-          };
-        };
-      };
-    in
-    {
-      devShells = forAllSystems (
+      mkPackagesForSystem =
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          mkFetchedBinary =
-            { name, version, url, sha256 }:
-            pkgs.stdenvNoCC.mkDerivation {
-              pname = name;
-              inherit version;
-              src = pkgs.fetchurl {
-                inherit url sha256;
-              };
-              dontUnpack = true;
-              installPhase = ''
-                install -Dm755 "$src" "$out/bin/${name}"
-              '';
-            };
-          aspectBinary = binaryReleases.aspect.binaries.${system} or null;
+          aspect = lowkeylab-nix.packages.x86_64-linux.aspect;
+        in
+        {
+          inherit pkgs aspect;
+        };
+    in
+    {
+      packages = forAllSystems (
+        system:
+        let
+          inherit (mkPackagesForSystem system) aspect;
+        in
+        {
+          inherit aspect;
+          default = aspect;
+        }
+      );
+      devShells = forAllSystems (
+        system:
+        let
+          inherit (mkPackagesForSystem system) pkgs aspect;
           bazel =
             if pkgs.stdenv.isLinux then
               pkgs.buildFHSEnv {
@@ -71,15 +59,6 @@
               }
             else
               pkgs.writeShellScriptBin "bazel" ''exec bazelisk "$@"'';
-          aspect =
-            if aspectBinary == null then
-              null
-            else
-              mkFetchedBinary {
-                name = "aspect";
-                inherit (binaryReleases.aspect) version;
-                inherit (aspectBinary) url sha256;
-              };
           format = pkgs.writeShellScriptBin "format" ''exec bazel run //tools/format -- "$@"'';
           coverage = pkgs.writeShellScriptBin "coverage" ''exec bazel run //tools/coverage -- "$@"'';
         in
@@ -105,7 +84,7 @@
               pkgs.nodejs_24 # provides node/npm for agent-browser
               pkgs.cargo
               pkgs.lcov
-            ] ++ pkgs.lib.optionals (aspect != null) [
+            ] ++ [
               aspect
             ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
               pkgs.chromium # hermetic browser — use with: agent-browser --executable-path $(which chromium)
