@@ -3,6 +3,9 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@pypi//:requirements.bzl", "all_whl_requirements")
+load("@rules_python_gazelle_plugin//manifest:defs.bzl", "gazelle_python_manifest")
+load("@rules_python_gazelle_plugin//modules_mapping:def.bzl", "modules_mapping")
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 npm_link_all_packages(name = "node_modules")
@@ -72,8 +75,25 @@ js_library(
 # gazelle:exclude ktor_tutorial/*
 # gazelle:exclude mindreadr/*
 # gazelle:exclude nicknamer/*
+# gazelle:go_proto_compilers @rules_go//proto:go_proto
+# gazelle:go_grpc_compilers @rules_go//proto:go_proto, @rules_go//proto:go_grpc_v2
+# gazelle:python_generate_proto true
 # gazelle:rust_cargo_lockfile Cargo.lock
 # gazelle:rust_crates_prefix @crates//:
+
+modules_mapping(
+    name = "modules_map",
+    wheels = all_whl_requirements,
+    include_stub_packages = True,
+)
+
+gazelle_python_manifest(
+    name = "gazelle_python_manifest",
+    modules_mapping = ":modules_map",
+    pip_repository_name = "pypi",
+    requirements = "//:requirements_lock.txt",
+)
+
 gazelle(
     name = "gazelle",
     gazelle = ":gazelle_bin",
@@ -83,6 +103,7 @@ gazelle_binary(
     name = "gazelle_bin",
     languages = DEFAULT_LANGUAGES + [
         "@contrib_rules_jvm//java/gazelle",
+        "@rules_python_gazelle_plugin//python",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle_rust//rust_language",
     ],
