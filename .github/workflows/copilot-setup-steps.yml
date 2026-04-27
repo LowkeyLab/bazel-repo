@@ -31,9 +31,9 @@ jobs:
             common --config=ci
             build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
-      - uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b # v31
+      - uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
         with:
-          extra_nix_config: |
+          extra-conf: |
             experimental-features = nix-command flakes
       - name: Install tools via flake
         run: |

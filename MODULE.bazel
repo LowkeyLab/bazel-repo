@@ -37,7 +37,7 @@ bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
 
 git_override(
     module_name = "rules_rust",
-    commit = "6d8595965412b9ca37704ed53e289c4c4be2a0bf",
+    commit = "f31db8b6f124dd5eebdd0ed8de4daf20d4d9685f",
     remote = "https://github.com/bazelbuild/rules_rust",
 )
 
@@ -69,7 +69,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "c9445b413687d2930f11b42654ac44396c74c9ab",
+    commit = "72fb243de23a8352f79c034827a4f413cbbc379b",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
