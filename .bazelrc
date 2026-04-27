@@ -51,6 +51,12 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
 common --@rules_python//python/config_settings:bootstrap_impl=script
 
+# rules_rs native Linux targets need the Rust triple's libc ABI constraint for
+# toolchain resolution. Do not force --host_platform here: host tools should keep
+# using the normal host C++ toolchain unless hermetic LLVM is explicitly enabled.
+common:linux --extra_execution_platforms=//platforms:local_gnu
+common:linux --platforms=//platforms:local_gnu
+
 # To stamp release builds, run with
 # --config=release
 common:release --stamp --workspace_status_command=./tools/workspace_status.sh
