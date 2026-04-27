@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 // Karma configuration for Bazel coverage integration.
 //
 // When run via `bazel coverage`, this config:
@@ -10,31 +10,36 @@
 // When run outside bazel coverage (e.g. `bazel test` or `ng test`), writes
 // an HTML coverage report to a local coverage/ directory.
 
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+const fs = require("fs");
 
 module.exports = function (config) {
-  const coverageOutputFile = process.env['COVERAGE_OUTPUT_FILE'];
+  const coverageOutputFile = process.env["COVERAGE_OUTPUT_FILE"];
 
   const baseConfig = {
-    basePath: '',
-    frameworks: ['jasmine'],
+    basePath: "",
+    frameworks: ["jasmine"],
     plugins: [
-      require('karma-jasmine'),
-      require('karma-chrome-launcher'),
-      require('karma-jasmine-html-reporter'),
-      require('karma-coverage'),
+      require("karma-jasmine"),
+      require("karma-chrome-launcher"),
+      require("karma-jasmine-html-reporter"),
+      require("karma-coverage"),
     ],
     jasmineHtmlReporter: {
       suppressAll: true,
     },
-    reporters: ['progress', 'kjhtml'],
-    browsers: ['Chrome'],
+    reporters: ["progress", "kjhtml"],
+    browsers: ["Chrome"],
     customLaunchers: {
       // Chrome configured to run in a Bazel sandbox.
       ChromeHeadlessNoSandbox: {
-        base: 'ChromeHeadless',
-        flags: ['--no-sandbox', '--headless', '--disable-gpu', '--disable-dev-shm-usage'],
+        base: "ChromeHeadless",
+        flags: [
+          "--no-sandbox",
+          "--headless",
+          "--disable-gpu",
+          "--disable-dev-shm-usage",
+        ],
       },
     },
     restartOnFileChange: true,
@@ -44,9 +49,9 @@ module.exports = function (config) {
     config.set({
       ...baseConfig,
       coverageReporter: {
-        dir: path.join(__dirname, 'coverage'),
-        subdir: '.',
-        reporters: [{ type: 'html' }, { type: 'text-summary' }],
+        dir: path.join(__dirname, "coverage"),
+        subdir: ".",
+        reporters: [{ type: "html" }, { type: "text-summary" }],
       },
     });
     return;
@@ -58,26 +63,26 @@ module.exports = function (config) {
   // So path.relative(__dirname, '..') gives the Bazel workspace exec root, and
   // path.relative(execRoot, cwd) gives the workspace-relative project path
   // (e.g. "angular/projects/predix").
-  const execRoot = path.resolve(__dirname, '..');
+  const execRoot = path.resolve(__dirname, "..");
   const projectPrefix = path.relative(execRoot, process.cwd()); // e.g. "angular/projects/predix"
-  const tmpFile = coverageOutputFile + '.tmp.lcov';
+  const tmpFile = coverageOutputFile + ".tmp.lcov";
 
   config.set({
     ...baseConfig,
     coverageReporter: {
-      type: 'lcovonly',
+      type: "lcovonly",
       dir: path.dirname(tmpFile),
       file: path.basename(tmpFile),
-      subdir: '.',
+      subdir: ".",
     },
   });
 
   // After karma finishes and coverage is written, rewrite SF: paths to
   // workspace-relative form so Bazel's combined coverage report is correct.
-  process.on('exit', () => {
+  process.on("exit", () => {
     try {
       if (!fs.existsSync(tmpFile)) return;
-      const raw = fs.readFileSync(tmpFile, 'utf8');
+      const raw = fs.readFileSync(tmpFile, "utf8");
       // Prepend projectPrefix to SF: lines that don't already start with /
       // (i.e. relative paths like "src/app/app.ts" → "angular/projects/predix/src/app/app.ts")
       const fixed = raw.replace(/^SF:(?!\/)/gm, `SF:${projectPrefix}/`);

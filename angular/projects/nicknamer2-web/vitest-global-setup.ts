@@ -11,7 +11,9 @@ export async function teardown() {
   const lcovSrc = join(__dirname, '.vitest-coverage', 'lcov.info');
 
   if (!existsSync(lcovSrc)) {
-    process.stderr.write(`[vitest-coverage] lcov file not found at: ${lcovSrc}\n`);
+    process.stderr.write(
+      `[vitest-coverage] lcov file not found at: ${lcovSrc}\n`,
+    );
     return;
   }
 
@@ -25,5 +27,7 @@ export async function teardown() {
   mkdirSync(dirname(coverageOutputFile), { recursive: true });
   writeFileSync(coverageOutputFile, fixed, 'utf-8');
   const sfCount = fixed.split('\n').filter((l) => l.startsWith('SF:')).length;
-  process.stderr.write(`[vitest-coverage] Wrote ${sfCount} SF: entries to: ${coverageOutputFile}\n`);
+  process.stderr.write(
+    `[vitest-coverage] Wrote ${sfCount} SF: entries to: ${coverageOutputFile}\n`,
+  );
 }
