@@ -32,11 +32,14 @@ bazel_dep(name = "rules_multitool", version = "1.11.1")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
-bazel_dep(name = "rules_rust", version = "0.69.0")
-git_override(
-    module_name = "rules_rust",
-    commit = "6d8595965412b9ca37704ed53e289c4c4be2a0bf",
-    remote = "https://github.com/bazelbuild/rules_rust",
+bazel_dep(name = "rules_rs", version = "0.0.62")
+bazel_dep(name = "llvm", version = "0.7.5")
+
+single_version_override(
+    module_name = "rules_rs",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_rs:crate_annotation_compile_data.patch"],
+    version = "0.0.62",
 )
 
 bazel_dep(name = "rules_shell", version = "0.8.0")
@@ -294,17 +297,28 @@ register_toolchains("//:kotlin_toolchain")
 
 #########################
 # Rust
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
+toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
+toolchains.toolchain(
     edition = "2024",
-    versions = [
-        "1.92.0",
-        "nightly/2026-01-11",
-    ],
+    version = "1.92.0",
 )
-use_repo(rust, "rust_toolchains")
+toolchains.toolchain(
+    name = "nightly_rust_toolchains",
+    edition = "2024",
+    version = "nightly/2026-01-11",
+)
+use_repo(
+    toolchains,
+    "default_rust_toolchains",
+    "nightly_rust_toolchains",
+    "rs_rust_host_tools",
+    "rustfmt_linux_x86_64_1_92_0",
+)
 
-register_toolchains("@rust_toolchains//:all")
+register_toolchains(
+    "@default_rust_toolchains//:all",
+    "@nightly_rust_toolchains//:all",
+)
 
 http_archive(
     name = "swagger_ui",
@@ -318,14 +332,18 @@ http_archive(
     urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
 )
 
-crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
 
 inject_repo(crate, "swagger_ui")
 
 crate.from_cargo(
     name = "crates",
-    cargo_lockfile = "//:Cargo.lock",
-    manifests = ["//:Cargo.toml"],
+    cargo_lock = "//:Cargo.lock",
+    cargo_toml = "//:Cargo.toml",
+    platform_triples = [
+        "wasm32-unknown-unknown",
+        "x86_64-unknown-linux-gnu",
+    ],
 )
 crate.annotation(
     additive_build_file_content = """
