@@ -1,0 +1,68 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+
+# aspect:generation_mode update_only
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "tsconfig.app.json",
+    "tsconfig.spec.json",
+])
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+        exclude = ["dist/"],
+    ),
+)
+
+copy_to_bin(
+    name = "vitest_config_files",
+    srcs = [
+        "vitest-base.config.ts",
+        "vitest-global-setup.ts",
+    ],
+)
+
+genrule(
+    name = "wasm_bindgen_srcs",
+    srcs = ["//pinyinchch_wasm/src:pinyinchch_wasm"],
+    outs = [
+        "src/app/wasm/pinyinchch_wasm.d.ts",
+        "src/app/wasm/pinyinchch_wasm.js",
+        "src/app/wasm/pinyinchch_wasm_bg.wasm",
+        "src/app/wasm/pinyinchch_wasm_bg.wasm.d.ts",
+    ],
+    cmd = """
+set -euo pipefail
+out_dir="$(@D)/src/app/wasm"
+mkdir -p "$${out_dir}"
+for src in $(SRCS); do
+  case "$${src}" in
+    */pinyinchch_wasm.d.ts) cp "$${src}" "$${out_dir}/pinyinchch_wasm.d.ts" ;;
+    */pinyinchch_wasm.js) cp "$${src}" "$${out_dir}/pinyinchch_wasm.js" ;;
+    */pinyinchch_wasm_bg.wasm) cp "$${src}" "$${out_dir}/pinyinchch_wasm_bg.wasm" ;;
+    */pinyinchch_wasm_bg.wasm.d.ts) cp "$${src}" "$${out_dir}/pinyinchch_wasm_bg.wasm.d.ts" ;;
+  esac
+done
+""",
+)
+
+ng_application(
+    name = "pinyin-hanzi-wasm",
+    srcs = [
+        ":srcs",
+        ":wasm_bindgen_srcs",
+    ],
+)
+
+ng_test(
+    name = "test",
+    srcs = [
+        ":srcs",
+        ":vitest_config_files",
+        ":wasm_bindgen_srcs",
+    ],
+    vitest = True,
+)
