@@ -19,6 +19,11 @@
               {
                 "glob": "**/*",
                 "input": "projects/pinyin-hanzi-wasm/public"
+              },
+              {
+                "glob": "pinyinchch_wasm_bg.wasm",
+                "input": "projects/pinyin-hanzi-wasm/src/app/wasm",
+                "output": "/"
               }
             ],
             "styles": ["projects/pinyin-hanzi-wasm/src/processed_styles.css"]
