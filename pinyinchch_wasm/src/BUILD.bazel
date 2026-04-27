@@ -1,0 +1,23 @@
+load("@rules_rust//rust:defs.bzl", "rust_shared_library")
+load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_shared_library(
+    name = "pinyinchch_wasm_raw",
+    srcs = ["lib.rs"],
+    crate_name = "pinyinchch_wasm",
+    deps = [
+        "@crates//:pinyinchch",
+        "@crates//:pinyinchch-model-dag",
+        "@crates//:serde_json",
+        "@crates//:wasm-bindgen",
+    ],
+)
+
+rust_wasm_bindgen(
+    name = "pinyinchch_wasm",
+    out_name = "pinyinchch_wasm",
+    target = "web",
+    wasm_file = ":pinyinchch_wasm_raw",
+)
