@@ -21,7 +21,7 @@
                 "input": "projects/pinyin-hanzi-wasm/public"
               }
             ],
-            "styles": ["projects/pinyin-hanzi-wasm/src/styles.css"]
+            "styles": ["projects/pinyin-hanzi-wasm/src/processed_styles.css"]
           },
           "configurations": {
             "production": {

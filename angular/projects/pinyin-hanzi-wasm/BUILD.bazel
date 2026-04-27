@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("//angular/bzl:ng.bzl", "ng_application", "ng_test")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
 
 # aspect:generation_mode update_only
 package(default_visibility = ["//visibility:public"])
@@ -13,7 +13,10 @@ copy_to_bin(
     name = "srcs",
     srcs = glob(
         ["src/**/*"],
-        exclude = ["dist/"],
+        exclude = [
+            "dist/",
+            "src/styles.css",
+        ],
     ),
 )
 
@@ -49,20 +52,43 @@ done
 """,
 )
 
+process_styles(
+    name = "processed_styles",
+    src = "src/styles.css",
+    srcs = glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+    out = "src/processed_styles.css",
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
 ng_application(
     name = "pinyin-hanzi-wasm",
     srcs = [
+        ":processed_styles",
         ":srcs",
         ":wasm_bindgen_srcs",
+    ],
+    tailwindcss = True,
+    deps = [
+        "//angular:node_modules/daisyui",
     ],
 )
 
 ng_test(
     name = "test",
     srcs = [
+        ":processed_styles",
         ":srcs",
         ":vitest_config_files",
         ":wasm_bindgen_srcs",
     ],
+    tailwindcss = True,
     vitest = True,
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
 )

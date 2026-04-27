@@ -1,20 +1,43 @@
-:root {
-  color: #f8fafc;
-  background: #0f172a;
-  font-family: Georgia, "Times New Roman", serif;
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: false;
+}
+@plugin "daisyui/theme" {
+  name: "pinyinchch";
+  default: true;
+  prefersdark: true;
+  color-scheme: "dark";
+
+  --color-base-100: oklch(21% 0.04 260);
+  --color-base-200: oklch(17% 0.04 260);
+  --color-base-300: oklch(13% 0.035 260);
+  --color-base-content: oklch(96% 0.02 92);
+  --color-primary: oklch(83% 0.17 82);
+  --color-primary-content: oklch(18% 0.04 260);
+  --color-secondary: oklch(76% 0.14 180);
+  --color-secondary-content: oklch(16% 0.04 220);
+  --color-accent: oklch(74% 0.18 39);
+  --color-accent-content: oklch(17% 0.04 260);
+  --color-neutral: oklch(27% 0.04 260);
+  --color-neutral-content: oklch(94% 0.02 92);
+  --color-info: oklch(74% 0.12 230);
+  --color-info-content: oklch(16% 0.04 250);
+  --color-success: oklch(77% 0.15 154);
+  --color-success-content: oklch(16% 0.04 160);
+  --color-warning: oklch(86% 0.17 86);
+  --color-warning-content: oklch(18% 0.04 260);
+  --color-error: oklch(71% 0.2 25);
+  --color-error-content: oklch(98% 0.02 25);
+
+  --radius-selector: 999rem;
+  --radius-field: 1rem;
+  --radius-box: 2rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-}
-
-button,
-textarea {
-  font: inherit;
-}
+@source './app/**/*.html';
+@source './app/**/*.ts';
