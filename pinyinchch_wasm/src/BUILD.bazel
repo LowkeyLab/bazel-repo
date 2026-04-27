@@ -9,7 +9,7 @@ rust_shared_library(
     crate_name = "pinyinchch_wasm",
     deps = [
         "@crates//:pinyinchch",
-        "@crates//:pinyinchch-model-dag",
+        "@crates//:pinyinchch-model-hmm",
         "@crates//:serde_json",
         "@crates//:wasm-bindgen",
     ],

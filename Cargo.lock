@@ -2664,10 +2664,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "pinyinchch-model-dag"
+name = "pinyinchch-model-hmm"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aa2bae76ebd9ee3a35449cc6a7ca37c73cb9524cb8cea394df37a87b3f201f7"
+checksum = "da432148b22d2ac3ce93790db157b4481634a38d1713c8022705b0c4c1d63d51"
 dependencies = [
  "pinyinchch-type",
  "rkyv 0.8.16",
@@ -5666,7 +5666,7 @@ dependencies = [
  "juniper_axum",
  "mockall",
  "pinyinchch",
- "pinyinchch-model-dag",
+ "pinyinchch-model-hmm",
  "regex",
  "reqwest",
  "sea-orm",
