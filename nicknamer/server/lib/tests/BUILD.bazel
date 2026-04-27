@@ -1,40 +1,101 @@
-load("@rules_rust//rust:defs.bzl", "rust_test_suite")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 package(default_visibility = ["//nicknamer"])
 
-rust_test_suite(
+test_suite(
     name = "tests",
+    tests = [
+        ":auth_endpoints_tests",
+        ":name_service_tests",
+        ":names_endpoints_tests",
+        ":web_endpoints_tests",
+    ],
+)
+
+COMMON_SRCS = glob(["common/**"])
+
+COMMON_DATA = glob(["snapshots/**/*.snap"])
+
+COMMON_ENV = {
+    "INSTA_UPDATE": "no",
+    "INSTA_WORKSPACE_ROOT": ".",
+}
+
+COMMON_EXEC_PROPERTIES = {
+    "test.workload-isolation-type": "firecracker",
+    "test.init-dockerd": "true",
+}
+
+COMMON_TAGS = [
+    "requires-docker",
+    "requires-network",
+]
+
+COMMON_DEPS = [
+    "//nicknamer/migration/lib",
+    "//nicknamer/server/lib",
+    "@crates//:anyhow",
+    "@crates//:askama",
+    "@crates//:axum",
+    "@crates//:insta",
+    "@crates//:sea-orm",
+    "@crates//:serde",
+    "@crates//:serde_json",
+    "@crates//:serde_yaml",  # keep
+    "@crates//:testcontainers-modules",
+    "@crates//:tokio",
+    "@crates//:tower",
+    "@crates//:tracing-subscriber",
+]
+
+rust_test(
+    name = "auth_endpoints_tests",
     size = "small",
-    srcs = glob(["*.rs"]),
-    data = glob(["snapshots/**/*.snap"]),
-    env = {
-        "INSTA_UPDATE": "no",
-        "INSTA_WORKSPACE_ROOT": ".",
-    },
-    exec_properties = {
-        "test.workload-isolation-type": "firecracker",
-        "test.init-dockerd": "true",
-    },
-    shared_srcs = glob(["common/**"]),
-    tags = [
-        "requires-docker",
-        "requires-network",
-    ],
-    deps = [
-        "//nicknamer/migration/lib",
-        "//nicknamer/server/lib",
-        "@crates//:anyhow",
-        "@crates//:askama",
-        "@crates//:axum",
-        "@crates//:insta",
-        "@crates//:sea-orm",
-        "@crates//:serde",
-        "@crates//:serde_json",
-        "@crates//:serde_yaml",  # keep
-        "@crates//:testcontainers-modules",
-        "@crates//:tokio",
-        "@crates//:tower",
-        "@crates//:tracing-subscriber",
-        "@rules_rust//tools/runfiles",
-    ],
+    srcs = ["auth_endpoints_tests.rs"] + COMMON_SRCS,
+    crate_name = "tests_auth_endpoints_tests_test",
+    crate_root = "auth_endpoints_tests.rs",
+    data = COMMON_DATA,
+    env = COMMON_ENV,
+    exec_properties = COMMON_EXEC_PROPERTIES,
+    tags = COMMON_TAGS,
+    deps = COMMON_DEPS,
+)
+
+rust_test(
+    name = "name_service_tests",
+    size = "small",
+    srcs = ["name_service_tests.rs"] + COMMON_SRCS,
+    crate_name = "tests_name_service_tests_test",
+    crate_root = "name_service_tests.rs",
+    data = COMMON_DATA,
+    env = COMMON_ENV,
+    exec_properties = COMMON_EXEC_PROPERTIES,
+    tags = COMMON_TAGS,
+    deps = COMMON_DEPS,
+)
+
+rust_test(
+    name = "names_endpoints_tests",
+    size = "small",
+    srcs = ["names_endpoints_tests.rs"] + COMMON_SRCS,
+    crate_name = "tests_names_endpoints_tests_test",
+    crate_root = "names_endpoints_tests.rs",
+    data = COMMON_DATA,
+    env = COMMON_ENV,
+    exec_properties = COMMON_EXEC_PROPERTIES,
+    tags = COMMON_TAGS,
+    deps = COMMON_DEPS,
+)
+
+rust_test(
+    name = "web_endpoints_tests",
+    size = "small",
+    srcs = ["web_endpoints_tests.rs"] + COMMON_SRCS,
+    crate_name = "tests_web_endpoints_tests_test",
+    crate_root = "web_endpoints_tests.rs",
+    data = COMMON_DATA,
+    env = COMMON_ENV,
+    exec_properties = COMMON_EXEC_PROPERTIES,
+    tags = COMMON_TAGS,
+    deps = COMMON_DEPS,
 )
