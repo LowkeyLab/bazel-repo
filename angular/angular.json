@@ -3,6 +3,76 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
+    "pinyin-hanzi-wasm": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/pinyin-hanzi-wasm",
+      "sourceRoot": "projects/pinyin-hanzi-wasm/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/pinyin-hanzi-wasm/src/main.ts",
+            "tsConfig": "projects/pinyin-hanzi-wasm/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/pinyin-hanzi-wasm/public"
+              }
+            ],
+            "styles": ["projects/pinyin-hanzi-wasm/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "pinyin-hanzi-wasm:build:production"
+            },
+            "development": {
+              "buildTarget": "pinyin-hanzi-wasm:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/pinyin-hanzi-wasm/tsconfig.spec.json",
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/pinyin-hanzi-wasm/vitest-base.config.ts"
+          }
+        }
+      }
+    },
     "nicknamer": {
       "projectType": "application",
       "schematics": {},
