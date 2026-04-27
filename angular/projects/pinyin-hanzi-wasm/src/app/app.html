@@ -1,42 +1,109 @@
-<main class="shell">
-  <section class="hero" aria-labelledby="title">
-    <p class="eyebrow">Rust · WebAssembly · Angular</p>
-    <h1 id="title">Guess hanzi from pinyin.</h1>
-    <p class="lede">
-      Type a pinyin phrase and let <strong>pinyinchch</strong> rank likely hanzi
-      candidates in the browser.
-    </p>
+<main
+  data-theme="pinyinchch"
+  class="relative min-h-screen overflow-hidden bg-base-300 text-base-content font-serif"
+>
+  <div
+    class="pointer-events-none absolute -left-24 top-0 h-96 w-96 rounded-full bg-primary/20 blur-3xl"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-secondary/15 blur-3xl"
+    aria-hidden="true"
+  ></div>
 
-    <label class="input-card">
-      <span>Pinyin input</span>
-      <textarea
-        [value]="input()"
-        rows="4"
-        placeholder="nihao"
-        (input)="updateInput($event)"
-      ></textarea>
-    </label>
+  <div
+    class="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:py-16"
+  >
+    <section
+      class="card border border-base-content/10 bg-base-100/85 shadow-2xl backdrop-blur"
+      aria-labelledby="title"
+    >
+      <div class="card-body gap-6 p-6 sm:p-10 lg:p-14">
+        <p
+          class="badge badge-primary badge-outline border-primary/40 px-4 py-3 text-xs font-black uppercase tracking-widest"
+        >
+          Rust · WebAssembly · Angular
+        </p>
+        <div class="space-y-5">
+          <h1
+            id="title"
+            class="max-w-xl text-5xl font-black leading-none tracking-tight text-base-content sm:text-6xl lg:text-7xl"
+          >
+            Guess hanzi from pinyin.
+          </h1>
+          <p class="max-w-2xl text-lg leading-8 text-base-content/75">
+            Type a pinyin phrase and let
+            <strong class="text-primary">pinyinchch</strong> rank likely hanzi
+            candidates in the browser.
+          </p>
+        </div>
 
-    <button type="button" [disabled]="isLoading()" (click)="guessHanzi()">
-      {{ isLoading() ? 'Thinking…' : 'Guess hanzi' }}
-    </button>
-  </section>
+        <label class="form-control w-full gap-2">
+          <span class="label-text text-sm font-bold uppercase tracking-wide">
+            Pinyin input
+          </span>
+          <textarea
+            class="textarea textarea-primary min-h-32 w-full resize-y bg-base-200 text-base-content placeholder:text-base-content/40"
+            [value]="input()"
+            rows="4"
+            placeholder="nihao"
+            (input)="updateInput($event)"
+          ></textarea>
+        </label>
 
-  <section class="results" aria-live="polite">
-    @if (errorMessage(); as error) {
-    <p class="error">{{ error }}</p>
-    } @else if (hasGuesses()) {
-    <h2>Candidate guesses</h2>
-    <ol>
-      @for (guess of guesses(); track guess.text) {
-      <li>
-        <span class="hanzi">{{ guess.text }}</span>
-        <span class="score">score {{ guess.score }}</span>
-      </li>
-      }
-    </ol>
-    } @else {
-    <p class="empty">Results will appear here after the WASM module loads.</p>
-    }
-  </section>
+        <div class="card-actions">
+          <button
+            type="button"
+            class="btn btn-primary btn-lg shadow-lg shadow-primary/20"
+            [disabled]="isLoading()"
+            (click)="guessHanzi()"
+          >
+            {{ isLoading() ? 'Thinking…' : 'Guess hanzi' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section
+      class="card min-h-96 border border-base-content/10 bg-base-100/75 shadow-2xl backdrop-blur"
+      aria-live="polite"
+    >
+      <div class="card-body gap-5 p-6 sm:p-8">
+        @if (errorMessage(); as error) {
+        <div class="alert alert-error shadow-lg">
+          <span>{{ error }}</span>
+        </div>
+        } @else if (hasGuesses()) {
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="card-title text-2xl">Candidate guesses</h2>
+          <span class="badge badge-secondary badge-outline">
+            {{ guesses().length }} ranked
+          </span>
+        </div>
+        <ol class="grid gap-3">
+          @for (guess of guesses(); track guess.text) {
+          <li
+            class="rounded-box border border-base-content/10 bg-base-200/75 p-4 shadow-sm transition-colors hover:bg-base-200"
+          >
+            <div class="flex items-baseline justify-between gap-4">
+              <span class="text-4xl font-black text-primary">
+                {{ guess.text }}
+              </span>
+              <span class="badge badge-accent badge-outline">
+                score {{ guess.score }}
+              </span>
+            </div>
+          </li>
+          }
+        </ol>
+        } @else {
+        <div class="alert border border-base-content/10 bg-base-200/75">
+          <span class="text-base-content/70">
+            Results will appear here after the WASM module loads.
+          </span>
+        </div>
+        }
+      </div>
+    </section>
+  </div>
 </main>
