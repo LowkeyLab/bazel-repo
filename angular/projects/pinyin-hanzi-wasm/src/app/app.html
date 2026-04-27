@@ -1,0 +1,42 @@
+<main class="shell">
+  <section class="hero" aria-labelledby="title">
+    <p class="eyebrow">Rust · WebAssembly · Angular</p>
+    <h1 id="title">Guess hanzi from pinyin.</h1>
+    <p class="lede">
+      Type a pinyin phrase and let <strong>pinyinchch</strong> rank likely hanzi
+      candidates in the browser.
+    </p>
+
+    <label class="input-card">
+      <span>Pinyin input</span>
+      <textarea
+        [value]="input()"
+        rows="4"
+        placeholder="nihao"
+        (input)="updateInput($event)"
+      ></textarea>
+    </label>
+
+    <button type="button" [disabled]="isLoading()" (click)="guessHanzi()">
+      {{ isLoading() ? 'Thinking…' : 'Guess hanzi' }}
+    </button>
+  </section>
+
+  <section class="results" aria-live="polite">
+    @if (errorMessage(); as error) {
+    <p class="error">{{ error }}</p>
+    } @else if (hasGuesses()) {
+    <h2>Candidate guesses</h2>
+    <ol>
+      @for (guess of guesses(); track guess.text) {
+      <li>
+        <span class="hanzi">{{ guess.text }}</span>
+        <span class="score">score {{ guess.score }}</span>
+      </li>
+      }
+    </ol>
+    } @else {
+    <p class="empty">Results will appear here after the WASM module loads.</p>
+    }
+  </section>
+</main>
