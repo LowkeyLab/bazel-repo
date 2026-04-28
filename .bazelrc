@@ -57,6 +57,16 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 common:linux --extra_execution_platforms=//platforms:local_gnu
 common:linux --platforms=//platforms:local_gnu
 
+# Opt into hermetic LLVM/lld for Rust target link actions without letting
+# rules_rust bootstrap tools resolve the LLVM C++ toolchain.
+common:hermetic-llvm-rust --platforms=//platforms:local_gnu_llvm
+common:hermetic-llvm-rust --extra_execution_platforms=//platforms:local_gnu
+common:hermetic-llvm-rust --extra_execution_platforms=//platforms:local_gnu_llvm
+common:hermetic-llvm-rust --extra_toolchains=//tools/llvm:linux_x86_64_to_linux_x86_64_cc_toolchain
+common:hermetic-llvm-rust --@llvm//toolchain:source=prebuilt
+common:hermetic-llvm-rust --@llvm//config:experimental_stub_libgcc_s=True
+common:hermetic-llvm-rust --@@rules_rust+//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols
+
 # To stamp release builds, run with
 # --config=release
 common:release --stamp --workspace_status_command=./tools/workspace_status.sh

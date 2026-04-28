@@ -1,0 +1,17 @@
+package(default_visibility = ["//visibility:public"])
+
+toolchain(
+    name = "linux_x86_64_to_linux_x86_64_cc_toolchain",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        "@llvm//constraints/libc:gnu.2.28",
+        "//platforms:hermetic_llvm_cc",
+    ],
+    toolchain = "@llvm//toolchain:linux_x86_64_cc_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
