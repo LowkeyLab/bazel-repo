@@ -57,6 +57,12 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "gazelle", version = "0.50.0")
+single_version_override(
+    module_name = "gazelle",
+    patch_strip = 1,
+    patches = ["//3rdparty/gazelle:gazelle_binary_pure.patch"],
+    version = "0.50.0",
+)
 
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
