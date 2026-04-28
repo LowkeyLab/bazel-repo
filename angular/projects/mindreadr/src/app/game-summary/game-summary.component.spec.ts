@@ -1,12 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { vi } from 'vitest';
 import { ActivatedRoute, Router } from '@angular/router';
+import { vi } from 'vitest';
 
-vi.mock('canvas-confetti', () => ({
-  default: vi.fn(),
-}));
+import type { GameDto } from '../services/game.types';
 import { GameSummaryComponent } from './game-summary.component';
-import { GameDto } from '../services/game.types';
 
 describe('GameSummaryComponent', () => {
   const TEST_ANIMATION_DELAY = 50; // Use faster delay for tests
@@ -15,11 +12,14 @@ describe('GameSummaryComponent', () => {
     vi.useRealTimers();
   });
 
-  function createComponentWithNavState(state: any, id: string | null = 'g1') {
+  function createComponentWithNavState(
+    state: Record<string, unknown>,
+    id: string | null = 'g1',
+  ) {
     const routerSpy = {
       currentNavigation: () => ({ extras: { state } }),
       navigate: vi.fn(),
-    } as any as Router;
+    } as unknown as Router;
     TestBed.configureTestingModule({
       imports: [GameSummaryComponent],
       providers: [
