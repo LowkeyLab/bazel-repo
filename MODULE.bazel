@@ -42,6 +42,17 @@ single_version_override(
     version = "0.0.62",
 )
 
+archive_override(
+    module_name = "rules_rust",
+    integrity = "sha256-X/2f8fby8U8gV7fLqpGl5qzZpMve1ayB2tm+s2hZYB4=",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.70.0/rules_rust-0.70.0.tar.gz"],
+)
+
+single_version_override(
+    module_name = "rules_rust_prost",
+    version = "0.70.0",
+)
+
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_buf", version = "0.5.2")
 bazel_dep(name = "rules_proto", version = "7.1.0")
@@ -57,12 +68,6 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "gazelle", version = "0.50.0")
-single_version_override(
-    module_name = "gazelle",
-    patch_strip = 1,
-    patches = ["//3rdparty/gazelle:gazelle_binary_pure.patch"],
-    version = "0.50.0",
-)
 
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
 bazel_dep(name = "gazelle_rust", dev_dependency = True)

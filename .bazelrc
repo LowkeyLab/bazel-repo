@@ -52,19 +52,16 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 common --@rules_python//python/config_settings:bootstrap_impl=script
 
 # rules_rs native Linux targets need the Rust triple's libc ABI constraint for
-# toolchain resolution. Keep the non-LLVM GNU platform available first for
-# exec/bootstrap tools, then use the LLVM-flavored platform as the default target.
-common:linux --extra_execution_platforms=//platforms:local_gnu
+# toolchain resolution. Use the LLVM-flavored platform for host, exec, and target
+# actions so all C/C++/Rust links resolve through the hermetic LLVM toolchain.
 common:linux --extra_execution_platforms=//platforms:local_gnu_llvm
 common:linux --platforms=//platforms:local_gnu_llvm
-common:linux --host_platform=//platforms:local_gnu
+common:linux --host_platform=//platforms:local_gnu_llvm
 common:linux --extra_toolchains=//tools/llvm:linux_x86_64_to_linux_x86_64_cc_toolchain
 common:linux --@llvm//toolchain:source=prebuilt
 common:linux --@llvm//config:experimental_stub_libgcc_s=True
 common:linux --@@rules_rust+//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols
-# Keep Go targets on the internal pure-Go linker path so the default LLVM C++
-# toolchain only affects C/C++/Rust link actions.
-common:linux --@rules_go//go/config:pure
+common:linux --@rules_go//go/config:linkmode=pie
 
 # To stamp release builds, run with
 # --config=release
