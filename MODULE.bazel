@@ -70,7 +70,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "c9445b413687d2930f11b42654ac44396c74c9ab",
+    commit = "72fb243de23a8352f79c034827a4f413cbbc379b",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
@@ -311,7 +311,6 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
-    "rs_rust_host_tools",
     "rustfmt_linux_x86_64_1_92_0",
 )
 
