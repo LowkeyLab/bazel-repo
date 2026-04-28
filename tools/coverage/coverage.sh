@@ -58,6 +58,7 @@ if command -v genhtml &>/dev/null; then
 		--title "bazel-repo Coverage" \
 		--legend \
 		--show-details \
+		--ignore-errors category \
 		--quiet
 	echo "==> HTML report: ${REPORT_DIR}/index.html"
 	echo "    Open with: xdg-open ${REPORT_DIR}/index.html"

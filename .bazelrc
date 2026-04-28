@@ -16,11 +16,10 @@ common --experimental_profile_include_target_label
 # Remote execution config
 common:remote --remote_executor=grpcs://remote.buildbuddy.io
 common:remote-linux --config=remote
-common:remote-linux --platforms=@toolchains_buildbuddy//platforms:linux_x86_64
-common:remote-linux --extra_execution_platforms=@toolchains_buildbuddy//platforms:linux_x86_64
+common:remote-linux --platforms=//platforms:remote_linux_x86_64_gnu_llvm
+common:remote-linux --extra_execution_platforms=//platforms:remote_linux_x86_64_gnu_llvm
 common:remote-linux --jobs=50
-common:remote-linux --extra_toolchains=@buildbuddy_toolchain//:ubuntu_cc_toolchain
-common:remote-linux --host_platform=@toolchains_buildbuddy//platforms:linux_x86_64
+common:remote-linux --host_platform=//platforms:remote_linux_x86_64_gnu_llvm
 test:remote-linux --test_tag_filters=-no-remote
 
 # CI remote execution config (combines remote-linux with CI tuning)
@@ -50,6 +49,18 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 # See https://github.com/bazel-contrib/rules_python/issues/3187
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
 common --@rules_python//python/config_settings:bootstrap_impl=script
+
+# rules_rs native Linux targets need the Rust triple's libc ABI constraint for
+# toolchain resolution. Use the LLVM-flavored platform for host, exec, and target
+# actions so all C/C++/Rust links resolve through the hermetic LLVM toolchain.
+common:linux --extra_execution_platforms=//platforms:local_gnu_llvm
+common:linux --platforms=//platforms:local_gnu_llvm
+common:linux --host_platform=//platforms:local_gnu_llvm
+common:linux --extra_toolchains=//tools/llvm:linux_x86_64_to_linux_x86_64_cc_toolchain
+common:linux --@llvm//toolchain:source=prebuilt
+common:linux --@llvm//config:experimental_stub_libgcc_s=True
+common:linux --@@rules_rust+//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols
+common:linux --@rules_go//go/config:linkmode=pie
 
 # To stamp release builds, run with
 # --config=release
@@ -88,8 +99,10 @@ coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindrea
 # is available locally, and merge coverage reports with a local strategy
 coverage:remote-linux --remote_download_toplevel
 coverage:remote-linux --strategy=CoverageReport=local
+coverage:remote-linux --@rules_go//go/config:pure
 coverage:ci-remote --remote_download_toplevel
 coverage:ci-remote --strategy=CoverageReport=local
+coverage:ci-remote --@rules_go//go/config:pure
 
 # To output something for xargs
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress

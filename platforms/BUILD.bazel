@@ -1,0 +1,32 @@
+package(default_visibility = ["//visibility:public"])
+
+constraint_setting(name = "cc_toolchain_flavor")
+
+constraint_value(
+    name = "hermetic_llvm_cc",
+    constraint_setting = ":cc_toolchain_flavor",
+)
+
+platform(
+    name = "local_gnu",
+    constraint_values = ["@llvm//constraints/libc:gnu.2.28"],
+    parents = ["@platforms//host"],
+)
+
+platform(
+    name = "local_gnu_llvm",
+    constraint_values = [
+        "@llvm//constraints/libc:gnu.2.28",
+        ":hermetic_llvm_cc",
+    ],
+    parents = ["@platforms//host"],
+)
+
+platform(
+    name = "remote_linux_x86_64_gnu_llvm",
+    constraint_values = [
+        "@llvm//constraints/libc:gnu.2.28",
+        ":hermetic_llvm_cc",
+    ],
+    parents = ["@toolchains_buildbuddy//platforms:linux_x86_64"],
+)

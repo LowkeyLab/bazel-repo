@@ -32,11 +32,25 @@ bazel_dep(name = "rules_multitool", version = "1.11.1")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
-bazel_dep(name = "rules_rust", version = "0.69.0")
-git_override(
+bazel_dep(name = "rules_rs", version = "0.0.62")
+bazel_dep(name = "llvm", version = "0.7.5")
+
+single_version_override(
+    module_name = "rules_rs",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_rs:crate_annotation_compile_data.patch"],
+    version = "0.0.62",
+)
+
+archive_override(
     module_name = "rules_rust",
-    commit = "02be80c7409b3890d728b29134a4b656d941990a",
-    remote = "https://github.com/bazelbuild/rules_rust",
+    integrity = "sha256-X/2f8fby8U8gV7fLqpGl5qzZpMve1ayB2tm+s2hZYB4=",
+    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.70.0/rules_rust-0.70.0.tar.gz"],
+)
+
+single_version_override(
+    module_name = "rules_rust_prost",
+    version = "0.70.0",
 )
 
 bazel_dep(name = "rules_shell", version = "0.8.0")
@@ -60,6 +74,8 @@ bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
     commit = "62dace6f23b648f662d716723ab8eee2aab4b556",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/gazelle_rust:rules_rs_loads.patch"],
     remote = "https://github.com/Calsign/gazelle_rust.git",
 )
 
@@ -294,17 +310,27 @@ register_toolchains("//:kotlin_toolchain")
 
 #########################
 # Rust
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
+toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
+toolchains.toolchain(
     edition = "2024",
-    versions = [
-        "1.92.0",
-        "nightly/2026-01-11",
-    ],
+    version = "1.92.0",
 )
-use_repo(rust, "rust_toolchains")
+toolchains.toolchain(
+    name = "nightly_rust_toolchains",
+    edition = "2024",
+    version = "nightly/2026-01-11",
+)
+use_repo(
+    toolchains,
+    "default_rust_toolchains",
+    "nightly_rust_toolchains",
+    "rustfmt_linux_x86_64_1_92_0",
+)
 
-register_toolchains("@rust_toolchains//:all")
+register_toolchains(
+    "@default_rust_toolchains//:all",
+    "@nightly_rust_toolchains//:all",
+)
 
 http_archive(
     name = "swagger_ui",
@@ -318,14 +344,18 @@ http_archive(
     urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
 )
 
-crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
 
 inject_repo(crate, "swagger_ui")
 
 crate.from_cargo(
     name = "crates",
-    cargo_lockfile = "//:Cargo.lock",
-    manifests = ["//:Cargo.toml"],
+    cargo_lock = "//:Cargo.lock",
+    cargo_toml = "//:Cargo.toml",
+    platform_triples = [
+        "wasm32-unknown-unknown",
+        "x86_64-unknown-linux-gnu",
+    ],
 )
 crate.annotation(
     additive_build_file_content = """

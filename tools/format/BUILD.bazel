@@ -57,7 +57,7 @@ format_multirun(
     kotlin = ":ktfmt",
     markdown = ":prettier",
     python = "@aspect_rules_lint//format:ruff",
-    rust = "@rules_rust//tools/upstream_wrapper:rustfmt",
+    rust = "@rustfmt_linux_x86_64_1_92_0//:rustfmt_bin",
     shell = "@aspect_rules_lint//format:shfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
     yaml = "@aspect_rules_lint//format:yamlfmt",

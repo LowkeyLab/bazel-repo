@@ -34,6 +34,7 @@ describe('GameSummaryComponent', () => {
     const comp = fixture.componentInstance;
     // Set test animation delay
     fixture.componentRef.setInput('animationDelayMs', TEST_ANIMATION_DELAY);
+    fixture.componentRef.setInput('enableConfetti', false);
     fixture.detectChanges();
     return { fixture, comp, routerSpy };
   }
