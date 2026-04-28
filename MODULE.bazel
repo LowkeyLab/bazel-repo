@@ -206,7 +206,7 @@ maven.install(
         "org.jetbrains.exposed:exposed-core:1.2.0",
         "org.jetbrains.exposed:exposed-dao:1.2.0",
         "org.jetbrains.exposed:exposed-jdbc:1.2.0",
-        "org.postgresql:postgresql:42.7.10",
+        "org.postgresql:postgresql:42.7.11",
         # Logging
         "ch.qos.logback:logback-classic:1.5.32",
         # JSON Path
