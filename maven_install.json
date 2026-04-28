@@ -36,7 +36,7 @@
     "org.junit.jupiter:junit-jupiter-engine": -1358755814,
     "org.junit.jupiter:junit-jupiter-params": -1137432226,
     "org.junit.platform:junit-platform-console": 1648445713,
-    "org.postgresql:postgresql": -155897584,
+    "org.postgresql:postgresql": -1963352047,
     "repositories": 65937588
   },
   "__RESOLVED_ARTIFACTS_HASH": {
@@ -275,9 +275,6 @@
     "org.attoparser:attoparser": 784153812,
     "org.attoparser:attoparser:jar:javadoc": 755948575,
     "org.attoparser:attoparser:jar:sources": -745600142,
-    "org.checkerframework:checker-qual": -1286069869,
-    "org.checkerframework:checker-qual:jar:javadoc": -1081465188,
-    "org.checkerframework:checker-qual:jar:sources": 1329524901,
     "org.eclipse.jetty.alpn:alpn-api": -1911847709,
     "org.eclipse.jetty.alpn:alpn-api:jar:javadoc": 844777982,
     "org.eclipse.jetty.alpn:alpn-api:jar:sources": 2120202618,
@@ -392,9 +389,9 @@
     "org.ow2.asm:asm": -1101379267,
     "org.ow2.asm:asm:jar:javadoc": -1828579052,
     "org.ow2.asm:asm:jar:sources": -1707020066,
-    "org.postgresql:postgresql": 2077473025,
-    "org.postgresql:postgresql:jar:javadoc": 261636006,
-    "org.postgresql:postgresql:jar:sources": 115218962,
+    "org.postgresql:postgresql": -457385259,
+    "org.postgresql:postgresql:jar:javadoc": 1712614462,
+    "org.postgresql:postgresql:jar:sources": -1604401690,
     "org.slf4j:slf4j-api": -1521593912,
     "org.slf4j:slf4j-api:jar:javadoc": 469507244,
     "org.slf4j:slf4j-api:jar:sources": -1050183387,
@@ -1039,14 +1036,6 @@
       },
       "version": "2.0.7.RELEASE"
     },
-    "org.checkerframework:checker-qual": {
-      "shasums": {
-        "jar": "0b5bb1a4bdc4e4b1217482fe598efcaab4e1fba7b37f9412639178fc8116fc05",
-        "javadoc": "c3b4ff7d71a646d3ebcc17a6b3ef08f2fdbc942d5c96947f850bc8461e94f49e",
-        "sources": "fbc4bee8d87f7812d5df2175f5afc247091e3bdf1d641768e91bfe8837539741"
-      },
-      "version": "3.52.0"
-    },
     "org.eclipse.jetty.alpn:alpn-api": {
       "shasums": {
         "jar": "07be99758b699e194f70fb9784d94202dc6c98212877829e3d72b020f2660576",
@@ -1353,11 +1342,11 @@
     },
     "org.postgresql:postgresql": {
       "shasums": {
-        "jar": "cab1cd67cfa25c25de4348e532298028288a877ba01c77d1619fe45416193387",
-        "javadoc": "82d96d37c459c0d2786798dcc610ccf822d11f05be51e8490418fd9fa383adc3",
-        "sources": "67c81c4c33327a7da3b80d8f65c479cf70439f522de340f364c49f8482f7e1d3"
+        "jar": "1981b31d3993c58702783c1cddf10a34e48c1f413d70ff1cb6def0a143484647",
+        "javadoc": "c28b4f120766ec7adcb2516b45e87bc3a1ef96a4ae7ee6d474f950a920daf322",
+        "sources": "5156b9a1076e69ede16266ceb0c20a7ecd0f3f7d5a5a388480333ec8339ee198"
       },
-      "version": "42.7.10"
+      "version": "42.7.11"
     },
     "org.slf4j:slf4j-api": {
       "shasums": {
@@ -1923,9 +1912,6 @@
     ],
     "org.opentest4j.reporting:open-test-reporting-tooling-spi": [
       "org.apiguardian:apiguardian-api"
-    ],
-    "org.postgresql:postgresql": [
-      "org.checkerframework:checker-qual"
     ],
     "org.thymeleaf:thymeleaf": [
       "ognl:ognl",
@@ -2645,40 +2631,6 @@
       "org.attoparser.trace",
       "org.attoparser.util"
     ],
-    "org.checkerframework:checker-qual": [
-      "org.checkerframework.checker.builder.qual",
-      "org.checkerframework.checker.calledmethods.qual",
-      "org.checkerframework.checker.compilermsgs.qual",
-      "org.checkerframework.checker.fenum.qual",
-      "org.checkerframework.checker.formatter.qual",
-      "org.checkerframework.checker.guieffect.qual",
-      "org.checkerframework.checker.i18n.qual",
-      "org.checkerframework.checker.i18nformatter.qual",
-      "org.checkerframework.checker.index.qual",
-      "org.checkerframework.checker.initialization.qual",
-      "org.checkerframework.checker.interning.qual",
-      "org.checkerframework.checker.lock.qual",
-      "org.checkerframework.checker.mustcall.qual",
-      "org.checkerframework.checker.nonempty.qual",
-      "org.checkerframework.checker.nullness.qual",
-      "org.checkerframework.checker.optional.qual",
-      "org.checkerframework.checker.propkey.qual",
-      "org.checkerframework.checker.regex.qual",
-      "org.checkerframework.checker.signature.qual",
-      "org.checkerframework.checker.signedness.qual",
-      "org.checkerframework.checker.sqlquotes.qual",
-      "org.checkerframework.checker.tainting.qual",
-      "org.checkerframework.checker.units.qual",
-      "org.checkerframework.common.aliasing.qual",
-      "org.checkerframework.common.initializedfields.qual",
-      "org.checkerframework.common.reflection.qual",
-      "org.checkerframework.common.returnsreceiver.qual",
-      "org.checkerframework.common.subtyping.qual",
-      "org.checkerframework.common.util.count.report.qual",
-      "org.checkerframework.common.value.qual",
-      "org.checkerframework.dataflow.qual",
-      "org.checkerframework.framework.qual"
-    ],
     "org.eclipse.jetty.alpn:alpn-api": [
       "org.eclipse.jetty.alpn"
     ],
@@ -3372,9 +3324,6 @@
       "org.attoparser:attoparser",
       "org.attoparser:attoparser:jar:javadoc",
       "org.attoparser:attoparser:jar:sources",
-      "org.checkerframework:checker-qual",
-      "org.checkerframework:checker-qual:jar:javadoc",
-      "org.checkerframework:checker-qual:jar:sources",
       "org.eclipse.jetty.alpn:alpn-api",
       "org.eclipse.jetty.alpn:alpn-api:jar:javadoc",
       "org.eclipse.jetty.alpn:alpn-api:jar:sources",
