@@ -52,20 +52,19 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 common --@rules_python//python/config_settings:bootstrap_impl=script
 
 # rules_rs native Linux targets need the Rust triple's libc ABI constraint for
-# toolchain resolution. Do not force --host_platform here: host tools should keep
-# using the normal host C++ toolchain unless hermetic LLVM is explicitly enabled.
+# toolchain resolution. Keep the non-LLVM GNU platform available first for
+# exec/bootstrap tools, then use the LLVM-flavored platform as the default target.
 common:linux --extra_execution_platforms=//platforms:local_gnu
-common:linux --platforms=//platforms:local_gnu
-
-# Opt into hermetic LLVM/lld for Rust target link actions without letting
-# rules_rust bootstrap tools resolve the LLVM C++ toolchain.
-common:hermetic-llvm-rust --platforms=//platforms:local_gnu_llvm
-common:hermetic-llvm-rust --extra_execution_platforms=//platforms:local_gnu
-common:hermetic-llvm-rust --extra_execution_platforms=//platforms:local_gnu_llvm
-common:hermetic-llvm-rust --extra_toolchains=//tools/llvm:linux_x86_64_to_linux_x86_64_cc_toolchain
-common:hermetic-llvm-rust --@llvm//toolchain:source=prebuilt
-common:hermetic-llvm-rust --@llvm//config:experimental_stub_libgcc_s=True
-common:hermetic-llvm-rust --@@rules_rust+//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols
+common:linux --extra_execution_platforms=//platforms:local_gnu_llvm
+common:linux --platforms=//platforms:local_gnu_llvm
+common:linux --host_platform=//platforms:local_gnu
+common:linux --extra_toolchains=//tools/llvm:linux_x86_64_to_linux_x86_64_cc_toolchain
+common:linux --@llvm//toolchain:source=prebuilt
+common:linux --@llvm//config:experimental_stub_libgcc_s=True
+common:linux --@@rules_rust+//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols
+# Keep Go targets on the internal pure-Go linker path so the default LLVM C++
+# toolchain only affects C/C++/Rust link actions.
+common:linux --@rules_go//go/config:pure
 
 # To stamp release builds, run with
 # --config=release
