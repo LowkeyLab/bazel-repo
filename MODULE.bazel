@@ -26,7 +26,7 @@ bazel_dep(name = "rules_java", version = "9.6.1")
 bazel_dep(name = "rules_kotlin", version = "2.3.20")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2")
-bazel_dep(name = "contrib_rules_jvm", version = "0.32.0")
+bazel_dep(name = "contrib_rules_jvm", version = "0.33.0")
 bazel_dep(name = "container_structure_test", version = "1.22.1")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
 bazel_dep(name = "rules_oci", version = "2.3.0")
@@ -83,7 +83,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "72fb243de23a8352f79c034827a4f413cbbc379b",
+    commit = "c6f7e15470934f7c2fe46ff5bae7d68be0230501",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
@@ -222,7 +222,7 @@ maven.install(
         "org.jetbrains.exposed:exposed-core:1.2.0",
         "org.jetbrains.exposed:exposed-dao:1.2.0",
         "org.jetbrains.exposed:exposed-jdbc:1.2.0",
-        "org.postgresql:postgresql:42.7.10",
+        "org.postgresql:postgresql:42.7.11",
         # Logging
         "ch.qos.logback:logback-classic:1.5.32",
         # JSON Path
