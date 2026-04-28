@@ -2,13 +2,22 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const configDirectory = dirname(fileURLToPath(import.meta.url));
+const coverageDirectory = join(
+  process.env['TEST_TMPDIR'] ?? configDirectory,
+  '.vitest-coverage',
+);
+
+export async function setup() {
+  mkdirSync(coverageDirectory, { recursive: true });
+}
+
 export async function teardown() {
   const coverageOutputFile = process.env['COVERAGE_OUTPUT_FILE'];
   // No-op when not running under `bazel coverage`.
   if (!coverageOutputFile) return;
 
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-  const lcovSrc = join(__dirname, '.vitest-coverage', 'lcov.info');
+  const lcovSrc = join(coverageDirectory, 'lcov.info');
 
   if (!existsSync(lcovSrc)) {
     process.stderr.write(

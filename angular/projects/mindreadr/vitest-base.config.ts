@@ -6,7 +6,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Write coverage to a known location relative to the config file so the
 // globalSetup teardown can reliably find it.
-const reportsDirectory = join(__dirname, '.vitest-coverage');
+const reportsDirectory = join(
+  process.env['TEST_TMPDIR'] ?? __dirname,
+  '.vitest-coverage',
+);
 
 export default defineConfig({
   test: {
