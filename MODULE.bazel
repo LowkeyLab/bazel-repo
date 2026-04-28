@@ -308,6 +308,8 @@ use_repo(maven, "maven")
 
 register_toolchains("//:kotlin_toolchain")
 
+register_toolchains("@llvm//toolchain:all")
+
 #########################
 # Rust
 toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
