@@ -25,6 +25,7 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
 
   // Configurable animation delay (milliseconds between each round appearing)
   animationDelayMs = input<number>(150);
+  enableConfetti = input<boolean>(true);
 
   gameId = signal<string>('');
   game = signal<GameDto | null>(null);
@@ -62,7 +63,9 @@ export class GameSummaryComponent implements OnInit, OnDestroy {
     }
 
     // Celebrate with a burst of confetti
-    this.fireConfetti();
+    if (this.enableConfetti()) {
+      this.fireConfetti();
+    }
   }
 
   ngOnDestroy(): void {

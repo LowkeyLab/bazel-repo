@@ -2,9 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { ActivatedRoute, Router } from '@angular/router';
 
-vi.mock('canvas-confetti', () => ({
-  default: vi.fn(),
-}));
 import { GameSummaryComponent } from './game-summary.component';
 import { GameDto } from '../services/game.types';
 
@@ -34,6 +31,7 @@ describe('GameSummaryComponent', () => {
     const comp = fixture.componentInstance;
     // Set test animation delay
     fixture.componentRef.setInput('animationDelayMs', TEST_ANIMATION_DELAY);
+    fixture.componentRef.setInput('enableConfetti', false);
     fixture.detectChanges();
     return { fixture, comp, routerSpy };
   }
