@@ -3,12 +3,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export async function teardown() {
-  const coverageOutputFile = process.env['COVERAGE_OUTPUT_FILE'];
+  const coverageOutputFile = process.env.COVERAGE_OUTPUT_FILE;
   // No-op when not running under `bazel coverage`.
   if (!coverageOutputFile) return;
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const lcovSrc = join(__dirname, '.vitest-coverage', 'lcov.info');
+  const reportsDirectory = join(
+    process.env.TEST_TMPDIR ?? __dirname,
+    '.vitest-coverage',
+  );
+  const lcovSrc = join(reportsDirectory, 'lcov.info');
 
   if (!existsSync(lcovSrc)) {
     process.stderr.write(
