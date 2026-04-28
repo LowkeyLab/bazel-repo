@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const configDirectory = dirname(fileURLToPath(import.meta.url));
 const coverageDirectory = join(
-  process.env['TEST_TMPDIR'] ?? configDirectory,
+  process.env.TEST_TMPDIR ?? configDirectory,
   '.vitest-coverage',
 );
 
@@ -13,7 +13,7 @@ export async function setup() {
 }
 
 export async function teardown() {
-  const coverageOutputFile = process.env['COVERAGE_OUTPUT_FILE'];
+  const coverageOutputFile = process.env.COVERAGE_OUTPUT_FILE;
   // No-op when not running under `bazel coverage`.
   if (!coverageOutputFile) return;
 
