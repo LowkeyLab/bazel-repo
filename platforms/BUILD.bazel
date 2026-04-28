@@ -21,3 +21,12 @@ platform(
     ],
     parents = ["@platforms//host"],
 )
+
+platform(
+    name = "remote_linux_x86_64_gnu_llvm",
+    constraint_values = [
+        "@llvm//constraints/libc:gnu.2.28",
+        ":hermetic_llvm_cc",
+    ],
+    parents = ["@toolchains_buildbuddy//platforms:linux_x86_64"],
+)
