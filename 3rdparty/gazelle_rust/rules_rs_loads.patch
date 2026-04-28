@@ -1,0 +1,47 @@
+diff --git a/rust_language/lang.go b/rust_language/lang.go
+index 136df8b..ee68627 100644
+--- a/rust_language/lang.go
++++ b/rust_language/lang.go
+@@ -182,24 +182,32 @@ func (*rustLang) Kinds() map[string]rule.KindInfo {
+ }
+ 
+ func (*rustLang) Loads() []rule.LoadInfo {
+-	return []rule.LoadInfo{
+-		{
+-			Name:    "@rules_rust//rust:defs.bzl",
+-			Symbols: commonDefs,
+-		},
+-		{
++	loads := []rule.LoadInfo{}
++	for _, commonDef := range commonDefs {
++		loads = append(loads, rule.LoadInfo{
++			Name:    "@rules_rs//rs:" + commonDef + ".bzl",
++			Symbols: []string{commonDef},
++		})
++	}
++	loads = append(loads,
++		rule.LoadInfo{
+ 			Name:    "@rules_rust//proto:proto.bzl",
+ 			Symbols: protoDefs,
+ 		},
+-		{
++		rule.LoadInfo{
+ 			Name:    "@rules_rust_prost//:defs.bzl",
+ 			Symbols: prostDefs,
+ 		},
+-		{
++		rule.LoadInfo{
++			Name:    "@rules_rs//rs:cargo_build_script.bzl",
++			Symbols: cargoDefs,
++		},
++		rule.LoadInfo{
+ 			Name:    "@rules_rust//cargo:defs.bzl",
+-			Symbols: append(cargoDefs, cargoLintsDefs...),
++			Symbols: cargoLintsDefs,
+ 		},
+-	}
++	)
++	return loads
+ }
+ 
+ func (*rustLang) Fix(c *config.Config, f *rule.File) {}
