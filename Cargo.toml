@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 # Regular dependencies
 anyhow = "1.0.100"
-askama = "0.15.0"
+askama = "0.16.0"
 axum = "0.8.6"
 base64 = "0.22"
 axum-extra = { version = "0.12.0", features = ["cookie"] }
