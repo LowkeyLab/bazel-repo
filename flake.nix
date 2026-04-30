@@ -12,10 +12,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.aspect-cli-src.follows = "aspect-cli-src";
     };
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { nixpkgs, lowkeylab-nix, ... }:
+    {
+      nixpkgs,
+      lowkeylab-nix,
+      llm-agents,
+      ...
+    }:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -26,9 +35,10 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           aspect = lowkeylab-nix.packages.${system}.aspect;
+          agent-browser = llm-agents.packages.${system}.agent-browser;
         in
         {
-          inherit pkgs aspect;
+          inherit pkgs aspect agent-browser;
         };
     in
     {
@@ -45,7 +55,7 @@
       devShells = forAllSystems (
         system:
         let
-          inherit (mkPackagesForSystem system) pkgs aspect;
+          inherit (mkPackagesForSystem system) pkgs aspect agent-browser;
           bazel =
             if pkgs.stdenv.isLinux then
               pkgs.buildFHSEnv {
@@ -81,13 +91,14 @@
               pkgs.jdk21_headless
               pkgs.gcc
               pkgs.pre-commit
-              pkgs.nodejs_24 # provides node/npm for agent-browser
+              agent-browser
+              pkgs.nodejs_24
               pkgs.cargo
               pkgs.lcov
             ] ++ [
               aspect
             ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-              pkgs.chromium # hermetic browser — use with: agent-browser --executable-path $(which chromium)
+              pkgs.chromium
             ];
 
             # Linux: set NIX_LD so bazelisk can run downloaded Bazel binaries
@@ -100,7 +111,7 @@
                 pkgs.stdenv.cc.cc.lib
                 pkgs.zlib
 
-                # Chrome/Chromium runtime deps for agent-browser
+                # Chrome/Chromium runtime deps for browser tooling
                 pkgs.libxcb
                 pkgs.libx11
                 pkgs.libxext
@@ -129,8 +140,8 @@
                 pkgs.nss
                 pkgs.nspr
               ];
-              # Point agent-browser at Nix-provided Chromium (Linux-only;
-              # on Darwin, agent-browser auto-detects Chrome from /Applications).
+              # Keep Chromium discoverable for browser tooling.
+              # agent-browser is wrapped by llm-agents.nix with its own browser path.
               # CHROME_BIN is the same path under a different name — karma-chrome-launcher
               # reads CHROME_BIN to locate the browser for `bazel coverage` on Karma tests.
               CHROME_PATH = pkgs.lib.getExe pkgs.chromium;
