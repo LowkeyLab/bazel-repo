@@ -97,8 +97,6 @@
               pkgs.lcov
             ] ++ [
               aspect
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-              pkgs.chromium
             ];
 
             # Linux: set NIX_LD so bazelisk can run downloaded Bazel binaries
@@ -110,42 +108,7 @@
               NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
                 pkgs.stdenv.cc.cc.lib
                 pkgs.zlib
-
-                # Chrome/Chromium runtime deps for browser tooling
-                pkgs.libxcb
-                pkgs.libx11
-                pkgs.libxext
-                pkgs.libxrandr
-                pkgs.libxcomposite
-                pkgs.libxcursor
-                pkgs.libxdamage
-                pkgs.libxfixes
-                pkgs.libxi
-                pkgs.libxrender
-                pkgs.libxshmfence
-                pkgs.libxkbcommon
-                pkgs.gtk3
-                pkgs.pango
-                pkgs.at-spi2-atk
-                pkgs.at-spi2-core
-                pkgs.cairo
-                pkgs.gdk-pixbuf
-                pkgs.mesa
-                pkgs.libdrm
-                pkgs.alsa-lib
-                pkgs.dbus
-                pkgs.cups
-                pkgs.freetype
-                pkgs.fontconfig
-                pkgs.nss
-                pkgs.nspr
               ];
-              # Keep Chromium discoverable for browser tooling.
-              # agent-browser is wrapped by llm-agents.nix with its own browser path.
-              # CHROME_BIN is the same path under a different name — karma-chrome-launcher
-              # reads CHROME_BIN to locate the browser for `bazel coverage` on Karma tests.
-              CHROME_PATH = pkgs.lib.getExe pkgs.chromium;
-              CHROME_BIN = pkgs.lib.getExe pkgs.chromium;
             };
           };
         }
