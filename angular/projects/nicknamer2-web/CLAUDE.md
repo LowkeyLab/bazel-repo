@@ -33,7 +33,7 @@ graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts
 
 ## E2E Testing with agent-browser
 
-After UI changes, run an E2E smoke test using `agent-browser`. Requires the full stack running:
+After UI changes, run an E2E smoke test using `agent-browser`. The CLI is provided by the Nix dev shell via `github:numtide/llm-agents.nix`; on Linux, that wrapper points at the shell-provided Chromium automatically. Requires the full stack running:
 
 ```bash
 # 1. Start infrastructure
