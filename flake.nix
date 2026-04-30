@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     aspect-cli-src = {
-      url = "github:aspect-build/aspect-cli/v2026.4.2";
+      url = "github:aspect-build/aspect-cli";
       flake = false;
     };
     lowkeylab-nix = {
