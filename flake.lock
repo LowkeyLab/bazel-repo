@@ -145,9 +145,7 @@
     },
     "lowkeylab-nix": {
       "inputs": {
-        "aspect-cli-src": [
-          "aspect-cli-src"
-        ],
+        "aspect-cli-src": "aspect-cli-src",
         "blueprint": "blueprint_2",
         "nixpkgs": [
           "nixpkgs"
@@ -185,7 +183,6 @@
     },
     "root": {
       "inputs": {
-        "aspect-cli-src": "aspect-cli-src",
         "llm-agents": "llm-agents",
         "lowkeylab-nix": "lowkeylab-nix",
         "nixpkgs": "nixpkgs"
