@@ -32,6 +32,7 @@ jobs:
           bazelisk-cache: true
           bazelrc: |
             common --config=ci
+            common --remote_download_toplevel
             common:lint --config=ci-lint
             common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
