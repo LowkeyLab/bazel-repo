@@ -27,6 +27,10 @@ const wasmReady = initWasm(
 );
 
 self.onmessage = (event: MessageEvent<ConvertPinyinRequest>) => {
+  if (event.origin && event.origin !== self.location.origin) {
+    return;
+  }
+
   void handleMessage(event.data);
 };
 

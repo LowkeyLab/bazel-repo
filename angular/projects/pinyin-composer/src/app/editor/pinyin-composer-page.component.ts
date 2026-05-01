@@ -12,7 +12,7 @@ import { HtmlRubyExportService } from '../export/html-ruby-export.service';
 import { ConversionWorkerClient } from '../wasm/conversion-worker.client';
 import { EditorStateService } from './editor-state.service';
 import { InlineCandidateMenuComponent } from './inline-candidate-menu.component';
-import { Candidate } from './phrase-token';
+import type { Candidate } from './phrase-token';
 import { RubyPreviewComponent } from './ruby-preview.component';
 
 @Component({
@@ -133,10 +133,12 @@ export class PinyinComposerPageComponent {
   readonly htmlExport = computed(() =>
     this.exporter.exportTokens(this.editor.tokens()),
   );
+  private conversionRequestId = 0;
 
   async onInputChange(value: string): Promise<void> {
     this.editor.updateInputBuffer(value);
     this.conversionError.set('');
+    const requestId = ++this.conversionRequestId;
 
     const trimmed = value.trim();
     if (!trimmed) {
@@ -145,8 +147,15 @@ export class PinyinComposerPageComponent {
     }
 
     try {
-      this.candidates.set(await this.conversion.convertPinyin(trimmed, 5));
+      const candidates = await this.conversion.convertPinyin(trimmed, 5);
+      if (requestId !== this.conversionRequestId) {
+        return;
+      }
+      this.candidates.set(candidates);
     } catch (error: unknown) {
+      if (requestId !== this.conversionRequestId) {
+        return;
+      }
       this.candidates.set([]);
       this.conversionError.set(
         error instanceof Error ? error.message : String(error),
@@ -181,9 +190,26 @@ export class PinyinComposerPageComponent {
 
     this.correctionTokenId.set(tokenId);
     this.editor.updateInputBuffer(token.sourcePinyin);
-    this.candidates.set(
-      await this.conversion.convertPinyin(token.sourcePinyin, 5),
-    );
+    this.conversionError.set('');
+    const requestId = ++this.conversionRequestId;
+    try {
+      const candidates = await this.conversion.convertPinyin(
+        token.sourcePinyin,
+        5,
+      );
+      if (requestId !== this.conversionRequestId) {
+        return;
+      }
+      this.candidates.set(candidates);
+    } catch (error: unknown) {
+      if (requestId !== this.conversionRequestId) {
+        return;
+      }
+      this.candidates.set([]);
+      this.conversionError.set(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   saveCurrentDocument(): void {

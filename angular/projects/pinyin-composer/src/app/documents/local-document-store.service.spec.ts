@@ -48,6 +48,14 @@ describe('LocalDocumentStoreService', () => {
       },
     ]);
   });
+
+  it('treats malformed stored documents as empty', () => {
+    const service = TestBed.inject(LocalDocumentStoreService);
+    storage.setItem('pinyin-composer.documents.v1', 'not-json');
+
+    expect(service.listDocuments()).toEqual([]);
+    expect(storage.getItem('pinyin-composer.documents.v1')).toBeNull();
+  });
 });
 
 class MapStorage implements Storage {

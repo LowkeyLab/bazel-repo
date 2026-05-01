@@ -1,6 +1,6 @@
 import { Injectable, InjectionToken, inject } from '@angular/core';
 
-import { ComposerDocument } from '../editor/phrase-token';
+import type { ComposerDocument } from '../editor/phrase-token';
 
 export const LOCAL_DOCUMENT_STORAGE = new InjectionToken<Storage>(
   'LOCAL_DOCUMENT_STORAGE',
@@ -21,7 +21,19 @@ export class LocalDocumentStoreService {
       return [];
     }
 
-    const parsed = JSON.parse(raw) as readonly ComposerDocument[];
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      this.storage.removeItem(this.storageKey);
+      return [];
+    }
+
+    if (!Array.isArray(parsed)) {
+      this.storage.removeItem(this.storageKey);
+      return [];
+    }
+
     return [...parsed].sort((left, right) =>
       right.updatedAtIso.localeCompare(left.updatedAtIso),
     );

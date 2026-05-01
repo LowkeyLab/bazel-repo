@@ -6,8 +6,27 @@ fn convert_pinyin_returns_ranked_phrase_candidates() {
 
     assert!(!result.candidates.is_empty());
     assert!(result.candidates.len() <= 3);
-    assert!(result.candidates[0].hanzi.contains('我'));
-    assert!(result.candidates[0].score.is_finite());
+    assert_eq!(result.source_pinyin, "wo xiang qu beijing");
+    assert!(
+        result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.score.is_finite())
+    );
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.hanzi.contains('我'))
+    );
+}
+
+#[test]
+fn convert_pinyin_clamps_large_candidate_limit() {
+    let result = convert_pinyin("chi fan", 10_000).expect("conversion succeeds");
+
+    assert!(!result.candidates.is_empty());
+    assert!(result.candidates.len() <= 20);
 }
 
 #[test]

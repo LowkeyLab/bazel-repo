@@ -6,13 +6,15 @@ use crate::annotator::annotate_phrase;
 use crate::error::EngineError;
 use crate::model::{Candidate, ConversionResult};
 
+const MAX_CANDIDATE_LIMIT: usize = 20;
+
 pub fn convert_pinyin(source_pinyin: &str, limit: usize) -> Result<ConversionResult, EngineError> {
     let normalized = normalize_pinyin_input(source_pinyin)?;
     if limit == 0 {
         return Err(EngineError::CandidateLimitMustBePositive);
     }
 
-    let decoded = decode_ranked_candidates(&normalized, limit)?;
+    let decoded = decode_ranked_candidates(&normalized, limit.min(MAX_CANDIDATE_LIMIT))?;
     let candidates = decoded
         .into_iter()
         .enumerate()
