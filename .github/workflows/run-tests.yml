@@ -50,18 +50,7 @@ jobs:
         env:
           ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
         run: |
-          aspect lint \
-            --aspect //tools/lint:linters.bzl%buf \
-            --aspect //tools/lint:linters.bzl%eslint \
-            --aspect //tools/lint:linters.bzl%stylelint \
-            --aspect //tools/lint:linters.bzl%ruff \
-            --aspect //tools/lint:linters.bzl%shellcheck \
-            --aspect //tools/lint:linters.bzl%pmd \
-            --aspect //tools/lint:linters.bzl%checkstyle \
-            --aspect //tools/lint:linters.bzl%ktlint \
-            --aspect //tools/lint:linters.bzl%clippy \
-            --aspect //tools/lint:linters.bzl%keep_sorted \
-            //...
+          aspect lint //...
       - name: Run Bazel tests (remote)
         run: |
           bazel test //... --config=ci-remote
