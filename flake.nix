@@ -3,14 +3,9 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    aspect-cli-src = {
-      url = "github:aspect-build/aspect-cli/v2026.4.2";
-      flake = false;
-    };
     lowkeylab-nix = {
       url = "github:LowkeyLab/nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.aspect-cli-src.follows = "aspect-cli-src";
     };
     llm-agents = {
       url = "github:numtide/llm-agents.nix";

@@ -3,16 +3,15 @@
     "aspect-cli-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1769121247,
-        "narHash": "sha256-N3y+MS19aPI9BQwvrrkrt5u9x9/WE28syStfOLe4aPM=",
+        "lastModified": 1777583996,
+        "narHash": "sha256-BQDTXKB/wtr1OsNe7tXW/nw/k3AR1YqJoTGfhJ40VJ4=",
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "2a995acc48c4035b9195fbc8030473e2073b5265",
+        "rev": "d10fc5b4d55151ac21a954af736b4363604cb84e",
         "type": "github"
       },
       "original": {
         "owner": "aspect-build",
-        "ref": "v2026.4.2",
         "repo": "aspect-cli",
         "type": "github"
       }
@@ -146,9 +145,7 @@
     },
     "lowkeylab-nix": {
       "inputs": {
-        "aspect-cli-src": [
-          "aspect-cli-src"
-        ],
+        "aspect-cli-src": "aspect-cli-src",
         "blueprint": "blueprint_2",
         "nixpkgs": [
           "nixpkgs"
@@ -186,7 +183,6 @@
     },
     "root": {
       "inputs": {
-        "aspect-cli-src": "aspect-cli-src",
         "llm-agents": "llm-agents",
         "lowkeylab-nix": "lowkeylab-nix",
         "nixpkgs": "nixpkgs"
