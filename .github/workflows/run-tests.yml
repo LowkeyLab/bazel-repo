@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
         with:
@@ -30,6 +32,8 @@ jobs:
           bazelisk-cache: true
           bazelrc: |
             common --config=ci
+            common --remote_download_outputs=all
+            common --nobuild_event_binary_file_path_conversion
             common:lint --config=ci-lint
             common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
@@ -44,6 +48,8 @@ jobs:
           nix build .#aspect
           install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
       - name: Run Bazel Lints
+        env:
+          ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
         run: |
           aspect lint //...
       - name: Run Bazel tests (remote)
