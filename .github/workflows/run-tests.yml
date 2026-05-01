@@ -46,6 +46,8 @@ jobs:
           nix build .#aspect
           install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
       - name: Run Bazel Lints
+        env:
+          ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
         run: |
           aspect lint \
             --aspect //tools/lint:linters.bzl%buf \
