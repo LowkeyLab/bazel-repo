@@ -33,6 +33,7 @@ jobs:
           bazelrc: |
             common --config=ci
             common --remote_download_outputs=all
+            common --nobuild_event_binary_file_path_conversion
             common:lint --config=ci-lint
             common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
