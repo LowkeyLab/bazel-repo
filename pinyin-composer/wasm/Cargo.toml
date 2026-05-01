@@ -1,0 +1,16 @@
+[package]
+name = "pinyin_composer_wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+console_error_panic_hook = "0.1"
+pinyin = "0.10"
+pinyinchch = { version = "0.3.0", features = ["hmm"] }
+pinyinchch-model-hmm = "0.3.0"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "0.2"
