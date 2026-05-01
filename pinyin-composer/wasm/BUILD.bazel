@@ -27,6 +27,7 @@ rust_shared_library(
     crate_name = "pinyin_composer_wasm",
     crate_root = "src/lib.rs",
     platform = "@rules_rs//rs/platforms:wasm32-unknown-unknown",
+    tags = ["no-lint"],
     deps = [
         "@crates//:console_error_panic_hook",  # keep
         "@crates//:pinyin",  # keep
@@ -48,6 +49,7 @@ genrule(
         "pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm.d.ts",
     ],
     cmd = "$(execpath @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli) --target web --out-dir $(@D)/pinyin_composer_wasm --out-name pinyin_composer_wasm $(location :wasm_cdylib)",
+    tags = ["no-lint"],
     tools = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli"],
 )
 

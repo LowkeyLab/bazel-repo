@@ -42,6 +42,7 @@ genrule(
         "src/app/wasm/generated/pinyin_composer_wasm_bg.wasm.d.ts",
     ],
     cmd = "cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm.d.ts) $(location src/app/wasm/generated/pinyin_composer_wasm.d.ts) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm.js) $(location src/app/wasm/generated/pinyin_composer_wasm.js) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm) $(location src/app/wasm/generated/pinyin_composer_wasm_bg.wasm) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm) $(location public/generated/pinyin_composer_wasm_bg.wasm) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm.d.ts) $(location src/app/wasm/generated/pinyin_composer_wasm_bg.wasm.d.ts)",
+    tags = ["no-lint"],
 )
 
 process_styles(
