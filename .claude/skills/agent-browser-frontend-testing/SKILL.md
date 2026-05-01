@@ -81,7 +81,7 @@ agent-browser close
 
 ## Nicknamer2-Web Authenticated Smoke Test
 
-Use `angular/projects/nicknamer2-web/CLAUDE.md:38-61` as the source of truth for full-stack and auth startup details. Don't duplicate the long backend setup in this skill. Follow that guide to start infrastructure, run the backend, serve `nicknamer2-web`, obtain a local token, inject it with `agent-browser eval`, open the target route, wait for `networkidle`, and inspect the UI with `agent-browser snapshot -i`.
+Use `angular/projects/nicknamer2-web/CLAUDE.md` and its `E2E Testing with agent-browser` section as the source of truth for full-stack and auth startup details. Don't duplicate the long backend setup in this skill. Follow that guide to start infrastructure, run the backend, serve `nicknamer2-web`, obtain a local token, inject it with `agent-browser eval`, open the target route, wait for `networkidle`, and inspect the UI with `agent-browser snapshot -i`.
 
 ## Evidence and Cleanup
 
