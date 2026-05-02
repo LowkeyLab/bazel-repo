@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { EditorStateService } from './editor-state.service';
-import { Candidate } from './phrase-token';
+import type { Candidate } from './phrase-token';
 
 describe('EditorStateService', () => {
   it('keeps pinyin input separate from committed phrase tokens', () => {
@@ -53,6 +53,68 @@ describe('EditorStateService', () => {
 
     expect(service.tokens()).toEqual([
       { id: 'token-1', sourcePinyin: 'shi', hanzi: '时', displayPinyin: 'Shí' },
+    ]);
+  });
+
+  it('reports content when either the input buffer or tokens are populated', () => {
+    const service = TestBed.inject(EditorStateService);
+
+    expect(service.hasContent()).toBe(false);
+
+    service.updateInputBuffer('   ');
+    expect(service.hasContent()).toBe(false);
+
+    service.updateInputBuffer('ni hao');
+    expect(service.hasContent()).toBe(true);
+
+    service.loadTokens([
+      {
+        id: 'token-1',
+        sourcePinyin: 'ni hao',
+        hanzi: '你好',
+        displayPinyin: 'Nǐhǎo',
+      },
+    ]);
+
+    expect(service.inputBuffer()).toBe('');
+    expect(service.hasContent()).toBe(true);
+  });
+
+  it('clears committed tokens and pending input', () => {
+    const service = TestBed.inject(EditorStateService);
+
+    service.updateInputBuffer('beijing');
+    service.loadTokens([
+      {
+        id: 'token-1',
+        sourcePinyin: 'beijing',
+        hanzi: '北京',
+        displayPinyin: 'Běijīng',
+      },
+    ]);
+    service.clear();
+
+    expect(service.inputBuffer()).toBe('');
+    expect(service.tokens()).toEqual([]);
+    expect(service.hasContent()).toBe(false);
+  });
+
+  it('leaves non-matching tokens unchanged during correction', () => {
+    const service = TestBed.inject(EditorStateService);
+
+    service.loadTokens([
+      { id: 'token-1', sourcePinyin: 'shi', hanzi: '是', displayPinyin: 'Shì' },
+    ]);
+    service.replaceToken('missing-token', {
+      id: 'candidate-1',
+      sourcePinyin: 'shi',
+      hanzi: '时',
+      displayPinyin: 'Shí',
+      score: 0.8,
+    });
+
+    expect(service.tokens()).toEqual([
+      { id: 'token-1', sourcePinyin: 'shi', hanzi: '是', displayPinyin: 'Shì' },
     ]);
   });
 });

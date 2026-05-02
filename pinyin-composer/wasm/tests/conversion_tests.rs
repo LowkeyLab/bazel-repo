@@ -30,6 +30,29 @@ fn convert_pinyin_clamps_large_candidate_limit() {
 }
 
 #[test]
+fn convert_pinyin_normalizes_whitespace_and_case() {
+    let result = convert_pinyin("  BEI   JING  ", 3).expect("conversion succeeds");
+
+    assert_eq!(result.source_pinyin, "bei jing");
+    assert!(
+        result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.source_pinyin == "bei jing")
+    );
+}
+
+#[test]
+fn zero_candidate_limit_is_rejected() {
+    let error = convert_pinyin("beijing", 0).expect_err("zero limit fails");
+
+    assert_eq!(
+        error.to_string(),
+        "candidate limit must be greater than zero"
+    );
+}
+
+#[test]
 fn annotate_phrase_returns_phrase_level_pinyin() {
     let result = annotate_phrase("北京").expect("annotation succeeds");
 
@@ -44,5 +67,25 @@ fn blank_pinyin_input_is_rejected() {
     assert_eq!(
         error.to_string(),
         "pinyin input must contain at least one syllable"
+    );
+}
+
+#[test]
+fn blank_hanzi_input_is_rejected() {
+    let error = annotate_phrase("   ").expect_err("blank input fails");
+
+    assert_eq!(
+        error.to_string(),
+        "hanzi input must contain at least one character"
+    );
+}
+
+#[test]
+fn unannotatable_phrase_is_rejected() {
+    let error = annotate_phrase("abc").expect_err("latin text has no pinyin annotation");
+
+    assert_eq!(
+        error.to_string(),
+        "conversion unavailable: no pinyin annotation found for `abc`"
     );
 }
