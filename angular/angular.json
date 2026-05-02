@@ -294,6 +294,73 @@
         }
       }
     },
+    "pinyin-composer": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/pinyin-composer",
+      "sourceRoot": "projects/pinyin-composer/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/pinyin-composer/src/main.ts",
+            "tsConfig": "projects/pinyin-composer/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/pinyin-composer/public"
+              }
+            ],
+            "styles": ["projects/pinyin-composer/src/processed_styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "pinyin-composer:build:production"
+            },
+            "development": {
+              "buildTarget": "pinyin-composer:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/pinyin-composer/tsconfig.spec.json",
+            "coverage": true,
+            "coverageReporters": ["lcovonly"],
+            "runnerConfig": "projects/pinyin-composer/vitest-base.config.ts"
+          }
+        }
+      }
+    },
     "nicknamer2-web": {
       "projectType": "application",
       "schematics": {},

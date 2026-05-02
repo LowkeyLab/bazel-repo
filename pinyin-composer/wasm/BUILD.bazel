@@ -1,0 +1,62 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_shared_library.bzl", "rust_shared_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+# gazelle:exclude src
+# gazelle:exclude tests
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "wasm_lib",
+    srcs = glob(["src/**/*.rs"]),  # keep
+    crate_name = "pinyin_composer_wasm",
+    deps = [
+        "@crates//:console_error_panic_hook",  # keep
+        "@crates//:pinyin",  # keep
+        "@crates//:pinyinchch",  # keep
+        "@crates//:pinyinchch-model-hmm",  # keep
+        "@crates//:serde",  # keep
+        "@crates//:serde-wasm-bindgen",  # keep
+        "@crates//:wasm-bindgen",  # keep
+    ],
+)
+
+rust_shared_library(
+    name = "wasm_cdylib",
+    srcs = glob(["src/**/*.rs"]),  # keep
+    crate_name = "pinyin_composer_wasm",
+    crate_root = "src/lib.rs",
+    platform = "@rules_rs//rs/platforms:wasm32-unknown-unknown",
+    tags = ["no-lint"],
+    deps = [
+        "@crates//:console_error_panic_hook",  # keep
+        "@crates//:pinyin",  # keep
+        "@crates//:pinyinchch",  # keep
+        "@crates//:pinyinchch-model-hmm",  # keep
+        "@crates//:serde",  # keep
+        "@crates//:serde-wasm-bindgen",  # keep
+        "@crates//:wasm-bindgen",  # keep
+    ],
+)
+
+genrule(
+    name = "pinyin_composer_wasm_bindgen",
+    srcs = [":wasm_cdylib"],
+    outs = [
+        "pinyin_composer_wasm/pinyin_composer_wasm.d.ts",
+        "pinyin_composer_wasm/pinyin_composer_wasm.js",
+        "pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm",
+        "pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm.d.ts",
+    ],
+    cmd = "$(execpath @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli) --target web --out-dir $(@D)/pinyin_composer_wasm --out-name pinyin_composer_wasm $(location :wasm_cdylib)",
+    tags = ["no-lint"],
+    tools = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli"],
+)
+
+rust_test(
+    name = "wasm_tests",
+    srcs = ["tests/conversion_tests.rs"],
+    crate_name = "pinyin_composer_wasm_tests",
+    crate_root = "tests/conversion_tests.rs",
+    deps = [":wasm_lib"],
+)

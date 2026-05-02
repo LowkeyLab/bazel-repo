@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@plugin 'daisyui';
+
+body {
+  margin: 0;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+ruby {
+  ruby-align: center;
+}

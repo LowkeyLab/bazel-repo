@@ -1,0 +1,130 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("//angular/bzl:ng.bzl", "ng_application", "ng_test", "process_styles")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "tsconfig.app.json",
+    "tsconfig.spec.json",
+])
+
+copy_to_bin(
+    name = "srcs",
+    srcs = glob(
+        ["src/**/*"],
+        exclude = ["src/styles.css"],
+    ),
+)
+
+copy_to_bin(
+    name = "vitest_config_files",
+    srcs = [
+        "vitest-base.config.ts",
+        "vitest-global-setup.ts",
+    ],
+)
+
+genrule(
+    name = "wasm_bindgen_srcs",
+    srcs = [
+        "//pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm.d.ts",
+        "//pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm.js",
+        "//pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm",
+        "//pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm.d.ts",
+    ],
+    outs = [
+        "public/generated/pinyin_composer_wasm_bg.wasm",
+        "src/app/wasm/generated/pinyin_composer_wasm.d.ts",
+        "src/app/wasm/generated/pinyin_composer_wasm.js",
+        "src/app/wasm/generated/pinyin_composer_wasm_bg.wasm",
+        "src/app/wasm/generated/pinyin_composer_wasm_bg.wasm.d.ts",
+    ],
+    cmd = "cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm.d.ts) $(location src/app/wasm/generated/pinyin_composer_wasm.d.ts) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm.js) $(location src/app/wasm/generated/pinyin_composer_wasm.js) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm) $(location src/app/wasm/generated/pinyin_composer_wasm_bg.wasm) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm) $(location public/generated/pinyin_composer_wasm_bg.wasm) && cp $(location //pinyin-composer/wasm:pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm.d.ts) $(location src/app/wasm/generated/pinyin_composer_wasm_bg.wasm.d.ts)",
+    tags = ["no-lint"],
+)
+
+process_styles(
+    name = "processed_styles",
+    src = "src/styles.css",
+    srcs = glob([
+        "src/**/*.html",
+        "src/**/*.ts",
+    ]),
+    out = "src/processed_styles.css",
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
+ng_application(
+    name = "pinyin-composer",
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+        ":wasm_bindgen_srcs",
+    ],
+    tailwindcss = True,
+    zonejs = True,
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
+ng_test(
+    name = "test",
+    srcs = [
+        ":processed_styles",
+        ":srcs",
+        ":vitest_config_files",
+        ":wasm_bindgen_srcs",
+    ],
+    tailwindcss = True,
+    vitest = True,
+    zonejs = True,
+    deps = [
+        "//angular:node_modules/daisyui",
+    ],
+)
+
+pkg_tar(
+    name = "caddyfile_layer",
+    srcs = ["Caddyfile"],
+    package_dir = "/etc/caddy",
+)
+
+pkg_tar(
+    name = "frontend_layer",
+    srcs = [":pinyin-composer"],
+    package_dir = "/app",
+    strip_prefix = "dist",
+)
+
+oci_image(
+    name = "image",
+    base = "@alpine_caddy",
+    entrypoint = [
+        "caddy",
+        "run",
+        "--config",
+        "/etc/caddy/Caddyfile",
+    ],
+    tars = [
+        ":caddyfile_layer",
+        ":frontend_layer",
+    ],
+)
+
+oci_load(
+    name = "load_image",
+    image = ":image",
+    repo_tags = ["lowkeylab/pinyin_composer:latest"],
+)
+
+oci_push(
+    name = "push_image",
+    image = ":image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/pinyin_composer",
+)

@@ -46,6 +46,12 @@
     },
     {
       "path": "./projects/nicknamer2-web/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/pinyin-composer/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/pinyin-composer/tsconfig.spec.json"
     }
   ]
 }
