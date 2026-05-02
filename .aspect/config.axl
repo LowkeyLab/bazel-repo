@@ -1,4 +1,7 @@
+load("@aspect//traits.axl", "BazelTrait")
+
 def config(ctx):
+    ctx.traits[BazelTrait].extra_flags.append("--build_tag_filters=-no-lint")
     ctx.tasks["lint"].args.aspects = [
         "//tools/lint:linters.bzl%buf",
         "//tools/lint:linters.bzl%eslint",
