@@ -16,9 +16,9 @@ catalog:
   '@wry/equality': ^0.5.7
   '@wry/trie': ^0.5.0
   apollo-angular: ^13.0.0
-  '@graphql-codegen/cli': ^6.0.0
-  '@graphql-codegen/typescript': ^5.0.0
-  '@graphql-codegen/typescript-operations': ^5.0.0
+  '@graphql-codegen/cli': ^7.0.0
+  '@graphql-codegen/typescript': ^6.0.0
+  '@graphql-codegen/typescript-operations': ^6.0.0
   '@graphql-codegen/typescript-apollo-angular': ^5.0.0
   graphql: ^16.10.0
   graphql-tag: ^2.12.6
