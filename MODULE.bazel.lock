@@ -54,7 +54,8 @@
     "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.1/MODULE.bazel": "f1d589e103d47b037352133b79932ebedbe94553893c758c15116d3e2fdbe14c",
     "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.1/source.json": "241a56db44bef3d289df72e670c52021426e8827f8349d8eb2ecd5b045644415",
     "https://bcr.bazel.build/modules/aspect_rules_ts/3.8.8/MODULE.bazel": "b52b929a948438665809d49af610f58d1b14f63d6d21ab748f47b6050be4c1f6",
-    "https://bcr.bazel.build/modules/aspect_rules_ts/3.8.8/source.json": "5414530b761a45ab7ca6c49f0a2a9cf8dc0da772f5037cf05ca18aaa64bb1b19",
+    "https://bcr.bazel.build/modules/aspect_rules_ts/3.8.9/MODULE.bazel": "bd5f9ebf517cfcd377eaa7ce1cb16035d167f00774b77789909590c53bc6f20c",
+    "https://bcr.bazel.build/modules/aspect_rules_ts/3.8.9/source.json": "59e66656561571ed82ccff56c75c43d0bc79f0065ca8d17be2752d4f648d40c9",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.2.6/MODULE.bazel": "cafb8781ad591bc57cc765dca5fefab08cf9f65af363d162b79d49205c7f8af7",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.2.8/MODULE.bazel": "aa975a83e72bcaac62ee61ab12b788ea324a1d05c4aab28aadb202f647881679",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.3.2/MODULE.bazel": "598e7fe3b54f5fa64fdbeead1027653963a359cc23561d43680006f3b463d5a4",
@@ -556,7 +557,7 @@
     },
     "@@aspect_rules_ts+//ts:extensions.bzl%ext": {
       "general": {
-        "bzlTransitiveDigest": "znGIWhsWB2BLftYOmjVGiqrZuccFABBogiS+i4Kg3tU=",
+        "bzlTransitiveDigest": "axls+7DzE6tzeppZH+xWR9lJ/k6OusXMYmf7L7yH0eU=",
         "usagesDigest": "0ahWPfYaxCJdmpOgoRoG4zoWKUIMN9O7O0j54cNjmTg=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_rules_ts+,aspect_rules_ts aspect_rules_ts+",
@@ -589,7 +590,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "cl5A2O84vDL6Tt+Qga8FCj1DUDGqn+e7ly5rZ+4xvcc=",
-        "usagesDigest": "Yhokaz5BGRPZsY7DfrhXGdI1+nNp0a7j1DuM6psyu5M=",
+        "usagesDigest": "+LV2LE+f9ZslSNsy2BVPFjC50zTc7x+Gn9st2fix1Ms=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+"
@@ -603,7 +604,7 @@
                 "aspect_rules_esbuild": "0.25.1",
                 "aspect_rules_js": "3.0.3",
                 "aspect_rules_swc": "2.7.1",
-                "aspect_rules_ts": "3.8.8",
+                "aspect_rules_ts": "3.8.9",
                 "rules_rs": "0.0.62",
                 "aspect_tools_telemetry": "0.3.3"
               }
