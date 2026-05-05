@@ -60,7 +60,7 @@ bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_jvm_external", version = "7.0")
 bazel_dep(name = "rules_mypy", version = "0.40.0")
 bazel_dep(name = "rules_go", version = "0.60.0")
-bazel_dep(name = "tar.bzl", version = "0.10.1")
+bazel_dep(name = "tar.bzl", version = "0.10.4")
 bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 
 # We have to take a dependency on rules_python in order to set bootstrap=script
