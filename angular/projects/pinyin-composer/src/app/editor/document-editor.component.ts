@@ -29,6 +29,7 @@ interface DocumentSelectionRange {
       class="document-editor"
       contenteditable="true"
       role="textbox"
+      [attr.aria-labelledby]="ariaLabelledby()"
       aria-multiline="true"
       data-testid="document-editor"
       (beforeinput)="onBeforeInput($event)"
@@ -121,6 +122,9 @@ interface DocumentSelectionRange {
 })
 export class DocumentEditorComponent implements AfterViewChecked {
   readonly spans = input.required<readonly DocumentSpan[]>();
+  readonly ariaLabelledby = input<string | null>(null, {
+    alias: 'aria-labelledby',
+  });
   readonly textReplaced = output<DocumentTextReplacement>();
 
   private readonly editorRoot =
@@ -143,9 +147,6 @@ export class DocumentEditorComponent implements AfterViewChecked {
 
   onBeforeInput(event: InputEvent): void {
     if (this.isComposing) {
-      if (event.cancelable) {
-        event.preventDefault();
-      }
       return;
     }
 

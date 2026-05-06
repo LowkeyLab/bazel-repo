@@ -75,12 +75,16 @@ describe('DocumentEditorComponent', () => {
   });
 
   it('sets the editable textbox attributes on the root', () => {
+    fixture.componentRef.setInput('aria-labelledby', 'document-editor-label');
     setSpans(fixture, []);
 
     const editor = queryEditor(fixture);
 
     expect(editor.getAttribute('contenteditable')).toBe('true');
     expect(editor.getAttribute('role')).toBe('textbox');
+    expect(editor.getAttribute('aria-labelledby')).toBe(
+      'document-editor-label',
+    );
     expect(editor.getAttribute('aria-multiline')).toBe('true');
   });
 
@@ -333,7 +337,7 @@ describe('DocumentEditorComponent', () => {
       new CompositionEvent('compositionend', { bubbles: true, data: '你' }),
     );
 
-    expect(composingInput.defaultPrevented).toBe(true);
+    expect(composingInput.defaultPrevented).toBe(false);
     expect(emitted).toEqual([{ startOffset: 4, endOffset: 4, text: '你' }]);
   });
 
