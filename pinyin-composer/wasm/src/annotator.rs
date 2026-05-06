@@ -9,22 +9,39 @@ pub fn annotate_phrase(hanzi: &str) -> Result<AnnotationResult, EngineError> {
         return Err(EngineError::BlankHanziInput);
     }
 
-    let pinyin_parts = trimmed
+    let pinyin_syllables = trimmed
         .chars()
         .filter_map(|character| character.to_pinyin())
         .map(|pinyin| pinyin.with_tone().to_string())
         .collect::<Vec<_>>();
 
-    if pinyin_parts.is_empty() {
+    if pinyin_syllables.is_empty() {
         return Err(EngineError::ConversionUnavailable(format!(
             "no pinyin annotation found for `{trimmed}`"
         )));
     }
 
+    let display_pinyin_syllables = title_case_first_syllable(&pinyin_syllables);
+
     Ok(AnnotationResult {
         hanzi: trimmed.to_string(),
-        pinyin: title_case_first(&pinyin_parts.join("")),
+        pinyin: display_pinyin_syllables.join(""),
+        pinyin_syllables: display_pinyin_syllables,
     })
+}
+
+fn title_case_first_syllable(syllables: &[String]) -> Vec<String> {
+    syllables
+        .iter()
+        .enumerate()
+        .map(|(index, syllable)| {
+            if index == 0 {
+                title_case_first(syllable)
+            } else {
+                syllable.clone()
+            }
+        })
+        .collect()
 }
 
 fn title_case_first(value: &str) -> String {

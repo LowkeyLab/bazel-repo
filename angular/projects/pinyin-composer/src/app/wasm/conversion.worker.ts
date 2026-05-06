@@ -12,8 +12,10 @@ interface ConvertPinyinRequest {
 interface WorkerCandidate {
   readonly id: string;
   readonly sourcePinyin: string;
+  readonly sourcePinyinSyllables: readonly string[];
   readonly hanzi: string;
   readonly displayPinyin: string;
+  readonly displayPinyinSyllables: readonly string[];
   readonly score: number;
 }
 
@@ -90,12 +92,28 @@ function parseConversionResult(value: unknown): ConversionResult {
 
 function parseCandidate(value: unknown): WorkerCandidate {
   const candidate = expectRecord(value, 'candidate');
-  const { displayPinyin, hanzi, id, score, sourcePinyin } = candidate;
+  const {
+    displayPinyin,
+    displayPinyinSyllables,
+    hanzi,
+    id,
+    score,
+    sourcePinyin,
+    sourcePinyinSyllables,
+  } = candidate;
   return {
     id: expectString(id, 'candidate.id'),
     sourcePinyin: expectString(sourcePinyin, 'candidate.sourcePinyin'),
+    sourcePinyinSyllables: expectStringArray(
+      sourcePinyinSyllables,
+      'candidate.sourcePinyinSyllables',
+    ),
     hanzi: expectString(hanzi, 'candidate.hanzi'),
     displayPinyin: expectString(displayPinyin, 'candidate.displayPinyin'),
+    displayPinyinSyllables: expectStringArray(
+      displayPinyinSyllables,
+      'candidate.displayPinyinSyllables',
+    ),
     score: expectNumber(score, 'candidate.score'),
   };
 }
@@ -113,6 +131,19 @@ function expectRecord(
 function expectString(value: unknown, fieldName: string): string {
   if (typeof value !== 'string') {
     throw new Error(`${fieldName} must be a string`);
+  }
+  return value;
+}
+
+function expectStringArray(
+  value: unknown,
+  fieldName: string,
+): readonly string[] {
+  if (
+    !Array.isArray(value) ||
+    !value.every((entry) => typeof entry === 'string')
+  ) {
+    throw new Error(`${fieldName} must be an array of strings`);
   }
   return value;
 }

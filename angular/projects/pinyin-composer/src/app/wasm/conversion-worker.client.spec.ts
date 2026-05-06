@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
+import type { Candidate } from '../editor/phrase-token';
 import {
   CONVERSION_WORKER_FACTORY,
   ConversionWorkerClient,
@@ -24,27 +25,11 @@ describe('ConversionWorkerClient', () => {
       type: 'conversion-result',
       result: {
         sourcePinyin: 'beijing',
-        candidates: [
-          {
-            id: 'candidate-0',
-            sourcePinyin: 'beijing',
-            hanzi: '北京',
-            displayPinyin: 'Běijīng',
-            score: 1,
-          },
-        ],
+        candidates: [beijingCandidate()],
       },
     });
 
-    await expect(promise).resolves.toEqual([
-      {
-        id: 'candidate-0',
-        sourcePinyin: 'beijing',
-        hanzi: '北京',
-        displayPinyin: 'Běijīng',
-        score: 1,
-      },
-    ]);
+    await expect(promise).resolves.toEqual([beijingCandidate()]);
   });
 
   it('rejects failed conversion responses', async () => {
@@ -92,27 +77,11 @@ describe('ConversionWorkerClient', () => {
       type: 'conversion-result',
       result: {
         sourcePinyin: 'ni hao',
-        candidates: [
-          {
-            id: 'candidate-0',
-            sourcePinyin: 'ni hao',
-            hanzi: '你好',
-            displayPinyin: 'Nǐhǎo',
-            score: 1,
-          },
-        ],
+        candidates: [niHaoCandidate()],
       },
     });
 
-    await expect(promise).resolves.toEqual([
-      {
-        id: 'candidate-0',
-        sourcePinyin: 'ni hao',
-        hanzi: '你好',
-        displayPinyin: 'Nǐhǎo',
-        score: 1,
-      },
-    ]);
+    await expect(promise).resolves.toEqual([niHaoCandidate()]);
   });
 
   it('terminates the worker when disposed', () => {
@@ -150,4 +119,28 @@ class FakeWorker {
   reply(message: unknown): void {
     this.onmessage?.({ data: message } as MessageEvent);
   }
+}
+
+function beijingCandidate(): Candidate {
+  return {
+    id: 'candidate-0',
+    sourcePinyin: 'beijing',
+    sourcePinyinSyllables: ['bei', 'jing'],
+    hanzi: '北京',
+    displayPinyin: 'Běijīng',
+    displayPinyinSyllables: ['Běi', 'jīng'],
+    score: 1,
+  };
+}
+
+function niHaoCandidate(): Candidate {
+  return {
+    id: 'candidate-0',
+    sourcePinyin: 'ni hao',
+    sourcePinyinSyllables: ['ni', 'hao'],
+    hanzi: '你好',
+    displayPinyin: 'Nǐhǎo',
+    displayPinyinSyllables: ['Nǐ', 'hǎo'],
+    score: 1,
+  };
 }

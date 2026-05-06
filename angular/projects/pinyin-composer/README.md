@@ -1,6 +1,6 @@
 # Pinyin Composer
 
-Browser-local pinyin-first Chinese composer for creating phrase-level Hanzi + pinyin ruby output.
+Browser-local pinyin-first Chinese composer for creating inline Hanzi drafts with per-character pinyin annotations.
 
 ## Commands
 
@@ -12,11 +12,10 @@ ibazel run //angular/projects/pinyin-composer:pinyin-composer.serve
 
 ## User Workflow
 
-1. Type tone-free pinyin into the composer.
-2. Choose an inline Hanzi phrase candidate.
-3. Review the phrase-level pinyin ruby preview.
-4. Click a phrase to reopen candidate correction.
+1. Type tone-free pinyin into the inline document editor.
+2. Choose an inline Hanzi candidate.
+3. Review per-Hanzi pinyin annotations when the candidate aligns to individual characters.
+4. Continue editing the document text directly.
 5. Save the draft locally in this browser.
-6. Copy the semantic HTML ruby export.
 
 Drafts are stored on this device only. The v1 app has no account system and no backend sync.
