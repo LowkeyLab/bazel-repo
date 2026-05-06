@@ -279,6 +279,57 @@ describe('LocalDocumentStoreService', () => {
     expect(storage.getItem(V2_STORAGE_KEY)).toBeNull();
   });
 
+  it('keeps valid documents when another stored document is invalid', () => {
+    const service = TestBed.inject(LocalDocumentStoreService);
+    storage.setItem(
+      V2_STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          id: 'valid-doc',
+          title: 'Lesson 1',
+          updatedAtIso: '2026-04-30T12:00:00.000Z',
+          spans: [{ id: 'span-1', kind: 'plain', text: 'Practice' }],
+        },
+        {
+          schemaVersion: 2,
+          id: 'invalid-doc',
+          title: 'Lesson 2',
+          updatedAtIso: '2026-05-01T12:00:00.000Z',
+          spans: [
+            {
+              id: 'span-2',
+              kind: 'annotated',
+              sourcePinyin: 'beijing',
+              text: '北京',
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(service.listDocuments()).toEqual([
+      {
+        schemaVersion: 2,
+        id: 'valid-doc',
+        title: 'Lesson 1',
+        updatedAtIso: '2026-04-30T12:00:00.000Z',
+        spans: [{ id: 'span-1', kind: 'plain', text: 'Practice' }],
+      },
+    ]);
+    expect(storage.getItem(V2_STORAGE_KEY)).toBe(
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          id: 'valid-doc',
+          title: 'Lesson 1',
+          spans: [{ id: 'span-1', kind: 'plain', text: 'Practice' }],
+          updatedAtIso: '2026-04-30T12:00:00.000Z',
+        },
+      ]),
+    );
+  });
+
   it('clears invalid v2 span payloads', () => {
     const service = TestBed.inject(LocalDocumentStoreService);
     storage.setItem(

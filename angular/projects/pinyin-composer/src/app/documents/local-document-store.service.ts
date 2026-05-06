@@ -34,17 +34,21 @@ export class LocalDocumentStoreService {
       return [];
     }
 
-    const documents = parsed.map((item) => parseComposerDocument(item));
-    if (documents.includes(null)) {
-      this.storage.removeItem(this.storageKey);
-      return [];
+    const documents = filterMap(parsed, parseComposerDocument);
+    if (documents.length !== parsed.length) {
+      if (documents.length === 0) {
+        this.storage.removeItem(this.storageKey);
+      } else {
+        this.storage.setItem(
+          this.storageKey,
+          JSON.stringify(documents.map(normalizeComposerDocument)),
+        );
+      }
     }
 
-    return documents
-      .filter((document): document is ComposerDocument => document !== null)
-      .sort((left, right) =>
-        right.updatedAtIso.localeCompare(left.updatedAtIso),
-      );
+    return documents.sort((left, right) =>
+      right.updatedAtIso.localeCompare(left.updatedAtIso),
+    );
   }
 
   saveDocument(document: ComposerDocument): void {
@@ -184,6 +188,21 @@ function normalizeComposerDocument(
     spans: document.spans.map((span) => ({ ...span })),
     updatedAtIso: document.updatedAtIso,
   };
+}
+
+function filterMap<T, U>(
+  values: readonly T[],
+  transform: (value: T) => U | null,
+): U[] {
+  const transformed: U[] = [];
+  for (const value of values) {
+    const result = transform(value);
+    if (result !== null) {
+      transformed.push(result);
+    }
+  }
+
+  return transformed;
 }
 
 function isObject(value: unknown): value is object {
