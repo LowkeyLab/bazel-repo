@@ -14,7 +14,7 @@ import {
 } from './document-editor.component';
 import { EditorStateService } from './editor-state.service';
 import { InlineCandidateMenuComponent } from './inline-candidate-menu.component';
-import type { Candidate } from './phrase-token';
+import type { Candidate, DocumentRange } from './phrase-token';
 
 @Component({
   selector: 'app-pinyin-composer-page',
@@ -139,43 +139,42 @@ export class PinyinComposerPageComponent {
     replacement: DocumentTextReplacement,
   ): Promise<void> {
     const previousPendingRange = this.editor.pendingRange();
-    const previousInputBuffer = this.editor.inputBuffer();
-    const continuesPendingRun =
-      previousPendingRange !== null &&
-      replacement.startOffset === replacement.endOffset &&
-      replacement.text.length > 0 &&
-      replacement.text !== '\n' &&
-      replacement.startOffset === previousPendingRange.endOffset;
-
+    const previousTrimmedInputBuffer = this.editor.inputBuffer().trim();
     const replacementRange = this.editor.replaceRange(
       replacement.startOffset,
       replacement.endOffset,
       replacement.text,
     );
-
-    const inputBuffer = continuesPendingRun
-      ? `${previousInputBuffer}${replacement.text}`
-      : replacement.text;
+    const pendingRange = this.pendingRangeAfterReplacement(
+      previousPendingRange,
+      replacement,
+      replacementRange,
+    );
+    const inputBuffer = pendingRange
+      ? this.editor
+          .documentText()
+          .slice(pendingRange.startOffset, pendingRange.endOffset)
+      : '';
     const trimmedInputBuffer = inputBuffer.trim();
-    const pendingRange =
-      trimmedInputBuffer.length === 0 || replacement.text === '\n'
-        ? null
-        : {
-            startOffset: continuesPendingRun
-              ? previousPendingRange.startOffset
-              : replacementRange.startOffset,
-            endOffset: replacementRange.endOffset,
-          };
 
     this.editor.setPendingRange(pendingRange);
     this.editor.updateInputBuffer(pendingRange ? inputBuffer : '');
-    this.conversionError.set('');
-    const requestId = ++this.conversionRequestId;
 
-    if (!trimmedInputBuffer || !replacement.text.trim()) {
+    if (!trimmedInputBuffer) {
       this.candidates.set([]);
       return;
     }
+
+    if (
+      previousPendingRange &&
+      !replacement.text.trim() &&
+      trimmedInputBuffer === previousTrimmedInputBuffer
+    ) {
+      return;
+    }
+
+    this.conversionError.set('');
+    const requestId = ++this.conversionRequestId;
 
     try {
       const candidates = await this.conversion.convertPinyin(
@@ -223,5 +222,52 @@ export class PinyinComposerPageComponent {
       spans: this.editor.spans(),
       updatedAtIso: new Date().toISOString(),
     });
+  }
+
+  private pendingRangeAfterReplacement(
+    previousRange: DocumentRange | null,
+    replacement: DocumentTextReplacement,
+    replacementRange: DocumentRange,
+  ): DocumentRange | null {
+    if (replacement.text.includes('\n')) {
+      return null;
+    }
+
+    if (
+      previousRange &&
+      replacement.startOffset <= previousRange.endOffset &&
+      replacement.endOffset >= previousRange.startOffset
+    ) {
+      const deletedLength = replacement.endOffset - replacement.startOffset;
+      const insertedLength = replacement.text.length;
+      const startOffset = Math.min(
+        previousRange.startOffset,
+        replacementRange.startOffset,
+      );
+      const endOffset = Math.max(
+        startOffset,
+        previousRange.endOffset - deletedLength + insertedLength,
+      );
+
+      return this.nonEmptyDocumentRange(startOffset, endOffset);
+    }
+
+    if (!replacement.text.trim()) {
+      return null;
+    }
+
+    return this.nonEmptyDocumentRange(
+      replacementRange.startOffset,
+      replacementRange.endOffset,
+    );
+  }
+
+  private nonEmptyDocumentRange(
+    startOffset: number,
+    endOffset: number,
+  ): DocumentRange | null {
+    return this.editor.documentText().slice(startOffset, endOffset).trim()
+      ? { startOffset, endOffset }
+      : null;
   }
 }

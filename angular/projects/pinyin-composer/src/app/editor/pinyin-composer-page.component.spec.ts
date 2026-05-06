@@ -127,6 +127,24 @@ describe('PinyinComposerPageComponent', () => {
     expect(editor.inputBuffer()).toBe('bei');
   });
 
+  it('keeps conversion candidates synced after deleting inside the active pinyin run', () => {
+    emitSequentialText(fixture, 'beijing');
+
+    emitTextReplacement(fixture, {
+      startOffset: 3,
+      endOffset: 4,
+      text: '',
+    });
+
+    expect(editor.documentText()).toBe('beiing');
+    expect(editor.pendingRange()).toEqual({ startOffset: 0, endOffset: 6 });
+    expect(editor.inputBuffer()).toBe('beiing');
+    expect(conversion.requestSummaries().at(-1)).toEqual({
+      sourcePinyin: 'beiing',
+      limit: 5,
+    });
+  });
+
   it('uses accumulated spaced pinyin and commits over the full pending run', async () => {
     emitSequentialText(fixture, 'bei jing');
 
