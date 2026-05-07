@@ -175,6 +175,32 @@ describe('DocumentEditorComponent', () => {
     expect(emitted).toEqual([{ startOffset: 5, endOffset: 5, text: '!' }]);
   });
 
+  it('ignores unsupported input events without preventing default', () => {
+    const emitted = collectReplacements(fixture);
+    setSpans(fixture, [plainSpan('plain-1', 'abc')]);
+    const plainText = textNode(queryByTestId(fixture, 'plain-span'));
+    selectRange(plainText, 1, plainText, 1);
+
+    const event = dispatchBeforeInput(queryEditor(fixture), 'formatBold', null);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(emitted).toEqual([]);
+  });
+
+  it('ignores selections outside the editor', () => {
+    const emitted = collectReplacements(fixture);
+    const outside = document.createTextNode('outside');
+    document.body.appendChild(outside);
+    setSpans(fixture, [plainSpan('plain-1', 'abc')]);
+    selectRange(outside, 0, outside, outside.length);
+
+    const event = dispatchBeforeInput(queryEditor(fixture), 'insertText', 'X');
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(emitted).toEqual([]);
+    outside.remove();
+  });
+
   it('emits a newline replacement and prevents paragraph DOM mutation', () => {
     const emitted = collectReplacements(fixture);
     setSpans(fixture, sampleSpans());
@@ -316,6 +342,23 @@ describe('DocumentEditorComponent', () => {
     expect(emitted).toEqual([{ startOffset: 1, endOffset: 2, text: '' }]);
   });
 
+  it('keeps collapsed Backspace and Delete at document edges in bounds', () => {
+    const emitted = collectReplacements(fixture);
+    setSpans(fixture, [plainSpan('plain-1', 'ab')]);
+    const plainText = textNode(queryByTestId(fixture, 'plain-span'));
+
+    selectRange(plainText, 0, plainText, 0);
+    dispatchBeforeInput(queryEditor(fixture), 'deleteContentBackward', null);
+    fixture.detectChanges();
+    selectRange(plainText, plainText.length, plainText, plainText.length);
+    dispatchBeforeInput(queryEditor(fixture), 'deleteContentForward', null);
+
+    expect(emitted).toEqual([
+      { startOffset: 0, endOffset: 0, text: '' },
+      { startOffset: 2, endOffset: 2, text: '' },
+    ]);
+  });
+
   it('emits composed text at the compositionstart range after DOM mutation', () => {
     const emitted = collectReplacements(fixture);
     setSpans(fixture, sampleSpans());
@@ -353,6 +396,21 @@ describe('DocumentEditorComponent', () => {
     );
 
     expect(emitted).toEqual([{ startOffset: 3, endOffset: 3, text: '好' }]);
+  });
+
+  it('ignores compositionend without data or a usable range', () => {
+    const emitted = collectReplacements(fixture);
+    setSpans(fixture, [plainSpan('plain-1', 'abc')]);
+    window.getSelection()?.removeAllRanges();
+
+    queryEditor(fixture).dispatchEvent(
+      new CompositionEvent('compositionend', { bubbles: true, data: '' }),
+    );
+    queryEditor(fixture).dispatchEvent(
+      new CompositionEvent('compositionend', { bubbles: true, data: '你' }),
+    );
+
+    expect(emitted).toEqual([]);
   });
 });
 

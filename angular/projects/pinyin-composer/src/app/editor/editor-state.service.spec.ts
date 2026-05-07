@@ -212,6 +212,23 @@ describe('EditorStateService', () => {
     expect(service.documentText()).toBe('af');
   });
 
+  it('normalizes reversed, non-finite, and out-of-bounds ranges', () => {
+    const service = TestBed.inject(EditorStateService);
+
+    service.loadDocument(documentWithSpans([plainSpan('plain-1', 'abcdef')]));
+    expect(service.replaceRange(5, 2, 'X')).toEqual({
+      startOffset: 2,
+      endOffset: 3,
+    });
+    expect(service.documentText()).toBe('abXf');
+
+    service.replaceRange(Number.NaN, Number.POSITIVE_INFINITY, 'Y');
+    expect(service.documentText()).toBe('YabXf');
+
+    service.setPendingRange({ startOffset: 20, endOffset: -5 });
+    expect(service.pendingRange()).toEqual({ startOffset: 0, endOffset: 5 });
+  });
+
   it('commits an aligned candidate to a range as one character span per Hanzi', () => {
     const service = TestBed.inject(EditorStateService);
 
@@ -297,6 +314,31 @@ describe('EditorStateService', () => {
         displayPinyin: 'Běijīng A',
         annotationScope: 'atomicPhrase',
       },
+    ]);
+  });
+
+  it('falls back to atomic phrase spans for mismatched or empty syllable alignment', () => {
+    const service = TestBed.inject(EditorStateService);
+
+    service.replaceRange(0, 0, 'beijing');
+    service.commitCandidateToRange(
+      { startOffset: 0, endOffset: 7 },
+      candidateWithAlignment({
+        sourcePinyinSyllables: ['bei'],
+        displayPinyinSyllables: ['Běi'],
+      }),
+    );
+    expect(service.spans()).toEqual([
+      atomicSpan(expect.any(String) as string, 'beijing', '北京', 'Běijīng'),
+    ]);
+
+    service.loadDocument(documentWithSpans([plainSpan('plain-1', 'beijing')]));
+    service.commitCandidateToRange(
+      { startOffset: 0, endOffset: 7 },
+      candidateWithAlignment({ sourcePinyinSyllables: ['bei', ''] }),
+    );
+    expect(service.spans()).toEqual([
+      atomicSpan(expect.any(String) as string, 'beijing', '北京', 'Běijīng'),
     ]);
   });
 
@@ -426,6 +468,35 @@ describe('EditorStateService', () => {
     expect(service.documentText()).toBe('Hi 你');
   });
 
+  it('keeps token compatibility helpers backed by span ranges', () => {
+    const service = TestBed.inject(EditorStateService);
+
+    service.loadTokens([
+      {
+        id: 'token-1',
+        sourcePinyin: 'shi',
+        hanzi: '是',
+        displayPinyin: 'Shì',
+      },
+    ]);
+    expect(service.spans()).toEqual([
+      atomicSpan('token-1', 'shi', '是', 'Shì'),
+    ]);
+    expect(service.tokens()).toEqual([
+      { id: 'token-1', sourcePinyin: 'shi', hanzi: '是', displayPinyin: 'Shì' },
+    ]);
+
+    service.replaceToken('missing-token', beijingCandidate());
+    expect(service.documentText()).toBe('是');
+
+    service.replaceToken('token-1', beijingCandidate());
+    expect(service.documentText()).toBe('北京');
+    expect(service.spans()).toEqual([
+      characterSpan(expect.any(String) as string, 'bei', '北', 'Běi'),
+      characterSpan(expect.any(String) as string, 'jing', '京', 'jīng'),
+    ]);
+  });
+
   it('reports content from either the input buffer or document text', () => {
     const service = TestBed.inject(EditorStateService);
 
@@ -553,5 +624,16 @@ function unalignableCandidate(): Candidate {
     displayPinyin: 'Běijīng A',
     displayPinyinSyllables: ['Běi', 'jīng', 'A'],
     score: 1,
+  };
+}
+
+function candidateWithAlignment(
+  overrides: Partial<
+    Pick<Candidate, 'sourcePinyinSyllables' | 'displayPinyinSyllables'>
+  >,
+): Candidate {
+  return {
+    ...beijingCandidate(),
+    ...overrides,
   };
 }
