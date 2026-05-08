@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { InlineCandidateMenuComponent } from './inline-candidate-menu.component';
 
@@ -18,8 +18,10 @@ describe('InlineCandidateMenuComponent', () => {
       {
         id: 'candidate-0',
         sourcePinyin: 'beijing',
+        sourcePinyinSyllables: ['bei', 'jing'],
         hanzi: '北京',
         displayPinyin: 'Běijīng',
+        displayPinyinSyllables: ['Běi', 'jīng'],
         score: 1,
       },
     ]);

@@ -1,30 +1,31 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { LocalDocumentStoreService } from '../documents/local-document-store.service';
-import { HtmlRubyExportService } from '../export/html-ruby-export.service';
 import { ConversionWorkerClient } from '../wasm/conversion-worker.client';
+import {
+  DocumentEditorComponent,
+  type DocumentTextReplacement,
+} from './document-editor.component';
 import { EditorStateService } from './editor-state.service';
 import { InlineCandidateMenuComponent } from './inline-candidate-menu.component';
-import type { Candidate } from './phrase-token';
-import { RubyPreviewComponent } from './ruby-preview.component';
+import type { Candidate, DocumentRange } from './phrase-token';
 
 @Component({
   selector: 'app-pinyin-composer-page',
-  imports: [FormsModule, InlineCandidateMenuComponent, RubyPreviewComponent],
+  imports: [FormsModule, DocumentEditorComponent, InlineCandidateMenuComponent],
   template: `
     <main class="composer-page">
       <header>
         <h1>Pinyin Composer</h1>
         <p>
-          Type tone-free pinyin, commit Hanzi phrase tokens, and export
-          phrase-level ruby HTML.
+          Type tone-free pinyin directly in the document, commit Hanzi phrase
+          spans, and save a local annotated draft.
         </p>
       </header>
 
@@ -36,15 +37,14 @@ import { RubyPreviewComponent } from './ruby-preview.component';
         (ngModelChange)="documentTitle.set($event)"
       />
 
-      <label for="pinyin-input">Pinyin input</label>
-      <textarea
-        id="pinyin-input"
-        data-testid="pinyin-input"
-        [ngModel]="editor.inputBuffer()"
-        (ngModelChange)="onInputChange($event)"
+      <label id="document-editor-label">Document body</label>
+      <app-document-editor
+        class="document-editor-host"
+        aria-labelledby="document-editor-label"
+        [spans]="editor.spans()"
+        (textReplaced)="replaceDocumentText($event)"
         (keydown.enter)="commitTopCandidate($event)"
-        placeholder="wo xiang qu beijing"
-      ></textarea>
+      />
 
       @if (conversionError()) {
         <p class="error" data-testid="conversion-error">
@@ -56,10 +56,6 @@ import { RubyPreviewComponent } from './ruby-preview.component';
         [candidates]="candidates()"
         (candidateSelected)="commitCandidate($event)"
       />
-      <app-ruby-preview
-        [tokens]="editor.tokens()"
-        (tokenSelected)="selectTokenForCorrection($event)"
-      />
 
       <button
         type="button"
@@ -68,52 +64,61 @@ import { RubyPreviewComponent } from './ruby-preview.component';
       >
         Save Draft
       </button>
-
-      <section>
-        <h2>HTML ruby export</h2>
-        <textarea
-          readonly
-          data-testid="html-export"
-          [value]="htmlExport()"
-        ></textarea>
-      </section>
     </main>
   `,
   styles: [
     `
       .composer-page {
-        max-width: 56rem;
+        --composer-page-ink: #0f172a;
+        --composer-page-muted: #475569;
+        --composer-page-border: #cbd5e1;
+        --composer-page-error: #b91c1c;
+        --composer-page-surface: #ffffff;
+        --composer-page-space-sm: 0.5rem;
+        --composer-page-space-md: 0.75rem;
+        --composer-page-space-button-x: 0.9rem;
+        --composer-page-space-lg: 1rem;
+        --composer-page-space-xl: 2rem;
+        --composer-page-radius-md: 0.75rem;
+        --composer-page-radius-pill: 999px;
+        --composer-page-measure: 56rem;
+        max-width: var(--composer-page-measure);
         margin: 0 auto;
-        padding: 2rem;
+        padding: var(--composer-page-space-xl);
         font-family: system-ui, sans-serif;
       }
 
-      input,
-      textarea {
+      header p {
+        color: var(--composer-page-muted);
+      }
+
+      input {
         box-sizing: border-box;
         width: 100%;
-        margin: 0.5rem 0 1rem;
-        padding: 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 0.75rem;
+        margin: var(--composer-page-space-sm) 0 var(--composer-page-space-lg);
+        padding: var(--composer-page-space-md);
+        border: 1px solid var(--composer-page-border);
+        border-radius: var(--composer-page-radius-md);
         font: inherit;
       }
 
-      textarea {
-        min-height: 8rem;
+      .document-editor-host {
+        display: block;
+        margin: var(--composer-page-space-sm) 0 var(--composer-page-space-lg);
       }
 
       button {
-        border: 1px solid #0f172a;
-        border-radius: 999px;
-        background: #0f172a;
-        color: white;
-        padding: 0.5rem 0.9rem;
+        border: 1px solid var(--composer-page-ink);
+        border-radius: var(--composer-page-radius-pill);
+        background: var(--composer-page-ink);
+        color: var(--composer-page-surface);
+        padding: var(--composer-page-space-sm)
+          var(--composer-page-space-button-x);
         cursor: pointer;
       }
 
       .error {
-        color: #b91c1c;
+        color: var(--composer-page-error);
       }
     `,
   ],
@@ -122,79 +127,58 @@ import { RubyPreviewComponent } from './ruby-preview.component';
 export class PinyinComposerPageComponent {
   readonly editor = inject(EditorStateService);
   private readonly conversion = inject(ConversionWorkerClient);
-  private readonly exporter = inject(HtmlRubyExportService);
   private readonly documents = inject(LocalDocumentStoreService);
 
   readonly candidates = signal<readonly Candidate[]>([]);
   readonly conversionError = signal('');
-  readonly correctionTokenId = signal<string | null>(null);
   readonly documentId = signal(crypto.randomUUID());
   readonly documentTitle = signal('Untitled pinyin document');
-  readonly htmlExport = computed(() =>
-    this.exporter.exportTokens(this.editor.tokens()),
-  );
   private conversionRequestId = 0;
 
-  async onInputChange(value: string): Promise<void> {
-    this.editor.updateInputBuffer(value);
-    this.conversionError.set('');
-    const requestId = ++this.conversionRequestId;
+  async replaceDocumentText(
+    replacement: DocumentTextReplacement,
+  ): Promise<void> {
+    const previousPendingRange = this.editor.pendingRange();
+    const previousTrimmedInputBuffer = this.editor.inputBuffer().trim();
+    const replacementRange = this.editor.replaceRange(
+      replacement.startOffset,
+      replacement.endOffset,
+      replacement.text,
+    );
+    const pendingRange = this.pendingRangeAfterReplacement(
+      previousPendingRange,
+      replacement,
+      replacementRange,
+    );
+    const inputBuffer = pendingRange
+      ? this.editor
+          .documentText()
+          .slice(pendingRange.startOffset, pendingRange.endOffset)
+      : '';
+    const trimmedInputBuffer = inputBuffer.trim();
 
-    const trimmed = value.trim();
-    if (!trimmed) {
+    this.editor.setPendingRange(pendingRange);
+    this.editor.updateInputBuffer(pendingRange ? inputBuffer : '');
+
+    if (!trimmedInputBuffer) {
       this.candidates.set([]);
       return;
     }
 
-    try {
-      const candidates = await this.conversion.convertPinyin(trimmed, 5);
-      if (requestId !== this.conversionRequestId) {
-        return;
-      }
-      this.candidates.set(candidates);
-    } catch (error: unknown) {
-      if (requestId !== this.conversionRequestId) {
-        return;
-      }
-      this.candidates.set([]);
-      this.conversionError.set(
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-  }
-
-  commitTopCandidate(event: Event): void {
-    event.preventDefault();
-    const [topCandidate] = this.candidates();
-    if (topCandidate) {
-      this.commitCandidate(topCandidate);
-    }
-  }
-
-  commitCandidate(candidate: Candidate): void {
-    const tokenId = this.correctionTokenId();
-    if (tokenId) {
-      this.editor.replaceToken(tokenId, candidate);
-      this.correctionTokenId.set(null);
-    } else {
-      this.editor.commitCandidate(candidate);
-    }
-    this.candidates.set([]);
-  }
-
-  async selectTokenForCorrection(tokenId: string): Promise<void> {
-    const token = this.editor.tokens().find((item) => item.id === tokenId);
-    if (!token) {
+    if (
+      previousPendingRange &&
+      !replacement.text.trim() &&
+      trimmedInputBuffer === previousTrimmedInputBuffer
+    ) {
       return;
     }
 
-    this.correctionTokenId.set(tokenId);
-    this.editor.updateInputBuffer(token.sourcePinyin);
     this.conversionError.set('');
     const requestId = ++this.conversionRequestId;
+
     try {
       const candidates = await this.conversion.convertPinyin(
-        token.sourcePinyin,
+        trimmedInputBuffer,
         5,
       );
       if (requestId !== this.conversionRequestId) {
@@ -212,12 +196,78 @@ export class PinyinComposerPageComponent {
     }
   }
 
+  commitTopCandidate(event: Event): void {
+    const [topCandidate] = this.candidates();
+    if (topCandidate) {
+      event.preventDefault();
+      this.commitCandidate(topCandidate);
+    }
+  }
+
+  commitCandidate(candidate: Candidate): void {
+    const pendingRange = this.editor.pendingRange();
+    if (!pendingRange) {
+      this.candidates.set([]);
+      return;
+    }
+    this.editor.commitCandidateToRange(pendingRange, candidate);
+    this.candidates.set([]);
+  }
+
   saveCurrentDocument(): void {
     this.documents.saveDocument({
+      schemaVersion: 2,
       id: this.documentId(),
       title: this.documentTitle().trim() || 'Untitled pinyin document',
-      tokens: this.editor.tokens(),
+      spans: this.editor.spans(),
       updatedAtIso: new Date().toISOString(),
     });
+  }
+
+  private pendingRangeAfterReplacement(
+    previousRange: DocumentRange | null,
+    replacement: DocumentTextReplacement,
+    replacementRange: DocumentRange,
+  ): DocumentRange | null {
+    if (replacement.text.includes('\n')) {
+      return null;
+    }
+
+    if (
+      previousRange &&
+      replacement.startOffset <= previousRange.endOffset &&
+      replacement.endOffset >= previousRange.startOffset
+    ) {
+      const deletedLength = replacement.endOffset - replacement.startOffset;
+      const insertedLength = replacement.text.length;
+      const startOffset = Math.min(
+        previousRange.startOffset,
+        replacementRange.startOffset,
+      );
+      const endOffset = Math.max(
+        startOffset,
+        previousRange.endOffset - deletedLength + insertedLength,
+      );
+
+      return this.nonEmptyDocumentRange(startOffset, endOffset);
+    }
+
+    if (!replacement.text.trim()) {
+      return null;
+    }
+
+    return this.nonEmptyDocumentRange(
+      replacementRange.startOffset,
+      replacementRange.endOffset,
+    );
+  }
+
+  private nonEmptyDocumentRange(
+    startOffset: number,
+    endOffset: number,
+  ): DocumentRange | null {
+    return this.editor.documentText().slice(startOffset, endOffset).trim()
+      ? { startOffset, endOffset }
+      : null;
   }
 }

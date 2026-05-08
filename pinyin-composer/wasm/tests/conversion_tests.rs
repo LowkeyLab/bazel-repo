@@ -43,6 +43,20 @@ fn convert_pinyin_normalizes_whitespace_and_case() {
 }
 
 #[test]
+fn convert_pinyin_exposes_candidate_syllables() {
+    let result = convert_pinyin("bei jing", 3).expect("conversion succeeds");
+    let candidate = result
+        .candidates
+        .iter()
+        .find(|candidate| candidate.hanzi == "北京")
+        .expect("beijing candidate exists");
+
+    assert_eq!(candidate.source_pinyin_syllables, ["bei", "jing"]);
+    assert_eq!(candidate.display_pinyin_syllables, ["Běi", "jīng"]);
+    assert_eq!(candidate.display_pinyin, "Běijīng");
+}
+
+#[test]
 fn zero_candidate_limit_is_rejected() {
     let error = convert_pinyin("beijing", 0).expect_err("zero limit fails");
 
@@ -58,6 +72,7 @@ fn annotate_phrase_returns_phrase_level_pinyin() {
 
     assert_eq!(result.hanzi, "北京");
     assert_eq!(result.pinyin, "Běijīng");
+    assert_eq!(result.pinyin_syllables, ["Běi", "jīng"]);
 }
 
 #[test]

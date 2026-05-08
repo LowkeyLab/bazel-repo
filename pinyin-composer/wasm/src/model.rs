@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 pub struct Candidate {
     pub id: String,
     pub source_pinyin: String,
+    pub source_pinyin_syllables: Vec<String>,
     pub hanzi: String,
     pub display_pinyin: String,
+    pub display_pinyin_syllables: Vec<String>,
     pub score: f64,
 }
 
@@ -22,4 +24,5 @@ pub struct ConversionResult {
 pub struct AnnotationResult {
     pub hanzi: String,
     pub pinyin: String,
+    pub pinyin_syllables: Vec<String>,
 }
