@@ -8,17 +8,24 @@ import { FormsModule } from '@angular/forms';
 
 import { LocalDocumentStoreService } from '../documents/local-document-store.service';
 import { ConversionWorkerClient } from '../wasm/conversion-worker.client';
+import { BrowserPrintService } from './browser-print.service';
 import {
   DocumentEditorComponent,
   type DocumentTextReplacement,
 } from './document-editor.component';
 import { EditorStateService } from './editor-state.service';
 import { InlineCandidateMenuComponent } from './inline-candidate-menu.component';
+import { PdfExportDocumentComponent } from './pdf-export-document.component';
 import type { Candidate, DocumentRange } from './phrase-token';
 
 @Component({
   selector: 'app-pinyin-composer-page',
-  imports: [FormsModule, DocumentEditorComponent, InlineCandidateMenuComponent],
+  imports: [
+    FormsModule,
+    DocumentEditorComponent,
+    InlineCandidateMenuComponent,
+    PdfExportDocumentComponent,
+  ],
   template: `
     <main class="composer-page">
       <header>
@@ -57,13 +64,32 @@ import type { Candidate, DocumentRange } from './phrase-token';
         (candidateSelected)="commitCandidate($event)"
       />
 
-      <button
-        type="button"
-        data-testid="save-document"
-        (click)="saveCurrentDocument()"
+      <div class="document-actions">
+        <button
+          type="button"
+          data-testid="save-document"
+          (click)="saveCurrentDocument()"
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          data-testid="export-pdf"
+          [disabled]="!editor.hasContent()"
+          (click)="exportPdf()"
+        >
+          Export PDF
+        </button>
+      </div>
+
+      <section
+        class="pdf-export-surface"
+        data-testid="pdf-export-surface"
+        inert
+        aria-hidden="true"
       >
-        Save Draft
-      </button>
+        <app-pdf-export-document [spans]="editor.spans()" />
+      </section>
     </main>
   `,
   styles: [
@@ -82,6 +108,8 @@ import type { Candidate, DocumentRange } from './phrase-token';
         --composer-page-radius-md: 0.75rem;
         --composer-page-radius-pill: 999px;
         --composer-page-measure: 56rem;
+        --composer-page-print-line-height: 2.4;
+        --composer-page-print-ruby-scale: 0.45em;
         max-width: var(--composer-page-measure);
         margin: 0 auto;
         padding: var(--composer-page-space-xl);
@@ -107,6 +135,12 @@ import type { Candidate, DocumentRange } from './phrase-token';
         margin: var(--composer-page-space-sm) 0 var(--composer-page-space-lg);
       }
 
+      .document-actions {
+        display: flex;
+        gap: var(--composer-page-space-sm);
+        align-items: center;
+      }
+
       button {
         border: 1px solid var(--composer-page-ink);
         border-radius: var(--composer-page-radius-pill);
@@ -120,12 +154,96 @@ import type { Candidate, DocumentRange } from './phrase-token';
       .error {
         color: var(--composer-page-error);
       }
+
+      .pdf-export-surface {
+        position: absolute;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        border: 0;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      @media print {
+        :host {
+          background: var(--composer-page-surface);
+          color: var(--composer-page-ink);
+        }
+
+        .composer-page {
+          max-width: none;
+          margin: 0;
+          padding: 0;
+          background: var(--composer-page-surface);
+          color: var(--composer-page-ink);
+        }
+
+        header,
+        label,
+        input,
+        .document-editor-host,
+        .error,
+        app-inline-candidate-menu,
+        .document-actions {
+          display: none;
+        }
+
+        .pdf-export-surface {
+          position: static;
+          overflow: visible;
+          clip: auto;
+          clip-path: none;
+          width: auto;
+          height: auto;
+          margin: 0;
+          padding: 0;
+          border: 0;
+          white-space: normal;
+          pointer-events: auto;
+          background: var(--composer-page-surface);
+          color: var(--composer-page-ink);
+          line-height: var(--composer-page-print-line-height);
+        }
+
+        .pdf-export-surface app-pdf-export-document {
+          display: block;
+        }
+
+        :host ::ng-deep .pdf-export-surface .pdf-export-document {
+          color: var(--composer-page-ink);
+          line-height: var(--composer-page-print-line-height);
+          white-space: pre-wrap;
+        }
+
+        :host ::ng-deep .pdf-export-surface .pdf-export-ruby,
+        :host ::ng-deep .pdf-export-surface .pdf-export-plain {
+          color: var(--composer-page-ink);
+          padding: 0 var(--composer-page-space-sm);
+        }
+
+        :host ::ng-deep .pdf-export-surface br {
+          display: block;
+        }
+
+        :host ::ng-deep .pdf-export-surface rt {
+          color: var(--composer-page-ink);
+          font-size: var(--composer-page-print-ruby-scale);
+          line-height: 1;
+          visibility: visible;
+        }
+      }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PinyinComposerPageComponent {
   readonly editor = inject(EditorStateService);
+  private readonly browserPrint = inject(BrowserPrintService);
   private readonly conversion = inject(ConversionWorkerClient);
   private readonly documents = inject(LocalDocumentStoreService);
 
@@ -222,6 +340,14 @@ export class PinyinComposerPageComponent {
       spans: this.editor.spans(),
       updatedAtIso: new Date().toISOString(),
     });
+  }
+
+  exportPdf(): void {
+    if (!this.editor.hasContent()) {
+      return;
+    }
+
+    this.browserPrint.print();
   }
 
   private pendingRangeAfterReplacement(
