@@ -39,6 +39,31 @@ import type { DocumentSpan } from './phrase-token';
       .pdf-export-document {
         white-space: pre-wrap;
       }
+
+      @media print {
+        .pdf-export-document {
+          color: var(--composer-page-ink);
+          line-height: var(--composer-page-print-line-height);
+          white-space: pre-wrap;
+        }
+
+        .pdf-export-ruby,
+        .pdf-export-plain {
+          color: var(--composer-page-ink);
+          padding: 0 var(--composer-page-space-sm);
+        }
+
+        br {
+          display: block;
+        }
+
+        rt {
+          color: var(--composer-page-ink);
+          font-size: var(--composer-page-print-ruby-scale);
+          line-height: 1;
+          visibility: visible;
+        }
+      }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

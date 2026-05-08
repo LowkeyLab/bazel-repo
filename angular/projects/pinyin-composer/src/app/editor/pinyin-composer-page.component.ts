@@ -213,29 +213,6 @@ import type { Candidate, DocumentRange } from './phrase-token';
         .pdf-export-surface app-pdf-export-document {
           display: block;
         }
-
-        :host ::ng-deep .pdf-export-surface .pdf-export-document {
-          color: var(--composer-page-ink);
-          line-height: var(--composer-page-print-line-height);
-          white-space: pre-wrap;
-        }
-
-        :host ::ng-deep .pdf-export-surface .pdf-export-ruby,
-        :host ::ng-deep .pdf-export-surface .pdf-export-plain {
-          color: var(--composer-page-ink);
-          padding: 0 var(--composer-page-space-sm);
-        }
-
-        :host ::ng-deep .pdf-export-surface br {
-          display: block;
-        }
-
-        :host ::ng-deep .pdf-export-surface rt {
-          color: var(--composer-page-ink);
-          font-size: var(--composer-page-print-ruby-scale);
-          line-height: 1;
-          visibility: visible;
-        }
       }
     `,
   ],
