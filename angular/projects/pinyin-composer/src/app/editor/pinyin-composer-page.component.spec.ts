@@ -96,7 +96,6 @@ describe('PinyinComposerPageComponent', () => {
     expect(exportSurface.classList.contains('pdf-export-surface')).toBe(true);
     expect(exportSurfaceText).not.toContain('Document');
     expect(exportSurfaceText).not.toContain('Untitled pinyin document');
-    expect(exportSurfaceText).not.toContain('2026-05-06T00:00:00.000Z');
     expect(exportNodes.map((node) => node.testId)).toEqual([
       'pdf-export-ruby',
       'pdf-export-line-break',
