@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 
 import { LocalDocumentStoreService } from '../documents/local-document-store.service';
 import { ConversionWorkerClient } from '../wasm/conversion-worker.client';
+import { BrowserPrintService } from './browser-print.service';
 import {
   DocumentEditorComponent,
   type DocumentTextReplacement,
@@ -20,16 +21,19 @@ import { PinyinComposerPageComponent } from './pinyin-composer-page.component';
 describe('PinyinComposerPageComponent', () => {
   let conversion: FakeConversionWorkerClient;
   let documents: FakeLocalDocumentStoreService;
+  let browserPrint: FakeBrowserPrintService;
   let fixture: ComponentFixture<PinyinComposerPageComponent>;
   let editor: EditorStateService;
 
   beforeEach(async () => {
     conversion = new FakeConversionWorkerClient();
     documents = new FakeLocalDocumentStoreService();
+    browserPrint = new FakeBrowserPrintService();
 
     await TestBed.configureTestingModule({
       imports: [PinyinComposerPageComponent],
       providers: [
+        { provide: BrowserPrintService, useValue: browserPrint },
         { provide: ConversionWorkerClient, useValue: conversion },
         { provide: LocalDocumentStoreService, useValue: documents },
       ],
@@ -40,14 +44,101 @@ describe('PinyinComposerPageComponent', () => {
     fixture.detectChanges();
   });
 
-  it('renders the document editor controls without legacy input or export UI', () => {
+  it('renders the document editor controls with the export action', () => {
     const legacyExportTestId = ['html', 'export'].join('-');
+    const exportSurface = queryByTestIdRequired(fixture, 'pdf-export-surface');
 
     expect(queryByTestId(fixture, 'document-editor')).not.toBeNull();
     expect(queryByTestId(fixture, 'document-title')).not.toBeNull();
     expect(queryByTestId(fixture, 'save-document')).not.toBeNull();
+    expect(queryByTestId(fixture, 'export-pdf')).not.toBeNull();
+    expect(exportSurface.classList.contains('pdf-export-surface')).toBe(true);
+    expect(exportSurface.hasAttribute('hidden')).toBe(false);
+    expect(exportSurface.hasAttribute('inert')).toBe(true);
     expect(queryByTestId(fixture, 'pinyin-input')).toBeNull();
     expect(queryByTestId(fixture, legacyExportTestId)).toBeNull();
+  });
+
+  it('disables export and skips printing when the document is empty', () => {
+    const exportButton = queryByTestIdRequired(
+      fixture,
+      'export-pdf',
+    ) as HTMLButtonElement;
+
+    expect(exportButton.disabled).toBe(true);
+
+    exportButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.componentInstance.exportPdf();
+
+    expect(browserPrint.printCallCount).toBe(0);
+  });
+
+  it('renders newline-aware PDF content and prints once from the export action', () => {
+    fixture.componentInstance.documentTitle.set('Document');
+    editor.loadDocument(
+      documentWithSpans([
+        annotatedSpan('span-bei', 'bei', '北', 'Běi'),
+        plainSpan('line-break', '\n'),
+        annotatedSpan('span-jing', 'jing', '京', 'jīng'),
+      ]),
+    );
+    fixture.detectChanges();
+
+    const exportButton = queryByTestIdRequired(
+      fixture,
+      'export-pdf',
+    ) as HTMLButtonElement;
+    const exportSurface = queryByTestIdRequired(fixture, 'pdf-export-surface');
+    const exportSurfaceText = exportSurface.textContent ?? '';
+    const exportNodes = exportSurfaceNodes(exportSurface);
+
+    expect(exportButton.disabled).toBe(false);
+    expect(exportSurface.classList.contains('pdf-export-surface')).toBe(true);
+    expect(exportSurfaceText).not.toContain('Document');
+    expect(exportSurfaceText).not.toContain('Untitled pinyin document');
+    expect(exportNodes.map((node) => node.testId)).toEqual([
+      'pdf-export-ruby',
+      'pdf-export-line-break',
+      'pdf-export-ruby',
+    ]);
+    expect(exportNodes[0].textContent).toContain('北');
+    expect(exportNodes[0].textContent).toContain('Běi');
+    expect(exportNodes[1].textContent).toBe('');
+    expect(exportNodes[2].textContent).toContain('京');
+    expect(exportNodes[2].textContent).toContain('jīng');
+
+    clickByTestId(fixture, 'export-pdf');
+
+    expect(browserPrint.printCallCount).toBe(1);
+  });
+
+  it('renders consecutive newlines as separate PDF export line breaks', () => {
+    editor.loadDocument(
+      documentWithSpans([
+        annotatedSpan('span-bei', 'bei', '北', 'Běi'),
+        plainSpan('blank-line', '\n\n'),
+        annotatedSpan('span-jing', 'jing', '京', 'jīng'),
+      ]),
+    );
+    fixture.detectChanges();
+
+    const exportSurface = queryByTestIdRequired(fixture, 'pdf-export-surface');
+    const exportNodes = exportSurfaceNodes(exportSurface);
+
+    expect(exportNodes.map((node) => node.testId)).toEqual([
+      'pdf-export-ruby',
+      'pdf-export-line-break',
+      'pdf-export-line-break',
+      'pdf-export-ruby',
+    ]);
+    expect(exportNodes[0].textContent).toContain('北');
+    expect(exportNodes[1].textContent).toBe('');
+    expect(exportNodes[2].textContent).toBe('');
+    expect(exportNodes[3].textContent).toContain('京');
+    expect(
+      exportSurface.querySelectorAll('[data-testid="pdf-export-line-break"]')
+        .length,
+    ).toBe(2);
   });
 
   it('commits the selected candidate into the pending typed range', async () => {
@@ -520,6 +611,14 @@ class FakeLocalDocumentStoreService implements Pick<
   }
 }
 
+class FakeBrowserPrintService implements Pick<BrowserPrintService, 'print'> {
+  printCallCount = 0;
+
+  print(): void {
+    this.printCallCount += 1;
+  }
+}
+
 function documentWithSpans(spans: readonly DocumentSpan[]): ComposerDocument {
   return {
     schemaVersion: 2,
@@ -724,6 +823,23 @@ function clickByTestId(
     throw new Error(`Expected clickable element for ${testId}`);
   }
   element.click();
+}
+
+interface ExportSurfaceNode {
+  readonly testId: string;
+  readonly textContent: string;
+}
+
+function exportSurfaceNodes(exportSurface: HTMLElement): ExportSurfaceNode[] {
+  return Array.from(
+    exportSurface.querySelectorAll<HTMLElement>(
+      '[data-testid="pdf-export-plain"], [data-testid="pdf-export-ruby"], [data-testid="pdf-export-line-break"]',
+    ),
+    (element) => ({
+      testId: element.getAttribute('data-testid') ?? '',
+      textContent: element.textContent ?? '',
+    }),
+  );
 }
 
 function candidateMenuText(
