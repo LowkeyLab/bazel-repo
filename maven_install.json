@@ -27,7 +27,7 @@
     "io.ktor:ktor-server-thymeleaf-jvm": -1048784984,
     "io.ktor:ktor-server-websockets-jvm": 2094849633,
     "org.jetbrains.exposed:exposed-core": -1677754104,
-    "org.jetbrains.exposed:exposed-dao": -23155958,
+    "org.jetbrains.exposed:exposed-dao": -1820107317,
     "org.jetbrains.exposed:exposed-jdbc": 1203094179,
     "org.jetbrains.kotlin:kotlin-test-junit": 1785130957,
     "org.jetbrains.kotlin:kotlin-test-junit5": 1277106330,
@@ -290,12 +290,12 @@
     "org.jetbrains.exposed:exposed-core": 551910403,
     "org.jetbrains.exposed:exposed-core:jar:javadoc": 944317707,
     "org.jetbrains.exposed:exposed-core:jar:sources": -2086000624,
-    "org.jetbrains.exposed:exposed-dao": 655617076,
-    "org.jetbrains.exposed:exposed-dao:jar:javadoc": -843574201,
-    "org.jetbrains.exposed:exposed-dao:jar:sources": -1864166864,
-    "org.jetbrains.exposed:exposed-jdbc": -2082194889,
-    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 837862559,
-    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 2093647314,
+    "org.jetbrains.exposed:exposed-dao": 973216038,
+    "org.jetbrains.exposed:exposed-dao:jar:javadoc": 1006506195,
+    "org.jetbrains.exposed:exposed-dao:jar:sources": -621534460,
+    "org.jetbrains.exposed:exposed-jdbc": -242064577,
+    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": -1334541776,
+    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 1961560813,
     "org.jetbrains.kotlin:kotlin-reflect": 629881345,
     "org.jetbrains.kotlin:kotlin-reflect:jar:javadoc": 1824340610,
     "org.jetbrains.kotlin:kotlin-reflect:jar:sources": 992770884,
@@ -403,7 +403,8 @@
     "org.unbescape:unbescape:jar:sources": 1350857716
   },
   "conflict_resolution": {
-    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1"
+    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1",
+    "org.jetbrains.exposed:exposed-jdbc:1.2.0": "org.jetbrains.exposed:exposed-jdbc:1.3.0"
   },
   "artifacts": {
     "ch.qos.logback:logback-classic": {
@@ -1078,19 +1079,19 @@
     },
     "org.jetbrains.exposed:exposed-dao": {
       "shasums": {
-        "jar": "123edee9a27bc9c180efe5b6f644d1e5bb1952e19e79b1b37b3a8e73d6e683e0",
-        "javadoc": "060e8ffb187c18e5f748a56caba7bf06469c2227360784e22febdd4845323a9e",
-        "sources": "ad3d6ff5a9167a2b0d3c59d743510a608317e5b7d2d3366d4b1ddcedad9f0f42"
+        "jar": "115c1ba6cd071b16d7f38d200a3ef0e01c65d7e4bb7459d219c091a16d6c4fbc",
+        "javadoc": "7f90885e0a95fd6525a6a909ef42b43a058a3dc5733ee194af362c9a2d87bfe5",
+        "sources": "455968d5624bc861a2e703a9cbce7f95185c30c8092f3c20422a5f75ddda8d24"
       },
-      "version": "1.2.0"
+      "version": "1.3.0"
     },
     "org.jetbrains.exposed:exposed-jdbc": {
       "shasums": {
-        "jar": "bcbdb4fe6a37bec5b1cffdd4fea34aee169633dfe4bfcbdc6457b6294648a633",
-        "javadoc": "e9a9ac91ddcfc16c052d993b4032b85bf6136fe5d379359d09f4ea5a436d117d",
-        "sources": "2577600b3811cbacdb67febc728903a90efae5cc4f65cf4b7967d531b9de2cfb"
+        "jar": "2cb12d3385b0b33ef180c909cfe6a3f8a3edb63c10d537bc69725478793f22cd",
+        "javadoc": "5e18ecd3b21b168f377b5a1a82f7655007eea037d150dc2d052afb16ef96042a",
+        "sources": "f4d54bb1e2ab74188991196b5f1e0fe59d237cb1c1b26ced2ae6d713693e3484"
       },
-      "version": "1.2.0"
+      "version": "1.3.0"
     },
     "org.jetbrains.kotlin:kotlin-reflect": {
       "shasums": {
