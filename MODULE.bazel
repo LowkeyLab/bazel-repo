@@ -416,7 +416,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_java21",
-    digest = "sha256:9eee7b59e09ccb729fc17a49b66175b09bc424162ae5580a6da89a4326c42991",
+    digest = "sha256:de4deeea2ede92c2d7cf139cda21d8f2b72a4eabc531286ab0a1b9d323be1ef7",
     image = "gcr.io/distroless/java21-debian13",
     platforms = [
         "linux/amd64",
