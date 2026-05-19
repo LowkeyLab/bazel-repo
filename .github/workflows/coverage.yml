@@ -14,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+      - name: Configure Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
@@ -27,8 +34,10 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
-      - name: Install lcov
-        run: sudo apt-get install -y lcov
+      - name: Install lcov from Nix
+        run: |
+          nix build nixpkgs#lcov
+          install -m755 ./result/bin/lcov ./result/bin/genhtml ./result/bin/geninfo /usr/local/bin/
       - name: Run Coverage (remote)
         run: bazel run //tools/coverage -- //... --config=ci-remote
       - name: Upload to Codecov
