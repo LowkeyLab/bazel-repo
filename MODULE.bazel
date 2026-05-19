@@ -74,7 +74,7 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependenc
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
-    commit = "b72d724043ce84004fe192d9f1311422c5273459",
+    commit = "c26dc35e8aa2a4ad08fe87ed098285c83ca71b98",
     patch_args = ["-p1"],
     patches = ["//3rdparty/gazelle_rust:rules_rs_loads.patch"],
     remote = "https://github.com/Calsign/gazelle_rust.git",
