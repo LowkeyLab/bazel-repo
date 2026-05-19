@@ -80,6 +80,7 @@ ng_test(
         ":vitest_config_files",
         ":wasm_bindgen_srcs",
     ],
+    tags = ["no-coverage"],
     tailwindcss = True,
     vitest = True,
     zonejs = True,

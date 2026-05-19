@@ -101,7 +101,7 @@ ng_application = macro(
     },
 )
 
-def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, srcs):
+def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, tags, deps, srcs):
     extra_deps = []
     if zonejs:
         extra_deps.append("//angular:node_modules/zone.js")
@@ -135,9 +135,9 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, sr
             # keep-sorted end
         ]
 
-    tags = []
+    all_tags = list(tags)
     if karma:
-        tags.append("no-remote")
+        all_tags.append("no-remote")
 
     orig_ng_test(
         name = name,
@@ -147,7 +147,7 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, deps, sr
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
         size = "small",
-        tags = tags,
+        tags = all_tags,
     )
 
 ng_test = macro(
@@ -172,6 +172,11 @@ ng_test = macro(
         "vitest": attr.bool(
             doc = "If True, includes jsdom and vitest as dependencies.",
             default = False,
+            configurable = False,
+        ),
+        "tags": attr.string_list(
+            doc = "Tags to apply to the generated test target.",
+            default = [],
             configurable = False,
         ),
         "deps": attr.label_list(
