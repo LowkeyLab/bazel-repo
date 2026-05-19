@@ -39,7 +39,7 @@ jobs:
           nix build nixpkgs#lcov
           install -m755 ./result/bin/lcov ./result/bin/genhtml ./result/bin/geninfo /usr/local/bin/
       - name: Run Coverage (remote)
-        run: bazel run //tools/coverage -- //... -//angular/projects/pinyin-composer:test --config=ci-remote
+        run: bazel run //tools/coverage -- --config=ci-remote -- //... -//angular/projects/pinyin-composer:test
       - name: Upload to Codecov
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
