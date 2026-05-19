@@ -102,6 +102,7 @@ coverage:remote-linux --strategy=CoverageReport=local
 coverage:remote-linux --@rules_go//go/config:pure
 coverage:ci-remote --remote_download_toplevel
 coverage:ci-remote --strategy=CoverageReport=local
+coverage:ci-remote --test_tag_filters=-no-coverage
 coverage:ci-remote --@rules_go//go/config:pure
 
 # To output something for xargs
