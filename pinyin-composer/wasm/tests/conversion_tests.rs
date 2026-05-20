@@ -22,6 +22,46 @@ fn convert_pinyin_returns_ranked_phrase_candidates() {
 }
 
 #[test]
+fn convert_pinyin_accepts_juede() {
+    let result = convert_pinyin("juede", 5).expect("juede conversion succeeds");
+
+    assert_eq!(result.source_pinyin, "juede");
+    assert!(!result.candidates.is_empty());
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.hanzi == "觉得")
+    );
+}
+
+#[test]
+fn convert_pinyin_accepts_spaced_jue_de_phrase() {
+    let result = convert_pinyin("wo jue de", 5).expect("wo jue de conversion succeeds");
+
+    assert_eq!(result.source_pinyin, "wo jue de");
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.hanzi.contains("觉得"))
+    );
+}
+
+#[test]
+fn convert_pinyin_accepts_compact_juede_phrase_block() {
+    let result = convert_pinyin("wo juede", 5).expect("wo juede conversion succeeds");
+
+    assert_eq!(result.source_pinyin, "wo juede");
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.hanzi.contains("觉得"))
+    );
+}
+
+#[test]
 fn convert_pinyin_clamps_large_candidate_limit() {
     let result = convert_pinyin("chi fan", 10_000).expect("conversion succeeds");
 
