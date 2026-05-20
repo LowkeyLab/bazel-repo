@@ -85,9 +85,10 @@ fn decode_ranked_candidates(
     syllables: &[String],
     limit: usize,
 ) -> Result<Vec<DecodedCandidate>, EngineError> {
-    let fast_candidates = decode_syllable_candidates(syllables, limit, 0);
+    let hmm = DefaultHmm::default();
+    let fast_candidates = decode_syllable_candidates(&hmm, syllables, limit, 0);
     let candidates = if fast_candidates.is_empty() {
-        exhaustive_split_candidates(normalized, limit)
+        exhaustive_split_candidates(&hmm, normalized, limit)
     } else {
         fast_candidates
     };
@@ -102,7 +103,11 @@ fn decode_ranked_candidates(
     Ok(candidates)
 }
 
-fn exhaustive_split_candidates(normalized: &str, limit: usize) -> Vec<DecodedCandidate> {
+fn exhaustive_split_candidates(
+    hmm: &DefaultHmm,
+    normalized: &str,
+    limit: usize,
+) -> Vec<DecodedCandidate> {
     let compact = normalized.split_whitespace().collect::<String>();
     if compact.len() > MAX_EXHAUSTIVE_SPLIT_INPUT_LEN {
         return Vec::new();
@@ -125,7 +130,7 @@ fn exhaustive_split_candidates(normalized: &str, limit: usize) -> Vec<DecodedCan
     let mut candidates = variants
         .iter()
         .flat_map(|(variant_order, syllables)| {
-            decode_syllable_candidates(syllables, limit, *variant_order)
+            decode_syllable_candidates(hmm, syllables, limit, *variant_order)
         })
         .collect::<Vec<_>>();
 
@@ -134,7 +139,7 @@ fn exhaustive_split_candidates(normalized: &str, limit: usize) -> Vec<DecodedCan
         .any(|candidate| candidate.hanzi.contains("觉得"))
     {
         candidates.extend(variants.iter().flat_map(|(variant_order, syllables)| {
-            juede_safety_candidates(syllables, *variant_order)
+            juede_safety_candidates(hmm, syllables, *variant_order)
         }));
     }
 
@@ -142,14 +147,14 @@ fn exhaustive_split_candidates(normalized: &str, limit: usize) -> Vec<DecodedCan
 }
 
 fn decode_syllable_candidates(
+    hmm: &DefaultHmm,
     syllables: &[String],
     limit: usize,
     variant_order: usize,
 ) -> Vec<DecodedCandidate> {
     let syllable_refs = syllables.iter().map(String::as_str).collect::<Vec<_>>();
 
-    let hmm = DefaultHmm::default();
-    viterbi(&hmm, &syllable_refs, limit, false, 3.14e-200)
+    viterbi(hmm, &syllable_refs, limit, false, 3.14e-200)
         .into_iter()
         .map(|candidate| DecodedCandidate {
             hanzi: candidate.path().iter().collect(),
@@ -159,14 +164,18 @@ fn decode_syllable_candidates(
         .collect::<Vec<_>>()
 }
 
-fn juede_safety_candidates(syllables: &[String], variant_order: usize) -> Vec<DecodedCandidate> {
+fn juede_safety_candidates(
+    hmm: &DefaultHmm,
+    syllables: &[String],
+    variant_order: usize,
+) -> Vec<DecodedCandidate> {
     syllables
         .windows(2)
         .enumerate()
         .filter(|(_, window)| window[0] == "jue" && window[1] == "de")
         .filter_map(|(index, _)| {
-            let (prefix_hanzi, prefix_score) = decode_best_hanzi(&syllables[..index])?;
-            let (suffix_hanzi, suffix_score) = decode_best_hanzi(&syllables[index + 2..])?;
+            let (prefix_hanzi, prefix_score) = decode_best_hanzi(hmm, &syllables[..index])?;
+            let (suffix_hanzi, suffix_score) = decode_best_hanzi(hmm, &syllables[index + 2..])?;
             let score = if prefix_hanzi.is_empty() && suffix_hanzi.is_empty() {
                 1.0
             } else {
@@ -182,12 +191,12 @@ fn juede_safety_candidates(syllables: &[String], variant_order: usize) -> Vec<De
         .collect()
 }
 
-fn decode_best_hanzi(syllables: &[String]) -> Option<(String, f64)> {
+fn decode_best_hanzi(hmm: &DefaultHmm, syllables: &[String]) -> Option<(String, f64)> {
     if syllables.is_empty() {
         return Some((String::new(), 1.0));
     }
 
-    decode_syllable_candidates(syllables, 1, 0)
+    decode_syllable_candidates(hmm, syllables, 1, 0)
         .into_iter()
         .next()
         .map(|candidate| (candidate.hanzi, candidate.score))
