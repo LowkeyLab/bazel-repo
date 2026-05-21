@@ -22,11 +22,10 @@ fn convert_pinyin_returns_ranked_phrase_candidates() {
 }
 
 #[test]
-fn convert_pinyin_accepts_juede() {
+fn convert_pinyin_accepts_joined_juede() {
     let result = convert_pinyin("juede", 5).expect("juede conversion succeeds");
 
     assert_eq!(result.source_pinyin, "juede");
-    assert!(!result.candidates.is_empty());
     assert!(
         result
             .candidates
@@ -36,7 +35,33 @@ fn convert_pinyin_accepts_juede() {
 }
 
 #[test]
-fn convert_pinyin_accepts_spaced_jue_de_phrase() {
+fn convert_pinyin_accepts_spaced_jue_de() {
+    let result = convert_pinyin("jue de", 5).expect("jue de conversion succeeds");
+
+    assert_eq!(result.source_pinyin, "jue de");
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.hanzi == "觉得")
+    );
+}
+
+#[test]
+fn convert_pinyin_accepts_sentence_context_wo_juede() {
+    let result = convert_pinyin("wo juede", 5).expect("wo juede conversion succeeds");
+
+    assert_eq!(result.source_pinyin, "wo juede");
+    assert!(
+        result
+            .candidates
+            .iter()
+            .any(|candidate| candidate.hanzi.contains("觉得"))
+    );
+}
+
+#[test]
+fn convert_pinyin_accepts_sentence_context_wo_jue_de() {
     let result = convert_pinyin("wo jue de", 5).expect("wo jue de conversion succeeds");
 
     assert_eq!(result.source_pinyin, "wo jue de");
@@ -49,16 +74,28 @@ fn convert_pinyin_accepts_spaced_jue_de_phrase() {
 }
 
 #[test]
-fn convert_pinyin_accepts_compact_juede_phrase_block() {
-    let result = convert_pinyin("wo juede", 5).expect("wo juede conversion succeeds");
+fn convert_pinyin_does_not_inject_juede_for_unrelated_input() {
+    let result = convert_pinyin("wo qu le", 5).expect("wo qu le conversion succeeds");
 
-    assert_eq!(result.source_pinyin, "wo juede");
+    assert_eq!(result.source_pinyin, "wo qu le");
     assert!(
         result
             .candidates
             .iter()
-            .any(|candidate| candidate.hanzi.contains("觉得"))
+            .all(|candidate| !candidate.hanzi.contains("觉得"))
     );
+}
+
+#[test]
+fn convert_pinyin_deduplicates_juede_candidate() {
+    let result = convert_pinyin("wo jue de", 20).expect("wo jue de conversion succeeds");
+    let juede_count = result
+        .candidates
+        .iter()
+        .filter(|candidate| candidate.hanzi.contains("觉得"))
+        .count();
+
+    assert!(juede_count <= 1);
 }
 
 #[test]
