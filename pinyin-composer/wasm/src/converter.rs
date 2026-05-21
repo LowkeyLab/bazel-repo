@@ -14,6 +14,16 @@ const MAX_CANDIDATE_LIMIT: usize = 20;
 const MAX_EXHAUSTIVE_SPLIT_INPUT_LEN: usize = 32;
 const MAX_EXHAUSTIVE_SPLIT_VARIANTS: usize = 64;
 
+struct MistakableWord {
+    syllables: &'static [&'static str],
+    hanzi: &'static str,
+}
+
+static MISTAKABLE_WORDS: &[MistakableWord] = &[MistakableWord {
+    syllables: &["jue", "de"],
+    hanzi: "觉得",
+}];
+
 pub fn convert_pinyin(source_pinyin: &str, limit: usize) -> Result<ConversionResult, EngineError> {
     let normalized = normalize_pinyin_input(source_pinyin)?;
     if limit == 0 {
@@ -134,12 +144,9 @@ fn exhaustive_split_candidates(
         })
         .collect::<Vec<_>>();
 
-    if !candidates
-        .iter()
-        .any(|candidate| candidate.hanzi.contains("觉得"))
-    {
+    if !candidates_contain_mistakable_word(&candidates) {
         candidates.extend(variants.iter().flat_map(|(variant_order, syllables)| {
-            juede_safety_candidates(hmm, syllables, *variant_order)
+            mistakable_word_candidates(hmm, syllables, *variant_order)
         }));
     }
 
@@ -164,31 +171,52 @@ fn decode_syllable_candidates(
         .collect::<Vec<_>>()
 }
 
-fn juede_safety_candidates(
+fn candidates_contain_mistakable_word(candidates: &[DecodedCandidate]) -> bool {
+    MISTAKABLE_WORDS.iter().any(|entry| {
+        candidates
+            .iter()
+            .any(|candidate| candidate.hanzi.contains(entry.hanzi))
+    })
+}
+
+fn mistakable_word_candidates(
     hmm: &DefaultHmm,
     syllables: &[String],
     variant_order: usize,
 ) -> Vec<DecodedCandidate> {
-    syllables
-        .windows(2)
-        .enumerate()
-        .filter(|(_, window)| window[0] == "jue" && window[1] == "de")
-        .filter_map(|(index, _)| {
-            let (prefix_hanzi, prefix_score) = decode_best_hanzi(hmm, &syllables[..index])?;
-            let (suffix_hanzi, suffix_score) = decode_best_hanzi(hmm, &syllables[index + 2..])?;
-            let score = if prefix_hanzi.is_empty() && suffix_hanzi.is_empty() {
-                1.0
-            } else {
-                prefix_score * suffix_score
-            };
+    MISTAKABLE_WORDS
+        .iter()
+        .flat_map(|entry| {
+            syllables
+                .windows(entry.syllables.len())
+                .enumerate()
+                .filter(|(_, window)| mistakable_syllable_window_matches(window, entry.syllables))
+                .filter_map(|(index, _)| {
+                    let (prefix_hanzi, prefix_score) = decode_best_hanzi(hmm, &syllables[..index])?;
+                    let suffix_start = index + entry.syllables.len();
+                    let (suffix_hanzi, suffix_score) =
+                        decode_best_hanzi(hmm, &syllables[suffix_start..])?;
+                    let score = if prefix_hanzi.is_empty() && suffix_hanzi.is_empty() {
+                        1.0
+                    } else {
+                        prefix_score * suffix_score
+                    };
 
-            Some(DecodedCandidate {
-                hanzi: format!("{prefix_hanzi}觉得{suffix_hanzi}"),
-                score,
-                variant_order,
-            })
+                    Some(DecodedCandidate {
+                        hanzi: format!("{prefix_hanzi}{}{suffix_hanzi}", entry.hanzi),
+                        score,
+                        variant_order,
+                    })
+                })
         })
         .collect()
+}
+
+fn mistakable_syllable_window_matches(window: &[String], entry_syllables: &[&str]) -> bool {
+    window
+        .iter()
+        .map(String::as_str)
+        .eq(entry_syllables.iter().copied())
 }
 
 fn decode_best_hanzi(hmm: &DefaultHmm, syllables: &[String]) -> Option<(String, f64)> {
