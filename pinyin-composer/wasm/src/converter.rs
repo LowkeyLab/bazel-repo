@@ -144,11 +144,17 @@ fn exhaustive_split_candidates(
         })
         .collect::<Vec<_>>();
 
-    if !candidates_contain_mistakable_word(&candidates) {
-        candidates.extend(variants.iter().flat_map(|(variant_order, syllables)| {
-            mistakable_word_candidates(hmm, syllables, *variant_order)
-        }));
-    }
+    let mistakable_candidates = MISTAKABLE_WORDS
+        .iter()
+        .filter(|entry| !candidates_contain_mistakable_word(&candidates, entry))
+        .flat_map(|entry| {
+            variants.iter().flat_map(move |(variant_order, syllables)| {
+                mistakable_word_candidates(hmm, entry, syllables, *variant_order)
+            })
+        })
+        .collect::<Vec<_>>();
+
+    candidates.extend(mistakable_candidates);
 
     candidates
 }
@@ -171,43 +177,45 @@ fn decode_syllable_candidates(
         .collect::<Vec<_>>()
 }
 
-fn candidates_contain_mistakable_word(candidates: &[DecodedCandidate]) -> bool {
-    MISTAKABLE_WORDS.iter().any(|entry| {
-        candidates
-            .iter()
-            .any(|candidate| candidate.hanzi.contains(entry.hanzi))
-    })
+fn candidates_contain_mistakable_word(
+    candidates: &[DecodedCandidate],
+    entry: &MistakableWord,
+) -> bool {
+    candidates
+        .iter()
+        .any(|candidate| candidate.hanzi.contains(entry.hanzi))
 }
 
 fn mistakable_word_candidates(
     hmm: &DefaultHmm,
+    entry: &MistakableWord,
     syllables: &[String],
     variant_order: usize,
 ) -> Vec<DecodedCandidate> {
-    MISTAKABLE_WORDS
-        .iter()
-        .flat_map(|entry| {
-            syllables
-                .windows(entry.syllables.len())
-                .enumerate()
-                .filter(|(_, window)| mistakable_syllable_window_matches(window, entry.syllables))
-                .filter_map(|(index, _)| {
-                    let (prefix_hanzi, prefix_score) = decode_best_hanzi(hmm, &syllables[..index])?;
-                    let suffix_start = index + entry.syllables.len();
-                    let (suffix_hanzi, suffix_score) =
-                        decode_best_hanzi(hmm, &syllables[suffix_start..])?;
-                    let score = if prefix_hanzi.is_empty() && suffix_hanzi.is_empty() {
-                        1.0
-                    } else {
-                        prefix_score * suffix_score
-                    };
+    assert!(
+        !entry.syllables.is_empty(),
+        "mistakable word entry must contain at least one syllable"
+    );
 
-                    Some(DecodedCandidate {
-                        hanzi: format!("{prefix_hanzi}{}{suffix_hanzi}", entry.hanzi),
-                        score,
-                        variant_order,
-                    })
-                })
+    syllables
+        .windows(entry.syllables.len())
+        .enumerate()
+        .filter(|(_, window)| mistakable_syllable_window_matches(window, entry.syllables))
+        .filter_map(|(index, _)| {
+            let (prefix_hanzi, prefix_score) = decode_best_hanzi(hmm, &syllables[..index])?;
+            let suffix_start = index + entry.syllables.len();
+            let (suffix_hanzi, suffix_score) = decode_best_hanzi(hmm, &syllables[suffix_start..])?;
+            let score = if prefix_hanzi.is_empty() && suffix_hanzi.is_empty() {
+                1.0
+            } else {
+                prefix_score * suffix_score
+            };
+
+            Some(DecodedCandidate {
+                hanzi: format!("{prefix_hanzi}{}{suffix_hanzi}", entry.hanzi),
+                score,
+                variant_order,
+            })
         })
         .collect()
 }
@@ -266,4 +274,35 @@ fn compare_candidates(left: &DecodedCandidate, right: &DecodedCandidate) -> Orde
         .unwrap_or(Ordering::Equal)
         .then_with(|| left.variant_order.cmp(&right.variant_order))
         .then_with(|| left.hanzi.cmp(&right.hanzi))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DecodedCandidate, MistakableWord, candidates_contain_mistakable_word};
+
+    #[test]
+    fn candidates_contain_mistakable_word_checks_one_entry() {
+        let present_entry = MistakableWord {
+            syllables: &["jue", "de"],
+            hanzi: "觉得",
+        };
+        let missing_entry = MistakableWord {
+            syllables: &["yi", "wei"],
+            hanzi: "以为",
+        };
+        let candidates = [DecodedCandidate {
+            hanzi: "我觉得".to_string(),
+            score: 1.0,
+            variant_order: 0,
+        }];
+
+        assert!(candidates_contain_mistakable_word(
+            &candidates,
+            &present_entry
+        ));
+        assert!(!candidates_contain_mistakable_word(
+            &candidates,
+            &missing_entry
+        ));
+    }
 }

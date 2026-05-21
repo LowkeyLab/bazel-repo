@@ -74,7 +74,7 @@ fn convert_pinyin_accepts_sentence_context_wo_jue_de() {
 }
 
 #[test]
-fn convert_pinyin_rejects_unrelated_input_without_juede() {
+fn convert_pinyin_does_not_inject_juede_for_unrelated_input() {
     let result = convert_pinyin("wo qu le", 5).expect("wo qu le conversion succeeds");
 
     assert_eq!(result.source_pinyin, "wo qu le");
