@@ -2,7 +2,6 @@
 
 load("@aspect_rules_lint//lint:buf.bzl", "lint_buf_aspect")
 load("@aspect_rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
-load("@aspect_rules_lint//lint:clippy.bzl", "lint_clippy_aspect")
 load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
 load("@aspect_rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
 load("@aspect_rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
@@ -11,6 +10,7 @@ load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
 load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
 load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
 load("@aspect_rules_lint//lint:stylelint.bzl", "lint_stylelint_aspect")
+load("@aspect_rules_lint_rules_rust//:clippy.bzl", "lint_clippy_aspect")
 
 # Protocol Buffers
 buf = lint_buf_aspect(

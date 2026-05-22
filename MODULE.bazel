@@ -9,7 +9,7 @@ module(
 # Currently bazel-lib is only load()ed when platforms is used.
 bazel_dep(name = "bazel_lib", version = "3.3.1")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
-bazel_dep(name = "aspect_rules_lint", version = "2.5.2")
+bazel_dep(name = "aspect_rules_lint", version = "2.6.0")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.26.0")
 bazel_dep(name = "aspect_rules_js", version = "3.1.2")
 bazel_dep(name = "aspect_rules_swc", version = "2.7.2")
@@ -33,6 +33,7 @@ bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rs", version = "0.0.62")
+bazel_dep(name = "rules_rust", version = "0.70.0")
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
 bazel_dep(name = "llvm", version = "0.8.3")
 
@@ -98,6 +99,19 @@ rules_angular_ext.setup(
 use_repo(rules_angular_ext, "rules_angular_configurable_deps")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+
+# rules_lint 2.6.0 moved Rust lint support to a nested module, but the release
+# archive excludes nested modules and the nested module is not published to BCR.
+# Clone the release tag and copy the nested module files to this repo root so
+# its absolute labels resolve as intended.
+git_repository(
+    name = "aspect_rules_lint_rules_rust",
+    commit = "3f0c79fa75cc37e7dafbdb7e6005ad62b0b0775b",
+    patch_cmds = ["cp -R lint/rules_rust/. ."],
+    remote = "https://github.com/aspect-build/rules_lint.git",
+)
 
 http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
 
