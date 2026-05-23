@@ -108,7 +108,7 @@ git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "g
 # its absolute labels resolve as intended.
 git_repository(
     name = "aspect_rules_lint_rules_rust",
-    commit = "3fcbf1eace311577533ac6b42b5f77a11e191801",
+    commit = "02719424d538fefaf5152e412a51e835c5161d1a",
     patch_cmds = ["cp -R lint/rules_rust/. ."],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
