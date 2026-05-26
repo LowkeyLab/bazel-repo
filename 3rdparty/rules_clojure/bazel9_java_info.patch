@@ -1,0 +1,129 @@
+diff --git a/BUILD b/BUILD
+index 4f51504..3bfeece 100644
+--- a/BUILD
++++ b/BUILD
+@@ -1,4 +1,5 @@
+ load(":rules.bzl", "clojure_repl")
++load("@rules_java//java:defs.bzl", "java_binary")
+ 
+ package(default_visibility = ["//visibility:public"])
+ 
+diff --git a/rules.bzl b/rules.bzl
+index 79ce0b6..097f7c8 100644
+--- a/rules.bzl
++++ b/rules.bzl
+@@ -1,3 +1,4 @@
++load("@rules_java//java:defs.bzl", "JavaInfo", "java_binary", "java_test")
+ load("//rules:jar.bzl", _clojure_jar_impl = "clojure_jar_impl")
+ load("//rules:repl.bzl", _clojure_repl_impl = "clojure_repl_impl")
+ 
+@@ -27,9 +28,9 @@ def clojure_binary(name, **kwargs):
+     deps = kwargs.pop("deps", [])
+     runtime_deps = kwargs.pop("runtime_deps", [])
+ 
+-    native.java_binary(name=name,
+-                       runtime_deps = deps + runtime_deps,
+-                       **kwargs)
++    java_binary(name=name,
++                runtime_deps = deps + runtime_deps,
++                **kwargs)
+ 
+ clojure_repl = rule(
+     doc = "Define a clojure repl",
+@@ -49,12 +50,12 @@ def clojure_test(name, *, test_ns, deps=[], runtime_deps=[], **kwargs):
+     # ideally the library name and the bin name would be the same. They can't be.
+     # clojure src files would like to depend on `foo_test`, so mangle the test binary, not the src jar name
+ 
+-    native.java_test(name=name,
+-                     runtime_deps = deps + runtime_deps + ["@rules_clojure//src/rules_clojure:testrunner"],
+-                     use_testrunner = False,
+-                     main_class="rules_clojure.testrunner",
+-                     args = [test_ns],
+-                     **kwargs)
++    java_test(name=name,
++              runtime_deps = deps + runtime_deps + ["@rules_clojure//src/rules_clojure:testrunner"],
++              use_testrunner = False,
++              main_class="rules_clojure.testrunner",
++              args = [test_ns],
++              **kwargs)
+ 
+ def cljs_impl(ctx):
+ 
+diff --git a/rules/jar.bzl b/rules/jar.bzl
+index e3472d4..fb53796 100644
+--- a/rules/jar.bzl
++++ b/rules/jar.bzl
+@@ -1,3 +1,5 @@
++load("@rules_java//java:defs.bzl", "JavaInfo", "java_common")
++
+ def contains(lst, item):
+     for x in lst:
+         if x == item:
+diff --git a/rules/namespace.bzl b/rules/namespace.bzl
+index 7d43a08..73f7c94 100644
+--- a/rules/namespace.bzl
++++ b/rules/namespace.bzl
+@@ -1,3 +1,4 @@
++load("@rules_java//java:defs.bzl", "JavaInfo")
+ load("//rules:common.bzl", "CljInfo")
+ 
+ def clojure_ns_impl(ctx):
+diff --git a/rules/repl.bzl b/rules/repl.bzl
+index 3014117..b5246fd 100644
+--- a/rules/repl.bzl
++++ b/rules/repl.bzl
+@@ -1,3 +1,5 @@
++load("@rules_java//java:defs.bzl", "JavaInfo")
++
+ ### rule to start a clojure repl. We don't use `java_binary` because
+ ### we want to support adding directories to the classpath (and in the
+ ### future, possibly running from the source tree rather than `bazel-bin`), both in support of
+diff --git a/rules/tools_deps.bzl b/rules/tools_deps.bzl
+index f5dbede..8a2889b 100644
+--- a/rules/tools_deps.bzl
++++ b/rules/tools_deps.bzl
+@@ -1,4 +1,5 @@
+ load("//:rules.bzl", "clojure_library", "clojure_binary")
++load("@rules_java//java:defs.bzl", "java_binary")
+ 
+ CLJ_VERSIONS_MAC = {
+     "1.10.3.1087": ("https://download.clojure.org/install/clojure-tools-1.10.3.1087.tar.gz", "a6b3b3547adc6da6ca5cfe10e037f1fde88a78f948372bb598ef4d0859da3e94"),
+@@ -68,6 +69,7 @@ def _install_scripts(ctx):
+     ctx.file(ctx.path("scripts/BUILD.bazel"),
+                         executable = True,
+                         content = """
++load("@rules_java//java:defs.bzl", "java_binary")
+ package(default_visibility = ["//visibility:public"])
+ 
+ java_binary(name="gen_srcs",
+@@ -141,7 +143,7 @@ def clojure_gen_srcs(name):
+                  actual= "@deps//scripts:gen_srcs")
+ 
+ def clojure_gen_namespace_loader(name, output_filename, output_ns_name, output_fn_name, in_dirs, exclude_nses, platform, deps_edn):
+-    native.java_binary(name=name,
++    java_binary(name=name,
+                        runtime_deps=["@rules_clojure//src/rules_clojure:libgen_build"],
+                        data=[deps_edn],
+                        main_class="rules_clojure.gen_build",
+diff --git a/src/rules_clojure/BUILD b/src/rules_clojure/BUILD
+index 1019403..3759e37 100644
+--- a/src/rules_clojure/BUILD
++++ b/src/rules_clojure/BUILD
+@@ -1,4 +1,5 @@
+ load("//:rules.bzl", "clojure_library", "clojure_binary")
++load("@rules_java//java:defs.bzl", "java_binary", "java_import", "java_library")
+ 
+ package(default_visibility = ["//visibility:public"])
+ exports_files(glob(["**/*.clj"]))
+diff --git a/src/rules_clojure/gen_build.clj b/src/rules_clojure/gen_build.clj
+index f320b42..61462f5 100644
+--- a/src/rules_clojure/gen_build.clj
++++ b/src/rules_clojure/gen_build.clj
+@@ -946,6 +946,7 @@
+         (str (build-file-header "`rules_clojure`")
+              (str/join "\n\n" (concat
+                           [(emit-bazel (list 'load "@rules_clojure//:rules.bzl" "clojure_library"))
++                           (emit-bazel (list 'load "@rules_java//java:defs.bzl" "java_import" "java_library"))
+                            (emit-bazel (list 'package (kwargs {:default_visibility ["//visibility:public"]})))]
+                           (->> jar->lib
+                                (sort-by (fn [[k v]] (library->label v)))
