@@ -3,6 +3,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_clojure//rules:tools_deps.bzl", "clojure_gen_srcs")
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 npm_link_all_packages(name = "node_modules")
@@ -10,6 +11,15 @@ npm_link_all_packages(name = "node_modules")
 alias(
     name = "format",
     actual = "//tools/format",
+)
+
+clojure_gen_srcs(name = "clojure_gen_build_files")
+
+exports_files(
+    [
+        "deps.edn",
+    ],
+    visibility = ["//visibility:public"],
 )
 
 exports_files(

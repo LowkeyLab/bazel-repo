@@ -1,0 +1,13 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+java_binary(
+    name = "hello",
+    args = [
+        "-m",
+        "lowkeylab.clojure-sample.core",
+    ],
+    main_class = "clojure.main",
+    runtime_deps = ["//clojure_sample/src/lowkeylab/clojure_sample:core"],
+)

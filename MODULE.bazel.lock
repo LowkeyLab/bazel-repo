@@ -315,6 +315,7 @@
     "https://bcr.bazel.build/modules/rules_jvm_external/6.3/MODULE.bazel": "c998e060b85f71e00de5ec552019347c8bca255062c990ac02d051bb80a38df0",
     "https://bcr.bazel.build/modules/rules_jvm_external/6.6/MODULE.bazel": "153042249c7060536dc95b6bb9f9bb8063b8a0b0cb7acdb381bddbc2374aed55",
     "https://bcr.bazel.build/modules/rules_jvm_external/6.7/MODULE.bazel": "e717beabc4d091ecb2c803c2d341b88590e9116b8bf7947915eeb33aab4f96dd",
+    "https://bcr.bazel.build/modules/rules_jvm_external/6.8/MODULE.bazel": "b5afe861e867e4c8e5b88e401cb7955bd35924258f97b1862cc966cbcf4f1a62",
     "https://bcr.bazel.build/modules/rules_jvm_external/6.9/MODULE.bazel": "07c5db05527db7744a54fcffd653e1550d40e0540207a7f7e6d0a4de5bef8274",
     "https://bcr.bazel.build/modules/rules_jvm_external/7.0/MODULE.bazel": "421482bdbcf05709f933c96b867a599deb517f2804ceb3e74511880610cfbf71",
     "https://bcr.bazel.build/modules/rules_jvm_external/7.0/source.json": "714cd003eadf5be5c83268311fe8e951db39f802babeaddc536b3560dc8f6faf",

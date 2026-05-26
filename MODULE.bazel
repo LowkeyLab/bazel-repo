@@ -59,6 +59,15 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_buf", version = "0.5.4")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_jvm_external", version = "7.0")
+bazel_dep(name = "rules_clojure", version = "0.5")
+git_override(
+    module_name = "rules_clojure",
+    commit = "60654383832388fdc602c58e8492303c9cf712b3",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/rules_clojure:bazel9_java_info.patch"],
+    remote = "https://github.com/griffinbank/rules_clojure.git",
+)
+
 bazel_dep(name = "rules_mypy", version = "0.41.0")
 bazel_dep(name = "rules_go", version = "0.60.0")
 bazel_dep(name = "tar.bzl", version = "0.10.5")
@@ -320,6 +329,17 @@ maven.artifact(
     version = "33.6.0-jre",
 )
 use_repo(maven, "maven")
+
+clojure_deps = use_extension("@rules_clojure//:extensions.bzl", "deps")
+clojure_deps.install(
+    aliases = [
+        "dev",
+        "test",
+    ],
+    deps_edn = "//:deps.edn",
+    repo_name = "deps",
+)
+use_repo(clojure_deps, "deps")
 
 register_toolchains("//:kotlin_toolchain")
 
