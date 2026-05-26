@@ -76,7 +76,7 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 # We have to take a dependency on rules_python in order to set bootstrap=script
 # for transitive dependencies, even if there are no Python rules used in this repo.
 # See .bazelrc
-bazel_dep(name = "rules_python", version = "2.0.1")
+bazel_dep(name = "rules_python", version = "2.0.2")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "gazelle", version = "0.51.0")
 
@@ -117,7 +117,7 @@ git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "g
 # its absolute labels resolve as intended.
 git_repository(
     name = "aspect_rules_lint_rules_rust",
-    commit = "3f0c79fa75cc37e7dafbdb7e6005ad62b0b0775b",
+    commit = "f25def9f25c6fa1feae247e126433b96c15a41b0",
     patch_cmds = ["cp -R lint/rules_rust/. ."],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )

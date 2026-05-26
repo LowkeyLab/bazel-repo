@@ -33,9 +33,10 @@ sea-orm-migration = { version = "1.1.0", default-features = false, features = [
 serde = "1.0.228"
 serde-wasm-bindgen = "0.6"
 serde_json = "1.0.145"
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
   "postgres",
-  "runtime-tokio-rustls",
+  "runtime-tokio",
+  "tls-rustls-ring-webpki",
   "uuid",
   "chrono",
   "macros",
@@ -62,7 +63,7 @@ tracing-subscriber = "0.3.20"
 utoipa = { version = "5.4.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "debug-embed"] }
 uuid = { version = "1.18.1", features = ["v4"] }
-wasm-bindgen = "0.2"
+wasm-bindgen = "=0.2.105"
 
 [dev-dependencies]
 insta = { version = "1.43.2", features = ["yaml"] }
