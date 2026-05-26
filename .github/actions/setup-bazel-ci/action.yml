@@ -1,0 +1,40 @@
+name: Setup Bazel CI
+description: Shared setup for Bazel CI jobs
+inputs:
+  buildbuddy-api-key:
+    description: BuildBuddy API key used for remote Bazel access
+    required: true
+  docker-hub-username:
+    description: Docker Hub username used for authenticated pulls
+    required: true
+  docker-hub-token:
+    description: Docker Hub token used for authenticated pulls
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+      with:
+        extra-conf: |
+          experimental-features = nix-command flakes
+    - name: Configure Magic Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
+    - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
+      with:
+        # Avoid downloading Bazel every time.
+        bazelisk-cache: true
+        bazelrc: |
+          common --config=ci
+          common --remote_download_outputs=all
+          common --nobuild_event_binary_file_path_conversion
+          common:lint --config=ci-lint
+          common:lint --build_tag_filters=-no-lint
+          common --remote_header=x-buildbuddy-api-key=${{ inputs.buildbuddy-api-key }}
+          test --test_env=XDG_CACHE_HOME
+    - name: Log in to Docker Hub
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
+      with:
+        username: ${{ inputs.docker-hub-username }}
+        password: ${{ inputs.docker-hub-token }}
+    - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416
