@@ -14,7 +14,7 @@ that show very, very useful information about your build. Information like cache
 hits, misses, execution times, etc. is available for inspection. These details
 help you debug builds, cache misses, and more.
 
-A build scan is a mandatory tool in the build engineer toolkit.
+A build scan is a mandatory tool in a build engineer’s toolkit.
 
 The problem: To create a Gradle build scan, you must either use the
 [public scan endpoint](https://gradle.com/scans/gradle/), or you must get a
