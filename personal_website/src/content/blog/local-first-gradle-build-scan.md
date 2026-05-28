@@ -1,12 +1,12 @@
 ---
-title: "Self-Hosted Gradle Build Scans with LowkeyLab"
-description: "A technical tour of gradle-build-scan-server: a self-hosted way to collect, inspect, and learn from Gradle build scans."
+title: "Local-First Gradle Build Scan"
+description: "A technical tour of gradle-build-scan-server: a local-first way to collect, inspect, and learn from Gradle build scans."
 publishDate: 2026-05-27
 tags: ["gradle", "build-tools", "rust", "angular", "observability"]
 draft: false
 ---
 
-# Self-Hosted Gradle Build Scans
+# Local-First Gradle Build Scan
 
 Gradle offers
 [remote build scans](https://docs.gradle.org/current/userguide/inspect.html)
@@ -25,7 +25,7 @@ needing to stream my build over the internet to the public endpoint.
 Privacy-oriented developers would also have the same need.
 
 So, I decided to write a
-[self-hosted Gradle Build Scan server](https://github.com/LowkeyLab/gradle-build-scan-server)
+[local-first Gradle Build Scan server](https://github.com/LowkeyLab/gradle-build-scan-server)
 that tries its best to capture important information about your Gradle build.
 
 ## What It Is
