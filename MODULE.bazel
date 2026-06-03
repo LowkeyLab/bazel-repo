@@ -266,13 +266,13 @@ maven.artifact(
     testonly = True,
     artifact = "kotlin-test-junit",
     group = "org.jetbrains.kotlin",
-    version = "2.3.21",
+    version = "2.4.0",
 )
 maven.artifact(
     testonly = True,
     artifact = "kotlin-test-junit5",
     group = "org.jetbrains.kotlin",
-    version = "2.3.21",
+    version = "2.4.0",
 )
 maven.artifact(
     testonly = True,
