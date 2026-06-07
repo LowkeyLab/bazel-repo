@@ -122,7 +122,7 @@ Polyglot monorepo with independent backend services and Angular frontends, all b
 | -------------------- | ------------------- | ----------------------------------------------- | ---------------------------- |
 | **nicknamer**        | `nicknamer/`        | Rust, Axum, SeaORM, PostgreSQL                  | REST API with Swagger/utoipa |
 | **nicknamer2**       | `nicknamer2/`       | Rust, Axum, Juniper (GraphQL), sqlx, PostgreSQL | Relay-style pagination       |
-| **mindreadr**        | `mindreadr/`        | Kotlin, Ktor 3, Exposed, JVM 21                 |                              |
+| **mindreadr**        | `mindreadr/`        | Kotlin, Ktor 3, Exposed, JVM 25                 |                              |
 | **predix**           | `predix/`           | Go, Gin, pgx, sqlc                              |                              |
 | **cowsay**           | `cowsay/`           | Go                                              | Demo service                 |
 | **personal_website** | `personal_website/` | Astro 5, Caddy                                  | Static site                  |

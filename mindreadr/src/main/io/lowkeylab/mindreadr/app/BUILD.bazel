@@ -43,7 +43,7 @@ pkg_tar(
 
 oci_image(
     name = "app_image",
-    base = "@distroless_java21",
+    base = "@distroless_java25",
     entrypoint = [
         "java",
         "-jar",

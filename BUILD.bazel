@@ -101,7 +101,7 @@ gazelle_binary(
 ### Kotlin toolchain configuration
 define_kt_toolchain(
     name = "kotlin_toolchain",
-    jvm_target = "21",
+    jvm_target = "25",
 )
 
 ### Rust project generation

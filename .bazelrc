@@ -1,6 +1,6 @@
 # Import bazelrc presets
 import %workspace%/tools/preset.bazelrc
-try-import %workspace%/tools/java21.bazelrc
+try-import %workspace%/tools/java25.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
