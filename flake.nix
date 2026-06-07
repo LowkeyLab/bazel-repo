@@ -83,7 +83,7 @@
               pkgs.prettier
               pkgs.go
               pkgs.pnpm
-              pkgs.jdk21_headless
+              pkgs.jdk25_headless
               pkgs.gcc
               pkgs.pre-commit
               agent-browser
@@ -97,7 +97,7 @@
             # Linux: set NIX_LD so bazelisk can run downloaded Bazel binaries
             # On NixOS, this additionally requires `programs.nix-ld.enable = true`
             env = {
-              JAVA_HOME = "${pkgs.jdk21_headless}";
+              JAVA_HOME = "${pkgs.jdk25_headless}";
             } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
               NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
               NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
