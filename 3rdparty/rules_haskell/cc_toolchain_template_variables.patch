@@ -1,0 +1,306 @@
+diff --git a/haskell/cc.bzl b/haskell/cc.bzl
+--- a/haskell/cc.bzl
++++ b/haskell/cc.bzl
+@@ -82,6 +82,7 @@
+     # Asterius does not behave as other ghc cross compilers yet and
+     # relies on a cc toolchain targeting the exec platform .
+     cc_toolchain = override_cc_toolchain or find_cc_toolchain(real_ctx)
++    cc_toolchain_template_variables = _cc_toolchain_template_variables(real_ctx)
+ 
+     feature_configuration = cc_common.configure_features(
+         ctx = real_ctx,
+@@ -123,12 +124,24 @@
+     cc_manifests = cc_wrapper.manifests
+ 
+     tools = {
+-        "ar": cc_toolchain.ar_executable,
++        "ar": _cc_tool_path_from_template_variables(
++            cc_toolchain_template_variables,
++            "AR",
++            cc_toolchain.ar_executable,
++        ),
+         "cc": cc,
+-        "ld": cc_toolchain.ld_executable,
++        "ld": _cc_tool_path_from_template_variables(
++            cc_toolchain_template_variables,
++            "LD",
++            cc_toolchain.ld_executable,
++        ),
+         "cpp": cc_toolchain.preprocessor_executable,
+         "nm": cc_toolchain.nm_executable,
+-        "strip": cc_toolchain.strip_executable,
++        "strip": _cc_tool_path_from_template_variables(
++            cc_toolchain_template_variables,
++            "STRIP",
++            cc_toolchain.strip_executable,
++        ),
+     }
+ 
+     # If running on darwin but XCode is not installed (i.e., only the Command
+@@ -180,6 +193,16 @@
+         setup_libraries = setup_libraries,
+     )
+ 
++def _cc_toolchain_template_variables(ctx):
++    if hasattr(ctx.attr, "_cc_toolchain") and platform_common.TemplateVariableInfo in ctx.attr._cc_toolchain:
++        return ctx.attr._cc_toolchain[platform_common.TemplateVariableInfo].variables
++    return {}
++
++def _cc_tool_path_from_template_variables(template_variables, variable_name, legacy_path):
++    if legacy_path:
++        return legacy_path
++    return template_variables.get(variable_name, legacy_path)
++
+ def ghc_cc_program_args(hs, cc, ld):
+     """Returns the -pgm* flags required to override cc.
+ 
+diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -293,6 +293,14 @@
+         if not (hs.toolchain.is_darwin or hs.toolchain.is_windows):
+             if ghc_version < [8, 10]:
+                 extra_args.append("--ghc-option=-optl-no-pie")
++    extra_args.extend([
++        "--ghc-option=-optc" + compiler_flag
++        for compiler_flag in cc.compiler_flags
++    ])
++    extra_args.extend([
++        "--ghc-option=-optl" + linker_flag
++        for linker_flag in cc.linker_flags
++    ])
+     extra_args.extend(hs.toolchain.cabalopts + cabalopts)
+     if dynamic_file:
+         extra_args.extend(_uniquify(
+diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
+--- a/haskell/private/actions/link.bzl
++++ b/haskell/private/actions/link.bzl
+@@ -131,6 +131,7 @@
+ 
+     args = hs.actions.args()
+     args.add_all(cc.linker_flags, format_each = "-optl%s")
++    args.add_all(cc.compiler_flags, format_each = "-optc%s")
+     if with_profiling:
+         args.add("-prof")
+ 
+@@ -385,5 +386,6 @@
+ 
+     args = hs.actions.args()
+     args.add_all(cc.linker_flags, format_each = "-optl%s")
++    args.add_all(cc.compiler_flags, format_each = "-optc%s")
+     args.add_all(["-shared", "-dynamic"])
+ 
+diff --git a/haskell/private/runghc.bzl b/haskell/private/runghc.bzl
+--- a/haskell/private/runghc.bzl
++++ b/haskell/private/runghc.bzl
+@@ -32,8 +32,8 @@ subprocess.run([r.Rlocation("{runghc}")] + sys.argv[1:], check=True)
+ 
+     return [DefaultInfo(
+         executable = runghc_wrapper_file,
+         runfiles = hs_toolchain.cc_wrapper.runfiles.merge(
+-            ctx.runfiles(files = [runghc_wrapper_file, hs_toolchain.tools.runghc]),
++            ctx.runfiles(files = [runghc_wrapper_file, hs_toolchain.tools.runghc] + hs_toolchain.bindir + hs_toolchain.libdir),
+         ),
+     )]
+ 
+diff --git a/haskell/private/actions/runghc.bzl b/haskell/private/actions/runghc.bzl
+--- a/haskell/private/actions/runghc.bzl
++++ b/haskell/private/actions/runghc.bzl
+@@ -104,6 +104,8 @@ def build_runghc(hs, cc, posix, hs_info, output, package_databases, pkg_info_inp
+         depset(get_ghci_library_files(hs, cc.cc_libraries_info, cc.transitive_libraries + cc.plugin_libraries)),
+         hs_info.source_files,
+         hs.toolchain.cc_wrapper.runfiles.files,
++        depset(hs.toolchain.bindir),
++        depset(hs.toolchain.libdir),
+     ])
+     ln(hs, posix, runghc_file, output, extra_inputs)
+
+diff --git a/haskell/toolchain.bzl b/haskell/toolchain.bzl
+--- a/haskell/toolchain.bzl
++++ b/haskell/toolchain.bzl
+@@ -408,7 +408,7 @@ def _haskell_toolchain_impl(ctx):
+     ctx.actions.run_shell(
+         inputs = [ghc_pkg],
+         outputs = [pkgdb_file],
+-        tools = ctx.files.tools if ctx.attr.asterius_binaries else [],
++        tools = ctx.files.tools + ctx.files.libdir,
+         mnemonic = "HaskellPackageDatabaseDump",
+         command = "{ghc_pkg} dump --global > {output}".format(
+             ghc_pkg = ghc_pkg.path,
+@@ -444,7 +444,7 @@ def _haskell_toolchain_impl(ctx):
+             path_for_run_ghc = default_tools_config.path_for_run_ghc + ctx.attr._exec_posix_toolchain[platform_common.ToolchainInfo].paths,
+             tools_for_ghc = default_tools_config.tools_for_ghc,
+             path_for_cabal = default_tools_config.path_for_cabal,
+-            tools_for_ghc_pkg = default_tools_config.tools_for_ghc_pkg,
++            tools_for_ghc_pkg = ctx.files.tools + ctx.files.libdir,
+             maybe_exec_cc_toolchain = default_tools_config.maybe_exec_cc_toolchain,
+             supports_haddock = default_tools_config.supports_haddock,
+         )
+diff --git a/haskell/ghc.BUILD.tpl b/haskell/ghc.BUILD.tpl
+--- a/haskell/ghc.BUILD.tpl
++++ b/haskell/ghc.BUILD.tpl
+@@ -18,7 +18,10 @@ package(default_visibility = ["//visibility:public"])
+ 
+ filegroup(
+     name = "bin",
+-    srcs = glob(["bin/*"]),
++    srcs = glob([
++        "bin/*",
++        "lib/bin/*",
++    ]),
+ )
+ 
+ filegroup(
+diff --git a/haskell/ghc_bindist.bzl b/haskell/ghc_bindist.bzl
+--- a/haskell/ghc_bindist.bzl
++++ b/haskell/ghc_bindist.bzl
+@@ -265,7 +265,12 @@ grep --files-with-matches --null {bindist_dir} | xargs -0 -n1 \
+         -e 's:{bindist_dir}:$DISTDIR:'
+ find bin -type f -print0 | xargs -0 \
+ grep --files-with-matches --null {bindist_dir} | xargs -0 -n1 \
+ rm -f
++find bin -type f -print0 | xargs -0 \
++grep --files-with-matches --null '^#!.*bash' | xargs -0 -n1 \
++    sed -i.bak \
++        -e '1s@^#!.*bash$@#!/usr/bin/env bash@'
++find bin -type f -name '*.bak' -delete
+ """.format(
+                 bindist_dir = bindist_dir.realpath,
+             ))
+@@ -302,6 +307,6 @@ def _ghc_bindist_impl(ctx):
+         docdir = [":{}".format(docdir)],
+         version = repr(ctx.attr.version),
+-        static_runtime = os == "windows",
++        static_runtime = os == "windows" or ctx.attr.variant.get(target, "").startswith("static"),
+         fully_static_link = False,  # XXX not yet supported for bindists.
+         ghcopts = ctx.attr.ghcopts,
+         haddock_flags = ctx.attr.haddock_flags,
+diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
+--- a/haskell/private/cc_wrapper.py.tpl
++++ b/haskell/private/cc_wrapper.py.tpl
+@@ -100,6 +100,35 @@ def main():
+         run_cc(parsed.args, exit_on_error=True)
+ 
+ 
++_EXECROOT_RELATIVE_PATH_PREFIXES = ("bazel-out/", "external/")
++
++
++def execroot_relative_path(path):
++    """Resolve Bazel execroot-relative toolchain paths after Cabal chdir."""
++    if not path or os.path.isabs(path):
++        return path
++
++    if not path.startswith(_EXECROOT_RELATIVE_PATH_PREFIXES):
++        return path
++
++    execroot = os.environ.get("RULES_HASKELL_EXEC_ROOT")
++    if not execroot:
++        return path
++
++    candidate = os.path.join(execroot, path)
++    if os.path.exists(candidate):
++        return candidate
++
++    return path
++
++
++def execroot_relative_rpath(rpath):
++    if rpath.startswith(("$ORIGIN", "@loader_path", "@executable_path")):
++        return rpath
++
++    return execroot_relative_path(rpath)
++
++
+ # --------------------------------------------------------------------
+ # Parse arguments
+ 
+@@ -210,6 +239,8 @@ class Args:
+                 pass
+             elif self._handle_library_path(arg, args, out):
+                 pass
++            elif self._handle_search_path_arg(arg, args, out):
++                pass
+             elif self._handle_linker_arg(arg, args, out):
+                 pass
+             elif self._handle_install_name(arg, args, out):
+@@ -223,7 +254,7 @@ class Args:
+             elif self._handle_language(arg, args, out):
+                 pass
+             else:
+-                yield arg
++                yield execroot_relative_path(arg)
+ 
+             for out_arg in out:
+                 yield out_arg
+@@ -255,6 +286,7 @@ class Args:
+ 
+             if consumed:
+                 # Skip non-existent include paths.
++                include_path = execroot_relative_path(include_path)
+                 if os.path.exists(include_path):
+                     # Shorten the include paths.
+                     shortened = shorten_path(include_path)
+@@ -281,16 +313,38 @@ class Args:
+             # Skip non-existent library search paths. These can occur in static
+             # linking mode where dynamic libraries are not present in the
+             # sandbox, or with Cabal packages with bogus library-path entries.
++            library_path = execroot_relative_path(library_path)
+             if os.path.exists(library_path):
+                 # Shorten the library search paths. On Windows library search
+                 # paths may exceed the maximum path length.
+                 shortened = shorten_path(library_path)
+                 # Remember the library search paths.
+                 self.library_paths.append(shortened)
+                 out.append("-L{}".format(shortened))
+ 
+         return consumed
+ 
++    def _handle_search_path_arg(self, arg, args, out):
++        for flag in ["-B"]:
++            consumed, path = argument(arg, args, short = flag)
++            if consumed:
++                out.append("{}{}".format(flag, execroot_relative_path(path)))
++                return True
++
++        for flag in [
++                "-resource-dir",
++                "--resource-dir",
++                "-gcc-toolchain",
++                "--gcc-toolchain",
++                "-ccc-install-dir",
++                "--sysroot"]:
++            consumed, path = argument(arg, args, long = flag)
++            if consumed:
++                out.extend([flag, execroot_relative_path(path)])
++                return True
++
++        return False
++
+     def _handle_linker_arg(self, arg, args, out):
+         # gcc allows to forward flags to the linker using either
+         #   -Xlinker <flag>
+@@ -362,7 +416,7 @@ class Args:
+     def _handle_rpath(self, rpath, out):
+         # Filter out all RPATH flags for now and manually add the needed ones
+         # later on.
+-        self.rpaths.append(rpath)
++        self.rpaths.append(execroot_relative_rpath(rpath))
+ 
+     def _handle_print_file_name(self, arg, args, out):
+         consumed, print_file_name = argument(arg, args, long = "--print-file-name")
+@@ -1017,6 +1071,15 @@ def find_cc():
+     if os.path.isfile(CC):
+         cc = CC
+     else:
++        # C/C++ toolchains can expose execroot-relative compiler paths (for
++        # example external/llvm++.../bin/clang) through TemplateVariableInfo.
++        # cabal_wrapper.py records the original action execroot before changing
++        # directories, so prefer that execroot-relative path before falling back
++        # to runfiles lookup for wrapper scripts.
++        execroot_cc = os.path.join(os.environ.get("RULES_HASKELL_EXEC_ROOT", ""), CC)
++        if os.path.isfile(execroot_cc):
++            return execroot_cc
++
+         # On macOS CC is a relative path to a wrapper script. If we're
+         # being called from a GHCi REPL then we need to find this wrapper
+         # script using Bazel runfiles.

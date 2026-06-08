@@ -51,6 +51,14 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
 common --@rules_python//python/config_settings:bootstrap_impl=script
 
+# rules_haskell still references migrated native providers/rules in upstream
+# Starlark. Autoload those symbols for Bazel 9 compatibility.
+common --incompatible_autoload_externally=+py_runtime,+ProtoInfo,+CcInfo,+CcSharedLibraryInfo,+JavaInfo,+cc_common,+CcToolchainConfigInfo,+cc_library
+
+# rules_haskell 1.0 still calls ctx.resolve_tools from its toolchain rule;
+# Bazel 9 rejects that API unless this temporary compatibility flag is disabled.
+common --noincompatible_disallow_ctx_resolve_tools
+
 # rules_rs native Linux targets need the Rust triple's libc ABI constraint for
 # toolchain resolution. Use the LLVM-flavored platform for host, exec, and target
 # actions so all C/C++/Rust links resolve through the hermetic LLVM toolchain.

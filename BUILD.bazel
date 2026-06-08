@@ -95,6 +95,7 @@ gazelle_binary(
         "@contrib_rules_jvm//java/gazelle",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle_rust//rust_language",
+        "@io_tweag_gazelle_haskell_modules//gazelle_haskell_modules",
     ],
 )
 

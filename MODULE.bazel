@@ -32,6 +32,18 @@ bazel_dep(name = "rules_multitool", version = "1.11.1")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
+
+# rules_haskell 1.0 still uses the rules_js 1.x npm extension API for its
+# internal Asterius setup. Keep that transitive version alongside this repo's
+# direct rules_js 3.x toolchain instead of downgrading the root module.
+multiple_version_override(
+    module_name = "aspect_rules_js",
+    versions = [
+        "1.34.0",
+        "3.2.1",
+    ],
+)
+
 bazel_dep(name = "rules_rs", version = "0.0.62")
 bazel_dep(name = "rules_rust", version = "0.70.0")
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
@@ -79,6 +91,24 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 bazel_dep(name = "rules_python", version = "2.0.2")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "gazelle", version = "0.51.3")
+bazel_dep(name = "rules_haskell", version = "1.0")
+
+# rules_haskell 1.0's BCR release loads a Bazel API removed in Bazel 9 during
+# bindist toolchain extension evaluation. Pin a post-1.0 upstream commit with
+# the Bazel 9-compatible helper while keeping the module declaration explicit.
+git_override(
+    module_name = "rules_haskell",
+    commit = "b459268dee8e73244babdaa84c4feb7796e923df",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/rules_haskell:cc_toolchain_template_variables.patch"],
+    remote = "https://github.com/tweag/rules_haskell.git",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.19")
+
+# rules_haskell 1.0's transitive rules_sh 0.4.0 loads the same removed Bazel
+# API; select the latest published rules_sh with the upstream fix.
+bazel_dep(name = "rules_sh", version = "0.5.0")
 
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
@@ -88,6 +118,47 @@ git_override(
     patch_args = ["-p1"],
     patches = ["//3rdparty/gazelle_rust:rules_rs_loads.patch"],
     remote = "https://github.com/Calsign/gazelle_rust.git",
+)
+
+#########################
+# Haskell and Haskell Gazelle extension
+
+# Use the static integer-native Alpine Linux GHC bindist so repository setup
+# does not depend on host libtinfo from local NixOS while using rules_haskell's
+# bindist toolchains for remote Linux builds.
+haskell_toolchains = use_extension(
+    "@rules_haskell//extensions:haskell_toolchains.bzl",
+    "haskell_toolchains",
+)
+haskell_toolchains.bindists(
+    dist = {
+        "linux_amd64": "alpine3_12",
+    },
+    variant = {
+        "linux_amd64": "static-int_native",
+    },
+)
+
+# Keep the Haskell package snapshot aligned with rules_haskell's GHC 9.4 bindist.
+# Stackage LTS 21.25 is the newest LTS 21 snapshot and uses the GHC 9.4 series.
+stack_snapshot = use_extension(
+    "@rules_haskell//extensions:stack_snapshot.bzl",
+    "stack_snapshot",
+)
+stack_snapshot.package(name = "base")
+stack_snapshot.package(name = "json")
+stack_snapshot.snapshot(name = "lts-21.25")
+use_repo(stack_snapshot, "stackage")
+
+gazelle_haskell_modules = use_extension(
+    "//3rdparty/gazelle_haskell_modules:extensions.bzl",
+    "gazelle_haskell_modules",
+)
+gazelle_haskell_modules.deps(json = "@stackage//:json")
+use_repo(
+    gazelle_haskell_modules,
+    "io_tweag_gazelle_haskell_modules",
+    "io_tweag_gazelle_haskell_modules_deps",
 )
 
 # Use at HEAD version of rules_angular until 0.2.0 is released
