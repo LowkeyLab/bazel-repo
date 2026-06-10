@@ -4,7 +4,7 @@
     "ch.qos.logback:logback-classic": -495381972,
     "com.google.code.findbugs:jsr305": 495355163,
     "com.google.code.gson:gson": 579810017,
-    "com.google.errorprone:error_prone_annotations": 1828684942,
+    "com.google.errorprone:error_prone_annotations": 950460708,
     "com.google.guava:guava": 1001533771,
     "com.google.j2objc:j2objc-annotations": 2003271689,
     "com.h2database:h2": 867138720,
@@ -52,16 +52,16 @@
     "com.google.code.findbugs:jsr305": 870839855,
     "com.google.code.findbugs:jsr305:jar:javadoc": -893133004,
     "com.google.code.findbugs:jsr305:jar:sources": -935881202,
-    "com.google.code.gson:gson": -1496337728,
+    "com.google.code.gson:gson": -1663769307,
     "com.google.code.gson:gson:jar:javadoc": 1573639940,
     "com.google.code.gson:gson:jar:sources": 935710753,
-    "com.google.errorprone:error_prone_annotations": 430949977,
-    "com.google.errorprone:error_prone_annotations:jar:javadoc": 1172139269,
-    "com.google.errorprone:error_prone_annotations:jar:sources": -1210049757,
+    "com.google.errorprone:error_prone_annotations": 652227016,
+    "com.google.errorprone:error_prone_annotations:jar:javadoc": -749154677,
+    "com.google.errorprone:error_prone_annotations:jar:sources": -507624312,
     "com.google.guava:failureaccess": 1715931538,
     "com.google.guava:failureaccess:jar:javadoc": 1510064030,
     "com.google.guava:failureaccess:jar:sources": 1303858893,
-    "com.google.guava:guava": -384001514,
+    "com.google.guava:guava": 951060859,
     "com.google.guava:guava:jar:javadoc": 1906478918,
     "com.google.guava:guava:jar:sources": 129808367,
     "com.google.guava:listenablefuture": 1079558157,
@@ -457,11 +457,11 @@
     },
     "com.google.errorprone:error_prone_annotations": {
       "shasums": {
-        "jar": "3b1003e51b8ae56fdbd7c71073e81d1683b97e6c4dff5a9151164d59b769d13c",
-        "javadoc": "39e8efdbc7425e23a13d0f283860a944de72c65e243c927e6010befd862628a5",
-        "sources": "69d2de7f69033ff914ba06f0858adb96ac7b1436959f04fca7de5805c834b281"
+        "jar": "4667724877f1d37a689202da191e23efa7657c62eef93ccdac406eccfe5cdd0a",
+        "javadoc": "4ce91b4bf526be4740e48424a8c010264ff05c2cd8d39adbf1b03ce0d05a25c2",
+        "sources": "f7f5b870d5f18bcdcd9d8dc44d6ae3593cc299d32f888aeb29fefe87661473d7"
       },
-      "version": "2.49.0"
+      "version": "2.50.0"
     },
     "com.google.guava:failureaccess": {
       "shasums": {
