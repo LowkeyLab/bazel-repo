@@ -21,13 +21,13 @@ jobs:
             experimental-features = nix-command flakes
       - name: Configure Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
-      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
-        with:
-          bazelisk-cache: true
-          bazelrc: |
-            common --config=ci
-            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-            test --test_env=XDG_CACHE_HOME
+      - name: Configure CI Bazel settings
+        run: |
+          cat > "$GITHUB_WORKSPACE/user.bazelrc" <<'EOF'
+          common --config=ci
+          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          test --test_env=XDG_CACHE_HOME
+          EOF
       - name: Log in to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
@@ -39,7 +39,7 @@ jobs:
           nix build nixpkgs#lcov
           install -m755 ./result/bin/lcov ./result/bin/genhtml ./result/bin/geninfo /usr/local/bin/
       - name: Run Coverage (remote)
-        run: bazel run //tools/coverage -- //... --config=ci-remote
+        run: nix develop --command bazel run //tools/coverage -- //... --config=ci-remote
       - name: Upload to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
