@@ -454,44 +454,6 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//3rdparty/gazelle_haskell_modules:extensions.bzl%gazelle_haskell_modules": {
-      "general": {
-        "bzlTransitiveDigest": "Raje0hP1F5Fz+idkoDtf/4WPRR1MicWcOeZGmgSnYC0=",
-        "usagesDigest": "TTIC3FvJug8zsp6wecOqdPvftLonWNHcVva+/zf2D7k=",
-        "recordedInputs": [
-          "REPO_MAPPING:,bazel_tools bazel_tools",
-          "REPO_MAPPING:,stackage rules_haskell++stack_snapshot+stackage"
-        ],
-        "generatedRepoSpecs": {
-          "gazelle_haskell_modules_buildtools_bridge": {
-            "repoRuleId": "@@//3rdparty/gazelle_haskell_modules:extensions.bzl%gazelle_haskell_modules_buildtools_bridge",
-            "attributes": {}
-          },
-          "io_tweag_gazelle_haskell_modules": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
-            "attributes": {
-              "integrity": "sha256-Qkun7BVbnxL8z/1SkTRDzO2FGAETuiaxEFyIUHoH0gs=",
-              "patch_args": [
-                "-p1"
-              ],
-              "patches": [
-                "@@//3rdparty/gazelle_haskell_modules:gazelle_haskell_modules_bzlmod.patch"
-              ],
-              "strip_prefix": "gazelle_haskell_modules-282cc3b672f91f379666c67f4aabce073bc08c61",
-              "urls": [
-                "https://github.com/tweag/gazelle_haskell_modules/archive/282cc3b672f91f379666c67f4aabce073bc08c61.tar.gz"
-              ]
-            }
-          },
-          "io_tweag_gazelle_haskell_modules_deps": {
-            "repoRuleId": "@@//3rdparty/gazelle_haskell_modules:extensions.bzl%gazelle_haskell_modules_dependencies",
-            "attributes": {
-              "json": "@@rules_haskell++stack_snapshot+stackage//:json"
-            }
-          }
-        }
-      }
-    },
     "@@apple_rules_lint+//lint:extensions.bzl%linter": {
       "general": {
         "bzlTransitiveDigest": "g7izj5kLCmsajh8IospHh4ZQ35dyM0FIrA8D4HapAsM=",
@@ -8974,7 +8936,7 @@
     "@@rules_haskell+//extensions:stack_snapshot.bzl%stack_snapshot": {
       "general": {
         "bzlTransitiveDigest": "UJpKtSERDHlLJPI9Dvu0+jaQHzXIJRmu7rXHtNu/Hso=",
-        "usagesDigest": "6GIXTvEF/z7HrtGKfvyCVRCq5BJR0UJ6wlElIchssv0=",
+        "usagesDigest": "DnJnQKOJBgQ9SfH6XXhcGHOhP5I8dXaGeKnEliR9+6E=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
           "REPO_MAPPING:bazel_features+,bazel_features_version bazel_features++version_extension+bazel_features_version",
@@ -9015,8 +8977,7 @@
               "vendored_packages": {},
               "snapshot": "lts-21.25",
               "packages": [
-                "base",
-                "json"
+                "base"
               ],
               "flags": {},
               "netrc": "",
@@ -9033,8 +8994,7 @@
               "vendored_packages": {},
               "snapshot": "lts-21.25",
               "packages": [
-                "base",
-                "json"
+                "base"
               ],
               "flags": {},
               "haddock": true,

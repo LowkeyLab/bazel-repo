@@ -146,20 +146,8 @@ stack_snapshot = use_extension(
     "stack_snapshot",
 )
 stack_snapshot.package(name = "base")
-stack_snapshot.package(name = "json")
 stack_snapshot.snapshot(name = "lts-21.25")
 use_repo(stack_snapshot, "stackage")
-
-gazelle_haskell_modules = use_extension(
-    "//3rdparty/gazelle_haskell_modules:extensions.bzl",
-    "gazelle_haskell_modules",
-)
-gazelle_haskell_modules.deps(json = "@stackage//:json")
-use_repo(
-    gazelle_haskell_modules,
-    "io_tweag_gazelle_haskell_modules",
-    "io_tweag_gazelle_haskell_modules_deps",
-)
 
 # Use at HEAD version of rules_angular until 0.2.0 is released
 bazel_dep(name = "rules_angular")
