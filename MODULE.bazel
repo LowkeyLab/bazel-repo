@@ -35,7 +35,7 @@ bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rs", version = "0.0.62")
 bazel_dep(name = "rules_rust", version = "0.70.0")
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
-bazel_dep(name = "llvm", version = "0.8.6")
+bazel_dep(name = "llvm", version = "0.8.7")
 
 single_version_override(
     module_name = "rules_rs",
