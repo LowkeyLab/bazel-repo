@@ -24,6 +24,9 @@ test:remote-linux --test_tag_filters=-no-remote
 
 # CI remote execution config (combines remote-linux with CI tuning)
 common:ci-remote --config=remote-linux
+# Nix sets SHELL to a store path that remote executors do not have; use the
+# portable Linux bash path for remote shell actions such as aspect_bazel_lib jq.
+common:ci-remote --shell_executable=/bin/bash
 common:ci-remote --remote_timeout=3600
 common:ci-remote --incompatible_strict_action_env
 
