@@ -20,7 +20,7 @@ catalog:
   '@graphql-codegen/typescript': ^6.0.0
   '@graphql-codegen/typescript-operations': ^6.0.0
   '@graphql-codegen/typescript-apollo-angular': ^5.0.0
-  graphql: ^16.10.0
+  graphql: ^17.0.0
   graphql-tag: ^2.12.6
   optimism: ^0.18.1
   '@angular/cli': 22.0.1
