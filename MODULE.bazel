@@ -94,7 +94,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "7657fae9f218f1fcd818a4b594bdd8833e83c734",
+    commit = "d6449197f843be14e8ab3357f3efc0ac66c8f3b0",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
