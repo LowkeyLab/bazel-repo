@@ -272,7 +272,7 @@ bazel-repo/
 ## 5. Polyglot Environment Notes
 
 - **Tool Management:** Bazel manages Node.js, Rust, JDK, Go toolchains—do NOT install separately
-- **Bazel Provider:** Use the Nix flake/dev shell; Bazel is provided by nixpkgs `bazel_9`, with the flake lock as the version authority
+- **Bazelisk:** Manages Bazel version from `.bazelversion`
 - **Context Switching:** Be aware of language-specific idioms (this is a multi-language repo)
 - **Dependencies:** Check `MODULE.bazel` for available libraries before adding new ones
 
@@ -302,7 +302,7 @@ go get <package> && bazel mod tidy
 bazel run gazelle
 
 # Bazel not found
-nix develop --command which bazel  # Should resolve to the flake-provided nixpkgs bazel_9
+which bazel  # Should point to bazelisk
 
 # Database migrations (Nicknamer)
 bazel run //nicknamer/migration/bin -- up

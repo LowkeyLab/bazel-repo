@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Setup
 
-This repo uses a **Nix flake** for reproducible dev tooling. The flake provides Bazel from nixpkgs `bazel_9`, plus `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands. For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`.
+This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands. For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`.
 
 ### Prerequisites
 
 - [Nix](https://nixos.org/download/) with flakes enabled (`experimental-features = nix-command flakes` in `~/.config/nix/nix.conf`)
 - [direnv](https://direnv.net/) >= 2.29
+- **NixOS only:** `programs.nix-ld.enable = true` in your NixOS configuration (needed for bazelisk to run downloaded Bazel binaries)
 
 ### Getting started
 
@@ -23,7 +24,7 @@ The `.envrc` automatically sources [nix-direnv](https://github.com/nix-community
 
 ## Build System
 
-This is a **Bazel 9 polyglot monorepo** using the Nix flake as the supported Bazel provider. Bazel comes from nixpkgs `bazel_9`, with the flake lock as the version authority. Use `aspect` (a Bazel wrapper) for build/test/lint. Never invoke `cargo`, `npm`, `go`, `mvn`, `pnpm`, or `ng` directly for building — all operations go through Bazel.
+This is a **Bazel 9 polyglot monorepo** managed by Bazelisk. Use `aspect` (a Bazel wrapper) for build/test/lint. Never invoke `cargo`, `npm`, `go`, `mvn`, `pnpm`, or `ng` directly for building — all operations go through Bazel.
 
 ## Essential Commands
 

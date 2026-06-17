@@ -20,23 +20,16 @@ jobs:
       targets: ${{ steps.query.outputs.targets }}
     steps:
       - uses: actions/checkout@v6
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-      - name: Configure Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
-      - name: Configure CI Bazel settings
-        run: |
-          cat > "$GITHUB_WORKSPACE/user.bazelrc" <<'EOF'
-          common --config=ci-remote
-          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-          EOF
+          bazelisk-cache: true
+          bazelrc: |
+            common --config=ci-remote
+            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Discover OCI push targets
         id: query
         run: |
-          targets=$(nix develop --command bazel query 'kind("oci_push rule", //...)' | jq -Rnc '[inputs]')
+          targets=$(bazel query 'kind("oci_push rule", //...)' | jq -Rnc '[inputs]')
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
   push:
     runs-on: ubuntu-latest
@@ -47,20 +40,13 @@ jobs:
         target: ${{ fromJson(needs.discover.outputs.targets) }}
     steps:
       - uses: actions/checkout@v6
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-      - name: Configure Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
-      - name: Configure CI Bazel settings
-        run: |
-          cat > "$GITHUB_WORKSPACE/user.bazelrc" <<'EOF'
-          common --config=ci-remote
-          common --compilation_mode=opt
-          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-          EOF
+          bazelisk-cache: true
+          bazelrc: |
+            common --config=ci-remote
+            common --compilation_mode=opt
+            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Log in to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
@@ -68,4 +54,4 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push image
-        run: nix develop --command bazel run --compilation_mode=opt ${{ matrix.target }}
+        run: bazel run --compilation_mode=opt ${{ matrix.target }}
