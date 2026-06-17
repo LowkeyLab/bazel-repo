@@ -73,7 +73,8 @@ type CreateContestParams struct {
 }
 
 func (q *Queries) CreateContest(ctx context.Context, arg CreateContestParams) (Contest, error) {
-	row := q.db.QueryRowContext(ctx, createContest,
+	row := q.db.QueryRowContext(
+		ctx, createContest,
 		arg.CircleID,
 		arg.CreatorID,
 		arg.Question,
@@ -134,7 +135,8 @@ type CreatePredictionParams struct {
 }
 
 func (q *Queries) CreatePrediction(ctx context.Context, arg CreatePredictionParams) (Prediction, error) {
-	row := q.db.QueryRowContext(ctx, createPrediction,
+	row := q.db.QueryRowContext(
+		ctx, createPrediction,
 		arg.ContestID,
 		arg.UserID,
 		arg.OptionID,
@@ -629,7 +631,8 @@ type UpsertPredictionParams struct {
 }
 
 func (q *Queries) UpsertPrediction(ctx context.Context, arg UpsertPredictionParams) error {
-	_, err := q.db.ExecContext(ctx, upsertPrediction,
+	_, err := q.db.ExecContext(
+		ctx, upsertPrediction,
 		arg.ContestID,
 		arg.UserID,
 		arg.OptionID,

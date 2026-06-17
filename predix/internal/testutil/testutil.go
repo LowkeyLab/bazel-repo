@@ -24,7 +24,8 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	ctx := context.Background()
 
 	// Start Postgres Container
-	pgContainer, err := postgres.Run(ctx,
+	pgContainer, err := postgres.Run(
+		ctx,
 		"postgres:18",
 		postgres.WithDatabase("predix"),
 		postgres.WithUsername("user"),
@@ -32,7 +33,8 @@ func SetupTestDB(t *testing.T) *sql.DB {
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
-				WithStartupTimeout(5*time.Second)),
+				WithStartupTimeout(5*time.Second),
+		),
 	)
 	if err != nil {
 		t.Fatalf("failed to start postgres container: %v", err)
