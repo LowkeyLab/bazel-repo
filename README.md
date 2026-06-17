@@ -10,7 +10,28 @@ Central Bazel-based monorepo with Rust backend services and Angular frontend app
 
 ## Prerequisites
 
-Use the Nix flake dev shell for supported local tooling. With Nix + direnv, `direnv allow` enters a flake shell that provides Bazel from nixpkgs `bazel_9`, plus the common local CLI tools (`aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and the `format`/`coverage` commands). For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`. Bazel still owns the build, test, format, and coverage behavior for the repo.
+Install [Bazelisk](https://github.com/bazelbuild/bazelisk) (manages Bazel versions):
+
+Linux:
+
+```bash
+sudo wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+sudo chmod +x /usr/local/bin/bazel
+```
+
+macOS:
+
+```bash
+brew install bazelisk
+```
+
+Windows (PowerShell):
+
+```powershell
+choco install bazelisk
+```
+
+If you use Nix + direnv, `direnv allow` enters a flake shell that provides the common local CLI tools (`bazel`, `bazelisk`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, plus `format`/`coverage` commands). For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`. Bazel still owns the build, test, format, and coverage behavior for the repo.
 
 ## Quick Start
 

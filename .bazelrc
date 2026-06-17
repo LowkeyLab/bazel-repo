@@ -24,15 +24,6 @@ test:remote-linux --test_tag_filters=-no-remote
 
 # CI remote execution config (combines remote-linux with CI tuning)
 common:ci-remote --config=remote-linux
-# Nix sets SHELL to a store path that remote executors do not have; use the
-# portable Linux bash path for remote shell actions such as aspect_bazel_lib jq.
-common:ci-remote --shell_executable=/bin/bash
-# Bazel's embedded zipper from nixpkgs Bazel is dynamically linked to Nix store
-# paths unavailable on BuildBuddy remote workers; run Kotlin resource zipping locally.
-common:ci-remote --strategy=KotlinZipResourceJar=local
-# Keep strict env while still allowing /usr/bin/env bash shebangs in remote tools.
-common:ci-remote --action_env=PATH=/usr/bin:/bin
-common:ci-remote --host_action_env=PATH=/usr/bin:/bin
 common:ci-remote --remote_timeout=3600
 common:ci-remote --incompatible_strict_action_env
 

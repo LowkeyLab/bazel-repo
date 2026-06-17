@@ -24,11 +24,15 @@ jobs:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
           docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
           docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Install Aspect from flake
+        run: |
+          nix build .#aspect
+          install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
       - name: Run Bazel Lints
         env:
           ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
         run: |
-          nix develop --command aspect lint //...
+          aspect lint //...
   test:
     runs-on: ubuntu-latest
     steps:
@@ -42,4 +46,4 @@ jobs:
           docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Run Bazel tests (remote)
         run: |
-          nix develop --command bazel test //... --config=ci-remote
+          bazel test //... --config=ci-remote
