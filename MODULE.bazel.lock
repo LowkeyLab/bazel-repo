@@ -822,7 +822,7 @@
     "@@rules_nodejs+//nodejs:extensions.bzl%node": {
       "general": {
         "bzlTransitiveDigest": "oZFClfRhTTwsYzpxVPkOpOt/r0+OzEfEV37au0jFZ0s=",
-        "usagesDigest": "LMgGJmljQlJ8yFEB1j+jaXC0VVie5aydSGv8gGI/q6c=",
+        "usagesDigest": "GdD9VhPEguexZJ63AfWiC6HswuPjFxPAZTbnwEgwwwA=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "nodejs_linux_amd64": {
