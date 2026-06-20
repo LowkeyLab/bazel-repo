@@ -10,6 +10,7 @@ module(
 bazel_dep(name = "bazel_lib", version = "3.3.1")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint", version = "2.7.1")
+bazel_dep(name = "aspect_rules_lint_rust", version = "0.0.2")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.26.0")
 bazel_dep(name = "aspect_rules_js", version = "3.2.2")
 bazel_dep(name = "aspect_rules_swc", version = "2.7.2")
@@ -32,8 +33,7 @@ bazel_dep(name = "rules_multitool", version = "1.11.1")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
-bazel_dep(name = "rules_rs", version = "0.0.62")
-bazel_dep(name = "rules_rust", version = "0.70.0")
+bazel_dep(name = "rules_rs", version = "0.0.83")
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
 bazel_dep(name = "llvm", version = "0.8.9")
 
@@ -41,14 +41,11 @@ single_version_override(
     module_name = "rules_rs",
     patch_strip = 1,
     patches = ["//3rdparty/rules_rs:crate_annotation_compile_data.patch"],
-    version = "0.0.62",
+    version = "0.0.83",
 )
 
-archive_override(
-    module_name = "rules_rust",
-    integrity = "sha256-X/2f8fby8U8gV7fLqpGl5qzZpMve1ayB2tm+s2hZYB4=",
-    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.70.0/rules_rust-0.70.0.tar.gz"],
-)
+rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
+use_repo(rules_rust, "rules_rust")
 
 single_version_override(
     module_name = "rules_rust_prost",
@@ -108,19 +105,6 @@ rules_angular_ext.setup(
 use_repo(rules_angular_ext, "rules_angular_configurable_deps")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-
-# rules_lint 2.6.0 moved Rust lint support to a nested module, but the release
-# archive excludes nested modules and the nested module is not published to BCR.
-# Clone the release tag and copy the nested module files to this repo root so
-# its absolute labels resolve as intended.
-git_repository(
-    name = "aspect_rules_lint_rules_rust",
-    commit = "71b04ee93f371aad89e164e18ae2f8e77ede3a2a",
-    patch_cmds = ["cp -R lint/rules_rust/. ."],
-    remote = "https://github.com/aspect-build/rules_lint.git",
-)
 
 http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
 
@@ -349,6 +333,7 @@ register_toolchains("@llvm//toolchain:all")
 # Rust
 toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
 toolchains.toolchain(
+    name = "rust_toolchains_1_92_0",
     edition = "2024",
     version = "1.92.0",
 )
@@ -361,11 +346,12 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
+    "rust_toolchains_1_92_0",
     "rustfmt_linux_x86_64_1_92_0",
 )
 
 register_toolchains(
-    "@default_rust_toolchains//:all",
+    "@rust_toolchains_1_92_0//:all",
     "@nightly_rust_toolchains//:all",
 )
 
@@ -401,8 +387,8 @@ filegroup(
     srcs = ["@swagger_ui//:dist"],
 )
 """,
-    compile_data = [":dist"],
     crate = "utoipa-swagger-ui",
+    extra_compile_data = [":dist"],
     gen_build_script = "off",
     patch_args = [
         "-p1",
