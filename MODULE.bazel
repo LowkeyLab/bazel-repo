@@ -350,7 +350,7 @@ register_toolchains("@llvm//toolchain:all")
 toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
 toolchains.toolchain(
     edition = "2024",
-    version = "1.92.0",
+    version = "1.96.0",
 )
 toolchains.toolchain(
     name = "nightly_rust_toolchains",
@@ -361,7 +361,7 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
-    "rustfmt_linux_x86_64_1_92_0",
+    "rustfmt_linux_x86_64_1_96_0",
 )
 
 register_toolchains(
