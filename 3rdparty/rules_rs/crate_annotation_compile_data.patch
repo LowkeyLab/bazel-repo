@@ -1,190 +1,39 @@
 diff --git a/rs/extensions.bzl b/rs/extensions.bzl
 --- a/rs/extensions.bzl
 +++ b/rs/extensions.bzl
-@@ -760,10 +760,12 @@ def _generate_hub_and_spokes(
-             rustc_flags = annotation.rustc_flags,
-             rustc_flags_select = annotation.rustc_flags_select,
-             data = annotation.data,
-+            compile_data = annotation.compile_data,
-             deps = annotation.deps,
-             crate_tags = annotation.tags,
-             deps_select = _select(feature_resolutions.deps),
-             aliases = feature_resolutions.aliases,
+@@ -333,0 +334 @@ def _generate_hub_and_spokes(
++            extra_compile_data = annotation.extra_compile_data,
+@@ -339,0 +341 @@ def _generate_hub_and_spokes(
 +            rustc_env = annotation.rustc_env,
-             gen_binaries = annotation.gen_binaries,
-             crate_features = annotation.crate_features,
-             crate_features_select = _select(feature_resolutions.features_enabled),
-@@ -1395,9 +1397,9 @@ _annotation = tag_class(
-         "build_script_tools_select": attr.string_list_dict(
-             doc = "A list of labels to add to a crate's `cargo_build_script::tools` attribute. Keys should be the platform triplet. Value should be a list of labels.",
-         ),
+@@ -909,3 +912,3 @@ _annotation = tag_class(
 -        # "compile_data": _relative_label_list(
 -        # doc = "A list of labels to add to a crate's `rust_library::compile_data` attribute.",
 -        # ),
-+        "compile_data": _relative_label_list(
-+            doc = "A list of labels to add to a crate's `rust_library::compile_data` attribute.",
++        "extra_compile_data": _relative_label_list(
++            doc = "A list of labels to add to a crate's generated `rust_library::compile_data` attribute.",
 +        ),
-         # "compile_data_glob": attr.string_list(
-         # doc = "A list of glob patterns to add to a crate's `rust_library::compile_data` attribute.",
-         # ),
-@@ -1460,9 +1462,9 @@ _annotation = tag_class(
-         "patches": attr.label_list(
-             doc = "The `patches` attribute of a Bazel repository rule. See [http_archive.patches](https://docs.bazel.build/versions/main/repo/http.html#http_archive-patches)",
-         ),
+@@ -974,3 +977,3 @@ _annotation = tag_class(
 -        # "rustc_env": attr.string_dict(
 -        #     doc = "Additional variables to set on a crate's `rust_library::rustc_env` attribute.",
 -        # ),
 +        "rustc_env": attr.string_dict(
-+            doc = "Additional variables to set on a crate's `rust_library::rustc_env` attribute.",
++            doc = "Additional variables to set on a crate's generated `rust_library::rustc_env` attribute.",
 +        ),
-         # "rustc_env_files": _relative_label_list(
-         #     doc = "A list of labels to set on a crate's `rust_library::rustc_env_files` attribute.",
-         # ),
-diff --git a/rs/private/annotations.bzl b/rs/private/annotations.bzl
---- a/rs/private/annotations.bzl
-+++ b/rs/private/annotations.bzl
-@@ -12,12 +12,14 @@ def _crate_annotation(
-         build_script_toolchains = [],
-         build_script_tags = [],
-         data = [],
-+        compile_data = [],
-         deps = [],
-         tags = [],
-         crate_features = [],
-         crate_features_select = {},
-         gen_binaries = [],
-         extra_aliased_targets = {},
-+        rustc_env = {},
-         rustc_flags = [],
-         rustc_flags_select = {},
-         patch_args = [],
-@@ -41,12 +43,14 @@ def _crate_annotation(
-         build_script_toolchains = build_script_toolchains,
-         build_script_tags = build_script_tags,
-         data = data,
-+        compile_data = compile_data,
-         deps = deps,
-         tags = tags,
-         crate_features = crate_features,
-         crate_features_select = crate_features_select,
-         gen_binaries = gen_binaries,
-         extra_aliased_targets = extra_aliased_targets,
-+        rustc_env = rustc_env,
-         rustc_flags = rustc_flags,
-         rustc_flags_select = rustc_flags_select,
-         patch_args = patch_args,
 diff --git a/rs/private/repository_utils.bzl b/rs/private/repository_utils.bzl
 --- a/rs/private/repository_utils.bzl
 +++ b/rs/private/repository_utils.bzl
-@@ -119,6 +119,7 @@ rust_crate(
-     aliases = {{
-         {aliases}
-     }},
-+    compile_data = {compile_data},
-     deps = [
-         {deps}
-     ]{conditional_deps},
-@@ -133,6 +134,7 @@ rust_crate(
-     edition = {edition},
-     rustc_flags = {rustc_flags}{conditional_rustc_flags},
-     tags = {tags},
-+    rustc_env = {rustc_env},
-     target_compatible_with = RESOLVED_PLATFORMS,
-     links = {links},
-     build_script = {build_script},
-@@ -168,6 +170,7 @@ def generate_build_file(rctx, cargo_toml, purl_qualifiers = {}):
-     rustc_flags, conditional_rustc_flags = render_select(attr.rustc_flags, attr.rustc_flags_select, use_legacy_rules_rust_platforms)
-     deps, conditional_deps = render_select(attr.deps + bazel_metadata.get("deps", []), attr.deps_select, use_legacy_rules_rust_platforms)
- 
-+    compile_data = attr.compile_data
-     conditional_build_script_env = render_select_build_script_env(attr.build_script_env_select, use_legacy_rules_rust_platforms)
- 
-     binaries = {bin["name"]: bin["path"] for bin in cargo_toml.get("bin", []) if bin["name"] in rctx.attr.gen_binaries}
-@@ -182,6 +185,8 @@ def generate_build_file(rctx, cargo_toml, purl_qualifiers = {}):
-         crate_name = repr(crate_name),
-         purl = repr(cargo_purl),
-         version = repr(version),
-+        compile_data = repr(compile_data),
-+        rustc_env = repr(attr.rustc_env),
-         aliases = ",\n        ".join(['"%s": "%s"' % kv for kv in attr.aliases.items()]),
-         deps = ",\n        ".join(['"%s"' % d for d in sorted(deps)]),
-         conditional_deps = " + " + conditional_deps if conditional_deps else "",
-@@ -229,9 +234,11 @@ common_attrs = {
-     "rustc_flags": attr.string_list(),
-     "rustc_flags_select": attr.string_list_dict(),
-     "crate_tags": attr.string_list(),
-+    "compile_data": attr.string_list(default = []),
-     "data": attr.label_list(default = []),
-     "deps": attr.string_list(default = []),
-     "deps_select": attr.string_list_dict(),
+@@ -301,0 +302 @@ rust_crate_attrs = {
++    "extra_compile_data": attr.string_list(default = []),
+@@ -305,0 +307 @@ rust_crate_attrs = {
 +    "rustc_env": attr.string_dict(),
-     "aliases": attr.string_dict(),
-     "crate_features": attr.string_list(),
-     "crate_features_select": attr.string_list_dict(),
-diff --git a/rs/rust_crate.bzl b/rs/rust_crate.bzl
---- a/rs/rust_crate.bzl
-+++ b/rs/rust_crate.bzl
-@@ -15,6 +15,7 @@ def rust_crate(
-         purl,
-         version,
-         aliases,
-+        compile_data,
-         deps,
-         data,
-         crate_features,
-@@ -25,6 +26,7 @@ def rust_crate(
-         rustc_flags,
-         tags,
-         target_compatible_with,
-+        rustc_env,
-         links,
-         build_script,
-         build_script_data,
-@@ -42,7 +44,7 @@ def rust_crate(
-         visibility = ["//visibility:public"],
-     )
- 
--    compile_data = native.glob(
-+    compile_data = compile_data + native.glob(
-         include = ["**"],
-         exclude = [
-             "**/* *",
-@@ -146,6 +148,7 @@ def rust_crate(
-         crate_root = crate_root,
-         edition = edition,
-         rustc_env_files = ["cargo_toml_env_vars.env"],
+diff --git a/rs/private/annotations.bzl b/rs/private/annotations.bzl
+--- a/rs/private/annotations.bzl
++++ b/rs/private/annotations.bzl
+@@ -12,0 +13 @@ def _crate_annotation(
++        extra_compile_data = [],
+@@ -18,0 +20 @@ def _crate_annotation(
++        rustc_env = {},
+@@ -38,0 +41 @@ def _crate_annotation(
++        extra_compile_data = extra_compile_data,
+@@ -44,0 +48 @@ def _crate_annotation(
 +        rustc_env = rustc_env,
-         rustc_flags = rustc_flags + ["--cap-lints=allow"],
-         tags = crate_tags,
-         target_compatible_with = target_compatible_with,
-@@ -170,6 +173,7 @@ def rust_crate(
-             crate_root = crate_root,
-             edition = edition,
-             rustc_env_files = ["cargo_toml_env_vars.env"],
-+            rustc_env = rustc_env,
-             rustc_flags = rustc_flags + ["--cap-lints=allow"],
-             srcs = srcs,
-             tags = crate_tags,
-diff --git a/rs/private/rustc_repository.bzl b/rs/private/rustc_repository.bzl
---- a/rs/private/rustc_repository.bzl
-+++ b/rs/private/rustc_repository.bzl
-@@ -28,7 +28,7 @@ def _rustc_repository_impl(rctx):
-     exec_triple = triple(rctx.attr.triple)
-     download_and_extract(rctx, "rustc", "rustc", exec_triple)
-     _symlink_rust_objcopy_shared_libraries(rctx, exec_triple)
--    build_content = [BUILD_for_compiler(exec_triple, include_objcopy = True)]
-+    build_content = [BUILD_for_compiler(exec_triple, include_linker = True, include_objcopy = True)]
-     if includes_rust_analyzer_proc_macro_srv(rctx.attr.version, rctx.attr.iso_date):
-         build_content.append(BUILD_for_rust_analyzer_proc_macro_srv(exec_triple))
-     rctx.file("BUILD.bazel", "\n".join(build_content))
-diff --git a/rs/toolchains/declare_rustc_toolchains.bzl b/rs/toolchains/declare_rustc_toolchains.bzl
---- a/rs/toolchains/declare_rustc_toolchains.bzl
-+++ b/rs/toolchains/declare_rustc_toolchains.bzl
-@@ -61,6 +61,7 @@ def declare_rustc_toolchains(
-             llvm_profdata = "@llvm//tools:llvm-profdata",
-             rust_objcopy = "{}rust-objcopy".format(rustc_repo_label),
-             rustc_lib = "{}rustc_lib".format(rustc_repo_label),
-+            linker = "{}rust-lld".format(rustc_repo_label),
-             allocator_library = None,
-             global_allocator_library = None,
-             binary_ext = select({
