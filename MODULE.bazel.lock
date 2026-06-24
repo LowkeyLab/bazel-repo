@@ -53,8 +53,8 @@
     "https://bcr.bazel.build/modules/aspect_rules_js/3.2.2/source.json": "0e650e493b3bc784dc3f8240ff00b4b32258cde6d021ef6b1db4e387bcfd6a9a",
     "https://bcr.bazel.build/modules/aspect_rules_lint/0.12.0/MODULE.bazel": "e767c5dbfeb254ec03275a7701b5cfde2c4d2873676804bc7cb27ddff3728fed",
     "https://bcr.bazel.build/modules/aspect_rules_lint/2.6.0/MODULE.bazel": "2493658fb6414ee03601b29ee812bcb389627e81d2b8bb2d944d4e7bbff2c0a9",
-    "https://bcr.bazel.build/modules/aspect_rules_lint/2.7.1/MODULE.bazel": "52f070e52379d262523676b6c5db430b6615849c68c001c3e16d72c6ac411b18",
-    "https://bcr.bazel.build/modules/aspect_rules_lint/2.7.1/source.json": "afc63f90e4fbcdcb9ec01a472609b8b778efb86156ae34ff4a58a1a2262489d7",
+    "https://bcr.bazel.build/modules/aspect_rules_lint/2.7.2/MODULE.bazel": "b67b635c398734e05a7dde60639813f1c96bdf681736216de561e3d62b08c918",
+    "https://bcr.bazel.build/modules/aspect_rules_lint/2.7.2/source.json": "1051f1c3e853c0a3e0505efca29afbbc5b036c3543e994f51b4048e372514079",
     "https://bcr.bazel.build/modules/aspect_rules_lint_rust/0.0.2/MODULE.bazel": "5c7a4d0e02fccb9b064bcd4c22cb34eda4cf27ca465c1232216c57e234ac5dbb",
     "https://bcr.bazel.build/modules/aspect_rules_lint_rust/0.0.2/source.json": "f2c048be31a87af7bd747a0d08027ef57a38793229c212e142c94ec5a7977800",
     "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.2/MODULE.bazel": "2a8727e4f68ae3df7c44e6577fd42e539fefe77fb240dd9f0641bcd905e05966",
@@ -609,7 +609,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "cl5A2O84vDL6Tt+Qga8FCj1DUDGqn+e7ly5rZ+4xvcc=",
-        "usagesDigest": "tCYgrJIVSCeh5nDubGrmnEqs13Reeusxbw57ZNd0J8c=",
+        "usagesDigest": "RG+aNHTik1mo+evzNAvV/Vni/rZYwKv3TOI46r41UsM=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+"
@@ -619,7 +619,7 @@
             "repoRuleId": "@@aspect_tools_telemetry+//:extension.bzl%tel_repository",
             "attributes": {
               "deps": {
-                "aspect_rules_lint": "2.7.1",
+                "aspect_rules_lint": "2.7.2",
                 "aspect_rules_esbuild": "0.26.0",
                 "aspect_rules_js": "3.2.2",
                 "aspect_rules_swc": "2.7.2",
