@@ -58,7 +58,8 @@ type ServerEdge = GetDashboardQuery['servers']['edges'][number];
               class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
             >
               <div class="card-body">
-                <h3 class="card-title">Server {{ edge.node.serverId }}</h3>
+                <h3 class="card-title">{{ edge.node.displayName }}</h3>
+                <p class="text-sm opacity-70">{{ edge.node.serverId }}</p>
               </div>
             </a>
           }
