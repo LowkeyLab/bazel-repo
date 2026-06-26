@@ -5,6 +5,7 @@ query GetDashboard($first: Int!) {
       node {
         id
         serverId
+        displayName
       }
     }
   }

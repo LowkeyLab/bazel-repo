@@ -38,8 +38,20 @@ describe('DashboardComponent', () => {
         servers: {
           totalCount: 5,
           edges: [
-            { node: { id: 'relay-1', serverId: '111' } },
-            { node: { id: 'relay-2', serverId: '222' } },
+            {
+              node: {
+                id: 'relay-1',
+                serverId: '111',
+                displayName: 'Primary Server',
+              },
+            },
+            {
+              node: {
+                id: 'relay-2',
+                serverId: '222',
+                displayName: 'Backup Server',
+              },
+            },
           ],
         },
       },
@@ -57,7 +69,9 @@ describe('DashboardComponent', () => {
       '[data-testid="server-card"]',
     );
     expect(cards.length).toBe(2);
+    expect(cards[0].textContent).toContain('Primary Server');
     expect(cards[0].textContent).toContain('111');
+    expect(cards[1].textContent).toContain('Backup Server');
     expect(cards[1].textContent).toContain('222');
   });
 
@@ -119,7 +133,15 @@ describe('DashboardComponent', () => {
       data: {
         servers: {
           totalCount: 1,
-          edges: [{ node: { id: 'relay-1', serverId: '111' } }],
+          edges: [
+            {
+              node: {
+                id: 'relay-1',
+                serverId: '111',
+                displayName: 'Primary Server',
+              },
+            },
+          ],
         },
       },
     });

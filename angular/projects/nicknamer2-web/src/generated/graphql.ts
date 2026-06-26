@@ -254,7 +254,12 @@ export type GetDashboardQuery = {
     totalCount: number;
     edges: Array<{
       __typename?: 'ServerEdge';
-      node: { __typename?: 'Server'; id: string; serverId: string };
+      node: {
+        __typename?: 'Server';
+        id: string;
+        serverId: string;
+        displayName: string;
+      };
     }>;
   };
 };
@@ -328,6 +333,7 @@ export const GetDashboardDocument = gql`
         node {
           id
           serverId
+          displayName
         }
       }
     }
