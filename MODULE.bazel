@@ -19,7 +19,7 @@ bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2")
 
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
-bazel_dep(name = "rules_nodejs", version = "6.7.4")
+bazel_dep(name = "rules_nodejs", version = "6.7.5")
 
 # Bazel 9: Bump up rules_android to pick up fixes for Bazel 9 compatibility
 bazel_dep(name = "rules_android", version = "0.7.3")
