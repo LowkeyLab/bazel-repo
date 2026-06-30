@@ -24,7 +24,7 @@
       ],
       "postUpgradeTasks": {
         "commands": [
-          "env REPIN=1 bazel run @maven//:pin"
+          "env REPIN=1 bazel run @maven//:pin --config=ci-remote"
         ],
         "fileFilters": [
           "maven_install.json"
