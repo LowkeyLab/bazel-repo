@@ -57,7 +57,6 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 common:linux --extra_execution_platforms=//platforms:local_gnu_llvm
 common:linux --platforms=//platforms:local_gnu_llvm
 common:linux --host_platform=//platforms:local_gnu_llvm
-common:linux --@llvm//toolchain:source=prebuilt
 common:linux --@llvm//config:experimental_stub_libgcc_s=True
 common:linux --@@rules_rust+//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols
 common:linux --@rules_go//go/config:linkmode=pie
