@@ -34,7 +34,6 @@ bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rs", version = "0.0.83")
-bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
 bazel_dep(name = "llvm", version = "0.8.11")
 
 single_version_override(
@@ -46,6 +45,9 @@ single_version_override(
 
 rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
 use_repo(rules_rust, "rules_rust")
+
+rules_rust_wasm_bindgen = use_extension("@rules_rs//rs:rules_rust_wasm_bindgen.bzl", "rules_rust_wasm_bindgen")
+use_repo(rules_rust_wasm_bindgen, "rules_rust_wasm_bindgen")
 
 single_version_override(
     module_name = "rules_rust_prost",
