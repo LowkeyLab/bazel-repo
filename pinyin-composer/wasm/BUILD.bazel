@@ -48,9 +48,9 @@ genrule(
         "pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm",
         "pinyin_composer_wasm/pinyin_composer_wasm_bg.wasm.d.ts",
     ],
-    cmd = "$(execpath @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli) --target web --out-dir $(@D)/pinyin_composer_wasm --out-name pinyin_composer_wasm $(location :wasm_cdylib)",
+    cmd = "$(execpath @rules_rs//rs/private/wasm_bindgen:wasm_bindgen_cli) --target web --out-dir $(@D)/pinyin_composer_wasm --out-name pinyin_composer_wasm $(location :wasm_cdylib)",
     tags = ["no-lint"],
-    tools = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli"],
+    tools = ["@rules_rs//rs/private/wasm_bindgen:wasm_bindgen_cli"],
 )
 
 rust_test(

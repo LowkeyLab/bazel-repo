@@ -45,3 +45,16 @@ index 136df8b..ee68627 100644
  }
  
  func (*rustLang) Fix(c *config.Config, f *rule.File) {}
+
+diff --git a/gazelle_rust_parser/src/BUILD.bazel b/gazelle_rust_parser/src/BUILD.bazel
+index 4b7c96c..16e6b30 100644
+--- a/gazelle_rust_parser/src/BUILD.bazel
++++ b/gazelle_rust_parser/src/BUILD.bazel
+@@ -3,6 +3,7 @@ load("@rules_rust//rust:defs.bzl", "rust_library")
+ rust_library(
+     name = "gazelle_rust_parser",
+     srcs = ["lib.rs"],
++    edition = "2024",
+     visibility = [
+         "//gazelle_rust_parser:__subpackages__",
+         "//rust_parser:__subpackages__",

@@ -31,7 +31,6 @@ bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.8.0")
 bazel_dep(name = "rules_pkg", version = "1.2.0")
 bazel_dep(name = "rules_rs", version = "0.0.83")
-bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.70.0")
 bazel_dep(name = "llvm", version = "0.8.11")
 
 single_version_override(
@@ -43,6 +42,9 @@ single_version_override(
 
 rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
 use_repo(rules_rust, "rules_rust")
+
+rules_rust_wasm_bindgen = use_extension("@rules_rs//rs:rules_rust_wasm_bindgen.bzl", "rules_rust_wasm_bindgen")
+use_repo(rules_rust_wasm_bindgen, "rules_rust_wasm_bindgen")
 
 single_version_override(
     module_name = "rules_rust_prost",
@@ -78,7 +80,7 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependenc
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
-    commit = "c26dc35e8aa2a4ad08fe87ed098285c83ca71b98",
+    commit = "bed49c78a04b281512889120e6f2f4df76266d20",
     patch_args = ["-p1"],
     patches = ["//3rdparty/gazelle_rust:rules_rs_loads.patch"],
     remote = "https://github.com/Calsign/gazelle_rust.git",
