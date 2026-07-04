@@ -295,7 +295,7 @@ maven.artifact(
     testonly = True,
     artifact = "ktor-server-test-host-jvm",
     group = "io.ktor",
-    version = "3.5.0",
+    version = "3.5.1",
 )
 maven.artifact(
     artifact = "gson",
