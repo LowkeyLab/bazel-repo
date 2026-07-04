@@ -1,0 +1,38 @@
+--- a/rust/private/rust_analyzer.bzl
++++ b/rust/private/rust_analyzer.bzl
+@@ -110,6 +110,7 @@
+ 
+     build_info = None
+     dep_infos = []
++    proc_macro_dep_infos = []
+     labels_to_rais = {}
+ 
+     for dep in getattr(ctx.rule.attr, "deps", []):
+@@ -118,7 +119,17 @@
+             build_info = dep[BuildInfo]
+ 
+     _accumulate_rust_analyzer_infos(dep_infos, labels_to_rais, getattr(ctx.rule.attr, "deps", []))
+-    _accumulate_rust_analyzer_infos(dep_infos, labels_to_rais, getattr(ctx.rule.attr, "proc_macro_deps", []))
++
++    # Keep proc_macro_deps in the crate graph, but only collect proc-macro
++    # dylibs through this exec-configured attribute. The public rules_rust
++    # macros duplicate normal deps into proc_macro_deps specifically so
++    # rust_proc_macro targets can be selected in exec configuration. If the
++    # rust-analyzer output group also pulls proc-macro dylibs transitively from
++    # target-configured deps, cross-compiled crates such as wasm32 targets try
++    # to build proc-macro dylibs for the target platform instead of the host.
++    proc_macro_deps = getattr(ctx.rule.attr, "proc_macro_deps", [])
++    _accumulate_rust_analyzer_infos(dep_infos, labels_to_rais, proc_macro_deps)
++    _accumulate_rust_analyzer_infos(proc_macro_dep_infos, {}, proc_macro_deps)
+ 
+     _accumulate_rust_analyzer_info(dep_infos, labels_to_rais, getattr(ctx.rule.attr, "crate", None))
+     _accumulate_rust_analyzer_info(dep_infos, labels_to_rais, getattr(ctx.rule.attr, "actual", None))
+@@ -151,7 +162,7 @@
+         env = crate_info.rustc_env,
+         deps = dep_infos,
+         crate_specs = depset(transitive = [dep.crate_specs for dep in dep_infos]),
+-        proc_macro_dylibs = depset(direct = proc_macro_dylibs, transitive = [dep.proc_macro_dylibs for dep in dep_infos]),
++        proc_macro_dylibs = depset(direct = proc_macro_dylibs, transitive = [dep.proc_macro_dylibs for dep in proc_macro_dep_infos]),
+         build_info_out_dirs = depset(direct = build_info_out_dirs, transitive = [dep.build_info_out_dirs for dep in dep_infos]),
+         proc_macro_dylib = proc_macro_dylib,
+         build_info = build_info,
