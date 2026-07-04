@@ -1,1 +1,4 @@
-exports_files(["crate_annotation_compile_data.patch"])
+exports_files([
+    "crate_annotation_compile_data.patch",
+    "rust_analyzer_proc_macro_exec_deps.patch",
+])
