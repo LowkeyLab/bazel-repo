@@ -1,6 +1,4 @@
 use std::collections::BTreeMap;
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
 
 use flipped::{Flashcard, FlippedError};
 
@@ -74,35 +72,23 @@ impl RenderedCard {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum TemplateRenderError {
+    #[error("unclosed template tag: {tag}")]
     UnclosedTag { tag: String },
+
+    #[error("unclosed template section: {name}")]
     UnclosedSection { name: String },
+
+    #[error("mismatched template section: expected {expected}, found {found}")]
     MismatchedSection { expected: String, found: String },
+
+    #[error("closing template section without open: {name}")]
     ClosingSectionWithoutOpen { name: String },
+
+    #[error("template tag cannot be empty")]
     EmptyTag,
 }
-
-impl Display for TemplateRenderError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnclosedTag { tag } => write!(f, "unclosed template tag: {tag}"),
-            Self::UnclosedSection { name } => write!(f, "unclosed template section: {name}"),
-            Self::MismatchedSection { expected, found } => {
-                write!(
-                    f,
-                    "mismatched template section: expected {expected}, found {found}"
-                )
-            }
-            Self::ClosingSectionWithoutOpen { name } => {
-                write!(f, "closing template section without open: {name}")
-            }
-            Self::EmptyTag => f.write_str("template tag cannot be empty"),
-        }
-    }
-}
-
-impl Error for TemplateRenderError {}
 
 pub fn render_template(
     template: &AnkiCardTemplate,

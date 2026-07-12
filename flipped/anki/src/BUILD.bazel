@@ -10,7 +10,10 @@ rust_library(
     crate_name = "flipped_anki",
     crate_root = "lib.rs",
     visibility = ["//visibility:public"],
-    deps = ["//flipped/src:flipped"],
+    deps = [
+        "//flipped/src:flipped",
+        "@crates//:thiserror",
+    ],
 )
 
 rust_test(
