@@ -1,11 +1,16 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
+# gazelle:exclude template
+
 rust_library(
     name = "flipped_anki",
     srcs = [
         "lib.rs",
-        "template.rs",
+        "template/ast.rs",
+        "template/mod.rs",
+        "template/parser.rs",
+        "template/render.rs",
     ],
     crate_name = "flipped_anki",
     crate_root = "lib.rs",

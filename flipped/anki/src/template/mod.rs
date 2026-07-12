@@ -2,7 +2,11 @@ use std::collections::BTreeMap;
 
 use flipped::{Flashcard, FlippedError};
 
-const DEFAULT_CLOZE_BLANK: &str = "[...]";
+use self::render::RenderMode;
+
+mod ast;
+mod parser;
+mod render;
 
 /// Named fields from an Anki note.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -102,197 +106,12 @@ pub fn render_template_with_options(
     fields: &AnkiNoteFields,
     options: RenderOptions,
 ) -> Result<RenderedCard, TemplateRenderError> {
-    let front = render_part(&template.front, fields, None, RenderMode::Front(options))?;
-    let back = render_part(
-        &template.back,
-        fields,
-        Some(front.as_str()),
-        RenderMode::Back,
-    )?;
+    let front_ast = parser::parse(&template.front)?;
+    let front = render::render(&front_ast, fields, None, RenderMode::Front(options));
+    let back_ast = parser::parse(&template.back)?;
+    let back = render::render(&back_ast, fields, Some(front.as_str()), RenderMode::Back);
 
     Ok(RenderedCard { front, back })
-}
-
-#[derive(Debug, Clone, Copy)]
-enum RenderMode {
-    Front(RenderOptions),
-    Back,
-}
-
-fn render_part(
-    template: &str,
-    fields: &AnkiNoteFields,
-    front_side: Option<&str>,
-    mode: RenderMode,
-) -> Result<String, TemplateRenderError> {
-    render_section(template, fields, front_side, mode, None).map(|(rendered, _)| rendered)
-}
-
-fn render_section<'a>(
-    template: &'a str,
-    fields: &AnkiNoteFields,
-    front_side: Option<&str>,
-    mode: RenderMode,
-    closing_name: Option<&str>,
-) -> Result<(String, &'a str), TemplateRenderError> {
-    let mut output = String::new();
-    let mut rest = template;
-
-    while let Some(open_index) = rest.find("{{") {
-        output.push_str(&rest[..open_index]);
-        let after_open = &rest[open_index + 2..];
-        let Some(close_index) = after_open.find("}}") else {
-            return Err(TemplateRenderError::UnclosedTag {
-                tag: after_open.to_owned(),
-            });
-        };
-
-        let raw_tag = &after_open[..close_index];
-        let tag = raw_tag.trim();
-        if tag.is_empty() {
-            return Err(TemplateRenderError::EmptyTag);
-        }
-        rest = &after_open[close_index + 2..];
-
-        if let Some(name) = tag.strip_prefix('/') {
-            let name = name.trim();
-            return match closing_name {
-                Some(expected) if expected == name => Ok((output, rest)),
-                Some(expected) => Err(TemplateRenderError::MismatchedSection {
-                    expected: expected.to_owned(),
-                    found: name.to_owned(),
-                }),
-                None => Err(TemplateRenderError::ClosingSectionWithoutOpen {
-                    name: name.to_owned(),
-                }),
-            };
-        }
-
-        if let Some(name) = tag.strip_prefix('#') {
-            let name = name.trim();
-            let (body, remaining) = render_conditional_body(rest, fields, front_side, mode, name)?;
-            if fields.is_present(name) {
-                output.push_str(&body);
-            }
-            rest = remaining;
-            continue;
-        }
-
-        if let Some(name) = tag.strip_prefix('^') {
-            let name = name.trim();
-            let (body, remaining) = render_conditional_body(rest, fields, front_side, mode, name)?;
-            if !fields.is_present(name) {
-                output.push_str(&body);
-            }
-            rest = remaining;
-            continue;
-        }
-
-        output.push_str(&render_replacement(tag, fields, front_side, mode));
-    }
-
-    output.push_str(rest);
-
-    if let Some(name) = closing_name {
-        Err(TemplateRenderError::UnclosedSection {
-            name: name.to_owned(),
-        })
-    } else {
-        Ok((output, ""))
-    }
-}
-
-fn render_conditional_body<'a>(
-    rest: &'a str,
-    fields: &AnkiNoteFields,
-    front_side: Option<&str>,
-    mode: RenderMode,
-    name: &str,
-) -> Result<(String, &'a str), TemplateRenderError> {
-    render_section(rest, fields, front_side, mode, Some(name))
-}
-
-fn render_replacement(
-    tag: &str,
-    fields: &AnkiNoteFields,
-    front_side: Option<&str>,
-    mode: RenderMode,
-) -> String {
-    if tag == "FrontSide" {
-        return front_side.unwrap_or_default().to_owned();
-    }
-
-    if let Some(field_name) = tag.strip_prefix("cloze:") {
-        let text = fields.get(field_name.trim()).unwrap_or_default();
-        return match mode {
-            RenderMode::Front(options) => render_cloze_front(text, options.cloze_number),
-            RenderMode::Back => render_cloze_back(text),
-        };
-    }
-
-    fields.get(tag).unwrap_or_default().to_owned()
-}
-
-fn render_cloze_front(text: &str, cloze_number: Option<u32>) -> String {
-    render_cloze(text, cloze_number, true)
-}
-
-fn render_cloze_back(text: &str) -> String {
-    render_cloze(text, None, false)
-}
-
-fn render_cloze(text: &str, target: Option<u32>, hide_target: bool) -> String {
-    let mut output = String::new();
-    let mut rest = text;
-
-    while let Some(open_index) = rest.find("{{c") {
-        output.push_str(&rest[..open_index]);
-        let after_open = &rest[open_index + 3..];
-        let Some(number_end) = after_open.find("::") else {
-            output.push_str("{{c");
-            rest = after_open;
-            continue;
-        };
-        let Ok(number) = after_open[..number_end].parse::<u32>() else {
-            output.push_str("{{c");
-            rest = after_open;
-            continue;
-        };
-        let content_start = number_end + 2;
-        let Some(close_index) = after_open[content_start..].find("}}") else {
-            output.push_str("{{c");
-            rest = after_open;
-            continue;
-        };
-
-        let raw_content = &after_open[content_start..content_start + close_index];
-        let (answer, hint) = split_cloze_content(raw_content);
-        let should_hide = hide_target && target.is_none_or(|target| target == number);
-        if should_hide {
-            match hint {
-                Some(hint) => {
-                    output.push('[');
-                    output.push_str(hint);
-                    output.push(']');
-                }
-                None => output.push_str(DEFAULT_CLOZE_BLANK),
-            }
-        } else {
-            output.push_str(answer);
-        }
-
-        rest = &after_open[content_start + close_index + 2..];
-    }
-
-    output.push_str(rest);
-    output
-}
-
-fn split_cloze_content(raw_content: &str) -> (&str, Option<&str>) {
-    match raw_content.split_once("::") {
-        Some((answer, hint)) => (answer, Some(hint)),
-        None => (raw_content, None),
-    }
 }
 
 #[cfg(test)]
@@ -402,6 +221,71 @@ mod tests {
             TemplateRenderError::UnclosedSection {
                 name: "Word".to_owned()
             }
+        );
+    }
+
+    #[test]
+    fn preserves_missing_whitespace_and_presence_behavior() {
+        let template = AnkiCardTemplate::new(
+            "Compatibility",
+            "{{Missing}}|{{Spaced}}|{{#Blank}}yes{{/Blank}}{{^Blank}}no{{/Blank}}",
+            "back",
+        );
+        let rendered = render_template(
+            &template,
+            &fields(&[("Spaced", "  value  "), ("Blank", "   ")]),
+        )
+        .expect("template renders");
+        assert_eq!(rendered.front, "|  value  |no");
+    }
+
+    #[test]
+    fn renders_nested_sections() {
+        let template = AnkiCardTemplate::new(
+            "Nested",
+            "{{#Outer}}A{{^Inner}}B{{/Inner}}{{#Inner}}C{{/Inner}}{{/Outer}}",
+            "back",
+        );
+        assert_eq!(
+            render_template(&template, &fields(&[("Outer", "yes")]))
+                .expect("template renders")
+                .front,
+            "AB"
+        );
+    }
+
+    #[test]
+    fn injects_the_fully_rendered_front() {
+        let template = AnkiCardTemplate::new("Basic", "<b>{{Word}}</b>", "{{FrontSide}}");
+        assert_eq!(
+            render_template(&template, &fields(&[("Word", "rendered")]))
+                .expect("template renders")
+                .back,
+            "<b>rendered</b>"
+        );
+    }
+
+    #[test]
+    fn leaves_runtime_template_looking_values_literal() {
+        let template = AnkiCardTemplate::new("Basic", "{{Value}}", "back");
+        let value = "{{Other}}{{#Flag}}x{{/Flag}}{{FrontSide}}";
+        assert_eq!(
+            render_template(&template, &fields(&[("Value", value)]))
+                .expect("template renders")
+                .front,
+            value
+        );
+    }
+
+    #[test]
+    fn reports_front_errors_before_parsing_the_back() {
+        let template = AnkiCardTemplate::new("Broken", "{{#Front}}x{{/Wrong}}", "{{#Back}}");
+        assert_eq!(
+            render_template(&template, &AnkiNoteFields::default()),
+            Err(TemplateRenderError::MismatchedSection {
+                expected: "Front".to_owned(),
+                found: "Wrong".to_owned(),
+            })
         );
     }
 }
