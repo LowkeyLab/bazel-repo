@@ -1,0 +1,10 @@
+alias(
+    name = "flipped_anki",
+    actual = "//flipped/anki/src:flipped_anki",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "flipped_anki_test",
+    actual = "//flipped/anki/src:flipped_anki_test",
+)

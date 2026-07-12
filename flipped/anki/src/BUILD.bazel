@@ -2,28 +2,20 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 rust_library(
-    name = "flipped",
+    name = "flipped_anki",
     srcs = [
-        "card.rs",
-        "deck.rs",
-        "error.rs",
-        "id.rs",
         "lib.rs",
-        "participant.rs",
-        "session.rs",
+        "template.rs",
     ],
-    crate_name = "flipped",
+    crate_name = "flipped_anki",
     crate_root = "lib.rs",
     visibility = ["//visibility:public"],
-    deps = [
-        "@crates//:thiserror",
-        "@crates//:uuid",
-    ],
+    deps = ["//flipped/src:flipped"],
 )
 
 rust_test(
-    name = "flipped_test",
+    name = "flipped_anki_test",
     size = "small",
-    crate = ":flipped",
+    crate = ":flipped_anki",
     visibility = ["//visibility:public"],
 )

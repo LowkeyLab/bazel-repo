@@ -1,10 +1,10 @@
 alias(
     name = "flipped",
-    actual = "//flipped/src:lib",
+    actual = "//flipped/src:flipped",
     visibility = ["//visibility:public"],
 )
 
 alias(
     name = "flipped_test",
-    actual = "//flipped/src:lib_test",
+    actual = "//flipped/src:flipped_test",
 )
