@@ -26,21 +26,27 @@ mod tests {
 
     use super::*;
 
-    fn card(front: &str, back: &str) -> std::result::Result<Flashcard, FlippedError> {
-        Flashcard::new(front, back)
+    fn card(front: &str, back: &str) -> Result<Flashcard> {
+        match Flashcard::new(front, back) {
+            Ok(card) => Ok(card),
+            Err(error) => fail!("valid card; unexpected error: {:?}", error)
+                .map(|()| unreachable!("fail! unexpectedly succeeded")),
+        }
     }
 
-    fn deck() -> std::result::Result<Deck, FlippedError> {
-        Deck::new(
-            Some("Spanish basics".to_owned()),
-            vec![card("hola", "hello")?, card("adiós", "goodbye")?],
-        )
+    fn deck() -> Result<Deck> {
+        let cards = vec![card("hola", "hello")?, card("adiós", "goodbye")?];
+        match Deck::new(Some("Spanish basics".to_owned()), cards) {
+            Ok(deck) => Ok(deck),
+            Err(error) => fail!("valid deck; unexpected error: {:?}", error)
+                .map(|()| unreachable!("fail! unexpectedly succeeded")),
+        }
     }
 
     fn ready_session(
         examiner: ExaminerParticipant,
         test_taker: TestTakerParticipant,
-    ) -> std::result::Result<ReadySession, FlippedError> {
+    ) -> Result<ReadySession> {
         Ok(Session::new(deck()?)
             .join_examiner(examiner)
             .join_test_taker(test_taker))
@@ -49,8 +55,12 @@ mod tests {
     fn active_session(
         examiner: ExaminerParticipant,
         test_taker: TestTakerParticipant,
-    ) -> std::result::Result<ActiveSession, FlippedError> {
-        ready_session(examiner, test_taker)?.start(&examiner)
+    ) -> Result<ActiveSession> {
+        match ready_session(examiner, test_taker)?.start(&examiner) {
+            Ok(session) => Ok(session),
+            Err(error) => fail!("examiner starts; unexpected error: {:?}", error)
+                .map(|()| unreachable!("fail! unexpectedly succeeded")),
+        }
     }
 
     #[test]
@@ -91,11 +101,7 @@ mod tests {
     fn joins_participants_and_starts_when_examiner_commands() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let deck = match deck() {
-            Ok(deck) => deck,
-            Err(error) => return fail!("valid deck; unexpected error: {:?}", error),
-        };
-        let session = Session::new(deck);
+        let session = Session::new(deck()?);
 
         verify_that!(session.status(), eq(SessionStatus::Empty))?;
         let session = session.join_examiner(examiner);
@@ -120,12 +126,7 @@ mod tests {
     fn joins_in_either_role_order() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let deck = match deck() {
-            Ok(deck) => deck,
-            Err(error) => return fail!("valid deck; unexpected error: {:?}", error),
-        };
-
-        let session = Session::new(deck).join_test_taker(test_taker);
+        let session = Session::new(deck()?).join_test_taker(test_taker);
         verify_that!(session.status(), eq(SessionStatus::HasTestTaker))?;
 
         let session = session.join_examiner(examiner);
@@ -139,10 +140,7 @@ mod tests {
     fn exposes_role_specific_card_views() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = match active_session(examiner, test_taker) {
-            Ok(session) => session,
-            Err(error) => return fail!("active session; unexpected error: {:?}", error),
-        };
+        let session = active_session(examiner, test_taker)?;
 
         let examiner_view = match session.examiner_view(&examiner) {
             Ok(view) => view,
@@ -174,10 +172,7 @@ mod tests {
     fn advances_until_completed() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = match active_session(examiner, test_taker) {
-            Ok(session) => session,
-            Err(error) => return fail!("active session; unexpected error: {:?}", error),
-        };
+        let session = active_session(examiner, test_taker)?;
 
         let outcome = match session.advance(&examiner) {
             Ok(outcome) => outcome,
@@ -226,10 +221,7 @@ mod tests {
         let joined_examiner = ExaminerParticipant::new(ParticipantId::new());
         let unjoined_examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = match ready_session(joined_examiner, test_taker) {
-            Ok(session) => session,
-            Err(error) => return fail!("test taker joins; unexpected error: {:?}", error),
-        };
+        let session = ready_session(joined_examiner, test_taker)?;
 
         let error = match session.start(&unjoined_examiner) {
             Ok(value) => {
@@ -245,10 +237,7 @@ mod tests {
     fn terminates_active_sessions() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = match active_session(examiner, test_taker) {
-            Ok(session) => session,
-            Err(error) => return fail!("active session; unexpected error: {:?}", error),
-        };
+        let session = active_session(examiner, test_taker)?;
 
         let session = match session.end(&examiner) {
             Ok(session) => session,
@@ -263,11 +252,7 @@ mod tests {
 
     #[test]
     fn any_session_reports_dynamic_status() -> Result<()> {
-        let deck = match deck() {
-            Ok(deck) => deck,
-            Err(error) => return fail!("valid deck; unexpected error: {:?}", error),
-        };
-        let session = AnySession::Empty(Session::new(deck));
+        let session = AnySession::Empty(Session::new(deck()?));
 
         verify_that!(session.status(), eq(SessionStatus::Empty))?;
         Ok(())
