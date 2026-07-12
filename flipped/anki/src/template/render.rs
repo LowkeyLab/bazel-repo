@@ -1,46 +1,56 @@
 use super::{
-    AnkiNoteFields, RenderOptions,
+    AnkiNoteFields,
     ast::{SectionKind, TemplateAst, TemplateNode},
 };
 
 const DEFAULT_CLOZE_BLANK: &str = "[...]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RenderMode {
-    Front(RenderOptions),
-    Back,
+enum RenderContext<'a> {
+    Front { cloze_number: Option<u32> },
+    Back { front_side: &'a str },
 }
 
-pub(super) fn render(
+pub(super) fn render_front(
     ast: &TemplateAst,
     fields: &AnkiNoteFields,
-    front_side: Option<&str>,
-    mode: RenderMode,
+    cloze_number: Option<u32>,
 ) -> String {
+    render(ast, fields, RenderContext::Front { cloze_number })
+}
+
+pub(super) fn render_back(ast: &TemplateAst, fields: &AnkiNoteFields, front_side: &str) -> String {
+    render(ast, fields, RenderContext::Back { front_side })
+}
+
+fn render(ast: &TemplateAst, fields: &AnkiNoteFields, context: RenderContext<'_>) -> String {
     let mut output = String::new();
-    render_nodes(&ast.0, fields, front_side, mode, &mut output);
+    render_nodes(&ast.0, fields, context, &mut output);
     output
 }
 
 fn render_nodes(
     nodes: &[TemplateNode],
     fields: &AnkiNoteFields,
-    front_side: Option<&str>,
-    mode: RenderMode,
+    context: RenderContext<'_>,
     output: &mut String,
 ) {
     for node in nodes {
         match node {
             TemplateNode::Text(text) => output.push_str(text),
             TemplateNode::Field(name) => output.push_str(fields.get(name).unwrap_or_default()),
-            TemplateNode::FrontSide => output.push_str(front_side.unwrap_or_default()),
+            TemplateNode::FrontSide => {
+                if let RenderContext::Back { front_side } = context {
+                    output.push_str(front_side);
+                }
+            }
             TemplateNode::ClozeField(name) => {
                 let text = fields.get(name).unwrap_or_default();
-                match mode {
-                    RenderMode::Front(options) => {
-                        output.push_str(&render_cloze_front(text, options.cloze_number));
+                match context {
+                    RenderContext::Front { cloze_number } => {
+                        output.push_str(&render_cloze_front(text, cloze_number));
                     }
-                    RenderMode::Back => output.push_str(&render_cloze_back(text)),
+                    RenderContext::Back { .. } => output.push_str(&render_cloze_back(text)),
                 }
             }
             TemplateNode::Section {
@@ -53,7 +63,7 @@ fn render_nodes(
                     SectionKind::Inverted => !fields.is_present(name),
                 };
                 if selected {
-                    render_nodes(children, fields, front_side, mode, output);
+                    render_nodes(children, fields, context, output);
                 }
             }
         }
@@ -130,13 +140,8 @@ mod tests {
         AnkiNoteFields::new(pairs.iter().copied())
     }
 
-    fn render_front(ast: &TemplateAst, fields: &AnkiNoteFields) -> String {
-        render(
-            ast,
-            fields,
-            None,
-            RenderMode::Front(RenderOptions::default()),
-        )
+    fn render_default_front(ast: &TemplateAst, fields: &AnkiNoteFields) -> String {
+        render_front(ast, fields, None)
     }
 
     #[test]
@@ -147,7 +152,7 @@ mod tests {
             TemplateNode::Field("Spaced".to_owned()),
         ]);
         assert_eq!(
-            render_front(
+            render_default_front(
                 &ast,
                 &fields(&[("Present", "value"), ("Spaced", "  value  ")])
             ),
@@ -173,9 +178,12 @@ mod tests {
         for value in [None, Some(""), Some("   ")] {
             let values =
                 value.map_or_else(AnkiNoteFields::default, |value| fields(&[("Value", value)]));
-            assert_eq!(render_front(&ast, &values), "no");
+            assert_eq!(render_default_front(&ast, &values), "no");
         }
-        assert_eq!(render_front(&ast, &fields(&[("Value", "x")])), "yes");
+        assert_eq!(
+            render_default_front(&ast, &fields(&[("Value", "x")])),
+            "yes"
+        );
     }
 
     #[test]
@@ -200,21 +208,16 @@ mod tests {
                 },
             ],
         }]);
-        assert_eq!(render_front(&ast, &fields(&[("Outer", "x")])), "AB");
-        assert_eq!(render_front(&ast, &AnkiNoteFields::default()), "");
+        assert_eq!(render_default_front(&ast, &fields(&[("Outer", "x")])), "AB");
+        assert_eq!(render_default_front(&ast, &AnkiNoteFields::default()), "");
     }
 
     #[test]
-    fn supports_front_back_modes_and_front_side() {
+    fn supports_front_and_back_rendering_with_front_side() {
         let ast = TemplateAst(vec![TemplateNode::FrontSide]);
-        assert_eq!(render_front(&ast, &AnkiNoteFields::default()), "");
+        assert_eq!(render_default_front(&ast, &AnkiNoteFields::default()), "");
         assert_eq!(
-            render(
-                &ast,
-                &AnkiNoteFields::default(),
-                Some("<b>rendered front</b>"),
-                RenderMode::Back,
-            ),
+            render_back(&ast, &AnkiNoteFields::default(), "<b>rendered front</b>"),
             "<b>rendered front</b>"
         );
     }
@@ -223,60 +226,36 @@ mod tests {
     fn renders_cloze_ordinals_and_hints() {
         let ast = TemplateAst(vec![TemplateNode::ClozeField("Text".to_owned())]);
         let values = fields(&[("Text", "{{c1::Paris}} is in {{c2::France}}")]);
-        assert_eq!(render_front(&ast, &values), "[...] is in [...]");
-        assert_eq!(
-            render(
-                &ast,
-                &values,
-                None,
-                RenderMode::Front(RenderOptions {
-                    cloze_number: Some(2)
-                }),
-            ),
-            "Paris is in [...]"
-        );
-        assert_eq!(
-            render(&ast, &values, None, RenderMode::Back),
-            "Paris is in France"
-        );
+        assert_eq!(render_default_front(&ast, &values), "[...] is in [...]");
+        assert_eq!(render_front(&ast, &values, Some(2)), "Paris is in [...]");
+        assert_eq!(render_back(&ast, &values, ""), "Paris is in France");
 
         let hinted = fields(&[("Text", "Capital: {{c1::Paris::city}}")]);
-        assert_eq!(
-            render(
-                &ast,
-                &hinted,
-                None,
-                RenderMode::Front(RenderOptions {
-                    cloze_number: Some(1)
-                }),
-            ),
-            "Capital: [city]"
-        );
-        assert_eq!(
-            render(&ast, &hinted, None, RenderMode::Back),
-            "Capital: Paris"
-        );
+        assert_eq!(render_front(&ast, &hinted, Some(1)), "Capital: [city]");
+        assert_eq!(render_back(&ast, &hinted, ""), "Capital: Paris");
     }
 
     #[test]
     fn malformed_cloze_markers_pass_through() {
         let ast = TemplateAst(vec![TemplateNode::ClozeField("Text".to_owned())]);
         let values = fields(&[("Text", "before {{cX::answer}} after")]);
-        for mode in [
-            RenderMode::Front(RenderOptions::default()),
-            RenderMode::Back,
-        ] {
-            assert_eq!(
-                render(&ast, &values, None, mode),
-                "before {{cX::answer}} after"
-            );
-        }
+        assert_eq!(
+            render_default_front(&ast, &values),
+            "before {{cX::answer}} after"
+        );
+        assert_eq!(
+            render_back(&ast, &values, ""),
+            "before {{cX::answer}} after"
+        );
     }
 
     #[test]
     fn ordinary_field_values_are_never_parsed_as_templates() {
         let ast = TemplateAst(vec![TemplateNode::Field("Value".to_owned())]);
         let value = "{{Other}}{{#Flag}}x{{/Flag}}{{FrontSide}}";
-        assert_eq!(render_front(&ast, &fields(&[("Value", value)])), value);
+        assert_eq!(
+            render_default_front(&ast, &fields(&[("Value", value)])),
+            value
+        );
     }
 }

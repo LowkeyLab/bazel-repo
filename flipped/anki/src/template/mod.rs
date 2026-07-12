@@ -2,8 +2,6 @@ use std::collections::BTreeMap;
 
 use flipped::{Flashcard, FlippedError};
 
-use self::render::RenderMode;
-
 mod ast;
 mod parser;
 mod render;
@@ -55,14 +53,6 @@ impl AnkiCardTemplate {
     }
 }
 
-/// Options for rendering an Anki template.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct RenderOptions {
-    /// The one-based cloze number to hide when rendering `{{cloze:Field}}` on
-    /// the front. Anki's first cloze deletion is `c1`, not `c0`.
-    pub cloze_number: Option<u32>,
-}
-
 /// Rendered front/back content that can be converted into a flipped flashcard.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderedCard {
@@ -97,19 +87,12 @@ pub enum TemplateRenderError {
 pub fn render_template(
     template: &AnkiCardTemplate,
     fields: &AnkiNoteFields,
-) -> Result<RenderedCard, TemplateRenderError> {
-    render_template_with_options(template, fields, RenderOptions::default())
-}
-
-pub fn render_template_with_options(
-    template: &AnkiCardTemplate,
-    fields: &AnkiNoteFields,
-    options: RenderOptions,
+    cloze_number: Option<u32>,
 ) -> Result<RenderedCard, TemplateRenderError> {
     let front_ast = parser::parse(&template.front)?;
-    let front = render::render(&front_ast, fields, None, RenderMode::Front(options));
+    let front = render::render_front(&front_ast, fields, cloze_number);
     let back_ast = parser::parse(&template.back)?;
-    let back = render::render(&back_ast, fields, Some(front.as_str()), RenderMode::Back);
+    let back = render::render_back(&back_ast, fields, &front);
 
     Ok(RenderedCard { front, back })
 }
@@ -125,9 +108,12 @@ mod tests {
     #[test]
     fn renders_named_fields() {
         let template = AnkiCardTemplate::new("Basic", "{{Word}}", "{{Meaning}}");
-        let rendered =
-            render_template(&template, &fields(&[("Word", "perro"), ("Meaning", "dog")]))
-                .expect("template renders");
+        let rendered = render_template(
+            &template,
+            &fields(&[("Word", "perro"), ("Meaning", "dog")]),
+            None,
+        )
+        .expect("template renders");
 
         assert_eq!(rendered.front, "perro");
         assert_eq!(rendered.back, "dog");
@@ -140,9 +126,12 @@ mod tests {
             "<b>{{Word}}</b>",
             "{{FrontSide}}<hr id=answer>{{Meaning}}",
         );
-        let rendered =
-            render_template(&template, &fields(&[("Word", "perro"), ("Meaning", "dog")]))
-                .expect("template renders");
+        let rendered = render_template(
+            &template,
+            &fields(&[("Word", "perro"), ("Meaning", "dog")]),
+            None,
+        )
+        .expect("template renders");
 
         assert_eq!(rendered.front, "<b>perro</b>");
         assert_eq!(rendered.back, "<b>perro</b><hr id=answer>dog");
@@ -158,6 +147,7 @@ mod tests {
         let rendered = render_template(
             &template,
             &fields(&[("Example", "El perro corre."), ("Meaning", "dog")]),
+            None,
         )
         .expect("template renders");
 
@@ -168,12 +158,10 @@ mod tests {
     #[test]
     fn hides_matching_cloze_on_front_and_reveals_all_on_back() {
         let template = AnkiCardTemplate::new("Cloze", "{{cloze:Text}}", "{{cloze:Text}}");
-        let rendered = render_template_with_options(
+        let rendered = render_template(
             &template,
             &fields(&[("Text", "{{c1::Paris}} is the capital of {{c2::France}}.")]),
-            RenderOptions {
-                cloze_number: Some(2),
-            },
+            Some(2),
         )
         .expect("template renders");
 
@@ -184,12 +172,10 @@ mod tests {
     #[test]
     fn renders_cloze_hints_as_blanks() {
         let template = AnkiCardTemplate::new("Cloze", "{{cloze:Text}}", "{{cloze:Text}}");
-        let rendered = render_template_with_options(
+        let rendered = render_template(
             &template,
             &fields(&[("Text", "Capital: {{c1::Paris::city}}")]),
-            RenderOptions {
-                cloze_number: Some(1),
-            },
+            Some(1),
         )
         .expect("template renders");
 
@@ -213,7 +199,7 @@ mod tests {
     #[test]
     fn rejects_unclosed_sections() {
         let template = AnkiCardTemplate::new("Broken", "{{#Word}}{{Word}}", "{{Word}}");
-        let err = render_template(&template, &fields(&[("Word", "hola")]))
+        let err = render_template(&template, &fields(&[("Word", "hola")]), None)
             .expect_err("unclosed section should fail");
 
         assert_eq!(
@@ -234,6 +220,7 @@ mod tests {
         let rendered = render_template(
             &template,
             &fields(&[("Spaced", "  value  "), ("Blank", "   ")]),
+            None,
         )
         .expect("template renders");
         assert_eq!(rendered.front, "|  value  |no");
@@ -247,7 +234,7 @@ mod tests {
             "back",
         );
         assert_eq!(
-            render_template(&template, &fields(&[("Outer", "yes")]))
+            render_template(&template, &fields(&[("Outer", "yes")]), None)
                 .expect("template renders")
                 .front,
             "AB"
@@ -258,7 +245,7 @@ mod tests {
     fn injects_the_fully_rendered_front() {
         let template = AnkiCardTemplate::new("Basic", "<b>{{Word}}</b>", "{{FrontSide}}");
         assert_eq!(
-            render_template(&template, &fields(&[("Word", "rendered")]))
+            render_template(&template, &fields(&[("Word", "rendered")]), None)
                 .expect("template renders")
                 .back,
             "<b>rendered</b>"
@@ -270,7 +257,7 @@ mod tests {
         let template = AnkiCardTemplate::new("Basic", "{{Value}}", "back");
         let value = "{{Other}}{{#Flag}}x{{/Flag}}{{FrontSide}}";
         assert_eq!(
-            render_template(&template, &fields(&[("Value", value)]))
+            render_template(&template, &fields(&[("Value", value)]), None)
                 .expect("template renders")
                 .front,
             value
@@ -281,7 +268,7 @@ mod tests {
     fn reports_front_errors_before_parsing_the_back() {
         let template = AnkiCardTemplate::new("Broken", "{{#Front}}x{{/Wrong}}", "{{#Back}}");
         assert_eq!(
-            render_template(&template, &AnkiNoteFields::default()),
+            render_template(&template, &AnkiNoteFields::default(), None),
             Err(TemplateRenderError::MismatchedSection {
                 expected: "Front".to_owned(),
                 found: "Wrong".to_owned(),

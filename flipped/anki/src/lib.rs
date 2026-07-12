@@ -7,6 +7,5 @@
 mod template;
 
 pub use template::{
-    AnkiCardTemplate, AnkiNoteFields, RenderOptions, RenderedCard, TemplateRenderError,
-    render_template, render_template_with_options,
+    AnkiCardTemplate, AnkiNoteFields, RenderedCard, TemplateRenderError, render_template,
 };
