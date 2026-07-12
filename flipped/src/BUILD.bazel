@@ -1,0 +1,28 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "lib",
+    srcs = [
+        "card.rs",
+        "deck.rs",
+        "error.rs",
+        "id.rs",
+        "lib.rs",
+        "participant.rs",
+        "session.rs",
+    ],
+    crate_root = "lib.rs",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:thiserror",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "lib_test",
+    size = "small",
+    crate = ":lib",
+    visibility = ["//visibility:public"],
+)

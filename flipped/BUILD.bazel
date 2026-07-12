@@ -1,0 +1,10 @@
+alias(
+    name = "flipped",
+    actual = "//flipped/src:lib",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "flipped_test",
+    actual = "//flipped/src:lib_test",
+)
