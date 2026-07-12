@@ -99,6 +99,8 @@ pub fn render_template(
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
 
     fn fields(pairs: &[(&str, &str)]) -> AnkiNoteFields {
@@ -106,173 +108,204 @@ mod tests {
     }
 
     #[test]
-    fn renders_named_fields() {
+    fn renders_named_fields() -> Result<()> {
         let template = AnkiCardTemplate::new("Basic", "{{Word}}", "{{Meaning}}");
-        let rendered = render_template(
+        let rendered = match render_template(
             &template,
             &fields(&[("Word", "perro"), ("Meaning", "dog")]),
             None,
-        )
-        .expect("template renders");
+        ) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(rendered.front, "perro");
-        assert_eq!(rendered.back, "dog");
+        verify_that!(rendered.front, eq("perro"))?;
+        verify_that!(rendered.back, eq("dog"))?;
+        Ok(())
     }
 
     #[test]
-    fn renders_front_side_on_back() {
+    fn renders_front_side_on_back() -> Result<()> {
         let template = AnkiCardTemplate::new(
             "Basic",
             "<b>{{Word}}</b>",
             "{{FrontSide}}<hr id=answer>{{Meaning}}",
         );
-        let rendered = render_template(
+        let rendered = match render_template(
             &template,
             &fields(&[("Word", "perro"), ("Meaning", "dog")]),
             None,
-        )
-        .expect("template renders");
+        ) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(rendered.front, "<b>perro</b>");
-        assert_eq!(rendered.back, "<b>perro</b><hr id=answer>dog");
+        verify_that!(rendered.front, eq("<b>perro</b>"))?;
+        verify_that!(rendered.back, eq("<b>perro</b><hr id=answer>dog"))?;
+        Ok(())
     }
 
     #[test]
-    fn renders_conditional_sections() {
+    fn renders_conditional_sections() -> Result<()> {
         let template = AnkiCardTemplate::new(
             "Basic",
             "{{#Example}}Example: {{Example}}{{/Example}}{{^Hint}}No hint{{/Hint}}",
             "{{Meaning}}",
         );
-        let rendered = render_template(
+        let rendered = match render_template(
             &template,
             &fields(&[("Example", "El perro corre."), ("Meaning", "dog")]),
             None,
-        )
-        .expect("template renders");
+        ) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(rendered.front, "Example: El perro corre.No hint");
-        assert_eq!(rendered.back, "dog");
+        verify_that!(rendered.front, eq("Example: El perro corre.No hint"))?;
+        verify_that!(rendered.back, eq("dog"))?;
+        Ok(())
     }
 
     #[test]
-    fn hides_matching_cloze_on_front_and_reveals_all_on_back() {
+    fn hides_matching_cloze_on_front_and_reveals_all_on_back() -> Result<()> {
         let template = AnkiCardTemplate::new("Cloze", "{{cloze:Text}}", "{{cloze:Text}}");
-        let rendered = render_template(
+        let rendered = match render_template(
             &template,
             &fields(&[("Text", "{{c1::Paris}} is the capital of {{c2::France}}.")]),
             Some(2),
-        )
-        .expect("template renders");
+        ) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(rendered.front, "Paris is the capital of [...].");
-        assert_eq!(rendered.back, "Paris is the capital of France.");
+        verify_that!(rendered.front, eq("Paris is the capital of [...]."))?;
+        verify_that!(rendered.back, eq("Paris is the capital of France."))?;
+        Ok(())
     }
 
     #[test]
-    fn renders_cloze_hints_as_blanks() {
+    fn renders_cloze_hints_as_blanks() -> Result<()> {
         let template = AnkiCardTemplate::new("Cloze", "{{cloze:Text}}", "{{cloze:Text}}");
-        let rendered = render_template(
+        let rendered = match render_template(
             &template,
             &fields(&[("Text", "Capital: {{c1::Paris::city}}")]),
             Some(1),
-        )
-        .expect("template renders");
+        ) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(rendered.front, "Capital: [city]");
-        assert_eq!(rendered.back, "Capital: Paris");
+        verify_that!(rendered.front, eq("Capital: [city]"))?;
+        verify_that!(rendered.back, eq("Capital: Paris"))?;
+        Ok(())
     }
 
     #[test]
-    fn rendered_cards_convert_to_flipped_flashcards() {
-        let flashcard = RenderedCard {
+    fn rendered_cards_convert_to_flipped_flashcards() -> Result<()> {
+        let flashcard = match (RenderedCard {
             front: "hola".to_owned(),
             back: "hello".to_owned(),
-        }
+        })
         .into_flashcard()
-        .expect("valid flipped card");
+        {
+            Ok(flashcard) => flashcard,
+            Err(error) => return fail!("valid flipped card; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(flashcard.front().as_str(), "hola");
-        assert_eq!(flashcard.back().as_str(), "hello");
+        verify_that!(flashcard.front().as_str(), eq("hola"))?;
+        verify_that!(flashcard.back().as_str(), eq("hello"))?;
+        Ok(())
     }
 
     #[test]
-    fn rejects_unclosed_sections() {
+    fn rejects_unclosed_sections() -> Result<()> {
         let template = AnkiCardTemplate::new("Broken", "{{#Word}}{{Word}}", "{{Word}}");
-        let err = render_template(&template, &fields(&[("Word", "hola")]), None)
-            .expect_err("unclosed section should fail");
-
-        assert_eq!(
-            err,
-            TemplateRenderError::UnclosedSection {
-                name: "Word".to_owned()
+        let err = match render_template(&template, &fields(&[("Word", "hola")]), None) {
+            Err(error) => error,
+            Ok(value) => {
+                return fail!(
+                    "unclosed section should fail; unexpected value: {:?}",
+                    value
+                );
             }
-        );
+        };
+
+        verify_that!(
+            err,
+            eq(&TemplateRenderError::UnclosedSection {
+                name: "Word".to_owned()
+            })
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn preserves_missing_whitespace_and_presence_behavior() {
+    fn preserves_missing_whitespace_and_presence_behavior() -> Result<()> {
         let template = AnkiCardTemplate::new(
             "Compatibility",
             "{{Missing}}|{{Spaced}}|{{#Blank}}yes{{/Blank}}{{^Blank}}no{{/Blank}}",
             "back",
         );
-        let rendered = render_template(
+        let rendered = match render_template(
             &template,
             &fields(&[("Spaced", "  value  "), ("Blank", "   ")]),
             None,
-        )
-        .expect("template renders");
-        assert_eq!(rendered.front, "|  value  |no");
+        ) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
+        verify_that!(rendered.front, eq("|  value  |no"))?;
+        Ok(())
     }
 
     #[test]
-    fn renders_nested_sections() {
+    fn renders_nested_sections() -> Result<()> {
         let template = AnkiCardTemplate::new(
             "Nested",
             "{{#Outer}}A{{^Inner}}B{{/Inner}}{{#Inner}}C{{/Inner}}{{/Outer}}",
             "back",
         );
-        assert_eq!(
-            render_template(&template, &fields(&[("Outer", "yes")]), None)
-                .expect("template renders")
-                .front,
-            "AB"
-        );
+        let rendered = match render_template(&template, &fields(&[("Outer", "yes")]), None) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
+        verify_that!(rendered.front, eq("AB"))?;
+        Ok(())
     }
 
     #[test]
-    fn injects_the_fully_rendered_front() {
+    fn injects_the_fully_rendered_front() -> Result<()> {
         let template = AnkiCardTemplate::new("Basic", "<b>{{Word}}</b>", "{{FrontSide}}");
-        assert_eq!(
-            render_template(&template, &fields(&[("Word", "rendered")]), None)
-                .expect("template renders")
-                .back,
-            "<b>rendered</b>"
-        );
+        let rendered = match render_template(&template, &fields(&[("Word", "rendered")]), None) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
+        verify_that!(rendered.back, eq("<b>rendered</b>"))?;
+        Ok(())
     }
 
     #[test]
-    fn leaves_runtime_template_looking_values_literal() {
+    fn leaves_runtime_template_looking_values_literal() -> Result<()> {
         let template = AnkiCardTemplate::new("Basic", "{{Value}}", "back");
         let value = "{{Other}}{{#Flag}}x{{/Flag}}{{FrontSide}}";
-        assert_eq!(
-            render_template(&template, &fields(&[("Value", value)]), None)
-                .expect("template renders")
-                .front,
-            value
-        );
+        let rendered = match render_template(&template, &fields(&[("Value", value)]), None) {
+            Ok(rendered) => rendered,
+            Err(error) => return fail!("template renders; unexpected error: {:?}", error),
+        };
+        verify_that!(rendered.front, eq(value))?;
+        Ok(())
     }
 
     #[test]
-    fn reports_front_errors_before_parsing_the_back() {
+    fn reports_front_errors_before_parsing_the_back() -> Result<()> {
         let template = AnkiCardTemplate::new("Broken", "{{#Front}}x{{/Wrong}}", "{{#Back}}");
-        assert_eq!(
+        verify_that!(
             render_template(&template, &AnkiNoteFields::default(), None),
-            Err(TemplateRenderError::MismatchedSection {
+            err(eq(&TemplateRenderError::MismatchedSection {
                 expected: "Front".to_owned(),
                 found: "Wrong".to_owned(),
-            })
-        );
+            }))
+        )?;
+        Ok(())
     }
 }

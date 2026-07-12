@@ -87,6 +87,8 @@ fn parse_nodes<'a>(
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
 
     fn text(value: &str) -> TemplateNode {
@@ -98,65 +100,73 @@ mod tests {
     }
 
     #[test]
-    fn parses_literal_text() {
-        assert_eq!(parse("literal"), Ok(TemplateAst(vec![text("literal")])));
+    fn parses_literal_text() -> Result<()> {
+        verify_that!(
+            parse("literal"),
+            ok(eq(&TemplateAst(vec![text("literal")])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn parses_field_between_text() {
-        assert_eq!(
+    fn parses_field_between_text() -> Result<()> {
+        verify_that!(
             parse("a{{ Word }}b"),
-            Ok(TemplateAst(vec![text("a"), field("Word"), text("b")]))
-        );
+            ok(eq(&TemplateAst(vec![text("a"), field("Word"), text("b")])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn parses_special_references() {
-        assert_eq!(
+    fn parses_special_references() -> Result<()> {
+        verify_that!(
             parse("{{FrontSide}}"),
-            Ok(TemplateAst(vec![TemplateNode::FrontSide]))
-        );
-        assert_eq!(
+            ok(eq(&TemplateAst(vec![TemplateNode::FrontSide])))
+        )?;
+        verify_that!(
             parse("{{cloze: Text }}"),
-            Ok(TemplateAst(vec![TemplateNode::ClozeField(
+            ok(eq(&TemplateAst(vec![TemplateNode::ClozeField(
                 "Text".to_owned()
-            )]))
-        );
+            )])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn adjacent_tags_have_no_empty_text_nodes() {
-        assert_eq!(
+    fn adjacent_tags_have_no_empty_text_nodes() -> Result<()> {
+        verify_that!(
             parse("{{First}}{{Second}}"),
-            Ok(TemplateAst(vec![field("First"), field("Second")]))
-        );
+            ok(eq(&TemplateAst(vec![field("First"), field("Second")])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn parses_positive_and_inverted_sections() {
-        assert_eq!(
+    fn parses_positive_and_inverted_sections() -> Result<()> {
+        verify_that!(
             parse("{{#Word}}yes{{/Word}}"),
-            Ok(TemplateAst(vec![TemplateNode::Section {
+            ok(eq(&TemplateAst(vec![TemplateNode::Section {
                 name: "Word".to_owned(),
                 kind: SectionKind::Positive,
                 children: vec![text("yes")],
-            }]))
-        );
-        assert_eq!(
+            }])))
+        )?;
+        verify_that!(
             parse("{{^Word}}no{{/Word}}"),
-            Ok(TemplateAst(vec![TemplateNode::Section {
+            ok(eq(&TemplateAst(vec![TemplateNode::Section {
                 name: "Word".to_owned(),
                 kind: SectionKind::Inverted,
                 children: vec![text("no")],
-            }]))
-        );
+            }])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn parses_nested_sections() {
-        assert_eq!(
+    fn parses_nested_sections() -> Result<()> {
+        verify_that!(
             parse("{{#Outer}}A{{^Inner}}B{{/Inner}}C{{/Outer}}"),
-            Ok(TemplateAst(vec![TemplateNode::Section {
+            ok(eq(&TemplateAst(vec![TemplateNode::Section {
                 name: "Outer".to_owned(),
                 kind: SectionKind::Positive,
                 children: vec![
@@ -168,60 +178,64 @@ mod tests {
                     },
                     text("C"),
                 ],
-            }]))
-        );
+            }])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn preserves_whitespace_only_section_names() {
-        assert_eq!(
+    fn preserves_whitespace_only_section_names() -> Result<()> {
+        verify_that!(
             parse("{{#   }}x{{/   }}"),
-            Ok(TemplateAst(vec![TemplateNode::Section {
+            ok(eq(&TemplateAst(vec![TemplateNode::Section {
                 name: String::new(),
                 kind: SectionKind::Positive,
                 children: vec![text("x")],
-            }]))
-        );
+            }])))
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn reports_structural_errors() {
-        assert_eq!(
+    fn reports_structural_errors() -> Result<()> {
+        verify_that!(
             parse("before {{Field"),
-            Err(TemplateRenderError::UnclosedTag {
+            err(eq(&TemplateRenderError::UnclosedTag {
                 tag: "Field".to_owned()
-            })
-        );
-        assert_eq!(
+            }))
+        )?;
+        verify_that!(
             parse("{{#Word}}x"),
-            Err(TemplateRenderError::UnclosedSection {
+            err(eq(&TemplateRenderError::UnclosedSection {
                 name: "Word".to_owned()
-            })
-        );
-        assert_eq!(
+            }))
+        )?;
+        verify_that!(
             parse("{{#Word}}x{{/Other}}"),
-            Err(TemplateRenderError::MismatchedSection {
+            err(eq(&TemplateRenderError::MismatchedSection {
                 expected: "Word".to_owned(),
                 found: "Other".to_owned(),
-            })
-        );
-        assert_eq!(
+            }))
+        )?;
+        verify_that!(
             parse("{{/Word}}"),
-            Err(TemplateRenderError::ClosingSectionWithoutOpen {
+            err(eq(&TemplateRenderError::ClosingSectionWithoutOpen {
                 name: "Word".to_owned()
-            })
-        );
-        assert_eq!(parse("{{   }}"), Err(TemplateRenderError::EmptyTag));
+            }))
+        )?;
+        verify_that!(parse("{{   }}"), err(eq(&TemplateRenderError::EmptyTag)))?;
+        Ok(())
     }
 
     #[test]
-    fn reports_the_innermost_malformed_nested_section() {
-        assert_eq!(
+    fn reports_the_innermost_malformed_nested_section() -> Result<()> {
+        verify_that!(
             parse("{{#Outer}}{{#Inner}}x{{/Outer}}{{/Inner}}"),
-            Err(TemplateRenderError::MismatchedSection {
+            err(eq(&TemplateRenderError::MismatchedSection {
                 expected: "Inner".to_owned(),
                 found: "Outer".to_owned(),
-            })
-        );
+            }))
+        )?;
+        Ok(())
     }
 }

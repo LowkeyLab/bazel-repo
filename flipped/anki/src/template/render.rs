@@ -134,6 +134,8 @@ fn split_cloze_content(raw_content: &str) -> (&str, Option<&str>) {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
 
     fn fields(pairs: &[(&str, &str)]) -> AnkiNoteFields {
@@ -145,23 +147,24 @@ mod tests {
     }
 
     #[test]
-    fn renders_present_missing_and_untrimmed_fields() {
+    fn renders_present_missing_and_untrimmed_fields() -> Result<()> {
         let ast = TemplateAst(vec![
             TemplateNode::Field("Present".to_owned()),
             TemplateNode::Field("Missing".to_owned()),
             TemplateNode::Field("Spaced".to_owned()),
         ]);
-        assert_eq!(
+        verify_that!(
             render_default_front(
                 &ast,
                 &fields(&[("Present", "value"), ("Spaced", "  value  ")])
             ),
-            "value  value  "
-        );
+            eq("value  value  ")
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn selects_sections_using_nonblank_presence() {
+    fn selects_sections_using_nonblank_presence() -> Result<()> {
         let ast = TemplateAst(vec![
             TemplateNode::Section {
                 name: "Value".to_owned(),
@@ -178,16 +181,17 @@ mod tests {
         for value in [None, Some(""), Some("   ")] {
             let values =
                 value.map_or_else(AnkiNoteFields::default, |value| fields(&[("Value", value)]));
-            assert_eq!(render_default_front(&ast, &values), "no");
+            verify_that!(render_default_front(&ast, &values), eq("no"))?;
         }
-        assert_eq!(
+        verify_that!(
             render_default_front(&ast, &fields(&[("Value", "x")])),
-            "yes"
-        );
+            eq("yes")
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn recursively_renders_only_selected_branches() {
+    fn recursively_renders_only_selected_branches() -> Result<()> {
         let ast = TemplateAst(vec![TemplateNode::Section {
             name: "Outer".to_owned(),
             kind: SectionKind::Positive,
@@ -208,54 +212,71 @@ mod tests {
                 },
             ],
         }]);
-        assert_eq!(render_default_front(&ast, &fields(&[("Outer", "x")])), "AB");
-        assert_eq!(render_default_front(&ast, &AnkiNoteFields::default()), "");
+        verify_that!(
+            render_default_front(&ast, &fields(&[("Outer", "x")])),
+            eq("AB")
+        )?;
+        verify_that!(
+            render_default_front(&ast, &AnkiNoteFields::default()),
+            eq("")
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn supports_front_and_back_rendering_with_front_side() {
+    fn supports_front_and_back_rendering_with_front_side() -> Result<()> {
         let ast = TemplateAst(vec![TemplateNode::FrontSide]);
-        assert_eq!(render_default_front(&ast, &AnkiNoteFields::default()), "");
-        assert_eq!(
+        verify_that!(
+            render_default_front(&ast, &AnkiNoteFields::default()),
+            eq("")
+        )?;
+        verify_that!(
             render_back(&ast, &AnkiNoteFields::default(), "<b>rendered front</b>"),
-            "<b>rendered front</b>"
-        );
+            eq("<b>rendered front</b>")
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn renders_cloze_ordinals_and_hints() {
+    fn renders_cloze_ordinals_and_hints() -> Result<()> {
         let ast = TemplateAst(vec![TemplateNode::ClozeField("Text".to_owned())]);
         let values = fields(&[("Text", "{{c1::Paris}} is in {{c2::France}}")]);
-        assert_eq!(render_default_front(&ast, &values), "[...] is in [...]");
-        assert_eq!(render_front(&ast, &values, Some(2)), "Paris is in [...]");
-        assert_eq!(render_back(&ast, &values, ""), "Paris is in France");
+        verify_that!(render_default_front(&ast, &values), eq("[...] is in [...]"))?;
+        verify_that!(
+            render_front(&ast, &values, Some(2)),
+            eq("Paris is in [...]")
+        )?;
+        verify_that!(render_back(&ast, &values, ""), eq("Paris is in France"))?;
 
         let hinted = fields(&[("Text", "Capital: {{c1::Paris::city}}")]);
-        assert_eq!(render_front(&ast, &hinted, Some(1)), "Capital: [city]");
-        assert_eq!(render_back(&ast, &hinted, ""), "Capital: Paris");
+        verify_that!(render_front(&ast, &hinted, Some(1)), eq("Capital: [city]"))?;
+        verify_that!(render_back(&ast, &hinted, ""), eq("Capital: Paris"))?;
+        Ok(())
     }
 
     #[test]
-    fn malformed_cloze_markers_pass_through() {
+    fn malformed_cloze_markers_pass_through() -> Result<()> {
         let ast = TemplateAst(vec![TemplateNode::ClozeField("Text".to_owned())]);
         let values = fields(&[("Text", "before {{cX::answer}} after")]);
-        assert_eq!(
+        verify_that!(
             render_default_front(&ast, &values),
-            "before {{cX::answer}} after"
-        );
-        assert_eq!(
+            eq("before {{cX::answer}} after")
+        )?;
+        verify_that!(
             render_back(&ast, &values, ""),
-            "before {{cX::answer}} after"
-        );
+            eq("before {{cX::answer}} after")
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn ordinary_field_values_are_never_parsed_as_templates() {
+    fn ordinary_field_values_are_never_parsed_as_templates() -> Result<()> {
         let ast = TemplateAst(vec![TemplateNode::Field("Value".to_owned())]);
         let value = "{{Other}}{{#Flag}}x{{/Flag}}{{FrontSide}}";
-        assert_eq!(
+        verify_that!(
             render_default_front(&ast, &fields(&[("Value", value)])),
-            value
-        );
+            eq(value)
+        )?;
+        Ok(())
     }
 }

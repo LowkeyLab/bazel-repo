@@ -22,189 +22,254 @@ pub use session::{
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
 
-    fn card(front: &str, back: &str) -> Flashcard {
-        Flashcard::new(front, back).expect("valid card")
+    fn card(front: &str, back: &str) -> std::result::Result<Flashcard, FlippedError> {
+        Flashcard::new(front, back)
     }
 
-    fn deck() -> Deck {
+    fn deck() -> std::result::Result<Deck, FlippedError> {
         Deck::new(
             Some("Spanish basics".to_owned()),
-            vec![card("hola", "hello"), card("adiós", "goodbye")],
+            vec![card("hola", "hello")?, card("adiós", "goodbye")?],
         )
-        .expect("valid deck")
     }
 
     fn ready_session(
         examiner: ExaminerParticipant,
         test_taker: TestTakerParticipant,
-    ) -> ReadySession {
-        Session::new(deck())
+    ) -> std::result::Result<ReadySession, FlippedError> {
+        Ok(Session::new(deck()?)
             .join_examiner(examiner)
-            .join_test_taker(test_taker)
+            .join_test_taker(test_taker))
     }
 
     fn active_session(
         examiner: ExaminerParticipant,
         test_taker: TestTakerParticipant,
-    ) -> ActiveSession {
-        ready_session(examiner, test_taker)
-            .start(&examiner)
-            .expect("examiner starts")
+    ) -> std::result::Result<ActiveSession, FlippedError> {
+        ready_session(examiner, test_taker)?.start(&examiner)
     }
 
     #[test]
-    fn validates_blank_card_sides() {
-        assert_eq!(
-            Flashcard::new("", "answer").expect_err("blank front should fail"),
-            FlippedError::BlankCardSide
-        );
-        assert_eq!(
-            Flashcard::new("front", "   ").expect_err("blank back should fail"),
-            FlippedError::BlankCardSide
-        );
+    fn validates_blank_card_sides() -> Result<()> {
+        let error = match Flashcard::new("", "answer") {
+            Ok(value) => return fail!("blank front should fail; unexpected value: {:?}", value),
+            Err(error) => error,
+        };
+        verify_that!(error, eq(&FlippedError::BlankCardSide))?;
+        let error = match Flashcard::new("front", "   ") {
+            Ok(value) => return fail!("blank back should fail; unexpected value: {:?}", value),
+            Err(error) => error,
+        };
+        verify_that!(error, eq(&FlippedError::BlankCardSide))?;
+        Ok(())
     }
 
     #[test]
-    fn validates_non_empty_decks() {
-        assert_eq!(
-            Deck::new(None, vec![]).expect_err("empty deck should fail"),
-            FlippedError::EmptyDeck
-        );
+    fn validates_non_empty_decks() -> Result<()> {
+        let error = match Deck::new(None, vec![]) {
+            Ok(value) => return fail!("empty deck should fail; unexpected value: {:?}", value),
+            Err(error) => error,
+        };
+        verify_that!(error, eq(&FlippedError::EmptyDeck))?;
+        Ok(())
     }
 
     #[test]
-    fn generated_ids_are_uuid_v7() {
-        assert_eq!(SessionId::new().as_uuid().get_version_num(), 7);
-        assert_eq!(DeckId::new().as_uuid().get_version_num(), 7);
-        assert_eq!(CardId::new().as_uuid().get_version_num(), 7);
-        assert_eq!(ParticipantId::new().as_uuid().get_version_num(), 7);
+    fn generated_ids_are_uuid_v7() -> Result<()> {
+        verify_that!(SessionId::new().as_uuid().get_version_num(), eq(7))?;
+        verify_that!(DeckId::new().as_uuid().get_version_num(), eq(7))?;
+        verify_that!(CardId::new().as_uuid().get_version_num(), eq(7))?;
+        verify_that!(ParticipantId::new().as_uuid().get_version_num(), eq(7))?;
+        Ok(())
     }
 
     #[test]
-    fn joins_participants_and_starts_when_examiner_commands() {
+    fn joins_participants_and_starts_when_examiner_commands() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = Session::new(deck());
+        let deck = match deck() {
+            Ok(deck) => deck,
+            Err(error) => return fail!("valid deck; unexpected error: {:?}", error),
+        };
+        let session = Session::new(deck);
 
-        assert_eq!(session.status(), SessionStatus::Empty);
+        verify_that!(session.status(), eq(SessionStatus::Empty))?;
         let session = session.join_examiner(examiner);
-        assert_eq!(session.status(), SessionStatus::HasExaminer);
+        verify_that!(session.status(), eq(SessionStatus::HasExaminer))?;
         let session = session.join_test_taker(test_taker);
-        assert_eq!(session.status(), SessionStatus::Ready);
+        verify_that!(session.status(), eq(SessionStatus::Ready))?;
 
-        let session = session.start(&examiner).expect("examiner starts");
-        assert_eq!(
+        let session = match session.start(&examiner) {
+            Ok(session) => session,
+            Err(error) => return fail!("examiner starts; unexpected error: {:?}", error),
+        };
+        verify_that!(
             session.status(),
-            SessionStatus::InProgress {
+            eq(SessionStatus::InProgress {
                 current_card_index: 0
-            }
-        );
+            })
+        )?;
+        Ok(())
     }
 
     #[test]
-    fn joins_in_either_role_order() {
+    fn joins_in_either_role_order() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
+        let deck = match deck() {
+            Ok(deck) => deck,
+            Err(error) => return fail!("valid deck; unexpected error: {:?}", error),
+        };
 
-        let session = Session::new(deck()).join_test_taker(test_taker);
-        assert_eq!(session.status(), SessionStatus::HasTestTaker);
+        let session = Session::new(deck).join_test_taker(test_taker);
+        verify_that!(session.status(), eq(SessionStatus::HasTestTaker))?;
 
         let session = session.join_examiner(examiner);
-        assert_eq!(session.examiner(), &examiner);
-        assert_eq!(session.test_taker(), &test_taker);
-        assert_eq!(session.status(), SessionStatus::Ready);
+        verify_that!(session.examiner(), eq(&examiner))?;
+        verify_that!(session.test_taker(), eq(&test_taker))?;
+        verify_that!(session.status(), eq(SessionStatus::Ready))?;
+        Ok(())
     }
 
     #[test]
-    fn exposes_role_specific_card_views() {
+    fn exposes_role_specific_card_views() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = active_session(examiner, test_taker);
-
-        let examiner_view = session
-            .examiner_view(&examiner)
-            .expect("examiner sees current card");
-        assert_eq!(examiner_view.front, "hola");
-        assert_eq!(examiner_view.back, "hello");
-        assert_eq!(examiner_view.position, 1);
-        assert_eq!(examiner_view.total, 2);
-
-        let test_taker_view = session
-            .test_taker_view(&test_taker)
-            .expect("test taker sees current card");
-        assert_eq!(test_taker_view.front, "hola");
-        assert_eq!(test_taker_view.position, 1);
-        assert_eq!(test_taker_view.total, 2);
-    }
-
-    #[test]
-    fn advances_until_completed() {
-        let examiner = ExaminerParticipant::new(ParticipantId::new());
-        let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = active_session(examiner, test_taker);
-
-        let session = match session.advance(&examiner).expect("advance to second card") {
-            AdvanceOutcome::InProgress(session) => session,
-            AdvanceOutcome::Completed(_) => panic!("two-card deck should not complete yet"),
+        let session = match active_session(examiner, test_taker) {
+            Ok(session) => session,
+            Err(error) => return fail!("active session; unexpected error: {:?}", error),
         };
-        assert_eq!(
-            session.status(),
-            SessionStatus::InProgress {
-                current_card_index: 1
+
+        let examiner_view = match session.examiner_view(&examiner) {
+            Ok(view) => view,
+            Err(error) => {
+                return fail!("examiner sees current card; unexpected error: {:?}", error);
             }
-        );
-        assert_eq!(
-            session
-                .test_taker_view(&test_taker)
-                .expect("second card visible")
-                .front,
-            "adiós"
-        );
-
-        let session = match session
-            .advance(&examiner)
-            .expect("complete after last card")
-        {
-            AdvanceOutcome::InProgress(_) => panic!("second advance should complete"),
-            AdvanceOutcome::Completed(session) => session,
         };
-        assert_eq!(session.status(), SessionStatus::Completed);
+        verify_that!(examiner_view.front, eq("hola"))?;
+        verify_that!(examiner_view.back, eq("hello"))?;
+        verify_that!(examiner_view.position, eq(1))?;
+        verify_that!(examiner_view.total, eq(2))?;
+
+        let test_taker_view = match session.test_taker_view(&test_taker) {
+            Ok(view) => view,
+            Err(error) => {
+                return fail!(
+                    "test taker sees current card; unexpected error: {:?}",
+                    error
+                );
+            }
+        };
+        verify_that!(test_taker_view.front, eq("hola"))?;
+        verify_that!(test_taker_view.position, eq(1))?;
+        verify_that!(test_taker_view.total, eq(2))?;
+        Ok(())
     }
 
     #[test]
-    fn rejects_commands_from_unjoined_examiner() {
+    fn advances_until_completed() -> Result<()> {
+        let examiner = ExaminerParticipant::new(ParticipantId::new());
+        let test_taker = TestTakerParticipant::new(ParticipantId::new());
+        let session = match active_session(examiner, test_taker) {
+            Ok(session) => session,
+            Err(error) => return fail!("active session; unexpected error: {:?}", error),
+        };
+
+        let outcome = match session.advance(&examiner) {
+            Ok(outcome) => outcome,
+            Err(error) => return fail!("advance to second card; unexpected error: {:?}", error),
+        };
+        let session = match outcome {
+            AdvanceOutcome::InProgress(session) => session,
+            outcome => {
+                return fail!(
+                    "two-card deck should not complete yet; unexpected outcome: {:?}",
+                    outcome
+                );
+            }
+        };
+        verify_that!(
+            session.status(),
+            eq(SessionStatus::InProgress {
+                current_card_index: 1
+            })
+        )?;
+        let second_card = match session.test_taker_view(&test_taker) {
+            Ok(view) => view,
+            Err(error) => return fail!("view second card; unexpected error: {:?}", error),
+        };
+        verify_that!(second_card.front, eq("adiós"))?;
+
+        let outcome = match session.advance(&examiner) {
+            Ok(outcome) => outcome,
+            Err(error) => return fail!("complete after last card; unexpected error: {:?}", error),
+        };
+        let session = match outcome {
+            AdvanceOutcome::Completed(session) => session,
+            outcome => {
+                return fail!(
+                    "second advance should complete; unexpected outcome: {:?}",
+                    outcome
+                );
+            }
+        };
+        verify_that!(session.status(), eq(SessionStatus::Completed))?;
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_commands_from_unjoined_examiner() -> Result<()> {
         let joined_examiner = ExaminerParticipant::new(ParticipantId::new());
         let unjoined_examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = ready_session(joined_examiner, test_taker);
+        let session = match ready_session(joined_examiner, test_taker) {
+            Ok(session) => session,
+            Err(error) => return fail!("test taker joins; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(
-            session
-                .start(&unjoined_examiner)
-                .expect_err("unjoined examiner rejected"),
-            FlippedError::UnknownParticipant
-        );
+        let error = match session.start(&unjoined_examiner) {
+            Ok(value) => {
+                return fail!("unjoined examiner rejected; unexpected value: {:?}", value);
+            }
+            Err(error) => error,
+        };
+        verify_that!(error, eq(&FlippedError::UnknownParticipant))?;
+        Ok(())
     }
 
     #[test]
-    fn terminates_active_sessions() {
+    fn terminates_active_sessions() -> Result<()> {
         let examiner = ExaminerParticipant::new(ParticipantId::new());
         let test_taker = TestTakerParticipant::new(ParticipantId::new());
-        let session = active_session(examiner, test_taker);
+        let session = match active_session(examiner, test_taker) {
+            Ok(session) => session,
+            Err(error) => return fail!("active session; unexpected error: {:?}", error),
+        };
 
-        let session = session.end(&examiner).expect("examiner ends session");
+        let session = match session.end(&examiner) {
+            Ok(session) => session,
+            Err(error) => return fail!("examiner ends; unexpected error: {:?}", error),
+        };
 
-        assert_eq!(session.status(), SessionStatus::Terminated);
-        assert_eq!(session.examiner(), &examiner);
-        assert_eq!(session.test_taker(), &test_taker);
+        verify_that!(session.status(), eq(SessionStatus::Terminated))?;
+        verify_that!(session.examiner(), eq(&examiner))?;
+        verify_that!(session.test_taker(), eq(&test_taker))?;
+        Ok(())
     }
 
     #[test]
-    fn any_session_reports_dynamic_status() {
-        let session = AnySession::Empty(Session::new(deck()));
+    fn any_session_reports_dynamic_status() -> Result<()> {
+        let deck = match deck() {
+            Ok(deck) => deck,
+            Err(error) => return fail!("valid deck; unexpected error: {:?}", error),
+        };
+        let session = AnySession::Empty(Session::new(deck));
 
-        assert_eq!(session.status(), SessionStatus::Empty);
+        verify_that!(session.status(), eq(SessionStatus::Empty))?;
+        Ok(())
     }
 }

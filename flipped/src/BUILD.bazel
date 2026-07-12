@@ -26,4 +26,5 @@ rust_test(
     size = "small",
     crate = ":flipped",
     visibility = ["//visibility:public"],
+    deps = ["@crates//:googletest"],
 )

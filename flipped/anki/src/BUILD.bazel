@@ -26,4 +26,5 @@ rust_test(
     size = "small",
     crate = ":flipped_anki",
     visibility = ["//visibility:public"],
+    deps = ["@crates//:googletest"],
 )
