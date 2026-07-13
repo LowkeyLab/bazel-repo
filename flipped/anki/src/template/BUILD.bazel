@@ -1,0 +1,26 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "flipped_anki_template",
+    srcs = [
+        "ast.rs",
+        "mod.rs",
+        "parser.rs",
+        "render.rs",
+    ],
+    crate_name = "flipped_anki_template",
+    crate_root = "mod.rs",
+    visibility = ["//flipped/anki/src:__pkg__"],
+    deps = [
+        "//flipped/src:flipped",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_test(
+    name = "flipped_anki_template_test",
+    size = "small",
+    crate = ":flipped_anki_template",
+    deps = ["@crates//:googletest"],
+)

@@ -1,30 +1,10 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
-load("@rules_rs//rs:rust_test.bzl", "rust_test")
-
-# gazelle:exclude template
 
 rust_library(
     name = "flipped_anki",
-    srcs = [
-        "lib.rs",
-        "template/ast.rs",
-        "template/mod.rs",
-        "template/parser.rs",
-        "template/render.rs",
-    ],
+    srcs = ["lib.rs"],
     crate_name = "flipped_anki",
     crate_root = "lib.rs",
     visibility = ["//visibility:public"],
-    deps = [
-        "//flipped/src:flipped",
-        "@crates//:thiserror",
-    ],
-)
-
-rust_test(
-    name = "flipped_anki_test",
-    size = "small",
-    crate = ":flipped_anki",
-    visibility = ["//visibility:public"],
-    deps = ["@crates//:googletest"],
+    deps = ["//flipped/anki/src/template:flipped_anki_template"],
 )
