@@ -9,6 +9,10 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 bazelrc_preset(
     name = "preset",
     doc_link_template = "https://registry.build/flag/bazel?filter={flag}",
+    extra_presets = {
+        # Progress is rendered without cursor controls in CI, so no additional rate limit is needed.
+        "show_progress_rate_limit": {"if_bazel_version": False},
+    },
 )
 
 npm_link_all_packages(name = "node_modules")

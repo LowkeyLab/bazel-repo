@@ -162,12 +162,6 @@ common --reuse_sandbox_directories
 common --nosandbox_default_allow_network
 # Docs: https://registry.build/flag/bazel?filter=sandbox_default_allow_network
 
-# Only show progress every 60 seconds on CI.
-# We want to find a compromise between printing often enough to show that the build isn't stuck,
-# but not so often that we produce a long log file that requires a lot of scrolling.
-common:ci --show_progress_rate_limit=60
-# Docs: https://registry.build/flag/bazel?filter=show_progress_rate_limit
-
 # The printed files are convenient strings for copy+pasting to the shell, to execute them.
 # This option requires an integer argument, which is the threshold number of targets above which result information is not printed.
 # Show the output files created by builds that requested more than one target.

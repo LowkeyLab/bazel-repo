@@ -96,6 +96,9 @@ coverage:ci-remote --@rules_go//go/config:pure
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
 # Bazel Preset Overrides
+# GitHub Actions does not interpret cursor controls, so curses produces excessive log lines.
+common:ci --curses=no
+
 # CI lint: enable remote execution and download toplevel outputs for lint report files
 common:ci-lint --config=ci-remote
 common:ci-lint --remote_download_toplevel
