@@ -50,7 +50,7 @@ catalog:
   crypto-js: ^4.2.0
   daisyui: ^5.5.5
   eslint: ^10.0.0
-  eslint-plugin-astro: ^2.0.0
+  eslint-plugin-astro: ^3.0.0
   jasmine-core: ~6.3.0
   js-pkce: ^2.0.0
   js-yaml: ^5.0.0
