@@ -98,6 +98,7 @@ bazel clean && aspect build //...
 - Use `tokio` runtime exclusively
 - Prefer async/await patterns
 - Use `tracing` for structured logging (not `println!` or `dbg!`)
+- Flipped uses its typed `EventDispatcher`/`EventListener` observability architecture instead of direct tracing events; follow `flipped/AGENTS.md` and `flipped/ARCHITECTURE.md`
 
 **Naming Conventions:**
 
@@ -281,6 +282,7 @@ bazel-repo/
 For detailed project documentation, see:
 
 - **Nicknamer (Rust):** `nicknamer/AGENTS.md`
+- **Flipped examination app:** `flipped/AGENTS.md`
 - **Angular Apps:** `angular/AGENTS.md`
 - **Root Context:** `GEMINI.md` (comprehensive guide)
 - **Copilot Instructions:** `.github/copilot-instructions.md`

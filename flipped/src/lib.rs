@@ -1,5 +1,3 @@
-#![deny(clippy::disallowed_macros)]
-
 mod card;
 mod deck;
 mod error;

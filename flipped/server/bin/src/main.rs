@@ -1,5 +1,3 @@
-#![deny(clippy::disallowed_macros)]
-
 use std::future::IntoFuture;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

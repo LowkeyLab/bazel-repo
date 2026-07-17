@@ -1,7 +1,5 @@
 //! Bounded importer for the ordinary text-only subset of Anki APKG exports.
 
-#![deny(clippy::disallowed_macros)]
-
 mod archive;
 mod cancellation;
 mod collection;

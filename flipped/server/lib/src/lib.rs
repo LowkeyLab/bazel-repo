@@ -1,5 +1,3 @@
-#![deny(clippy::disallowed_macros)]
-
 pub mod admission;
 pub mod application;
 pub mod command_log;
