@@ -74,7 +74,7 @@ rust_test(
     size = "medium",
     srcs = ["tests/network.rs"],
     aliases = {
-        "@crates//:rand-0.8.7": "rand_08",
+        "@crates//:rand-0.8.6": "rand_08",
     },
     deps = [
         ":flipped_server",
@@ -82,7 +82,7 @@ rust_test(
         "//flipped/proto/v1:flipped_proto",  # keep
         "@crates//:axum",
         "@crates//:base64",
-        "@crates//:rand-0.8.7",  # keep
+        "@crates//:rand-0.8.6",  # keep
         "@crates//:rsa",
         "@crates//:rusqlite",  # keep
         "@crates//:serde_json",

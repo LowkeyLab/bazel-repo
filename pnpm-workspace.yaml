@@ -33,7 +33,7 @@ catalog:
   graphql-tag: ^2.12.6
   h3: 1.15.11
   optimism: ^0.18.1
-  '@angular/cli': 22.0.6
+  '@angular/cli': 22.0.7
   '@angular/common': ^22.0.0
   '@angular/compiler': ^22.0.0
   '@angular/compiler-cli': ^22.0.0
@@ -59,7 +59,7 @@ catalog:
   '@tailwindcss/cli': ^4.1.17
   '@tailwindcss/postcss': ^4.1.17
   '@tailwindcss/typography': ^0.5.15
-  '@tailwindcss/vite': '>=4.0.0 <4.3.3'
+  '@tailwindcss/vite': '>=4.0.0 <4.3.4'
   '@tsconfig/strictest': 2.0.8
   '@types/canvas-confetti': ^1.9.0
   '@types/js-yaml': ^4.0.9
@@ -77,7 +77,7 @@ catalog:
   dockerode: ^5.0.1
   engine.io: ^6.6.9
   eslint: ^10.0.0
-  eslint-plugin-astro: ^2.0.0
+  eslint-plugin-astro: ^3.0.0
   eslint-plugin-vue: ^10.9.2
   jasmine-core: ~6.3.0
   js-pkce: ^2.0.0

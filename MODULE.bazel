@@ -12,18 +12,18 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint", version = "2.7.2")
 bazel_dep(name = "aspect_rules_lint_rust", version = "0.0.2")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.26.0")
-bazel_dep(name = "aspect_rules_js", version = "3.2.2")
-bazel_dep(name = "aspect_rules_swc", version = "2.7.2")
+bazel_dep(name = "aspect_rules_js", version = "3.2.3")
+bazel_dep(name = "aspect_rules_swc", version = "2.7.5")
 bazel_dep(name = "aspect_rules_ts", version = "3.9.1")
 bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2")
 
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
 bazel_dep(name = "rules_nodejs", version = "6.7.5")
-bazel_dep(name = "rules_java", version = "9.6.1")
+bazel_dep(name = "rules_java", version = "9.7.0")
 bazel_dep(name = "rules_kotlin", version = "2.4.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
-bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2")
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3")
 bazel_dep(name = "contrib_rules_jvm", version = "0.33.0")
 bazel_dep(name = "container_structure_test", version = "1.22.1")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
@@ -441,7 +441,7 @@ use_repo(keep_sorted_deps, "com_github_google_keep_sorted")
 oci_extension = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci_extension.pull(
     name = "distroless_cc",
-    digest = "sha256:bc0f6c3bce611a0bb6784a63e4afc76816b341c9ac36d9322d7b9e5077d24d96",
+    digest = "sha256:ed7c407fd64eb0af9dddb9456b94cee188a40a7f53cf38c9836e1e9ae14fca02",
     image = "gcr.io/distroless/cc-debian13",
     platforms = [
         "linux/amd64",
@@ -449,7 +449,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_java25",
-    digest = "sha256:0aa10bfac55df3fed8ce238f4d35c5f14e9b705be763943e80b92d815e703201",
+    digest = "sha256:73f2263db8defa233004a7c700fd81e25c8747a530c413bddf74367b68663468",
     image = "gcr.io/distroless/java25-debian13",
     platforms = [
         "linux/amd64",
@@ -457,7 +457,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_node24",
-    digest = "sha256:ac0daf5d207757b275f3df0de9b296675500e773cc447c65afd66a948d5bf013",
+    digest = "sha256:7a22f300e7bd7ec78f3db220fb679af4e169e5f3373f97fe432847111f9b1810",
     image = "gcr.io/distroless/nodejs24-debian13",
     platforms = [
         "linux/amd64",
@@ -465,7 +465,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "alpine_caddy",
-    digest = "sha256:af5fdcd76f2db5e4e974ee92f96ee8c0fc3edb55bd4ba5032547cbf3f65e486d",
+    digest = "sha256:844f60b64e4724a5aa8245e019dace0d3f199f7433ce6c57676cb30a920dbad9",
     image = "caddy",
     platforms = [
         "linux/amd64",
