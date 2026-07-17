@@ -1,0 +1,11 @@
+alias(
+    name = "lib",
+    actual = "//flipped/server/lib:flipped_server",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "bin",
+    actual = "//flipped/server/bin:bin",
+    visibility = ["//visibility:public"],
+)

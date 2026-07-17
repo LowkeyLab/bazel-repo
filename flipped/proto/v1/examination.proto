@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package flipped.examination.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service ExaminationService {
+  rpc CreateSession(stream UploadChunk) returns (CreateSessionResponse);
+  rpc GetTestTakerSessionSnapshot(SessionSnapshotRequest) returns (TestTakerSnapshotResponse);
+  rpc GetExaminerSessionSnapshot(SessionSnapshotRequest) returns (ExaminerSnapshotResponse);
+  rpc StartSession(SessionCommandRequest) returns (StartSessionResponse);
+  rpc AdvanceSession(SessionCommandRequest) returns (AdvanceSessionResponse);
+  rpc EndSession(SessionCommandRequest) returns (EndSessionResponse);
+  rpc WatchTestTakerSession(WatchSessionRequest) returns (stream TestTakerWatchResponse);
+  rpc WatchExaminerSession(WatchSessionRequest) returns (stream ExaminerWatchResponse);
+}
+
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  WAITING_FOR_EXAMINER = 1;
+  READY = 2;
+  IN_PROGRESS = 3;
+  COMPLETED = 4;
+  TERMINATED = 5;
+  EXPIRED = 6;
+}
+
+enum ImportErrorCode {
+  IMPORT_ERROR_CODE_UNSPECIFIED = 0;
+  UPLOAD_TOO_LARGE = 1;
+  UNSUPPORTED_EXTENSION = 2;
+  INVALID_ZIP = 3;
+  ENTRY_COUNT_EXCEEDED = 4;
+  ENTRY_SIZE_EXCEEDED = 5;
+  TOTAL_EXTRACTED_SIZE_EXCEEDED = 6;
+  COMPRESSION_RATIO_EXCEEDED = 7;
+  MISSING_COLLECTION_DATABASE = 8;
+  UNSUPPORTED_PACKAGE_VERSION = 9;
+  SQLITE_LIMIT_EXCEEDED = 10;
+  SQLITE_SCHEMA_INVALID = 11;
+  NO_SUPPORTED_NOTES = 12;
+  TOO_MANY_CARDS = 13;
+  CLOZE_REJECTED = 14;
+  MEDIA_REJECTED = 15;
+  CUSTOM_TEMPLATE_REJECTED = 16;
+  SCHEDULING_DATA_REJECTED = 17;
+  INVALID_UTF8 = 18;
+  EMPTY_FRONT = 19;
+  EMPTY_BACK = 20;
+  CANCELLED = 21;
+}
+
+enum SessionErrorCode {
+  SESSION_ERROR_CODE_UNSPECIFIED = 0;
+  NOT_FOUND = 1;
+  UNAUTHENTICATED = 2;
+  ROLE_FORBIDDEN = 3;
+  SESSION_EXPIRED = 4;
+  INVALID_STATE = 5;
+  INVALID_COMMAND_ID = 6;
+  COMMAND_CAPACITY_EXCEEDED = 7;
+  CREDENTIAL_VERSION_MISMATCH = 8;
+  reserved 9;
+}
+
+enum StreamErrorCode {
+  STREAM_ERROR_CODE_UNSPECIFIED = 0;
+  INVALID_CURSOR = 1;
+  RESYNC_REQUIRED = 2;
+  STREAM_SESSION_EXPIRED = 3;
+  STREAM_CREDENTIAL_VERSION_MISMATCH = 4;
+  reserved 5;
+}
+
+message UploadMetadata { string package_extension = 1; uint64 declared_size_bytes = 2; }
+message UploadChunk { oneof chunk { UploadMetadata metadata = 1; bytes data = 2; } }
+message CardFront { string card_id = 1; uint32 position = 2; uint32 total = 3; string front = 4; }
+message CardFull { string card_id = 1; uint32 position = 2; uint32 total = 3; string front = 4; string back = 5; }
+message TestTakerSnapshot { string session_id = 1; uint64 revision = 2; SessionStatus status = 3; bool examiner_connected = 4; CardFront current_card = 5; google.protobuf.Timestamp expires_at = 6; }
+message ExaminerSnapshot { string session_id = 1; uint64 revision = 2; SessionStatus status = 3; bool test_taker_connected = 4; CardFull current_card = 5; google.protobuf.Timestamp expires_at = 6; }
+message InvalidUploadError { ImportErrorCode code = 1; }
+message CreateSessionSuccess { string session_id = 1; string test_taker_access_token = 2; string examiner_invitation = 3; google.protobuf.Timestamp expires_at = 4; uint32 card_count = 5; uint64 revision = 6; TestTakerSnapshot initial_snapshot = 7; }
+message CreateSessionResponse { oneof result { CreateSessionSuccess success = 1; InvalidUploadError error = 2; } }
+message SessionSnapshotRequest { string session_id = 1; }
+message SessionApplicationError { SessionErrorCode code = 1; uint64 current_revision = 2; }
+message TestTakerSnapshotSuccess { TestTakerSnapshot snapshot = 1; }
+message TestTakerSnapshotResponse { oneof result { TestTakerSnapshotSuccess success = 1; SessionApplicationError error = 2; } }
+message ExaminerSnapshotSuccess { ExaminerSnapshot snapshot = 1; }
+message ExaminerSnapshotResponse { oneof result { ExaminerSnapshotSuccess success = 1; SessionApplicationError error = 2; } }
+message SessionCommandRequest { string session_id = 1; string command_id = 2; }
+message StartSessionSuccess { ExaminerSnapshot snapshot = 1; }
+message StartSessionResponse { oneof result { StartSessionSuccess success = 1; SessionApplicationError error = 2; } }
+message AdvanceSessionSuccess { ExaminerSnapshot snapshot = 1; }
+message AdvanceSessionResponse { oneof result { AdvanceSessionSuccess success = 1; SessionApplicationError error = 2; } }
+message EndSessionSuccess { ExaminerSnapshot snapshot = 1; }
+message EndSessionResponse { oneof result { EndSessionSuccess success = 1; SessionApplicationError error = 2; } }
+message WatchSessionRequest { string session_id = 1; uint64 after_revision = 2; }
+message ParticipantChanged { bool test_taker_connected = 1; bool examiner_connected = 2; SessionStatus status = 3; }
+message SessionEnded { SessionStatus status = 1; }
+message SessionStreamError { StreamErrorCode code = 1; uint64 current_revision = 2; }
+message TestTakerStarted { CardFront current_card = 1; }
+message TestTakerCardChanged { CardFront current_card = 1; }
+message TestTakerSessionEvent { uint64 revision = 1; google.protobuf.Timestamp occurred_at = 2; oneof payload { ParticipantChanged participant_changed = 3; TestTakerStarted started = 4; TestTakerCardChanged card_changed = 5; SessionEnded ended = 6; } }
+message TestTakerWatchResponse { oneof result { TestTakerSnapshot snapshot = 1; TestTakerSessionEvent event = 2; SessionStreamError error = 3; } }
+message ExaminerStarted { CardFull current_card = 1; }
+message ExaminerCardChanged { CardFull current_card = 1; }
+message ExaminerSessionEvent { uint64 revision = 1; google.protobuf.Timestamp occurred_at = 2; oneof payload { ParticipantChanged participant_changed = 3; ExaminerStarted started = 4; ExaminerCardChanged card_changed = 5; SessionEnded ended = 6; } }
+message ExaminerWatchResponse { oneof result { ExaminerSnapshot snapshot = 1; ExaminerSessionEvent event = 2; SessionStreamError error = 3; } }

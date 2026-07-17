@@ -80,7 +80,7 @@ test --test_env=CHROME_BIN
 # Or run: coverage (via the flake dev shell wrapper)
 coverage --combined_report=lcov
 coverage --build_tests_only
-coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindreadr[:/],^//predix[:/],^//cowsay[:/],^//angular[:/]"
+coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindreadr[:/],^//predix[:/],^//cowsay[:/],^//angular[:/],^//flipped[:/]"
 
 # Coverage with remote execution: download toplevel outputs so coverage data
 # is available locally, and merge coverage reports with a local strategy

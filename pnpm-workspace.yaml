@@ -3,6 +3,15 @@ packages:
   - angular
   - tools
   - personal_website
+  - flipped/web
+allowBuilds:
+  '@parcel/watcher': set this to true or false
+  cpu-features: set this to true or false
+  esbuild: set this to true or false
+  lmdb: set this to true or false
+  msgpackr-extract: set this to true or false
+  protobufjs: set this to true or false
+  ssh2: set this to true or false
 catalog:
   '@analogjs/platform': ^2.2.0
   '@analogjs/vite-plugin-angular': ^2.2.0
@@ -22,6 +31,7 @@ catalog:
   '@graphql-codegen/typescript-apollo-angular': ^5.0.0
   graphql: ^17.0.0
   graphql-tag: ^2.12.6
+  h3: 1.15.11
   optimism: ^0.18.1
   '@angular/cli': 22.0.6
   '@angular/common': ^22.0.0
@@ -31,6 +41,18 @@ catalog:
   '@angular/forms': ^22.0.0
   '@angular/platform-browser': ^22.0.0
   '@angular/router': ^22.0.0
+  '@grpc/grpc-js': ^1.14.4
+  '@grpc/proto-loader': ^0.8.1
+  '@nuxt/test-utils': ^4.0.3
+  '@opentelemetry/api': ^1.9.1
+  '@opentelemetry/exporter-metrics-otlp-http': ^0.220.0
+  '@opentelemetry/exporter-trace-otlp-http': ^0.220.0
+  '@opentelemetry/resources': ^2.9.0
+  '@opentelemetry/sdk-metrics': ^2.9.0
+  '@opentelemetry/sdk-trace-base': ^2.9.0
+  '@opentelemetry/sdk-trace-node': ^2.9.0
+  '@pinia/nuxt': ^1.0.1
+  '@playwright/test': ^1.61.1
   '@astrojs/check': ^0.9.6
   '@astrojs/ts-plugin': ^1.10.4
   '@eslint/js': ^10.0.0
@@ -42,20 +64,29 @@ catalog:
   '@types/canvas-confetti': ^1.9.0
   '@types/js-yaml': ^4.0.9
   '@types/jasmine': ~6.0.0
+  '@types/dockerode': ^4.0.1
   '@types/node': ^24.10.3
   '@typescript-eslint/parser': ^8.29.0
+  '@vitejs/plugin-vue': 6.0.8
+  '@vue/test-utils': ^2.4.11
   astro: ^7.0.0
   canvas-confetti: ^1.9.4
   casdoor-js-sdk: ^0.20.0
   crypto-js: ^4.2.0
   daisyui: ^5.5.5
+  dockerode: ^5.0.1
+  engine.io: ^6.6.9
   eslint: ^10.0.0
   eslint-plugin-astro: ^2.0.0
+  eslint-plugin-vue: ^10.9.2
   jasmine-core: ~6.3.0
   js-pkce: ^2.0.0
   js-yaml: ^5.0.0
   jsdom: ^29.0.0
   jwt-decode: ^4.0.0
+  nuxt: ^4.4.8
+  oauth4webapi: ^3.8.6
+  pinia: ^4.0.2
   karma: ~6.4.0
   karma-chrome-launcher: ~3.2.0
   karma-coverage: ~2.2.0
@@ -66,13 +97,54 @@ catalog:
   prettier: ^3.7.4
   rxjs: ~7.8.0
   sharp: ^0.35.0
+  socket.io: ^4.8.3
+  socket.io-client: ^4.8.3
   stylelint: ^17.0.0
+  testcontainers: ^12.0.4
   tailwindcss: ^4.1.17
   tsconfig-to-swcconfig: 2.8.1
   tslib: ^2.3.0
-  typescript: ~7.0.0
+  typescript: 6.0.3
   typescript-eslint: ^8.49.0
+  uuid: ^13.0.0
   vite: ^8.0.0
+  vue: ^3.5.40
+  vue-eslint-parser: ^10.4.1
+  vue-router: ^5.2.0
+  vue-tsc: ^3.3.7
   '@vitest/coverage-v8': ^4.0.0
   vitest: ^4.0.0
   zone.js: ~0.16.0
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
+  - lmdb
+  - msgpackr-extract
+  - protobufjs
+ignoredBuiltDependencies:
+  - cpu-features
+  - ssh2
+packageExtensions:
+  '@analogjs/vite-plugin-angular':
+    dependencies:
+      '@angular-devkit/architect': '*'
+      '@angular/compiler': '*'
+      '@angular/compiler-cli': '*'
+      tinyglobby: '*'
+      typescript: '*'
+      vite: '*'
+  apollo-angular:
+    dependencies:
+      '@angular/common': '*'
+minimumReleaseAgeExclude:
+  - '@pinia/nuxt@1.0.1'
+  - '@vue/compiler-core@3.5.40'
+  - '@vue/compiler-dom@3.5.40'
+  - '@vue/compiler-sfc@3.5.40'
+  - '@vue/compiler-ssr@3.5.40'
+  - '@vue/reactivity@3.5.40'
+  - '@vue/runtime-core@3.5.40'
+  - '@vue/runtime-dom@3.5.40'
+  - '@vue/server-renderer@3.5.40'
+  - '@vue/shared@3.5.40'
+  - vue@3.5.40

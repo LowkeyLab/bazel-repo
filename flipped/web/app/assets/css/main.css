@@ -1,0 +1,56 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@plugin "daisyui/theme" {
+  name: "flipped-light";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: oklch(98% 0.012 88);
+  --color-base-200: oklch(95% 0.018 88);
+  --color-base-300: oklch(90% 0.024 88);
+  --color-base-content: oklch(24% 0.03 255);
+  --color-primary: oklch(53% 0.22 270);
+  --color-primary-content: oklch(98% 0.01 270);
+  --color-secondary: oklch(58% 0.12 185);
+  --color-secondary-content: oklch(98% 0.01 185);
+  --color-accent: oklch(66% 0.14 175);
+  --color-accent-content: oklch(18% 0.03 175);
+  --color-neutral: oklch(30% 0.03 255);
+  --color-neutral-content: oklch(97% 0.01 255);
+  --color-info: oklch(64% 0.15 240);
+  --color-info-content: oklch(98% 0.01 240);
+  --color-success: oklch(62% 0.14 155);
+  --color-success-content: oklch(98% 0.01 155);
+  --color-warning: oklch(76% 0.16 80);
+  --color-warning-content: oklch(25% 0.05 80);
+  --color-error: oklch(58% 0.2 25);
+  --color-error-content: oklch(98% 0.01 25);
+  --radius-selector: 0.5rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+:root {
+  background: var(--color-base-200);
+}
+body {
+  min-height: 100vh;
+}
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

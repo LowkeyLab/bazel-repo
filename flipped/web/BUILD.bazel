@@ -1,0 +1,249 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//flipped/web:@playwright/test/package_json.bzl", playwright_bin = "bin")
+load("@npm//flipped/web:nuxt/package_json.bzl", nuxt_bin = "bin")
+load("@npm//flipped/web:vitest/package_json.bzl", vitest_bin = "bin")
+load("@npm//flipped/web:vue-tsc/package_json.bzl", vue_tsc_bin = "bin")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_tarball_rule")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+
+package(default_visibility = ["//visibility:public"])
+
+npm_link_all_packages(name = "node_modules")
+
+APP_SRCS = glob([
+    "app/**/*",
+    "server/**/*",
+    "shared/**/*",
+]) + [
+    "nuxt.config.ts",
+    "package.json",
+    "tsconfig.json",
+]
+
+APP_DEPS = [":node_modules/" + dep for dep in [
+    "@grpc/grpc-js",
+    "@grpc/proto-loader",
+    "@opentelemetry/api",
+    "@opentelemetry/exporter-metrics-otlp-http",
+    "@opentelemetry/exporter-trace-otlp-http",
+    "@opentelemetry/resources",
+    "@opentelemetry/sdk-metrics",
+    "@opentelemetry/sdk-trace-base",
+    "@opentelemetry/sdk-trace-node",
+    "@pinia/nuxt",
+    "@tailwindcss/vite",
+    "daisyui",
+    "engine.io",
+    "h3",
+    "nuxt",
+    "oauth4webapi",
+    "pinia",
+    "socket.io",
+    "socket.io-client",
+    "tailwindcss",
+    "uuid",
+    "vue",
+    "vue-router",
+    "vue-tsc",
+]]
+
+js_library(
+    name = "srcs",
+    srcs = APP_SRCS,
+    deps = APP_DEPS,
+)
+
+js_library(
+    name = "eslintrc",
+    srcs = ["eslint.config.js"],
+    tags = ["no-lint"],
+    deps = [
+        ":node_modules/eslint-plugin-vue",
+        ":node_modules/vue-eslint-parser",
+        "//:eslintrc",
+    ],
+)
+
+nuxt_bin.nuxt_binary(
+    name = "nuxt",
+    chdir = package_name(),
+    env = {
+        "NUXT_TELEMETRY_DISABLED": "1",
+    },
+)
+
+js_run_binary(
+    name = "build",
+    srcs = [
+        ":node_modules",
+        ":srcs",
+    ],
+    args = ["build"],
+    mnemonic = "NuxtBuild",
+    out_dirs = [".output"],
+    tool = ":nuxt",
+)
+
+js_run_binary(
+    name = "prepare",
+    srcs = [
+        ":node_modules",
+        ":srcs",
+    ],
+    args = ["prepare"],
+    mnemonic = "NuxtPrepare",
+    out_dirs = [".nuxt"],
+    tool = ":nuxt",
+)
+
+vitest_bin.vitest_test(
+    name = "test",
+    size = "small",
+    args = [
+        "run",
+        "--config",
+        "vitest.config.ts",
+    ],
+    chdir = package_name(),
+    data = [
+        "package.json",
+        "tsconfig.json",
+        "vitest.config.ts",
+        "vitest-global-setup.ts",
+        ":node_modules",
+        ":prepare",
+        ":srcs",
+    ] + glob(["tests/unit/**/*.spec.ts"]),
+    env = {
+        "NUXT_TELEMETRY_DISABLED": "1",
+    },
+)
+
+playwright_bin.playwright_test(
+    name = "e2e",
+    size = "large",
+    timeout = "long",
+    args = [
+        "test",
+        "--config",
+        "playwright.config.ts",
+    ],
+    chdir = package_name(),
+    copy_data_to_bin = False,
+    data = [
+        "playwright.config.ts",
+        "tests/e2e/examination.spec.ts",
+        ":image_tarball",
+        ":node_modules",
+        "//flipped/e2e/fixture:ordinary_apkg",
+        "//flipped/server/bin:image_tarball",
+    ],
+    env = {
+        "NUXT_TELEMETRY_DISABLED": "1",
+    },
+    exec_properties = {
+        "test.init-dockerd": "true",
+        "test.workload-isolation-type": "firecracker",
+    },
+    tags = [
+        "no-coverage",
+        "requires-docker",
+        "requires-network",
+    ],
+)
+
+vue_tsc_bin.vue_tsc_test(
+    name = "typecheck",
+    size = "small",
+    args = [
+        "--noEmit",
+        "-p",
+        ".nuxt/tsconfig.json",
+    ],
+    chdir = package_name(),
+    data = [
+        "playwright.config.ts",
+        "vitest.config.ts",
+        "vitest-global-setup.ts",
+        ":node_modules",
+        ":prepare",
+        ":srcs",
+    ] + glob(["tests/**/*.ts"]),
+)
+
+nuxt_bin.nuxt_binary(
+    name = "dev",
+    args = ["dev"],
+    chdir = package_name(),
+    data = [":srcs"],
+    env = {
+        "NUXT_TELEMETRY_DISABLED": "1",
+    },
+)
+
+pkg_tar(
+    name = "application_layer",
+    srcs = [":build"],
+    package_dir = "/app",
+    strip_prefix = ".output",
+)
+
+pkg_tar(
+    name = "proto_layer",
+    srcs = ["//flipped/proto/v1:examination.proto"],
+    package_dir = "/app/proto",
+    strip_prefix = "flipped/proto/v1",
+)
+
+oci_image(
+    name = "image",
+    base = "@distroless_node24",
+    entrypoint = [
+        "/nodejs/bin/node",
+        "/app/server/index.mjs",
+    ],
+    env = {
+        "NITRO_HOST": "0.0.0.0",
+        "NITRO_PORT": "3000",
+        "NUXT_GRPC_PROTO_PATH": "/app/proto/flipped/proto/v1/examination.proto",
+    },
+    exposed_ports = ["3000/tcp"],
+    tars = [
+        ":application_layer",
+        ":proto_layer",
+    ],
+)
+
+oci_load(
+    name = "image_load",
+    format = "docker",
+    image = ":image",
+    repo_tags = ["local/flipped-web:e2e"],
+)
+
+write_file(
+    name = "image_tarball_tags",
+    out = "image_tarball.tags.txt",
+    content = ["local/flipped-web:e2e"],
+)
+
+oci_tarball_rule(
+    name = "image_tarball_archive",
+    format = "docker",
+    image = ":image",
+    repo_tags = ":image_tarball_tags",
+)
+
+filegroup(
+    name = "image_tarball",
+    srcs = [":image_tarball_archive"],
+    output_group = "tarball",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "load_image",
+    actual = ":image_load",
+)

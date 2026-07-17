@@ -454,4 +454,117 @@ impl AnySession {
             Self::Terminated(session) => session.status(),
         }
     }
+
+    #[must_use]
+    pub fn id(&self) -> SessionId {
+        match self {
+            Self::Empty(session) => session.id(),
+            Self::HasExaminer(session) => session.id(),
+            Self::HasTestTaker(session) => session.id(),
+            Self::Ready(session) => session.id(),
+            Self::InProgress(session) => session.id(),
+            Self::Completed(session) => session.id(),
+            Self::Terminated(session) => session.id(),
+        }
+    }
+
+    #[must_use]
+    pub fn deck(&self) -> &Deck {
+        match self {
+            Self::Empty(session) => session.deck(),
+            Self::HasExaminer(session) => session.deck(),
+            Self::HasTestTaker(session) => session.deck(),
+            Self::Ready(session) => session.deck(),
+            Self::InProgress(session) => session.deck(),
+            Self::Completed(session) => session.deck(),
+            Self::Terminated(session) => session.deck(),
+        }
+    }
+
+    pub fn join_examiner(self, examiner: ExaminerParticipant) -> Result<Self, FlippedError> {
+        match self {
+            Self::Empty(session) => Ok(Self::HasExaminer(session.join_examiner(examiner))),
+            Self::HasTestTaker(session) => Ok(Self::Ready(session.join_examiner(examiner))),
+            Self::HasExaminer(_)
+            | Self::Ready(_)
+            | Self::InProgress(_)
+            | Self::Completed(_)
+            | Self::Terminated(_) => Err(FlippedError::DuplicateRole(
+                crate::participant::ParticipantRole::Examiner,
+            )),
+        }
+    }
+
+    pub fn start(self, by: &ExaminerParticipant) -> Result<Self, FlippedError> {
+        match self {
+            Self::Ready(session) => session.start(by).map(Self::InProgress),
+            _ => Err(FlippedError::InvalidStateTransition),
+        }
+    }
+
+    pub fn advance(self, by: &ExaminerParticipant) -> Result<Self, FlippedError> {
+        match self {
+            Self::InProgress(session) => match session.advance(by)? {
+                AdvanceOutcome::InProgress(session) => Ok(Self::InProgress(session)),
+                AdvanceOutcome::Completed(session) => Ok(Self::Completed(session)),
+            },
+            _ => Err(FlippedError::InvalidStateTransition),
+        }
+    }
+
+    pub fn end(self, by: &ExaminerParticipant) -> Result<Self, FlippedError> {
+        match self {
+            Self::InProgress(session) => session.end(by).map(Self::Terminated),
+            Self::Completed(session) => session.end(by).map(Self::Terminated),
+            _ => Err(FlippedError::InvalidStateTransition),
+        }
+    }
+
+    #[must_use]
+    pub fn examiner(&self) -> Option<ExaminerParticipant> {
+        match self {
+            Self::HasExaminer(session) => Some(*session.examiner()),
+            Self::Ready(session) => Some(*session.examiner()),
+            Self::InProgress(session) => Some(*session.examiner()),
+            Self::Completed(session) => Some(*session.examiner()),
+            Self::Terminated(session) => Some(*session.examiner()),
+            Self::Empty(_) | Self::HasTestTaker(_) => None,
+        }
+    }
+
+    #[must_use]
+    pub fn test_taker(&self) -> Option<TestTakerParticipant> {
+        match self {
+            Self::HasTestTaker(session) => Some(*session.test_taker()),
+            Self::Ready(session) => Some(*session.test_taker()),
+            Self::InProgress(session) => Some(*session.test_taker()),
+            Self::Completed(session) => Some(*session.test_taker()),
+            Self::Terminated(session) => Some(*session.test_taker()),
+            Self::Empty(_) | Self::HasExaminer(_) => None,
+        }
+    }
+
+    pub fn examiner_view(
+        &self,
+        by: &ExaminerParticipant,
+    ) -> Result<Option<ExaminerCardView>, FlippedError> {
+        match self {
+            Self::InProgress(session) => session.examiner_view(by).map(Some),
+            Self::Ready(_) | Self::Completed(_) | Self::Terminated(_) => Ok(None),
+            _ => Err(FlippedError::UnknownParticipant),
+        }
+    }
+
+    pub fn test_taker_view(
+        &self,
+        by: &TestTakerParticipant,
+    ) -> Result<Option<TestTakerCardView>, FlippedError> {
+        match self {
+            Self::InProgress(session) => session.test_taker_view(by).map(Some),
+            Self::HasTestTaker(_) | Self::Ready(_) | Self::Completed(_) | Self::Terminated(_) => {
+                Ok(None)
+            }
+            _ => Err(FlippedError::UnknownParticipant),
+        }
+    }
 }

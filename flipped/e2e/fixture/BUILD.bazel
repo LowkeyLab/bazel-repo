@@ -1,0 +1,7 @@
+genrule(
+    name = "ordinary_apkg",
+    outs = ["ordinary.apkg"],
+    cmd = "$(location //flipped/e2e/fixture/src:main) $@",
+    tools = ["//flipped/e2e/fixture/src:main"],
+    visibility = ["//visibility:public"],
+)

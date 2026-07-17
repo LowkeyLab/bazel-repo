@@ -1,1 +1,12 @@
 # See https://doc.rust-lang.org/clippy/configuration.html
+
+disallowed-macros = [
+  { path = "std::println", reason = "emit typed events through EventListener" },
+  { path = "std::eprintln", reason = "emit typed events through EventListener" },
+  { path = "std::dbg", reason = "emit typed events through EventListener" },
+  { path = "tracing::trace", reason = "emit typed events through EventListener" },
+  { path = "tracing::debug", reason = "emit typed events through EventListener" },
+  { path = "tracing::info", reason = "emit typed events through EventListener" },
+  { path = "tracing::warn", reason = "emit typed events through EventListener" },
+  { path = "tracing::error", reason = "emit typed events through EventListener" },
+]

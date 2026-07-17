@@ -19,6 +19,7 @@ rust_binary(
         "//nicknamer2/src/server",
         "@crates//:anyhow",
         "@crates//:axum",
+        "@crates//:rustls",
         "@crates//:sqlx",
         "@crates//:tokio",
         "@crates//:tracing",

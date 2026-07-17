@@ -50,11 +50,7 @@ use_repo(rules_rust, "rules_rust")
 rules_rust_wasm_bindgen = use_extension("@rules_rs//rs:rules_rust_wasm_bindgen.bzl", "rules_rust_wasm_bindgen")
 use_repo(rules_rust_wasm_bindgen, "rules_rust_wasm_bindgen")
 
-single_version_override(
-    module_name = "rules_rust_prost",
-    version = "0.70.0",
-)
-
+bazel_dep(name = "protobuf", version = "34.0.bcr.1")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_buf", version = "0.5.4")
 bazel_dep(name = "rules_proto", version = "7.1.0")
@@ -164,6 +160,10 @@ pnpm.pnpm(
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
+    lifecycle_hooks_exclude = [
+        "cpu-features",
+        "ssh2",
+    ],
     npmrc = "//:.npmrc",
     pnpm_lock = "//:pnpm-lock.yaml",
 )
@@ -179,7 +179,7 @@ use_repo(rules_ts_ext, "npm_typescript")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
 node.toolchain(
-    node_version = "24.9.0",
+    node_version = "24.18.0",
 )
 use_repo(node, "nodejs_toolchains")
 
@@ -330,6 +330,8 @@ use_repo(clojure_deps, "deps")
 
 register_toolchains("//:kotlin_toolchain")
 
+register_toolchains("//:prost_toolchain")
+
 register_toolchains("@llvm//toolchain:all")
 
 #########################
@@ -382,6 +384,14 @@ crate.from_cargo(
         "wasm32-unknown-unknown",
         "x86_64-unknown-linux-gnu",
     ],
+)
+crate.annotation(
+    crate = "protoc-gen-prost",
+    gen_binaries = ["protoc-gen-prost"],
+)
+crate.annotation(
+    crate = "protoc-gen-tonic",
+    gen_binaries = ["protoc-gen-tonic"],
 )
 crate.annotation(
     additive_build_file_content = """

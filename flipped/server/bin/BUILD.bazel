@@ -1,0 +1,60 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_tarball_rule")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+
+rust_binary(
+    name = "bin",
+    srcs = ["src/main.rs"],
+    crate_name = "flipped_server_bin",
+    visibility = ["//flipped/server:__pkg__"],
+    deps = [
+        "//flipped/proto/v1:flipped_proto",  # keep
+        "//flipped/server/lib:flipped_server",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:tokio",
+        "@crates//:tokio-stream",
+        "@crates//:tonic",
+        "@crates//:tonic-health",  # keep
+    ],
+)
+
+pkg_tar(
+    name = "layer",
+    srcs = [":bin"],
+)
+
+oci_image(
+    name = "image",
+    base = "@distroless_cc",
+    entrypoint = ["/bin"],
+    tars = [":layer"],
+)
+
+oci_load(
+    name = "image_load",
+    format = "docker",
+    image = ":image",
+    repo_tags = ["local/flipped-server:e2e"],
+)
+
+write_file(
+    name = "image_tarball_tags",
+    out = "image_tarball.tags.txt",
+    content = ["local/flipped-server:e2e"],
+)
+
+oci_tarball_rule(
+    name = "image_tarball_archive",
+    format = "docker",
+    image = ":image",
+    repo_tags = ":image_tarball_tags",
+)
+
+filegroup(
+    name = "image_tarball",
+    srcs = [":image_tarball_archive"],
+    output_group = "tarball",
+    visibility = ["//visibility:public"],
+)

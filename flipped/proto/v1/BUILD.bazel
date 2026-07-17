@@ -1,0 +1,22 @@
+# gazelle:proto disable
+
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_rust//extensions/prost:defs.bzl", "rust_prost_library")
+
+exports_files(
+    ["examination.proto"],
+    visibility = ["//visibility:public"],
+)
+
+proto_library(
+    name = "examination_proto",
+    srcs = ["examination.proto"],
+    visibility = ["//visibility:public"],
+    deps = ["@protobuf//:timestamp_proto"],
+)
+
+rust_prost_library(
+    name = "flipped_proto",
+    proto = ":examination_proto",
+    visibility = ["//visibility:public"],
+)

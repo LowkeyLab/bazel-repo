@@ -1,0 +1,12 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+
+rust_binary(
+    name = "main",
+    srcs = ["main.rs"],
+    visibility = ["//flipped/e2e/fixture:__pkg__"],
+    deps = [
+        "@crates//:rusqlite",
+        "@crates//:serde_json",
+        "@crates//:zip",
+    ],
+)

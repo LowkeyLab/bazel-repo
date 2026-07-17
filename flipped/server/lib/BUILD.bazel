@@ -1,0 +1,97 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "flipped_server",
+    srcs = [
+        "src/admission.rs",
+        "src/application.rs",
+        "src/command_log.rs",
+        "src/config.rs",
+        "src/credentials.rs",
+        "src/error.rs",
+        "src/events.rs",
+        "src/grpc/auth.rs",
+        "src/grpc/mapping.rs",
+        "src/grpc/mod.rs",
+        "src/grpc/service.rs",
+        "src/lib.rs",
+        "src/oauth/jwks.rs",
+        "src/oauth/metadata.rs",
+        "src/oauth/mod.rs",
+        "src/oauth/token.rs",
+        "src/observability/dispatcher.rs",
+        "src/observability/event.rs",
+        "src/observability/listeners.rs",
+        "src/observability/mod.rs",
+        "src/observability/otlp.rs",
+        "src/observability/trace_context.rs",
+        "src/store.rs",
+    ],
+    crate_name = "flipped_server",
+    crate_root = "src/lib.rs",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//flipped/anki/src:flipped_anki",
+        "//flipped/proto/v1:flipped_proto",  # keep
+        "//flipped/src:flipped",
+        "@crates//:async-stream",
+        "@crates//:axum",
+        "@crates//:base64",
+        "@crates//:chrono",
+        "@crates//:futures",
+        "@crates//:hmac",
+        "@crates//:jsonwebtoken",
+        "@crates//:opentelemetry",
+        "@crates//:opentelemetry-otlp",
+        "@crates//:opentelemetry_sdk",
+        "@crates//:rand",
+        "@crates//:rsa",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:serde_urlencoded",
+        "@crates//:sha2",
+        "@crates//:subtle",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:tonic",
+        "@crates//:tracing",
+        "@crates//:tracing-opentelemetry",
+        "@crates//:tracing-subscriber",
+        "@crates//:url",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "flipped_server_test",
+    crate = ":flipped_server",
+)
+
+rust_test(
+    name = "network_integration_test",
+    size = "medium",
+    srcs = ["tests/network.rs"],
+    aliases = {
+        "@crates//:rand-0.8.7": "rand_08",
+    },
+    deps = [
+        ":flipped_server",
+        "//flipped/anki/src:flipped_anki",
+        "//flipped/proto/v1:flipped_proto",  # keep
+        "@crates//:axum",
+        "@crates//:base64",
+        "@crates//:rand-0.8.7",  # keep
+        "@crates//:rsa",
+        "@crates//:rusqlite",  # keep
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:tokio",
+        "@crates//:tokio-stream",
+        "@crates//:tonic",
+        "@crates//:tonic-health",  # keep
+        "@crates//:uuid",
+        "@crates//:zip",
+    ],
+)

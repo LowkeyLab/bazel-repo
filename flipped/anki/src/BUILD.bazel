@@ -1,10 +1,41 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 rust_library(
     name = "flipped_anki",
-    srcs = ["lib.rs"],
+    srcs = [
+        "archive.rs",
+        "cancellation.rs",
+        "collection.rs",
+        "error.rs",
+        "importer.rs",
+        "lib.rs",
+        "sanitize.rs",
+    ],
     crate_name = "flipped_anki",
     crate_root = "lib.rs",
     visibility = ["//visibility:public"],
-    deps = ["//flipped/anki/src/template:flipped_anki_template"],
+    deps = [
+        "//flipped/anki/src/template:flipped_anki_template",
+        "//flipped/src:flipped",
+        "@crates//:ammonia",  # keep
+        "@crates//:html-escape",  # keep
+        "@crates//:rusqlite",  # keep
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:zip",
+    ],
+)
+
+rust_test(
+    name = "flipped_anki_test",
+    crate = ":flipped_anki",
+    deps = [
+        "@crates//:rusqlite",  # keep
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:zip",
+    ],
 )
