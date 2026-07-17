@@ -58,8 +58,8 @@
     "https://bcr.bazel.build/modules/aspect_rules_lint/2.7.2/source.json": "1051f1c3e853c0a3e0505efca29afbbc5b036c3543e994f51b4048e372514079",
     "https://bcr.bazel.build/modules/aspect_rules_lint_rust/0.0.2/MODULE.bazel": "5c7a4d0e02fccb9b064bcd4c22cb34eda4cf27ca465c1232216c57e234ac5dbb",
     "https://bcr.bazel.build/modules/aspect_rules_lint_rust/0.0.2/source.json": "f2c048be31a87af7bd747a0d08027ef57a38793229c212e142c94ec5a7977800",
-    "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.4/MODULE.bazel": "721ee2403424118963218f6accb9801f55634367fb679543f90631c7e3a9c630",
-    "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.4/source.json": "24556edd73ae41db4412f6d90843a09785786d3a5b12a4b3f5b7f4a1b4d028f2",
+    "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.5/MODULE.bazel": "b7990ff8a2a1c7413c06f434d47ef20632d4da801d07540f8e8b5c1a79259e26",
+    "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.5/source.json": "9cf7f2d92f2aa5ac4bb5ed359a6b456eeb7bb9df96d6f23b8f08676aed32479e",
     "https://bcr.bazel.build/modules/aspect_rules_ts/3.8.11/MODULE.bazel": "85cefd3b02fa62c1572d8a39cc463ce7e42f0d40609a9bb0e32c51fade019d16",
     "https://bcr.bazel.build/modules/aspect_rules_ts/3.9.1/MODULE.bazel": "7b2e9f5525c65db1261fa255ff4ed00289fe2aa87fb1014e5ef23c08ecfe2614",
     "https://bcr.bazel.build/modules/aspect_rules_ts/3.9.1/source.json": "a9a585c7dc7140037ddf8f637ecf025ecb1dc0a6882d9abfc8d438f276f6b351",
@@ -608,7 +608,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "4w9RM0xjdKo1crk5zL20a/TuhqO0P1z1LsuXDneBXD4=",
-        "usagesDigest": "QOwr0aWkuU/jxiX1BO4lgrGthrqQ0872qi42o3x85OA=",
+        "usagesDigest": "5o4ZHadH4or4MIJAI+IA6aXeFMdNikvivWV506M3wC4=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -622,12 +622,12 @@
                 "aspect_rules_lint": "2.7.2",
                 "aspect_rules_esbuild": "0.26.0",
                 "aspect_rules_js": "3.2.3",
-                "aspect_rules_swc": "2.7.4",
+                "aspect_rules_swc": "2.7.5",
                 "aspect_rules_ts": "3.9.1",
                 "rules_rs": "0.0.83",
                 "aspect_tools_telemetry": "0.4.2"
               },
-              "last_notice": 0
+              "last_notice": 1
             }
           }
         },
