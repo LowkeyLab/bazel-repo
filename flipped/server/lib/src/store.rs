@@ -418,6 +418,10 @@ impl InMemoryStore {
     pub async fn len(&self) -> usize {
         self.state.lock().await.sessions.len()
     }
+
+    pub async fn is_empty(&self) -> bool {
+        self.state.lock().await.sessions.is_empty()
+    }
 }
 
 #[cfg(test)]

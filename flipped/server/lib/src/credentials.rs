@@ -292,12 +292,12 @@ impl CredentialService {
     }
 }
 
-pub fn parse_canonical_uuid_v7(value: &str) -> std::result::Result<Uuid, ()> {
-    let parsed = Uuid::parse_str(value).map_err(|_| ())?;
+pub fn parse_canonical_uuid_v7(value: &str) -> Option<Uuid> {
+    let parsed = Uuid::parse_str(value).ok()?;
     if parsed.get_version_num() != 7 || parsed.hyphenated().to_string() != value {
-        return Err(());
+        return None;
     }
-    Ok(parsed)
+    Some(parsed)
 }
 
 pub fn token_exchange_request_hash(fields: &[&str]) -> [u8; 32] {
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn accepts_only_canonical_lowercase_uuid_v7() {
         let valid = "018f3d2e-7b4c-7abc-8def-0123456789ab";
-        assert!(parse_canonical_uuid_v7(valid).is_ok());
+        assert!(parse_canonical_uuid_v7(valid).is_some());
         for invalid in [
             "018F3D2E-7B4C-7ABC-8DEF-0123456789AB",
             "{018f3d2e-7b4c-7abc-8def-0123456789ab}",
@@ -343,7 +343,7 @@ mod tests {
             "018f3d2e-6b4c-6abc-8def-0123456789ab",
         ] {
             assert!(
-                parse_canonical_uuid_v7(invalid).is_err(),
+                parse_canonical_uuid_v7(invalid).is_none(),
                 "accepted {invalid}"
             );
         }

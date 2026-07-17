@@ -163,14 +163,13 @@ impl Application {
     }
 
     pub fn reserve_import(&self) -> Result<ImportPermit> {
-        self.admission.try_reserve_import().map_err(|error| {
+        self.admission.try_reserve_import().inspect_err(|_| {
             self.emit(
                 ServiceEventName::ImportCapacityRejected,
                 Outcome::Rejected,
                 Some(EventErrorCode::ResourceExhausted),
                 None,
             );
-            error
         })
     }
 
@@ -532,7 +531,7 @@ impl Application {
             .await
             .ok_or_else(|| SessionApplicationError::new(SessionErrorCode::NotFound, 0))?;
         let mut record = record.lock().await;
-        let command_id = parse_canonical_uuid_v7(command_id).map_err(|_| {
+        let command_id = parse_canonical_uuid_v7(command_id).ok_or_else(|| {
             SessionApplicationError::new(SessionErrorCode::InvalidCommandId, record.revision)
         })?;
         let jti: Uuid = claims.jti.parse().map_err(|_| {

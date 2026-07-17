@@ -42,10 +42,10 @@ impl<T: Clone> CommandLog<T> {
         operation: Operation,
         input_hash: [u8; 32],
     ) -> std::result::Result<Option<CachedCommandResult<T>>, SessionErrorCode> {
-        if let Some((bound_operation, bound_hash)) = self.bindings.get(&(role, jti, command_id)) {
-            if *bound_operation != operation || *bound_hash != input_hash {
-                return Err(SessionErrorCode::InvalidCommandId);
-            }
+        if let Some((bound_operation, bound_hash)) = self.bindings.get(&(role, jti, command_id))
+            && (*bound_operation != operation || *bound_hash != input_hash)
+        {
+            return Err(SessionErrorCode::InvalidCommandId);
         }
         Ok(self
             .results
@@ -78,6 +78,10 @@ impl<T: Clone> CommandLog<T> {
 
     pub fn len(&self) -> usize {
         self.results.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.results.is_empty()
     }
 }
 

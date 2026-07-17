@@ -1,1 +1,3 @@
-export function setupDevtoolsPlugin(): void {}
+export function setupDevtoolsPlugin(): undefined {
+  return undefined;
+}

@@ -62,7 +62,7 @@ pub async fn exchange(
     else {
         return oauth_error("invalid_request", StatusCode::BAD_REQUEST, false);
     };
-    let Ok(redemption_id) = parse_canonical_uuid_v7(redemption_id) else {
+    let Some(redemption_id) = parse_canonical_uuid_v7(redemption_id) else {
         return oauth_error("invalid_request", StatusCode::BAD_REQUEST, false);
     };
     let result = state
