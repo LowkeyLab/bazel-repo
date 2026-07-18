@@ -1,53 +1,29 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":approveMajorUpdates",
-    ":automergeAll"
-  ],
+  "extends": ["config:best-practices", ":approveMajorUpdates", ":automergeAll"],
   "nix": {
     "enabled": true
   },
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "* 4 * * *"
-    ]
-  },
   "packageRules": [
     {
-      "matchManagers": [
-        "bazel-module"
-      ],
-      "matchDatasources": [
-        "maven"
-      ],
+      "matchManagers": ["bazel-module"],
+      "matchDatasources": ["maven"],
       "postUpgradeTasks": {
-        "commands": [
-          "env REPIN=1 bazel run @maven//:pin --config=ci-remote"
-        ],
-        "fileFilters": [
-          "maven_install.json"
-        ],
+        "commands": ["env REPIN=1 bazel run @maven//:pin --config=ci-remote"],
+        "fileFilters": ["maven_install.json"],
         "executionMode": "update"
       }
     },
     {
-      "matchManagers": [
-        "cargo"
-      ],
+      "matchManagers": ["cargo"],
       "postUpgradeTasks": {
         "commands": [
           "bazel mod deps --lockfile_mode=update --config=ci-remote"
         ],
-        "fileFilters": [
-          "MODULE.bazel.lock"
-        ],
+        "fileFilters": ["MODULE.bazel.lock"],
         "executionMode": "update"
       }
     }
   ],
-  "postUpdateOptions": [
-    "gomodTidy"
-  ]
+  "postUpdateOptions": ["gomodTidy"]
 }
