@@ -179,7 +179,7 @@ use_repo(rules_ts_ext, "npm_typescript")
 
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
 node.toolchain(
-    node_version = "24.9.0",
+    node_version = "24.15.0",
 )
 use_repo(node, "nodejs_toolchains")
 

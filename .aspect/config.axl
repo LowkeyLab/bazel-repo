@@ -1,7 +1,7 @@
 load("@aspect//traits.axl", "BazelTrait")
 
 def _lint_bazel_flags(ctx):
-    if ctx.task.name == "lint":
+    if ctx.task.kind == "lint":
         return ["--config=lint"]
     return []
 

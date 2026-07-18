@@ -15,34 +15,5 @@
     "tsconfig-to-swcconfig": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "lmdb",
-      "msgpackr-extract"
-    ],
-    "packageExtensions": {
-      "@analogjs/vite-plugin-angular": {
-        "dependencies": {
-          "@angular-devkit/architect": "*",
-          "@angular/compiler": "*",
-          "@angular/compiler-cli": "*",
-          "tinyglobby": "*",
-          "typescript": "*",
-          "vite": "*"
-        }
-      },
-      "apollo-angular": {
-        "dependencies": {
-          "@angular/common": "*"
-        }
-      }
-    },
-    "patchedDependencies": {
-      "vite@7.3.1": "3rdparty/vite/vite@7.3.1.patch",
-      "vite@7.3.2": "3rdparty/vite/vite@7.3.2.patch"
-    }
   }
 }
