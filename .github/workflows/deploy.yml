@@ -2,7 +2,6 @@ name: Deploy
 permissions:
   contents: read
   packages: write
-  attestations: write
   id-token: write
 on:
   workflow_run:
@@ -10,48 +9,40 @@ on:
     types:
       - completed
     branches: [main]
-env:
-  MISE_EXPERIMENTAL: true
 jobs:
-  discover:
+  deploy:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    outputs:
-      targets: ${{ steps.query.outputs.targets }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+      - name: Configure Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
           bazelrc: |
             common --config=ci-remote
-            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-      - name: Discover OCI push targets
-        id: query
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+      - name: Install Aspect from flake
         run: |
-          targets=$(bazel query 'kind("oci_push rule", //...)' | jq -Rnc '[inputs]')
-          echo "targets=$targets" >> "$GITHUB_OUTPUT"
-  push:
-    runs-on: ubuntu-latest
-    needs: discover
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJson(needs.discover.outputs.targets) }}
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
-        with:
-          bazelisk-cache: true
-          bazelrc: |
-            common --config=ci-remote
-            common --compilation_mode=opt
-            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          nix build .#aspect
+          install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
       - name: Log in to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push image
-        run: bazel run --compilation_mode=opt ${{ matrix.target }}
+      - name: Deliver OCI images
+        env:
+          ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: aspect delivery --mode=always --track-state=false
