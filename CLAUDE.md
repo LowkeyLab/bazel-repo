@@ -52,14 +52,12 @@ bazel run @pnpm -- --dir $PWD install
 
 ### Remote execution
 
-CI uses `--config=ci-remote` for remote build execution via BuildBuddy (with `--noremote_local_fallback`). To test locally:
+CI selects `--config=ci`, which expands to `--config=ci-remote` and enables BuildBuddy remote execution. Aspect commands inherit this Bazel configuration from the CI-generated bazelrc. To test remote execution locally:
 
 ```bash
 bazel build //... --config=remote-linux
 bazel test //... --config=remote-linux
 ```
-
-Note: Use `bazel` (not `aspect`) for remote execution — the Aspect CLI does not support `--config` flags.
 
 ### After editing source files, always:
 
@@ -142,7 +140,7 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### CI/CD
 
-- **run-tests.yml**: on push/PR to main — installs `aspect` from `.#aspect`, then runs `aspect lint //...` and `aspect test //...` with BuildBuddy remote cache
+- **run-tests.yml**: on push/PR to main — uses the shared Bazel CI setup (including `aspect` from `.#aspect`), then runs `aspect lint //...` and `aspect test //...` with BuildBuddy remote execution
 - **deploy.yml**: after tests pass on main — builds optimized and pushes all OCI images to GHCR
 
 ## Code Conventions
