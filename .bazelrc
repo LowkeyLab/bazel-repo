@@ -23,6 +23,7 @@ common:remote-linux --host_platform=//platforms:remote_linux_x86_64_gnu_llvm
 test:remote-linux --test_tag_filters=-no-remote
 
 # CI remote execution config (combines remote-linux with CI tuning)
+common:ci --config=ci-remote
 common:ci-remote --config=remote-linux
 common:ci-remote --remote_timeout=3600
 common:ci-remote --incompatible_strict_action_env
@@ -96,8 +97,7 @@ coverage:ci-remote --@rules_go//go/config:pure
 run:quiet --ui_event_filters=-info,-stdout,-stderr --noshow_progress
 
 # Bazel Preset Overrides
-# CI lint: enable remote execution and download toplevel outputs for lint report files
-common:ci-lint --config=ci-remote
+# CI lint: download toplevel outputs for lint report files
 common:ci-lint --remote_download_toplevel
 
 # Load any settings & overrides specific to the current user.

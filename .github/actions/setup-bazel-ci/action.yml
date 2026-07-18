@@ -20,6 +20,11 @@ runs:
           experimental-features = nix-command flakes
     - name: Configure Magic Nix Cache
       uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
+    - name: Install Aspect from flake
+      shell: bash
+      run: |
+        nix build .#aspect
+        install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
     - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
       with:
         # Avoid downloading Bazel every time.

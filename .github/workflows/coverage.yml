@@ -26,7 +26,7 @@ jobs:
           bazelisk-cache: true
           bazelrc: |
             common --config=ci
-            build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
             test --test_env=XDG_CACHE_HOME
       - name: Log in to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
@@ -38,8 +38,8 @@ jobs:
         run: |
           nix build nixpkgs#lcov
           install -m755 ./result/bin/lcov ./result/bin/genhtml ./result/bin/geninfo /usr/local/bin/
-      - name: Run Coverage (remote)
-        run: bazel run //tools/coverage -- //... --config=ci-remote
+      - name: Run Coverage
+        run: bazel run //tools/coverage -- //...
       - name: Upload to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:

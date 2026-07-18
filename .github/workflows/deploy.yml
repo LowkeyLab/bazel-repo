@@ -29,7 +29,7 @@ jobs:
         with:
           bazelisk-cache: true
           bazelrc: |
-            common --config=ci-remote
+            common --config=ci
             common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Install Aspect from flake
         run: |
