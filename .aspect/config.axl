@@ -19,3 +19,8 @@ def config(ctx):
         "//tools/lint:linters.bzl%clippy",
         "//tools/lint:linters.bzl%keep_sorted",
     ]
+
+    ctx.tasks["delivery"].args.query = "kind(\"oci_push rule\", //...)"
+    ctx.tasks["delivery"].args.bazel_flags = ["--compilation_mode=opt"]
+    ctx.tasks["delivery"].args.release_bazel_flags = ["--nostamp"]
+    ctx.tasks["delivery"].args.max_parallelization = 8
