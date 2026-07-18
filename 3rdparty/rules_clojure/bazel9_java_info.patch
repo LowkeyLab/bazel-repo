@@ -9,7 +9,7 @@ index 4f51504..3bfeece 100644
  package(default_visibility = ["//visibility:public"])
  
 diff --git a/rules.bzl b/rules.bzl
-index 79ce0b6..097f7c8 100644
+index 4fd5601..7db8f09 100644
 --- a/rules.bzl
 +++ b/rules.bzl
 @@ -1,3 +1,4 @@
@@ -30,25 +30,15 @@ index 79ce0b6..097f7c8 100644
  
  clojure_repl = rule(
      doc = "Define a clojure repl",
-@@ -49,12 +50,12 @@ def clojure_test(name, *, test_ns, deps=[], runtime_deps=[], **kwargs):
+@@ -49,7 +50,7 @@ def clojure_test(name, *, test_ns, deps=[], runtime_deps=[], main_class="rules_c
      # ideally the library name and the bin name would be the same. They can't be.
      # clojure src files would like to depend on `foo_test`, so mangle the test binary, not the src jar name
  
 -    native.java_test(name=name,
--                     runtime_deps = deps + runtime_deps + ["@rules_clojure//src/rules_clojure:testrunner"],
--                     use_testrunner = False,
--                     main_class="rules_clojure.testrunner",
--                     args = [test_ns],
--                     **kwargs)
 +    java_test(name=name,
-+              runtime_deps = deps + runtime_deps + ["@rules_clojure//src/rules_clojure:testrunner"],
-+              use_testrunner = False,
-+              main_class="rules_clojure.testrunner",
-+              args = [test_ns],
-+              **kwargs)
- 
- def cljs_impl(ctx):
- 
+                      runtime_deps = deps + runtime_deps + ["@rules_clojure//src/rules_clojure:testrunner"],
+                      use_testrunner = False,
+                      main_class=main_class,
 diff --git a/rules/jar.bzl b/rules/jar.bzl
 index e3472d4..fb53796 100644
 --- a/rules/jar.bzl
@@ -79,7 +69,7 @@ index 3014117..b5246fd 100644
  ### we want to support adding directories to the classpath (and in the
  ### future, possibly running from the source tree rather than `bazel-bin`), both in support of
 diff --git a/rules/tools_deps.bzl b/rules/tools_deps.bzl
-index f5dbede..8a2889b 100644
+index a5432c4..1cf4d35 100644
 --- a/rules/tools_deps.bzl
 +++ b/rules/tools_deps.bzl
 @@ -1,4 +1,5 @@
@@ -96,7 +86,7 @@ index f5dbede..8a2889b 100644
  package(default_visibility = ["//visibility:public"])
  
  java_binary(name="gen_srcs",
-@@ -141,7 +143,7 @@ def clojure_gen_srcs(name):
+@@ -144,7 +146,7 @@ def clojure_gen_srcs(name):
                   actual= "@deps//scripts:gen_srcs")
  
  def clojure_gen_namespace_loader(name, output_filename, output_ns_name, output_fn_name, in_dirs, exclude_nses, platform, deps_edn):
@@ -116,10 +106,10 @@ index 1019403..3759e37 100644
  package(default_visibility = ["//visibility:public"])
  exports_files(glob(["**/*.clj"]))
 diff --git a/src/rules_clojure/gen_build.clj b/src/rules_clojure/gen_build.clj
-index f320b42..61462f5 100644
+index 4532310..2d47d3e 100644
 --- a/src/rules_clojure/gen_build.clj
 +++ b/src/rules_clojure/gen_build.clj
-@@ -946,6 +946,7 @@
+@@ -963,6 +963,7 @@
          (str (build-file-header "`rules_clojure`")
               (str/join "\n\n" (concat
                            [(emit-bazel (list 'load "@rules_clojure//:rules.bzl" "clojure_library"))
