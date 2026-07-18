@@ -31,11 +31,11 @@
     "org.jetbrains.exposed:exposed-jdbc": 1893655653,
     "org.jetbrains.kotlin:kotlin-test-junit": -1167282553,
     "org.jetbrains.kotlin:kotlin-test-junit5": 1171634202,
-    "org.junit.jupiter:junit-jupiter": 640637936,
-    "org.junit.jupiter:junit-jupiter-api": 622960573,
-    "org.junit.jupiter:junit-jupiter-engine": 459201753,
-    "org.junit.jupiter:junit-jupiter-params": 680525341,
-    "org.junit.platform:junit-platform-console": -828564016,
+    "org.junit.jupiter:junit-jupiter": -1166816527,
+    "org.junit.jupiter:junit-jupiter-api": -1184493890,
+    "org.junit.jupiter:junit-jupiter-engine": -1348252710,
+    "org.junit.jupiter:junit-jupiter-params": -1126929122,
+    "org.junit.platform:junit-platform-console": 1658948817,
     "org.postgresql:postgresql": -1283293677,
     "repositories": 65937588
   },
@@ -322,7 +322,7 @@
     "org.jetbrains.kotlin:kotlin-stdlib:jar:sources": 1045704851,
     "org.jetbrains.kotlin:kotlin-test": -308848612,
     "org.jetbrains.kotlin:kotlin-test-junit": 757906094,
-    "org.jetbrains.kotlin:kotlin-test-junit5": -866836671,
+    "org.jetbrains.kotlin:kotlin-test-junit5": 1008507707,
     "org.jetbrains.kotlin:kotlin-test-junit5:jar:javadoc": -1237566279,
     "org.jetbrains.kotlin:kotlin-test-junit5:jar:sources": 1063448460,
     "org.jetbrains.kotlin:kotlin-test-junit:jar:javadoc": -1237566279,
@@ -365,33 +365,33 @@
     "org.jspecify:jspecify": 117231129,
     "org.jspecify:jspecify:jar:javadoc": -1632697826,
     "org.jspecify:jspecify:jar:sources": -2134060298,
-    "org.junit.jupiter:junit-jupiter": 1755162701,
-    "org.junit.jupiter:junit-jupiter-api": 1344106988,
-    "org.junit.jupiter:junit-jupiter-api:jar:javadoc": 2092069250,
-    "org.junit.jupiter:junit-jupiter-api:jar:sources": -1246313483,
-    "org.junit.jupiter:junit-jupiter-engine": -1946997797,
-    "org.junit.jupiter:junit-jupiter-engine:jar:javadoc": -970522381,
-    "org.junit.jupiter:junit-jupiter-engine:jar:sources": -1011897450,
-    "org.junit.jupiter:junit-jupiter-params": 452214198,
-    "org.junit.jupiter:junit-jupiter-params:jar:javadoc": 427189978,
-    "org.junit.jupiter:junit-jupiter-params:jar:sources": -776606461,
-    "org.junit.jupiter:junit-jupiter:jar:javadoc": -1332088001,
-    "org.junit.jupiter:junit-jupiter:jar:sources": -1121435130,
-    "org.junit.platform:junit-platform-commons": -1751712524,
-    "org.junit.platform:junit-platform-commons:jar:javadoc": 1092858277,
-    "org.junit.platform:junit-platform-commons:jar:sources": 873052107,
-    "org.junit.platform:junit-platform-console": -354747992,
-    "org.junit.platform:junit-platform-console:jar:javadoc": 415177751,
-    "org.junit.platform:junit-platform-console:jar:sources": -69545169,
-    "org.junit.platform:junit-platform-engine": -1417672575,
-    "org.junit.platform:junit-platform-engine:jar:javadoc": 1562500413,
-    "org.junit.platform:junit-platform-engine:jar:sources": -23636116,
-    "org.junit.platform:junit-platform-launcher": 1929794892,
-    "org.junit.platform:junit-platform-launcher:jar:javadoc": 1282352628,
-    "org.junit.platform:junit-platform-launcher:jar:sources": -1479951368,
-    "org.junit.platform:junit-platform-reporting": -1773189321,
-    "org.junit.platform:junit-platform-reporting:jar:javadoc": 949727232,
-    "org.junit.platform:junit-platform-reporting:jar:sources": -1172552022,
+    "org.junit.jupiter:junit-jupiter": 1390294903,
+    "org.junit.jupiter:junit-jupiter-api": 676925586,
+    "org.junit.jupiter:junit-jupiter-api:jar:javadoc": 1056212866,
+    "org.junit.jupiter:junit-jupiter-api:jar:sources": -1948909322,
+    "org.junit.jupiter:junit-jupiter-engine": -1414496726,
+    "org.junit.jupiter:junit-jupiter-engine:jar:javadoc": 835646674,
+    "org.junit.jupiter:junit-jupiter-engine:jar:sources": -1714493289,
+    "org.junit.jupiter:junit-jupiter-params": -1261453730,
+    "org.junit.jupiter:junit-jupiter-params:jar:javadoc": -1966846307,
+    "org.junit.jupiter:junit-jupiter-params:jar:sources": -1479202300,
+    "org.junit.jupiter:junit-jupiter:jar:javadoc": -131256684,
+    "org.junit.jupiter:junit-jupiter:jar:sources": -1824030969,
+    "org.junit.platform:junit-platform-commons": 1600910117,
+    "org.junit.platform:junit-platform-commons:jar:javadoc": 1448442628,
+    "org.junit.platform:junit-platform-commons:jar:sources": 170456268,
+    "org.junit.platform:junit-platform-console": 72134275,
+    "org.junit.platform:junit-platform-console:jar:javadoc": -904196136,
+    "org.junit.platform:junit-platform-console:jar:sources": -772141008,
+    "org.junit.platform:junit-platform-engine": -529422716,
+    "org.junit.platform:junit-platform-engine:jar:javadoc": 455829733,
+    "org.junit.platform:junit-platform-engine:jar:sources": -726231955,
+    "org.junit.platform:junit-platform-launcher": -207838191,
+    "org.junit.platform:junit-platform-launcher:jar:javadoc": -33952910,
+    "org.junit.platform:junit-platform-launcher:jar:sources": 2112420089,
+    "org.junit.platform:junit-platform-reporting": 837067953,
+    "org.junit.platform:junit-platform-reporting:jar:javadoc": 2046713635,
+    "org.junit.platform:junit-platform-reporting:jar:sources": -1875147861,
     "org.opentest4j.reporting:open-test-reporting-tooling-spi": -1725000643,
     "org.opentest4j.reporting:open-test-reporting-tooling-spi:jar:javadoc": 1190751655,
     "org.opentest4j.reporting:open-test-reporting-tooling-spi:jar:sources": -160176410,
@@ -1290,75 +1290,75 @@
     },
     "org.junit.jupiter:junit-jupiter": {
       "shasums": {
-        "jar": "4ebf07c67017bd598c81bdc56bc7232a9506fed3478aa1077c793e749772cc6c",
-        "javadoc": "ef4574b9cdc4f6c5dbb461a414f1830bf22ce0d3dd9efd76b33f0a8ba2f3a371",
+        "jar": "2a7877196573a1d32fa726313deffdde2e90cca764647e605093020b08973616",
+        "javadoc": "0366f2333a5cda491439c81d00acb8f684652051073522d6dd14edd7d6b42eec",
         "sources": "4d2bfa499d86ea7792f0290798608d60a7ad360bb59bf991a0a8780404fc7169"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.jupiter:junit-jupiter-api": {
       "shasums": {
-        "jar": "b1ab925878a3c57c03baf5e71dfb89bd89a812cd244276daeee6e04522b52981",
-        "javadoc": "dda07716e1ea418bc4f033cb3d42cfb1659eafd5502244d442fcc919af1fb620",
+        "jar": "e60794b7d94e03c4bca1c0833cfca18762da5eaac0a61b16281cbbb708103e4c",
+        "javadoc": "2d0c7cf200c94c50bbeaa49161e57af73174e9fed26e51c7ebf04a1a028bec94",
         "sources": "66b856b12ec26d54dde5c82464fdb81dc354c0c5f3217efde5268284dea0d4a2"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.jupiter:junit-jupiter-engine": {
       "shasums": {
-        "jar": "786c0dda79c0a952b3a388e69a29732ad031a1c84074a1768e2dbf0a19096371",
-        "javadoc": "df8aa2dccce77d497578b176f34c0999dec8089239e4a60cdf08dd47bebc1fb7",
+        "jar": "57227ce289ed84ab205136997d2e5117f6cc695a16b7e235d59f70cdf33c3d7a",
+        "javadoc": "248b8f2fef8e0e1ad8a8a74c1cabbc8a7ea877b60937bd9011d407cbe00abf72",
         "sources": "bf8e7330b352f5735cccb958def28077dbc07ad59a4de78e3aba66587b903997"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.jupiter:junit-jupiter-params": {
       "shasums": {
-        "jar": "b3179b78b9ec368579db717a0d9535efd0720c77a93ae5de0b61db721f2d16c8",
-        "javadoc": "5c41b8fa3d1b752d04a23220b1e8eae517501e96588fde1aabe17ae27607c48b",
+        "jar": "c1ed2164f6ba388518757b38f219dbe350ac098afcd126cbcbd6256fb99666ae",
+        "javadoc": "ccec43cabd2f7b9fe687dda43079f3f995453ccec88fb049bae23fbe3fea6a41",
         "sources": "e390dde576668008ebc75a853020540304303889b922072b5617d6277873320f"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.platform:junit-platform-commons": {
       "shasums": {
-        "jar": "84ca17df1482392e0c91faa43fec54a7f8312e601fd6c96823fe99851e9d5be2",
-        "javadoc": "8d9a46dcfccf74ee8e8f189567f9efe399cb3cbef4c6a1aac06113622f7f310e",
+        "jar": "204894c039d321743ee11e7d1dc8360170d7c64391fbea1211178a645c33a92a",
+        "javadoc": "f87e3d238a9eeb27a22fc39ad81484c032a89cef1e2b6f4915028c9b4d66a76f",
         "sources": "b14f861a3a3056e5c13af5a7c2e6d9c8f7c2ac8a0d16c4ccfbc7afa2d7a97993"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.platform:junit-platform-console": {
       "shasums": {
-        "jar": "69c115294f12e00630300b459b6d0edb128ef48a15dba5dff7ee1950aaa6b214",
-        "javadoc": "7c74b5d20d497e8843d83a72bf64aa1d2273bf9f4be79d955ebf6c4deef98ffb",
+        "jar": "5735a840f9b679296a8fcd7b54185ca903a29503fd8952df63bba0f27307f427",
+        "javadoc": "65bdfee52fa2a29ca22e3354efc22b6519f856f7bf881dec52bb4d2d9e1e794d",
         "sources": "a23df34666ea5975247f507a097349270d34343000aa31fd9dbe6b0514bdeba9"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.platform:junit-platform-engine": {
       "shasums": {
-        "jar": "3ae22ca7b990aa25ff566b224b31ec5a4087d9728c9bf879c44ec6e24a01db7c",
-        "javadoc": "f265144a65452357a97c0b512ef12e582dae3da21726e81a6d0cf1500155291c",
+        "jar": "484e90828846ad6b88efe226b6fe014a75941b32b226e914d9a7758802f46f91",
+        "javadoc": "0354dbae0e66a8d901ff6a309f0efe140b0d2a65570ac01f223a7aebd8b37883",
         "sources": "da69caae6cefcf9e9e7a481013ed48be7843868a805e15cd7de60ef5fcd44181"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.platform:junit-platform-launcher": {
       "shasums": {
-        "jar": "a5e12b743cf960df7be5c5a93428b0d9e2df76ca9282762f5ddc47c0d7170050",
-        "javadoc": "050b5548b7ed2a5d067f6d1703de74a73e0218bdc7d1a9cdf58063dfcc01c878",
+        "jar": "858197212c1b2acc257c9eec9b450a31923c61c1bc61e66acf0057d57bbe577a",
+        "javadoc": "00b61fa3670927c721514d9577e97f42d46c5cee06b9c416dcd299e1e154682f",
         "sources": "d30c7f1e7e4c224d5792812956a2bacdf2628c2e77a011f35a46eab3b9c109fa"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.junit.platform:junit-platform-reporting": {
       "shasums": {
-        "jar": "3bf450549afde36f05cf83d871f0da4347d616db36790ae3b8b16f880373cdea",
-        "javadoc": "634b982bd982527cc77b0db07446e17da85a5c3811a68b3d1aaa02f46f8e2144",
+        "jar": "61706512382e1d71a2e425246e4380076c908b4698bbe09148061bdc2b34e24a",
+        "javadoc": "40563760fb2a4e1abdb2e673573b54e3b04f24d3980337758d5eaf1c7ea47d1f",
         "sources": "bb35a4ce11ed0bc14e6d24492b87d9c658c9d56baed68394f25acee896c8b10d"
       },
-      "version": "6.1.1"
+      "version": "6.1.2"
     },
     "org.opentest4j.reporting:open-test-reporting-tooling-spi": {
       "shasums": {
