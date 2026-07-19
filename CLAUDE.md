@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Setup
 
-This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and Bazel-backed `format`/`coverage` commands. For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`.
+This repo uses a **Nix flake** for reproducible dev tooling. The flake provides `bazelisk`, `bazel`, `aspect`, `buildifier`, `prettier`, `pnpm`, `go`, `java`, `starpls`, `pre-commit`, and the Bazel-backed `coverage` command. For now, the flake assumes `x86_64-linux`, and `aspect` comes from `LowkeyLab/nix`.
 
 ### Prerequisites
 
@@ -30,7 +30,7 @@ This is a **Bazel 9 polyglot monorepo** managed by Bazelisk. Use `aspect` (a Baz
 
 ### Running targets
 
-Use `bazel run` (not `aspect run`) — the `aspect` wrapper only supports `build`, `test`, and `lint`.
+Use `bazel run` (not `aspect run`) for runnable targets. Use Aspect CLI for the native `build`, `test`, `lint`, and `format` tasks.
 
 ```bash
 # Build and test everything
@@ -40,8 +40,11 @@ aspect test //...
 # Lint all code
 aspect lint //...
 
+# Format changed files
+aspect format
+
 # Format all code (Rust, Kotlin, Go, JS/TS, BUILD files)
-format
+aspect format --scope=all
 
 # Regenerate BUILD files after editing source files
 bazel run gazelle
@@ -61,9 +64,9 @@ bazel test //... --config=remote-linux
 
 ### After editing source files, always:
 
-1. `bazel run gazelle` — regenerates BUILD files (must run BEFORE format)
-2. `format` — formats all code
-3. `aspect build //...` — verify build
+1. `bazel run gazelle` — regenerates BUILD files (must run before formatting)
+2. `aspect format --scope=all` — formats all code
+3. `aspect build //...` — verifies the build
 
 ### Coverage
 
@@ -140,7 +143,7 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### CI/CD
 
-- **run-tests.yml**: on push/PR to main — uses the shared Bazel CI setup (including `aspect` from `.#aspect`), then runs `aspect lint //...` and `aspect test //...` with BuildBuddy remote execution
+- **run-tests.yml**: on push/PR to main — uses the shared Bazel CI setup (including `aspect` from `.#aspect`), then runs separate `aspect format`, `aspect lint //...`, and `aspect test //...` jobs with BuildBuddy remote execution
 - **deploy.yml**: after tests pass on main — builds optimized and pushes all OCI images to GHCR
 
 ## Code Conventions
@@ -175,12 +178,12 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### Worktree gotchas
 
-- In worktrees, `format` and `coverage` come from the flake shell just like the main checkout; if you are outside the shell, use `bazel run //tools/format` or `bazel run //tools/coverage` directly.
+- In worktrees, `aspect format` and `coverage` come from the flake shell just like the main checkout. Aspect CLI delegates formatting to `//tools/format:format`; use `bazel run //tools/coverage` directly if the coverage wrapper is unavailable.
 - `aspect test` doesn't support `--cache_test_results` or `--test_output` — use `bazel test` directly for those flags
 
 ## Tooling
 
-- **pre-commit**: runs `format` directly from PATH when available and falls back to `bazel run //tools/format`. Install hooks with `pre-commit install` or `git config core.hooksPath githooks`.
+- **pre-commit**: passes staged files to `aspect format`. Install hooks with `pre-commit install` or `git config core.hooksPath githooks`.
 - **direnv/.envrc**: sources `.env` and enters the flake shell when Nix is available.
 - **ibazel**: incremental Bazel for hot reload (e.g., `ibazel run //personal_website:dev`)
 - **rust-analyzer**: regenerate project with `bazel run //:gen_rust_project`

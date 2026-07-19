@@ -88,7 +88,7 @@ Tip: Use any WebSocket client to connect (e.g., `wscat` or browser). Create a ga
 - Format code and BUILD files before committing:
 
   ```bash
-  format
+  aspect format --scope=all
   bazel run //tools:buildifier
   ```
 

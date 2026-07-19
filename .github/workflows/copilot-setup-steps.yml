@@ -56,8 +56,10 @@ jobs:
           command -v starpls
           command -v pnpm
           command -v go
-          command -v format
           command -v coverage
+
+          echo "=== Aspect format task ==="
+          aspect format --help >/dev/null
       - name: Log in to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:

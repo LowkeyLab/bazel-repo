@@ -8,11 +8,6 @@ load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 npm_link_all_packages(name = "node_modules")
 
-alias(
-    name = "format",
-    actual = "//tools/format",
-)
-
 clojure_gen_srcs(name = "clojure_gen_build_files")
 
 exports_files(

@@ -18,8 +18,11 @@ aspect test //...
 # Update BUILD files (MUST run immediately after ANY source file edit)
 bazel run gazelle
 
-# Format all code (Rust, Kotlin, Go, JS/TS, BUILD files)
-format
+# Format changed files (Rust, Kotlin, Go, JS/TS, BUILD files)
+aspect format
+
+# Format the entire repository
+aspect format --scope=all
 
 # Run all linters
 aspect lint
@@ -70,8 +73,8 @@ bazel clean && aspect build //...
 
 ### General Rules
 
-- **Gazelle:** MUST run `bazel run gazelle` immediately after editing ANY source file (.rs, .kt, .go, .ts, .js, .proto, etc.) and BEFORE running `format`
-- **Formatting:** ALWAYS run `format` before committing or completing a task
+- **Gazelle:** MUST run `bazel run gazelle` immediately after editing ANY source file (.rs, .kt, .go, .ts, .js, .proto, etc.) and BEFORE formatting
+- **Formatting:** ALWAYS run `aspect format --scope=all` before committing or completing a task
 - **Minimal changes:** Only modify what's strictly necessary
 - **Dependencies:** Prefer existing libraries in `MODULE.bazel`
 - **BUILD files:** Never manually edit BUILD files before running `bazel run gazelle`
@@ -128,7 +131,7 @@ bazel clean && aspect build //...
 
 - 2-space indentation
 - Max line length: 200 characters
-- Run `format` (uses ktlint)
+- Run `aspect format` (uses ktlint)
 
 **Types & Naming:**
 
@@ -154,7 +157,7 @@ bazel clean && aspect build //...
 **Imports:**
 
 - Grouped: stdlib, external, internal
-- Use `goimports` (via `format`)
+- Use `goimports` (via `aspect format`)
 
 **Types & Naming:**
 
@@ -227,7 +230,7 @@ bazel clean && aspect build //...
 **Formatting:**
 
 - 2-space indentation (Prettier)
-- Run `format`
+- Run `aspect format`
 
 ### BUILD Files
 
@@ -262,7 +265,7 @@ bazel-repo/
 
 1. Make code changes in appropriate project directory
 2. **Run Gazelle immediately:** `bazel run gazelle` (REQUIRED after ANY source file edit)
-3. **Format code:** `format` (handles all languages)
+3. **Format code:** `aspect format --scope=all` (handles all languages)
 4. **Run tests:** `aspect test //path/to/tests` or `aspect test //...`
 5. **Test locally:** Use project-specific run commands (see subproject AGENTS.md)
 6. **Verify build:** `aspect build //...` (use `--keep_going` to see all errors)
@@ -316,8 +319,8 @@ cd predix && sqlc generate
 - ❌ Using `cargo build/test` instead of `aspect build/test`
 - ❌ Using `npm install` instead of `bazel run @pnpm -- --dir $PWD install`
 - ❌ Forgetting to run `bazel run gazelle` immediately after editing source files
-- ❌ Running `format` before running `bazel run gazelle`
+- ❌ Running `aspect format` before running `bazel run gazelle`
 - ❌ Editing BUILD files before running `bazel run gazelle`
-- ❌ Forgetting to run `format` before committing
+- ❌ Forgetting to run `aspect format --scope=all` before committing
 - ❌ Hardcoding secrets instead of using environment variables
 - ❌ Creating new directories without understanding the project structure

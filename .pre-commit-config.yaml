@@ -1,6 +1,6 @@
 # This pre-commit configuration demonstrates how to automatically lint and
-# format files. See tools/format/BUILD.bazel for the specifics of the formatting
-# configuration.
+# format files with Aspect CLI. See tools/format/BUILD.bazel for the formatter
+# definitions.
 # Developers should run 'pre-commit install' in this repo.
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
@@ -9,7 +9,7 @@ repos:
     hooks:
       - id: format
         name: Format
-        entry: bazel run //tools/format:format
+        entry: aspect format --
         language: system
         types: [text]
   # Lint for starlark code.
