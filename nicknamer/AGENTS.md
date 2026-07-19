@@ -61,7 +61,7 @@ Test structure:
 ## Code Style Guidelines (Rust)
 
 - Use Rust 2024 edition
-- Format with rustfmt (run `format` at repo root)
+- Format with rustfmt (run `aspect format` at repo root)
 - Follow `cargo clippy` recommendations
 - Prefer explicit error handling with `anyhow::Result`
 - Use structured logging with `tracing`
@@ -138,7 +138,7 @@ The application serves on port 8080 by default.
 ## Development Workflow
 
 1. Make code changes
-2. Format code: `format`
+2. Format code: `aspect format --scope=all`
 3. Run linters: `aspect lint`
 4. Run tests: `aspect test //nicknamer/server/lib/tests:tests`
 5. Test locally: `bazel run //nicknamer:run_locally`

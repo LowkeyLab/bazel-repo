@@ -1,4 +1,6 @@
 def config(ctx):
+    ctx.tasks["format"].args.formatter_target = "//tools/format:format"
+
     ctx.tasks["lint"].args.bazel_flags = ["--config=lint"]
     ctx.tasks["lint"].args.aspects = [
         "//tools/lint:linters.bzl%buf",

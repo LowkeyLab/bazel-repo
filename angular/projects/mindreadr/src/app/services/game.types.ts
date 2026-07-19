@@ -2,10 +2,7 @@
 // Keep minimal structure to match backend serialization.
 
 export type GameState =
-  | 'WAITING_FOR_PLAYERS'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'TERMINATED';
+  'WAITING_FOR_PLAYERS' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
 
 export interface Player {
   name: string;

@@ -26,7 +26,7 @@ bazel test //clojure_sample/test/lowkeylab/clojure_sample:core_test.test --test_
 - Edit source files under `clojure_sample/src/` and tests under `clojure_sample/test/`.
 - Do not manually edit generated `BUILD.bazel` files below `clojure_sample/src/` or `clojure_sample/test/`.
 - After changing Clojure namespaces, `deps.edn`, or namespace dependencies, run `bazel run //:clojure_gen_build_files`.
-- Follow repository workflow: run `bazel run gazelle` after source edits, then `format`, then targeted build/test checks.
+- Follow repository workflow: run `bazel run gazelle` after source edits, then `aspect format --scope=all`, then targeted build/test checks.
 
 ## Notes
 

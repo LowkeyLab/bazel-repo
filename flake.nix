@@ -64,7 +64,6 @@
               }
             else
               pkgs.writeShellScriptBin "bazel" ''exec bazelisk "$@"'';
-          format = pkgs.writeShellScriptBin "format" ''exec bazel run //tools/format -- "$@"'';
           coverage = pkgs.writeShellScriptBin "coverage" ''exec bazel run //tools/coverage -- "$@"'';
         in
         {
@@ -76,7 +75,6 @@
               pkgs.bazel-watcher
               pkgs.buildozer
               pkgs.buf
-              format
               coverage
               pkgs.buildifier
               pkgs.starpls
