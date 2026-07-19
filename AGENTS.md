@@ -131,7 +131,7 @@ bazel clean && aspect build //...
 
 - 2-space indentation
 - Max line length: 200 characters
-- Run `aspect format` (uses ktlint)
+- Run `aspect format` (uses ktfmt)
 
 **Types & Naming:**
 
@@ -157,7 +157,7 @@ bazel clean && aspect build //...
 **Imports:**
 
 - Grouped: stdlib, external, internal
-- Use `goimports` (via `aspect format`)
+- Use `gofumpt` (via `aspect format`)
 
 **Types & Naming:**
 
