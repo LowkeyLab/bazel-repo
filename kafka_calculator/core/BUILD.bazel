@@ -1,0 +1,21 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "core",
+    srcs = [
+        "lib.rs",
+        "node.rs",
+    ],
+    crate_name = "kafka_calculator_core",
+    deps = ["@crates//:thiserror"],
+)
+
+rust_test(
+    name = "core_test",
+    size = "small",
+    crate = ":core",
+    deps = ["@crates//:googletest"],
+)
