@@ -2,4 +2,6 @@
 
 #![forbid(unsafe_code)]
 
+mod node;
+
 pub use node::{Citation, CitationClaim, CitationId, IdentifierError, NodeId, NodeMetadata};

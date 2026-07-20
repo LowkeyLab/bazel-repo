@@ -5,20 +5,17 @@ package(default_visibility = ["//visibility:public"])
 
 rust_library(
     name = "core",
-    srcs = ["lib.rs"],
+    srcs = [
+        "lib.rs",
+        "node.rs",
+    ],
     crate_name = "kafka_calculator_core",
-    deps = [":node"],
-)
-
-rust_library(
-    name = "node",
-    srcs = ["node.rs"],
     deps = ["@crates//:thiserror"],
 )
 
 rust_test(
     name = "node_test",
     size = "small",
-    crate = ":node",
+    crate = ":core",
     deps = ["@crates//:googletest"],
 )
