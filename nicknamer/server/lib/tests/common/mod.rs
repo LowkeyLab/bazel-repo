@@ -150,7 +150,7 @@ pub async fn setup_db_with_global_container() -> anyhow::Result<DatabaseConnecti
     // Create a new database for this test
     use sea_orm::ConnectionTrait;
     admin_db
-        .execute(sea_orm::Statement::from_string(
+        .execute_raw(sea_orm::Statement::from_string(
             sea_orm::DatabaseBackend::Postgres,
             format!("CREATE DATABASE {}", db_name),
         ))
