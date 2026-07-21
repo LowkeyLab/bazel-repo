@@ -2,7 +2,7 @@ use std::{fmt, str::FromStr};
 
 use thiserror::Error;
 
-use crate::{Value, ValueType};
+use crate::value::{Value, ValueType};
 
 /// Error returned when a graph identifier does not use the canonical syntax.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
