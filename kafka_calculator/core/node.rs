@@ -2,6 +2,8 @@ use std::{fmt, str::FromStr};
 
 use thiserror::Error;
 
+use crate::value::{Value, ValueType};
+
 /// Error returned when a graph identifier does not use the canonical syntax.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum IdentifierError {
@@ -189,6 +191,172 @@ impl NodeMetadata {
     }
 }
 
+/// Why a fixed value is part of the calculation graph.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConstantOrigin {
+    /// A mathematical or measurement-unit definition.
+    UnitDefinition,
+    /// A default defined by the Kafka client.
+    ClientDefault,
+    /// A bound or requirement imposed by the Kafka client.
+    ClientConstraint,
+    /// A deliberate policy chosen by this calculator.
+    CalculatorPolicy,
+}
+
+/// The kind-specific definition of a fixed graph node.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConstantDefinition {
+    value: Value,
+    origin: ConstantOrigin,
+    rationale: String,
+}
+
+impl ConstantDefinition {
+    pub fn new(value: Value, origin: ConstantOrigin, rationale: String) -> Self {
+        Self {
+            value,
+            origin,
+            rationale,
+        }
+    }
+
+    pub fn value(&self) -> Value {
+        self.value
+    }
+
+    pub fn origin(&self) -> ConstantOrigin {
+        self.origin
+    }
+
+    pub fn rationale(&self) -> &str {
+        &self.rationale
+    }
+}
+
+/// Kind-specific data attached to a graph node definition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NodeKind {
+    Input(InputDefinition),
+    Constant(ConstantDefinition),
+}
+
+/// A graph node's common metadata and kind-specific definition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NodeDefinition {
+    metadata: NodeMetadata,
+    kind: NodeKind,
+}
+
+impl NodeDefinition {
+    pub fn new(metadata: NodeMetadata, kind: NodeKind) -> Self {
+        Self { metadata, kind }
+    }
+
+    pub fn metadata(&self) -> &NodeMetadata {
+        &self.metadata
+    }
+
+    pub fn kind(&self) -> &NodeKind {
+        &self.kind
+    }
+}
+
+/// A hard bound that an input value must satisfy during binding.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InputConstraint {
+    MinimumInclusive(Value),
+    MinimumExclusive(Value),
+    MaximumInclusive(Value),
+    MaximumExclusive(Value),
+}
+
+impl InputConstraint {
+    /// Returns the bound value used by this constraint.
+    pub fn value(self) -> Value {
+        match self {
+            Self::MinimumInclusive(value)
+            | Self::MinimumExclusive(value)
+            | Self::MaximumInclusive(value)
+            | Self::MaximumExclusive(value) => value,
+        }
+    }
+}
+
+/// Error returned when an input definition contains incompatible values.
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum InputDefinitionError {
+    /// The default value does not have the input's declared type.
+    #[error("input default has type {actual:?}, expected {expected:?}")]
+    DefaultTypeMismatch {
+        expected: ValueType,
+        actual: ValueType,
+    },
+    /// A hard constraint does not have the input's declared type.
+    #[error("input constraint {index} has type {actual:?}, expected {expected:?}")]
+    ConstraintTypeMismatch {
+        index: usize,
+        expected: ValueType,
+        actual: ValueType,
+    },
+}
+
+/// Type, optional default, and hard constraints declared by an input node.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InputDefinition {
+    value_type: ValueType,
+    default: Option<Value>,
+    hard_constraints: Vec<InputConstraint>,
+}
+
+impl InputDefinition {
+    /// Creates an input definition whose default and constraints match its declared type.
+    pub fn new(
+        value_type: ValueType,
+        default: Option<Value>,
+        hard_constraints: Vec<InputConstraint>,
+    ) -> Result<Self, InputDefinitionError> {
+        if let Some(default) = default {
+            let actual = default.value_type();
+            if actual != value_type {
+                return Err(InputDefinitionError::DefaultTypeMismatch {
+                    expected: value_type,
+                    actual,
+                });
+            }
+        }
+
+        for (index, constraint) in hard_constraints.iter().copied().enumerate() {
+            let actual = constraint.value().value_type();
+            if actual != value_type {
+                return Err(InputDefinitionError::ConstraintTypeMismatch {
+                    index,
+                    expected: value_type,
+                    actual,
+                });
+            }
+        }
+
+        Ok(Self {
+            value_type,
+            default,
+            hard_constraints,
+        })
+    }
+
+    pub fn value_type(&self) -> ValueType {
+        self.value_type
+    }
+
+    pub fn default(&self) -> Option<Value> {
+        self.default
+    }
+
+    pub fn hard_constraints(&self) -> &[InputConstraint] {
+        &self.hard_constraints
+    }
+}
+
 fn validate_identifier(value: &str) -> Result<(), IdentifierError> {
     if value.is_empty() {
         return Err(IdentifierError::Empty);
@@ -232,6 +400,7 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
+    use crate::{DataSize, DataUnit, ExactDecimal};
 
     #[googletest::test]
     fn node_id_accepts_canonical_identifiers() {
@@ -354,6 +523,147 @@ mod tests {
         assert_that!(
             claim.claim(),
             eq("The producer queue is shared by all partitions.")
+        );
+    }
+
+    #[googletest::test]
+    fn constant_definition_exposes_its_fixed_value_origin_and_rationale() {
+        let value = Value::DataSize(DataSize::new(
+            ExactDecimal::from_str("1024").expect("decimal should be valid"),
+            DataUnit::Bytes,
+        ));
+        let rationale =
+            String::from("librdkafka interprets producer configuration KBytes as 1,024 bytes.");
+        let definition =
+            ConstantDefinition::new(value, ConstantOrigin::UnitDefinition, rationale.clone());
+
+        assert_that!(definition.value(), eq(value));
+        assert_that!(definition.origin(), eq(ConstantOrigin::UnitDefinition));
+        assert_that!(definition.rationale(), eq(rationale.as_str()));
+
+        let metadata = NodeMetadata::new(
+            NodeId::new("constant.producer.config_kbyte_bytes")
+                .expect("node identifier should be valid"),
+            String::from("Producer configuration KByte divisor"),
+            String::from("Number of bytes represented by one producer configuration KByte."),
+            vec![],
+        );
+        let node = NodeDefinition::new(metadata, NodeKind::Constant(definition.clone()));
+
+        assert_that!(
+            node.metadata().id().as_str(),
+            eq("constant.producer.config_kbyte_bytes")
+        );
+        assert_that!(node.kind(), eq(&NodeKind::Constant(definition)));
+    }
+
+    #[googletest::test]
+    fn constant_origins_cover_every_fixed_value_source() {
+        let origins = [
+            ConstantOrigin::UnitDefinition,
+            ConstantOrigin::ClientDefault,
+            ConstantOrigin::ClientConstraint,
+            ConstantOrigin::CalculatorPolicy,
+        ];
+
+        for origin in origins {
+            let definition =
+                ConstantDefinition::new(Value::MessageCount(1), origin, String::from("Reason"));
+
+            assert_that!(definition.origin(), eq(origin));
+        }
+    }
+
+    #[googletest::test]
+    fn input_definition_exposes_its_declaration() {
+        let default = Value::MessageCount(100_000);
+        let constraints = vec![
+            InputConstraint::MinimumExclusive(Value::MessageCount(0)),
+            InputConstraint::MaximumInclusive(Value::MessageCount(1_000_000)),
+        ];
+        let definition =
+            InputDefinition::new(ValueType::MessageCount, Some(default), constraints.clone())
+                .expect("matching default and constraints should be accepted");
+
+        assert_that!(definition.value_type(), eq(ValueType::MessageCount));
+        assert_that!(definition.default(), eq(Some(default)));
+        assert_that!(definition.hard_constraints(), eq(constraints.as_slice()));
+        assert_that!(constraints[0].value(), eq(Value::MessageCount(0)));
+
+        let metadata = NodeMetadata::new(
+            NodeId::new("input.producer.queue_message_count")
+                .expect("node identifier should be valid"),
+            String::from("Producer queue message count"),
+            String::from("Target number of messages retained by the producer queue."),
+            vec![],
+        );
+        let node = NodeDefinition::new(metadata, NodeKind::Input(definition.clone()));
+
+        assert_that!(
+            node.metadata().id().as_str(),
+            eq("input.producer.queue_message_count")
+        );
+        assert_that!(node.kind(), eq(&NodeKind::Input(definition)));
+    }
+
+    #[googletest::test]
+    fn input_definition_accepts_a_required_input_without_constraints() {
+        let definition = InputDefinition::new(ValueType::Ratio, None, vec![])
+            .expect("required unconstrained input should be accepted");
+
+        assert_that!(definition.default(), none());
+        assert_that!(definition.hard_constraints().is_empty(), eq(true));
+    }
+
+    #[googletest::test]
+    fn input_definition_rejects_a_default_with_the_wrong_type() {
+        let error = InputDefinition::new(
+            ValueType::MessageCount,
+            Some(Value::Scalar(
+                ExactDecimal::from_str("10").expect("decimal should be valid"),
+            )),
+            vec![],
+        )
+        .expect_err("mismatched default should be rejected");
+
+        assert_that!(
+            error,
+            eq(&InputDefinitionError::DefaultTypeMismatch {
+                expected: ValueType::MessageCount,
+                actual: ValueType::Scalar,
+            })
+        );
+        assert_that!(
+            error.to_string(),
+            eq("input default has type Scalar, expected MessageCount")
+        );
+    }
+
+    #[googletest::test]
+    fn input_definition_rejects_a_constraint_with_the_wrong_type() {
+        let error = InputDefinition::new(
+            ValueType::MessageCount,
+            None,
+            vec![
+                InputConstraint::MinimumInclusive(Value::MessageCount(1)),
+                InputConstraint::MaximumExclusive(Value::Ratio(
+                    ExactDecimal::from_str("2").expect("decimal should be valid"),
+                )),
+            ],
+        )
+        .expect_err("mismatched constraint should be rejected");
+
+        assert_that!(
+            error,
+            eq(&InputDefinitionError::ConstraintTypeMismatch {
+                index: 1,
+                expected: ValueType::MessageCount,
+                actual: ValueType::Ratio,
+            })
+        );
+        assert_that!(
+            error.to_string(),
+            eq("input constraint 1 has type Ratio, expected MessageCount")
         );
     }
 
