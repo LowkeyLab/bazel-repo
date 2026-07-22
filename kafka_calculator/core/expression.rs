@@ -37,7 +37,7 @@ pub enum ExpressionError {
         expected: usize,
         actual: usize,
     },
-    /// An operation requiring homogeneous operands encountered a different category.
+    /// An operand type does not satisfy the operation's static contract.
     #[error(
         "{operation} operand {operand} has type {actual:?}, but operand 0 has type {expected:?}"
     )]
