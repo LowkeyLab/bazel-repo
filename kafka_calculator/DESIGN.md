@@ -169,11 +169,11 @@ A rationale explains why the graph contains the constant. Citations support clie
 
 ### Derived nodes
 
-A derived definition contains an expression and no precomputed value. The evaluator obtains its type and value from referenced nodes.
+A derived definition contains an `AnyExpression` and no precomputed value. The evaluator obtains its type and value from referenced nodes.
 
 ### Setting nodes
 
-A setting definition contains a client configuration key, producer/consumer/common scope, setting unit, and expression. Settings remain graph nodes so they can have incoming causes, citations, traces, constraints, and copied configuration representations.
+A setting definition contains a client configuration key, producer/consumer/common scope, setting unit, and `AnyExpression`. Settings remain graph nodes so they can have incoming causes, citations, traces, constraints, and copied configuration representations.
 
 ### Finding nodes
 
@@ -192,7 +192,7 @@ pub struct Operand {
 }
 ```
 
-The initial expression set is:
+The completed initial expression set is:
 
 - `Reference`
 - `Add`
@@ -202,6 +202,79 @@ The initial expression set is:
 - `Minimum`
 - `Maximum`
 - `ConvertDataSize`
+
+The first expression-model increment implements every operation above except `ConvertDataSize`. Unit conversion remains part of the completed architecture but is deliberately deferred to a later increment.
+
+### Typed expression construction
+
+An operation is represented by a marker type, and `Expression<K>` is the typed expression for that operation:
+
+```rust
+use std::marker::PhantomData;
+
+pub struct Reference;
+pub struct Add;
+pub struct Multiply;
+pub struct Ceiling;
+pub struct CeilingDivide;
+pub struct Minimum;
+pub struct Maximum;
+
+pub struct Expression<K> {
+    operands: Vec<Operand>,
+    kind: PhantomData<K>,
+}
+```
+
+The marker determines which constructors and accessors are available. There is no generic constructor that accepts an arbitrary operand vector. Fixed and minimum arities are instead encoded by operation-specific signatures:
+
+```rust
+impl Expression<Reference> {
+    pub fn new(source: Operand) -> Self;
+    pub fn source(&self) -> &Operand;
+}
+
+impl Expression<Add> {
+    pub fn new(left: Operand, right: Operand) -> Self;
+    pub fn and(self, term: Operand) -> Self;
+    pub fn terms(&self) -> &[Operand];
+}
+
+impl Expression<CeilingDivide> {
+    pub fn new(dividend: Operand, divisor: Operand) -> Self;
+    pub fn dividend(&self) -> &Operand;
+    pub fn divisor(&self) -> &Operand;
+}
+```
+
+`Multiply`, `Minimum`, and `Maximum` follow the same at-least-two pattern as `Add`, with operation-specific factor or candidate terminology. `Ceiling` follows the unary `Reference` shape but exposes the operand as the value being rounded. Private storage and typed constructors make invalid arity unrepresentable. Repeated node references remain valid, and variable-arity expressions preserve insertion order for deterministic edge generation, validation, and traces.
+
+The expression-only increment does not need a heterogeneous wrapper. When derived and setting nodes are implemented, the graph introduces an erased enum named `AnyExpression`:
+
+```rust
+pub enum AnyExpression {
+    Reference(Expression<Reference>),
+    Add(Expression<Add>),
+    Multiply(Expression<Multiply>),
+    Ceiling(Expression<Ceiling>),
+    CeilingDivide(Expression<CeilingDivide>),
+    Minimum(Expression<Minimum>),
+    Maximum(Expression<Maximum>),
+    ConvertDataSize(Expression<ConvertDataSize>),
+}
+```
+
+Conversions from each valid `Expression<K>` into `AnyExpression` keep graph assembly ergonomic without exposing an API that can bypass the typed constructors. The enum is preferred over trait objects because the closed operation set benefits from exhaustive matching and straightforward `Clone`, `Debug`, equality, validation, and later serialization support.
+
+Each typed operation also owns an operation-local static type contract. It accepts operand `ValueType`s that a future graph validator has already resolved; it does not perform graph lookup. The initial contracts are:
+
+- `Reference` preserves its source type.
+- `Add`, `Minimum`, and `Maximum` require homogeneous operand types and preserve that type.
+- `Multiply` supports homogeneous scalar or ratio multiplication and one data-size operand combined with scalar, ratio, or message-count factors. Dimensionally unsupported combinations such as data size multiplied by data size are rejected.
+- `Ceiling` preserves the accepted decimal quantity category.
+- `CeilingDivide` requires compatible whole-value categories and produces a scalar quotient.
+
+`ValueType` currently describes broad quantity categories rather than decimal whole-ness or a data size's concrete unit. Static contracts therefore reject category-level incompatibilities; the later evaluator remains responsible for checking whole values, matching units, division by zero, overflow, and decimal precision.
 
 Expressions contain no profile-specific numeric literals. Profile defaults, limits, policies, and divisors are constant nodes.
 
@@ -429,7 +502,7 @@ Tests use explicit assertions and focused helpers. Snapshot testing and `insta` 
 Test layers cover:
 
 - Exact decimal parsing, units, explicit rounding, and checked arithmetic
-- Expression constructor invariants and deterministic operand iteration
+- Typed expression APIs, constructor-enforced arity, deterministic operand iteration, and operation-local static type contracts
 - Graph validation errors, cycle paths, reachability, and deterministic topological order
 - Input defaults, origins, type checks, and constraints
 - Every generic operation's result and operation-specific trace
