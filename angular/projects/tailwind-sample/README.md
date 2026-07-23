@@ -44,7 +44,7 @@ aspect test //angular/projects/tailwind-sample:test
 - **Angular**: v20.3 with zoneless change detection
 - **TailwindCSS**: v4.1.17 with CLI-based generation
 - **Build System**: Bazel with rules_angular
-- **Testing**: Jasmine/Karma with zoneless configuration
+- **Testing**: Vitest with jsdom and zoneless configuration
 
 ## Sample Features
 
