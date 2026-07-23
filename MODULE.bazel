@@ -80,7 +80,7 @@ bazel_dep(name = "rules_python", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "gazelle", version = "0.52.2")
 
-bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0", dev_dependency = True)
+bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
