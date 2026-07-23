@@ -42,4 +42,3 @@ runs:
       with:
         username: ${{ inputs.docker-hub-username }}
         password: ${{ inputs.docker-hub-token }}
-    - uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416

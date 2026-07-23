@@ -101,7 +101,7 @@ ng_application = macro(
     },
 )
 
-def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, tags, deps, srcs):
+def _ng_test_impl(name, visibility, zonejs, tailwindcss, vitest, tags, deps, srcs):
     extra_deps = []
     if zonejs:
         extra_deps.append("//angular:node_modules/zone.js")
@@ -112,20 +112,6 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, tags, de
             "//angular:node_modules/tailwindcss",
             "//angular:postcssrc",
         ]
-    if karma:
-        extra_deps += [
-            # keep-sorted start
-            "//angular:karma-bazel-conf",
-            "//angular:node_modules/@types/jasmine",
-            "//angular:node_modules/@types/node",
-            "//angular:node_modules/jasmine-core",
-            "//angular:node_modules/karma",
-            "//angular:node_modules/karma-chrome-launcher",
-            "//angular:node_modules/karma-coverage",
-            "//angular:node_modules/karma-jasmine",
-            "//angular:node_modules/karma-jasmine-html-reporter",
-            # keep-sorted end
-        ]
     if vitest:
         extra_deps += [
             # keep-sorted start
@@ -135,10 +121,6 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, tags, de
             # keep-sorted end
         ]
 
-    all_tags = list(tags)
-    if karma:
-        all_tags.append("no-remote")
-
     orig_ng_test(
         name = name,
         visibility = visibility,
@@ -147,11 +129,11 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, karma, vitest, tags, de
         ng_config = "//angular:ng-config",
         node_modules = "//angular:node_modules",
         size = "small",
-        tags = all_tags,
+        tags = tags,
     )
 
 ng_test = macro(
-    doc = "Defines an ng_test with optional dependencies on zone.js, tailwindcss, karma, and vitest.",
+    doc = "Defines an ng_test with optional dependencies on zone.js, tailwindcss, and vitest.",
     implementation = _ng_test_impl,
     attrs = {
         "zonejs": attr.bool(
@@ -161,11 +143,6 @@ ng_test = macro(
         ),
         "tailwindcss": attr.bool(
             doc = "If True, includes tailwindcss and related packages as dependencies.",
-            default = False,
-            configurable = False,
-        ),
-        "karma": attr.bool(
-            doc = "If True, includes karma as a dependency.",
             default = False,
             configurable = False,
         ),
