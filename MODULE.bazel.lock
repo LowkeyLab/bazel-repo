@@ -121,7 +121,8 @@
     "https://bcr.bazel.build/modules/bazel_skylib/1.8.1/MODULE.bazel": "88ade7293becda963e0e3ea33e7d54d3425127e0a326e0d17da085a5f1f03ff6",
     "https://bcr.bazel.build/modules/bazel_skylib/1.8.2/MODULE.bazel": "69ad6927098316848b34a9142bcc975e018ba27f08c4ff403f50c1b6e646ca67",
     "https://bcr.bazel.build/modules/bazel_skylib/1.9.0/MODULE.bazel": "72997b29dfd95c3fa0d0c48322d05590418edef451f8db8db5509c57875fb4b7",
-    "https://bcr.bazel.build/modules/bazel_skylib/1.9.0/source.json": "7ad77c1e8c1b84222d9b3f3cae016a76639435744c19330b0b37c0a3c9da7dc0",
+    "https://bcr.bazel.build/modules/bazel_skylib/1.9.2/MODULE.bazel": "8c51259b0f4481475586dbfede7591e57b75702e637f840f6138eec80c34b270",
+    "https://bcr.bazel.build/modules/bazel_skylib/1.9.2/source.json": "41cbde7546542dee2f26e3f10bf1c4ac57909943194b7ac48cc5238a01893aa8",
     "https://bcr.bazel.build/modules/bazel_skylib_gazelle_plugin/1.9.0/MODULE.bazel": "6bf4bab470d2383d4eda4f7d0ccff5b8160dc0a2429e3037f9a2c573f9b7a2c0",
     "https://bcr.bazel.build/modules/bazel_skylib_gazelle_plugin/1.9.0/source.json": "02385c6bf129986a5675bd04658b2c2bb6249db51106bb20db7723a56eb03302",
     "https://bcr.bazel.build/modules/bazel_worker_api/0.0.1/MODULE.bazel": "02a13b77321773b2042e70ee5e4c5e099c8ddee4cf2da9cd420442c36938d4bd",
@@ -475,7 +476,7 @@
     },
     "@@aspect_rules_esbuild+//esbuild:extensions.bzl%esbuild": {
       "general": {
-        "bzlTransitiveDigest": "Bd2CLZtUqnV0RozZaAbuBy7+9FqfjQwCQCJttY8UBJ8=",
+        "bzlTransitiveDigest": "Yc0wh3CcgfyJGM3zWK5ZugqjYCfhO/zkzmXAFu150fI=",
         "usagesDigest": "LSQ+zZp7JNgnBONTxxXnwGr4NTh2qtQYk7qwXXz5qWo=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_rules_esbuild+,aspect_rules_js aspect_rules_js+",
@@ -834,7 +835,7 @@
     },
     "@@rules_rust+//crate_universe:extensions.bzl%crate": {
       "general": {
-        "bzlTransitiveDigest": "Eb+B8azTGdzVoc1p6o7wSvHUaprrfYKYFKem53uqDWc=",
+        "bzlTransitiveDigest": "MinrdD3o32oELnC3uKkXVfa68xmnbUwHJdGp0nr1QDg=",
         "usagesDigest": "GYW1in9JJ1nZaM1FDKs1l+Rvr3OqJsSekt4AzrmZOao=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
@@ -1747,7 +1748,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "0KX/4RKVr3VWvOkCIV7KFeBqYQCm35B8WMggrgNU/DY=",
+        "bzlTransitiveDigest": "VadZtNq2NubDgmV42FWlYMP8yL0S62NLFRI+RdlnShE=",
         "usagesDigest": "+UX6+sXVEB09oWglTHxbmgM/QXW4TTDANeqk29HGwbg=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
