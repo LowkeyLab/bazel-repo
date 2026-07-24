@@ -1,8 +1,6 @@
-use std::marker::PhantomData;
-
 use thiserror::Error;
 
-use crate::{NodeId, ValueType};
+use crate::{DataUnit, NodeId, ValueType};
 
 /// A node used by an expression and the role it plays in the operation.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -55,39 +53,45 @@ pub enum ExpressionError {
     },
 }
 
-/// Marker for a node-reference expression.
+/// Descriptor for a node-reference expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Reference;
 
-/// Marker for an addition expression.
+/// Descriptor for an addition expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Add;
 
-/// Marker for a multiplication expression.
+/// Descriptor for a multiplication expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Multiply;
 
-/// Marker for an upward-rounding expression.
+/// Descriptor for an upward-rounding expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Ceiling;
 
-/// Marker for an upward-rounding whole-value division expression.
+/// Descriptor for an upward-rounding whole-value division expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CeilingDivide;
 
-/// Marker for a minimum-selection expression.
+/// Descriptor for a minimum-selection expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Minimum;
 
-/// Marker for a maximum-selection expression.
+/// Descriptor for a maximum-selection expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Maximum;
 
-/// An expression whose operation and valid API are selected by marker `K`.
+/// Descriptor for a data-size unit conversion expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConvertDataSize {
+    target_unit: DataUnit,
+}
+
+/// An expression whose operation and valid API are selected by descriptor `K`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Expression<K> {
     operands: Vec<Operand>,
-    kind: PhantomData<K>,
+    operation: K,
 }
 
 /// A type-erased expression suitable for storage in heterogeneous graph nodes.
@@ -100,6 +104,7 @@ pub enum AnyExpression {
     CeilingDivide(Expression<CeilingDivide>),
     Minimum(Expression<Minimum>),
     Maximum(Expression<Maximum>),
+    ConvertDataSize(Expression<ConvertDataSize>),
 }
 
 impl AnyExpression {
@@ -113,6 +118,7 @@ impl AnyExpression {
             Self::CeilingDivide(expression) => &expression.operands,
             Self::Minimum(expression) => &expression.operands,
             Self::Maximum(expression) => &expression.operands,
+            Self::ConvertDataSize(expression) => &expression.operands,
         }
     }
 
@@ -135,6 +141,10 @@ impl AnyExpression {
             }
             Self::Minimum(expression) => expression.result_type(operand_types),
             Self::Maximum(expression) => expression.result_type(operand_types),
+            Self::ConvertDataSize(expression) => {
+                ensure_resolved_type_count("convert data size", 1, operand_types.len())?;
+                expression.result_type(operand_types[0])
+            }
         }
     }
 }
@@ -156,10 +166,11 @@ impl_any_expression_from!(Ceiling, Ceiling);
 impl_any_expression_from!(CeilingDivide, CeilingDivide);
 impl_any_expression_from!(Minimum, Minimum);
 impl_any_expression_from!(Maximum, Maximum);
+impl_any_expression_from!(ConvertDataSize, ConvertDataSize);
 
 impl Expression<Reference> {
     pub fn new(source: Operand) -> Self {
-        Self::from_operands(vec![source])
+        Self::from_operation(vec![source], Reference)
     }
 
     pub fn source(&self) -> &Operand {
@@ -174,7 +185,7 @@ impl Expression<Reference> {
 
 impl Expression<Add> {
     pub fn new(left: Operand, right: Operand) -> Self {
-        Self::from_operands(vec![left, right])
+        Self::from_operation(vec![left, right], Add)
     }
 
     pub fn and(mut self, term: Operand) -> Self {
@@ -194,7 +205,7 @@ impl Expression<Add> {
 
 impl Expression<Multiply> {
     pub fn new(left: Operand, right: Operand) -> Self {
-        Self::from_operands(vec![left, right])
+        Self::from_operation(vec![left, right], Multiply)
     }
 
     pub fn and(mut self, factor: Operand) -> Self {
@@ -240,7 +251,7 @@ impl Expression<Multiply> {
 
 impl Expression<Ceiling> {
     pub fn new(value: Operand) -> Self {
-        Self::from_operands(vec![value])
+        Self::from_operation(vec![value], Ceiling)
     }
 
     pub fn value(&self) -> &Operand {
@@ -261,7 +272,7 @@ impl Expression<Ceiling> {
 
 impl Expression<CeilingDivide> {
     pub fn new(dividend: Operand, divisor: Operand) -> Self {
-        Self::from_operands(vec![dividend, divisor])
+        Self::from_operation(vec![dividend, divisor], CeilingDivide)
     }
 
     pub fn dividend(&self) -> &Operand {
@@ -293,7 +304,7 @@ impl Expression<CeilingDivide> {
 
 impl Expression<Minimum> {
     pub fn new(left: Operand, right: Operand) -> Self {
-        Self::from_operands(vec![left, right])
+        Self::from_operation(vec![left, right], Minimum)
     }
 
     pub fn and(mut self, candidate: Operand) -> Self {
@@ -313,7 +324,7 @@ impl Expression<Minimum> {
 
 impl Expression<Maximum> {
     pub fn new(left: Operand, right: Operand) -> Self {
-        Self::from_operands(vec![left, right])
+        Self::from_operation(vec![left, right], Maximum)
     }
 
     pub fn and(mut self, candidate: Operand) -> Self {
@@ -331,11 +342,36 @@ impl Expression<Maximum> {
     }
 }
 
+impl Expression<ConvertDataSize> {
+    pub fn new(source: Operand, target_unit: DataUnit) -> Self {
+        Self::from_operation(vec![source], ConvertDataSize { target_unit })
+    }
+
+    pub fn source(&self) -> &Operand {
+        &self.operands[0]
+    }
+
+    pub fn target_unit(&self) -> DataUnit {
+        self.operation.target_unit
+    }
+
+    /// Requires a data-size source and preserves its broad category.
+    pub fn result_type(&self, source_type: ValueType) -> Result<ValueType, ExpressionError> {
+        match source_type {
+            ValueType::DataSize => Ok(ValueType::DataSize),
+            _ => Err(ExpressionError::UnsupportedOperandTypes {
+                operation: "convert data size",
+                operand_types: vec![source_type],
+            }),
+        }
+    }
+}
+
 impl<K> Expression<K> {
-    fn from_operands(operands: Vec<Operand>) -> Self {
+    fn from_operation(operands: Vec<Operand>, operation: K) -> Self {
         Self {
             operands,
-            kind: PhantomData,
+            operation,
         }
     }
 }
@@ -398,6 +434,7 @@ mod tests {
         let ceiling = Expression::<Ceiling>::new(source.clone());
         let divisor = operand("constant.divisor", "configuration unit divisor");
         let divide = Expression::<CeilingDivide>::new(source.clone(), divisor.clone());
+        let conversion = Expression::<ConvertDataSize>::new(source.clone(), DataUnit::Mebibytes);
 
         assert_that!(source.node_id().as_str(), eq("input.source"));
         assert_that!(source.role(), eq("source value"));
@@ -405,6 +442,8 @@ mod tests {
         assert_that!(ceiling.value(), eq(&source));
         assert_that!(divide.dividend(), eq(&source));
         assert_that!(divide.divisor(), eq(&divisor));
+        assert_that!(conversion.source(), eq(&source));
+        assert_that!(conversion.target_unit(), eq(DataUnit::Mebibytes));
     }
 
     #[googletest::test]
@@ -605,6 +644,26 @@ mod tests {
     }
 
     #[googletest::test]
+    fn convert_data_size_requires_a_data_size_source() {
+        let conversion = Expression::<ConvertDataSize>::new(
+            operand("input.message_size", "message size"),
+            DataUnit::Bytes,
+        );
+
+        assert_that!(
+            conversion.result_type(ValueType::DataSize),
+            ok(eq(&ValueType::DataSize))
+        );
+        assert_that!(
+            conversion.result_type(ValueType::Scalar),
+            err(eq(&ExpressionError::UnsupportedOperandTypes {
+                operation: "convert data size",
+                operand_types: vec![ValueType::Scalar],
+            }))
+        );
+    }
+
+    #[googletest::test]
     fn typed_expressions_convert_to_the_matching_erased_variants() {
         let first = operand("input.first", "first");
         let second = operand("input.second", "second");
@@ -619,6 +678,7 @@ mod tests {
             Expression::<CeilingDivide>::new(first.clone(), second.clone()).into(),
             Expression::<Minimum>::new(first.clone(), second.clone()).into(),
             Expression::<Maximum>::new(first.clone(), second.clone()).into(),
+            Expression::<ConvertDataSize>::new(first.clone(), DataUnit::Bytes).into(),
         ];
         let expected_operands = [
             vec![first.clone()],
@@ -627,7 +687,8 @@ mod tests {
             vec![first.clone()],
             vec![first.clone(), second.clone()],
             vec![first.clone(), second.clone()],
-            vec![first, second],
+            vec![first.clone(), second],
+            vec![first],
         ];
 
         assert_that!(
@@ -653,6 +714,10 @@ mod tests {
         );
         assert_that!(
             matches!(expressions[6], AnyExpression::Maximum(_)),
+            eq(true)
+        );
+        assert_that!(
+            matches!(expressions[7], AnyExpression::ConvertDataSize(_)),
             eq(true)
         );
         for (expression, expected) in expressions.iter().zip(expected_operands.iter()) {
@@ -699,9 +764,17 @@ mod tests {
                 ValueType::Scalar,
             ),
             (
-                AnyExpression::from(Expression::<Maximum>::new(first, second)),
+                AnyExpression::from(Expression::<Maximum>::new(first.clone(), second)),
                 vec![ValueType::MessageCount, ValueType::MessageCount],
                 ValueType::MessageCount,
+            ),
+            (
+                AnyExpression::from(Expression::<ConvertDataSize>::new(
+                    first,
+                    DataUnit::Kibibytes,
+                )),
+                vec![ValueType::DataSize],
+                ValueType::DataSize,
             ),
         ];
 
@@ -734,12 +807,24 @@ mod tests {
                 },
             ),
             (
-                AnyExpression::from(Expression::<CeilingDivide>::new(first, second)),
+                AnyExpression::from(Expression::<CeilingDivide>::new(first.clone(), second)),
                 vec![ValueType::DataSize],
                 ExpressionError::ResolvedTypeCountMismatch {
                     operation: "ceiling divide",
                     expected: 2,
                     actual: 1,
+                },
+            ),
+            (
+                AnyExpression::from(Expression::<ConvertDataSize>::new(
+                    first,
+                    DataUnit::Megabytes,
+                )),
+                vec![],
+                ExpressionError::ResolvedTypeCountMismatch {
+                    operation: "convert data size",
+                    expected: 1,
+                    actual: 0,
                 },
             ),
         ];

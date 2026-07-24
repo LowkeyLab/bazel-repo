@@ -271,15 +271,11 @@ The completed initial expression set is:
 - `Maximum`
 - `ConvertDataSize`
 
-The first expression-model increment implements every operation above except `ConvertDataSize`. Unit conversion remains part of the completed architecture but is deliberately deferred to a later increment.
-
 ### Typed expression construction
 
-An operation is represented by a marker type, and `Expression<K>` is the typed expression for that operation:
+An operation is represented by a descriptor type, and `Expression<K>` is the typed expression for that operation. Most descriptors are zero-sized. `ConvertDataSize` carries its explicit target unit because the target is an operation parameter rather than a graph dependency:
 
 ```rust
-use std::marker::PhantomData;
-
 pub struct Reference;
 pub struct Add;
 pub struct Multiply;
@@ -288,13 +284,17 @@ pub struct CeilingDivide;
 pub struct Minimum;
 pub struct Maximum;
 
+pub struct ConvertDataSize {
+    target_unit: DataUnit,
+}
+
 pub struct Expression<K> {
     operands: Vec<Operand>,
-    kind: PhantomData<K>,
+    operation: K,
 }
 ```
 
-The marker determines which constructors and accessors are available. There is no generic constructor that accepts an arbitrary operand vector. Fixed and minimum arities are instead encoded by operation-specific signatures:
+The descriptor determines which constructors and accessors are available. Storing it in `Expression<K>` supports both zero-sized operations and operations with local parameters without adding optional fields that are meaningless for other operations. There is no generic constructor that accepts an arbitrary operand vector or operation descriptor. Fixed and minimum arities are instead encoded by operation-specific signatures:
 
 ```rust
 impl Expression<Reference> {
@@ -313,11 +313,19 @@ impl Expression<CeilingDivide> {
     pub fn dividend(&self) -> &Operand;
     pub fn divisor(&self) -> &Operand;
 }
+
+impl Expression<ConvertDataSize> {
+    pub fn new(source: Operand, target_unit: DataUnit) -> Self;
+    pub fn source(&self) -> &Operand;
+    pub fn target_unit(&self) -> DataUnit;
+}
 ```
 
-`Multiply`, `Minimum`, and `Maximum` follow the same at-least-two pattern as `Add`, with operation-specific factor or candidate terminology. `Ceiling` follows the unary `Reference` shape but exposes the operand as the value being rounded. Private storage and typed constructors make invalid arity unrepresentable. Repeated node references remain valid, and variable-arity expressions preserve insertion order for deterministic edge generation, validation, and traces.
+`Multiply`, `Minimum`, and `Maximum` follow the same at-least-two pattern as `Add`, with operation-specific factor or candidate terminology. `Ceiling` follows the unary `Reference` shape but exposes the operand as the value being rounded. `ConvertDataSize` has exactly one source operand and stores the target unit in its descriptor. The source unit is deliberately not supplied to the constructor: the evaluator resolves it from the referenced node's `DataSize`. Identity conversions are valid, which keeps profiles free to normalize a data size to an explicit unit without branching on its current unit.
 
-The expression-only increment does not need a heterogeneous wrapper. When derived and setting nodes are implemented, the graph introduces an erased enum named `AnyExpression`:
+Private storage and typed constructors make invalid arity and a missing conversion target unrepresentable. Repeated node references remain valid, and variable-arity expressions preserve insertion order for deterministic edge generation, validation, and traces.
+
+Derived and setting nodes store typed expressions through the erased `AnyExpression` enum:
 
 ```rust
 pub enum AnyExpression {
@@ -341,8 +349,9 @@ Each typed operation also owns an operation-local static type contract. It accep
 - `Multiply` supports homogeneous scalar or ratio multiplication and one data-size operand combined with scalar, ratio, or message-count factors. Dimensionally unsupported combinations such as data size multiplied by data size are rejected.
 - `Ceiling` preserves the accepted decimal quantity category.
 - `CeilingDivide` requires compatible whole-value categories and produces a scalar quotient.
+- `ConvertDataSize` requires one data-size operand and produces a data size in its explicit target `DataUnit`.
 
-`ValueType` currently describes broad quantity categories rather than decimal whole-ness or a data size's concrete unit. Static contracts therefore reject category-level incompatibilities; the later evaluator remains responsible for checking whole values, matching units, division by zero, overflow, and decimal precision.
+`ValueType` currently describes broad quantity categories rather than decimal whole-ness or a data size's concrete unit. Static contracts therefore reject category-level incompatibilities. `ConvertDataSize` validates only that its source has the `DataSize` category; its concrete source unit is runtime quantity data. The later evaluator remains responsible for resolving that unit, applying the exact SI or IEC conversion factor, and checking whole values, matching units in other operations, division by zero, overflow, and decimal precision.
 
 Expressions contain no profile-specific numeric literals. Profile defaults, limits, policies, and divisors are constant nodes.
 
