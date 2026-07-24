@@ -7,12 +7,12 @@ mod node;
 mod value;
 
 pub use expression::{
-    Add, Ceiling, CeilingDivide, Expression, ExpressionError, Maximum, Minimum, Multiply, Operand,
-    Reference,
+    Add, AnyExpression, Ceiling, CeilingDivide, Expression, ExpressionError, Maximum, Minimum,
+    Multiply, Operand, Reference,
 };
 pub use node::{
-    Citation, CitationClaim, CitationId, ConstantDefinition, ConstantOrigin, IdentifierError,
-    InputConstraint, InputDefinition, InputDefinitionError, NodeDefinition, NodeId, NodeKind,
-    NodeMetadata,
+    Citation, CitationClaim, CitationId, ConstantDefinition, ConstantOrigin, DerivedDefinition,
+    IdentifierError, InputConstraint, InputDefinition, InputDefinitionError, NodeDefinition,
+    NodeId, NodeKind, NodeMetadata,
 };
 pub use value::{DataSize, DataUnit, ExactDecimal, Value, ValueError, ValueType};

@@ -2,7 +2,10 @@ use std::{fmt, str::FromStr};
 
 use thiserror::Error;
 
-use crate::value::{Value, ValueType};
+use crate::{
+    expression::AnyExpression,
+    value::{Value, ValueType},
+};
 
 /// Error returned when a graph identifier does not use the canonical syntax.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
@@ -234,11 +237,28 @@ impl ConstantDefinition {
     }
 }
 
+/// The unevaluated expression attached to a derived graph node.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DerivedDefinition {
+    expression: AnyExpression,
+}
+
+impl DerivedDefinition {
+    pub fn new(expression: AnyExpression) -> Self {
+        Self { expression }
+    }
+
+    pub fn expression(&self) -> &AnyExpression {
+        &self.expression
+    }
+}
+
 /// Kind-specific data attached to a graph node definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NodeKind {
     Input(InputDefinition),
     Constant(ConstantDefinition),
+    Derived(DerivedDefinition),
 }
 
 /// A graph node's common metadata and kind-specific definition.
@@ -400,7 +420,7 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
-    use crate::{DataSize, DataUnit, ExactDecimal};
+    use crate::{DataSize, DataUnit, ExactDecimal, Expression, Operand, Reference};
 
     #[googletest::test]
     fn node_id_accepts_canonical_identifiers() {
@@ -665,6 +685,30 @@ mod tests {
             error.to_string(),
             eq("input constraint 1 has type Ratio, expected MessageCount")
         );
+    }
+
+    #[googletest::test]
+    fn derived_definition_stores_an_unevaluated_expression_in_a_node() {
+        let source = Operand::new(
+            NodeId::new("input.message.maximum_size").expect("node identifier should be valid"),
+            String::from("maximum message size"),
+        );
+        let expression = AnyExpression::from(Expression::<Reference>::new(source));
+        let definition = DerivedDefinition::new(expression.clone());
+        let metadata = NodeMetadata::new(
+            NodeId::new("derived.message.safe_size").expect("node identifier should be valid"),
+            String::from("Safe message size"),
+            String::from("Message size used for downstream queue calculations."),
+            vec![],
+        );
+        let node = NodeDefinition::new(metadata, NodeKind::Derived(definition.clone()));
+
+        assert_that!(definition.expression(), eq(&expression));
+        assert_that!(
+            node.metadata().id().as_str(),
+            eq("derived.message.safe_size")
+        );
+        assert_that!(node.kind(), eq(&NodeKind::Derived(definition)));
     }
 
     #[googletest::test]
