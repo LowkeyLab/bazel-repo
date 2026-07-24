@@ -47,7 +47,7 @@ aspect format
 aspect format --scope=all
 
 # Regenerate BUILD files after editing source files
-bazel run gazelle
+bazel run //:gazelle
 
 # Install/sync NPM deps
 bazel run @pnpm -- --dir $PWD install
@@ -64,7 +64,7 @@ bazel test //... --config=remote-linux
 
 ### After editing source files, always:
 
-1. `bazel run gazelle` — regenerates BUILD files (must run before formatting)
+1. `bazel run //:gazelle` — regenerates BUILD files (must run before formatting)
 2. `aspect format --scope=all` — formats all code
 3. `aspect build //...` — verifies the build
 
@@ -172,7 +172,7 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### BUILD files
 
-- Always run `bazel run gazelle` before manually editing
+- Always run `bazel run //:gazelle` before manually editing
 - Use `# keep` comments to prevent Gazelle from modifying specific lines
 - Gazelle extensions: Go, Kotlin (contrib_rules_jvm), Rust (gazelle_rust), Skylib
 

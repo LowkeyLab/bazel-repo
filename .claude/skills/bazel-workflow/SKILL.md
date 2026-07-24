@@ -7,7 +7,7 @@ description: Run the full Bazel regeneration pipeline (gazelle, format, build) a
 
 Run the following pipeline in order, stopping on first failure:
 
-1. `bazel run gazelle` — regenerate BUILD files
+1. `bazel run //:gazelle` — regenerate BUILD files
 2. `format` — format all code
 3. `aspect build //...` — verify build
 

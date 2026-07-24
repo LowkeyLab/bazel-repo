@@ -16,7 +16,7 @@ aspect build //...
 aspect test //...
 
 # Update BUILD files (MUST run immediately after ANY source file edit)
-bazel run gazelle
+bazel run //:gazelle
 
 # Format changed files (Rust, Kotlin, Go, JS/TS, BUILD files)
 aspect format
@@ -73,11 +73,11 @@ bazel clean && aspect build //...
 
 ### General Rules
 
-- **Gazelle:** MUST run `bazel run gazelle` immediately after editing ANY source file (.rs, .kt, .go, .ts, .js, .proto, etc.) and BEFORE formatting
+- **Gazelle:** MUST run `bazel run //:gazelle` immediately after editing ANY source file (.rs, .kt, .go, .ts, .js, .proto, etc.) and BEFORE formatting
 - **Formatting:** ALWAYS run `aspect format --scope=all` before committing or completing a task
 - **Minimal changes:** Only modify what's strictly necessary
 - **Dependencies:** Prefer existing libraries in `MODULE.bazel`
-- **BUILD files:** Never manually edit BUILD files before running `bazel run gazelle`
+- **BUILD files:** Never manually edit BUILD files before running `bazel run //:gazelle`
 - **Verification:** Run `aspect build //...` to verify changes don't break the build
 - **Security:** NEVER hardcode secrets/credentials; use environment variables
 
@@ -239,7 +239,7 @@ bazel clean && aspect build //...
 **Conventions:**
 
 - Use `# keep` comments for lines that shouldn't be auto-modified by Gazelle
-- Run `bazel run gazelle` before manual edits to BUILD files
+- Run `bazel run //:gazelle` before manual edits to BUILD files
 - Verify changes: `aspect build //path/to/package/...`
 
 ## 3. Repository Structure
@@ -264,7 +264,7 @@ bazel-repo/
 ## 4. Development Workflow
 
 1. Make code changes in appropriate project directory
-2. **Run Gazelle immediately:** `bazel run gazelle` (REQUIRED after ANY source file edit)
+2. **Run Gazelle immediately:** `bazel run //:gazelle` (REQUIRED after ANY source file edit)
 3. **Format code:** `aspect format --scope=all` (handles all languages)
 4. **Run tests:** `aspect test //path/to/tests` or `aspect test //...`
 5. **Test locally:** Use project-specific run commands (see subproject AGENTS.md)
@@ -302,7 +302,7 @@ bazel run @pnpm -- --dir $PWD install
 go get <package> && bazel mod tidy
 
 # BUILD files out of sync
-bazel run gazelle
+bazel run //:gazelle
 
 # Bazel not found
 which bazel  # Should point to bazelisk
@@ -318,9 +318,9 @@ cd predix && sqlc generate
 
 - ❌ Using `cargo build/test` instead of `aspect build/test`
 - ❌ Using `npm install` instead of `bazel run @pnpm -- --dir $PWD install`
-- ❌ Forgetting to run `bazel run gazelle` immediately after editing source files
-- ❌ Running `aspect format` before running `bazel run gazelle`
-- ❌ Editing BUILD files before running `bazel run gazelle`
+- ❌ Forgetting to run `bazel run //:gazelle` immediately after editing source files
+- ❌ Running `aspect format` before running `bazel run //:gazelle`
+- ❌ Editing BUILD files before running `bazel run //:gazelle`
 - ❌ Forgetting to run `aspect format --scope=all` before committing
 - ❌ Hardcoding secrets instead of using environment variables
 - ❌ Creating new directories without understanding the project structure
