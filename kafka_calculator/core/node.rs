@@ -986,6 +986,51 @@ mod tests {
     }
 
     #[googletest::test]
+    fn setting_exposes_its_configuration_semantics_and_expression() {
+        let operand = Operand::new(
+            NodeId::new("derived.producer.queue_messages")
+                .expect("node identifier should be valid"),
+            String::from("recommended queue message count"),
+        );
+        let expression = AnyExpression::from(Expression::<Reference>::new(operand));
+        let setting = Setting::new(
+            String::from("queue.buffering.max.messages"),
+            SettingScope::Producer,
+            SettingUnit::Messages,
+            expression.clone(),
+        );
+
+        assert_that!(setting.key(), eq("queue.buffering.max.messages"));
+        assert_that!(setting.scope(), eq(SettingScope::Producer));
+        assert_that!(setting.unit(), eq(SettingUnit::Messages));
+        assert_that!(setting.expression(), eq(&expression));
+    }
+
+    #[googletest::test]
+    fn finding_exposes_its_severity_and_comparison_condition() {
+        let left = Operand::new(
+            NodeId::new("setting.producer.queue_bytes").expect("node identifier should be valid"),
+            String::from("recommended queue size"),
+        );
+        let right = Operand::new(
+            NodeId::new("constant.producer.queue_limit").expect("node identifier should be valid"),
+            String::from("supported queue limit"),
+        );
+        let comparison =
+            Comparison::new(left.clone(), ComparisonOperator::GreaterThan, right.clone());
+
+        assert_that!(comparison.left(), eq(&left));
+        assert_that!(comparison.operator(), eq(ComparisonOperator::GreaterThan));
+        assert_that!(comparison.right(), eq(&right));
+
+        let condition = FindingCondition::Comparison(comparison);
+        let finding = Finding::new(FindingSeverity::Error, condition.clone());
+
+        assert_that!(finding.severity(), eq(FindingSeverity::Error));
+        assert_that!(finding.condition(), eq(&condition));
+    }
+
+    #[googletest::test]
     fn typed_nodes_derive_every_id_prefix_and_erase_into_matching_variants() {
         let operand = Operand::new(
             NodeId::new("input.source").expect("node identifier should be valid"),
