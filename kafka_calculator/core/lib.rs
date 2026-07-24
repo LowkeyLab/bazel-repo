@@ -11,8 +11,9 @@ pub use expression::{
     Multiply, Operand, Reference,
 };
 pub use node::{
-    Citation, CitationClaim, CitationId, ConstantDefinition, ConstantOrigin, DerivedDefinition,
-    IdentifierError, InputConstraint, InputDefinition, InputDefinitionError, NodeDefinition,
-    NodeId, NodeKind, NodeMetadata,
+    AnyNode, Citation, CitationClaim, CitationId, Comparison, ComparisonOperator, Constant,
+    ConstantOrigin, Derived, Finding, FindingCondition, FindingSeverity, IdentifierError, Input,
+    InputConstraint, InputDefinitionError, Node, NodeId, NodeIdSuffix, NodeMetadata,
+    NodeTypeMetadata, Setting, SettingScope, SettingUnit,
 };
 pub use value::{DataSize, DataUnit, ExactDecimal, Value, ValueError, ValueType};

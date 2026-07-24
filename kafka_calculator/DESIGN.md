@@ -87,10 +87,13 @@ A node is the smallest fact that a caller can ask to explain. Stable textual ide
 
 ```rust
 pub struct NodeId(String);
+pub struct NodeIdSuffix(String);
 pub struct CitationId(String);
 ```
 
-Identifiers are lowercase dotted paths with non-empty segments, for example:
+A `NodeId` consists of a node-type prefix and a caller-provided `NodeIdSuffix`. Both use lowercase dotted segments with no empty segments. The suffix excludes the node-type prefix; for example, an input node constructed with `NodeIdSuffix::new("message.maximum_size")` receives the full ID `input.message.maximum_size`.
+
+Full node IDs remain the stable identifiers used by operands, graph outputs, input binding, traces, and external lookup:
 
 ```text
 input.message.maximum_size
@@ -100,9 +103,8 @@ setting.producer.queue_buffering_max_kbytes
 finding.consumer.queue_limit_exceeded
 ```
 
-Common metadata includes:
+A node owns its stable ID separately from its common descriptive metadata. `NodeMetadata` contains:
 
-- Stable node ID
 - Short English label
 - English description of what the node means
 - Zero or more citation claims
@@ -131,34 +133,100 @@ pub struct CitationClaim {
 
 User inputs and ordinary arithmetic generally need no citation. Client defaults, setting semantics, supported bounds, and surprising client behavior should be cited. Calculator policies must be identified as policies rather than represented as client requirements.
 
-## Node definitions
+## Typed nodes
 
-A common wrapper holds metadata and a kind-specific definition:
+Nodes are parameterized by their node type:
 
 ```rust
-pub struct NodeDefinition {
+pub struct Node<T: NodeTypeMetadata> {
+    id: NodeId,
     metadata: NodeMetadata,
-    kind: NodeKind,
-}
-
-pub enum NodeKind {
-    Input(InputDefinition),
-    Constant(ConstantDefinition),
-    Derived(DerivedDefinition),
-    Setting(SettingDefinition),
-    Finding(FindingDefinition),
+    node_type: T,
 }
 ```
 
+The concrete node types are `Input`, `Constant`, `Derived`, `Setting`, and `Finding`. Each stores its kind-specific unevaluated data directly.
+
+Each concrete node type implements the sealed `NodeTypeMetadata` trait. Its associated prefix is static metadata selected by `T`, not data supplied to an individual node:
+
+```rust
+mod private {
+    pub trait Sealed {}
+}
+
+pub trait NodeTypeMetadata: private::Sealed {
+    const ID_PREFIX: &'static str;
+}
+
+impl private::Sealed for Input {}
+impl NodeTypeMetadata for Input {
+    const ID_PREFIX: &'static str = "input";
+}
+
+impl private::Sealed for Constant {}
+impl NodeTypeMetadata for Constant {
+    const ID_PREFIX: &'static str = "constant";
+}
+
+impl private::Sealed for Derived {}
+impl NodeTypeMetadata for Derived {
+    const ID_PREFIX: &'static str = "derived";
+}
+```
+
+`Setting` and `Finding` implement the same trait with `setting` and `finding` prefixes. Sealing keeps the engine-level node-type set closed and preserves exhaustive graph behavior while still allowing profiles to construct arbitrary nodes of those types.
+
+The generic constructor derives the full ID from `T::ID_PREFIX` and the validated suffix:
+
+```rust
+impl<T: NodeTypeMetadata> Node<T> {
+    pub fn new(suffix: NodeIdSuffix, metadata: NodeMetadata, node_type: T) -> Self {
+        Self {
+            id: NodeId::from_parts(T::ID_PREFIX, suffix),
+            metadata,
+            node_type,
+        }
+    }
+
+    pub fn id(&self) -> &NodeId {
+        &self.id
+    }
+
+    pub fn metadata(&self) -> &NodeMetadata {
+        &self.metadata
+    }
+
+    pub fn node_type(&self) -> &T {
+        &self.node_type
+    }
+}
+```
+
+A typed node stores `T` directly, so it needs neither an additional runtime kind field nor `PhantomData<T>`. Private fields and construction through `Node<T>::new` make a mismatch between a node type and its ID prefix unrepresentable.
+
+Graphs erase typed nodes only at the heterogeneous storage boundary:
+
+```rust
+pub enum AnyNode {
+    Input(Node<Input>),
+    Constant(Node<Constant>),
+    Derived(Node<Derived>),
+    Setting(Node<Setting>),
+    Finding(Node<Finding>),
+}
+```
+
+Conversions from each `Node<T>` into its matching `AnyNode` variant keep graph assembly ergonomic. `AnyNode` exposes common ID and metadata accessors through exhaustive matching. The enum is preferred over trait objects for the same reasons as `AnyExpression`: the closed set benefits from exhaustive matching and straightforward cloning, equality, validation, and future serialization.
+
 ### Input nodes
 
-Input definitions declare the expected value type, optional default, and hard input constraints. Runtime values are supplied separately during binding. A bound input records whether it was supplied or defaulted.
+`Input` declares the expected value type, optional default, and hard input constraints. Runtime values are supplied separately during binding. A bound input records whether it was supplied or defaulted.
 
 Hard constraints determine whether a request is meaningful and evaluable. Client configuration limits should normally become findings instead, allowing the graph to calculate and explain an out-of-range recommendation.
 
 ### Constant nodes
 
-Constants hold fixed values and identify their origin:
+`Constant` holds a fixed value and identifies its origin:
 
 - Unit definition
 - Client default
@@ -169,15 +237,15 @@ A rationale explains why the graph contains the constant. Citations support clie
 
 ### Derived nodes
 
-A derived definition contains an `AnyExpression` and no precomputed value. The evaluator obtains its type and value from referenced nodes.
+`Derived` contains an `AnyExpression` and no precomputed value. The evaluator obtains its type and value from referenced nodes.
 
 ### Setting nodes
 
-A setting definition contains a client configuration key, producer/consumer/common scope, setting unit, and `AnyExpression`. Settings remain graph nodes so they can have incoming causes, citations, traces, constraints, and copied configuration representations.
+`Setting` contains a client configuration key, producer/consumer/common scope, setting unit, and `AnyExpression`. Settings remain graph nodes so they can have incoming causes, citations, traces, constraints, and copied configuration representations.
 
 ### Finding nodes
 
-A finding is an informational, warning, or error conclusion. Findings are evaluated results, not engine failures. An error-severity finding means the calculation succeeded and discovered an unsupported recommendation.
+`Finding` represents an informational, warning, or error conclusion. Findings are evaluated results, not engine failures. An error-severity finding means the calculation succeeded and discovered an unsupported recommendation.
 
 ## Expression model
 
@@ -332,7 +400,9 @@ Validation checks, in deterministic order:
 7. Duplicate setting keys
 8. Reachability from declared outputs
 
-Cycle errors include the discovered cycle path. Every node must contribute to at least one output. Independent nodes retain stable definition order during topological sorting.
+Cycle errors include the discovered cycle path. Every node must contribute to at least one output. Independent nodes retain stable declaration order during topological sorting.
+
+The `Node<T>` constructor already guarantees that each node ID has the prefix associated with its node type, so graph validation does not need a separate prefix-kind consistency check.
 
 The validated graph stores read-only indexes, generated edges, dependencies, dependents, and deterministic topological order. Callers cannot mutate these invariants.
 
@@ -502,6 +572,7 @@ Tests use explicit assertions and focused helpers. Snapshot testing and `insta` 
 Test layers cover:
 
 - Exact decimal parsing, units, explicit rounding, and checked arithmetic
+- Typed node construction, `NodeIdSuffix` validation, type-derived ID prefixes, and `AnyNode` erasure
 - Typed expression APIs, constructor-enforced arity, deterministic operand iteration, and operation-local static type contracts
 - Graph validation errors, cycle paths, reachability, and deterministic topological order
 - Input defaults, origins, type checks, and constraints

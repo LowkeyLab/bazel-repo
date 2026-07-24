@@ -3,7 +3,7 @@ use std::{fmt, str::FromStr};
 use thiserror::Error;
 
 use crate::{
-    expression::AnyExpression,
+    expression::{AnyExpression, Operand},
     value::{Value, ValueType},
 };
 
@@ -44,6 +44,10 @@ impl NodeId {
         Ok(Self(value))
     }
 
+    fn from_parts(prefix: &'static str, suffix: NodeIdSuffix) -> Self {
+        Self(format!("{prefix}.{}", suffix.as_str()))
+    }
+
     /// Returns the canonical textual identifier.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -57,6 +61,38 @@ impl fmt::Display for NodeId {
 }
 
 impl FromStr for NodeId {
+    type Err = IdentifierError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::new(value)
+    }
+}
+
+/// Caller-provided portion of a node ID after its node-type prefix.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct NodeIdSuffix(String);
+
+impl NodeIdSuffix {
+    /// Creates a suffix from dot-delimited lowercase ASCII segments.
+    pub fn new(value: impl Into<String>) -> Result<Self, IdentifierError> {
+        let value = value.into();
+        validate_identifier(&value)?;
+        Ok(Self(value))
+    }
+
+    /// Returns the canonical textual suffix.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for NodeIdSuffix {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl FromStr for NodeIdSuffix {
     type Err = IdentifierError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
@@ -153,32 +189,21 @@ impl CitationClaim {
     }
 }
 
-/// Common, client-independent metadata attached to a graph node definition.
+/// Common, client-independent metadata attached to a graph node.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NodeMetadata {
-    id: NodeId,
     label: String,
     description: String,
     citation_claims: Vec<CitationClaim>,
 }
 
 impl NodeMetadata {
-    pub fn new(
-        id: NodeId,
-        label: String,
-        description: String,
-        citation_claims: Vec<CitationClaim>,
-    ) -> Self {
+    pub fn new(label: String, description: String, citation_claims: Vec<CitationClaim>) -> Self {
         Self {
-            id,
             label,
             description,
             citation_claims,
         }
-    }
-
-    pub fn id(&self) -> &NodeId {
-        &self.id
     }
 
     pub fn label(&self) -> &str {
@@ -207,15 +232,15 @@ pub enum ConstantOrigin {
     CalculatorPolicy,
 }
 
-/// The kind-specific definition of a fixed graph node.
+/// The fixed value and provenance stored by a constant node.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConstantDefinition {
+pub struct Constant {
     value: Value,
     origin: ConstantOrigin,
     rationale: String,
 }
 
-impl ConstantDefinition {
+impl Constant {
     pub fn new(value: Value, origin: ConstantOrigin, rationale: String) -> Self {
         Self {
             value,
@@ -237,48 +262,19 @@ impl ConstantDefinition {
     }
 }
 
-/// The unevaluated expression attached to a derived graph node.
+/// The unevaluated expression stored by a derived node.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DerivedDefinition {
+pub struct Derived {
     expression: AnyExpression,
 }
 
-impl DerivedDefinition {
+impl Derived {
     pub fn new(expression: AnyExpression) -> Self {
         Self { expression }
     }
 
     pub fn expression(&self) -> &AnyExpression {
         &self.expression
-    }
-}
-
-/// Kind-specific data attached to a graph node definition.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum NodeKind {
-    Input(InputDefinition),
-    Constant(ConstantDefinition),
-    Derived(DerivedDefinition),
-}
-
-/// A graph node's common metadata and kind-specific definition.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NodeDefinition {
-    metadata: NodeMetadata,
-    kind: NodeKind,
-}
-
-impl NodeDefinition {
-    pub fn new(metadata: NodeMetadata, kind: NodeKind) -> Self {
-        Self { metadata, kind }
-    }
-
-    pub fn metadata(&self) -> &NodeMetadata {
-        &self.metadata
-    }
-
-    pub fn kind(&self) -> &NodeKind {
-        &self.kind
     }
 }
 
@@ -303,7 +299,7 @@ impl InputConstraint {
     }
 }
 
-/// Error returned when an input definition contains incompatible values.
+/// Error returned when an input contains incompatible values.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum InputDefinitionError {
     /// The default value does not have the input's declared type.
@@ -321,16 +317,16 @@ pub enum InputDefinitionError {
     },
 }
 
-/// Type, optional default, and hard constraints declared by an input node.
+/// Type, optional default, and hard constraints stored by an input node.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct InputDefinition {
+pub struct Input {
     value_type: ValueType,
     default: Option<Value>,
     hard_constraints: Vec<InputConstraint>,
 }
 
-impl InputDefinition {
-    /// Creates an input definition whose default and constraints match its declared type.
+impl Input {
+    /// Creates an input whose default and constraints match its declared type.
     pub fn new(
         value_type: ValueType,
         default: Option<Value>,
@@ -376,6 +372,246 @@ impl InputDefinition {
         &self.hard_constraints
     }
 }
+
+/// The client configuration area to which a setting applies.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SettingScope {
+    Producer,
+    Consumer,
+    Common,
+}
+
+/// The unit used by a rendered client configuration value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SettingUnit {
+    Bytes,
+    KBytes,
+    Messages,
+}
+
+/// Configuration semantics and expression stored by a setting node.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Setting {
+    key: String,
+    scope: SettingScope,
+    unit: SettingUnit,
+    expression: AnyExpression,
+}
+
+impl Setting {
+    pub fn new(
+        key: String,
+        scope: SettingScope,
+        unit: SettingUnit,
+        expression: AnyExpression,
+    ) -> Self {
+        Self {
+            key,
+            scope,
+            unit,
+            expression,
+        }
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    pub fn scope(&self) -> SettingScope {
+        self.scope
+    }
+
+    pub fn unit(&self) -> SettingUnit {
+        self.unit
+    }
+
+    pub fn expression(&self) -> &AnyExpression {
+        &self.expression
+    }
+}
+
+/// Importance of an active finding.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum FindingSeverity {
+    Informational,
+    Warning,
+    Error,
+}
+
+/// Operation used to compare a finding's two operands.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ComparisonOperator {
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+}
+
+/// An explicit comparison between two graph values.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Comparison {
+    left: Operand,
+    operator: ComparisonOperator,
+    right: Operand,
+}
+
+impl Comparison {
+    pub fn new(left: Operand, operator: ComparisonOperator, right: Operand) -> Self {
+        Self {
+            left,
+            operator,
+            right,
+        }
+    }
+
+    pub fn left(&self) -> &Operand {
+        &self.left
+    }
+
+    pub fn operator(&self) -> ComparisonOperator {
+        self.operator
+    }
+
+    pub fn right(&self) -> &Operand {
+        &self.right
+    }
+}
+
+/// Condition that determines whether a finding is active.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FindingCondition {
+    Always,
+    Comparison(Comparison),
+}
+
+/// Severity and condition stored by a finding node.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Finding {
+    severity: FindingSeverity,
+    condition: FindingCondition,
+}
+
+impl Finding {
+    pub fn new(severity: FindingSeverity, condition: FindingCondition) -> Self {
+        Self {
+            severity,
+            condition,
+        }
+    }
+
+    pub fn severity(&self) -> FindingSeverity {
+        self.severity
+    }
+
+    pub fn condition(&self) -> &FindingCondition {
+        &self.condition
+    }
+}
+
+mod private {
+    pub trait Sealed {}
+}
+
+/// Static metadata for one of the engine's closed set of node types.
+pub trait NodeTypeMetadata: private::Sealed {
+    const ID_PREFIX: &'static str;
+}
+
+macro_rules! impl_node_type_metadata {
+    ($node_type:ty, $prefix:literal) => {
+        impl private::Sealed for $node_type {}
+
+        impl NodeTypeMetadata for $node_type {
+            const ID_PREFIX: &'static str = $prefix;
+        }
+    };
+}
+
+impl_node_type_metadata!(Input, "input");
+impl_node_type_metadata!(Constant, "constant");
+impl_node_type_metadata!(Derived, "derived");
+impl_node_type_metadata!(Setting, "setting");
+impl_node_type_metadata!(Finding, "finding");
+
+/// A node whose concrete type determines its stable ID prefix and stored data.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Node<T: NodeTypeMetadata> {
+    id: NodeId,
+    metadata: NodeMetadata,
+    node_type: T,
+}
+
+impl<T: NodeTypeMetadata> Node<T> {
+    pub fn new(suffix: NodeIdSuffix, metadata: NodeMetadata, node_type: T) -> Self {
+        Self {
+            id: NodeId::from_parts(T::ID_PREFIX, suffix),
+            metadata,
+            node_type,
+        }
+    }
+
+    pub fn id(&self) -> &NodeId {
+        &self.id
+    }
+
+    pub fn metadata(&self) -> &NodeMetadata {
+        &self.metadata
+    }
+
+    pub fn node_type(&self) -> &T {
+        &self.node_type
+    }
+}
+
+/// A type-erased node suitable for heterogeneous graph storage.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AnyNode {
+    Input(Node<Input>),
+    Constant(Node<Constant>),
+    Derived(Node<Derived>),
+    Setting(Node<Setting>),
+    Finding(Node<Finding>),
+}
+
+impl AnyNode {
+    pub fn id(&self) -> &NodeId {
+        match self {
+            Self::Input(node) => node.id(),
+            Self::Constant(node) => node.id(),
+            Self::Derived(node) => node.id(),
+            Self::Setting(node) => node.id(),
+            Self::Finding(node) => node.id(),
+        }
+    }
+
+    pub fn metadata(&self) -> &NodeMetadata {
+        match self {
+            Self::Input(node) => node.metadata(),
+            Self::Constant(node) => node.metadata(),
+            Self::Derived(node) => node.metadata(),
+            Self::Setting(node) => node.metadata(),
+            Self::Finding(node) => node.metadata(),
+        }
+    }
+}
+
+macro_rules! impl_any_node_from {
+    ($node_type:ty, $variant:ident) => {
+        impl From<Node<$node_type>> for AnyNode {
+            fn from(node: Node<$node_type>) -> Self {
+                Self::$variant(node)
+            }
+        }
+    };
+}
+
+impl_any_node_from!(Input, Input);
+impl_any_node_from!(Constant, Constant);
+impl_any_node_from!(Derived, Derived);
+impl_any_node_from!(Setting, Setting);
+impl_any_node_from!(Finding, Finding);
 
 fn validate_identifier(value: &str) -> Result<(), IdentifierError> {
     if value.is_empty() {
@@ -440,6 +676,22 @@ mod tests {
             eq(&Ok(
                 NodeId::new("input.message.value_bytes").expect("valid identifier")
             ))
+        );
+    }
+
+    #[googletest::test]
+    fn node_id_suffix_accepts_canonical_identifiers_and_rejects_invalid_ones() {
+        let suffix = NodeIdSuffix::from_str("producer.queue_buffering-max_kbytes")
+            .expect("canonical suffix should be accepted");
+
+        assert_that!(suffix.as_str(), eq("producer.queue_buffering-max_kbytes"));
+        assert_that!(
+            suffix.to_string(),
+            eq("producer.queue_buffering-max_kbytes")
+        );
+        assert_that!(
+            NodeIdSuffix::new("producer..queue"),
+            err(eq(&IdentifierError::EmptySegment { segment: 1 }))
         );
     }
 
@@ -547,34 +799,36 @@ mod tests {
     }
 
     #[googletest::test]
-    fn constant_definition_exposes_its_fixed_value_origin_and_rationale() {
+    fn constant_exposes_its_fixed_value_origin_and_rationale() {
         let value = Value::DataSize(DataSize::new(
             ExactDecimal::from_str("1024").expect("decimal should be valid"),
             DataUnit::Bytes,
         ));
         let rationale =
             String::from("librdkafka interprets producer configuration KBytes as 1,024 bytes.");
-        let definition =
-            ConstantDefinition::new(value, ConstantOrigin::UnitDefinition, rationale.clone());
+        let constant = Constant::new(value, ConstantOrigin::UnitDefinition, rationale.clone());
 
-        assert_that!(definition.value(), eq(value));
-        assert_that!(definition.origin(), eq(ConstantOrigin::UnitDefinition));
-        assert_that!(definition.rationale(), eq(rationale.as_str()));
+        assert_that!(constant.value(), eq(value));
+        assert_that!(constant.origin(), eq(ConstantOrigin::UnitDefinition));
+        assert_that!(constant.rationale(), eq(rationale.as_str()));
 
         let metadata = NodeMetadata::new(
-            NodeId::new("constant.producer.config_kbyte_bytes")
-                .expect("node identifier should be valid"),
             String::from("Producer configuration KByte divisor"),
             String::from("Number of bytes represented by one producer configuration KByte."),
             vec![],
         );
-        let node = NodeDefinition::new(metadata, NodeKind::Constant(definition.clone()));
+        let node = Node::new(
+            NodeIdSuffix::new("producer.config_kbyte_bytes")
+                .expect("node identifier suffix should be valid"),
+            metadata,
+            constant.clone(),
+        );
 
         assert_that!(
-            node.metadata().id().as_str(),
+            node.id().as_str(),
             eq("constant.producer.config_kbyte_bytes")
         );
-        assert_that!(node.kind(), eq(&NodeKind::Constant(definition)));
+        assert_that!(node.node_type(), eq(&constant));
     }
 
     #[googletest::test]
@@ -587,57 +841,55 @@ mod tests {
         ];
 
         for origin in origins {
-            let definition =
-                ConstantDefinition::new(Value::MessageCount(1), origin, String::from("Reason"));
+            let constant = Constant::new(Value::MessageCount(1), origin, String::from("Reason"));
 
-            assert_that!(definition.origin(), eq(origin));
+            assert_that!(constant.origin(), eq(origin));
         }
     }
 
     #[googletest::test]
-    fn input_definition_exposes_its_declaration() {
+    fn input_exposes_its_declaration() {
         let default = Value::MessageCount(100_000);
         let constraints = vec![
             InputConstraint::MinimumExclusive(Value::MessageCount(0)),
             InputConstraint::MaximumInclusive(Value::MessageCount(1_000_000)),
         ];
-        let definition =
-            InputDefinition::new(ValueType::MessageCount, Some(default), constraints.clone())
-                .expect("matching default and constraints should be accepted");
+        let input = Input::new(ValueType::MessageCount, Some(default), constraints.clone())
+            .expect("matching default and constraints should be accepted");
 
-        assert_that!(definition.value_type(), eq(ValueType::MessageCount));
-        assert_that!(definition.default(), eq(Some(default)));
-        assert_that!(definition.hard_constraints(), eq(constraints.as_slice()));
+        assert_that!(input.value_type(), eq(ValueType::MessageCount));
+        assert_that!(input.default(), eq(Some(default)));
+        assert_that!(input.hard_constraints(), eq(constraints.as_slice()));
         assert_that!(constraints[0].value(), eq(Value::MessageCount(0)));
 
         let metadata = NodeMetadata::new(
-            NodeId::new("input.producer.queue_message_count")
-                .expect("node identifier should be valid"),
             String::from("Producer queue message count"),
             String::from("Target number of messages retained by the producer queue."),
             vec![],
         );
-        let node = NodeDefinition::new(metadata, NodeKind::Input(definition.clone()));
-
-        assert_that!(
-            node.metadata().id().as_str(),
-            eq("input.producer.queue_message_count")
+        let node = Node::new(
+            NodeIdSuffix::new("producer.queue_message_count")
+                .expect("node identifier suffix should be valid"),
+            metadata,
+            input.clone(),
         );
-        assert_that!(node.kind(), eq(&NodeKind::Input(definition)));
+
+        assert_that!(node.id().as_str(), eq("input.producer.queue_message_count"));
+        assert_that!(node.node_type(), eq(&input));
     }
 
     #[googletest::test]
-    fn input_definition_accepts_a_required_input_without_constraints() {
-        let definition = InputDefinition::new(ValueType::Ratio, None, vec![])
+    fn input_accepts_a_required_value_without_constraints() {
+        let input = Input::new(ValueType::Ratio, None, vec![])
             .expect("required unconstrained input should be accepted");
 
-        assert_that!(definition.default(), none());
-        assert_that!(definition.hard_constraints().is_empty(), eq(true));
+        assert_that!(input.default(), none());
+        assert_that!(input.hard_constraints().is_empty(), eq(true));
     }
 
     #[googletest::test]
-    fn input_definition_rejects_a_default_with_the_wrong_type() {
-        let error = InputDefinition::new(
+    fn input_rejects_a_default_with_the_wrong_type() {
+        let error = Input::new(
             ValueType::MessageCount,
             Some(Value::Scalar(
                 ExactDecimal::from_str("10").expect("decimal should be valid"),
@@ -660,8 +912,8 @@ mod tests {
     }
 
     #[googletest::test]
-    fn input_definition_rejects_a_constraint_with_the_wrong_type() {
-        let error = InputDefinition::new(
+    fn input_rejects_a_constraint_with_the_wrong_type() {
+        let error = Input::new(
             ValueType::MessageCount,
             None,
             vec![
@@ -688,27 +940,27 @@ mod tests {
     }
 
     #[googletest::test]
-    fn derived_definition_stores_an_unevaluated_expression_in_a_node() {
+    fn derived_stores_an_unevaluated_expression_in_a_node() {
         let source = Operand::new(
             NodeId::new("input.message.maximum_size").expect("node identifier should be valid"),
             String::from("maximum message size"),
         );
         let expression = AnyExpression::from(Expression::<Reference>::new(source));
-        let definition = DerivedDefinition::new(expression.clone());
+        let derived = Derived::new(expression.clone());
         let metadata = NodeMetadata::new(
-            NodeId::new("derived.message.safe_size").expect("node identifier should be valid"),
             String::from("Safe message size"),
             String::from("Message size used for downstream queue calculations."),
             vec![],
         );
-        let node = NodeDefinition::new(metadata, NodeKind::Derived(definition.clone()));
-
-        assert_that!(definition.expression(), eq(&expression));
-        assert_that!(
-            node.metadata().id().as_str(),
-            eq("derived.message.safe_size")
+        let node = Node::new(
+            NodeIdSuffix::new("message.safe_size").expect("node identifier suffix should be valid"),
+            metadata,
+            derived.clone(),
         );
-        assert_that!(node.kind(), eq(&NodeKind::Derived(definition)));
+
+        assert_that!(derived.expression(), eq(&expression));
+        assert_that!(node.id().as_str(), eq("derived.message.safe_size"));
+        assert_that!(node.node_type(), eq(&derived));
     }
 
     #[googletest::test]
@@ -719,21 +971,88 @@ mod tests {
             citation_id,
             String::from("The setting limits queued producer messages."),
         );
-        let id = NodeId::new("setting.producer.queue_messages")
-            .expect("node identifier should be valid");
         let metadata = NodeMetadata::new(
-            id.clone(),
             String::from("Producer queue message limit"),
             String::from("Maximum number of messages held in the producer queue."),
             vec![claim.clone()],
         );
 
-        assert_that!(metadata.id(), eq(&id));
         assert_that!(metadata.label(), eq("Producer queue message limit"));
         assert_that!(
             metadata.description(),
             eq("Maximum number of messages held in the producer queue.")
         );
         assert_that!(metadata.citation_claims(), eq([claim].as_slice()));
+    }
+
+    #[googletest::test]
+    fn typed_nodes_derive_every_id_prefix_and_erase_into_matching_variants() {
+        let operand = Operand::new(
+            NodeId::new("input.source").expect("node identifier should be valid"),
+            String::from("source"),
+        );
+        let expression = AnyExpression::from(Expression::<Reference>::new(operand));
+        let metadata = || {
+            NodeMetadata::new(
+                String::from("Node label"),
+                String::from("Node description"),
+                vec![],
+            )
+        };
+        let suffix =
+            || NodeIdSuffix::new("example").expect("node identifier suffix should be valid");
+        let nodes = [
+            AnyNode::from(Node::new(
+                suffix(),
+                metadata(),
+                Input::new(ValueType::Scalar, None, vec![]).expect("input should be valid"),
+            )),
+            AnyNode::from(Node::new(
+                suffix(),
+                metadata(),
+                Constant::new(
+                    Value::MessageCount(1),
+                    ConstantOrigin::CalculatorPolicy,
+                    String::from("Test policy"),
+                ),
+            )),
+            AnyNode::from(Node::new(
+                suffix(),
+                metadata(),
+                Derived::new(expression.clone()),
+            )),
+            AnyNode::from(Node::new(
+                suffix(),
+                metadata(),
+                Setting::new(
+                    String::from("queue.buffering.max.messages"),
+                    SettingScope::Producer,
+                    SettingUnit::Messages,
+                    expression,
+                ),
+            )),
+            AnyNode::from(Node::new(
+                suffix(),
+                metadata(),
+                Finding::new(FindingSeverity::Warning, FindingCondition::Always),
+            )),
+        ];
+        let expected_ids = [
+            "input.example",
+            "constant.example",
+            "derived.example",
+            "setting.example",
+            "finding.example",
+        ];
+
+        assert_that!(matches!(nodes[0], AnyNode::Input(_)), eq(true));
+        assert_that!(matches!(nodes[1], AnyNode::Constant(_)), eq(true));
+        assert_that!(matches!(nodes[2], AnyNode::Derived(_)), eq(true));
+        assert_that!(matches!(nodes[3], AnyNode::Setting(_)), eq(true));
+        assert_that!(matches!(nodes[4], AnyNode::Finding(_)), eq(true));
+        for (node, expected_id) in nodes.iter().zip(expected_ids) {
+            assert_that!(node.id().as_str(), eq(expected_id));
+            assert_that!(node.metadata().label(), eq("Node label"));
+        }
     }
 }
