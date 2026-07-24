@@ -91,7 +91,7 @@ pub struct NodeIdSuffix(String);
 pub struct CitationId(String);
 ```
 
-A `NodeId` consists of a node-type prefix and a caller-provided `NodeIdSuffix`. Both use lowercase dotted segments with no empty segments. The suffix excludes the node-type prefix; for example, an input node constructed with `NodeIdSuffix::new("message.maximum_size")` receives the full ID `input.message.maximum_size`.
+A `NodeId` consists of a node-type prefix and a caller-provided `NodeIdSuffix`. Both use lowercase dotted segments with no empty segments. The suffix should exclude the node-type prefix; for example, an input node constructed with `NodeIdSuffix::new("message.maximum_size")` receives the full ID `input.message.maximum_size`.
 
 Full node IDs remain the stable identifiers used by operands, graph outputs, input binding, traces, and external lookup:
 
