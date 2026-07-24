@@ -90,6 +90,73 @@ pub struct Expression<K> {
     kind: PhantomData<K>,
 }
 
+/// A type-erased expression suitable for storage in heterogeneous graph nodes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AnyExpression {
+    Reference(Expression<Reference>),
+    Add(Expression<Add>),
+    Multiply(Expression<Multiply>),
+    Ceiling(Expression<Ceiling>),
+    CeilingDivide(Expression<CeilingDivide>),
+    Minimum(Expression<Minimum>),
+    Maximum(Expression<Maximum>),
+}
+
+impl AnyExpression {
+    /// Returns the operands in deterministic construction order.
+    pub fn operands(&self) -> &[Operand] {
+        match self {
+            Self::Reference(expression) => &expression.operands,
+            Self::Add(expression) => &expression.operands,
+            Self::Multiply(expression) => &expression.operands,
+            Self::Ceiling(expression) => &expression.operands,
+            Self::CeilingDivide(expression) => &expression.operands,
+            Self::Minimum(expression) => &expression.operands,
+            Self::Maximum(expression) => &expression.operands,
+        }
+    }
+
+    /// Applies the underlying operation's static type contract to resolved operand types.
+    pub fn result_type(&self, operand_types: &[ValueType]) -> Result<ValueType, ExpressionError> {
+        match self {
+            Self::Reference(expression) => {
+                ensure_resolved_type_count("reference", 1, operand_types.len())?;
+                Ok(expression.result_type(operand_types[0]))
+            }
+            Self::Add(expression) => expression.result_type(operand_types),
+            Self::Multiply(expression) => expression.result_type(operand_types),
+            Self::Ceiling(expression) => {
+                ensure_resolved_type_count("ceiling", 1, operand_types.len())?;
+                expression.result_type(operand_types[0])
+            }
+            Self::CeilingDivide(expression) => {
+                ensure_resolved_type_count("ceiling divide", 2, operand_types.len())?;
+                expression.result_type(operand_types[0], operand_types[1])
+            }
+            Self::Minimum(expression) => expression.result_type(operand_types),
+            Self::Maximum(expression) => expression.result_type(operand_types),
+        }
+    }
+}
+
+macro_rules! impl_any_expression_from {
+    ($marker:ty, $variant:ident) => {
+        impl From<Expression<$marker>> for AnyExpression {
+            fn from(expression: Expression<$marker>) -> Self {
+                Self::$variant(expression)
+            }
+        }
+    };
+}
+
+impl_any_expression_from!(Reference, Reference);
+impl_any_expression_from!(Add, Add);
+impl_any_expression_from!(Multiply, Multiply);
+impl_any_expression_from!(Ceiling, Ceiling);
+impl_any_expression_from!(CeilingDivide, CeilingDivide);
+impl_any_expression_from!(Minimum, Minimum);
+impl_any_expression_from!(Maximum, Maximum);
+
 impl Expression<Reference> {
     pub fn new(source: Operand) -> Self {
         Self::from_operands(vec![source])
@@ -535,5 +602,150 @@ mod tests {
                 actual: ValueType::Scalar,
             }))
         );
+    }
+
+    #[googletest::test]
+    fn typed_expressions_convert_to_the_matching_erased_variants() {
+        let first = operand("input.first", "first");
+        let second = operand("input.second", "second");
+        let third = operand("input.third", "third");
+        let expressions: Vec<AnyExpression> = vec![
+            Expression::<Reference>::new(first.clone()).into(),
+            Expression::<Add>::new(first.clone(), second.clone())
+                .and(third.clone())
+                .into(),
+            Expression::<Multiply>::new(first.clone(), second.clone()).into(),
+            Expression::<Ceiling>::new(first.clone()).into(),
+            Expression::<CeilingDivide>::new(first.clone(), second.clone()).into(),
+            Expression::<Minimum>::new(first.clone(), second.clone()).into(),
+            Expression::<Maximum>::new(first.clone(), second.clone()).into(),
+        ];
+        let expected_operands = [
+            vec![first.clone()],
+            vec![first.clone(), second.clone(), third.clone()],
+            vec![first.clone(), second.clone()],
+            vec![first.clone()],
+            vec![first.clone(), second.clone()],
+            vec![first.clone(), second.clone()],
+            vec![first, second],
+        ];
+
+        assert_that!(
+            matches!(expressions[0], AnyExpression::Reference(_)),
+            eq(true)
+        );
+        assert_that!(matches!(expressions[1], AnyExpression::Add(_)), eq(true));
+        assert_that!(
+            matches!(expressions[2], AnyExpression::Multiply(_)),
+            eq(true)
+        );
+        assert_that!(
+            matches!(expressions[3], AnyExpression::Ceiling(_)),
+            eq(true)
+        );
+        assert_that!(
+            matches!(expressions[4], AnyExpression::CeilingDivide(_)),
+            eq(true)
+        );
+        assert_that!(
+            matches!(expressions[5], AnyExpression::Minimum(_)),
+            eq(true)
+        );
+        assert_that!(
+            matches!(expressions[6], AnyExpression::Maximum(_)),
+            eq(true)
+        );
+        for (expression, expected) in expressions.iter().zip(expected_operands.iter()) {
+            assert_that!(expression.operands(), eq(expected.as_slice()));
+        }
+    }
+
+    #[googletest::test]
+    fn erased_expressions_dispatch_every_static_type_contract() {
+        let first = operand("input.first", "first");
+        let second = operand("input.second", "second");
+        let cases = [
+            (
+                AnyExpression::from(Expression::<Reference>::new(first.clone())),
+                vec![ValueType::MessageCount],
+                ValueType::MessageCount,
+            ),
+            (
+                AnyExpression::from(Expression::<Add>::new(first.clone(), second.clone())),
+                vec![ValueType::Ratio, ValueType::Ratio],
+                ValueType::Ratio,
+            ),
+            (
+                AnyExpression::from(Expression::<Multiply>::new(first.clone(), second.clone())),
+                vec![ValueType::DataSize, ValueType::MessageCount],
+                ValueType::DataSize,
+            ),
+            (
+                AnyExpression::from(Expression::<Ceiling>::new(first.clone())),
+                vec![ValueType::DataSize],
+                ValueType::DataSize,
+            ),
+            (
+                AnyExpression::from(Expression::<CeilingDivide>::new(
+                    first.clone(),
+                    second.clone(),
+                )),
+                vec![ValueType::DataSize, ValueType::DataSize],
+                ValueType::Scalar,
+            ),
+            (
+                AnyExpression::from(Expression::<Minimum>::new(first.clone(), second.clone())),
+                vec![ValueType::Scalar, ValueType::Scalar],
+                ValueType::Scalar,
+            ),
+            (
+                AnyExpression::from(Expression::<Maximum>::new(first, second)),
+                vec![ValueType::MessageCount, ValueType::MessageCount],
+                ValueType::MessageCount,
+            ),
+        ];
+
+        for (expression, operand_types, expected) in cases {
+            assert_that!(expression.result_type(&operand_types), ok(eq(&expected)));
+        }
+    }
+
+    #[googletest::test]
+    fn erased_fixed_arity_expressions_reject_resolved_type_count_mismatches() {
+        let first = operand("input.first", "first");
+        let second = operand("input.second", "second");
+        let cases = [
+            (
+                AnyExpression::from(Expression::<Reference>::new(first.clone())),
+                vec![],
+                ExpressionError::ResolvedTypeCountMismatch {
+                    operation: "reference",
+                    expected: 1,
+                    actual: 0,
+                },
+            ),
+            (
+                AnyExpression::from(Expression::<Ceiling>::new(first.clone())),
+                vec![ValueType::Scalar, ValueType::Scalar],
+                ExpressionError::ResolvedTypeCountMismatch {
+                    operation: "ceiling",
+                    expected: 1,
+                    actual: 2,
+                },
+            ),
+            (
+                AnyExpression::from(Expression::<CeilingDivide>::new(first, second)),
+                vec![ValueType::DataSize],
+                ExpressionError::ResolvedTypeCountMismatch {
+                    operation: "ceiling divide",
+                    expected: 2,
+                    actual: 1,
+                },
+            ),
+        ];
+
+        for (expression, operand_types, expected) in cases {
+            assert_that!(expression.result_type(&operand_types), err(eq(&expected)));
+        }
     }
 }
