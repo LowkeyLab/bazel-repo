@@ -7,8 +7,8 @@ mod node;
 mod value;
 
 pub use expression::{
-    Add, AnyExpression, Ceiling, CeilingDivide, Expression, ExpressionError, Maximum, Minimum,
-    Multiply, Operand, Reference,
+    Add, AnyExpression, Ceiling, CeilingDivide, ConvertDataSize, Expression, ExpressionError,
+    Maximum, Minimum, Multiply, Operand, Reference,
 };
 pub use node::{
     AnyNode, Citation, CitationClaim, CitationId, Comparison, ComparisonOperator, Constant,
