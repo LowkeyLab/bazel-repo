@@ -1,11 +1,16 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary", "js_run_devserver")
-load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//personal_website:astro/package_json.bzl", "bin")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@npm//:astro/package_json.bzl", "bin")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("//personal_website/bzl:ts.bzl", "personal_website_ts_config")
 
-# This macro expands to a link_npm_package for each third-party package in package.json
-npm_link_all_packages(name = "node_modules")
+# Enable Gazelle only for the Personal Website while TypeScript remains disabled
+# for the rest of the repository.
+# gazelle:ts_enabled true
+# gazelle:map_kind ts_library personal_website_ts_library //personal_website/bzl:ts.bzl
+# gazelle:map_kind ts_bundler_config personal_website_ts_config //personal_website/bzl:ts.bzl
+# gazelle:ts_bundler_config_pattern astro.config.ts astro_config
 
 SRCS = [
     "package.json",
@@ -15,7 +20,7 @@ SRCS = [
     "//personal_website/public",
 ]
 
-BUILD_DEPS = [":node_modules/" + d for d in [
+BUILD_DEPS = ["//:node_modules/" + d for d in [
     "astro",
     "@tailwindcss/vite",
     "tailwindcss",
@@ -24,6 +29,19 @@ BUILD_DEPS = [":node_modules/" + d for d in [
     "sharp",
 ]]
 
+CHECK_DEPS = ["//:node_modules/" + d for d in [
+    "@astrojs/check",
+    "@astrojs/ts-plugin",
+    "typescript",
+]]
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+    deps = ["//:node_modules/astro"],
+)
+
 js_library(
     name = "eslintrc",
     srcs = ["eslint.config.js"],
@@ -31,8 +49,8 @@ js_library(
     tags = ["no-lint"],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":node_modules/eslint-plugin-astro",
         "//:node_modules/@eslint/js",
+        "//:node_modules/eslint-plugin-astro",
         "//:node_modules/typescript-eslint",
     ],
 )
@@ -41,6 +59,16 @@ bin.astro_binary(
     name = "astro",
     chdir = package_name(),
     # prevents modifying the host machine filesystem
+    env = {
+        "ASTRO_TELEMETRY_DISABLED": "1",
+    },
+)
+
+bin.astro_test(
+    name = "check",
+    args = ["check"],
+    chdir = package_name(),
+    data = SRCS + BUILD_DEPS + CHECK_DEPS,
     env = {
         "ASTRO_TELEMETRY_DISABLED": "1",
     },
@@ -117,4 +145,14 @@ oci_push(
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/personal_website",
     visibility = ["//personal_website:__pkg__"],
+)
+
+personal_website_ts_config(
+    name = "astro_config",
+    srcs = ["astro.config.ts"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@tailwindcss/vite",
+        "//:node_modules/astro",
+    ],
 )

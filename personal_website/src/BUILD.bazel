@@ -1,20 +1,51 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("//personal_website/bzl:ts.bzl", "personal_website_ts_config")
+
+# Keep Astro's ambient declaration separate from generated TypeScript projects.
+# gazelle:exclude env.d.ts
+# gazelle:resolve ts ts astro:content //personal_website/src:astro_types
+# gazelle:ts_bundler_config_pattern content.config.ts content_config
+
+js_library(
+    name = "astro_types",
+    types = ["env.d.ts"],
+    visibility = ["//personal_website:__subpackages__"],
+    deps = ["//:node_modules/astro"],
+)
+
+js_library(
+    name = "astro_sources",
+    srcs = glob([
+        "**/*.astro",
+        "assets/**",
+        "content/**/*.md",
+        "styles/**/*.css",
+    ]),
+    visibility = ["//personal_website:__pkg__"],
+    deps = [
+        ":astro_types",
+        "//personal_website/src/utils",
+    ],
+)
 
 copy_to_bin(
     name = "src",
-    srcs = glob([
-        "**/*.astro",
-    ]) + glob([
-        "styles/**/*.css",
-    ]) + glob([
-        "assets/**",
-    ]) + glob([
-        "content/**",
-    ] + [
+    srcs = [
         "content.config.ts",
-        "env.d.ts",
-    ]) + glob([
-        "utils/**",
-    ]),
+        ":astro_sources",
+        ":astro_types",
+        "//personal_website/src/utils",
+    ],
     visibility = ["//personal_website:__pkg__"],
+)
+
+personal_website_ts_config(
+    name = "content_config",
+    srcs = ["content.config.ts"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/astro",
+        "//personal_website/src:astro_types",
+    ],
 )
