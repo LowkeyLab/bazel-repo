@@ -81,6 +81,14 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "gazelle", version = "0.52.2")
 
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
+bazel_dep(name = "gazelle_ts", version = "0.5.1", dev_dependency = True)
+single_version_override(
+    module_name = "gazelle_ts",
+    patch_strip = 1,
+    patches = ["//3rdparty/gazelle_ts:isolate_rust_toolchain.patch"],
+    version = "0.5.1",
+)
+
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
@@ -334,7 +342,11 @@ register_toolchains("@llvm//toolchain:all")
 
 #########################
 # Rust
-toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
+toolchains = use_extension(
+    "@rules_rs//rs/toolchains:module_extension.bzl",
+    "toolchains",
+    isolate = True,
+)
 toolchains.toolchain(
     name = "rust_toolchains_1_96_0",
     edition = "2024",
@@ -347,7 +359,6 @@ toolchains.toolchain(
 )
 use_repo(
     toolchains,
-    "default_rust_toolchains",
     "nightly_rust_toolchains",
     "rust_toolchains_1_96_0",
     "rustfmt_linux_x86_64_1_96_0",

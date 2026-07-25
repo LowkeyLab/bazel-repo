@@ -8,20 +8,5 @@
     "preview": "astro preview",
     "lint": "eslint \"src/**/*.{ts,astro}\"",
     "astro": "astro"
-  },
-  "dependencies": {
-    "@astrojs/ts-plugin": "catalog:",
-    "@tailwindcss/typography": "catalog:",
-    "@tailwindcss/vite": "catalog:",
-    "astro": "catalog:",
-    "sharp": "catalog:",
-    "tailwindcss": "catalog:"
-  },
-  "devDependencies": {
-    "@types/node": "catalog:",
-    "@typescript-eslint/parser": "catalog:",
-    "daisyui": "catalog:",
-    "eslint": "catalog:",
-    "eslint-plugin-astro": "catalog:"
   }
 }

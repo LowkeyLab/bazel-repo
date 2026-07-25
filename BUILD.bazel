@@ -71,7 +71,6 @@ js_library(
 
 # Gazelle configuration
 # gazelle:exclude githooks/*
-# gazelle:exclude personal_website/*
 # gazelle:exclude tools/*
 # gazelle:exclude angular/*
 # gazelle:exclude ktor_tutorial/*
@@ -79,6 +78,8 @@ js_library(
 # gazelle:exclude nicknamer/*
 # gazelle:rust_cargo_lockfile Cargo.lock
 # gazelle:rust_crates_prefix @crates//:
+# gazelle:ts_enabled false
+# gazelle:ts_npm_link_pattern //:node_modules/{pkg}
 gazelle(
     name = "gazelle",
     gazelle = ":gazelle_bin",
@@ -90,6 +91,7 @@ gazelle_binary(
         "@contrib_rules_jvm//java/gazelle",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle_rust//rust_language",
+        "@gazelle_ts//ts",
     ],
 )
 
