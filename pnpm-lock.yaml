@@ -108,9 +108,6 @@ catalogs:
     apollo-angular:
       specifier: ^14.0.0
       version: 14.1.0
-    astro:
-      specifier: ^7.0.0
-      version: 7.1.5
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
@@ -150,6 +147,9 @@ catalogs:
     optimism:
       specifier: ^0.18.1
       version: 0.18.1
+    postcss:
+      specifier: ^8.5.3
+      version: 8.5.25
     postcss-cli:
       specifier: ^11.0.1
       version: 11.0.1
@@ -207,7 +207,7 @@ importers:
         version: 4.3.3(vite@8.2.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.99.0)(yaml@2.9.0))
       astro:
         specifier: 'catalog:'
-        version: 7.1.5(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@24.13.3)(jiti@2.7.0)(rollup@4.60.2)(sass@1.99.0)(yaml@2.9.0)
+        version: 7.1.6(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@24.13.3)(jiti@2.7.0)(rollup@4.60.2)(sass@1.99.0)(yaml@2.9.0)
       sharp:
         specifier: 'catalog:'
         version: 0.35.3(@types/node@24.13.3)
@@ -409,7 +409,7 @@ importers:
         version: 22.0.9(@types/node@24.13.3)(chokidar@5.0.0)
       astro:
         specifier: 'catalog:'
-        version: 7.1.5(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@24.13.3)(jiti@2.7.0)(rollup@4.60.2)(sass@1.99.0)(yaml@2.9.0)
+        version: 7.1.6(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@24.13.3)(jiti@2.7.0)(rollup@4.60.2)(sass@1.99.0)(yaml@2.9.0)
 
 packages:
 
@@ -3175,8 +3175,8 @@ packages:
     resolution: {integrity: sha512-idgbHE8cjEU9f4Ne46RiGgwEviXYarNVoQoTZr+H1j7mbNCKp8EGGov2bR64/cvMpfBsX3XNPu9+muxAhK84eg==}
     engines: {node: ^22.22.3 || ^24.16.0 || >=26.3.0}
 
-  astro@7.1.5:
-    resolution: {integrity: sha512-3Yi3cPzVkudPcwStEaNzglu3hM2tjZ3NyhG8shUTMpcSX+8clQta23dMz41I44fiaMCp37H9K/5P2AudN6YKwg==}
+  astro@7.1.6:
+    resolution: {integrity: sha512-83x9rYbHazMaZkYrAFRVZXSQx2moFkz0F7cjTDUF3GWfS0a3p2vZXG1ZdhV86rStHApQCodBJW+XTD37xISIrQ==}
     engines: {node: '>=22.12.0', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
     peerDependencies:
@@ -8939,7 +8939,7 @@ snapshots:
       - '@emnapi/runtime'
       - supports-color
 
-  astro@7.1.5(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@24.13.3)(jiti@2.7.0)(rollup@4.60.2)(sass@1.99.0)(yaml@2.9.0):
+  astro@7.1.6(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)(@types/node@24.13.3)(jiti@2.7.0)(rollup@4.60.2)(sass@1.99.0)(yaml@2.9.0):
     dependencies:
       '@astrojs/compiler-rs': 0.3.2(@emnapi/core@2.0.0-alpha.3)(@emnapi/runtime@2.0.0-alpha.3)
       '@astrojs/internal-helpers': 0.10.2
@@ -10711,7 +10711,7 @@ snapshots:
     dependencies:
       hosted-git-info: 9.0.3
       proc-log: 6.1.0
-      semver: 7.8.5
+      semver: 7.7.4
       validate-npm-package-name: 7.0.2
 
   npm-packlist@10.0.4:
