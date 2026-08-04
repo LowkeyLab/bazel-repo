@@ -69,7 +69,7 @@ catalog:
   eslint-plugin-astro: ^3.0.0
   js-pkce: ^2.0.0
   js-yaml: ^5.0.0
-  jsdom: ^29.0.0
+  jsdom: ^30.0.0
   jwt-decode: ^4.0.0
   postcss: ^8.5.3
   postcss-cli: ^11.0.1
