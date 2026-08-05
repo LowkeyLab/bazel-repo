@@ -240,7 +240,7 @@ maven.install(
         "com.h2database:h2:2.4.240",
         "org.jetbrains.exposed:exposed-core:1.4.0",
         "org.jetbrains.exposed:exposed-dao:1.4.0",
-        "org.jetbrains.exposed:exposed-jdbc:1.3.1",
+        "org.jetbrains.exposed:exposed-jdbc:1.4.0",
         "org.postgresql:postgresql:42.7.13",
         # Logging
         "ch.qos.logback:logback-classic:1.6.1",
