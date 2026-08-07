@@ -120,9 +120,6 @@ catalogs:
     crypto-js:
       specifier: ^4.2.0
       version: 4.2.0
-    daisyui:
-      specifier: ^5.5.5
-      version: 5.7.14
     eslint:
       specifier: ^10.0.0
       version: 10.8.0
@@ -235,7 +232,7 @@ importers:
         version: 8.65.0(eslint@10.8.0(jiti@2.7.0))(typescript@6.0.3)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.14
+        version: 5.7.15
       eslint:
         specifier: 'catalog:'
         version: 10.8.0(jiti@2.7.0)
@@ -380,7 +377,7 @@ importers:
         version: 4.1.10(vitest@4.1.10)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.14
+        version: 5.7.15
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1
@@ -3416,6 +3413,7 @@ packages:
 
   crypto-js@4.2.0:
     resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   css-functions-list@3.3.3:
     resolution: {integrity: sha512-8HFEBPKhOpJPEPu70wJJetjKta86Gw9+CCyCnB3sui2qQfOvRyqBy4IKLKKAwdMpWb2lHXWk9Wb4Z6AmaUT1Pg==}
@@ -3452,8 +3450,8 @@ packages:
     resolution: {integrity: sha512-0LrrStPOdJj+SPCCrGhzryycLjwcgUSHBtxNA8aIDxf0GLsRh1cKYhB00Gd1lDOS4yGH69+SNn13+TWbVHETFQ==}
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0, npm: '>=7.0.0'}
 
-  daisyui@5.7.14:
-    resolution: {integrity: sha512-mbEBc49mp6ueUNxVNPIQiX3mzYIirkST8EA3lLMKCkrWzpiM8Iy8eHjj+G6gitFQB73m9qFLPg75S4D1LDUw0g==}
+  daisyui@5.7.15:
+    resolution: {integrity: sha512-62W6wiH6AhFKJ2ZcpJVcuPGQXbIgwq8BZZx78iJ3/T8lqrdY+UpQlYWb4IQQQXZ81NMwyX+CKS2+8HaTOE3ctA==}
 
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
@@ -8973,7 +8971,7 @@ snapshots:
     dependencies:
       css-tree: 2.2.1
 
-  daisyui@5.7.14: {}
+  daisyui@5.7.15: {}
 
   data-uri-to-buffer@4.0.1: {}
 
