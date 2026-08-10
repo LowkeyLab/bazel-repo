@@ -3,11 +3,11 @@
     "aspect-cli-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1785611683,
-        "narHash": "sha256-IQzN0RtjI4enusA2jCSel+gRUDeWT8BcHmUpVP+h+bY=",
+        "lastModified": 1786162321,
+        "narHash": "sha256-z5Jxv4FHLOMy7elskFJ2Vbs0sJYyBtEgPlRR7+ZH2OE=",
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "e3644104c256721ef4c3d0093aee69692d507823",
+        "rev": "bf1c25f0fa22f79f14105b8806bd9ee0863ee309",
         "type": "github"
       },
       "original": {
@@ -103,11 +103,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1786311273,
-        "narHash": "sha256-TH6+4egFES1U2dx7/gs1RfuHLU4kqN343UstbH+CSx8=",
+        "lastModified": 1786323141,
+        "narHash": "sha256-IiNvo9rlL9ncnLOp70Mo1toobC2t9xHzsZIZayEv7dg=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "9c27494f9d194ff6d26a863c7fde6b5554d6651d",
+        "rev": "76f2e1f07e0435873d08e7f8a07dbe18f237ec5c",
         "type": "github"
       },
       "original": {
@@ -125,11 +125,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785720955,
-        "narHash": "sha256-UCZeyfHqkBKz3+o78zVttZ0PaC/+FZMIzBKncx9duzY=",
+        "lastModified": 1786321257,
+        "narHash": "sha256-USqT0AwoZCOtGidrfMtP5tp7bBLUG0iZxQxQjichPc0=",
         "owner": "LowkeyLab",
         "repo": "nix",
-        "rev": "cfad86c2817bd6271416cec803655e7a0f3188d8",
+        "rev": "f278420f08fef81c16d0b0a927757c3d5b266c03",
         "type": "github"
       },
       "original": {
