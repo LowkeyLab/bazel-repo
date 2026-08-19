@@ -4,15 +4,15 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.17.17/aspect-cli-x86_64-unknown-linux-musl",
-        "sha256": "db45968e114c22af0e0d3dddadfb7091c81983f66499eed9d01d782bb09483d0",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.33.3/aspect-cli-x86_64-unknown-linux-musl",
+        "sha256": "babe19a24289dc311e17dea0aeac7fbc8a36288fe2160d28fdae0c3d5bbe2e3c",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.17.17/aspect-cli-aarch64-apple-darwin",
-        "sha256": "51260131e52885d6f51c651b3b56101e7f9aaf7468f7cb71ac2e7fdcefdf3f89",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.33.3/aspect-cli-aarch64-apple-darwin",
+        "sha256": "665fee29608e149f7a4ec69139b37db23c39425a840127c04b1cb05176b56051",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -22,29 +22,29 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.4/buf-Linux-aarch64",
-        "sha256": "9a238f57d75b5afb1278413105813b86a7c2718d4ddc0183e3ec0942a54c1c14",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-aarch64",
+        "sha256": "bdbb275fb9624104ef4d8513d269cc410a153138646e67136cb3f8cc185be289",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.4/buf-Linux-x86_64",
-        "sha256": "0c12ca1ca1a5741c122eb74f3556ae7fa66277a7d563223ca01fc6f52e9d47e1",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Linux-x86_64",
+        "sha256": "8720830e26a733da55bb89bcd3cb44849c0965fc0c44fb5d691cccdc64dca5af",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.4/buf-Darwin-arm64",
-        "sha256": "024d7618f3de3d2cffd2287f07bdf975b79ca14c9d028dc494cc42edaf7b64f8",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Darwin-arm64",
+        "sha256": "5176f23a6118b9978de1340c3e3301a4ed0d48e16a669510be44b4c355170d57",
         "os": "macos",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.68.4/buf-Darwin-x86_64",
-        "sha256": "a8d4708d60fc795592b27c5212e1f28c1d9dea165937fba50c92d0efac18a06e",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Darwin-x86_64",
+        "sha256": "eb815a2708d4a43d31799049d5a2987ea81d0a9e98b53976d47bd1e78d154a8f",
         "os": "macos",
         "cpu": "x86_64"
       }
@@ -86,25 +86,25 @@
     "binaries": [
       {
         "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.2/caddy_2.11.2_linux_arm64.tar.gz",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_arm64.tar.gz",
         "file": "caddy",
-        "sha256": "b9d88bec4254d0a98bd415ad60f97f37e4222dec96235c00b442437f5e303a32",
+        "sha256": "52d42ae12b3462097e9868da6dfed3c9648ae12edd3b3638102312af84cb6904",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.2/caddy_2.11.2_linux_amd64.tar.gz",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz",
         "file": "caddy",
-        "sha256": "94391dfefe1f278ac8f387ab86162f0e88d87ff97df367f360e51e3cda3df56f",
+        "sha256": "527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.2/caddy_2.11.2_mac_arm64.tar.gz",
+        "url": "https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_mac_arm64.tar.gz",
         "file": "caddy",
-        "sha256": "7ab765777e953574d5713a69cab3f5a2f643a5c1cc264d4239a60ff845b465d8",
+        "sha256": "9efb0af2d6cf09cfb5053c0e51721b9b3d4956d346234f39368d943d25a3c9a7",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -114,17 +114,17 @@
     "binaries": [
       {
         "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.21.5/go-containerregistry_Linux_x86_64.tar.gz",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.21.9/go-containerregistry_Linux_x86_64.tar.gz",
         "file": "crane",
-        "sha256": "9f823ae5ee25803161110f957b5fd4538f714d40cdf25dacb4914fefafd246bf",
+        "sha256": "5c16d8ddb971cb1d5e6ed8b1e743da8224414eeba2c2762d8f1a61b2f095699e",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.21.5/go-containerregistry_Darwin_arm64.tar.gz",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.21.9/go-containerregistry_Darwin_arm64.tar.gz",
         "file": "crane",
-        "sha256": "a41938cdbd8becc59e90f4bb491a557d52dce5681f9812c961854cab706f5f59",
+        "sha256": "11cc3640e53473eb0d8c501068573e52a259f4d82177e6dd11b7bacb8955459e",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -134,22 +134,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-linux-aarch64",
-        "sha256": "e8105a3e687ea7e0b0f81abe4bf9269c8a2801fb72c2b498b5ff2472bc54145f",
+        "url": "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-aarch64",
+        "sha256": "ff42489f5a9b879d5d117c5ffea6defc27390b3286da8ad52cbc9c6ab5df590e",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-linux-x86_64",
-        "sha256": "a0298760c9772d2c06888fc8703a487c94c3c3b0134adeef830742a2fc7647b4",
+        "url": "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-x86_64",
+        "sha256": "c57ab918abd5b05ca7e7d0f275875dd1330a695074f309dc9eab1b49efafcd4b",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.1.3/docker-compose-darwin-aarch64",
-        "sha256": "b8461a8a53f7e0ce677139516b17661e7ccd54ac4f2dabae03ad79f2f2ae35c6",
+        "url": "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-darwin-aarch64",
+        "sha256": "6777710e5a5db5709e5f4b5985844e74b73cc1a6123e3a6690b6ababf2deaf51",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -159,22 +159,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.29.0/ibazel_linux_arm64",
-        "sha256": "47ce8a532663f2d5ec18181f8ad2d9f514afa1359a459dbfdc249827808b97e6",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.32.0/ibazel_linux_arm64",
+        "sha256": "3f2c3c0b629a426cb5452fdf54b88c92b554344689e67c592046dbbc017fa562",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.29.0/ibazel_linux_amd64",
-        "sha256": "2be290ae7348c7c5b45e4bbd2cc37da70937b7b1bdf611b11cd01868bee454ee",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.32.0/ibazel_linux_amd64",
+        "sha256": "761cb60545f3de5bc0615d2b0f58accd4186161ac6cdd2a168ad6ee59731b92e",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.29.0/ibazel_darwin_arm64",
-        "sha256": "4d809cef681d4f25437f270422e5a986f3bca0e4e5a4b93d7be8507076deed71",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.32.0/ibazel_darwin_arm64",
+        "sha256": "1cfec3c53213520ddba3d8ff6dbc85ac0ec0c07e9703dc44695e1af166b009ab",
         "os": "macos",
         "cpu": "arm64"
       }
