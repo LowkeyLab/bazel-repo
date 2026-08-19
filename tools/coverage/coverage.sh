@@ -49,7 +49,8 @@ fi
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
 chmod u+w "${COMBINED_LCOV}"
 
-normalized_fn_records="$(python3 - "${COMBINED_LCOV}" <<'PY'
+normalized_fn_records="$(
+	python3 - "${COMBINED_LCOV}" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -60,10 +61,14 @@ count = 0
 
 def normalize(match: re.Match[str]) -> str:
     global count
-    count += 1
-    return f"FN:1,{match.group(1)}"
+    line_number = int(match.group(1))
+    if line_number > 0:
+        return match.group(0)
 
-updated = re.sub(r"(?m)^FN:-\d+,(.+)$", normalize, content)
+    count += 1
+    return f"FN:1,{match.group(2)}"
+
+updated = re.sub(r"(?m)^FN:(-?\d+),(.+)$", normalize, content)
 if updated != content:
     path.write_text(updated)
 
