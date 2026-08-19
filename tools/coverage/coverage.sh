@@ -48,6 +48,33 @@ fi
 # preserve those mode bits.
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
 chmod u+w "${COMBINED_LCOV}"
+
+normalized_fn_records="$(python3 - "${COMBINED_LCOV}" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+content = path.read_text()
+count = 0
+
+def normalize(match: re.Match[str]) -> str:
+    global count
+    count += 1
+    return f"FN:1,{match.group(1)}"
+
+updated = re.sub(r"(?m)^FN:-\d+,(.+)$", normalize, content)
+if updated != content:
+    path.write_text(updated)
+
+print(count)
+PY
+)"
+
+if [[ "${normalized_fn_records}" != "0" ]]; then
+	echo "==> Normalized ${normalized_fn_records} LCOV function records with negative line numbers for genhtml compatibility"
+fi
+
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available
