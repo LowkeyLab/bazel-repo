@@ -1,4 +1,4 @@
-FROM ubuntu:24.04@sha256:1428a953896eef9e62fc6ef60cad05bbf98769f6ea5f8c278e519b9dd168ab26
+FROM ubuntu:24.04@sha256:d78ab76437b1afc5f01e223d6bf0172763f404bb166441328845adbef44518cb
 
 # Install dependencies
 RUN apt update && apt install -y ca-certificates curl
