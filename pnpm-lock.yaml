@@ -120,9 +120,6 @@ catalogs:
     crypto-js:
       specifier: ^4.2.0
       version: 4.2.0
-    daisyui:
-      specifier: ^5.5.5
-      version: 5.7.19
     eslint:
       specifier: ^10.0.0
       version: 10.8.1
@@ -183,6 +180,9 @@ catalogs:
     typescript-eslint:
       specifier: ^8.49.0
       version: 8.67.0
+    vite:
+      specifier: ^8.0.0
+      version: 8.2.2
     vitest:
       specifier: ^4.0.0
       version: 4.1.11
@@ -232,7 +232,7 @@ importers:
         version: 8.67.0(eslint@10.8.1(jiti@2.7.0))(typescript@6.0.3)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.19
+        version: 5.7.20
       eslint:
         specifier: 'catalog:'
         version: 10.8.1(jiti@2.7.0)
@@ -377,7 +377,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.19
+        version: 5.7.20
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1
@@ -3524,8 +3524,8 @@ packages:
     resolution: {integrity: sha512-0LrrStPOdJj+SPCCrGhzryycLjwcgUSHBtxNA8aIDxf0GLsRh1cKYhB00Gd1lDOS4yGH69+SNn13+TWbVHETFQ==}
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0, npm: '>=7.0.0'}
 
-  daisyui@5.7.19:
-    resolution: {integrity: sha512-0ylsSwFdzecFBh1XKPw/FB74bYX1kiufv7/dFvj3FxrUMWGkACfwqIzIMrsxIMzUlKF6ZHwH6YaOwPNvQGGmsg==}
+  daisyui@5.7.20:
+    resolution: {integrity: sha512-qoL9qXXo/K/MzcteD1SvZOSeBaL8F9qBJvwX3KEpiVHQLzIEtGkNl/ZznSI7J0d+qnQJa2dAAFzTFDAx9df1rw==}
 
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
@@ -9087,7 +9087,7 @@ snapshots:
     dependencies:
       css-tree: 2.2.1
 
-  daisyui@5.7.19: {}
+  daisyui@5.7.20: {}
 
   data-uri-to-buffer@4.0.1: {}
 
