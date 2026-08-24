@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod expression;
+mod graph;
 mod node;
 mod value;
 
@@ -10,6 +11,7 @@ pub use expression::{
     Add, AnyExpression, Ceiling, CeilingDivide, ConvertDataSize, Expression, ExpressionError,
     Maximum, Minimum, Multiply, Operand, Reference,
 };
+pub use graph::{Edge, GraphDefinition, GraphValidationError, ValidatedGraph};
 pub use node::{
     AnyNode, Citation, CitationClaim, CitationId, Comparison, ComparisonOperator, Constant,
     ConstantOrigin, Derived, Finding, FindingCondition, FindingSeverity, IdentifierError, Input,

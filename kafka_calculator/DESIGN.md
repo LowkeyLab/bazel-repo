@@ -409,7 +409,11 @@ Validation checks, in deterministic order:
 7. Duplicate setting keys
 8. Reachability from declared outputs
 
-Cycle errors include the discovered cycle path. Every node must contribute to at least one output. Independent nodes retain stable declaration order during topological sorting.
+Local validity requires at least one declared output, a non-blank key on every setting, and a non-blank role on every expression or comparison operand. Output IDs must be unique, must resolve to a `Derived`, `Setting`, or `Finding` node, and cannot expose an `Input` or `Constant` directly. Citation IDs are unique within the catalog, and every citation claim must resolve to one catalog entry.
+
+Operands must resolve to value-producing nodes. In particular, a `Finding` can depend on values but cannot itself be used as an expression or comparison operand because it produces no `Value`. Finding comparisons require matching resolved `ValueType`s. Setting keys are unique across the graph, regardless of setting scope.
+
+Cycle errors include the discovered cycle path, including the repeated start node that closes the path. Every node must contribute to at least one output. Independent nodes retain stable declaration order during topological sorting. Generated edges retain target declaration order and operand insertion order; repeated operands therefore remain repeated labelled edges rather than being deduplicated.
 
 The `Node<T>` constructor already guarantees that each node ID has the prefix associated with its node type, so graph validation does not need a separate prefix-kind consistency check.
 
