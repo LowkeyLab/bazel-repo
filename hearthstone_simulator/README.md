@@ -17,6 +17,9 @@ This is an architectural starting point, not a complete implementation of Hearth
 ```bash
 aspect test //hearthstone_simulator/core:core_test
 bazel run //hearthstone_simulator/app
+bazel run //tools/coverage -- //hearthstone_simulator/...
 ```
+
+The coverage command writes the combined LCOV data to `coverage-report.lcov` and, when `genhtml` is available, generates an HTML report at `coverage-report/index.html`. The repository coverage workflow also uploads the simulator's coverage to Codecov.
 
 All repository operations should continue to use Bazel/Aspect rather than invoking Cargo directly.
