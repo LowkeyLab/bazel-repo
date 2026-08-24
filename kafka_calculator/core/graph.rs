@@ -751,11 +751,17 @@ mod tests {
 
     #[googletest::test]
     fn validates_indexes_types_edges_and_stable_topological_order() {
-        let graph = valid_definition()
+        let definition = valid_definition();
+        assert_that!(definition.nodes().len(), eq(3));
+        assert_that!(definition.citations().len(), eq(0));
+        assert_that!(definition.outputs(), eq([id("setting.result")]));
+
+        let graph = definition
             .validate()
             .expect("valid graph should pass validation");
 
         assert_that!(graph.nodes().len(), eq(3));
+        assert_that!(graph.outputs(), eq([id("setting.result")]));
         assert_that!(graph.node(&id("derived.copied")).is_some(), eq(true));
         assert_that!(graph.node(&id("derived.missing")).is_none(), eq(true));
         assert_that!(
@@ -842,6 +848,21 @@ mod tests {
         assert_that!(
             graph.topological_order(),
             eq([id("input.second"), id("input.first"), id("derived.sum"),])
+        );
+
+        let graph = GraphDefinition::new(
+            vec![
+                derived("result", reference("input.source")),
+                input("source", ValueType::Scalar),
+            ],
+            vec![],
+            vec![id("derived.result")],
+        )
+        .validate()
+        .expect("forward dependency declarations should be valid");
+        assert_that!(
+            graph.topological_order(),
+            eq([id("input.source"), id("derived.result")])
         );
     }
 
@@ -1000,6 +1021,19 @@ mod tests {
                 node_type: "input",
             }))
         );
+
+        let graph = GraphDefinition::new(
+            vec![constant("policy", Value::MessageCount(1))],
+            vec![],
+            vec![id("constant.policy")],
+        );
+        assert_that!(
+            graph.validate(),
+            err(eq(&GraphValidationError::InvalidOutputNodeType {
+                output_id: id("constant.policy"),
+                node_type: "constant",
+            }))
+        );
     }
 
     #[googletest::test]
@@ -1060,6 +1094,18 @@ mod tests {
                 ],
             }))
         );
+
+        let graph = GraphDefinition::new(
+            vec![derived("self", reference("derived.self"))],
+            vec![],
+            vec![id("derived.self")],
+        );
+        assert_that!(
+            graph.validate(),
+            err(eq(&GraphValidationError::Cycle {
+                path: vec![id("derived.self"), id("derived.self")],
+            }))
+        );
     }
 
     #[googletest::test]
@@ -1083,6 +1129,35 @@ mod tests {
             graph.validate(),
             err(eq(&GraphValidationError::ExpressionType {
                 node_id: id("derived.result"),
+                source: ExpressionError::IncompatibleOperandType {
+                    operation: "add",
+                    operand: 1,
+                    expected: ValueType::MessageCount,
+                    actual: ValueType::DataSize,
+                },
+            }))
+        );
+
+        let graph = GraphDefinition::new(
+            vec![
+                input("count", ValueType::MessageCount),
+                input("size", ValueType::DataSize),
+                setting(
+                    "result",
+                    "invalid.type",
+                    Expression::<Add>::new(
+                        operand("input.count", "count"),
+                        operand("input.size", "size"),
+                    ),
+                ),
+            ],
+            vec![],
+            vec![id("setting.result")],
+        );
+        assert_that!(
+            graph.validate(),
+            err(eq(&GraphValidationError::ExpressionType {
+                node_id: id("setting.result"),
                 source: ExpressionError::IncompatibleOperandType {
                     operation: "add",
                     operand: 1,
@@ -1122,6 +1197,43 @@ mod tests {
                 right: ValueType::DataSize,
             }))
         );
+
+        let finding: AnyNode = Node::new(
+            suffix("matching"),
+            metadata(),
+            Finding::new(
+                FindingSeverity::Warning,
+                FindingCondition::Comparison(Comparison::new(
+                    operand("input.first", "first count"),
+                    ComparisonOperator::GreaterThan,
+                    operand("input.second", "second count"),
+                )),
+            ),
+        )
+        .into();
+        let graph = GraphDefinition::new(
+            vec![
+                input("first", ValueType::MessageCount),
+                input("second", ValueType::MessageCount),
+                finding,
+            ],
+            vec![],
+            vec![id("finding.matching")],
+        )
+        .validate()
+        .expect("matching finding operand types should be valid");
+        assert_that!(graph.resolved_type(&id("finding.matching")), eq(None));
+
+        let finding: AnyNode = Node::new(
+            suffix("always"),
+            metadata(),
+            Finding::new(FindingSeverity::Warning, FindingCondition::Always),
+        )
+        .into();
+        let graph = GraphDefinition::new(vec![finding], vec![], vec![id("finding.always")])
+            .validate()
+            .expect("unconditional findings should be valid");
+        assert_that!(graph.resolved_type(&id("finding.always")), eq(None));
     }
 
     #[googletest::test]
