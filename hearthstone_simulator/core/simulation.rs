@@ -424,4 +424,149 @@ mod tests {
         assert_eq!(snapshot.players[1].health, 27);
         assert!(!snapshot.minions[0].can_attack);
     }
+
+    #[test]
+    fn update_without_an_action_is_a_noop() {
+        let mut simulation = simulation();
+
+        simulation.app.update();
+
+        assert_eq!(simulation.snapshot().game, GameState::default());
+    }
+
+    #[test]
+    fn rejects_missing_and_unaffordable_cards() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![Card::minion("Giant", 10, 8, 8)]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+
+        assert_eq!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                hand_index: 1,
+            }),
+            Err(SimulationError::CardNotFound {
+                player: PlayerId::One,
+                hand_index: 1,
+            })
+        );
+        assert_eq!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                hand_index: 0,
+            }),
+            Err(SimulationError::NotEnoughMana {
+                player: PlayerId::One,
+                required: 10,
+                available: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_playing_a_minion_on_a_full_board() {
+        let cards = (0..=MAX_BOARD_SIZE)
+            .map(|index| Card::minion(format!("Minion {index}"), 0, 1, 1))
+            .collect();
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", cards),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        for _ in 0..MAX_BOARD_SIZE {
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    hand_index: 0,
+                })
+                .expect("a board slot should be available");
+        }
+
+        assert_eq!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                hand_index: 0,
+            }),
+            Err(SimulationError::BoardFull(PlayerId::One))
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_minion_attacks() {
+        let mut simulation = simulation();
+
+        assert_eq!(
+            simulation.apply(GameAction::AttackHero {
+                player: PlayerId::One,
+                attacker: MinionId(99),
+            }),
+            Err(SimulationError::MinionNotFound(MinionId(99)))
+        );
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                hand_index: 0,
+            })
+            .expect("the minion should be playable");
+        assert_eq!(
+            simulation.apply(GameAction::AttackHero {
+                player: PlayerId::One,
+                attacker: MinionId(0),
+            }),
+            Err(SimulationError::MinionExhausted(MinionId(0)))
+        );
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            })
+            .expect("player one should be able to end the turn");
+        assert_eq!(
+            simulation.apply(GameAction::AttackHero {
+                player: PlayerId::Two,
+                attacker: MinionId(0),
+            }),
+            Err(SimulationError::MinionNotOwned {
+                player: PlayerId::Two,
+                minion: MinionId(0),
+            })
+        );
+    }
+
+    #[test]
+    fn winning_the_game_rejects_further_actions() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![Card::minion("Finisher", 1, 30, 1)]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                hand_index: 0,
+            })
+            .expect("the minion should be playable");
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            })
+            .expect("player one should be able to end the turn");
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::Two,
+            })
+            .expect("player two should be able to end the turn");
+        simulation
+            .apply(GameAction::AttackHero {
+                player: PlayerId::One,
+                attacker: MinionId(0),
+            })
+            .expect("the attack should win the game");
+
+        assert_eq!(simulation.snapshot().game.winner, Some(PlayerId::One));
+        assert_eq!(
+            simulation.apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            }),
+            Err(SimulationError::GameOver)
+        );
+    }
 }
