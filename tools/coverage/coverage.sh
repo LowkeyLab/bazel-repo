@@ -53,12 +53,15 @@ echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 # Generate HTML report if genhtml is available
 if command -v genhtml &>/dev/null; then
 	echo "==> Generating HTML coverage report..."
+	# rules_java emits negative line numbers for generated JVM functions.
+	# Ignore the resulting format errors and unmatched FNDA records twice
+	# so lcov continues without printing a warning for every function.
 	genhtml "${COMBINED_LCOV}" \
 		--output-directory "${REPORT_DIR}" \
 		--title "bazel-repo Coverage" \
 		--legend \
 		--show-details \
-		--ignore-errors category \
+		--ignore-errors category,format,format,mismatch,mismatch \
 		--quiet
 	echo "==> HTML report: ${REPORT_DIR}/index.html"
 	echo "    Open with: xdg-open ${REPORT_DIR}/index.html"
