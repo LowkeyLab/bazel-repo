@@ -92,7 +92,7 @@ single_version_override(
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
 git_override(
     module_name = "gazelle_rust",
-    commit = "bed49c78a04b281512889120e6f2f4df76266d20",
+    commit = "747482bfad721b0fe7198c94491d76c32b263ac0",
     patch_args = ["-p1"],
     patches = ["//3rdparty/gazelle_rust:rules_rs_loads.patch"],
     remote = "https://github.com/Calsign/gazelle_rust.git",
