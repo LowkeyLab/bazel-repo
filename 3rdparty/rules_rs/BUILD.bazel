@@ -1,4 +1,5 @@
 exports_files([
+    "skip_working_directory_scan_during_coverage.patch",
     "toolchain_repository_compatibility.patch",
     "rust_analyzer_proc_macro_exec_deps.patch",
 ])
