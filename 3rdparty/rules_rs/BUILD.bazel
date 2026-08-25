@@ -1,4 +1,5 @@
 exports_files([
-    "crate_annotation_compile_data.patch",
+    "skip_working_directory_scan_during_coverage.patch",
+    "toolchain_repository_compatibility.patch",
     "rust_analyzer_proc_macro_exec_deps.patch",
 ])

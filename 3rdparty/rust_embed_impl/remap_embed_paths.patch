@@ -1,0 +1,21 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 12cacb7..2e077db 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -320 +320,6 @@ fn embed_file(
+-  let file = rust_embed_utils::read_file_from_fs(Path::new(full_canonical_path)).expect("File should be readable");
++  let file = rust_embed_utils::read_file_from_fs(Path::new(full_canonical_path)).expect("File should be readable");
++  let compile_path = env::var_os("OUT_DIR")
++    .and_then(|out_dir| Path::new(full_canonical_path).strip_prefix(out_dir).ok().map(PathBuf::from))
++    .unwrap_or_else(|| PathBuf::from(full_canonical_path));
++  let compile_path = compile_path.to_string_lossy();
++
+@@ -350 +355 @@ fn embed_file(
+-      const BYTES: &'static [u8] = include_bytes!(#full_canonical_path);
++      const BYTES: &'static [u8] = include_bytes!(#compile_path);
+@@ -358 +363 @@ fn embed_file(
+-            metadata: #crate_path::utils::__rust_embed_metadata!([#(#hash),*], #last_modified, #created, #crate_path::__mimetype_of!(#full_canonical_path))
++            metadata: #crate_path::utils::__rust_embed_metadata!([#(#hash),*], #last_modified, #created, #crate_path::__mimetype_of!(#compile_path))
+@@ -368 +373 @@ fn embed_file(
+-            metadata: #crate_path::utils::__rust_embed_metadata!([#(#hash),*], #last_modified, #created, #crate_path::__mimetype_of!(#full_canonical_path))
++            metadata: #crate_path::utils::__rust_embed_metadata!([#(#hash),*], #last_modified, #created, #crate_path::__mimetype_of!(#compile_path))

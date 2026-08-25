@@ -1,0 +1,14 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index b27c1f8..38a759c 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -39 +39,2 @@ toolchains = use_extension(
+-toolchains.toolchain(
++toolchains.toolchain(
++    name = "gazelle_ts_rust_toolchains",
+@@ -43 +44 @@ toolchains.toolchain(
+-use_repo(toolchains, "default_rust_toolchains")
++use_repo(toolchains, "gazelle_ts_rust_toolchains")
+@@ -45 +46 @@ use_repo(toolchains, "default_rust_toolchains")
+-register_toolchains("@default_rust_toolchains//:all")
++register_toolchains("@gazelle_ts_rust_toolchains//...")

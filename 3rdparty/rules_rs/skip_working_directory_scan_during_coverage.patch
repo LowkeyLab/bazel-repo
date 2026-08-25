@@ -1,0 +1,36 @@
+diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
+index 26f03f0..bc9effd 100644
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -2158,14 +2158,19 @@ def construct_arguments(
+         fail("No process wrapper was defined for {}".format(ctx.label))
+ 
+     if not rust_toolchain._bootstrapping:
+-        # Search code-generating rustc outputs for the resolved action working
+-        # directory. RustcMetadata has separate arguments and no object code.
+-        checked_outputs = [output_o] if scan_msvc_archive_object else [outputs[0]]
+-        if output_o and output_o != checked_outputs[0]:
+-            checked_outputs.append(output_o)
+-        args.process_wrapper_flags.add_all(
+-            checked_outputs,
+-            before_each = "--check-output-for-working-dir",
+-            expand_directories = False,
+-        )
++        # Native objects bundled into Rust outputs contain absolute gcda paths
++        # during coverage builds. Those paths are required by the coverage
++        # runtime and are unrelated to Rust compile-time environment variables,
++        # so scanning would reject valid mixed Rust/C crates.
++        if not ctx.configuration.coverage_enabled:
++            # Search code-generating rustc outputs for the resolved action working
++            # directory. RustcMetadata has separate arguments and no object code.
++            checked_outputs = [output_o] if scan_msvc_archive_object else [outputs[0]]
++            if output_o and output_o != checked_outputs[0]:
++                checked_outputs.append(output_o)
++            args.process_wrapper_flags.add_all(
++                checked_outputs,
++                before_each = "--check-output-for-working-dir",
++                expand_directories = False,
++            )
+ 
+         # Run as normal
+         ctx.actions.run(

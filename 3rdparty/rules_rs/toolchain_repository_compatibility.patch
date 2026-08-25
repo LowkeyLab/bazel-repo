@@ -1,0 +1,10 @@
+diff --git a/rs/private/toolchains_repository.bzl b/rs/private/toolchains_repository.bzl
+index b6a68f1..7162ef4 100644
+--- a/rs/private/toolchains_repository.bzl
++++ b/rs/private/toolchains_repository.bzl
+@@ -1,4 +1,5 @@
+ def _toolchains_repository_impl(rctx):
++    rctx.file("BUILD.bazel", "")
+     rctx.file(
+         "rustc/component_labels.bzl",
+         "def rust_toolchain_component_label(label):\n    return Label(label)\n",
