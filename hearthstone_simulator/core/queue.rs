@@ -37,6 +37,8 @@ pub struct TriggerOrderKey {
 pub struct QueuedTrigger {
     pub source: GameEntityId,
     pub event: ResolutionId,
+    #[entities]
+    pub event_entity: Entity,
     pub definition_index: u32,
     pub order: TriggerOrderKey,
 }
@@ -228,6 +230,7 @@ mod tests {
         QueuedTrigger {
             source: GameEntityId(source),
             event: ResolutionId(1),
+            event_entity: Entity::PLACEHOLDER,
             definition_index: 0,
             order: TriggerOrderKey {
                 player_bucket: 0,

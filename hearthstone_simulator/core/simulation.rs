@@ -408,13 +408,13 @@ fn process_next_action(world: &mut World) {
     let label = action.label().to_string();
     let result = apply_action(world, action);
     match &result {
-        Ok(()) => world.resource_mut::<CanonicalTrace>().entries.insert(
-            0,
-            TraceEntry::ActionAccepted {
+        Ok(()) => world
+            .resource_mut::<CanonicalTrace>()
+            .entries
+            .push(TraceEntry::ActionAccepted {
                 player,
                 action: label,
-            },
-        ),
+            }),
         Err(error) => {
             world
                 .resource_mut::<CanonicalTrace>()
@@ -646,6 +646,7 @@ fn spend_resources(
     player_id: PlayerId,
     amount: i32,
 ) -> Result<(), SimulationError> {
+    let amount = amount.max(0);
     let (_, mut player, _, _) = player_mut(world, player_id)?;
     let available = player.available_resources();
     if available < amount {
@@ -1377,6 +1378,65 @@ mod tests {
             .expect("minion should attack");
 
         assert_eq!(simulation.snapshot().players[1].health, 27);
+    }
+
+    #[test]
+    fn accepted_actions_are_appended_in_chronological_order() {
+        let mut simulation = simulation();
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            })
+            .unwrap();
+
+        let accepted = simulation
+            .trace()
+            .iter()
+            .filter_map(|entry| match entry {
+                TraceEntry::ActionAccepted { action, .. } => Some(action.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(accepted, ["PlayCard", "EndTurn"]);
+    }
+
+    #[test]
+    fn negative_card_costs_are_floored_at_zero() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![Card::minion("Discounted", -2, 1, 1)]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+
+        let player = &simulation.snapshot().players[0];
+        assert_eq!(player.used_resources, 0);
+        assert_eq!(player.resources_spent, 0);
+        assert!(simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::ResourceSpent {
+                player: PlayerId::One,
+                amount: 0,
+            }
+        )));
     }
 
     #[test]

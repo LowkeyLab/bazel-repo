@@ -2,7 +2,7 @@ use bevy::prelude::{Component, Entity, World};
 
 use crate::{
     Controller, EntityKind, EventContext, EventKind, GameEntityId, PlayOrder, PlayerId,
-    QueuedTrigger, ResolutionId, ResolutionIdentity, TriggerOrderKey, Zone,
+    QueuedTrigger, ResolutionIdentity, TriggerOrderKey, Zone,
     entity::game_entity,
     queue::{QueueMutationError, add_trigger_entry},
 };
@@ -74,10 +74,12 @@ pub(crate) fn collect_trigger_candidates(
     let Some(event) = world.get::<EventContext>(event_entity).cloned() else {
         return Ok(Vec::new());
     };
-    let event_id = world
+    let Some(event_id) = world
         .get::<ResolutionIdentity>(event_entity)
         .map(|identity| identity.id)
-        .unwrap_or(ResolutionId(u64::MAX));
+    else {
+        return Ok(Vec::new());
+    };
     let mut candidates = Vec::new();
     for entity in world.iter_entities() {
         let (Some(source), Some(triggers), Some(zone), Some(controller)) = (
@@ -96,6 +98,7 @@ pub(crate) fn collect_trigger_candidates(
             let queued = QueuedTrigger {
                 source: *source,
                 event: event_id,
+                event_entity,
                 definition_index: definition_index as u32,
                 order: TriggerOrderKey {
                     player_bucket: controller.0.bucket(),
@@ -140,13 +143,7 @@ pub(crate) fn trigger_is_eligible(
     {
         return false;
     }
-    let event = world.iter_entities().find_map(|entity| {
-        (entity
-            .get::<ResolutionIdentity>()
-            .is_some_and(|identity| identity.id == queued.event))
-        .then(|| entity.get::<EventContext>())
-        .flatten()
-    });
+    let event = world.get::<EventContext>(queued.event_entity);
     definition
         .conditions
         .iter()
@@ -191,7 +188,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        GameObject, QueueKind, QueueState, ResolutionKind, ResolutionQueue, entity::GameEntityIndex,
+        GameObject, QueueKind, QueueState, ResolutionId, ResolutionKind, ResolutionQueue,
+        entity::GameEntityIndex,
     };
 
     fn definition(conditions: Vec<TimedCondition>) -> TriggerDefinition {
@@ -312,6 +310,15 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+        world.entity_mut(event).insert(ResolutionIdentity {
+            id: ResolutionId(4),
+            kind: ResolutionKind::Event,
+        });
+        assert!(
+            collect_trigger_candidates(&mut world, queue, event)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -345,24 +352,27 @@ mod tests {
                 ])]),
             ))
             .id();
-        world.spawn((
-            ResolutionIdentity {
-                id: ResolutionId(3),
-                kind: ResolutionKind::Event,
-            },
-            EventContext {
-                kind: EventKind::Damage,
-                source: None,
-                targets: Vec::new(),
-                controller: PlayerId::Two,
-                proposed_value: Some(3),
-                actual_value: None,
-                simultaneous_ordinal: 0,
-            },
-        ));
+        let event_entity = world
+            .spawn((
+                ResolutionIdentity {
+                    id: ResolutionId(3),
+                    kind: ResolutionKind::Event,
+                },
+                EventContext {
+                    kind: EventKind::Damage,
+                    source: None,
+                    targets: Vec::new(),
+                    controller: PlayerId::Two,
+                    proposed_value: Some(3),
+                    actual_value: None,
+                    simultaneous_ordinal: 0,
+                },
+            ))
+            .id();
         let queued = QueuedTrigger {
             source: GameEntityId(7),
             event: ResolutionId(3),
+            event_entity,
             definition_index: 0,
             order: TriggerOrderKey {
                 player_bucket: 0,

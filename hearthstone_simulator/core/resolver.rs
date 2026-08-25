@@ -270,10 +270,7 @@ pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> 
         return Err("resolution cursor references a non-resolution entity".to_string());
     }
     let mut current = active;
-    loop {
-        let Some(parent) = world.get::<NestedUnder>(current).map(|parent| parent.0) else {
-            break;
-        };
+    while let Some(parent) = world.get::<NestedUnder>(current).map(|parent| parent.0) {
         current = parent;
     }
     if current != root {
