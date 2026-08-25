@@ -21,6 +21,10 @@ COMMON_ENV = {
     "INSTA_WORKSPACE_ROOT": ".",
 }
 
+COMMON_RUSTC_ENV = {
+    "CARGO_MANIFEST_DIR": ".",
+}
+
 COMMON_EXEC_PROPERTIES = {
     "test.workload-isolation-type": "firecracker",
     "test.init-dockerd": "true",
@@ -57,6 +61,7 @@ rust_test(
     data = COMMON_DATA,
     env = COMMON_ENV,
     exec_properties = COMMON_EXEC_PROPERTIES,
+    rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
     deps = COMMON_DEPS,
 )
@@ -70,6 +75,7 @@ rust_test(
     data = COMMON_DATA,
     env = COMMON_ENV,
     exec_properties = COMMON_EXEC_PROPERTIES,
+    rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
     deps = COMMON_DEPS,
 )
@@ -83,6 +89,7 @@ rust_test(
     data = COMMON_DATA,
     env = COMMON_ENV,
     exec_properties = COMMON_EXEC_PROPERTIES,
+    rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
     deps = COMMON_DEPS,
 )
@@ -96,6 +103,7 @@ rust_test(
     data = COMMON_DATA,
     env = COMMON_ENV,
     exec_properties = COMMON_EXEC_PROPERTIES,
+    rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
     deps = COMMON_DEPS,
 )

@@ -30,14 +30,15 @@ bazel_dep(name = "rules_multitool", version = "1.11.1")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.9.4")
 bazel_dep(name = "rules_pkg", version = "1.3.0")
-bazel_dep(name = "rules_rs", version = "0.0.83")
+bazel_dep(name = "rules_rs")
 bazel_dep(name = "llvm", version = "0.8.18")
 
-single_version_override(
+git_override(
     module_name = "rules_rs",
-    patch_strip = 1,
-    patches = ["//3rdparty/rules_rs:crate_annotation_compile_data.patch"],
-    version = "0.0.83",
+    commit = "c86afd0a53f91f91130146087ab78899e656a165",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/rules_rs:toolchain_repository_compatibility.patch"],
+    remote = "https://github.com/hermeticbuild/rules_rs.git",
 )
 
 rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
@@ -49,11 +50,6 @@ use_repo(rules_rust, "rules_rust")
 
 rules_rust_wasm_bindgen = use_extension("@rules_rs//rs:rules_rust_wasm_bindgen.bzl", "rules_rust_wasm_bindgen")
 use_repo(rules_rust_wasm_bindgen, "rules_rust_wasm_bindgen")
-
-single_version_override(
-    module_name = "rules_rust_prost",
-    version = "0.70.0",
-)
 
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_buf", version = "0.5.4")
@@ -81,12 +77,13 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "gazelle", version = "0.53.0")
 
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
-bazel_dep(name = "gazelle_ts", version = "0.5.1", dev_dependency = True)
-single_version_override(
+bazel_dep(name = "gazelle_ts", dev_dependency = True)
+git_override(
     module_name = "gazelle_ts",
-    patch_strip = 1,
-    patches = ["//3rdparty/gazelle_ts:isolate_rust_toolchain.patch"],
-    version = "0.5.1",
+    commit = "91b6902705a2e7971eb8ee362a4fb30be946b955",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/gazelle_ts:unique_rust_toolchain.patch"],
+    remote = "https://github.com/hermeticbuild/gazelle_ts.git",
 )
 
 bazel_dep(name = "gazelle_rust", dev_dependency = True)
@@ -345,7 +342,6 @@ register_toolchains("@llvm//toolchain:all")
 toolchains = use_extension(
     "@rules_rs//rs/toolchains:module_extension.bzl",
     "toolchains",
-    isolate = True,
 )
 toolchains.toolchain(
     name = "rust_toolchains_1_96_0",
@@ -359,25 +355,22 @@ toolchains.toolchain(
 )
 use_repo(
     toolchains,
+    "default_rust_toolchains",
+    "gazelle_ts_rust_toolchains",
     "nightly_rust_toolchains",
     "rust_toolchains_1_96_0",
     "rustfmt_linux_x86_64_1_96_0",
 )
 
 register_toolchains(
-    "@rust_toolchains_1_96_0//:all",
-    "@nightly_rust_toolchains//:all",
+    "@rust_toolchains_1_96_0//...",
+    "@nightly_rust_toolchains//...",
 )
 
-http_archive(
+http_file(
     name = "swagger_ui",
-    build_file = "//3rdparty/swagger_ui:BUILD.swagger_ui",
+    downloaded_file_path = "swagger-ui-5.17.14.zip",
     integrity = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=",
-    patch_args = [
-        "-p1",
-    ],
-    patches = ["//3rdparty/swagger_ui:fix.patch"],
-    strip_prefix = "swagger-ui-5.17.14",
     urls = ["https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip"],
 )
 
@@ -395,23 +388,17 @@ crate.from_cargo(
     ],
 )
 crate.annotation(
-    additive_build_file_content = """
-filegroup(
-    name = "dist",
-    srcs = ["@swagger_ui//:dist"],
+    crate = "rust-embed-impl",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/rust_embed_impl:remap_embed_paths.patch"],
 )
-""",
-    crate = "utoipa-swagger-ui",
-    extra_compile_data = [":dist"],
-    gen_build_script = "off",
-    patch_args = [
-        "-p1",
-    ],
-    patches = ["//3rdparty/utoipa_swagger_ui:fix.patch"],
-    rustc_env = {
-        # Set this to make sure that RustEmbed points to the parent dir of the swagger ui dist
-        "CARGO_MANIFEST_DIR": "$(execpath :dist)/..",
+crate.annotation(
+    build_script_data = ["@swagger_ui//file"],
+    build_script_env = {
+        "SWAGGER_UI_DOWNLOAD_URL": "file://$(execpath @swagger_ui//file)",
     },
+    crate = "utoipa-swagger-ui",
+    gen_build_script = "on",
 )
 use_repo(crate, "crates")
 
