@@ -106,12 +106,12 @@ Game ECS entities <---- primitive effect reducers ---- Resolution ECS entities
        +--------------- canonical trace ---------------+
 ```
 
-The ECS world contains two deliberately separate categories:
+Simulator-owned domain entities fall into two deliberately separate categories:
 
 - `GameObject` entities hold durable game state.
 - `ResolutionNode` entities hold temporary or suspended resolution state.
 
-Systems must use these marker components to avoid treating engine machinery as cards or other game objects.
+These are not the only Bevy entities in the world. In Bevy 0.19, resources occupy singleton entities, and registered systems, observers, and other framework facilities may also own entities. Systems and snapshots must therefore select simulator entities through `GameObject` and `ResolutionNode` rather than iterating every world entity or assuming that every unmarked entity is gameplay state.
 
 ## Runtime game entities
 
@@ -121,8 +121,16 @@ Every game entity receives a stable logical ID independent of Bevy's generationa
 
 ```rust
 #[derive(Component, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[component(
+    immutable,
+    on_insert = index_game_entity,
+    on_discard = unindex_game_entity,
+)]
+#[require(GameObject)]
 struct GameEntityId(u64);
 ```
+
+`GameEntityId`, `ResolutionId`, definition identity, and other write-once metadata use Bevy immutable components. Normal creation APIs validate logical-ID uniqueness before insertion; insertion and discard hooks keep the lookup index synchronized and assert the invariant for internal callers. Required components encode structural invariants that have deterministic constructors, but required-component constructors do not allocate logical IDs or perform ruleset validation.
 
 A resource maps logical IDs to Bevy entities for efficient runtime access. Canonical snapshots and traces contain logical IDs, never raw Bevy entity IDs.
 
@@ -152,6 +160,8 @@ Enchantments
 ```
 
 Not every entity has every component. For example, a weapon has durability, an enchantment has an attachment relationship, and a Player has resource counters.
+
+Table storage remains the default. Frequently added or removed marker components, such as `PendingDestroy` and short-lived resolution tags, may use Bevy sparse-set storage after benchmarks confirm that avoiding archetype moves outweighs slower iteration. Value components such as `Zone` and `ResolutionState` remain table-stored.
 
 ### Zones and indexes
 
@@ -200,7 +210,9 @@ AuraDefinition
 
 Effects request primitive operations such as damage, healing, movement, summoning, drawing, transformation, or attaching an enchantment. They do not mutate arbitrary world state directly.
 
-A static `NativeEffectId` escape hatch may be added for effects that cannot reasonably be expressed in the common intermediate representation. Native handlers are registered by the plugin; runtime state stores only the handler ID and data.
+A static `NativeEffectId` escape hatch may be added for effects that cannot reasonably be expressed in the common intermediate representation. Native handlers are registered by the plugin as Bevy systems, and a registry maps stable `NativeEffectId` values to typed `SystemId`s. Runtime state stores only the stable handler ID and data, never the entity-backed `SystemId`.
+
+The resolver may invoke a handler through `World::run_system_with`, allowing handlers to use typed inputs and ordinary `SystemParam`s. Native handlers should return effect plans that flow back through primitive reducers rather than mutate arbitrary gameplay state. Because `run_system_with` flushes commands queued by the handler immediately, handlers either avoid `Commands` or treat that flush as an explicit, tested mutation boundary.
 
 ## Bevy schedules
 
@@ -220,6 +232,23 @@ The normal Bevy `Update` schedule accepts at most one pending player action and 
 
 The driver may invoke `ResolveFrame` and `ResolvePhaseBoundary` because they are different from the currently running `Update` schedule. It must not recursively invoke the same schedule label; Bevy temporarily removes a schedule from the world while running it.
 
+### Schedule guardrails
+
+Resolution schedules are configured strictly:
+
+```rust
+ScheduleBuildSettings {
+    ambiguity_detection: LogLevel::Error,
+    hierarchy_detection: LogLevel::Error,
+    auto_insert_apply_deferred: false,
+    ..default()
+}
+```
+
+They also disable final deferred application with `Schedule::set_apply_final_deferred(false)`. Consequently, unordered conflicting systems fail schedule construction, and no command buffer becomes visible merely because a schedule or ordered dependency happens to end. Every deferred synchronization point must appear explicitly in the configured pipeline.
+
+A single-threaded executor may reduce overhead for small, mostly exclusive resolution schedules, but it is a benchmark-driven implementation choice, not a determinism guarantee. Gameplay order remains explicit even if independent discovery systems execute in parallel.
+
 ### Coarse simulation state
 
 Bevy States may represent coarse external lifecycle only:
@@ -233,6 +262,8 @@ Complete
 ```
 
 They do not model individual rulebook phases. Rulebook phases are nested runtime data, while Bevy States represent one global current state and transition at schedule boundaries.
+
+The repository currently disables Bevy default features. If this design uses Bevy States, the `bevy_state` feature must be enabled explicitly and transition timing must be included in the synchronous `Simulation::apply` contract. Otherwise the same lifecycle is represented by an ordinary resource enum without `OnEnter` or `OnExit` schedules.
 
 ### Ordered system sets
 
@@ -273,6 +304,8 @@ The exact pipeline is ruleset data and must be confirmed against the pinned rule
 
 Exact mutation timing is essential. Resolution schedules should therefore use exclusive systems and direct `World` mutation for resolution-node creation and primitive game mutations. Ordinary deferred `Commands` are suitable only when an explicit `ApplyDeferred` boundary is part of the designed timing.
 
+Queue candidate discovery is the primary safe use: independent systems may enqueue candidate entities in parallel, followed by an explicit `ApplyDeferred` and then an exclusive freeze system. Deferred insertion order is irrelevant because the freeze system computes complete ordering keys and sorts after every candidate is visible. Primitive reducers do not use this pattern unless the rulebook explicitly defines a simultaneous collection boundary.
+
 ## Resolution graph
 
 ### Frames as ECS entities
@@ -281,13 +314,22 @@ The resolution stack is modeled as an active path through ECS relationships rath
 
 ```rust
 #[derive(Component)]
-struct ResolutionNode {
+struct ResolutionNode;
+
+#[derive(Component)]
+#[component(immutable)]
+struct ResolutionIdentity {
     id: ResolutionId,
     kind: ResolutionKind,
-    state: ResolutionState,
 }
 
 #[derive(Component)]
+struct ResolutionState {
+    progress: ResolutionProgress,
+}
+
+#[derive(Component)]
+#[component(immutable)]
 #[relationship(relationship_target = NestedFrames)]
 struct NestedUnder(Entity);
 
@@ -316,12 +358,15 @@ A small resource points to the active leaf:
 
 ```rust
 #[derive(Resource, Default)]
+#[component(map_entities)]
 struct ResolutionCursor {
     root: Option<Entity>,
     active: Option<Entity>,
     remaining_budget: usize,
 }
 ```
+
+`ResolutionCursor` implements `MapEntities` for its raw entity fields. Components that contain raw entity fields use `#[entities]` where the derive supports it. This allows Bevy cloning and tooling to remap internal references, while canonical serialization still converts them to logical resolution IDs.
 
 The relationship ancestry is the logical stack:
 
@@ -335,7 +380,7 @@ Sequence
 
 Pushing a frame spawns a `ResolutionNode` related to the current active frame and changes `ResolutionCursor.active`. Popping reads `NestedUnder`, completes or removes the current node, and restores its parent as active.
 
-Completed nodes may be retained until the sequence ends for diagnostics, then removed through linked relationship cleanup. The canonical trace remains after resolution entities are cleaned up.
+Completed nodes may be retained until the sequence ends for diagnostics, then removed through linked relationship cleanup. The canonical trace remains after resolution entities are cleaned up. Bevy relationship helpers such as ancestor, root-ancestor, and depth-first descendant traversal support diagnostics and graph-invariant checks; the active cursor remains authoritative for execution.
 
 ### Iterative depth-first resolution
 
@@ -370,12 +415,19 @@ Every event or phase requiring ordered responses creates a queue resolution enti
 
 ```rust
 #[derive(Component)]
-struct ResolutionQueue {
-    kind: QueueKind,
-    state: QueueState,
+#[component(immutable)]
+struct ResolutionQueue(QueueKind);
+
+#[derive(Component)]
+enum QueueState {
+    Collecting,
+    Frozen,
+    Resolving,
+    Complete,
 }
 
 #[derive(Component)]
+#[component(immutable)]
 #[relationship(relationship_target = QueueEntries)]
 struct QueuedIn(Entity);
 
@@ -388,11 +440,19 @@ Queue entries are ECS entities with typed payload components. A trigger entry co
 
 ```rust
 #[derive(Component)]
+#[component(immutable)]
 struct QueuedTrigger {
     source: GameEntityId,
     event: ResolutionId,
     order: TriggerOrderKey,
-    status: QueueEntryStatus,
+}
+
+#[derive(Component)]
+enum QueueEntryStatus {
+    Pending,
+    Resolving,
+    Resolved,
+    Aborted,
 }
 ```
 
@@ -418,7 +478,7 @@ The selected ruleset computes these fields. It can therefore represent normal gl
 
 #### Collecting
 
-Candidate-discovery systems query eligible game entities and spawn related queue-entry entities. Collection checks pre-check and queue-time conditions but does not run trigger effects.
+Candidate-discovery systems query eligible game entities and spawn related queue-entry entities. Collection checks pre-check and queue-time conditions but does not run trigger effects. Discovery may use deferred commands and parallel systems only in a pipeline with an explicit `ApplyDeferred` before freezing.
 
 Only queues in `Collecting` state accept entries.
 
@@ -433,13 +493,17 @@ An exclusive freeze system:
 
 ```rust
 #[derive(Component)]
-struct FrozenQueue {
+#[component(immutable)]
+struct FrozenQueueEntries {
+    #[entities]
     entries: Vec<Entity>,
-    cursor: usize,
 }
+
+#[derive(Component)]
+struct QueueCursor(usize);
 ```
 
-The frozen vector intentionally duplicates the current relationship ordering. Bevy relationships continue to describe ownership, while `FrozenQueue` is the immutable rulebook queue. Later entity creation or relationship changes cannot modify it.
+The immutable frozen vector intentionally duplicates the current relationship ordering. Bevy relationships continue to describe ownership, while `FrozenQueueEntries` is the authoritative rulebook queue and `QueueCursor` is its separately mutable progress. Later entity creation or relationship changes cannot mutate frozen membership through an ordinary mutable query.
 
 #### Resolving
 
@@ -453,7 +517,7 @@ After the final entry, the queue is marked complete and its parent frame resumes
 
 ### Immutability enforcement
 
-Queue collection and freezing are separate system sets. Candidate systems query only collecting queues. Internal insertion APIs reject frozen queues, and invariant tests assert that:
+Queue collection and freezing are separate system sets with an explicit deferred-application boundary when collection uses commands. Candidate systems query only collecting queues. Bevy's immutable-component access prevents in-place mutation of frozen membership; internal replacement APIs reject frozen queues, and invariant tests assert that:
 
 - Frozen entry membership never changes
 - Frozen order never changes
@@ -650,6 +714,8 @@ A canonical full snapshot includes all durable game state and the selected rules
 
 Normally `Simulation::apply` returns only after the sequence resolves. If a choice is required, the simulation enters `AwaitingChoice` and retains the active resolution graph and frozen queues. Snapshot support for suspended resolution must serialize logical resolution IDs and reconstruct Bevy relationships without depending on raw Bevy entities.
 
+Internal components and resources that contain Bevy entity references implement `MapEntities`, allowing Bevy's entity-cloning and relationship tooling to remap references in fixtures and in-memory utilities. `Simulation::fork` may reuse those facilities after profiling, but its observable equivalence is defined by the canonical logical-ID snapshot rather than Bevy world serialization or raw entity allocation.
+
 ### Trace
 
 The canonical trace records:
@@ -665,7 +731,7 @@ The canonical trace records:
 - Zone movement
 - Outcome checks
 
-Trace data supports conformance assertions, replay diagnostics, and future UI animation. Bevy Events or Observers may publish trace notifications, but they are not the authoritative gameplay trigger mechanism.
+Trace data supports conformance assertions, replay diagnostics, and future UI animation. In Bevy 0.19, buffered adapter notifications use Bevy Messages, while immediate targeted diagnostics may use EntityEvents and Observers. Neither is the authoritative gameplay trigger mechanism: rulebook events are resolution entities, and reducers append the canonical trace before publishing any optional notification.
 
 ## Public API direction
 
@@ -753,7 +819,7 @@ Gazelle determines the final Bazel package layout. Subdirectories should not int
 
 ### Milestone 1: Entity and zone foundation
 
-- Introduce logical game entity IDs.
+- Introduce immutable logical game entity IDs with index-maintenance hooks and required `GameObject` markers.
 - Move hands, decks, and boards to zone indexes.
 - Add controller, position, play-order, and entity-kind components.
 - Implement basic zone movement and limits.
@@ -763,20 +829,23 @@ Gazelle determines the final Bazel package layout. Subdirectories should not int
 
 - Add resolution-node components and custom relationships.
 - Add `ResolutionCursor` and the exclusive driver.
-- Add custom schedules and ordered system sets.
+- Add custom schedules, ordered system sets, strict ambiguity checks, and explicit deferred boundaries.
+- Add entity-reference remapping for the resolution cursor and relationship-bearing components.
 - Support push, suspend, resume, complete, and cleanup.
 - Add resolution budget and graph invariants.
 
 ### Milestone 3: Event and trigger queues
 
 - Add queue and entry entities with ownership relationships.
-- Implement candidate collection, explicit ordering, freezing, and cursor-based resolution.
+- Implement candidate collection, explicit ordering, immutable frozen membership, and cursor-based resolution.
+- Separate immutable frozen entries from mutable queue progress.
 - Add event context, trigger definitions, and condition timings.
 - Prove queue immutability and depth-first behavior with focused tests.
 
 ### Milestone 4: Effects and deterministic randomness
 
 - Add selectors, conditions, values, and effect programs.
+- Add the optional `NativeEffectId` to registered-system mapping with an explicit command-flush policy.
 - Add primitive reducers and nested event creation.
 - Add deterministic candidate ordering and RNG traces.
 - Add synthetic fixtures for nested-trigger interactions.
@@ -830,7 +899,7 @@ Each quirk is a named rule or policy, not an unexplained branch in a card handle
 ### Milestone 10: Hardening and migration
 
 - Migrate the CLI example and scaffold tests.
-- Add full and filtered snapshots.
+- Add full and filtered snapshots and optional Bevy Message notifications.
 - Add suspended choices and `Simulation::fork`.
 - Add invariant and stress tests.
 - Benchmark deep and broad resolution graphs.
@@ -863,7 +932,7 @@ Required suites cover:
 
 Useful invariants include:
 
-- Every game object has exactly one logical ID.
+- Every game object has exactly one immutable logical ID, and the logical-ID index agrees with ECS membership.
 - Every zoned entity occurs exactly once in its zone index.
 - Board and hand limits are never exceeded except by an explicit ruleset exception.
 - Frozen queue membership and order never change.
@@ -905,7 +974,7 @@ Mitigation: assign logical IDs to both game and resolution entities and remap re
 
 ### Deferred operations can shift timing
 
-Mitigation: use direct `World` mutation in exclusive resolution systems or place explicit `ApplyDeferred` steps where deferred behavior is intended.
+Mitigation: disable automatic and final deferred application in resolution schedules, use direct `World` mutation in exclusive resolution systems, and place explicit `ApplyDeferred` steps where deferred behavior is intended. Native registered handlers either avoid commands or document their immediate post-handler flush as part of the reducer boundary.
 
 ### Complete card coverage could distort engine design
 
@@ -925,7 +994,10 @@ Unless superseded by a documented decision:
 4. Bevy schedules and system sets orchestrate resolution.
 5. The resolution stack is an ECS relationship graph with a small active-cursor resource.
 6. Event and trigger queues are ECS entities whose ordered membership is frozen explicitly.
-7. Bevy Events and Observers provide diagnostics and integration, not authoritative card-trigger ordering.
+7. Bevy Messages, EntityEvents, and Observers provide diagnostics and integration, not authoritative card-trigger ordering.
 8. Game and resolution ordering never depend on raw Bevy entity or query order.
 9. Resolution uses an iterative driver and safety budget, not recursive Rust calls.
-10. Card definitions are data-oriented; exceptional native handlers are identified explicitly.
+10. Card definitions are data-oriented; exceptional native handlers are identified explicitly and may map to registered Bevy systems.
+11. Write-once identity and frozen queue membership use immutable components; mutable queue progress is stored separately.
+12. Resolution schedules reject ECS access ambiguities and expose deferred mutations only at explicit boundaries.
+13. Raw Bevy entity references implement remapping for internal cloning, but canonical persistence uses logical IDs.
