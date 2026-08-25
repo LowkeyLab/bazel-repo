@@ -9,7 +9,6 @@ on:
   pull_request:
     paths:
       - .github/workflows/copilot-code-review.yml
-      
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
