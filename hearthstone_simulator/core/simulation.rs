@@ -729,116 +729,124 @@ fn execute_effects(
     for effect in effects {
         push_resolution(world, ResolutionKind::Effect)?;
         consume_budget(world)?;
-        let result = match effect {
-            Effect::DealDamage { targets, amount } => {
-                let targets = select_entities(world, context, targets);
-                let value = evaluate_value(world, context, *amount, targets.len());
-                for target in targets {
-                    apply_damage(world, context.source, target, value)?;
-                }
-                Ok(())
-            }
-            Effect::Heal { targets, amount } => {
-                let targets = select_entities(world, context, targets);
-                let value = evaluate_value(world, context, *amount, targets.len()).max(0);
-                for target in targets {
-                    if let Some(entity) = game_entity(world, target)
-                        && let Some(mut damage) = world.get_mut::<Damage>(entity)
-                    {
-                        damage.0 = (damage.0 - value).max(0);
-                    }
-                }
-                Ok(())
-            }
-            Effect::Destroy { targets } => {
-                for target in select_entities(world, context, targets) {
-                    if let Some(entity) = game_entity(world, target) {
-                        world.entity_mut(entity).insert(PendingDestroy);
-                    }
-                }
-                Ok(())
-            }
-            Effect::Draw { player, count } => {
-                let player = resolve_player(context.controller, *player);
-                for _ in 0..*count {
-                    draw_card(world, player)?;
-                }
-                Ok(())
-            }
-            Effect::GainResource {
-                player,
-                amount,
-                temporary,
-            } => {
-                let player_id = resolve_player(context.controller, *player);
-                let maximum = world.resource::<Ruleset>().maximum_mana;
-                let (_, mut player, _, _) = player_mut(world, player_id)?;
-                if *temporary {
-                    player.temporary_resources += *amount;
-                } else {
-                    player.maximum_resources = (player.maximum_resources + *amount).min(maximum);
-                }
-                Ok(())
-            }
-            Effect::Summon {
-                player,
-                card,
-                board_index,
-            } => {
-                let player = resolve_player(context.controller, *player);
-                if world
-                    .resource::<ZoneIndex>()
-                    .entities(player, Zone::Play)
-                    .len()
-                    < world.resource::<Ruleset>().board_limit
-                {
-                    let summoned = spawn_card(world, player, card.clone(), Zone::Play)?;
-                    if let Some(index) = board_index {
-                        move_entity(world, summoned, Zone::Play, Some(*index))?;
-                    }
-                    let order = allocate_play_order(world);
-                    let entity = game_entity(world, summoned).expect("summoned entity was indexed");
-                    world.entity_mut(entity).insert(order);
-                }
-                Ok(())
-            }
-            Effect::AttachStatModifier { targets, modifier } => {
-                for target in select_entities(world, context, targets) {
-                    attach_stat_modifier(world, context.controller, target, *modifier)?;
-                }
-                Ok(())
-            }
-            Effect::Silence { targets } => {
-                for target in select_entities(world, context, targets) {
-                    silence_entity(world, target)?;
-                }
-                Ok(())
-            }
-            Effect::Transform { targets, card } => {
-                for target in select_entities(world, context, targets) {
-                    transform_entity(world, target, card.clone())?;
-                }
-                Ok(())
-            }
-            Effect::Copy {
-                targets,
-                player,
-                zone,
-            } => {
-                let controller = resolve_player(context.controller, *player);
-                for target in select_entities(world, context, targets) {
-                    if let Some(card) = copy_card_data(world, target) {
-                        let _ = spawn_card(world, controller, card, *zone);
-                    }
-                }
-                Ok(())
-            }
-            Effect::Sequence(nested) => execute_effects(world, context, nested),
-        };
+        let result = execute_effect(world, context, effect);
         complete_active(world)?;
         result?;
     }
     Ok(())
+}
+
+fn execute_effect(
+    world: &mut World,
+    context: &EffectContext,
+    effect: &Effect,
+) -> Result<(), SimulationError> {
+    match effect {
+        Effect::DealDamage { targets, amount } => {
+            let targets = select_entities(world, context, targets);
+            let value = evaluate_value(world, context, *amount, targets.len());
+            for target in targets {
+                apply_damage(world, context.source, target, value)?;
+            }
+            Ok(())
+        }
+        Effect::Heal { targets, amount } => {
+            let targets = select_entities(world, context, targets);
+            let value = evaluate_value(world, context, *amount, targets.len()).max(0);
+            for target in targets {
+                if let Some(entity) = game_entity(world, target)
+                    && let Some(mut damage) = world.get_mut::<Damage>(entity)
+                {
+                    damage.0 = (damage.0 - value).max(0);
+                }
+            }
+            Ok(())
+        }
+        Effect::Destroy { targets } => {
+            for target in select_entities(world, context, targets) {
+                if let Some(entity) = game_entity(world, target) {
+                    world.entity_mut(entity).insert(PendingDestroy);
+                }
+            }
+            Ok(())
+        }
+        Effect::Draw { player, count } => {
+            let player = resolve_player(context.controller, *player);
+            for _ in 0..*count {
+                draw_card(world, player)?;
+            }
+            Ok(())
+        }
+        Effect::GainResource {
+            player,
+            amount,
+            temporary,
+        } => {
+            let player_id = resolve_player(context.controller, *player);
+            let maximum = world.resource::<Ruleset>().maximum_mana;
+            let (_, mut player, _, _) = player_mut(world, player_id)?;
+            if *temporary {
+                player.temporary_resources += *amount;
+            } else {
+                player.maximum_resources = (player.maximum_resources + *amount).min(maximum);
+            }
+            Ok(())
+        }
+        Effect::Summon {
+            player,
+            card,
+            board_index,
+        } => {
+            let player = resolve_player(context.controller, *player);
+            if world
+                .resource::<ZoneIndex>()
+                .entities(player, Zone::Play)
+                .len()
+                < world.resource::<Ruleset>().board_limit
+            {
+                let summoned = spawn_card(world, player, card.clone(), Zone::Play)?;
+                if let Some(index) = board_index {
+                    move_entity(world, summoned, Zone::Play, Some(*index))?;
+                }
+                let order = allocate_play_order(world);
+                let entity = game_entity(world, summoned).expect("summoned entity was indexed");
+                world.entity_mut(entity).insert(order);
+            }
+            Ok(())
+        }
+        Effect::AttachStatModifier { targets, modifier } => {
+            for target in select_entities(world, context, targets) {
+                attach_stat_modifier(world, context.controller, target, *modifier)?;
+            }
+            Ok(())
+        }
+        Effect::Silence { targets } => {
+            for target in select_entities(world, context, targets) {
+                silence_entity(world, target)?;
+            }
+            Ok(())
+        }
+        Effect::Transform { targets, card } => {
+            for target in select_entities(world, context, targets) {
+                transform_entity(world, target, card.clone())?;
+            }
+            Ok(())
+        }
+        Effect::Copy {
+            targets,
+            player,
+            zone,
+        } => {
+            let controller = resolve_player(context.controller, *player);
+            for target in select_entities(world, context, targets) {
+                if let Some(card) = copy_card_data(world, target) {
+                    let _ = spawn_card(world, controller, card, *zone);
+                }
+            }
+            Ok(())
+        }
+        Effect::Sequence(nested) => execute_effects(world, context, nested),
+    }
 }
 
 fn attach_stat_modifier(
@@ -1477,5 +1485,614 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(first.len(), 2);
+    }
+
+    #[test]
+    fn action_validation_reports_each_rejection_and_concede_completes_game() {
+        let mut wrong_turn = simulation();
+        assert_eq!(
+            wrong_turn.apply(GameAction::EndTurn {
+                player: PlayerId::Two,
+            }),
+            Err(SimulationError::NotPlayersTurn(PlayerId::Two))
+        );
+
+        let mut game_over = simulation();
+        game_over
+            .app
+            .world_mut()
+            .resource_mut::<GameState>()
+            .outcome = Some(GameOutcome::Winner(PlayerId::Two));
+        assert_eq!(
+            game_over.apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            }),
+            Err(SimulationError::GameOver)
+        );
+
+        let mut busy = simulation();
+        busy.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
+        assert_eq!(
+            busy.apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            }),
+            Err(SimulationError::NotAwaitingAction)
+        );
+        assert!(busy.legal_actions().is_empty());
+
+        let mut invalid = simulation();
+        invalid.app.update();
+        let card = hand_card(&mut invalid, PlayerId::One);
+        let own_hero = hero(&mut invalid, PlayerId::One);
+        let opposing_hero = hero(&mut invalid, PlayerId::Two);
+        assert_eq!(
+            invalid.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: opposing_hero,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            Err(SimulationError::NotControlled {
+                entity: opposing_hero
+            })
+        );
+        assert_eq!(
+            invalid.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: own_hero,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            Err(SimulationError::WrongZone {
+                entity: own_hero,
+                expected: Zone::Hand,
+            })
+        );
+        let card_entity = game_entity(invalid.app.world(), card).unwrap();
+        invalid
+            .app
+            .world_mut()
+            .entity_mut(card_entity)
+            .insert(EntityKind::Weapon);
+        assert_eq!(
+            invalid.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            Err(SimulationError::NotPlayable(card))
+        );
+
+        let mut board_full = simulation();
+        board_full
+            .app
+            .world_mut()
+            .resource_mut::<Ruleset>()
+            .board_limit = 0;
+        let card = hand_card(&mut board_full, PlayerId::One);
+        assert_eq!(
+            board_full.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            Err(SimulationError::BoardFull(PlayerId::One))
+        );
+
+        let mut expensive = Simulation::new([
+            PlayerConfig::new("Jaina", vec![Card::spell("Expensive", 2)]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut expensive, PlayerId::One);
+        assert_eq!(
+            expensive.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            Err(SimulationError::NotEnoughMana {
+                player: PlayerId::One,
+                required: 2,
+                available: 1,
+            })
+        );
+
+        let mut concede = simulation();
+        concede
+            .apply(GameAction::Concede {
+                player: PlayerId::One,
+            })
+            .unwrap();
+        assert_eq!(
+            concede.snapshot().game.outcome,
+            Some(GameOutcome::Winner(PlayerId::Two))
+        );
+        assert_eq!(concede.snapshot().game.status, SimulationStatus::Complete);
+    }
+
+    #[test]
+    fn legal_actions_ignore_stale_ids_and_deck_setup_spawns_cards() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::with_deck("Jaina", vec![Card::spell("Topdeck", 0)]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        simulation
+            .app
+            .world_mut()
+            .resource_mut::<ZoneIndex>()
+            .0
+            .insert((PlayerId::One, Zone::Hand), vec![GameEntityId(u64::MAX)]);
+
+        assert_eq!(
+            simulation.legal_actions(),
+            vec![GameAction::EndTurn {
+                player: PlayerId::One
+            }]
+        );
+        assert_eq!(simulation.snapshot().players[0].deck.len(), 1);
+    }
+
+    #[test]
+    fn combat_checks_exhaustion_and_defenders_and_applies_counter_damage() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![Card::minion("Attacker", 0, 2, 3)]),
+            PlayerConfig::new("Rexxar", vec![Card::minion("Defender", 0, 1, 2)]),
+        ]);
+        let attacker = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: attacker,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let enemy_hero = hero(&mut simulation, PlayerId::Two);
+        assert_eq!(
+            simulation.apply(GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: enemy_hero,
+            }),
+            Err(SimulationError::CannotAttack(attacker))
+        );
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            })
+            .unwrap();
+        let defender = hand_card(&mut simulation, PlayerId::Two);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::Two,
+                card: defender,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::Two,
+            })
+            .unwrap();
+        let own_hero = hero(&mut simulation, PlayerId::One);
+        assert_eq!(
+            simulation.apply(GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: own_hero,
+            }),
+            Err(SimulationError::InvalidDefender(own_hero))
+        );
+        simulation
+            .apply(GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender,
+            })
+            .unwrap();
+
+        let attacker_state = simulation
+            .snapshot()
+            .objects
+            .into_iter()
+            .find(|object| object.id == attacker)
+            .unwrap();
+        assert_eq!(attacker_state.damage, 1);
+    }
+
+    #[test]
+    fn damage_handles_missing_targets_immunity_shields_armor_and_negative_values() {
+        let mut simulation = simulation();
+        let target = hero(&mut simulation, PlayerId::Two);
+        let entity = game_entity(simulation.app.world(), target).unwrap();
+        assert_eq!(
+            apply_damage(simulation.app.world_mut(), None, GameEntityId(99), 1),
+            Err(SimulationError::EntityNotFound(GameEntityId(99)))
+        );
+
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<Keywords>(entity)
+            .unwrap()
+            .0
+            .insert(Keyword::Immune);
+        apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
+        assert_eq!(
+            simulation.app.world().get::<Damage>(entity),
+            Some(&Damage(0))
+        );
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<Keywords>(entity)
+            .unwrap()
+            .0
+            .remove(&Keyword::Immune);
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<Keywords>(entity)
+            .unwrap()
+            .0
+            .insert(Keyword::DivineShield);
+        apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
+        assert!(
+            !simulation
+                .app
+                .world()
+                .get::<Keywords>(entity)
+                .unwrap()
+                .0
+                .contains(&Keyword::DivineShield)
+        );
+        simulation
+            .app
+            .world_mut()
+            .entity_mut(entity)
+            .insert(Armor(3));
+        apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
+        assert_eq!(simulation.app.world().get::<Armor>(entity), Some(&Armor(0)));
+        assert_eq!(
+            simulation.app.world().get::<Damage>(entity),
+            Some(&Damage(2))
+        );
+        apply_damage(simulation.app.world_mut(), None, target, -5).unwrap();
+        assert_eq!(
+            simulation.app.world().get::<Damage>(entity),
+            Some(&Damage(2))
+        );
+    }
+
+    #[test]
+    fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::with_deck("Jaina", vec![Card::spell("Friendly Draw", 0)]),
+            PlayerConfig::with_deck("Rexxar", vec![Card::spell("Enemy Draw", 0)]),
+        ]);
+        let world = simulation.app.world_mut();
+        let friendly = spawn_card(
+            world,
+            PlayerId::One,
+            Card::minion("Friendly", 0, 2, 3),
+            Zone::Play,
+        )
+        .unwrap();
+        let enemy = spawn_card(
+            world,
+            PlayerId::Two,
+            Card::minion("Enemy", 0, 1, 4),
+            Zone::Play,
+        )
+        .unwrap();
+        let context = EffectContext {
+            source: Some(friendly),
+            controller: PlayerId::One,
+            declared_target: Some(enemy),
+        };
+
+        assert_eq!(
+            select_entities(world, &context, &Selector::Source),
+            vec![friendly]
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::DeclaredTarget),
+            vec![enemy]
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::Entity(enemy)),
+            vec![enemy]
+        );
+        assert_eq!(
+            select_entities(
+                world,
+                &context,
+                &Selector::InZone {
+                    player: PlayerSelector::Opponent,
+                    zone: Zone::Deck,
+                }
+            )
+            .len(),
+            1
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::FriendlyMinions),
+            vec![friendly]
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::EnemyMinions),
+            vec![enemy]
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::AllMinions),
+            vec![friendly, enemy]
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::FriendlyCharacters).len(),
+            2
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::EnemyCharacters).len(),
+            2
+        );
+        assert_eq!(
+            select_entities(world, &context, &Selector::AllCharacters).len(),
+            4
+        );
+        assert_eq!(
+            select_entities(
+                world,
+                &context,
+                &Selector::Random(Box::new(Selector::Entity(enemy)))
+            ),
+            vec![enemy]
+        );
+        assert_eq!(
+            evaluate_value(world, &context, ValueExpression::SourceAttack, 9),
+            2
+        );
+        assert_eq!(
+            evaluate_value(world, &context, ValueExpression::TargetCount, 9),
+            9
+        );
+        assert_eq!(
+            resolve_player(PlayerId::One, PlayerSelector::Controller),
+            PlayerId::One
+        );
+        assert_eq!(
+            resolve_player(PlayerId::One, PlayerSelector::Opponent),
+            PlayerId::Two
+        );
+        assert_eq!(
+            resolve_player(PlayerId::One, PlayerSelector::Player(PlayerId::Two)),
+            PlayerId::Two
+        );
+
+        begin_resolution(world, ResolutionKind::Sequence);
+        execute_effects(
+            world,
+            &context,
+            &[Effect::Sequence(vec![
+                Effect::DealDamage {
+                    targets: Selector::DeclaredTarget,
+                    amount: ValueExpression::SourceAttack,
+                },
+                Effect::Heal {
+                    targets: Selector::DeclaredTarget,
+                    amount: ValueExpression::TargetCount,
+                },
+                Effect::Destroy {
+                    targets: Selector::DeclaredTarget,
+                },
+                Effect::Draw {
+                    player: PlayerSelector::Opponent,
+                    count: 1,
+                },
+                Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 2,
+                    temporary: true,
+                },
+                Effect::GainResource {
+                    player: PlayerSelector::Player(PlayerId::Two),
+                    amount: 2,
+                    temporary: false,
+                },
+                Effect::Summon {
+                    player: PlayerSelector::Opponent,
+                    card: Card::minion("Summoned", 0, 1, 1),
+                    board_index: Some(1),
+                },
+                Effect::AttachStatModifier {
+                    targets: Selector::Source,
+                    modifier: StatModifier {
+                        attack: 3,
+                        health: 2,
+                        silence_removable: true,
+                    },
+                },
+                Effect::Silence {
+                    targets: Selector::Source,
+                },
+                Effect::Transform {
+                    targets: Selector::DeclaredTarget,
+                    card: Card::minion("Sheep", 1, 1, 1),
+                },
+                Effect::Copy {
+                    targets: Selector::DeclaredTarget,
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Hand,
+                },
+            ])],
+        )
+        .unwrap();
+        complete_active(world).unwrap();
+        cleanup_resolution(world);
+
+        assert_eq!(
+            world.get::<Damage>(game_entity(world, enemy).unwrap()),
+            Some(&Damage(0))
+        );
+        assert!(
+            !world
+                .get::<Keywords>(game_entity(world, friendly).unwrap())
+                .unwrap()
+                .0
+                .contains(&Keyword::Taunt)
+        );
+        assert_eq!(
+            world
+                .resource::<ZoneIndex>()
+                .entities(PlayerId::One, Zone::Hand)
+                .len(),
+            1
+        );
+        assert_eq!(
+            player(world, PlayerId::One).unwrap().1.temporary_resources,
+            2
+        );
+        assert_eq!(player(world, PlayerId::Two).unwrap().1.maximum_resources, 2);
+
+        execute_effect(
+            world,
+            &context,
+            &Effect::Summon {
+                player: PlayerSelector::Opponent,
+                card: Card::minion("Appended", 0, 1, 1),
+                board_index: None,
+            },
+        )
+        .unwrap();
+        assert!(matches!(
+            execute_effect(
+                world,
+                &context,
+                &Effect::Summon {
+                    player: PlayerSelector::Opponent,
+                    card: Card::minion("Bad Position", 0, 1, 1),
+                    board_index: Some(999),
+                },
+            ),
+            Err(SimulationError::Zone(ZoneError::InvalidPosition { .. }))
+        ));
+        world.resource_mut::<Ruleset>().board_limit = world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::Two, Zone::Play)
+            .len();
+        execute_effect(
+            world,
+            &context,
+            &Effect::Summon {
+                player: PlayerSelector::Opponent,
+                card: Card::minion("No Room", 0, 1, 1),
+                board_index: None,
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
+        let mut simulation = Simulation::new([
+            PlayerConfig::with_deck("Jaina", vec![Card::spell("Burn Me", 0)]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let world = simulation.app.world_mut();
+        world.resource_mut::<Ruleset>().hand_limit = 0;
+        draw_card(world, PlayerId::One).unwrap();
+        assert_eq!(
+            world
+                .resource::<ZoneIndex>()
+                .entities(PlayerId::One, Zone::Graveyard)
+                .len(),
+            1
+        );
+        draw_card(world, PlayerId::One).unwrap();
+        assert_eq!(player(world, PlayerId::One).unwrap().1.fatigue, 1);
+
+        let first_hero = hero_id(world, PlayerId::One).unwrap();
+        let second_hero = hero_id(world, PlayerId::Two).unwrap();
+        let first_entity = game_entity(world, first_hero).unwrap();
+        let second_entity = game_entity(world, second_hero).unwrap();
+        world.get_mut::<Damage>(first_entity).unwrap().0 = STARTING_HEALTH;
+        check_outcome(world);
+        assert_eq!(
+            world.resource::<GameState>().outcome,
+            Some(GameOutcome::Winner(PlayerId::Two))
+        );
+        world.resource_mut::<GameState>().outcome = None;
+        world.get_mut::<Damage>(second_entity).unwrap().0 = STARTING_HEALTH;
+        check_outcome(world);
+        assert_eq!(
+            world.resource::<GameState>().outcome,
+            Some(GameOutcome::Draw)
+        );
+
+        assert_eq!(
+            attach_stat_modifier(
+                world,
+                PlayerId::One,
+                GameEntityId(999),
+                StatModifier {
+                    attack: 1,
+                    health: 1,
+                    silence_removable: true,
+                }
+            ),
+            Err(SimulationError::EntityNotFound(GameEntityId(999)))
+        );
+        assert_eq!(
+            silence_entity(world, GameEntityId(999)),
+            Err(SimulationError::EntityNotFound(GameEntityId(999)))
+        );
+        assert_eq!(
+            transform_entity(world, GameEntityId(999), Card::minion("Missing", 0, 1, 1)),
+            Err(SimulationError::EntityNotFound(GameEntityId(999)))
+        );
+        assert_eq!(copy_card_data(world, GameEntityId(999)), None);
+        assert_eq!(hero_id(world, PlayerId::One), Some(first_hero));
+    }
+
+    #[test]
+    fn spawn_and_index_helpers_report_cleanup_and_drift() {
+        let mut simulation = simulation();
+        let world = simulation.app.world_mut();
+        world.resource_mut::<Ruleset>().hand_limit = 0;
+        assert!(matches!(
+            spawn_card(world, PlayerId::One, Card::spell("No Space", 0), Zone::Hand),
+            Err(SimulationError::Zone(ZoneError::Full { .. }))
+        ));
+
+        let indexed = *world.resource::<GameEntityIndex>().0.keys().next().unwrap();
+        let original = world.resource::<GameEntityIndex>().0[&indexed];
+        let replacement = world.spawn_empty().id();
+        world
+            .resource_mut::<GameEntityIndex>()
+            .0
+            .insert(indexed, replacement);
+        assert_eq!(
+            assert_game_entity_index(world),
+            Err(format!("game entity index disagrees for {indexed:?}"))
+        );
+        world
+            .resource_mut::<GameEntityIndex>()
+            .0
+            .insert(indexed, original);
+        world.spawn(GameObject);
+        assert_eq!(
+            assert_game_entity_index(world),
+            Err("not every GameObject is indexed".to_string())
+        );
     }
 }

@@ -161,3 +161,19 @@ pub(crate) fn unindex_game_entity_hook(mut world: DeferredWorld, context: HookCo
 pub(crate) fn game_entity(world: &World, id: GameEntityId) -> Option<Entity> {
     world.resource::<GameEntityIndex>().0.get(&id).copied()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn despawning_a_game_entity_removes_its_logical_index_entry() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let entity = world.spawn(GameEntityId(7)).id();
+
+        assert_eq!(game_entity(&world, GameEntityId(7)), Some(entity));
+        assert!(world.despawn(entity));
+        assert_eq!(game_entity(&world, GameEntityId(7)), None);
+    }
+}

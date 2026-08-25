@@ -158,3 +158,132 @@ pub(crate) fn assert_zone_invariants(world: &World) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{GameObject, entity::GameEntityIndex};
+
+    fn world() -> World {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.init_resource::<ZoneIndex>();
+        world.init_resource::<Ruleset>();
+        world
+    }
+
+    #[test]
+    fn insertion_validates_entity_capacity_and_position() {
+        let mut world = world();
+        world.resource_mut::<Ruleset>().hand_limit = 1;
+        world.spawn((GameObject, GameEntityId(1)));
+        world.spawn((GameObject, GameEntityId(2)));
+
+        assert_eq!(
+            insert_into_zone(
+                &mut world,
+                GameEntityId(99),
+                PlayerId::One,
+                Zone::Hand,
+                None
+            ),
+            Err(ZoneError::EntityNotFound(GameEntityId(99)))
+        );
+        assert_eq!(
+            insert_into_zone(
+                &mut world,
+                GameEntityId(1),
+                PlayerId::One,
+                Zone::Deck,
+                Some(1)
+            ),
+            Err(ZoneError::InvalidPosition {
+                zone: Zone::Deck,
+                position: 1,
+                length: 0,
+            })
+        );
+        insert_into_zone(&mut world, GameEntityId(1), PlayerId::One, Zone::Hand, None).unwrap();
+        assert_eq!(
+            insert_into_zone(&mut world, GameEntityId(2), PlayerId::One, Zone::Hand, None),
+            Err(ZoneError::Full {
+                player: PlayerId::One,
+                zone: Zone::Hand,
+            })
+        );
+        assert_eq!(zone_limit(world.resource::<Ruleset>(), Zone::Play), Some(7));
+        assert_eq!(zone_limit(world.resource::<Ruleset>(), Zone::Deck), None);
+    }
+
+    #[test]
+    fn failed_moves_restore_the_source_index_and_positions() {
+        let mut world = world();
+        world.spawn((GameObject, GameEntityId(1)));
+        world.spawn((GameObject, GameEntityId(2)));
+        insert_into_zone(&mut world, GameEntityId(1), PlayerId::One, Zone::Deck, None).unwrap();
+        insert_into_zone(&mut world, GameEntityId(2), PlayerId::One, Zone::Deck, None).unwrap();
+
+        assert!(matches!(
+            move_entity(&mut world, GameEntityId(1), Zone::Hand, Some(2)),
+            Err(ZoneError::InvalidPosition { .. })
+        ));
+        assert_eq!(
+            world
+                .resource::<ZoneIndex>()
+                .entities(PlayerId::One, Zone::Deck),
+            &[GameEntityId(1), GameEntityId(2)]
+        );
+        assert_eq!(
+            world.get::<ZonePosition>(game_entity(&world, GameEntityId(2)).unwrap()),
+            Some(&ZonePosition(1))
+        );
+
+        world
+            .resource_mut::<ZoneIndex>()
+            .0
+            .get_mut(&(PlayerId::One, Zone::Deck))
+            .unwrap()
+            .clear();
+        assert!(matches!(
+            move_entity(&mut world, GameEntityId(1), Zone::Hand, None),
+            Err(ZoneError::MissingIndexEntry { .. })
+        ));
+    }
+
+    #[test]
+    fn invariant_errors_identify_each_kind_of_index_drift() {
+        let mut world = world();
+        world
+            .resource_mut::<ZoneIndex>()
+            .0
+            .insert((PlayerId::One, Zone::Deck), vec![GameEntityId(99)]);
+        assert_eq!(
+            assert_zone_invariants(&world),
+            Err("zone index references missing GameEntityId(99)".to_string())
+        );
+
+        world.spawn((GameObject, GameEntityId(99)));
+        assert_eq!(
+            assert_zone_invariants(&world),
+            Err("indexed entity GameEntityId(99) has no Zone".to_string())
+        );
+        let entity = game_entity(&world, GameEntityId(99)).unwrap();
+        world.entity_mut(entity).insert(Zone::Deck);
+        assert_eq!(
+            assert_zone_invariants(&world),
+            Err("indexed entity GameEntityId(99) has no Controller".to_string())
+        );
+        world.entity_mut(entity).insert(Controller(PlayerId::One));
+        assert_eq!(
+            assert_zone_invariants(&world),
+            Err("indexed entity GameEntityId(99) has no ZonePosition".to_string())
+        );
+        world.entity_mut(entity).insert(ZonePosition(1));
+        assert_eq!(
+            assert_zone_invariants(&world),
+            Err("zone index disagrees for GameEntityId(99)".to_string())
+        );
+        world.entity_mut(entity).insert(ZonePosition(0));
+        assert_zone_invariants(&world).unwrap();
+    }
+}

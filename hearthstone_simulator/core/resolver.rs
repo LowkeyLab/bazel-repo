@@ -356,4 +356,47 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn invalid_cursor_operations_and_invariants_are_reported() {
+        let mut app = app_with_resolution();
+        let world = app.world_mut();
+
+        assert_eq!(
+            push_resolution(world, ResolutionKind::Effect),
+            Err(ResolutionError::InvalidCursor)
+        );
+        assert_eq!(suspend_active(world), Err(ResolutionError::InvalidCursor));
+        assert_eq!(resume_active(world), Err(ResolutionError::InvalidCursor));
+        assert_eq!(complete_active(world), Err(ResolutionError::InvalidCursor));
+
+        let root = begin_resolution(world, ResolutionKind::Sequence);
+        assert_eq!(resume_active(world), Err(ResolutionError::InvalidCursor));
+        let malformed = world.spawn_empty().id();
+        world.resource_mut::<ResolutionCursor>().active = Some(malformed);
+        assert_eq!(complete_active(world), Err(ResolutionError::InvalidCursor));
+        world.resource_mut::<ResolutionCursor>().remaining_budget = 0;
+        assert_eq!(
+            consume_budget(world),
+            Err(ResolutionError::BudgetExhausted { active: None })
+        );
+
+        world.resource_mut::<ResolutionCursor>().active = None;
+        assert_eq!(
+            assert_resolution_invariants(world),
+            Err("resolution root and active cursor disagree".to_string())
+        );
+        world.resource_mut::<ResolutionCursor>().active = Some(malformed);
+        assert_eq!(
+            assert_resolution_invariants(world),
+            Err("resolution cursor references a non-resolution entity".to_string())
+        );
+        world.entity_mut(malformed).insert(ResolutionNode);
+        assert_eq!(
+            assert_resolution_invariants(world),
+            Err("active resolution node is outside the root ancestry".to_string())
+        );
+        world.entity_mut(malformed).insert(NestedUnder(root));
+        assert_resolution_invariants(world).unwrap();
+    }
 }

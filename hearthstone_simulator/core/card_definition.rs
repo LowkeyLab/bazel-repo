@@ -31,3 +31,27 @@ impl From<Card> for CardDefinition {
 
 #[derive(Clone, Debug, Default, Resource)]
 pub struct CardDefinitions(pub BTreeMap<String, CardDefinition>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Selector, ValueExpression};
+
+    #[test]
+    fn card_definition_preserves_all_runtime_card_data() {
+        let card = Card::minion("Archivist", 4, 3, 5).with_effects(vec![Effect::Heal {
+            targets: Selector::Source,
+            amount: ValueExpression::Constant(2),
+        }]);
+
+        let definition = CardDefinition::from(card);
+
+        assert_eq!(definition.id, "synthetic:archivist");
+        assert_eq!(definition.name, "Archivist");
+        assert_eq!(definition.kind, EntityKind::Minion);
+        assert_eq!(definition.base_cost, 4);
+        assert_eq!(definition.base_attack, 3);
+        assert_eq!(definition.base_health, 5);
+        assert_eq!(definition.program.len(), 1);
+    }
+}

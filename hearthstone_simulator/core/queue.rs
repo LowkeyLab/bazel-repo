@@ -219,7 +219,10 @@ pub enum QueueMutationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::QueuedIn;
+    use crate::{
+        Controller, EntityKind, GameObject, PlayerId, RuntimeTriggers, SourceEligibilityPolicy,
+        TriggerDefinition, WoundedTargetPolicy, Zone, entity::GameEntityIndex,
+    };
 
     fn trigger(source: u64, play_order: u64, tie_breaker: u32) -> QueuedTrigger {
         QueuedTrigger {
@@ -293,5 +296,140 @@ mod tests {
             Err(QueueMutationError::NotCollecting)
         );
         assert_eq!(world.get::<QueuedIn>(first).unwrap().0, queue);
+    }
+
+    #[test]
+    fn invalid_trigger_sources_abort_without_mutating_frozen_membership() {
+        let mut world = World::new();
+        world.init_resource::<crate::entity::GameEntityIndex>();
+        let queue = world
+            .spawn((ResolutionQueue(QueueKind::Triggers), QueueState::Collecting))
+            .id();
+        let entry = add_trigger_entry(&mut world, queue, trigger(404, 0, 0)).unwrap();
+        freeze_queue(&mut world, queue).unwrap();
+
+        assert_eq!(
+            select_next(&mut world, queue),
+            Ok(QueueSelection::Aborted(entry))
+        );
+        assert_eq!(
+            world.get::<QueueEntryStatus>(entry),
+            Some(&QueueEntryStatus::Aborted)
+        );
+        assert_eq!(world.get::<QueueCursor>(queue), Some(&QueueCursor(1)));
+    }
+
+    #[test]
+    fn eligible_trigger_sources_can_be_selected() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.spawn((
+            GameObject,
+            GameEntityId(1),
+            EntityKind::Minion,
+            Controller(PlayerId::One),
+            Zone::Play,
+            RuntimeTriggers(vec![TriggerDefinition {
+                event: crate::EventKind::Damage,
+                eligible_zones: vec![Zone::Play],
+                conditions: Vec::new(),
+                source_eligibility: SourceEligibilityPolicy::MustExist,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: "synthetic:test".to_string(),
+            }]),
+        ));
+        let queue = world
+            .spawn((ResolutionQueue(QueueKind::Triggers), QueueState::Collecting))
+            .id();
+        let entry = add_trigger_entry(&mut world, queue, trigger(1, 0, 0)).unwrap();
+        freeze_queue(&mut world, queue).unwrap();
+
+        assert_eq!(
+            select_next(&mut world, queue),
+            Ok(QueueSelection::Selected(entry))
+        );
+    }
+
+    #[test]
+    fn queue_operations_report_invalid_states_and_entries() {
+        let mut world = World::new();
+        let incomplete = world.spawn(QueueState::Collecting).id();
+        assert_eq!(
+            freeze_queue(&mut world, incomplete),
+            Err(QueueMutationError::MissingQueue)
+        );
+
+        let queue = world
+            .spawn((ResolutionQueue(QueueKind::Events), QueueState::Collecting))
+            .id();
+        let later = add_event_entry(
+            &mut world,
+            queue,
+            QueuedEvent {
+                event: ResolutionId(2),
+                order: EventOrderKey {
+                    player_bucket: 1,
+                    ordinal: 0,
+                    tie_breaker: 0,
+                },
+            },
+        )
+        .unwrap();
+        let first = add_event_entry(
+            &mut world,
+            queue,
+            QueuedEvent {
+                event: ResolutionId(1),
+                order: EventOrderKey {
+                    player_bucket: 0,
+                    ordinal: 0,
+                    tie_breaker: 0,
+                },
+            },
+        )
+        .unwrap();
+        assert_eq!(freeze_queue(&mut world, queue).unwrap(), vec![first, later]);
+        assert_eq!(
+            add_event_entry(
+                &mut world,
+                queue,
+                QueuedEvent {
+                    event: ResolutionId(3),
+                    order: EventOrderKey {
+                        player_bucket: 0,
+                        ordinal: 1,
+                        tie_breaker: 0,
+                    },
+                },
+            ),
+            Err(QueueMutationError::NotCollecting)
+        );
+        let wrong = world.spawn_empty().id();
+        assert_eq!(
+            finish_selected(&mut world, queue, wrong),
+            Err(QueueMutationError::WrongEntry)
+        );
+
+        let collecting = world.spawn(QueueState::Collecting).id();
+        assert_eq!(
+            select_next(&mut world, collecting),
+            Err(QueueMutationError::NotFrozen)
+        );
+        assert_eq!(
+            finish_selected(&mut world, collecting, wrong),
+            Err(QueueMutationError::NotFrozen)
+        );
+        world.entity_mut(queue).remove::<FrozenQueueEntries>();
+        assert_eq!(
+            select_next(&mut world, queue),
+            Err(QueueMutationError::NotFrozen)
+        );
+        assert_eq!(
+            freeze_queue(&mut world, queue),
+            Err(QueueMutationError::NotCollecting)
+        );
     }
 }

@@ -56,13 +56,14 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 
 ## Verification log
 
-| Date       | Command                                              | Result                                      |
-| ---------- | ---------------------------------------------------- | ------------------------------------------- |
-| 2026-08-25 | `aspect test //hearthstone_simulator/core:core_test` | Passed after milestones 0–3                 |
-| 2026-08-25 | `aspect test //hearthstone_simulator/core:core_test` | Passed effect/RNG/area-death vertical slice |
-| 2026-08-25 | `aspect test //hearthstone_simulator/...`            | Passed core tests and CLI build             |
-| 2026-08-25 | `aspect format --scope=all`                          | Passed                                      |
-| 2026-08-25 | `aspect build //...`                                 | Passed full repository build                |
+| Date       | Command                                                                        | Result                                      |
+| ---------- | ------------------------------------------------------------------------------ | ------------------------------------------- |
+| 2026-08-25 | `aspect test //hearthstone_simulator/core:core_test`                           | Passed after milestones 0–3                 |
+| 2026-08-25 | `aspect test //hearthstone_simulator/core:core_test`                           | Passed effect/RNG/area-death vertical slice |
+| 2026-08-25 | `aspect test //hearthstone_simulator/...`                                      | Passed core tests and CLI build             |
+| 2026-08-25 | `aspect format --scope=all`                                                    | Passed                                      |
+| 2026-08-25 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-25 | `bazel coverage //hearthstone_simulator/core:core_test --combined_report=lcov` | 100% lines and functions                    |
 
 ## Known gaps
 

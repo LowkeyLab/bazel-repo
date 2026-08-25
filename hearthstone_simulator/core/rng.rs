@@ -111,4 +111,44 @@ mod tests {
         assert_eq!(select(42), select(42));
         assert_ne!(select(42).1, select(43).1);
     }
+
+    #[test]
+    fn snapshots_validate_versions_and_empty_choices_do_not_advance() {
+        let snapshot = RngSnapshot {
+            algorithm_version: RNG_ALGORITHM_VERSION,
+            state: 17,
+            position: 4,
+        };
+        assert_eq!(
+            DeterministicRng::from_snapshot(snapshot).unwrap().state(),
+            snapshot
+        );
+        assert_eq!(
+            DeterministicRng::from_snapshot(RngSnapshot {
+                algorithm_version: RNG_ALGORITHM_VERSION + 1,
+                ..snapshot
+            }),
+            None
+        );
+
+        let mut world = World::new();
+        world.insert_resource(DeterministicRng::from_snapshot(snapshot).unwrap());
+        world.init_resource::<CanonicalTrace>();
+        assert_eq!(choose_game_entity(&mut world, Vec::new()), None);
+        assert_eq!(world.resource::<DeterministicRng>().state(), snapshot);
+
+        let selected = choose_game_entity(
+            &mut world,
+            vec![GameEntityId(3), GameEntityId(1), GameEntityId(3)],
+        )
+        .unwrap();
+        assert_eq!(
+            world.resource::<CanonicalTrace>().entries.last(),
+            Some(&TraceEntry::RngChoice {
+                position: 4,
+                candidates: vec![GameEntityId(1), GameEntityId(3)],
+                selected,
+            })
+        );
+    }
 }

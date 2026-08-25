@@ -87,3 +87,17 @@ impl PlayerConfig {
 pub struct PlayerRef {
     pub id: PlayerId,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deck_configuration_starts_with_an_empty_hand() {
+        let config = PlayerConfig::with_deck("Jaina", vec![Card::spell("Arcane! Bolt", 1)]);
+
+        assert_eq!(config.name, "Jaina");
+        assert_eq!(config.deck[0].definition_id, "synthetic:arcane__bolt");
+        assert!(config.hand.is_empty());
+    }
+}

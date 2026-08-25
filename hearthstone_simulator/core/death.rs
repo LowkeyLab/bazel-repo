@@ -53,3 +53,39 @@ pub(crate) fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {
             || world.get::<PendingDestroy>(entity).is_some()
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{GameObject, entity::GameEntityIndex};
+
+    #[test]
+    fn mortality_includes_lethal_damage_and_pending_destroy() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.spawn((
+            GameObject,
+            GameEntityId(1),
+            CurrentStats {
+                attack: 0,
+                maximum_health: 3,
+            },
+            Damage(3),
+        ));
+        world.spawn((GameObject, GameEntityId(2), PendingDestroy));
+        world.spawn((
+            GameObject,
+            GameEntityId(3),
+            CurrentStats {
+                attack: 0,
+                maximum_health: 3,
+            },
+            Damage(2),
+        ));
+
+        assert!(is_mortally_wounded(&world, GameEntityId(1)));
+        assert!(is_mortally_wounded(&world, GameEntityId(2)));
+        assert!(!is_mortally_wounded(&world, GameEntityId(3)));
+        assert!(!is_mortally_wounded(&world, GameEntityId(99)));
+    }
+}

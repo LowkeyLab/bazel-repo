@@ -67,3 +67,66 @@ pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
         maximum_health: health.max(0),
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{GameObject, entity::GameEntityIndex};
+
+    #[test]
+    fn recalculation_combines_ordered_modifiers_and_auras() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let target = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                BaseStats {
+                    attack: 2,
+                    health: 2,
+                },
+                AuraCache(vec![AuraApplication {
+                    provider: GameEntityId(9),
+                    attack: 3,
+                    health: -10,
+                }]),
+            ))
+            .id();
+        world.spawn((
+            GameObject,
+            GameEntityId(2),
+            PlayOrder(2),
+            StatModifier {
+                attack: 4,
+                health: 1,
+                silence_removable: true,
+            },
+            AttachedTo(target),
+        ));
+        world.spawn((
+            GameObject,
+            GameEntityId(3),
+            StatModifier {
+                attack: -1,
+                health: 2,
+                silence_removable: false,
+            },
+            AttachedTo(target),
+        ));
+        world.spawn((GameObject, GameEntityId(4), AttachedTo(target)));
+
+        recalculate_stats(&mut world, GameEntityId(1));
+
+        assert_eq!(
+            world.get::<CurrentStats>(target),
+            Some(&CurrentStats {
+                attack: 8,
+                maximum_health: 0,
+            })
+        );
+        recalculate_stats(&mut world, GameEntityId(99));
+        let without_base = world.spawn((GameObject, GameEntityId(5))).id();
+        recalculate_stats(&mut world, GameEntityId(5));
+        assert!(world.get::<CurrentStats>(without_base).is_none());
+    }
+}
