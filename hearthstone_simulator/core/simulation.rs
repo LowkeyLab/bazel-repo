@@ -697,6 +697,12 @@ fn play_card(
         .cloned()
         .ok_or(SimulationError::NotPlayable(card_id))?;
     validate_native_effects_registered(world, &runtime.program)?;
+    let triggers = world
+        .get::<RuntimeTriggers>(card_entity)
+        .ok_or(SimulationError::NotPlayable(card_id))?;
+    for trigger in &triggers.0 {
+        validate_native_effects_registered(world, &trigger.effect_program)?;
+    }
     let cost = runtime.cost;
     spend_resources(world, player_id, cost)?;
     let destination = if kind == EntityKind::Minion {
@@ -3271,6 +3277,43 @@ mod tests {
         assert_that!(simulation.snapshot(), eq(&before));
         let mut fork = simulation.fork().unwrap();
         assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
+    }
+
+    #[googletest::test]
+    fn missing_native_deathrattles_are_rejected_before_card_play_mutates_state() {
+        let missing = NativeEffectId::new("synthetic:missing_deathrattle");
+        let mut simulation = Simulation::new([
+            PlayerConfig::new(
+                "Jaina",
+                vec![
+                    Card::minion("Missing Native Deathrattle", 1, 1, 1)
+                        .with_deathrattle(vec![Effect::Native(missing.clone())]),
+                ],
+            ),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+        let before = simulation.snapshot();
+
+        assert_that!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+        );
+
+        assert_that!(simulation.snapshot(), eq(&before));
+        assert_that!(
+            simulation.snapshot().game.status,
+            eq(SimulationStatus::AwaitingAction)
+        );
+        simulation
+            .assert_invariants()
+            .expect("rejected Deathrattle should preserve invariants");
     }
 
     #[googletest::test]
