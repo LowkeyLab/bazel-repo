@@ -71,6 +71,7 @@ ktlint = lint_ktlint_aspect(
 # Rust
 clippy = lint_clippy_aspect(
     config = Label("//:.clippy.toml"),
+    clippy_flags = ["-Wclippy::pedantic"],
 )
 
 # General
