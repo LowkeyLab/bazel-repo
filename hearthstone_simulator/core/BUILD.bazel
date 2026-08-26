@@ -16,6 +16,7 @@ rust_library(
         "ids.rs",
         "lib.rs",
         "model.rs",
+        "native_effect.rs",
         "queue.rs",
         "relationships.rs",
         "resolver.rs",

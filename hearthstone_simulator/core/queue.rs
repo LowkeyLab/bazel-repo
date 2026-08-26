@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use thiserror::Error;
 
 use crate::{
     ConditionTiming, GameEntityId, QueuedIn, ResolutionId, entity::game_entity,
@@ -193,6 +194,23 @@ pub(crate) fn finish_selected(
     queue: Entity,
     entry: Entity,
 ) -> Result<(), QueueMutationError> {
+    finish_selected_with_status(world, queue, entry, QueueEntryStatus::Resolved)
+}
+
+pub(crate) fn abort_selected(
+    world: &mut World,
+    queue: Entity,
+    entry: Entity,
+) -> Result<(), QueueMutationError> {
+    finish_selected_with_status(world, queue, entry, QueueEntryStatus::Aborted)
+}
+
+fn finish_selected_with_status(
+    world: &mut World,
+    queue: Entity,
+    entry: Entity,
+    status: QueueEntryStatus,
+) -> Result<(), QueueMutationError> {
     let cursor = world
         .get::<QueueCursor>(queue)
         .ok_or(QueueMutationError::NotFrozen)?
@@ -204,17 +222,21 @@ pub(crate) fn finish_selected(
     {
         return Err(QueueMutationError::WrongEntry);
     }
-    world.entity_mut(entry).insert(QueueEntryStatus::Resolved);
+    world.entity_mut(entry).insert(status);
     world.get_mut::<QueueCursor>(queue).unwrap().0 += 1;
     world.entity_mut(queue).insert(QueueState::Frozen);
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 pub enum QueueMutationError {
+    #[error("resolution queue is missing its queue kind")]
     MissingQueue,
+    #[error("resolution queue is not collecting entries")]
     NotCollecting,
+    #[error("resolution queue is not frozen")]
     NotFrozen,
+    #[error("queue entry is not the currently selected entry")]
     WrongEntry,
 }
 
@@ -268,7 +290,11 @@ mod tests {
             QueueSelection::Selected(event)
         );
         assert_eq!(world.get::<QueueCursor>(queue).unwrap().0, 0);
-        finish_selected(&mut world, queue, event).expect("selected event should finish");
+        abort_selected(&mut world, queue, event).expect("selected event should abort");
+        assert_eq!(
+            world.get::<QueueEntryStatus>(event),
+            Some(&QueueEntryStatus::Aborted)
+        );
         assert_eq!(world.get::<QueueCursor>(queue).unwrap().0, 1);
         assert_eq!(
             select_next(&mut world, queue).expect("queue should complete"),
@@ -341,7 +367,7 @@ mod tests {
                 allow_repeated_event: false,
                 allow_direct_self_nesting: false,
                 wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
-                effect_program: "synthetic:test".to_string(),
+                effect_program: Vec::new(),
             }]),
         ));
         let queue = world

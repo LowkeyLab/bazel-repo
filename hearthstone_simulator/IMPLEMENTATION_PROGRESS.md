@@ -6,8 +6,8 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
-- Active milestone: Final documentation and repository verification; advanced milestones remain explicitly open
-- Verification: formatting, all Hearthstone targets, and the full repository build pass
+- Active milestone: Milestone 5 stat/aura timing and Milestone 6 damage/death semantics
+- Verification: Gazelle, formatting, all Hearthstone targets, and the full repository build pass
 
 ## Milestones
 
@@ -27,11 +27,12 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] ECS queue entries, explicit ordering, frozen membership, and cursor.
   - [x] Pre-check, queue-time, and resolution-time condition data/evaluation.
   - [x] Queue immutability, non-advancement while a child resolves, and depth-first tests.
-- [ ] **4 — Effects and deterministic randomness**
+- [x] **4 — Effects and deterministic randomness**
   - [x] Cloneable selector/value/effect IR and depth-first effect frames.
   - [x] Versioned SplitMix64 RNG with sorted candidates and canonical trace entries.
   - [x] Damage, healing, destroy, draw, resource, summon, and sequence primitives.
-  - [ ] Native-effect registry and full rulebook event/trigger integration.
+  - [x] Stable native-effect registry whose Bevy systems return ordinary effect plans.
+  - [x] Event frames, immutable trigger queues, timed conditions, trigger guards, and depth-first trigger effect programs.
 - [ ] **5 — Stats, enchantments, and auras**
   - [x] Base/current stats, damage, armor, keywords, enchantment relationships, and aura-cache data.
   - [x] Effect-driven stat attachment, silence removal, and deterministic stat recalculation.
@@ -64,7 +65,11 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-08-25 | `aspect format --scope=all`                                                    | Passed                                      |
 | 2026-08-25 | `aspect build //...`                                                           | Passed full repository build                |
 | 2026-08-25 | `bazel coverage //hearthstone_simulator/core:core_test --combined_report=lcov` | 100% lines and functions                    |
+| 2026-08-26 | `aspect test //hearthstone_simulator/core:core_test`                           | Passed event/trigger and native-effect work |
+| 2026-08-26 | `aspect test //hearthstone_simulator/...`                                      | Passed core tests and CLI build             |
+| 2026-08-26 | `aspect format --scope=all`                                                    | Passed                                      |
+| 2026-08-26 | `aspect build //...`                                                           | Passed full repository build                |
 
 ## Known gaps
 
-The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. In particular, the current effect reducers create inspectable effect frames but damage/healing do not yet compile the complete proposed-event and trigger pipeline.
+The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Damage now emits proposed and actual event frames and ordinary event reactions resolve through frozen trigger queues, but predamage value replacement/prevention effects, simultaneous event batches, death records, Deathrattles, and chained Death Phases remain open.

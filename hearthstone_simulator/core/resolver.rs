@@ -279,7 +279,7 @@ pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> 
     Ok(())
 }
 
-fn allocate_resolution_id(world: &mut World) -> ResolutionId {
+pub(crate) fn allocate_resolution_id(world: &mut World) -> ResolutionId {
     let mut next = world.resource_mut::<NextResolutionId>();
     let id = ResolutionId(next.0);
     next.0 = next.0.checked_add(1).expect("resolution ID overflow");

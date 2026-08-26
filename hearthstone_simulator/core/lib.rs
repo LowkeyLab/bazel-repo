@@ -11,6 +11,7 @@ mod event;
 mod game;
 mod ids;
 mod model;
+mod native_effect;
 mod queue;
 mod relationships;
 mod resolver;
@@ -33,9 +34,10 @@ pub use event::{EventContext, EventKind};
 pub use game::{GameOutcome, GameState, SimulationStatus};
 pub use ids::{ChoiceId, GameEntityId, PlayerId, ResolutionId};
 pub use model::{Card, PlayerConfig, PlayerRef};
+pub use native_effect::NativeEffectId;
 pub use queue::{
-    EventOrderKey, FrozenQueueEntries, QueueCursor, QueueEntryStatus, QueueKind, QueueState,
-    QueuedEvent, QueuedTrigger, ResolutionQueue, TriggerOrderKey,
+    EventOrderKey, FrozenQueueEntries, QueueCursor, QueueEntryStatus, QueueKind,
+    QueueMutationError, QueueState, QueuedEvent, QueuedTrigger, ResolutionQueue, TriggerOrderKey,
 };
 pub use relationships::{NestedFrames, NestedUnder, QueueEntries, QueuedIn};
 pub use resolver::{

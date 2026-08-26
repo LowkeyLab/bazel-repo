@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
 use bevy::prelude::*;
 use thiserror::Error;
@@ -6,20 +6,32 @@ use thiserror::Error;
 use crate::{
     Armor, AttachedTo, AttackState, AuraCache, BaseStats, CanonicalTrace, Card, Controller,
     CurrentStats, Damage, DefinitionId, DeterministicRng, DisplayName, Effect, EffectContext,
-    EntityKind, GameEntityId, GameObject, GameOutcome, GameState, Keyword, Keywords,
-    PendingDestroy, PlayOrder, Player, PlayerConfig, PlayerId, PlayerSelector, ResolutionCursor,
-    ResolutionKind, ResolveFrame, ResolvePhaseBoundary, RngSnapshot, Ruleset, RulesetId,
-    STARTING_HEALTH, Selector, SimulationStatus, TraceEntry, ValueExpression, Zone, ZonePosition,
+    EntityKind, EventContext, EventKind, GameEntityId, GameObject, GameOutcome, GameState, Keyword,
+    Keywords, NativeEffectId, PendingDestroy, PlayOrder, Player, PlayerConfig, PlayerId,
+    PlayerSelector, QueueKind, QueueState, QueuedTrigger, ResolutionCursor, ResolutionIdentity,
+    ResolutionKind, ResolutionQueue, ResolveFrame, ResolvePhaseBoundary, RngSnapshot, Ruleset,
+    RulesetId, RuntimeTriggers, STARTING_HEALTH, Selector, SimulationStatus, TraceEntry,
+    TriggerExecution, ValueExpression, Zone, ZonePosition,
     enchantment::{StatModifier, recalculate_stats},
     entity::{
         GameEntityIndex, NextGameEntityId, PlayOrderCounter, allocate_game_id, allocate_play_order,
         game_entity,
     },
+    native_effect::{NativeEffectFactory, NativeEffectRegistry},
+    queue::{
+        QueueMutationError, QueueSelection, abort_selected, finish_selected, freeze_queue,
+        select_next,
+    },
     resolver::{
-        NextResolutionId, ResolutionError, assert_resolution_invariants, begin_resolution,
-        cleanup_resolution, complete_active, configure_resolution, consume_budget, push_resolution,
+        NextResolutionId, ResolutionError, allocate_resolution_id, assert_resolution_invariants,
+        begin_resolution, cleanup_resolution, complete_active, configure_resolution,
+        consume_budget, push_resolution,
     },
     rng::choose_game_entity,
+    trigger::{
+        TriggerGuards, begin_trigger_execution, collect_trigger_candidates,
+        finish_trigger_execution, reset_trigger_guards,
+    },
     zone::{ZoneError, ZoneIndex, assert_zone_invariants, insert_into_zone, move_entity},
 };
 
@@ -104,6 +116,14 @@ pub enum SimulationError {
     Resolution(#[from] ResolutionError),
     #[error("zone operation failed: {0}")]
     Zone(#[from] ZoneError),
+    #[error("queue operation failed: {0}")]
+    Queue(#[from] QueueMutationError),
+    #[error("native effect {0:?} is already registered")]
+    NativeEffectAlreadyRegistered(NativeEffectId),
+    #[error("native effect {0:?} is not registered")]
+    NativeEffectNotRegistered(NativeEffectId),
+    #[error("native effect {id:?} failed: {reason}")]
+    NativeEffectFailed { id: NativeEffectId, reason: String },
     #[error("simulation invariant failed: {0}")]
     Invariant(String),
 }
@@ -173,6 +193,8 @@ impl Plugin for HearthstoneSimulationPlugin {
             .init_resource::<DeterministicRng>()
             .init_resource::<ResolutionCursor>()
             .init_resource::<NextResolutionId>()
+            .init_resource::<TriggerGuards>()
+            .init_resource::<NativeEffectRegistry>()
             .init_resource::<PendingActions>()
             .init_resource::<ActionResults>();
         configure_resolution(app);
@@ -185,6 +207,7 @@ pub struct Simulation {
     initial_players: [PlayerConfig; 2],
     seed: u64,
     action_history: Vec<GameAction>,
+    native_effect_factories: BTreeMap<NativeEffectId, NativeEffectFactory>,
 }
 
 impl Simulation {
@@ -204,7 +227,32 @@ impl Simulation {
             initial_players,
             seed,
             action_history: Vec::new(),
+            native_effect_factories: BTreeMap::new(),
         }
+    }
+
+    pub fn register_native_effect<M>(
+        &mut self,
+        id: impl Into<NativeEffectId>,
+        handler: impl IntoSystem<In<EffectContext>, Vec<Effect>, M> + Clone + Send + Sync + 'static,
+    ) -> Result<(), SimulationError>
+    where
+        M: 'static,
+    {
+        let id = id.into();
+        let world = self.app.world_mut();
+        if world.resource::<NativeEffectRegistry>().0.contains_key(&id) {
+            return Err(SimulationError::NativeEffectAlreadyRegistered(id));
+        }
+        let factory: NativeEffectFactory =
+            std::sync::Arc::new(move |world| world.register_system(handler.clone()));
+        let system = factory(world);
+        world
+            .resource_mut::<NativeEffectRegistry>()
+            .0
+            .insert(id.clone(), system);
+        self.native_effect_factories.insert(id, factory);
+        Ok(())
     }
 
     pub fn apply(&mut self, action: GameAction) -> Result<(), SimulationError> {
@@ -268,6 +316,16 @@ impl Simulation {
 
     pub fn fork(&self) -> Result<Self, SimulationError> {
         let mut fork = Self::with_seed(self.initial_players.clone(), self.seed);
+        for (id, factory) in &self.native_effect_factories {
+            let system = factory(fork.app.world_mut());
+            fork.app
+                .world_mut()
+                .resource_mut::<NativeEffectRegistry>()
+                .0
+                .insert(id.clone(), system);
+            fork.native_effect_factories
+                .insert(id.clone(), factory.clone());
+        }
         for action in &self.action_history {
             fork.apply(action.clone())?;
         }
@@ -391,6 +449,7 @@ fn spawn_card(
                 cost: card.mana_cost,
                 program: card.effects,
             },
+            RuntimeTriggers(card.triggers),
         ))
         .id();
     if let Err(error) = insert_into_zone(world, id, player_id, zone, None) {
@@ -438,6 +497,7 @@ fn apply_action(world: &mut World, action: GameAction) -> Result<(), SimulationE
     }
     validate_turn(world, action.player())?;
     world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    reset_trigger_guards(world);
     begin_resolution(world, ResolutionKind::Sequence);
     consume_budget(world)?;
     push_resolution(world, ResolutionKind::Phase)?;
@@ -537,6 +597,32 @@ fn play_card(
             from,
             to: destination,
         });
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::CardPlayed,
+            source: Some(card_id),
+            targets: declared_target.into_iter().collect(),
+            controller: player_id,
+            proposed_value: None,
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    )?;
+    if kind == EntityKind::Minion {
+        resolve_event_if_active(
+            world,
+            EventContext {
+                kind: EventKind::Summoned,
+                source: Some(card_id),
+                targets: vec![card_id],
+                controller: player_id,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+        )?;
+    }
     execute_effects(
         world,
         &EffectContext {
@@ -578,6 +664,18 @@ fn attack(
     let counter_damage = world
         .get::<CurrentStats>(defender)
         .map_or(0, |stats| stats.attack);
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::Attack,
+            source: Some(attacker_id),
+            targets: vec![defender_id],
+            controller: player_id,
+            proposed_value: None,
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    )?;
     apply_damage(world, Some(attacker_id), defender_id, attack_value)?;
     if counter_damage > 0 {
         apply_damage(world, Some(defender_id), attacker_id, counter_damage)?;
@@ -587,11 +685,35 @@ fn attack(
         .ok_or(SimulationError::CannotAttack(attacker_id))?;
     state.attacks_this_turn += 1;
     state.exhausted = true;
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::AfterAttack,
+            source: Some(attacker_id),
+            targets: vec![defender_id],
+            controller: player_id,
+            proposed_value: None,
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    )?;
     check_outcome(world);
     Ok(())
 }
 
 fn end_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::TurnEnded,
+            source: None,
+            targets: Vec::new(),
+            controller: player_id,
+            proposed_value: None,
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    )?;
     let next_player = player_id.opponent();
     let maximum_mana = world.resource::<Ruleset>().maximum_mana;
     {
@@ -626,7 +748,18 @@ fn end_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationErro
             active_player: next_player,
             turn,
         });
-    Ok(())
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::TurnStarted,
+            source: None,
+            targets: Vec::new(),
+            controller: next_player,
+            proposed_value: None,
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    )
 }
 
 fn concede(world: &mut World, player: PlayerId) -> Result<(), SimulationError> {
@@ -675,13 +808,26 @@ fn apply_damage(
     proposed: i32,
 ) -> Result<(), SimulationError> {
     let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let controller = event_controller(world, source, target);
+    let proposed = proposed.max(0);
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::ProposedDamage,
+            source,
+            targets: vec![target],
+            controller,
+            proposed_value: Some(proposed),
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    )?;
     let immune = world
         .get::<Keywords>(entity)
         .is_some_and(|keywords| keywords.0.contains(&Keyword::Immune));
     let shielded = world
         .get::<Keywords>(entity)
         .is_some_and(|keywords| keywords.0.contains(&Keyword::DivineShield));
-    let proposed = proposed.max(0);
     let actual = if immune {
         0
     } else if shielded && proposed > 0 {
@@ -719,7 +865,225 @@ fn apply_damage(
             proposed,
             actual,
         });
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::Damage,
+            source,
+            targets: vec![target],
+            controller,
+            proposed_value: Some(proposed),
+            actual_value: Some(actual),
+            simultaneous_ordinal: 0,
+        },
+    )
+}
+
+fn apply_healing(
+    world: &mut World,
+    source: Option<GameEntityId>,
+    target: GameEntityId,
+    proposed: i32,
+) -> Result<(), SimulationError> {
+    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let proposed = proposed.max(0);
+    let actual = if let Some(mut damage) = world.get_mut::<Damage>(entity) {
+        let actual = damage.0.min(proposed);
+        damage.0 -= actual;
+        actual
+    } else {
+        0
+    };
+    resolve_event_if_active(
+        world,
+        EventContext {
+            kind: EventKind::Healing,
+            source,
+            targets: vec![target],
+            controller: event_controller(world, source, target),
+            proposed_value: Some(proposed),
+            actual_value: Some(actual),
+            simultaneous_ordinal: 0,
+        },
+    )
+}
+
+fn event_controller(world: &World, source: Option<GameEntityId>, target: GameEntityId) -> PlayerId {
+    source
+        .and_then(|source| game_entity(world, source))
+        .or_else(|| game_entity(world, target))
+        .and_then(|entity| world.get::<Controller>(entity))
+        .map_or(PlayerId::One, |controller| controller.0)
+}
+
+fn resolve_event_if_active(world: &mut World, event: EventContext) -> Result<(), SimulationError> {
+    if world.resource::<ResolutionCursor>().active.is_none() {
+        return Ok(());
+    }
+    resolve_event(world, event)
+}
+
+fn resolve_event(world: &mut World, event: EventContext) -> Result<(), SimulationError> {
+    let event_entity = push_resolution(world, ResolutionKind::Event)?;
+    consume_budget(world)?;
+    let event_identity = *world
+        .get::<ResolutionIdentity>(event_entity)
+        .expect("new event frame has an identity");
+    world.entity_mut(event_entity).insert(event.clone());
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EventCreated {
+            id: event_identity.id,
+            kind: event.kind,
+            source: event.source,
+            targets: event.targets.clone(),
+            proposed: event.proposed_value,
+            actual: event.actual_value,
+        });
+
+    let queue = push_resolution(world, ResolutionKind::TriggerQueue)?;
+    consume_budget(world)?;
+    let queue_identity = *world
+        .get::<ResolutionIdentity>(queue)
+        .expect("new trigger queue has an identity");
+    world
+        .entity_mut(queue)
+        .insert((ResolutionQueue(QueueKind::Triggers), QueueState::Collecting));
+    let entries = collect_trigger_candidates(world, queue, event_entity)?;
+    for entry in entries {
+        let id = allocate_resolution_id(world);
+        world.entity_mut(entry).insert(ResolutionIdentity {
+            id,
+            kind: ResolutionKind::Trigger,
+        });
+    }
+    let frozen = freeze_queue(world, queue)?;
+    let frozen_ids = frozen
+        .iter()
+        .map(|entry| {
+            world
+                .get::<ResolutionIdentity>(*entry)
+                .expect("collected queue entry has an identity")
+                .id
+        })
+        .collect();
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::QueueFrozen {
+            queue: queue_identity.id,
+            entries: frozen_ids,
+        });
+
+    loop {
+        match select_next(world, queue)? {
+            QueueSelection::Complete => break,
+            QueueSelection::Aborted(entry) => {
+                trace_trigger_aborted(world, entry);
+            }
+            QueueSelection::Selected(entry) => {
+                resolve_selected_trigger(world, queue, entry, &event)?;
+            }
+        }
+    }
+    complete_active(world)?;
+    complete_active(world)?;
     Ok(())
+}
+
+fn resolve_selected_trigger(
+    world: &mut World,
+    queue: Entity,
+    entry: Entity,
+    event: &EventContext,
+) -> Result<(), SimulationError> {
+    let queued = *world
+        .get::<QueuedTrigger>(entry)
+        .expect("selected trigger entry has a payload");
+    let entry_id = world
+        .get::<ResolutionIdentity>(entry)
+        .expect("selected trigger entry has an identity")
+        .id;
+    let Some(source_entity) = game_entity(world, queued.source) else {
+        abort_selected(world, queue, entry)?;
+        trace_trigger_aborted(world, entry);
+        return Ok(());
+    };
+    let Some(definition) = world
+        .get::<RuntimeTriggers>(source_entity)
+        .and_then(|triggers| triggers.0.get(queued.definition_index as usize))
+        .cloned()
+    else {
+        abort_selected(world, queue, entry)?;
+        trace_trigger_aborted(world, entry);
+        return Ok(());
+    };
+    if !begin_trigger_execution(world, &queued, &definition) {
+        abort_selected(world, queue, entry)?;
+        world
+            .resource_mut::<CanonicalTrace>()
+            .entries
+            .push(TraceEntry::TriggerAborted {
+                id: entry_id,
+                source: queued.source,
+            });
+        return Ok(());
+    }
+
+    let controller = world
+        .get::<Controller>(source_entity)
+        .expect("trigger source has a controller")
+        .0;
+    let source_kind = *world
+        .get::<EntityKind>(source_entity)
+        .expect("trigger source has an entity kind");
+    let trigger = push_resolution(world, ResolutionKind::Trigger)?;
+    consume_budget(world)?;
+    let trigger_id = world
+        .get::<ResolutionIdentity>(trigger)
+        .expect("new trigger frame has an identity")
+        .id;
+    world.entity_mut(trigger).insert(TriggerExecution {
+        source: queued.source,
+        controller,
+        source_kind,
+    });
+    let result = execute_effects(
+        world,
+        &EffectContext {
+            source: Some(queued.source),
+            controller,
+            declared_target: event.targets.first().copied(),
+        },
+        &definition.effect_program,
+    );
+    finish_trigger_execution(world, &queued);
+    complete_active(world)?;
+    finish_selected(world, queue, entry)?;
+    result?;
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::TriggerResolved {
+            id: trigger_id,
+            source: queued.source,
+        });
+    Ok(())
+}
+
+fn trace_trigger_aborted(world: &mut World, entry: Entity) {
+    let (Some(identity), Some(trigger)) = (
+        world.get::<ResolutionIdentity>(entry),
+        world.get::<QueuedTrigger>(entry),
+    ) else {
+        return;
+    };
+    let (id, source) = (identity.id, trigger.source);
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::TriggerAborted { id, source });
 }
 
 fn execute_effects(
@@ -753,13 +1117,9 @@ fn execute_effect(
         }
         Effect::Heal { targets, amount } => {
             let targets = select_entities(world, context, targets);
-            let value = evaluate_value(world, context, *amount, targets.len()).max(0);
+            let value = evaluate_value(world, context, *amount, targets.len());
             for target in targets {
-                if let Some(entity) = game_entity(world, target)
-                    && let Some(mut damage) = world.get_mut::<Damage>(entity)
-                {
-                    damage.0 = (damage.0 - value).max(0);
-                }
+                apply_healing(world, context.source, target, value)?;
             }
             Ok(())
         }
@@ -812,6 +1172,18 @@ fn execute_effect(
                 let order = allocate_play_order(world);
                 let entity = game_entity(world, summoned).expect("summoned entity was indexed");
                 world.entity_mut(entity).insert(order);
+                resolve_event_if_active(
+                    world,
+                    EventContext {
+                        kind: EventKind::Summoned,
+                        source: context.source,
+                        targets: vec![summoned],
+                        controller: player,
+                        proposed_value: None,
+                        actual_value: None,
+                        simultaneous_ordinal: 0,
+                    },
+                )?;
             }
             Ok(())
         }
@@ -845,6 +1217,24 @@ fn execute_effect(
                 }
             }
             Ok(())
+        }
+        Effect::Native(id) => {
+            let system = world
+                .resource::<NativeEffectRegistry>()
+                .0
+                .get(id)
+                .copied()
+                .ok_or_else(|| SimulationError::NativeEffectNotRegistered(id.clone()))?;
+            // Bevy flushes Commands queued by a registered system before returning. This is the
+            // native-handler mutation boundary documented by the design; durable rules changes
+            // should still be returned as an effect plan and resolved below.
+            let plan = world
+                .run_system_with(system, context.clone())
+                .map_err(|error| SimulationError::NativeEffectFailed {
+                    id: id.clone(),
+                    reason: error.to_string(),
+                })?;
+            execute_effects(world, context, &plan)
         }
         Effect::Sequence(nested) => execute_effects(world, context, nested),
     }
@@ -945,6 +1335,9 @@ fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card> {
         attack: base.attack,
         health: base.health,
         effects: runtime.program.clone(),
+        triggers: world
+            .get::<RuntimeTriggers>(entity)
+            .map_or_else(Vec::new, |triggers| triggers.0.clone()),
     })
 }
 
@@ -1518,6 +1911,117 @@ mod tests {
     }
 
     #[test]
+    fn damage_events_freeze_and_resolve_trigger_effects_depth_first() {
+        let reactive =
+            Card::minion("Reactive", 0, 1, 4).with_triggers(vec![crate::TriggerDefinition {
+                event: EventKind::Damage,
+                eligible_zones: vec![Zone::Play],
+                conditions: vec![crate::TimedCondition {
+                    timing: crate::ConditionTiming::QueueTime,
+                    condition: crate::TriggerCondition::EventValueAtLeast(1),
+                }],
+                source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: vec![Effect::DealDamage {
+                    targets: Selector::EnemyMinions,
+                    amount: ValueExpression::Constant(1),
+                }],
+            }]);
+        let blast = Card::spell("Trigger Blast", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(1),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![reactive, blast]),
+            PlayerConfig::new("Rexxar", vec![Card::minion("Target", 0, 0, 5)]),
+        ]);
+        let reactive_id = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: reactive_id,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            })
+            .unwrap();
+        let target = hand_card(&mut simulation, PlayerId::Two);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::Two,
+                card: target,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::Two,
+            })
+            .unwrap();
+        let blast = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: blast,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+
+        let snapshot = simulation.snapshot();
+        assert_eq!(
+            snapshot
+                .objects
+                .iter()
+                .find(|object| object.id == reactive_id)
+                .unwrap()
+                .damage,
+            1
+        );
+        assert_eq!(
+            snapshot
+                .objects
+                .iter()
+                .find(|object| object.id == target)
+                .unwrap()
+                .damage,
+            3
+        );
+        assert_eq!(
+            simulation
+                .trace()
+                .iter()
+                .filter(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
+                .count(),
+            2
+        );
+        assert_eq!(
+            simulation
+                .trace()
+                .iter()
+                .filter(|entry| matches!(entry, TraceEntry::TriggerAborted { .. }))
+                .count(),
+            2
+        );
+        assert!(simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::QueueFrozen { entries, .. } if !entries.is_empty()
+        )));
+        simulation.assert_invariants().unwrap();
+    }
+
+    #[test]
     fn fork_replays_to_an_equivalent_snapshot_and_trace() {
         let mut simulation = simulation();
         let card = hand_card(&mut simulation, PlayerId::One);
@@ -2060,6 +2564,80 @@ mod tests {
             },
         )
         .unwrap();
+    }
+
+    #[derive(Resource)]
+    struct NativeHandlerObservation(EffectContext);
+
+    fn synthetic_native_handler(
+        In(context): In<EffectContext>,
+        mut commands: Commands,
+    ) -> Vec<Effect> {
+        commands.insert_resource(NativeHandlerObservation(context.clone()));
+        vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(2),
+        }]
+    }
+
+    #[test]
+    fn native_handlers_flush_commands_and_return_nested_effect_plans() {
+        let native_id = NativeEffectId::new("synthetic:native_damage");
+        let spell =
+            Card::spell("Native Bolt", 0).with_effects(vec![Effect::Native(native_id.clone())]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![spell]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        simulation
+            .register_native_effect(native_id.clone(), synthetic_native_handler)
+            .unwrap();
+        assert_eq!(
+            simulation.register_native_effect(native_id.clone(), synthetic_native_handler),
+            Err(SimulationError::NativeEffectAlreadyRegistered(
+                native_id.clone()
+            ))
+        );
+        let card = hand_card(&mut simulation, PlayerId::One);
+        let target = hero(&mut simulation, PlayerId::Two);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(target),
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+
+        assert_eq!(simulation.snapshot().players[1].health, 28);
+        let mut fork = simulation.fork().unwrap();
+        assert_eq!(simulation.snapshot(), fork.snapshot());
+        assert_eq!(simulation.trace(), fork.trace());
+        assert_eq!(
+            simulation
+                .app
+                .world()
+                .resource::<NativeHandlerObservation>()
+                .0
+                .declared_target,
+            Some(target)
+        );
+
+        let missing = NativeEffectId::new("synthetic:missing");
+        let world = simulation.app.world_mut();
+        begin_resolution(world, ResolutionKind::Sequence);
+        let context = EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+        };
+        assert_eq!(
+            execute_effect(world, &context, &Effect::Native(missing.clone())),
+            Err(SimulationError::NativeEffectNotRegistered(missing))
+        );
+        complete_active(world).unwrap();
+        cleanup_resolution(world);
     }
 
     #[test]
