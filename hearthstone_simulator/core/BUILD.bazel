@@ -27,8 +27,9 @@ rust_library(
         "trigger.rs",
         "zone.rs",
     ],
-    compile_data = ["Cargo.toml"],
+    compile_data = ["//:Cargo.toml"],
     crate_name = "hearthstone_simulator_core",
+    rustc_env = {"CARGO_MANIFEST_DIR": "."},
     deps = [
         "@crates//:bevy",
         "@crates//:thiserror",
