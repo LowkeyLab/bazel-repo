@@ -40,7 +40,9 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - [ ] **6 — Damage, healing, and death (vertical slice)**
   - [x] Armor, Immune, Divine Shield, mortality, pending destroy, and ordered boundary removal.
   - [x] Synthetic area-damage test proving deaths are collected before boundary removal.
-  - [ ] Proposed/pre-damage trigger pipeline, death records, Deathrattles, and chained Death Phases.
+  - [x] Immutable death records/cache (including turn of death), self-filtered Deathrattles, and chained Death Phases.
+  - [x] Irreversible Hero defeat at Death Creation, global simultaneous-death ordering, frozen Death Event batches, and play-order-mingled death triggers.
+  - [ ] Predamage value replacement/prevention and simultaneous damage/healing event batches.
 - [ ] **7 — General mechanics**
   - [x] Drawing, burning, fatigue, signed resources, temporary resources, and Overload counters.
   - [x] Data-driven transformation and copying primitives with stable/generated identities.
@@ -69,7 +71,13 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-08-26 | `aspect test //hearthstone_simulator/...`                                      | Passed core tests and CLI build             |
 | 2026-08-26 | `aspect format --scope=all`                                                    | Passed                                      |
 | 2026-08-26 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-26 | `aspect test //hearthstone_simulator/...`                                      | Passed chained Death Phase vertical slice   |
+| 2026-08-26 | `aspect format --scope=all`                                                    | Passed                                      |
+| 2026-08-26 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-26 | `aspect test //hearthstone_simulator/...`                                      | Passed death compliance regression coverage |
+| 2026-08-26 | `aspect lint`                                                                  | Passed all repository linters               |
+| 2026-08-26 | `aspect build //...`                                                           | Passed full repository build                |
 
 ## Known gaps
 
-The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Damage now emits proposed and actual event frames and ordinary event reactions resolve through frozen trigger queues, but predamage value replacement/prevention effects, simultaneous event batches, death records, Deathrattles, and chained Death Phases remain open.
+The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Damage emits proposed and actual event frames, ordinary event reactions resolve through frozen trigger queues, and boundary-created death records drive self-filtered Deathrattles through chained Death Phases. Death Creation now locks Hero defeat, orders deaths globally by play order, records the turn of death, and freezes every Death Event and trigger queue before batch resolution. Predamage value replacement/prevention effects and simultaneous damage/healing event batches remain open.

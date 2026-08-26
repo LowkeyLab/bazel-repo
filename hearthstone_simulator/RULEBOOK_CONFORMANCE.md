@@ -14,26 +14,30 @@ Behavior classifications:
 
 ## Matrix
 
-| Area                                                           | Classification      | Implementation                       | Focused coverage                    | Status                     |
-| -------------------------------------------------------------- | ------------------- | ------------------------------------ | ----------------------------------- | -------------------------- |
-| Stable identity across zones                                   | Current rule        | `entity`, `zone`                     | simulation identity/invariant tests | Implemented foundation     |
-| Explicit hand/deck/play ordering                               | Current rule        | `zone::ZoneIndex`                    | zone/simulation tests               | Implemented foundation     |
-| Depth-first nested resolution                                  | Current rule        | `resolver`                           | resolver ancestry/suspension tests  | Implemented foundation     |
-| Immutable event/trigger queues                                 | Current rule        | `queue`, `simulation::resolve_event` | freeze/cursor/reaction tests        | Implemented foundation     |
-| Trigger ordering by controller, zone, priority, and play order | Current rule        | `queue::TriggerOrderKey`, `trigger`  | collection/depth-first tests        | Implemented foundation     |
-| Trigger pre-check, queue-time, and resolution-time conditions  | Current rule        | `trigger`, `queue`                   | condition/abortion tests            | Implemented foundation     |
-| Direct trigger self-nesting and repeated-event safeguards      | Current rule        | `trigger::TriggerGuards`             | guard/nested-damage tests           | Implemented foundation     |
-| Native exceptional effects return primitive effect plans       | Card definition     | `native_effect`, `effect`            | registered-handler test             | Implemented foundation     |
-| Seeded random selection                                        | Current rule        | `rng`                                | same-seed test                      | Implemented foundation     |
-| Health/Attack aura boundary steps                              | Current rule        | `enchantment`, `resolver`            | stat recalculation only             | Partial                    |
-| Delayed simultaneous death creation                            | Current rule        | `death`                              | synthetic area-damage test          | Implemented vertical slice |
-| Proposed and actual damage/healing event reactions             | Current rule        | effect reducer, `resolve_event`      | nested trigger reaction test        | Partial                    |
-| Damage protection (Armor, Immune, Divine Shield)               | Current rule        | effect reducer                       | vertical mechanic tests             | Partial                    |
-| Draw, burn, and fatigue                                        | Current rule        | effect reducer/zone index            | fixture coverage                    | Partial                    |
-| Transformation and copying                                     | Current rule        | effect reducer                       | fixture coverage                    | Partial                    |
-| Forced Death Phase timing                                      | Compatibility quirk | named ruleset policy                 | esoteric tests                      | Planned                    |
-| Historical retired interactions                                | Historical          | excluded by profile                  | profile tests                       | Planned                    |
-| Official card-specific exceptions                              | Card definition     | definition/native effects            | fixture-specific tests              | Out of engine scope        |
+| Area                                                                  | Classification      | Implementation                       | Focused coverage                    | Status                     |
+| --------------------------------------------------------------------- | ------------------- | ------------------------------------ | ----------------------------------- | -------------------------- |
+| Stable identity across zones                                          | Current rule        | `entity`, `zone`                     | simulation identity/invariant tests | Implemented foundation     |
+| Explicit hand/deck/play ordering                                      | Current rule        | `zone::ZoneIndex`                    | zone/simulation tests               | Implemented foundation     |
+| Depth-first nested resolution                                         | Current rule        | `resolver`                           | resolver ancestry/suspension tests  | Implemented foundation     |
+| Immutable event/trigger queues                                        | Current rule        | `queue`, `simulation::resolve_event` | freeze/cursor/reaction tests        | Implemented foundation     |
+| Normal trigger ordering by controller, zone, priority, and play order | Current rule        | `queue::TriggerOrderKey`, `trigger`  | collection/depth-first tests        | Implemented foundation     |
+| Death trigger mingling by named priority and global play order        | Current rule        | `trigger`, death event batches       | Deathrattle/observer ordering test  | Implemented vertical slice |
+| Trigger pre-check, queue-time, and resolution-time conditions         | Current rule        | `trigger`, `queue`                   | condition/abortion tests            | Implemented foundation     |
+| Direct trigger self-nesting and repeated-event safeguards             | Current rule        | `trigger::TriggerGuards`             | guard/nested-damage tests           | Implemented foundation     |
+| Native exceptional effects return primitive effect plans              | Card definition     | `native_effect`, `effect`            | registered-handler test             | Implemented foundation     |
+| Seeded random selection                                               | Current rule        | `rng`                                | same-seed test                      | Implemented foundation     |
+| Health/Attack aura boundary steps                                     | Current rule        | `enchantment`, `resolver`            | stat recalculation only             | Partial                    |
+| Delayed simultaneous death creation                                   | Current rule        | `death`                              | synthetic area-damage test          | Implemented vertical slice |
+| Global simultaneous death order and frozen Death Event batches        | Current rule        | `death`, event queue                 | cross-controller/frozen-batch tests | Implemented vertical slice |
+| Hero defeat locked at Death Creation                                  | Current rule        | `death::DefeatedHeroes`              | lethal-then-heal test               | Implemented vertical slice |
+| Death records, turn cache, Deathrattles, and chained Death Phases     | Current rule        | `death`, phase-boundary driver       | cache/chained Deathrattle tests     | Implemented vertical slice |
+| Proposed and actual damage/healing event reactions                    | Current rule        | effect reducer, `resolve_event`      | nested trigger reaction test        | Partial                    |
+| Damage protection (Armor, Immune, Divine Shield)                      | Current rule        | effect reducer                       | vertical mechanic tests             | Partial                    |
+| Draw, burn, and fatigue                                               | Current rule        | effect reducer/zone index            | fixture coverage                    | Partial                    |
+| Transformation and copying                                            | Current rule        | effect reducer                       | fixture coverage                    | Partial                    |
+| Forced Death Phase timing                                             | Compatibility quirk | named ruleset policy                 | esoteric tests                      | Planned                    |
+| Historical retired interactions                                       | Historical          | excluded by profile                  | profile tests                       | Planned                    |
+| Official card-specific exceptions                                     | Card definition     | definition/native effects            | fixture-specific tests              | Out of engine scope        |
 
 ## Core invariants
 

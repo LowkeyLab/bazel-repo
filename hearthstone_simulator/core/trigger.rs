@@ -22,6 +22,7 @@ pub enum TriggerCondition {
     SourceInPlay,
     SourceInZone(Zone),
     EventValueAtLeast(i32),
+    EventSourceIsSelf,
     ControllerIs(PlayerId),
 }
 
@@ -137,18 +138,28 @@ pub(crate) fn collect_trigger_candidates(
             if definition.event != event.kind || !definition.eligible_zones.contains(zone) {
                 continue;
             }
+            let definition_index =
+                u32::try_from(definition_index).expect("entity has more than u32::MAX triggers");
+            // Death Event triggers mingle globally by named priority and play order. In
+            // particular, a Deathrattle in Graveyard must not be delayed behind a newer observer
+            // in Play merely because normal event queues group sources by controller and zone.
+            let (player_bucket, zone_bucket) = if event.kind == EventKind::Death {
+                (0, 0)
+            } else {
+                (controller.0.bucket(), zone_bucket(*zone))
+            };
             let queued = QueuedTrigger {
                 source: *source,
                 event: event_id,
                 event_entity,
-                definition_index: definition_index as u32,
+                definition_index,
                 order: TriggerOrderKey {
-                    player_bucket: controller.0.bucket(),
-                    zone_bucket: zone_bucket(*zone),
+                    player_bucket,
+                    zone_bucket,
                     priority: definition.priority,
                     play_order,
                     source: *source,
-                    tie_breaker: definition_index as u32,
+                    tie_breaker: definition_index,
                 },
             };
             if trigger_is_eligible(world, &queued, ConditionTiming::PreCheck)
@@ -207,6 +218,10 @@ fn evaluate_condition(
         TriggerCondition::EventValueAtLeast(value) => event
             .and_then(|event| event.actual_value.or(event.proposed_value))
             .is_some_and(|actual| actual >= *value),
+        TriggerCondition::EventSourceIsSelf => world
+            .get::<GameEntityId>(source)
+            .zip(event.and_then(|event| event.source.as_ref()))
+            .is_some_and(|(source, event_source)| source == event_source),
         TriggerCondition::ControllerIs(player) => world
             .get::<Controller>(source)
             .is_some_and(|controller| controller.0 == *player),
@@ -577,7 +592,15 @@ mod tests {
     #[googletest::test]
     fn condition_and_zone_helpers_cover_all_rule_variants() {
         let mut world = World::new();
-        let source = world.spawn((Controller(PlayerId::Two), Zone::Secret)).id();
+        world.init_resource::<crate::entity::GameEntityIndex>();
+        let source = world
+            .spawn((
+                crate::GameObject,
+                GameEntityId(7),
+                Controller(PlayerId::Two),
+                Zone::Secret,
+            ))
+            .id();
         let event = EventContext {
             kind: EventKind::Damage,
             source: None,
@@ -622,6 +645,18 @@ mod tests {
                 &TriggerCondition::EventValueAtLeast(1)
             ),
             is_false()
+        );
+        assert_that!(
+            evaluate_condition(
+                &world,
+                source,
+                Some(&EventContext {
+                    source: Some(GameEntityId(7)),
+                    ..event.clone()
+                }),
+                &TriggerCondition::EventSourceIsSelf
+            ),
+            is_true()
         );
         assert_that!(
             evaluate_condition(

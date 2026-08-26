@@ -58,6 +58,13 @@ pub enum TraceEntry {
     EntityDied {
         entity: GameEntityId,
     },
+    HeroDefeated {
+        entity: GameEntityId,
+        controller: PlayerId,
+    },
+    DeathPhaseQueued {
+        deaths: Vec<GameEntityId>,
+    },
     TurnChanged {
         active_player: PlayerId,
         turn: u32,

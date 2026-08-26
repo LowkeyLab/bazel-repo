@@ -157,8 +157,18 @@ pub(crate) fn push_resolution(
         .resource::<ResolutionCursor>()
         .active
         .ok_or(ResolutionError::InvalidCursor)?;
+    let child = spawn_resolution_child(world, parent, kind);
+    activate_resolution_child(world, child)?;
+    Ok(child)
+}
+
+pub(crate) fn spawn_resolution_child(
+    world: &mut World,
+    parent: Entity,
+    kind: ResolutionKind,
+) -> Entity {
     let id = allocate_resolution_id(world);
-    let child = world
+    world
         .spawn((
             ResolutionNode,
             ResolutionIdentity { id, kind },
@@ -167,18 +177,35 @@ pub(crate) fn push_resolution(
             },
             NestedUnder(parent),
         ))
-        .id();
+        .id()
+}
+
+pub(crate) fn activate_resolution_child(
+    world: &mut World,
+    child: Entity,
+) -> Result<(), ResolutionError> {
+    let parent = world
+        .get::<NestedUnder>(child)
+        .map(|parent| parent.0)
+        .ok_or(ResolutionError::InvalidCursor)?;
+    if world.resource::<ResolutionCursor>().active != Some(parent) {
+        return Err(ResolutionError::InvalidCursor);
+    }
+    let identity = *world
+        .get::<ResolutionIdentity>(child)
+        .ok_or(ResolutionError::InvalidCursor)?;
     world.resource_mut::<ResolutionCursor>().active = Some(child);
     world
         .resource_mut::<CanonicalTrace>()
         .entries
         .push(TraceEntry::FrameBegin {
-            id,
-            kind: format!("{kind:?}"),
+            id: identity.id,
+            kind: format!("{:?}", identity.kind),
         });
-    Ok(child)
+    Ok(())
 }
 
+#[allow(dead_code, reason = "used by the upcoming suspended-choice driver")]
 pub(crate) fn suspend_active(world: &mut World) -> Result<(), ResolutionError> {
     let active = world
         .resource::<ResolutionCursor>()
@@ -190,6 +217,7 @@ pub(crate) fn suspend_active(world: &mut World) -> Result<(), ResolutionError> {
     Ok(())
 }
 
+#[allow(dead_code, reason = "used by the upcoming suspended-choice driver")]
 pub(crate) fn resume_active(world: &mut World) -> Result<(), ResolutionError> {
     let active = world
         .resource::<ResolutionCursor>()
@@ -386,6 +414,14 @@ mod tests {
             resume_active(world),
             err(eq(&ResolutionError::InvalidCursor))
         );
+        let active_child = spawn_resolution_child(world, root, ResolutionKind::Effect);
+        let inactive_sibling = spawn_resolution_child(world, root, ResolutionKind::Effect);
+        activate_resolution_child(world, active_child).expect("child should activate");
+        assert_that!(
+            activate_resolution_child(world, inactive_sibling),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
+        complete_active(world).expect("active child should complete");
         let malformed = world.spawn_empty().id();
         world.resource_mut::<ResolutionCursor>().active = Some(malformed);
         assert_that!(

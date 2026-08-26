@@ -11,10 +11,10 @@ This repository is synthetic-card-first: it implements reusable mechanics and co
 - Explicit event/trigger queue entities with condition timing, complete order keys, immutable frozen membership, and cursor-based resolution
 - Data-oriented effects/selectors/values, fork-safe registered native effect handlers, and versioned seeded randomness with canonical RNG traces
 - Signed mana/Overload counters, drawing, burning, fatigue, damage, healing, Armor, Immune, Divine Shield, destroy, summon, silence, stat enchantments, transformation, and copying
-- Phase-boundary mortality collection and deterministic simultaneous death removal
+- Phase-boundary mortality collection with irreversible Hero defeat, globally ordered simultaneous removal, turn-stamped death records, frozen Death Event batches, play-order-mingled Deathrattles, and chained Death Phases
 - Stable-ID card play/combat/end-turn/concede actions, deterministic legal actions, canonical snapshots/traces, and replay-equivalent forks
 
-Predamage value replacement/prevention, simultaneous event batches, Deathrattles and chained Death Phases, aura-provider discovery, all card-type action sequences, suspended player choices, and esoteric compatibility policies remain tracked in the progress document.
+Predamage value replacement/prevention, simultaneous event batches, aura-provider discovery, all card-type action sequences, suspended player choices, and esoteric compatibility policies remain tracked in the progress document.
 
 ## Example
 
