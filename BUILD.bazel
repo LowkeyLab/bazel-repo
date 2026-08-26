@@ -12,6 +12,7 @@ clojure_gen_srcs(name = "clojure_gen_build_files")
 
 exports_files(
     [
+        "Cargo.toml",
         "deps.edn",
     ],
     visibility = ["//visibility:public"],
