@@ -72,8 +72,9 @@ pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
 mod tests {
     use super::*;
     use crate::{GameObject, entity::GameEntityIndex};
+    use googletest::prelude::*;
 
-    #[test]
+    #[googletest::test]
     fn recalculation_combines_ordered_modifiers_and_auras() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -117,16 +118,16 @@ mod tests {
 
         recalculate_stats(&mut world, GameEntityId(1));
 
-        assert_eq!(
+        assert_that!(
             world.get::<CurrentStats>(target),
-            Some(&CurrentStats {
+            eq(Some(&CurrentStats {
                 attack: 8,
                 maximum_health: 0,
-            })
+            }))
         );
         recalculate_stats(&mut world, GameEntityId(99));
         let without_base = world.spawn((GameObject, GameEntityId(5))).id();
         recalculate_stats(&mut world, GameEntityId(5));
-        assert!(world.get::<CurrentStats>(without_base).is_none());
+        assert_that!(world.get::<CurrentStats>(without_base).is_none(), is_true());
     }
 }

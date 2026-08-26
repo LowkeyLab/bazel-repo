@@ -1702,6 +1702,7 @@ fn assert_game_entity_index(world: &World) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use googletest::prelude::*;
 
     fn simulation() -> Simulation {
         Simulation::new([
@@ -1729,7 +1730,7 @@ mod tests {
             .expect("hero should be on the board")
     }
 
-    #[test]
+    #[googletest::test]
     fn cards_keep_identity_when_played() {
         let mut simulation = simulation();
         let card = hand_card(&mut simulation, PlayerId::One);
@@ -1745,22 +1746,22 @@ mod tests {
             .expect("card should be playable");
         let snapshot = simulation.snapshot();
 
-        assert!(snapshot.players[0].hand.is_empty());
-        assert!(snapshot.players[0].board.contains(&card));
-        assert_eq!(
+        assert_that!(snapshot.players[0].hand.is_empty(), is_true());
+        assert_that!(snapshot.players[0].board.contains(&card), is_true());
+        assert_that!(
             snapshot
                 .objects
                 .iter()
                 .filter(|object| object.id == card)
                 .count(),
-            1
+            eq(1)
         );
         simulation
             .assert_invariants()
             .expect("invariants should hold");
     }
 
-    #[test]
+    #[googletest::test]
     fn actions_use_stable_entity_targets() {
         let mut simulation = simulation();
         let card = hand_card(&mut simulation, PlayerId::One);
@@ -1793,10 +1794,10 @@ mod tests {
             })
             .expect("minion should attack");
 
-        assert_eq!(simulation.snapshot().players[1].health, 27);
+        assert_that!(simulation.snapshot().players[1].health, eq(27));
     }
 
-    #[test]
+    #[googletest::test]
     fn accepted_actions_are_appended_in_chronological_order() {
         let mut simulation = simulation();
         let card = hand_card(&mut simulation, PlayerId::One);
@@ -1823,10 +1824,10 @@ mod tests {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        assert_eq!(accepted, ["PlayCard", "EndTurn"]);
+        assert_that!(accepted, eq(&["PlayCard", "EndTurn"]));
     }
 
-    #[test]
+    #[googletest::test]
     fn negative_card_costs_are_floored_at_zero() {
         let mut simulation = Simulation::new([
             PlayerConfig::new("Jaina", vec![Card::minion("Discounted", -2, 1, 1)]),
@@ -1844,23 +1845,26 @@ mod tests {
             .unwrap();
 
         let player = &simulation.snapshot().players[0];
-        assert_eq!(player.used_resources, 0);
-        assert_eq!(player.resources_spent, 0);
-        assert!(simulation.trace().iter().any(|entry| matches!(
-            entry,
-            TraceEntry::ResourceSpent {
-                player: PlayerId::One,
-                amount: 0,
-            }
-        )));
+        assert_that!(player.used_resources, eq(0));
+        assert_that!(player.resources_spent, eq(0));
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::ResourceSpent {
+                    player: PlayerId::One,
+                    amount: 0,
+                }
+            )),
+            is_true()
+        );
     }
 
-    #[test]
+    #[googletest::test]
     fn rejected_actions_leave_resolution_idle() {
         let mut simulation = simulation();
         let missing = GameEntityId(99_999);
 
-        assert_eq!(
+        assert_that!(
             simulation.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card: missing,
@@ -1868,18 +1872,18 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::EntityNotFound(missing))
+            err(eq(&SimulationError::EntityNotFound(missing)))
         );
-        assert_eq!(
+        assert_that!(
             simulation.snapshot().game.status,
-            SimulationStatus::AwaitingAction
+            eq(SimulationStatus::AwaitingAction)
         );
         simulation
             .assert_invariants()
             .expect("invariants should hold");
     }
 
-    #[test]
+    #[googletest::test]
     fn area_damage_removes_deaths_together_at_the_phase_boundary() {
         let blast = Card::spell("Synthetic Blast", 0).with_effects(vec![Effect::DealDamage {
             targets: Selector::AllMinions,
@@ -1926,14 +1930,14 @@ mod tests {
             .filter(|entry| matches!(entry, TraceEntry::EntityDied { .. }))
             .count();
 
-        assert_eq!(living_minions, 0);
-        assert_eq!(deaths, 2);
+        assert_that!(living_minions, eq(0));
+        assert_that!(deaths, eq(2));
         simulation
             .assert_invariants()
             .expect("invariants should hold");
     }
 
-    #[test]
+    #[googletest::test]
     fn damage_events_freeze_and_resolve_trigger_effects_depth_first() {
         let reactive =
             Card::minion("Reactive", 0, 1, 4).with_triggers(vec![crate::TriggerDefinition {
@@ -2003,44 +2007,47 @@ mod tests {
             .unwrap();
 
         let snapshot = simulation.snapshot();
-        assert_eq!(
+        assert_that!(
             snapshot
                 .objects
                 .iter()
                 .find(|object| object.id == reactive_id)
                 .unwrap()
                 .damage,
-            1
+            eq(1)
         );
-        assert_eq!(
+        assert_that!(
             snapshot
                 .objects
                 .iter()
                 .find(|object| object.id == target)
                 .unwrap()
                 .damage,
-            3
+            eq(3)
         );
-        assert_eq!(
+        assert_that!(
             simulation
                 .trace()
                 .iter()
                 .filter(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
                 .count(),
-            2
+            eq(2)
         );
-        assert_eq!(
+        assert_that!(
             simulation
                 .trace()
                 .iter()
                 .filter(|entry| matches!(entry, TraceEntry::TriggerAborted { .. }))
                 .count(),
-            2
+            eq(2)
         );
-        assert!(simulation.trace().iter().any(|entry| matches!(
-            entry,
-            TraceEntry::QueueFrozen { entries, .. } if !entries.is_empty()
-        )));
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::QueueFrozen { entries, .. } if !entries.is_empty()
+            )),
+            is_true()
+        );
         let frozen_ids = simulation
             .trace()
             .iter()
@@ -2051,14 +2058,17 @@ mod tests {
             .flatten()
             .copied()
             .collect::<std::collections::BTreeSet<_>>();
-        assert!(simulation.trace().iter().all(|entry| match entry {
-            TraceEntry::TriggerResolved { id, .. } => frozen_ids.contains(id),
-            _ => true,
-        }));
+        assert_that!(
+            simulation.trace().iter().all(|entry| match entry {
+                TraceEntry::TriggerResolved { id, .. } => frozen_ids.contains(id),
+                _ => true,
+            }),
+            is_true()
+        );
         simulation.assert_invariants().unwrap();
     }
 
-    #[test]
+    #[googletest::test]
     fn fork_replays_to_an_equivalent_snapshot_and_trace() {
         let mut simulation = simulation();
         let card = hand_card(&mut simulation, PlayerId::One);
@@ -2074,28 +2084,28 @@ mod tests {
 
         let mut fork = simulation.fork().expect("accepted actions should replay");
 
-        assert_eq!(simulation.snapshot(), fork.snapshot());
-        assert_eq!(simulation.trace(), fork.trace());
+        assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
+        assert_that!(simulation.trace(), eq(fork.trace()));
     }
 
-    #[test]
+    #[googletest::test]
     fn legal_actions_are_deterministic() {
         let mut simulation = simulation();
         let first = simulation.legal_actions();
         let second = simulation.legal_actions();
 
-        assert_eq!(first, second);
-        assert_eq!(first.len(), 2);
+        assert_that!(first, eq(&second));
+        assert_that!(first.len(), eq(2));
     }
 
-    #[test]
+    #[googletest::test]
     fn action_validation_reports_each_rejection_and_concede_completes_game() {
         let mut wrong_turn = simulation();
-        assert_eq!(
+        assert_that!(
             wrong_turn.apply(GameAction::EndTurn {
                 player: PlayerId::Two,
             }),
-            Err(SimulationError::NotPlayersTurn(PlayerId::Two))
+            err(eq(&SimulationError::NotPlayersTurn(PlayerId::Two)))
         );
 
         let mut game_over = simulation();
@@ -2104,29 +2114,29 @@ mod tests {
             .world_mut()
             .resource_mut::<GameState>()
             .outcome = Some(GameOutcome::Winner(PlayerId::Two));
-        assert_eq!(
+        assert_that!(
             game_over.apply(GameAction::EndTurn {
                 player: PlayerId::One,
             }),
-            Err(SimulationError::GameOver)
+            err(eq(&SimulationError::GameOver))
         );
 
         let mut busy = simulation();
         busy.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
-        assert_eq!(
+        assert_that!(
             busy.apply(GameAction::EndTurn {
                 player: PlayerId::One,
             }),
-            Err(SimulationError::NotAwaitingAction)
+            err(eq(&SimulationError::NotAwaitingAction))
         );
-        assert!(busy.legal_actions().is_empty());
+        assert_that!(busy.legal_actions().is_empty(), is_true());
 
         let mut invalid = simulation();
         invalid.app.update();
         let card = hand_card(&mut invalid, PlayerId::One);
         let own_hero = hero(&mut invalid, PlayerId::One);
         let opposing_hero = hero(&mut invalid, PlayerId::Two);
-        assert_eq!(
+        assert_that!(
             invalid.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card: opposing_hero,
@@ -2134,11 +2144,11 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::NotControlled {
+            err(eq(&SimulationError::NotControlled {
                 entity: opposing_hero
-            })
+            }))
         );
-        assert_eq!(
+        assert_that!(
             invalid.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card: own_hero,
@@ -2146,10 +2156,10 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::WrongZone {
+            err(eq(&SimulationError::WrongZone {
                 entity: own_hero,
                 expected: Zone::Hand,
-            })
+            }))
         );
         let card_entity = game_entity(invalid.app.world(), card).unwrap();
         invalid
@@ -2157,7 +2167,7 @@ mod tests {
             .world_mut()
             .entity_mut(card_entity)
             .insert(EntityKind::Weapon);
-        assert_eq!(
+        assert_that!(
             invalid.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card,
@@ -2165,7 +2175,7 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::NotPlayable(card))
+            err(eq(&SimulationError::NotPlayable(card)))
         );
 
         let mut board_full = simulation();
@@ -2175,7 +2185,7 @@ mod tests {
             .resource_mut::<Ruleset>()
             .board_limit = 0;
         let card = hand_card(&mut board_full, PlayerId::One);
-        assert_eq!(
+        assert_that!(
             board_full.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card,
@@ -2183,7 +2193,7 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::BoardFull(PlayerId::One))
+            err(eq(&SimulationError::BoardFull(PlayerId::One)))
         );
 
         let mut expensive = Simulation::new([
@@ -2191,7 +2201,7 @@ mod tests {
             PlayerConfig::new("Rexxar", Vec::new()),
         ]);
         let card = hand_card(&mut expensive, PlayerId::One);
-        assert_eq!(
+        assert_that!(
             expensive.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card,
@@ -2199,11 +2209,11 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::NotEnoughMana {
+            err(eq(&SimulationError::NotEnoughMana {
                 player: PlayerId::One,
                 required: 2,
                 available: 1,
-            })
+            }))
         );
 
         let mut concede = simulation();
@@ -2212,14 +2222,17 @@ mod tests {
                 player: PlayerId::One,
             })
             .unwrap();
-        assert_eq!(
+        assert_that!(
             concede.snapshot().game.outcome,
-            Some(GameOutcome::Winner(PlayerId::Two))
+            eq(Some(GameOutcome::Winner(PlayerId::Two)))
         );
-        assert_eq!(concede.snapshot().game.status, SimulationStatus::Complete);
+        assert_that!(
+            concede.snapshot().game.status,
+            eq(SimulationStatus::Complete)
+        );
     }
 
-    #[test]
+    #[googletest::test]
     fn legal_actions_ignore_stale_ids_and_deck_setup_spawns_cards() {
         let mut simulation = Simulation::new([
             PlayerConfig::with_deck("Jaina", vec![Card::spell("Topdeck", 0)]),
@@ -2232,16 +2245,16 @@ mod tests {
             .0
             .insert((PlayerId::One, Zone::Hand), vec![GameEntityId(u64::MAX)]);
 
-        assert_eq!(
+        assert_that!(
             simulation.legal_actions(),
-            vec![GameAction::EndTurn {
+            eq(&vec![GameAction::EndTurn {
                 player: PlayerId::One
-            }]
+            }])
         );
-        assert_eq!(simulation.snapshot().players[0].deck.len(), 1);
+        assert_that!(simulation.snapshot().players[0].deck.len(), eq(1));
     }
 
-    #[test]
+    #[googletest::test]
     fn combat_checks_exhaustion_and_defenders_and_applies_counter_damage() {
         let mut simulation = Simulation::new([
             PlayerConfig::new("Jaina", vec![Card::minion("Attacker", 0, 2, 3)]),
@@ -2258,13 +2271,13 @@ mod tests {
             })
             .unwrap();
         let enemy_hero = hero(&mut simulation, PlayerId::Two);
-        assert_eq!(
+        assert_that!(
             simulation.apply(GameAction::Attack {
                 player: PlayerId::One,
                 attacker,
                 defender: enemy_hero,
             }),
-            Err(SimulationError::CannotAttack(attacker))
+            err(eq(&SimulationError::CannotAttack(attacker)))
         );
         simulation
             .apply(GameAction::EndTurn {
@@ -2287,13 +2300,13 @@ mod tests {
             })
             .unwrap();
         let own_hero = hero(&mut simulation, PlayerId::One);
-        assert_eq!(
+        assert_that!(
             simulation.apply(GameAction::Attack {
                 player: PlayerId::One,
                 attacker,
                 defender: own_hero,
             }),
-            Err(SimulationError::InvalidDefender(own_hero))
+            err(eq(&SimulationError::InvalidDefender(own_hero)))
         );
         simulation
             .apply(GameAction::Attack {
@@ -2309,17 +2322,17 @@ mod tests {
             .into_iter()
             .find(|object| object.id == attacker)
             .unwrap();
-        assert_eq!(attacker_state.damage, 1);
+        assert_that!(attacker_state.damage, eq(1));
     }
 
-    #[test]
+    #[googletest::test]
     fn damage_handles_missing_targets_immunity_shields_armor_and_negative_values() {
         let mut simulation = simulation();
         let target = hero(&mut simulation, PlayerId::Two);
         let entity = game_entity(simulation.app.world(), target).unwrap();
-        assert_eq!(
+        assert_that!(
             apply_damage(simulation.app.world_mut(), None, GameEntityId(99), 1),
-            Err(SimulationError::EntityNotFound(GameEntityId(99)))
+            err(eq(&SimulationError::EntityNotFound(GameEntityId(99))))
         );
 
         simulation
@@ -2330,9 +2343,9 @@ mod tests {
             .0
             .insert(Keyword::Immune);
         apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
-        assert_eq!(
+        assert_that!(
             simulation.app.world().get::<Damage>(entity),
-            Some(&Damage(0))
+            eq(Some(&Damage(0)))
         );
         simulation
             .app
@@ -2349,14 +2362,15 @@ mod tests {
             .0
             .insert(Keyword::DivineShield);
         apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
-        assert!(
-            !simulation
+        assert_that!(
+            simulation
                 .app
                 .world()
                 .get::<Keywords>(entity)
                 .unwrap()
                 .0
-                .contains(&Keyword::DivineShield)
+                .contains(&Keyword::DivineShield),
+            is_false()
         );
         simulation
             .app
@@ -2364,19 +2378,22 @@ mod tests {
             .entity_mut(entity)
             .insert(Armor(3));
         apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
-        assert_eq!(simulation.app.world().get::<Armor>(entity), Some(&Armor(0)));
-        assert_eq!(
+        assert_that!(
+            simulation.app.world().get::<Armor>(entity),
+            eq(Some(&Armor(0)))
+        );
+        assert_that!(
             simulation.app.world().get::<Damage>(entity),
-            Some(&Damage(2))
+            eq(Some(&Damage(2)))
         );
         apply_damage(simulation.app.world_mut(), None, target, -5).unwrap();
-        assert_eq!(
+        assert_that!(
             simulation.app.world().get::<Damage>(entity),
-            Some(&Damage(2))
+            eq(Some(&Damage(2)))
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         let mut simulation = Simulation::new([
             PlayerConfig::with_deck("Jaina", vec![Card::spell("Friendly Draw", 0)]),
@@ -2403,19 +2420,19 @@ mod tests {
             declared_target: Some(enemy),
         };
 
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::Source),
-            vec![friendly]
+            eq(&vec![friendly])
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::DeclaredTarget),
-            vec![enemy]
+            eq(&vec![enemy])
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::Entity(enemy)),
-            vec![enemy]
+            eq(&vec![enemy])
         );
-        assert_eq!(
+        assert_that!(
             select_entities(
                 world,
                 &context,
@@ -2425,59 +2442,59 @@ mod tests {
                 }
             )
             .len(),
-            1
+            eq(1)
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::FriendlyMinions),
-            vec![friendly]
+            eq(&vec![friendly])
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::EnemyMinions),
-            vec![enemy]
+            eq(&vec![enemy])
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::AllMinions),
-            vec![friendly, enemy]
+            eq(&vec![friendly, enemy])
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::FriendlyCharacters).len(),
-            2
+            eq(2)
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::EnemyCharacters).len(),
-            2
+            eq(2)
         );
-        assert_eq!(
+        assert_that!(
             select_entities(world, &context, &Selector::AllCharacters).len(),
-            4
+            eq(4)
         );
-        assert_eq!(
+        assert_that!(
             select_entities(
                 world,
                 &context,
                 &Selector::Random(Box::new(Selector::Entity(enemy)))
             ),
-            vec![enemy]
+            eq(&vec![enemy])
         );
-        assert_eq!(
+        assert_that!(
             evaluate_value(world, &context, ValueExpression::SourceAttack, 9),
-            2
+            eq(2)
         );
-        assert_eq!(
+        assert_that!(
             evaluate_value(world, &context, ValueExpression::TargetCount, 9),
-            9
+            eq(9)
         );
-        assert_eq!(
+        assert_that!(
             resolve_player(PlayerId::One, PlayerSelector::Controller),
-            PlayerId::One
+            eq(PlayerId::One)
         );
-        assert_eq!(
+        assert_that!(
             resolve_player(PlayerId::One, PlayerSelector::Opponent),
-            PlayerId::Two
+            eq(PlayerId::Two)
         );
-        assert_eq!(
+        assert_that!(
             resolve_player(PlayerId::One, PlayerSelector::Player(PlayerId::Two)),
-            PlayerId::Two
+            eq(PlayerId::Two)
         );
 
         begin_resolution(world, ResolutionKind::Sequence);
@@ -2541,29 +2558,33 @@ mod tests {
         complete_active(world).unwrap();
         cleanup_resolution(world);
 
-        assert_eq!(
+        assert_that!(
             world.get::<Damage>(game_entity(world, enemy).unwrap()),
-            Some(&Damage(0))
+            eq(Some(&Damage(0)))
         );
-        assert!(
-            !world
+        assert_that!(
+            world
                 .get::<Keywords>(game_entity(world, friendly).unwrap())
                 .unwrap()
                 .0
-                .contains(&Keyword::Taunt)
+                .contains(&Keyword::Taunt),
+            is_false()
         );
-        assert_eq!(
+        assert_that!(
             world
                 .resource::<ZoneIndex>()
                 .entities(PlayerId::One, Zone::Hand)
                 .len(),
-            1
+            eq(1)
         );
-        assert_eq!(
+        assert_that!(
             player(world, PlayerId::One).unwrap().1.temporary_resources,
-            2
+            eq(2)
         );
-        assert_eq!(player(world, PlayerId::Two).unwrap().1.maximum_resources, 2);
+        assert_that!(
+            player(world, PlayerId::Two).unwrap().1.maximum_resources,
+            eq(2)
+        );
 
         execute_effect(
             world,
@@ -2575,18 +2596,21 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(matches!(
-            execute_effect(
-                world,
-                &context,
-                &Effect::Summon {
-                    player: PlayerSelector::Opponent,
-                    card: Card::minion("Bad Position", 0, 1, 1),
-                    board_index: Some(999),
-                },
+        assert_that!(
+            matches!(
+                execute_effect(
+                    world,
+                    &context,
+                    &Effect::Summon {
+                        player: PlayerSelector::Opponent,
+                        card: Card::minion("Bad Position", 0, 1, 1),
+                        board_index: Some(999),
+                    },
+                ),
+                Err(SimulationError::Zone(ZoneError::InvalidPosition { .. }))
             ),
-            Err(SimulationError::Zone(ZoneError::InvalidPosition { .. }))
-        ));
+            is_true()
+        );
         world.resource_mut::<Ruleset>().board_limit = world
             .resource::<ZoneIndex>()
             .entities(PlayerId::Two, Zone::Play)
@@ -2617,7 +2641,7 @@ mod tests {
         }]
     }
 
-    #[test]
+    #[googletest::test]
     fn native_handlers_flush_commands_and_return_nested_effect_plans() {
         let native_id = NativeEffectId::new("synthetic:native_damage");
         let spell =
@@ -2629,11 +2653,11 @@ mod tests {
         simulation
             .register_native_effect(native_id.clone(), synthetic_native_handler)
             .unwrap();
-        assert_eq!(
+        assert_that!(
             simulation.register_native_effect(native_id.clone(), synthetic_native_handler),
-            Err(SimulationError::NativeEffectAlreadyRegistered(
+            err(eq(&SimulationError::NativeEffectAlreadyRegistered(
                 native_id.clone()
-            ))
+            )))
         );
         let card = hand_card(&mut simulation, PlayerId::One);
         let target = hero(&mut simulation, PlayerId::Two);
@@ -2647,18 +2671,18 @@ mod tests {
             })
             .unwrap();
 
-        assert_eq!(simulation.snapshot().players[1].health, 28);
+        assert_that!(simulation.snapshot().players[1].health, eq(28));
         let mut fork = simulation.fork().unwrap();
-        assert_eq!(simulation.snapshot(), fork.snapshot());
-        assert_eq!(simulation.trace(), fork.trace());
-        assert_eq!(
+        assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
+        assert_that!(simulation.trace(), eq(fork.trace()));
+        assert_that!(
             simulation
                 .app
                 .world()
                 .resource::<NativeHandlerObservation>()
                 .0
                 .declared_target,
-            Some(target)
+            eq(Some(target))
         );
 
         let missing = NativeEffectId::new("synthetic:missing");
@@ -2669,15 +2693,15 @@ mod tests {
             controller: PlayerId::One,
             declared_target: None,
         };
-        assert_eq!(
+        assert_that!(
             execute_effect(world, &context, &Effect::Native(missing.clone())),
-            Err(SimulationError::NativeEffectNotRegistered(missing))
+            err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
         );
         complete_active(world).unwrap();
         cleanup_resolution(world);
     }
 
-    #[test]
+    #[googletest::test]
     fn missing_native_effects_are_rejected_before_card_play_mutates_state() {
         let missing = NativeEffectId::new("synthetic:missing");
         let mut simulation = Simulation::new([
@@ -2693,7 +2717,7 @@ mod tests {
         let card = hand_card(&mut simulation, PlayerId::One);
         let before = simulation.snapshot();
 
-        assert_eq!(
+        assert_that!(
             simulation.apply(GameAction::PlayCard {
                 player: PlayerId::One,
                 card,
@@ -2701,15 +2725,15 @@ mod tests {
                 board_index: None,
                 choice: None,
             }),
-            Err(SimulationError::NativeEffectNotRegistered(missing))
+            err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
         );
 
-        assert_eq!(simulation.snapshot(), before);
+        assert_that!(simulation.snapshot(), eq(&before));
         let mut fork = simulation.fork().unwrap();
-        assert_eq!(simulation.snapshot(), fork.snapshot());
+        assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
     }
 
-    #[test]
+    #[googletest::test]
     fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
         let suppressor =
             Card::minion("Suppressor", 0, 1, 3).with_triggers(vec![crate::TriggerDefinition {
@@ -2784,27 +2808,29 @@ mod tests {
                 .unwrap();
         }
 
-        assert_eq!(
+        assert_that!(
             player(simulation.app.world(), PlayerId::One)
                 .unwrap()
                 .1
                 .temporary_resources,
-            1
+            eq(1)
         );
         let reactive_entity = game_entity(simulation.app.world(), reactive).unwrap();
-        assert!(
+        assert_that!(
             simulation
                 .app
                 .world()
                 .get::<RuntimeTriggers>(reactive_entity)
-                .is_some()
+                .is_some(),
+            is_true()
         );
-        assert!(
+        assert_that!(
             simulation
                 .app
                 .world()
                 .get::<TriggersSuppressed>(reactive_entity)
-                .is_some()
+                .is_some(),
+            is_true()
         );
 
         transform_entity(
@@ -2824,14 +2850,15 @@ mod tests {
         )
         .unwrap();
         let transformed = game_entity(simulation.app.world(), reactive).unwrap();
-        assert!(
+        assert_that!(
             simulation
                 .app
                 .world()
                 .get::<TriggersSuppressed>(transformed)
-                .is_none()
+                .is_none(),
+            is_true()
         );
-        assert_eq!(
+        assert_that!(
             simulation
                 .app
                 .world()
@@ -2839,11 +2866,11 @@ mod tests {
                 .unwrap()
                 .0[0]
                 .event,
-            EventKind::Healing
+            eq(EventKind::Healing)
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
         let mut simulation = Simulation::new([
             PlayerConfig::with_deck("Jaina", vec![Card::spell("Burn Me", 0)]),
@@ -2852,15 +2879,15 @@ mod tests {
         let world = simulation.app.world_mut();
         world.resource_mut::<Ruleset>().hand_limit = 0;
         draw_card(world, PlayerId::One).unwrap();
-        assert_eq!(
+        assert_that!(
             world
                 .resource::<ZoneIndex>()
                 .entities(PlayerId::One, Zone::Graveyard)
                 .len(),
-            1
+            eq(1)
         );
         draw_card(world, PlayerId::One).unwrap();
-        assert_eq!(player(world, PlayerId::One).unwrap().1.fatigue, 1);
+        assert_that!(player(world, PlayerId::One).unwrap().1.fatigue, eq(1));
 
         let first_hero = hero_id(world, PlayerId::One).unwrap();
         let second_hero = hero_id(world, PlayerId::Two).unwrap();
@@ -2868,19 +2895,19 @@ mod tests {
         let second_entity = game_entity(world, second_hero).unwrap();
         world.get_mut::<Damage>(first_entity).unwrap().0 = STARTING_HEALTH;
         check_outcome(world);
-        assert_eq!(
+        assert_that!(
             world.resource::<GameState>().outcome,
-            Some(GameOutcome::Winner(PlayerId::Two))
+            eq(Some(GameOutcome::Winner(PlayerId::Two)))
         );
         world.resource_mut::<GameState>().outcome = None;
         world.get_mut::<Damage>(second_entity).unwrap().0 = STARTING_HEALTH;
         check_outcome(world);
-        assert_eq!(
+        assert_that!(
             world.resource::<GameState>().outcome,
-            Some(GameOutcome::Draw)
+            eq(Some(GameOutcome::Draw))
         );
 
-        assert_eq!(
+        assert_that!(
             attach_stat_modifier(
                 world,
                 PlayerId::One,
@@ -2891,29 +2918,32 @@ mod tests {
                     silence_removable: true,
                 }
             ),
-            Err(SimulationError::EntityNotFound(GameEntityId(999)))
+            err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
         );
-        assert_eq!(
+        assert_that!(
             silence_entity(world, GameEntityId(999)),
-            Err(SimulationError::EntityNotFound(GameEntityId(999)))
+            err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
         );
-        assert_eq!(
+        assert_that!(
             transform_entity(world, GameEntityId(999), Card::minion("Missing", 0, 1, 1)),
-            Err(SimulationError::EntityNotFound(GameEntityId(999)))
+            err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
         );
-        assert_eq!(copy_card_data(world, GameEntityId(999)), None);
-        assert_eq!(hero_id(world, PlayerId::One), Some(first_hero));
+        assert_that!(copy_card_data(world, GameEntityId(999)), none());
+        assert_that!(hero_id(world, PlayerId::One), eq(Some(first_hero)));
     }
 
-    #[test]
+    #[googletest::test]
     fn spawn_and_index_helpers_report_cleanup_and_drift() {
         let mut simulation = simulation();
         let world = simulation.app.world_mut();
         world.resource_mut::<Ruleset>().hand_limit = 0;
-        assert!(matches!(
-            spawn_card(world, PlayerId::One, Card::spell("No Space", 0), Zone::Hand),
-            Err(SimulationError::Zone(ZoneError::Full { .. }))
-        ));
+        assert_that!(
+            matches!(
+                spawn_card(world, PlayerId::One, Card::spell("No Space", 0), Zone::Hand),
+                Err(SimulationError::Zone(ZoneError::Full { .. }))
+            ),
+            is_true()
+        );
 
         let indexed = *world.resource::<GameEntityIndex>().0.keys().next().unwrap();
         let original = world.resource::<GameEntityIndex>().0[&indexed];
@@ -2922,18 +2952,18 @@ mod tests {
             .resource_mut::<GameEntityIndex>()
             .0
             .insert(indexed, replacement);
-        assert_eq!(
+        assert_that!(
             assert_game_entity_index(world),
-            Err(format!("game entity index disagrees for {indexed:?}"))
+            err(eq(&format!("game entity index disagrees for {indexed:?}")))
         );
         world
             .resource_mut::<GameEntityIndex>()
             .0
             .insert(indexed, original);
         world.spawn(GameObject);
-        assert_eq!(
+        assert_that!(
             assert_game_entity_index(world),
-            Err("not every GameObject is indexed".to_string())
+            err(eq(&"not every GameObject is indexed".to_string()))
         );
     }
 }

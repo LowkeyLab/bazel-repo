@@ -248,6 +248,7 @@ mod tests {
         Controller, EntityKind, GameObject, PlayerId, RuntimeTriggers, SourceEligibilityPolicy,
         TriggerDefinition, WoundedTargetPolicy, Zone, entity::GameEntityIndex,
     };
+    use googletest::prelude::*;
 
     fn trigger(source: u64, play_order: u64, tie_breaker: u32) -> QueuedTrigger {
         QueuedTrigger {
@@ -266,7 +267,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[googletest::test]
     fn event_queue_does_not_advance_until_selected_entry_finishes() {
         let mut world = World::new();
         let queue = world
@@ -287,24 +288,24 @@ mod tests {
         .expect("collecting queue accepts events");
         freeze_queue(&mut world, queue).expect("queue should freeze");
 
-        assert_eq!(
+        assert_that!(
             select_next(&mut world, queue).expect("queue should select"),
-            QueueSelection::Selected(event)
+            eq(QueueSelection::Selected(event))
         );
-        assert_eq!(world.get::<QueueCursor>(queue).unwrap().0, 0);
+        assert_that!(world.get::<QueueCursor>(queue).unwrap().0, eq(0));
         abort_selected(&mut world, queue, event).expect("selected event should abort");
-        assert_eq!(
+        assert_that!(
             world.get::<QueueEntryStatus>(event),
-            Some(&QueueEntryStatus::Aborted)
+            eq(Some(&QueueEntryStatus::Aborted))
         );
-        assert_eq!(world.get::<QueueCursor>(queue).unwrap().0, 1);
-        assert_eq!(
+        assert_that!(world.get::<QueueCursor>(queue).unwrap().0, eq(1));
+        assert_that!(
             select_next(&mut world, queue).expect("queue should complete"),
-            QueueSelection::Complete
+            eq(QueueSelection::Complete)
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn freeze_sorts_complete_keys_and_rejects_late_entries() {
         let mut world = World::new();
         let queue = world
@@ -317,19 +318,19 @@ mod tests {
 
         let frozen = freeze_queue(&mut world, queue).expect("queue should freeze");
 
-        assert_eq!(frozen, vec![first, later]);
-        assert_eq!(
+        assert_that!(frozen, eq(&vec![first, later]));
+        assert_that!(
             world.get::<FrozenQueueEntries>(queue).unwrap().entries,
-            vec![first, later]
+            eq(&vec![first, later])
         );
-        assert_eq!(
+        assert_that!(
             add_trigger_entry(&mut world, queue, trigger(3, 5, 0)),
-            Err(QueueMutationError::NotCollecting)
+            err(eq(QueueMutationError::NotCollecting))
         );
-        assert_eq!(world.get::<QueuedIn>(first).unwrap().0, queue);
+        assert_that!(world.get::<QueuedIn>(first).unwrap().0, eq(queue));
     }
 
-    #[test]
+    #[googletest::test]
     fn invalid_trigger_sources_abort_without_mutating_frozen_membership() {
         let mut world = World::new();
         world.init_resource::<crate::entity::GameEntityIndex>();
@@ -339,18 +340,18 @@ mod tests {
         let entry = add_trigger_entry(&mut world, queue, trigger(404, 0, 0)).unwrap();
         freeze_queue(&mut world, queue).unwrap();
 
-        assert_eq!(
+        assert_that!(
             select_next(&mut world, queue),
-            Ok(QueueSelection::Aborted(entry))
+            ok(eq(QueueSelection::Aborted(entry)))
         );
-        assert_eq!(
+        assert_that!(
             world.get::<QueueEntryStatus>(entry),
-            Some(&QueueEntryStatus::Aborted)
+            eq(Some(&QueueEntryStatus::Aborted))
         );
-        assert_eq!(world.get::<QueueCursor>(queue), Some(&QueueCursor(1)));
+        assert_that!(world.get::<QueueCursor>(queue), eq(Some(&QueueCursor(1))));
     }
 
-    #[test]
+    #[googletest::test]
     fn eligible_trigger_sources_can_be_selected() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -378,19 +379,19 @@ mod tests {
         let entry = add_trigger_entry(&mut world, queue, trigger(1, 0, 0)).unwrap();
         freeze_queue(&mut world, queue).unwrap();
 
-        assert_eq!(
+        assert_that!(
             select_next(&mut world, queue),
-            Ok(QueueSelection::Selected(entry))
+            ok(eq(QueueSelection::Selected(entry)))
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn queue_operations_report_invalid_states_and_entries() {
         let mut world = World::new();
         let incomplete = world.spawn(QueueState::Collecting).id();
-        assert_eq!(
+        assert_that!(
             freeze_queue(&mut world, incomplete),
-            Err(QueueMutationError::MissingQueue)
+            err(eq(&QueueMutationError::MissingQueue))
         );
 
         let queue = world
@@ -422,8 +423,11 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(freeze_queue(&mut world, queue).unwrap(), vec![first, later]);
-        assert_eq!(
+        assert_that!(
+            freeze_queue(&mut world, queue).unwrap(),
+            eq(&vec![first, later])
+        );
+        assert_that!(
             add_event_entry(
                 &mut world,
                 queue,
@@ -436,31 +440,31 @@ mod tests {
                     },
                 },
             ),
-            Err(QueueMutationError::NotCollecting)
+            err(eq(QueueMutationError::NotCollecting))
         );
         let wrong = world.spawn_empty().id();
-        assert_eq!(
+        assert_that!(
             finish_selected(&mut world, queue, wrong),
-            Err(QueueMutationError::WrongEntry)
+            err(eq(QueueMutationError::WrongEntry))
         );
 
         let collecting = world.spawn(QueueState::Collecting).id();
-        assert_eq!(
+        assert_that!(
             select_next(&mut world, collecting),
-            Err(QueueMutationError::NotFrozen)
+            err(eq(QueueMutationError::NotFrozen))
         );
-        assert_eq!(
+        assert_that!(
             finish_selected(&mut world, collecting, wrong),
-            Err(QueueMutationError::NotFrozen)
+            err(eq(QueueMutationError::NotFrozen))
         );
         world.entity_mut(queue).remove::<FrozenQueueEntries>();
-        assert_eq!(
+        assert_that!(
             select_next(&mut world, queue),
-            Err(QueueMutationError::NotFrozen)
+            err(eq(QueueMutationError::NotFrozen))
         );
-        assert_eq!(
+        assert_that!(
             freeze_queue(&mut world, queue),
-            Err(QueueMutationError::NotCollecting)
+            err(eq(&QueueMutationError::NotCollecting))
         );
     }
 }
