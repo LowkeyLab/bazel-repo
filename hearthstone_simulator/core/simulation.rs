@@ -614,7 +614,8 @@ fn resolve_death_event_batch(
                     tie_breaker: 0,
                 },
             },
-        )?;
+        )
+        .expect("collecting Death Event queue accepts entries");
     }
     let frozen = freeze_queue(world, queue)?;
     let frozen_ids = frozen
@@ -634,9 +635,17 @@ fn resolve_death_event_batch(
             entries: frozen_ids,
         });
 
+    resolve_prepared_death_events(world, queue)?;
+    complete_active(world)?;
+    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
+    complete_active(world)?;
+    Ok(())
+}
+
+fn resolve_prepared_death_events(world: &mut World, queue: Entity) -> Result<(), SimulationError> {
     loop {
         match select_next(world, queue)? {
-            QueueSelection::Complete => break,
+            QueueSelection::Complete => return Ok(()),
             QueueSelection::Aborted(_) => {}
             QueueSelection::Selected(entry) => {
                 let event_entity = world
@@ -650,10 +659,6 @@ fn resolve_death_event_batch(
             }
         }
     }
-    complete_active(world)?;
-    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
-    complete_active(world)?;
-    Ok(())
 }
 
 fn validate_turn(world: &World, player: PlayerId) -> Result<(), SimulationError> {
@@ -2306,6 +2311,56 @@ mod tests {
     }
 
     #[googletest::test]
+    fn aborted_death_event_entries_do_not_block_queue_completion() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let queue = world
+            .spawn((ResolutionQueue(QueueKind::Events), QueueState::Collecting))
+            .id();
+        let entry = add_event_entry(
+            &mut world,
+            queue,
+            QueuedEvent {
+                event: crate::ResolutionId(1),
+                event_entity: Entity::PLACEHOLDER,
+                order: EventOrderKey {
+                    player_bucket: 0,
+                    ordinal: 0,
+                    tie_breaker: 0,
+                },
+            },
+        )
+        .expect("collecting queue should accept the event");
+        world.entity_mut(entry).insert(QueuedTrigger {
+            source: GameEntityId(u64::MAX),
+            event: crate::ResolutionId(1),
+            event_entity: Entity::PLACEHOLDER,
+            definition_index: 0,
+            order: crate::TriggerOrderKey {
+                player_bucket: 0,
+                zone_bucket: 0,
+                priority: 0,
+                play_order: 0,
+                source: GameEntityId(u64::MAX),
+                tie_breaker: 0,
+            },
+        });
+        freeze_queue(&mut world, queue).expect("event queue should freeze");
+
+        resolve_prepared_death_events(&mut world, queue)
+            .expect("an aborted entry should not fail the Death Event queue");
+
+        assert_that!(
+            world.get::<QueueState>(queue),
+            eq(Some(&QueueState::Complete))
+        );
+        assert_that!(
+            world.get::<crate::QueueEntryStatus>(entry),
+            eq(Some(&crate::QueueEntryStatus::Aborted))
+        );
+    }
+
+    #[googletest::test]
     fn deathrattles_and_board_observers_mingle_by_play_order() {
         let deathrattle = Card::minion("Older Deathrattle", 0, 1, 1).with_deathrattle(Vec::new());
         let observer =
@@ -2612,6 +2667,81 @@ mod tests {
             is_true()
         );
         simulation.assert_invariants().unwrap();
+    }
+
+    #[googletest::test]
+    fn resolution_time_conditions_abort_frozen_trigger_entries() {
+        let reactive = Card::minion("Resolution-Time Observer", 0, 1, 4).with_triggers(vec![
+            crate::TriggerDefinition {
+                event: EventKind::Damage,
+                eligible_zones: vec![Zone::Play],
+                conditions: vec![crate::TimedCondition {
+                    timing: crate::ConditionTiming::ResolutionTime,
+                    condition: crate::TriggerCondition::ControllerIs(PlayerId::Two),
+                }],
+                source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                }],
+            },
+        ]);
+        let bolt = Card::spell("Resolution-Time Bolt", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(1),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![reactive, bolt]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let reactive = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: reactive,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let bolt = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: bolt,
+                target: Some(reactive),
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+
+        assert_that!(
+            player(simulation.app.world(), PlayerId::One)
+                .unwrap()
+                .1
+                .temporary_resources,
+            eq(0)
+        );
+        assert_that!(
+            simulation
+                .trace()
+                .iter()
+                .filter(|entry| matches!(entry, TraceEntry::TriggerAborted { .. }))
+                .count(),
+            eq(1)
+        );
+        assert_that!(
+            simulation
+                .trace()
+                .iter()
+                .any(|entry| matches!(entry, TraceEntry::TriggerResolved { .. })),
+            is_false()
+        );
     }
 
     #[googletest::test]

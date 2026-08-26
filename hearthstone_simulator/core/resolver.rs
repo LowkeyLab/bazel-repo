@@ -414,6 +414,14 @@ mod tests {
             resume_active(world),
             err(eq(&ResolutionError::InvalidCursor))
         );
+        let active_child = spawn_resolution_child(world, root, ResolutionKind::Effect);
+        let inactive_sibling = spawn_resolution_child(world, root, ResolutionKind::Effect);
+        activate_resolution_child(world, active_child).expect("child should activate");
+        assert_that!(
+            activate_resolution_child(world, inactive_sibling),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
+        complete_active(world).expect("active child should complete");
         let malformed = world.spawn_empty().id();
         world.resource_mut::<ResolutionCursor>().active = Some(malformed);
         assert_that!(
