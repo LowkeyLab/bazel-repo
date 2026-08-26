@@ -288,6 +288,8 @@ pub(crate) fn allocate_resolution_id(world: &mut World) -> ResolutionId {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
 
     fn app_with_resolution() -> App {
@@ -300,7 +302,7 @@ mod tests {
         app
     }
 
-    #[test]
+    #[googletest::test]
     fn active_cursor_follows_depth_first_relationship_path() {
         let mut app = app_with_resolution();
         let world = app.world_mut();
@@ -308,37 +310,40 @@ mod tests {
         let phase = push_resolution(world, ResolutionKind::Phase).expect("phase should push");
         let effect = push_resolution(world, ResolutionKind::Effect).expect("effect should push");
 
-        assert_eq!(world.resource::<ResolutionCursor>().active, Some(effect));
-        assert_eq!(world.get::<NestedUnder>(effect).unwrap().0, phase);
-        assert_eq!(world.get::<NestedUnder>(phase).unwrap().0, root);
+        assert_that!(
+            world.resource::<ResolutionCursor>().active,
+            eq(Some(effect))
+        );
+        assert_that!(world.get::<NestedUnder>(effect).unwrap().0, eq(phase));
+        assert_that!(world.get::<NestedUnder>(phase).unwrap().0, eq(root));
         assert_resolution_invariants(world).expect("active leaf should belong to root");
         suspend_active(world).expect("active frame should suspend");
-        assert_eq!(
+        assert_that!(
             world.get::<ResolutionState>(effect).unwrap().progress,
-            ResolutionProgress::Suspended
+            eq(ResolutionProgress::Suspended)
         );
         resume_active(world).expect("active frame should resume");
 
         complete_active(world).expect("effect should complete");
-        assert_eq!(world.resource::<ResolutionCursor>().active, Some(phase));
+        assert_that!(world.resource::<ResolutionCursor>().active, eq(Some(phase)));
         complete_active(world).expect("phase should complete");
         complete_active(world).expect("root should complete");
         cleanup_resolution(world);
 
-        assert_eq!(
+        assert_that!(
             *world.resource::<ResolutionCursor>(),
-            ResolutionCursor::default()
+            eq(&ResolutionCursor::default())
         );
-        assert_eq!(
+        assert_that!(
             world
                 .iter_entities()
                 .filter(|entity| entity.contains::<ResolutionNode>())
                 .count(),
-            0
+            eq(0)
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn resolution_budget_reports_the_active_logical_id() {
         let mut app = app_with_resolution();
         app.world_mut().resource_mut::<Ruleset>().resolution_budget = 1;
@@ -346,52 +351,71 @@ mod tests {
         begin_resolution(world, ResolutionKind::Sequence);
 
         consume_budget(world).expect("first step fits budget");
-        assert_eq!(
+        assert_that!(
             consume_budget(world),
-            Err(ResolutionError::BudgetExhausted {
+            err(eq(&ResolutionError::BudgetExhausted {
                 active: Some(ResolutionId(0)),
-            })
+            }))
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn invalid_cursor_operations_and_invariants_are_reported() {
         let mut app = app_with_resolution();
         let world = app.world_mut();
 
-        assert_eq!(
+        assert_that!(
             push_resolution(world, ResolutionKind::Effect),
-            Err(ResolutionError::InvalidCursor)
+            err(eq(&ResolutionError::InvalidCursor))
         );
-        assert_eq!(suspend_active(world), Err(ResolutionError::InvalidCursor));
-        assert_eq!(resume_active(world), Err(ResolutionError::InvalidCursor));
-        assert_eq!(complete_active(world), Err(ResolutionError::InvalidCursor));
+        assert_that!(
+            suspend_active(world),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
+        assert_that!(
+            resume_active(world),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
+        assert_that!(
+            complete_active(world),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
 
         let root = begin_resolution(world, ResolutionKind::Sequence);
-        assert_eq!(resume_active(world), Err(ResolutionError::InvalidCursor));
+        assert_that!(
+            resume_active(world),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
         let malformed = world.spawn_empty().id();
         world.resource_mut::<ResolutionCursor>().active = Some(malformed);
-        assert_eq!(complete_active(world), Err(ResolutionError::InvalidCursor));
+        assert_that!(
+            complete_active(world),
+            err(eq(&ResolutionError::InvalidCursor))
+        );
         world.resource_mut::<ResolutionCursor>().remaining_budget = 0;
-        assert_eq!(
+        assert_that!(
             consume_budget(world),
-            Err(ResolutionError::BudgetExhausted { active: None })
+            err(eq(&ResolutionError::BudgetExhausted { active: None }))
         );
 
         world.resource_mut::<ResolutionCursor>().active = None;
-        assert_eq!(
+        assert_that!(
             assert_resolution_invariants(world),
-            Err("resolution root and active cursor disagree".to_string())
+            err(eq(&"resolution root and active cursor disagree".to_string()))
         );
         world.resource_mut::<ResolutionCursor>().active = Some(malformed);
-        assert_eq!(
+        assert_that!(
             assert_resolution_invariants(world),
-            Err("resolution cursor references a non-resolution entity".to_string())
+            err(eq(
+                &"resolution cursor references a non-resolution entity".to_string()
+            ))
         );
         world.entity_mut(malformed).insert(ResolutionNode);
-        assert_eq!(
+        assert_that!(
             assert_resolution_invariants(world),
-            Err("active resolution node is outside the root ancestry".to_string())
+            err(eq(
+                &"active resolution node is outside the root ancestry".to_string()
+            ))
         );
         world.entity_mut(malformed).insert(NestedUnder(root));
         assert_resolution_invariants(world).unwrap();

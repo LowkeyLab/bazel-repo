@@ -40,4 +40,5 @@ rust_test(
     name = "core_test",
     size = "small",
     crate = ":core",
+    deps = ["@crates//:googletest"],
 )

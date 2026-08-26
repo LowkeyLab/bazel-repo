@@ -56,10 +56,12 @@ pub(crate) fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{GameObject, entity::GameEntityIndex};
 
-    #[test]
+    #[googletest::test]
     fn mortality_includes_lethal_damage_and_pending_destroy() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -83,9 +85,9 @@ mod tests {
             Damage(2),
         ));
 
-        assert!(is_mortally_wounded(&world, GameEntityId(1)));
-        assert!(is_mortally_wounded(&world, GameEntityId(2)));
-        assert!(!is_mortally_wounded(&world, GameEntityId(3)));
-        assert!(!is_mortally_wounded(&world, GameEntityId(99)));
+        assert_that!(is_mortally_wounded(&world, GameEntityId(1)), is_true());
+        assert_that!(is_mortally_wounded(&world, GameEntityId(2)), is_true());
+        assert_that!(is_mortally_wounded(&world, GameEntityId(3)), is_false());
+        assert_that!(is_mortally_wounded(&world, GameEntityId(99)), is_false());
     }
 }

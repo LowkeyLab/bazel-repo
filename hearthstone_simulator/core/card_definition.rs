@@ -36,10 +36,12 @@ pub struct CardDefinitions(pub BTreeMap<String, CardDefinition>);
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{Selector, ValueExpression};
 
-    #[test]
+    #[googletest::test]
     fn card_definition_preserves_all_runtime_card_data() {
         let card = Card::minion("Archivist", 4, 3, 5).with_effects(vec![Effect::Heal {
             targets: Selector::Source,
@@ -48,13 +50,13 @@ mod tests {
 
         let definition = CardDefinition::from(card);
 
-        assert_eq!(definition.id, "synthetic:archivist");
-        assert_eq!(definition.name, "Archivist");
-        assert_eq!(definition.kind, EntityKind::Minion);
-        assert_eq!(definition.base_cost, 4);
-        assert_eq!(definition.base_attack, 3);
-        assert_eq!(definition.base_health, 5);
-        assert_eq!(definition.program.len(), 1);
-        assert!(definition.triggers.is_empty());
+        assert_that!(definition.id, eq("synthetic:archivist"));
+        assert_that!(definition.name, eq("Archivist"));
+        assert_that!(definition.kind, eq(EntityKind::Minion));
+        assert_that!(definition.base_cost, eq(4));
+        assert_that!(definition.base_attack, eq(3));
+        assert_that!(definition.base_health, eq(5));
+        assert_that!(definition.program.len(), eq(1));
+        assert_that!(definition.triggers.is_empty(), is_true());
     }
 }

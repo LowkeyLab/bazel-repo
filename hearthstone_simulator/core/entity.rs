@@ -164,16 +164,18 @@ pub(crate) fn game_entity(world: &World, id: GameEntityId) -> Option<Entity> {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
 
-    #[test]
+    #[googletest::test]
     fn despawning_a_game_entity_removes_its_logical_index_entry() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
         let entity = world.spawn(GameEntityId(7)).id();
 
-        assert_eq!(game_entity(&world, GameEntityId(7)), Some(entity));
-        assert!(world.despawn(entity));
-        assert_eq!(game_entity(&world, GameEntityId(7)), None);
+        assert_that!(game_entity(&world, GameEntityId(7)), eq(Some(entity)));
+        assert_that!(world.despawn(entity), is_true());
+        assert_that!(game_entity(&world, GameEntityId(7)), none());
     }
 }

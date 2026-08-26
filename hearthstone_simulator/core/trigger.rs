@@ -228,6 +228,7 @@ const fn zone_bucket(zone: Zone) -> u8 {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use googletest::prelude::*;
 
     use super::*;
     use crate::{
@@ -249,7 +250,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[googletest::test]
     fn collection_applies_precheck_and_queue_time_conditions() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -305,14 +306,14 @@ mod tests {
         let entries = collect_trigger_candidates(&mut world, queue, event)
             .expect("candidate collection should succeed");
 
-        assert_eq!(entries.len(), 1);
-        assert_eq!(
+        assert_that!(entries.len(), eq(1));
+        assert_that!(
             world.get::<QueuedTrigger>(entries[0]).unwrap().source,
-            GameEntityId(7)
+            eq(GameEntityId(7))
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn collection_uses_stable_source_ids_to_break_equal_order_keys() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -357,10 +358,10 @@ mod tests {
             .map(|entry| world.get::<QueuedTrigger>(*entry).unwrap().source)
             .collect::<Vec<_>>();
 
-        assert_eq!(sources, [GameEntityId(7), GameEntityId(9)]);
+        assert_that!(sources, eq(&[GameEntityId(7), GameEntityId(9)]));
     }
 
-    #[test]
+    #[googletest::test]
     fn collection_skips_missing_events_and_nonmatching_definitions() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -368,10 +369,11 @@ mod tests {
             .spawn((ResolutionQueue(QueueKind::Triggers), QueueState::Collecting))
             .id();
         let not_an_event = world.spawn_empty().id();
-        assert!(
+        assert_that!(
             collect_trigger_candidates(&mut world, queue, not_an_event)
                 .unwrap()
-                .is_empty()
+                .is_empty(),
+            is_true()
         );
 
         world.spawn((
@@ -396,23 +398,25 @@ mod tests {
                 simultaneous_ordinal: 0,
             })
             .id();
-        assert!(
+        assert_that!(
             collect_trigger_candidates(&mut world, queue, event)
                 .unwrap()
-                .is_empty()
+                .is_empty(),
+            is_true()
         );
         world.entity_mut(event).insert(ResolutionIdentity {
             id: ResolutionId(4),
             kind: ResolutionKind::Event,
         });
-        assert!(
+        assert_that!(
             collect_trigger_candidates(&mut world, queue, event)
                 .unwrap()
-                .is_empty()
+                .is_empty(),
+            is_true()
         );
     }
 
-    #[test]
+    #[googletest::test]
     fn trigger_eligibility_checks_source_definition_zone_and_each_condition() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -475,36 +479,40 @@ mod tests {
             },
         };
 
-        assert!(trigger_is_eligible(
-            &world,
-            &queued,
-            ConditionTiming::ResolutionTime
-        ));
-        assert!(!trigger_is_eligible(
-            &world,
-            &QueuedTrigger {
-                source: GameEntityId(99),
-                ..queued
-            },
-            ConditionTiming::ResolutionTime
-        ));
-        assert!(!trigger_is_eligible(
-            &world,
-            &QueuedTrigger {
-                definition_index: 9,
-                ..queued
-            },
-            ConditionTiming::ResolutionTime
-        ));
+        assert_that!(
+            trigger_is_eligible(&world, &queued, ConditionTiming::ResolutionTime),
+            is_true()
+        );
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &QueuedTrigger {
+                    source: GameEntityId(99),
+                    ..queued
+                },
+                ConditionTiming::ResolutionTime
+            ),
+            is_false()
+        );
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &QueuedTrigger {
+                    definition_index: 9,
+                    ..queued
+                },
+                ConditionTiming::ResolutionTime
+            ),
+            is_false()
+        );
         world.entity_mut(source).insert(Zone::Hand);
-        assert!(!trigger_is_eligible(
-            &world,
-            &queued,
-            ConditionTiming::ResolutionTime
-        ));
+        assert_that!(
+            trigger_is_eligible(&world, &queued, ConditionTiming::ResolutionTime),
+            is_false()
+        );
     }
 
-    #[test]
+    #[googletest::test]
     fn trigger_guards_block_repeated_events_and_direct_self_nesting() {
         let mut world = World::new();
         world.init_resource::<TriggerGuards>();
@@ -525,34 +533,48 @@ mod tests {
         };
         let definition = definition(Vec::new());
 
-        assert!(begin_trigger_execution(&mut world, &queued, &definition));
-        assert!(!begin_trigger_execution(&mut world, &queued, &definition));
+        assert_that!(
+            begin_trigger_execution(&mut world, &queued, &definition),
+            is_true()
+        );
+        assert_that!(
+            begin_trigger_execution(&mut world, &queued, &definition),
+            is_false()
+        );
         finish_trigger_execution(&mut world, &queued);
-        assert!(!begin_trigger_execution(&mut world, &queued, &definition));
+        assert_that!(
+            begin_trigger_execution(&mut world, &queued, &definition),
+            is_false()
+        );
 
         let nested_event = QueuedTrigger {
             event: ResolutionId(4),
             ..queued
         };
-        assert!(begin_trigger_execution(
-            &mut world,
-            &nested_event,
-            &definition
-        ));
-        assert!(!begin_trigger_execution(
-            &mut world,
-            &QueuedTrigger {
-                event: ResolutionId(5),
-                ..queued
-            },
-            &definition
-        ));
+        assert_that!(
+            begin_trigger_execution(&mut world, &nested_event, &definition),
+            is_true()
+        );
+        assert_that!(
+            begin_trigger_execution(
+                &mut world,
+                &QueuedTrigger {
+                    event: ResolutionId(5),
+                    ..queued
+                },
+                &definition
+            ),
+            is_false()
+        );
         finish_trigger_execution(&mut world, &nested_event);
         reset_trigger_guards(&mut world);
-        assert!(begin_trigger_execution(&mut world, &queued, &definition));
+        assert_that!(
+            begin_trigger_execution(&mut world, &queued, &definition),
+            is_true()
+        );
     }
 
-    #[test]
+    #[googletest::test]
     fn condition_and_zone_helpers_cover_all_rule_variants() {
         let mut world = World::new();
         let source = world.spawn((Controller(PlayerId::Two), Zone::Secret)).id();
@@ -566,43 +588,51 @@ mod tests {
             simultaneous_ordinal: 0,
         };
 
-        assert!(evaluate_condition(
-            &world,
-            source,
-            None,
-            &TriggerCondition::Always
-        ));
-        assert!(!evaluate_condition(
-            &world,
-            source,
-            None,
-            &TriggerCondition::SourceInPlay
-        ));
-        assert!(evaluate_condition(
-            &world,
-            source,
-            None,
-            &TriggerCondition::SourceInZone(Zone::Secret)
-        ));
-        assert!(evaluate_condition(
-            &world,
-            source,
-            Some(&event),
-            &TriggerCondition::EventValueAtLeast(4)
-        ));
-        assert!(!evaluate_condition(
-            &world,
-            source,
-            None,
-            &TriggerCondition::EventValueAtLeast(1)
-        ));
-        assert!(evaluate_condition(
-            &world,
-            source,
-            None,
-            &TriggerCondition::ControllerIs(PlayerId::Two)
-        ));
-        assert_eq!(
+        assert_that!(
+            evaluate_condition(&world, source, None, &TriggerCondition::Always),
+            is_true()
+        );
+        assert_that!(
+            evaluate_condition(&world, source, None, &TriggerCondition::SourceInPlay),
+            is_false()
+        );
+        assert_that!(
+            evaluate_condition(
+                &world,
+                source,
+                None,
+                &TriggerCondition::SourceInZone(Zone::Secret)
+            ),
+            is_true()
+        );
+        assert_that!(
+            evaluate_condition(
+                &world,
+                source,
+                Some(&event),
+                &TriggerCondition::EventValueAtLeast(4)
+            ),
+            is_true()
+        );
+        assert_that!(
+            evaluate_condition(
+                &world,
+                source,
+                None,
+                &TriggerCondition::EventValueAtLeast(1)
+            ),
+            is_false()
+        );
+        assert_that!(
+            evaluate_condition(
+                &world,
+                source,
+                None,
+                &TriggerCondition::ControllerIs(PlayerId::Two)
+            ),
+            is_true()
+        );
+        assert_that!(
             [
                 Zone::Play,
                 Zone::Secret,
@@ -613,7 +643,7 @@ mod tests {
                 Zone::RemovedFromGame,
             ]
             .map(zone_bucket),
-            [0, 1, 2, 3, 4, 5, 6]
+            eq([0, 1, 2, 3, 4, 5, 6])
         );
     }
 }
