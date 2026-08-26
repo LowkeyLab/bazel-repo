@@ -1,4 +1,4 @@
-use crate::{Card, GameEntityId, PlayerId, StatModifier, Zone};
+use crate::{Card, GameEntityId, NativeEffectId, PlayerId, StatModifier, Zone};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Effect {
@@ -43,6 +43,7 @@ pub enum Effect {
         player: PlayerSelector,
         zone: Zone,
     },
+    Native(NativeEffectId),
     Sequence(Vec<Effect>),
 }
 

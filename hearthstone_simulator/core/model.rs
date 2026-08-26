@@ -1,4 +1,4 @@
-use crate::{Effect, EntityKind, PlayerId};
+use crate::{Effect, EntityKind, PlayerId, TriggerDefinition};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Card {
@@ -9,6 +9,7 @@ pub struct Card {
     pub attack: i32,
     pub health: i32,
     pub effects: Vec<Effect>,
+    pub triggers: Vec<TriggerDefinition>,
 }
 
 impl Card {
@@ -22,6 +23,7 @@ impl Card {
             attack,
             health,
             effects: Vec::new(),
+            triggers: Vec::new(),
         }
     }
 
@@ -35,11 +37,17 @@ impl Card {
             attack: 0,
             health: 0,
             effects: Vec::new(),
+            triggers: Vec::new(),
         }
     }
 
     pub fn with_effects(mut self, effects: Vec<Effect>) -> Self {
         self.effects = effects;
+        self
+    }
+
+    pub fn with_triggers(mut self, triggers: Vec<TriggerDefinition>) -> Self {
+        self.triggers = triggers;
         self
     }
 }

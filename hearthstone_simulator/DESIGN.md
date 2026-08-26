@@ -468,11 +468,12 @@ struct TriggerOrderKey {
     zone_bucket: u8,
     priority: i16,
     play_order: u64,
+    source: GameEntityId,
     tie_breaker: u32,
 }
 ```
 
-The selected ruleset computes these fields. It can therefore represent normal global order of play, special trigger priority, dominant-player grouping, battlefield/hand/deck grouping, and deterministic ties without changing scheduler configuration.
+The selected ruleset computes these fields. The stable logical source ID precedes the per-source definition tie-breaker, so equal play-order values outside the battlefield never fall back to ECS iteration order. The key can therefore represent normal global order of play, special trigger priority, dominant-player grouping, battlefield/hand/deck grouping, and deterministic ties without changing scheduler configuration.
 
 ### Queue lifecycle
 

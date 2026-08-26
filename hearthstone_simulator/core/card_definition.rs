@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use bevy::prelude::Resource;
 
-use crate::{Card, Effect, EntityKind};
+use crate::{Card, Effect, EntityKind, TriggerDefinition};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CardDefinition {
@@ -13,6 +13,7 @@ pub struct CardDefinition {
     pub base_attack: i32,
     pub base_health: i32,
     pub program: Vec<Effect>,
+    pub triggers: Vec<TriggerDefinition>,
 }
 
 impl From<Card> for CardDefinition {
@@ -25,6 +26,7 @@ impl From<Card> for CardDefinition {
             base_attack: card.attack,
             base_health: card.health,
             program: card.effects,
+            triggers: card.triggers,
         }
     }
 }
@@ -53,5 +55,6 @@ mod tests {
         assert_eq!(definition.base_attack, 3);
         assert_eq!(definition.base_health, 5);
         assert_eq!(definition.program.len(), 1);
+        assert!(definition.triggers.is_empty());
     }
 }

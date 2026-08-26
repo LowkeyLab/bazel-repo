@@ -1,8 +1,10 @@
-use bevy::prelude::{Component, Entity, World};
+use std::collections::BTreeSet;
+
+use bevy::prelude::{Component, Entity, Resource, World};
 
 use crate::{
-    Controller, EntityKind, EventContext, EventKind, GameEntityId, PlayOrder, PlayerId,
-    QueuedTrigger, ResolutionIdentity, TriggerOrderKey, Zone,
+    Controller, Effect, EntityKind, EventContext, EventKind, GameEntityId, PlayOrder, PlayerId,
+    QueuedTrigger, ResolutionId, ResolutionIdentity, TriggerOrderKey, Zone,
     entity::game_entity,
     queue::{QueueMutationError, add_trigger_entry},
 };
@@ -53,17 +55,55 @@ pub struct TriggerDefinition {
     pub allow_repeated_event: bool,
     pub allow_direct_self_nesting: bool,
     pub wounded_target_policy: WoundedTargetPolicy,
-    pub effect_program: String,
+    pub effect_program: Vec<Effect>,
 }
 
 #[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
 pub struct RuntimeTriggers(pub Vec<TriggerDefinition>);
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TriggersSuppressed;
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TriggerExecution {
     pub source: GameEntityId,
     pub controller: PlayerId,
     pub source_kind: EntityKind,
+}
+
+#[derive(Clone, Debug, Default, Resource)]
+pub(crate) struct TriggerGuards {
+    executed: BTreeSet<(GameEntityId, ResolutionId, u32)>,
+    active: BTreeSet<(GameEntityId, u32)>,
+}
+
+pub(crate) fn begin_trigger_execution(
+    world: &mut World,
+    queued: &QueuedTrigger,
+    definition: &TriggerDefinition,
+) -> bool {
+    let key = (queued.source, queued.definition_index);
+    let event_key = (queued.source, queued.event, queued.definition_index);
+    let mut guards = world.resource_mut::<TriggerGuards>();
+    if (!definition.allow_repeated_event && guards.executed.contains(&event_key))
+        || (!definition.allow_direct_self_nesting && guards.active.contains(&key))
+    {
+        return false;
+    }
+    guards.executed.insert(event_key);
+    guards.active.insert(key);
+    true
+}
+
+pub(crate) fn finish_trigger_execution(world: &mut World, queued: &QueuedTrigger) {
+    world
+        .resource_mut::<TriggerGuards>()
+        .active
+        .remove(&(queued.source, queued.definition_index));
+}
+
+pub(crate) fn reset_trigger_guards(world: &mut World) {
+    *world.resource_mut::<TriggerGuards>() = TriggerGuards::default();
 }
 
 pub(crate) fn collect_trigger_candidates(
@@ -84,7 +124,9 @@ pub(crate) fn collect_trigger_candidates(
     for entity in world.iter_entities() {
         let (Some(source), Some(triggers), Some(zone), Some(controller)) = (
             entity.get::<GameEntityId>(),
-            entity.get::<RuntimeTriggers>(),
+            entity
+                .get::<RuntimeTriggers>()
+                .filter(|_| !entity.contains::<TriggersSuppressed>()),
             entity.get::<Zone>(),
             entity.get::<Controller>(),
         ) else {
@@ -105,6 +147,7 @@ pub(crate) fn collect_trigger_candidates(
                     zone_bucket: zone_bucket(*zone),
                     priority: definition.priority,
                     play_order,
+                    source: *source,
                     tie_breaker: definition_index as u32,
                 },
             };
@@ -202,7 +245,7 @@ mod tests {
             allow_repeated_event: false,
             allow_direct_self_nesting: false,
             wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
-            effect_program: "synthetic:test".to_string(),
+            effect_program: Vec::new(),
         }
     }
 
@@ -235,7 +278,7 @@ mod tests {
                 allow_repeated_event: false,
                 allow_direct_self_nesting: false,
                 wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
-                effect_program: "synthetic:test".to_string(),
+                effect_program: Vec::new(),
             }]),
         ));
         let event = world
@@ -267,6 +310,54 @@ mod tests {
             world.get::<QueuedTrigger>(entries[0]).unwrap().source,
             GameEntityId(7)
         );
+    }
+
+    #[test]
+    fn collection_uses_stable_source_ids_to_break_equal_order_keys() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        for source in [GameEntityId(9), GameEntityId(7)] {
+            world.spawn((
+                GameObject,
+                source,
+                EntityKind::Minion,
+                Controller(PlayerId::One),
+                Zone::Hand,
+                RuntimeTriggers(vec![TriggerDefinition {
+                    event: EventKind::Damage,
+                    eligible_zones: vec![Zone::Hand],
+                    ..definition(Vec::new())
+                }]),
+            ));
+        }
+        let event = world
+            .spawn((
+                ResolutionIdentity {
+                    id: ResolutionId(3),
+                    kind: ResolutionKind::Event,
+                },
+                EventContext {
+                    kind: EventKind::Damage,
+                    source: None,
+                    targets: Vec::new(),
+                    controller: PlayerId::One,
+                    proposed_value: None,
+                    actual_value: None,
+                    simultaneous_ordinal: 0,
+                },
+            ))
+            .id();
+        let queue = world
+            .spawn((ResolutionQueue(QueueKind::Triggers), QueueState::Collecting))
+            .id();
+
+        let entries = collect_trigger_candidates(&mut world, queue, event).unwrap();
+        let sources = entries
+            .iter()
+            .map(|entry| world.get::<QueuedTrigger>(*entry).unwrap().source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(sources, [GameEntityId(7), GameEntityId(9)]);
     }
 
     #[test]
@@ -379,6 +470,7 @@ mod tests {
                 zone_bucket: 0,
                 priority: 0,
                 play_order: 0,
+                source: GameEntityId(7),
                 tie_breaker: 0,
             },
         };
@@ -410,6 +502,54 @@ mod tests {
             &queued,
             ConditionTiming::ResolutionTime
         ));
+    }
+
+    #[test]
+    fn trigger_guards_block_repeated_events_and_direct_self_nesting() {
+        let mut world = World::new();
+        world.init_resource::<TriggerGuards>();
+        let event_entity = world.spawn_empty().id();
+        let queued = QueuedTrigger {
+            source: GameEntityId(7),
+            event: ResolutionId(3),
+            event_entity,
+            definition_index: 0,
+            order: TriggerOrderKey {
+                player_bucket: 0,
+                zone_bucket: 0,
+                priority: 0,
+                play_order: 0,
+                source: GameEntityId(7),
+                tie_breaker: 0,
+            },
+        };
+        let definition = definition(Vec::new());
+
+        assert!(begin_trigger_execution(&mut world, &queued, &definition));
+        assert!(!begin_trigger_execution(&mut world, &queued, &definition));
+        finish_trigger_execution(&mut world, &queued);
+        assert!(!begin_trigger_execution(&mut world, &queued, &definition));
+
+        let nested_event = QueuedTrigger {
+            event: ResolutionId(4),
+            ..queued
+        };
+        assert!(begin_trigger_execution(
+            &mut world,
+            &nested_event,
+            &definition
+        ));
+        assert!(!begin_trigger_execution(
+            &mut world,
+            &QueuedTrigger {
+                event: ResolutionId(5),
+                ..queued
+            },
+            &definition
+        ));
+        finish_trigger_execution(&mut world, &nested_event);
+        reset_trigger_guards(&mut world);
+        assert!(begin_trigger_execution(&mut world, &queued, &definition));
     }
 
     #[test]
