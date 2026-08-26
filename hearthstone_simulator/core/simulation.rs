@@ -29,7 +29,7 @@ use crate::{
     },
     rng::choose_game_entity,
     trigger::{
-        TriggerGuards, begin_trigger_execution, collect_trigger_candidates,
+        TriggerGuards, TriggersSuppressed, begin_trigger_execution, collect_trigger_candidates,
         finish_trigger_execution, reset_trigger_guards,
     },
     zone::{ZoneError, ZoneIndex, assert_zone_invariants, insert_into_zone, move_entity},
@@ -579,6 +579,7 @@ fn play_card(
         .get::<CardRuntime>(card_entity)
         .cloned()
         .ok_or(SimulationError::NotPlayable(card_id))?;
+    validate_native_effects_registered(world, &runtime.program)?;
     let cost = runtime.cost;
     spend_resources(world, player_id, cost)?;
     let destination = if kind == EntityKind::Minion {
@@ -1040,10 +1041,6 @@ fn resolve_selected_trigger(
         .expect("trigger source has an entity kind");
     let trigger = push_resolution(world, ResolutionKind::Trigger)?;
     consume_budget(world)?;
-    let trigger_id = world
-        .get::<ResolutionIdentity>(trigger)
-        .expect("new trigger frame has an identity")
-        .id;
     world.entity_mut(trigger).insert(TriggerExecution {
         source: queued.source,
         controller,
@@ -1066,7 +1063,7 @@ fn resolve_selected_trigger(
         .resource_mut::<CanonicalTrace>()
         .entries
         .push(TraceEntry::TriggerResolved {
-            id: trigger_id,
+            id: entry_id,
             source: queued.source,
         });
     Ok(())
@@ -1240,6 +1237,28 @@ fn execute_effect(
     }
 }
 
+fn validate_native_effects_registered(
+    world: &World,
+    effects: &[Effect],
+) -> Result<(), SimulationError> {
+    for effect in effects {
+        match effect {
+            Effect::Native(id) if !world.resource::<NativeEffectRegistry>().0.contains_key(id) => {
+                return Err(SimulationError::NativeEffectNotRegistered(id.clone()));
+            }
+            Effect::Sequence(nested) => validate_native_effects_registered(world, nested)?,
+            Effect::Summon { card, .. } | Effect::Transform { card, .. } => {
+                validate_native_effects_registered(world, &card.effects)?;
+                for trigger in &card.triggers {
+                    validate_native_effects_registered(world, &trigger.effect_program)?;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn attach_stat_modifier(
     world: &mut World,
     controller: PlayerId,
@@ -1271,7 +1290,9 @@ fn silence_entity(world: &mut World, target: GameEntityId) -> Result<(), Simulat
         keywords.0.clear();
     }
     world.entity_mut(entity).remove::<PendingDestroy>();
-    world.entity_mut(entity).insert(AuraCache::default());
+    world
+        .entity_mut(entity)
+        .insert((AuraCache::default(), TriggersSuppressed));
     let enchantments = world
         .iter_entities()
         .filter_map(|candidate| {
@@ -1318,8 +1339,10 @@ fn transform_entity(
             cost: card.mana_cost,
             program: card.effects,
         },
+        RuntimeTriggers(card.triggers),
     ));
     world.entity_mut(entity).remove::<PendingDestroy>();
+    world.entity_mut(entity).remove::<TriggersSuppressed>();
     Ok(())
 }
 
@@ -2018,6 +2041,20 @@ mod tests {
             entry,
             TraceEntry::QueueFrozen { entries, .. } if !entries.is_empty()
         )));
+        let frozen_ids = simulation
+            .trace()
+            .iter()
+            .filter_map(|entry| match entry {
+                TraceEntry::QueueFrozen { entries, .. } => Some(entries.as_slice()),
+                _ => None,
+            })
+            .flatten()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+        assert!(simulation.trace().iter().all(|entry| match entry {
+            TraceEntry::TriggerResolved { id, .. } => frozen_ids.contains(id),
+            _ => true,
+        }));
         simulation.assert_invariants().unwrap();
     }
 
@@ -2638,6 +2675,172 @@ mod tests {
         );
         complete_active(world).unwrap();
         cleanup_resolution(world);
+    }
+
+    #[test]
+    fn missing_native_effects_are_rejected_before_card_play_mutates_state() {
+        let missing = NativeEffectId::new("synthetic:missing");
+        let mut simulation = Simulation::new([
+            PlayerConfig::new(
+                "Jaina",
+                vec![
+                    Card::spell("Missing Native", 1)
+                        .with_effects(vec![Effect::Native(missing.clone())]),
+                ],
+            ),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+        let before = simulation.snapshot();
+
+        assert_eq!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            Err(SimulationError::NativeEffectNotRegistered(missing))
+        );
+
+        assert_eq!(simulation.snapshot(), before);
+        let mut fork = simulation.fork().unwrap();
+        assert_eq!(simulation.snapshot(), fork.snapshot());
+    }
+
+    #[test]
+    fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
+        let suppressor =
+            Card::minion("Suppressor", 0, 1, 3).with_triggers(vec![crate::TriggerDefinition {
+                event: EventKind::Damage,
+                eligible_zones: vec![Zone::Play],
+                conditions: Vec::new(),
+                source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: vec![Effect::Silence {
+                    targets: Selector::DeclaredTarget,
+                }],
+            }]);
+        let reactive =
+            Card::minion("Reactive", 0, 1, 4).with_triggers(vec![crate::TriggerDefinition {
+                event: EventKind::Damage,
+                eligible_zones: vec![Zone::Play],
+                conditions: Vec::new(),
+                source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                }],
+            }]);
+        let bolt = || {
+            Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            }])
+        };
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![suppressor, reactive, bolt(), bolt()]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let suppressor = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: suppressor,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let reactive = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: reactive,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        for _ in 0..2 {
+            let bolt = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card: bolt,
+                    target: Some(reactive),
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        assert_eq!(
+            player(simulation.app.world(), PlayerId::One)
+                .unwrap()
+                .1
+                .temporary_resources,
+            1
+        );
+        let reactive_entity = game_entity(simulation.app.world(), reactive).unwrap();
+        assert!(
+            simulation
+                .app
+                .world()
+                .get::<RuntimeTriggers>(reactive_entity)
+                .is_some()
+        );
+        assert!(
+            simulation
+                .app
+                .world()
+                .get::<TriggersSuppressed>(reactive_entity)
+                .is_some()
+        );
+
+        transform_entity(
+            simulation.app.world_mut(),
+            reactive,
+            Card::minion("Transformed", 0, 2, 2).with_triggers(vec![crate::TriggerDefinition {
+                event: EventKind::Healing,
+                eligible_zones: vec![Zone::Play],
+                conditions: Vec::new(),
+                source_eligibility: crate::SourceEligibilityPolicy::MustExist,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: Vec::new(),
+            }]),
+        )
+        .unwrap();
+        let transformed = game_entity(simulation.app.world(), reactive).unwrap();
+        assert!(
+            simulation
+                .app
+                .world()
+                .get::<TriggersSuppressed>(transformed)
+                .is_none()
+        );
+        assert_eq!(
+            simulation
+                .app
+                .world()
+                .get::<RuntimeTriggers>(transformed)
+                .unwrap()
+                .0[0]
+                .event,
+            EventKind::Healing
+        );
     }
 
     #[test]

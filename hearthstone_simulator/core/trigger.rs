@@ -62,6 +62,9 @@ pub struct TriggerDefinition {
 pub struct RuntimeTriggers(pub Vec<TriggerDefinition>);
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TriggersSuppressed;
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TriggerExecution {
     pub source: GameEntityId,
     pub controller: PlayerId,
@@ -121,7 +124,9 @@ pub(crate) fn collect_trigger_candidates(
     for entity in world.iter_entities() {
         let (Some(source), Some(triggers), Some(zone), Some(controller)) = (
             entity.get::<GameEntityId>(),
-            entity.get::<RuntimeTriggers>(),
+            entity
+                .get::<RuntimeTriggers>()
+                .filter(|_| !entity.contains::<TriggersSuppressed>()),
             entity.get::<Zone>(),
             entity.get::<Controller>(),
         ) else {
@@ -142,6 +147,7 @@ pub(crate) fn collect_trigger_candidates(
                     zone_bucket: zone_bucket(*zone),
                     priority: definition.priority,
                     play_order,
+                    source: *source,
                     tie_breaker: definition_index as u32,
                 },
             };
@@ -307,6 +313,54 @@ mod tests {
     }
 
     #[test]
+    fn collection_uses_stable_source_ids_to_break_equal_order_keys() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        for source in [GameEntityId(9), GameEntityId(7)] {
+            world.spawn((
+                GameObject,
+                source,
+                EntityKind::Minion,
+                Controller(PlayerId::One),
+                Zone::Hand,
+                RuntimeTriggers(vec![TriggerDefinition {
+                    event: EventKind::Damage,
+                    eligible_zones: vec![Zone::Hand],
+                    ..definition(Vec::new())
+                }]),
+            ));
+        }
+        let event = world
+            .spawn((
+                ResolutionIdentity {
+                    id: ResolutionId(3),
+                    kind: ResolutionKind::Event,
+                },
+                EventContext {
+                    kind: EventKind::Damage,
+                    source: None,
+                    targets: Vec::new(),
+                    controller: PlayerId::One,
+                    proposed_value: None,
+                    actual_value: None,
+                    simultaneous_ordinal: 0,
+                },
+            ))
+            .id();
+        let queue = world
+            .spawn((ResolutionQueue(QueueKind::Triggers), QueueState::Collecting))
+            .id();
+
+        let entries = collect_trigger_candidates(&mut world, queue, event).unwrap();
+        let sources = entries
+            .iter()
+            .map(|entry| world.get::<QueuedTrigger>(*entry).unwrap().source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(sources, [GameEntityId(7), GameEntityId(9)]);
+    }
+
+    #[test]
     fn collection_skips_missing_events_and_nonmatching_definitions() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();
@@ -416,6 +470,7 @@ mod tests {
                 zone_bucket: 0,
                 priority: 0,
                 play_order: 0,
+                source: GameEntityId(7),
                 tie_breaker: 0,
             },
         };
@@ -464,6 +519,7 @@ mod tests {
                 zone_bucket: 0,
                 priority: 0,
                 play_order: 0,
+                source: GameEntityId(7),
                 tie_breaker: 0,
             },
         };

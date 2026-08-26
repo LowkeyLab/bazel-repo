@@ -30,6 +30,7 @@ pub struct TriggerOrderKey {
     pub zone_bucket: u8,
     pub priority: i16,
     pub play_order: u64,
+    pub source: GameEntityId,
     pub tie_breaker: u32,
 }
 
@@ -259,6 +260,7 @@ mod tests {
                 zone_bucket: 0,
                 priority: 0,
                 play_order,
+                source: GameEntityId(source),
                 tie_breaker,
             },
         }
