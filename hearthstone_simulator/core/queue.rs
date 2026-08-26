@@ -243,12 +243,13 @@ pub enum QueueMutationError {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{
         Controller, EntityKind, GameObject, PlayerId, RuntimeTriggers, SourceEligibilityPolicy,
         TriggerDefinition, WoundedTargetPolicy, Zone, entity::GameEntityIndex,
     };
-    use googletest::prelude::*;
 
     fn trigger(source: u64, play_order: u64, tie_breaker: u32) -> QueuedTrigger {
         QueuedTrigger {

@@ -1701,8 +1701,9 @@ fn assert_game_entity_index(world: &World) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use googletest::prelude::*;
+
+    use super::*;
 
     fn simulation() -> Simulation {
         Simulation::new([

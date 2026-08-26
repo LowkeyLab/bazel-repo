@@ -164,8 +164,9 @@ pub(crate) fn game_entity(world: &World, id: GameEntityId) -> Option<Entity> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use googletest::prelude::*;
+
+    use super::*;
 
     #[googletest::test]
     fn despawning_a_game_entity_removes_its_logical_index_entry() {

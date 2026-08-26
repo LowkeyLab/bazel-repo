@@ -36,9 +36,10 @@ pub struct CardDefinitions(pub BTreeMap<String, CardDefinition>);
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{Selector, ValueExpression};
-    use googletest::prelude::*;
 
     #[googletest::test]
     fn card_definition_preserves_all_runtime_card_data() {

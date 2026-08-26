@@ -161,9 +161,10 @@ pub(crate) fn assert_zone_invariants(world: &World) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{GameObject, entity::GameEntityIndex};
-    use googletest::prelude::*;
 
     fn world() -> World {
         let mut world = World::new();

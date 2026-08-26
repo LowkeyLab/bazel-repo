@@ -98,8 +98,9 @@ pub struct PlayerRef {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use googletest::prelude::*;
+
+    use super::*;
 
     #[googletest::test]
     fn deck_configuration_starts_with_an_empty_hand() {

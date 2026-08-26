@@ -70,9 +70,10 @@ pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{GameObject, entity::GameEntityIndex};
-    use googletest::prelude::*;
 
     #[googletest::test]
     fn recalculation_combines_ordered_modifiers_and_auras() {

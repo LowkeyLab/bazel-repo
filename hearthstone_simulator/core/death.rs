@@ -56,9 +56,10 @@ pub(crate) fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use googletest::prelude::*;
+
     use super::*;
     use crate::{GameObject, entity::GameEntityIndex};
-    use googletest::prelude::*;
 
     #[googletest::test]
     fn mortality_includes_lethal_damage_and_pending_destroy() {

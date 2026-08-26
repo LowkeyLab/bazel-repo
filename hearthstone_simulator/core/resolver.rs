@@ -288,8 +288,9 @@ pub(crate) fn allocate_resolution_id(world: &mut World) -> ResolutionId {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use googletest::prelude::*;
+
+    use super::*;
 
     fn app_with_resolution() -> App {
         let mut app = App::new();
