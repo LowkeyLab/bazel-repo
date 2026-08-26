@@ -56,6 +56,8 @@ pub struct EventOrderKey {
 #[component(immutable)]
 pub struct QueuedEvent {
     pub event: ResolutionId,
+    #[entities]
+    pub event_entity: Entity,
     pub order: EventOrderKey,
 }
 
@@ -279,6 +281,7 @@ mod tests {
             queue,
             QueuedEvent {
                 event: ResolutionId(4),
+                event_entity: Entity::PLACEHOLDER,
                 order: EventOrderKey {
                     player_bucket: 0,
                     ordinal: 0,
@@ -403,6 +406,7 @@ mod tests {
             queue,
             QueuedEvent {
                 event: ResolutionId(2),
+                event_entity: Entity::PLACEHOLDER,
                 order: EventOrderKey {
                     player_bucket: 1,
                     ordinal: 0,
@@ -416,6 +420,7 @@ mod tests {
             queue,
             QueuedEvent {
                 event: ResolutionId(1),
+                event_entity: Entity::PLACEHOLDER,
                 order: EventOrderKey {
                     player_bucket: 0,
                     ordinal: 0,
@@ -434,6 +439,7 @@ mod tests {
                 queue,
                 QueuedEvent {
                     event: ResolutionId(3),
+                    event_entity: Entity::PLACEHOLDER,
                     order: EventOrderKey {
                         player_bucket: 0,
                         ordinal: 1,

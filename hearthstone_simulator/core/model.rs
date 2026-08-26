@@ -1,4 +1,7 @@
-use crate::{Effect, EntityKind, PlayerId, TriggerDefinition};
+use crate::{
+    ConditionTiming, Effect, EntityKind, EventKind, PlayerId, SourceEligibilityPolicy,
+    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Card {
@@ -48,6 +51,25 @@ impl Card {
 
     pub fn with_triggers(mut self, triggers: Vec<TriggerDefinition>) -> Self {
         self.triggers = triggers;
+        self
+    }
+
+    #[must_use]
+    pub fn with_deathrattle(mut self, effects: Vec<Effect>) -> Self {
+        self.triggers.push(TriggerDefinition {
+            event: EventKind::Death,
+            eligible_zones: vec![Zone::Graveyard],
+            conditions: vec![TimedCondition {
+                timing: ConditionTiming::QueueTime,
+                condition: TriggerCondition::EventSourceIsSelf,
+            }],
+            source_eligibility: SourceEligibilityPolicy::RememberedSource,
+            priority: 0,
+            allow_repeated_event: false,
+            allow_direct_self_nesting: false,
+            wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
+            effect_program: effects,
+        });
         self
     }
 }

@@ -23,6 +23,7 @@ mod trigger;
 mod zone;
 
 pub use card_definition::{CardDefinition, CardDefinitions};
+pub use death::{DeathEventCache, DeathRecord};
 pub use effect::{Effect, EffectContext, PlayerSelector, Selector, ValueExpression};
 pub use enchantment::{AttachedEnchantments, AttachedTo, AuraApplication, AuraCache, StatModifier};
 pub use entity::{
