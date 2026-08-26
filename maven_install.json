@@ -27,7 +27,7 @@
     "io.ktor:ktor-server-thymeleaf-jvm": -1038281880,
     "io.ktor:ktor-server-websockets-jvm": 2105352737,
     "org.jetbrains.exposed:exposed-core": -976689526,
-    "org.jetbrains.exposed:exposed-dao": 677908620,
+    "org.jetbrains.exposed:exposed-dao": -1119042739,
     "org.jetbrains.exposed:exposed-jdbc": 107207398,
     "org.jetbrains.kotlin:kotlin-test-junit": -376785652,
     "org.jetbrains.kotlin:kotlin-test-junit5": -884810279,
@@ -303,9 +303,9 @@
     "org.jetbrains.exposed:exposed-core": 1411149309,
     "org.jetbrains.exposed:exposed-core:jar:javadoc": 377958605,
     "org.jetbrains.exposed:exposed-core:jar:sources": -703958980,
-    "org.jetbrains.exposed:exposed-dao": -1610124210,
-    "org.jetbrains.exposed:exposed-dao:jar:javadoc": 1244848420,
-    "org.jetbrains.exposed:exposed-dao:jar:sources": 2058876606,
+    "org.jetbrains.exposed:exposed-dao": -320628203,
+    "org.jetbrains.exposed:exposed-dao:jar:javadoc": -556233498,
+    "org.jetbrains.exposed:exposed-dao:jar:sources": -1190643558,
     "org.jetbrains.exposed:exposed-jdbc": 1392370175,
     "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": -1337657585,
     "org.jetbrains.exposed:exposed-jdbc:jar:sources": -323947161,
@@ -1124,11 +1124,11 @@
     },
     "org.jetbrains.exposed:exposed-dao": {
       "shasums": {
-        "jar": "5469453b0be2467656b8eb634ec305a11c626218b223672ad14447279b35a259",
-        "javadoc": "3cb72809357e01b52391d247444d553aae7cd5135d5d85f4435b03711686e13c",
-        "sources": "f79fac16566de9b268bb0a44ee8d674e9ab2e891c05c3ea6d48fa2ea1315b881"
+        "jar": "a0b5e635274cc06d067f40dee136b75a427014beae49676b1108b194a6152f55",
+        "javadoc": "aeb18c5ec99089fc8d20d5bfd4c24c32682bee8a16d7e5c6cd08373d6df4f41c",
+        "sources": "e3c4ee50e89131789204b9c71c411a4d3d4d48dcbc5ee9990e40a681ca576958"
       },
-      "version": "1.4.0"
+      "version": "1.5.0"
     },
     "org.jetbrains.exposed:exposed-jdbc": {
       "shasums": {
