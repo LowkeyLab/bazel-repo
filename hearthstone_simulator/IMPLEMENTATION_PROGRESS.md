@@ -2,14 +2,36 @@
 
 This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It must be updated whenever a milestone changes state. A checked item means code and focused tests exist; it does not claim complete coverage of every official card.
 
+The target redesign and the running implementation use separate milestone tracks during migration. **Target milestones** use the numbering in `DESIGN.md`. **Legacy milestones** below preserve the numbering of the frozen-queue/resolution-node design so existing status and verification history remain interpretable.
+
 ## Current status
 
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
-- Active milestone: Milestone 5 aura timing and Milestone 7 general mechanics
+- Target architecture: deterministic immediate `EntityEvent`/Observer dispatch with layered recomputation and a phase coordinator
+- Running implementation baseline: ECS resolution nodes and frozen event/trigger queues
+- Active target milestone: Target Milestone 0 architecture and conformance migration
+- Ongoing baseline work: Legacy Milestone 5 aura timing and Legacy Milestone 7 general mechanics
 - Verification: Gazelle, formatting, all Hearthstone targets, and the full repository build pass
 
-## Milestones
+## Target redesign migration
+
+- [ ] **Target 0 — Architecture and conformance contract**
+  - [x] Document the Observer-driven target architecture and migration milestones.
+  - [ ] Update `RULEBOOK_CONFORMANCE.md` for immediate dispatch and the new phase model.
+  - [ ] Record behavior-equivalence fixtures for the current resolution graph and frozen queues.
+  - [ ] Define snapshot, trace, and continuation-equivalence fixtures for migration.
+- [ ] **Target 1 — Flat entity shapes**
+- [ ] **Target 2 — Child enchantments and layered recomputation**
+- [ ] **Target 3 — Immediate event dispatch**
+- [ ] **Target 4 — Phase and death schedule**
+- [ ] **Target 5 — Complete mechanics**
+- [ ] **Target 6 — Headless cloning and search readiness**
+- [ ] **Target 7 — Hardening**
+
+## Legacy implementation baseline (pre-Observer redesign)
+
+The completed items in this section describe the currently running baseline, not completion of the target milestones above. They remain authoritative until equivalence coverage permits each legacy mechanism to be replaced.
 
 - [x] **0 — Rules contract and conformance skeleton**
   - [x] Pin and name the ruleset profile.
