@@ -9,6 +9,7 @@ pub enum EventKind {
     Summoned,
     ProposedDamage,
     Damage,
+    ProposedHealing,
     Healing,
     Attack,
     AfterAttack,

@@ -7,12 +7,12 @@ use crate::{
     Armor, AttachedTo, AttackState, AuraCache, BaseStats, CanonicalTrace, Card, Controller,
     CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
     DisplayName, Effect, EffectContext, EntityKind, EventContext, EventKind, EventOrderKey,
-    GameEntityId, GameObject, GameOutcome, GameState, Keyword, Keywords, NativeEffectId,
-    NestedUnder, PendingDestroy, PlayOrder, Player, PlayerConfig, PlayerId, PlayerSelector,
-    QueueKind, QueueState, QueuedEvent, QueuedTrigger, ResolutionCursor, ResolutionIdentity,
-    ResolutionKind, ResolutionQueue, ResolveFrame, ResolvePhaseBoundary, RngSnapshot, Ruleset,
-    RulesetId, RuntimeTriggers, STARTING_HEALTH, Selector, SimulationStatus, TraceEntry,
-    TriggerExecution, ValueExpression, Zone, ZonePosition,
+    EventValueOperation, GameEntityId, GameObject, GameOutcome, GameState, Keyword, Keywords,
+    NativeEffectId, NestedUnder, PendingDestroy, PlayOrder, Player, PlayerConfig, PlayerId,
+    PlayerSelector, QueueKind, QueueState, QueuedEvent, QueuedTrigger, ResolutionCursor,
+    ResolutionIdentity, ResolutionKind, ResolutionQueue, ResolveFrame, ResolvePhaseBoundary,
+    RngSnapshot, Ruleset, RulesetId, RuntimeTriggers, STARTING_HEALTH, Selector, SimulationStatus,
+    TraceEntry, TriggerExecution, ValueExpression, Zone, ZonePosition,
     death::{DefeatedHeroes, PendingDeaths, take_pending_deaths},
     enchantment::{StatModifier, recalculate_stats},
     entity::{
@@ -126,6 +126,8 @@ pub enum SimulationError {
     NativeEffectNotRegistered(NativeEffectId),
     #[error("native effect {id:?} failed: {reason}")]
     NativeEffectFailed { id: NativeEffectId, reason: String },
+    #[error("an event-value modifier requires an active proposed damage or healing event")]
+    NoModifiableEventValue,
     #[error("simulation invariant failed: {0}")]
     Invariant(String),
 }
@@ -351,6 +353,26 @@ struct CardRuntime {
     program: Vec<Effect>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DamageRequest {
+    source: Option<GameEntityId>,
+    target: GameEntityId,
+    proposed: i32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct HealingRequest {
+    source: Option<GameEntityId>,
+    target: GameEntityId,
+    proposed: i32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SimultaneousEventOrder {
+    OrderOfPlay,
+    Given,
+}
+
 fn setup_game(world: &mut World, players: [PlayerConfig; 2]) -> Result<(), SimulationError> {
     for (index, config) in players.into_iter().enumerate() {
         let id = PlayerId::ALL[index];
@@ -572,53 +594,101 @@ fn resolve_death_event_batch(
 ) -> Result<(), SimulationError> {
     let batch = push_resolution(world, ResolutionKind::EventBatch)?;
     consume_budget(world)?;
-    let queue = push_resolution(world, ResolutionKind::EventQueue)?;
-    consume_budget(world)?;
-    let queue_identity = *world
-        .get::<ResolutionIdentity>(queue)
-        .expect("new event queue has an identity");
-    world
-        .entity_mut(queue)
-        .insert((ResolutionQueue(QueueKind::Events), QueueState::Collecting));
 
     // Every Death Event and its trigger queue is created and frozen before the first event starts
     // resolving. Effects introduced by an earlier Deathrattle therefore cannot observe a later
     // death from this simultaneous batch.
-    for record in deaths {
-        let event = EventContext {
-            kind: EventKind::Death,
-            source: Some(record.entity),
-            targets: vec![record.entity],
-            controller: record.controller,
-            proposed_value: None,
-            actual_value: None,
-            simultaneous_ordinal: record.simultaneous_ordinal,
-        };
-        let event_entity = prepare_event_child(world, queue, event, Some(record))?;
-        let event_id = world
-            .get::<ResolutionIdentity>(event_entity)
-            .expect("prepared event has an identity")
-            .id;
-        add_event_entry(
-            world,
-            queue,
-            QueuedEvent {
-                event: event_id,
-                event_entity,
-                order: EventOrderKey {
-                    player_bucket: 0,
-                    ordinal: world
-                        .get::<EventContext>(event_entity)
-                        .expect("prepared event has context")
-                        .simultaneous_ordinal,
-                    tie_breaker: 0,
+    let events = deaths
+        .into_iter()
+        .map(|record| {
+            (
+                EventContext {
+                    kind: EventKind::Death,
+                    source: Some(record.entity),
+                    targets: vec![record.entity],
+                    controller: record.controller,
+                    proposed_value: None,
+                    actual_value: None,
+                    simultaneous_ordinal: record.simultaneous_ordinal,
                 },
-            },
-        )
-        .expect("collecting Death Event queue accepts entries");
+                Some(record),
+            )
+        })
+        .collect();
+    let (queue, _) = prepare_event_queue(world, events)?;
+    resolve_prepared_events(world, queue)?;
+    complete_active(world)?;
+    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
+    complete_active(world)?;
+    Ok(())
+}
+
+fn prepare_event_queue(
+    world: &mut World,
+    events: Vec<(EventContext, Option<DeathRecord>)>,
+) -> Result<(Entity, Vec<Entity>), SimulationError> {
+    let parent = world
+        .resource::<ResolutionCursor>()
+        .active
+        .ok_or(ResolutionError::InvalidCursor)?;
+    let queue = prepare_collecting_event_queue(world, parent)?;
+    activate_resolution_child(world, queue)?;
+
+    let mut event_entities = Vec::with_capacity(events.len());
+    for (event, death_record) in events {
+        event_entities.push(add_prepared_event(world, queue, event, death_record)?);
     }
-    let frozen = freeze_queue(world, queue)?;
-    let frozen_ids = frozen
+    freeze_prepared_event_queue(world, queue)?;
+    Ok((queue, event_entities))
+}
+
+fn prepare_collecting_event_queue(
+    world: &mut World,
+    parent: Entity,
+) -> Result<Entity, SimulationError> {
+    let queue = spawn_resolution_child(world, parent, ResolutionKind::EventQueue);
+    consume_budget(world)?;
+    world
+        .entity_mut(queue)
+        .insert((ResolutionQueue(QueueKind::Events), QueueState::Collecting));
+    Ok(queue)
+}
+
+fn add_prepared_event(
+    world: &mut World,
+    queue: Entity,
+    event: EventContext,
+    death_record: Option<DeathRecord>,
+) -> Result<Entity, SimulationError> {
+    let ordinal = event.simultaneous_ordinal;
+    let event_entity = prepare_event_child(world, queue, event, death_record)?;
+    let event_id = world
+        .get::<ResolutionIdentity>(event_entity)
+        .expect("prepared event has an identity")
+        .id;
+    add_event_entry(
+        world,
+        queue,
+        QueuedEvent {
+            event: event_id,
+            event_entity,
+            order: EventOrderKey {
+                player_bucket: 0,
+                ordinal,
+                tie_breaker: 0,
+            },
+        },
+    )
+    .expect("new event queue remains collecting while entries are prepared");
+    Ok(event_entity)
+}
+
+fn freeze_prepared_event_queue(world: &mut World, queue: Entity) -> Result<(), SimulationError> {
+    let queue_id = world
+        .get::<ResolutionIdentity>(queue)
+        .expect("event queue has an identity")
+        .id;
+    let frozen_ids = freeze_queue(world, queue)?
         .iter()
         .map(|entry| {
             world
@@ -631,18 +701,13 @@ fn resolve_death_event_batch(
         .resource_mut::<CanonicalTrace>()
         .entries
         .push(TraceEntry::QueueFrozen {
-            queue: queue_identity.id,
+            queue: queue_id,
             entries: frozen_ids,
         });
-
-    resolve_prepared_death_events(world, queue)?;
-    complete_active(world)?;
-    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
-    complete_active(world)?;
     Ok(())
 }
 
-fn resolve_prepared_death_events(world: &mut World, queue: Entity) -> Result<(), SimulationError> {
+fn resolve_prepared_events(world: &mut World, queue: Entity) -> Result<(), SimulationError> {
     loop {
         match select_next(world, queue)? {
             QueueSelection::Complete => return Ok(()),
@@ -701,12 +766,12 @@ fn play_card(
         .get::<CardRuntime>(card_entity)
         .cloned()
         .ok_or(SimulationError::NotPlayable(card_id))?;
-    validate_native_effects_registered(world, &runtime.program)?;
+    validate_effect_program(world, &runtime.program, None)?;
     let triggers = world
         .get::<RuntimeTriggers>(card_entity)
         .ok_or(SimulationError::NotPlayable(card_id))?;
     for trigger in &triggers.0 {
-        validate_native_effects_registered(world, &trigger.effect_program)?;
+        validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
     let cost = runtime.cost;
     spend_resources(world, player_id, cost)?;
@@ -805,10 +870,19 @@ fn attack(
             simultaneous_ordinal: 0,
         },
     )?;
-    apply_damage(world, Some(attacker_id), defender_id, attack_value)?;
+    let mut damage = vec![DamageRequest {
+        source: Some(attacker_id),
+        target: defender_id,
+        proposed: attack_value,
+    }];
     if counter_damage > 0 {
-        apply_damage(world, Some(defender_id), attacker_id, counter_damage)?;
+        damage.push(DamageRequest {
+            source: Some(defender_id),
+            target: attacker_id,
+            proposed: counter_damage,
+        });
     }
+    apply_damage_batch(world, damage, SimultaneousEventOrder::Given)?;
     let mut state = world
         .get_mut::<AttackState>(attacker)
         .ok_or(SimulationError::CannotAttack(attacker_id))?;
@@ -935,86 +1009,234 @@ fn apply_damage(
     target: GameEntityId,
     proposed: i32,
 ) -> Result<(), SimulationError> {
-    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let controller = event_controller(world, source, target);
-    let proposed = proposed.max(0);
-    resolve_event_if_active(
+    apply_damage_batch(
         world,
-        EventContext {
-            kind: EventKind::ProposedDamage,
+        vec![DamageRequest {
             source,
-            targets: vec![target],
-            controller,
-            proposed_value: Some(proposed),
+            target,
+            proposed,
+        }],
+        SimultaneousEventOrder::Given,
+    )
+}
+
+fn apply_damage_batch(
+    world: &mut World,
+    mut requests: Vec<DamageRequest>,
+    order: SimultaneousEventOrder,
+) -> Result<(), SimulationError> {
+    validate_health_change_targets(world, requests.iter().map(|request| request.target))?;
+    order_health_change_requests(world, &mut requests, order, |request| request.target);
+    if requests.is_empty() {
+        return Ok(());
+    }
+    if world.resource::<ResolutionCursor>().active.is_none() {
+        for (ordinal, mut request) in requests.into_iter().enumerate() {
+            request.proposed = request.proposed.max(0);
+            if damage_passes_protection(world, request) {
+                reduce_damage(
+                    world,
+                    request,
+                    u32::try_from(ordinal).expect("damage batch exceeds u32"),
+                );
+            } else {
+                trace_damage(world, request, 0);
+            }
+        }
+        return Ok(());
+    }
+
+    let batch = push_resolution(world, ResolutionKind::EventBatch)?;
+    consume_budget(world)?;
+    let actual_queue = prepare_collecting_event_queue(world, batch)?;
+    for (ordinal, mut request) in requests.into_iter().enumerate() {
+        let ordinal = u32::try_from(ordinal).expect("damage batch exceeds u32");
+        request.proposed = request.proposed.max(0);
+        if !damage_passes_protection(world, request) {
+            trace_damage(world, request, 0);
+            continue;
+        }
+
+        let proposed_event = EventContext {
+            kind: EventKind::ProposedDamage,
+            source: request.source,
+            targets: vec![request.target],
+            controller: event_controller(world, request.source, request.target),
+            proposed_value: Some(request.proposed),
             actual_value: None,
-            simultaneous_ordinal: 0,
-        },
-    )?;
-    let immune = world
+            simultaneous_ordinal: ordinal,
+        };
+        request.proposed = resolve_proposed_health_event(world, batch, proposed_event)?;
+        let actual = reduce_damage(world, request, ordinal);
+        if actual.actual_value.is_some_and(|value| value > 0) {
+            add_prepared_event(world, actual_queue, actual, None)?;
+        }
+    }
+
+    freeze_prepared_event_queue(world, actual_queue)?;
+    activate_resolution_child(world, actual_queue)?;
+    resolve_prepared_events(world, actual_queue)?;
+    complete_active(world)?;
+    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
+    complete_active(world)?;
+    Ok(())
+}
+
+fn damage_passes_protection(world: &mut World, request: DamageRequest) -> bool {
+    if request.proposed == 0 {
+        return false;
+    }
+    let entity = game_entity(world, request.target)
+        .expect("validated damage target remains indexed during damage prevention");
+    if world
         .get::<Keywords>(entity)
-        .is_some_and(|keywords| keywords.0.contains(&Keyword::Immune));
-    let shielded = world
+        .is_some_and(|keywords| keywords.0.contains(&Keyword::Immune))
+    {
+        return false;
+    }
+    if world
         .get::<Keywords>(entity)
-        .is_some_and(|keywords| keywords.0.contains(&Keyword::DivineShield));
-    let actual = if immune {
-        0
-    } else if shielded && proposed > 0 {
+        .is_some_and(|keywords| keywords.0.contains(&Keyword::DivineShield))
+    {
         world
             .get_mut::<Keywords>(entity)
             .expect("keywords were just read")
             .0
             .remove(&Keyword::DivineShield);
-        0
-    } else {
-        let armor = world.get::<Armor>(entity).map_or(0, |armor| armor.0);
-        let absorbed = armor.min(proposed);
-        if absorbed > 0 {
-            world
-                .get_mut::<Armor>(entity)
-                .expect("armor was just read")
-                .0 -= absorbed;
-        }
-        proposed - absorbed
-    };
-    if actual > 0 {
+        return false;
+    }
+    true
+}
+
+fn resolve_proposed_health_event(
+    world: &mut World,
+    parent: Entity,
+    event: EventContext,
+) -> Result<i32, SimulationError> {
+    let event_entity = prepare_event_child(world, parent, event, None)?;
+    activate_resolution_child(world, event_entity)?;
+    resolve_prepared_event(world, event_entity)?;
+    let proposed = world
+        .get::<EventContext>(event_entity)
+        .and_then(|event| event.proposed_value)
+        .unwrap_or_default()
+        .max(0);
+    complete_active(world)?;
+    Ok(proposed)
+}
+
+fn reduce_damage(
+    world: &mut World,
+    request: DamageRequest,
+    simultaneous_ordinal: u32,
+) -> EventContext {
+    let entity = game_entity(world, request.target)
+        .expect("validated damage target remains indexed during damage mutation");
+    let proposed = request.proposed.max(0);
+    let armor = world.get::<Armor>(entity).map_or(0, |armor| armor.0);
+    let absorbed = armor.min(proposed);
+    if absorbed > 0 {
+        world
+            .get_mut::<Armor>(entity)
+            .expect("armor was just read")
+            .0 -= absorbed;
+    }
+    let health_damage = proposed - absorbed;
+    if health_damage > 0 {
         world
             .entity_mut(entity)
             .entry::<Damage>()
             .or_default()
             .into_mut()
-            .0 += actual;
+            .0 += health_damage;
     }
+    let actual = absorbed + health_damage;
+    trace_damage(world, request, actual);
+    EventContext {
+        kind: EventKind::Damage,
+        source: request.source,
+        targets: vec![request.target],
+        controller: event_controller(world, request.source, request.target),
+        proposed_value: Some(proposed),
+        actual_value: Some(actual),
+        simultaneous_ordinal,
+    }
+}
+
+fn trace_damage(world: &mut World, request: DamageRequest, actual: i32) {
     world
         .resource_mut::<CanonicalTrace>()
         .entries
         .push(TraceEntry::Damage {
-            source,
-            target,
-            proposed,
+            source: request.source,
+            target: request.target,
+            proposed: request.proposed,
             actual,
         });
-    resolve_event_if_active(
-        world,
-        EventContext {
-            kind: EventKind::Damage,
-            source,
-            targets: vec![target],
-            controller,
-            proposed_value: Some(proposed),
-            actual_value: Some(actual),
-            simultaneous_ordinal: 0,
-        },
-    )
 }
 
-fn apply_healing(
+fn apply_healing_batch(
     world: &mut World,
-    source: Option<GameEntityId>,
-    target: GameEntityId,
-    proposed: i32,
+    mut requests: Vec<HealingRequest>,
+    order: SimultaneousEventOrder,
 ) -> Result<(), SimulationError> {
-    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let proposed = proposed.max(0);
+    validate_health_change_targets(world, requests.iter().map(|request| request.target))?;
+    order_health_change_requests(world, &mut requests, order, |request| request.target);
+    if requests.is_empty() {
+        return Ok(());
+    }
+    if world.resource::<ResolutionCursor>().active.is_none() {
+        for (ordinal, request) in requests.into_iter().enumerate() {
+            reduce_healing(
+                world,
+                request,
+                u32::try_from(ordinal).expect("healing batch exceeds u32"),
+            );
+        }
+        return Ok(());
+    }
+
+    let batch = push_resolution(world, ResolutionKind::EventBatch)?;
+    consume_budget(world)?;
+    let actual_queue = prepare_collecting_event_queue(world, batch)?;
+    for (ordinal, mut request) in requests.into_iter().enumerate() {
+        let ordinal = u32::try_from(ordinal).expect("healing batch exceeds u32");
+        request.proposed = request.proposed.max(0);
+        if request.proposed > 0 {
+            let proposed_event = EventContext {
+                kind: EventKind::ProposedHealing,
+                source: request.source,
+                targets: vec![request.target],
+                controller: event_controller(world, request.source, request.target),
+                proposed_value: Some(request.proposed),
+                actual_value: None,
+                simultaneous_ordinal: ordinal,
+            };
+            request.proposed = resolve_proposed_health_event(world, batch, proposed_event)?;
+        }
+        let actual = reduce_healing(world, request, ordinal);
+        if actual.actual_value.is_some_and(|value| value > 0) {
+            add_prepared_event(world, actual_queue, actual, None)?;
+        }
+    }
+
+    freeze_prepared_event_queue(world, actual_queue)?;
+    activate_resolution_child(world, actual_queue)?;
+    resolve_prepared_events(world, actual_queue)?;
+    complete_active(world)?;
+    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
+    complete_active(world)?;
+    Ok(())
+}
+
+fn reduce_healing(
+    world: &mut World,
+    request: HealingRequest,
+    simultaneous_ordinal: u32,
+) -> EventContext {
+    let entity = game_entity(world, request.target)
+        .expect("validated healing target remains indexed during simultaneous mutation");
+    let proposed = request.proposed.max(0);
     let actual = if let Some(mut damage) = world.get_mut::<Damage>(entity) {
         let actual = damage.0.min(proposed);
         damage.0 -= actual;
@@ -1022,18 +1244,53 @@ fn apply_healing(
     } else {
         0
     };
-    resolve_event_if_active(
-        world,
-        EventContext {
-            kind: EventKind::Healing,
-            source,
-            targets: vec![target],
-            controller: event_controller(world, source, target),
-            proposed_value: Some(proposed),
-            actual_value: Some(actual),
-            simultaneous_ordinal: 0,
-        },
-    )
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::Healing {
+            source: request.source,
+            target: request.target,
+            proposed,
+            actual,
+        });
+    EventContext {
+        kind: EventKind::Healing,
+        source: request.source,
+        targets: vec![request.target],
+        controller: event_controller(world, request.source, request.target),
+        proposed_value: Some(proposed),
+        actual_value: Some(actual),
+        simultaneous_ordinal,
+    }
+}
+
+fn validate_health_change_targets(
+    world: &World,
+    targets: impl IntoIterator<Item = GameEntityId>,
+) -> Result<(), SimulationError> {
+    for target in targets {
+        if game_entity(world, target).is_none() {
+            return Err(SimulationError::EntityNotFound(target));
+        }
+    }
+    Ok(())
+}
+
+fn order_health_change_requests<T>(
+    world: &World,
+    requests: &mut [T],
+    order: SimultaneousEventOrder,
+    target: impl Fn(&T) -> GameEntityId,
+) {
+    if order == SimultaneousEventOrder::OrderOfPlay {
+        requests.sort_by_key(|request| {
+            let target = target(request);
+            let play_order = game_entity(world, target)
+                .and_then(|entity| world.get::<PlayOrder>(entity))
+                .map_or(0, |order| order.0);
+            (play_order, target)
+        });
+    }
 }
 
 fn event_controller(world: &World, source: Option<GameEntityId>, target: GameEntityId) -> PlayerId {
@@ -1273,18 +1530,31 @@ fn execute_effect(
         Effect::DealDamage { targets, amount } => {
             let targets = select_entities(world, context, targets);
             let value = evaluate_value(world, context, *amount, targets.len());
-            for target in targets {
-                apply_damage(world, context.source, target, value)?;
-            }
-            Ok(())
+            let requests = targets
+                .into_iter()
+                .map(|target| DamageRequest {
+                    source: context.source,
+                    target,
+                    proposed: value,
+                })
+                .collect();
+            apply_damage_batch(world, requests, SimultaneousEventOrder::OrderOfPlay)
         }
         Effect::Heal { targets, amount } => {
             let targets = select_entities(world, context, targets);
             let value = evaluate_value(world, context, *amount, targets.len());
-            for target in targets {
-                apply_healing(world, context.source, target, value)?;
-            }
-            Ok(())
+            let requests = targets
+                .into_iter()
+                .map(|target| HealingRequest {
+                    source: context.source,
+                    target,
+                    proposed: value,
+                })
+                .collect();
+            apply_healing_batch(world, requests, SimultaneousEventOrder::OrderOfPlay)
+        }
+        Effect::ModifyEventValue { operation, value } => {
+            modify_active_event_value(world, context, *operation, *value)
         }
         Effect::Destroy { targets } => {
             for target in select_entities(world, context, targets) {
@@ -1403,20 +1673,29 @@ fn execute_effect(
     }
 }
 
-fn validate_native_effects_registered(
+fn validate_effect_program(
     world: &World,
     effects: &[Effect],
+    event: Option<EventKind>,
 ) -> Result<(), SimulationError> {
     for effect in effects {
         match effect {
             Effect::Native(id) if !world.resource::<NativeEffectRegistry>().0.contains_key(id) => {
                 return Err(SimulationError::NativeEffectNotRegistered(id.clone()));
             }
-            Effect::Sequence(nested) => validate_native_effects_registered(world, nested)?,
+            Effect::ModifyEventValue { .. }
+                if !matches!(
+                    event,
+                    Some(EventKind::ProposedDamage | EventKind::ProposedHealing)
+                ) =>
+            {
+                return Err(SimulationError::NoModifiableEventValue);
+            }
+            Effect::Sequence(nested) => validate_effect_program(world, nested, event)?,
             Effect::Summon { card, .. } | Effect::Transform { card, .. } => {
-                validate_native_effects_registered(world, &card.effects)?;
+                validate_effect_program(world, &card.effects, None)?;
                 for trigger in &card.triggers {
-                    validate_native_effects_registered(world, &trigger.effect_program)?;
+                    validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
                 }
             }
             _ => {}
@@ -1601,6 +1880,58 @@ fn evaluate_value(
             .map_or(0, |stats| stats.attack),
         ValueExpression::TargetCount => target_count as i32,
     }
+}
+
+fn modify_active_event_value(
+    world: &mut World,
+    context: &EffectContext,
+    operation: EventValueOperation,
+    expression: ValueExpression,
+) -> Result<(), SimulationError> {
+    let mut current = world.resource::<ResolutionCursor>().active;
+    let event_entity = loop {
+        let Some(entity) = current else {
+            return Err(SimulationError::NoModifiableEventValue);
+        };
+        if world.get::<EventContext>(entity).is_some_and(|event| {
+            (event.kind == EventKind::ProposedDamage || event.kind == EventKind::ProposedHealing)
+                && event.proposed_value.is_some()
+        }) {
+            break entity;
+        }
+        current = world.get::<NestedUnder>(entity).map(|parent| parent.0);
+    };
+    let event = world
+        .get::<EventContext>(event_entity)
+        .expect("modifiable event was just found");
+    let previous = event
+        .proposed_value
+        .expect("modifiable event has a proposed value");
+    let operand = evaluate_value(world, context, expression, event.targets.len());
+    let current = match operation {
+        EventValueOperation::Replace => operand,
+        EventValueOperation::Add => previous.saturating_add(operand),
+        EventValueOperation::Multiply => previous.saturating_mul(operand),
+    }
+    .max(0);
+    world
+        .get_mut::<EventContext>(event_entity)
+        .expect("modifiable event still exists")
+        .proposed_value = Some(current);
+    let event = world
+        .get::<ResolutionIdentity>(event_entity)
+        .expect("event has a resolution identity")
+        .id;
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EventValueChanged {
+            event,
+            operation,
+            previous,
+            current,
+        });
+    Ok(())
 }
 
 const fn resolve_player(controller: PlayerId, selector: PlayerSelector) -> PlayerId {
@@ -1896,6 +2227,26 @@ mod tests {
             .expect("hero should be on the board")
     }
 
+    fn self_event_trigger(
+        event: EventKind,
+        effect_program: Vec<Effect>,
+    ) -> crate::TriggerDefinition {
+        crate::TriggerDefinition {
+            event,
+            eligible_zones: vec![Zone::Play],
+            conditions: vec![crate::TimedCondition {
+                timing: crate::ConditionTiming::QueueTime,
+                condition: crate::TriggerCondition::EventTargetsSelf,
+            }],
+            source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+            priority: 0,
+            allow_repeated_event: false,
+            allow_direct_self_nesting: false,
+            wounded_target_policy: crate::WoundedTargetPolicy::IncludeMortallyWounded,
+            effect_program,
+        }
+    }
+
     #[googletest::test]
     fn cards_keep_identity_when_played() {
         let mut simulation = simulation();
@@ -2101,6 +2452,693 @@ mod tests {
         simulation
             .assert_invariants()
             .expect("invariants should hold");
+    }
+
+    #[googletest::test]
+    fn proposed_damage_modifiers_apply_in_program_order_and_can_prevent_damage() {
+        let modifier =
+            Card::minion("Ordered Modifier", 0, 1, 12).with_triggers(vec![self_event_trigger(
+                EventKind::ProposedDamage,
+                vec![
+                    Effect::ModifyEventValue {
+                        operation: EventValueOperation::Replace,
+                        value: ValueExpression::Constant(2),
+                    },
+                    Effect::ModifyEventValue {
+                        operation: EventValueOperation::Add,
+                        value: ValueExpression::Constant(1),
+                    },
+                    Effect::ModifyEventValue {
+                        operation: EventValueOperation::Multiply,
+                        value: ValueExpression::Constant(3),
+                    },
+                ],
+            )]);
+        let preventer =
+            Card::minion("Preventer", 0, 1, 12).with_triggers(vec![self_event_trigger(
+                EventKind::ProposedDamage,
+                vec![Effect::ModifyEventValue {
+                    operation: EventValueOperation::Replace,
+                    value: ValueExpression::Constant(0),
+                }],
+            )]);
+        let blast = Card::spell("Modifiable Blast", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(5),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![modifier, preventer, blast]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let modifier = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: modifier,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let preventer = hand_card(&mut simulation, PlayerId::One);
+        for _ in 0..2 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        let snapshot = simulation.snapshot();
+        assert_that!(
+            snapshot
+                .objects
+                .iter()
+                .find(|object| object.id == modifier)
+                .unwrap()
+                .damage,
+            eq(9)
+        );
+        assert_that!(
+            snapshot
+                .objects
+                .iter()
+                .find(|object| object.id == preventer)
+                .unwrap()
+                .damage,
+            eq(0)
+        );
+        assert_that!(
+            simulation
+                .trace()
+                .iter()
+                .filter_map(|entry| match entry {
+                    TraceEntry::EventValueChanged {
+                        operation, current, ..
+                    } => Some((*operation, *current)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            eq(&vec![
+                (EventValueOperation::Replace, 2),
+                (EventValueOperation::Add, 3),
+                (EventValueOperation::Multiply, 9),
+                (EventValueOperation::Replace, 0),
+            ])
+        );
+    }
+
+    #[googletest::test]
+    fn damage_protection_precedes_predamage_triggers_and_zero_damage_is_not_an_event() {
+        let protected = Card::minion("Protected Observer", 0, 1, 4).with_triggers(vec![
+            self_event_trigger(
+                EventKind::ProposedDamage,
+                vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                }],
+            ),
+            self_event_trigger(
+                EventKind::Damage,
+                vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 10,
+                    temporary: true,
+                }],
+            ),
+        ]);
+        let blast = Card::spell("Protection Blast", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(1),
+        }]);
+        let zero = Card::spell("Zero Blast", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(0),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new(
+                "Jaina",
+                vec![protected.clone(), protected.clone(), protected, blast, zero],
+            ),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let mut minions = Vec::new();
+        for _ in 0..3 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            minions.push(card);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+        for (target, keyword) in [
+            (minions[0], Keyword::Immune),
+            (minions[1], Keyword::DivineShield),
+        ] {
+            let entity = game_entity(simulation.app.world(), target).unwrap();
+            simulation
+                .app
+                .world_mut()
+                .get_mut::<Keywords>(entity)
+                .unwrap()
+                .0
+                .insert(keyword);
+        }
+        for _ in 0..2 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        let snapshot = simulation.snapshot();
+        assert_that!(
+            minions
+                .iter()
+                .map(|id| snapshot
+                    .objects
+                    .iter()
+                    .find(|object| object.id == *id)
+                    .unwrap()
+                    .damage)
+                .collect::<Vec<_>>(),
+            eq(&vec![0, 0, 1])
+        );
+        assert_that!(
+            player(simulation.app.world(), PlayerId::One)
+                .unwrap()
+                .1
+                .temporary_resources,
+            eq(11)
+        );
+        assert_that!(
+            simulation
+                .trace()
+                .iter()
+                .filter(|entry| matches!(
+                    entry,
+                    TraceEntry::EventCreated {
+                        kind: EventKind::ProposedDamage,
+                        ..
+                    }
+                ))
+                .count(),
+            eq(1)
+        );
+        assert_that!(
+            simulation
+                .trace()
+                .iter()
+                .filter(|entry| matches!(
+                    entry,
+                    TraceEntry::EventCreated {
+                        kind: EventKind::Damage,
+                        ..
+                    }
+                ))
+                .count(),
+            eq(1)
+        );
+    }
+
+    #[googletest::test]
+    fn no_op_healing_does_not_create_healing_reactions() {
+        let observer =
+            Card::minion("Full Health Observer", 0, 1, 4).with_triggers(vec![self_event_trigger(
+                EventKind::Healing,
+                vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                }],
+            )]);
+        let healing = Card::spell("No-op Healing", 0).with_effects(vec![Effect::Heal {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(2),
+        }]);
+        let zero = Card::spell("Zero Healing", 0).with_effects(vec![Effect::Heal {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(0),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![observer, healing, zero]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        for _ in 0..3 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        assert_that!(
+            player(simulation.app.world(), PlayerId::One)
+                .unwrap()
+                .1
+                .temporary_resources,
+            eq(0)
+        );
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::Healing,
+                    ..
+                }
+            )),
+            is_false()
+        );
+        assert_that!(
+            simulation
+                .trace()
+                .iter()
+                .filter(|entry| matches!(
+                    entry,
+                    TraceEntry::Healing {
+                        proposed: 0 | 2,
+                        actual: 0,
+                        ..
+                    }
+                ))
+                .count(),
+            eq(2)
+        );
+    }
+
+    #[googletest::test]
+    fn each_predamage_queue_resolves_after_prior_damage_is_applied() {
+        let first = Card::minion("First Damage Target", 0, 1, 5);
+        let healer =
+            Card::minion("Predamage Healer", 0, 1, 5).with_triggers(vec![self_event_trigger(
+                EventKind::ProposedDamage,
+                vec![Effect::Heal {
+                    targets: Selector::AllMinions,
+                    amount: ValueExpression::Constant(1),
+                }],
+            )]);
+        let blast = Card::spell("Ordered Damage", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(2),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![first, healer, blast]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let mut minions = Vec::new();
+        for _ in 0..3 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            if minions.len() < 2 {
+                minions.push(card);
+            }
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        let snapshot = simulation.snapshot();
+        assert_that!(
+            minions
+                .iter()
+                .map(|id| snapshot
+                    .objects
+                    .iter()
+                    .find(|object| object.id == *id)
+                    .unwrap()
+                    .damage)
+                .collect::<Vec<_>>(),
+            eq(&vec![1, 2])
+        );
+        let first_damage = simulation
+            .trace()
+            .iter()
+            .position(|entry| {
+                matches!(
+                    entry,
+                    TraceEntry::Damage {
+                        target,
+                        actual: 2,
+                        ..
+                    } if *target == minions[0]
+                )
+            })
+            .unwrap();
+        let intervening_heal = simulation
+            .trace()
+            .iter()
+            .position(|entry| {
+                matches!(
+                    entry,
+                    TraceEntry::Healing {
+                        target,
+                        actual: 1,
+                        ..
+                    } if *target == minions[0]
+                )
+            })
+            .unwrap();
+        let second_damage = simulation
+            .trace()
+            .iter()
+            .position(|entry| {
+                matches!(
+                    entry,
+                    TraceEntry::Damage {
+                        target,
+                        actual: 2,
+                        ..
+                    } if *target == minions[1]
+                )
+            })
+            .unwrap();
+        assert_that!(first_damage < intervening_heal, is_true());
+        assert_that!(intervening_heal < second_damage, is_true());
+    }
+
+    #[googletest::test]
+    fn armor_loss_counts_as_actual_damage_for_traces_and_triggers() {
+        let observer = Card::minion("Armor Damage Observer", 0, 1, 4).with_triggers(vec![
+            crate::TriggerDefinition {
+                event: EventKind::Damage,
+                eligible_zones: vec![Zone::Play],
+                conditions: vec![crate::TimedCondition {
+                    timing: crate::ConditionTiming::QueueTime,
+                    condition: crate::TriggerCondition::EventValueAtLeast(1),
+                }],
+                source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+                priority: 0,
+                allow_repeated_event: false,
+                allow_direct_self_nesting: false,
+                wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                effect_program: vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                }],
+            },
+        ]);
+        let bolt = Card::spell("Armor Bolt", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(2),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![observer, bolt]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        for _ in 0..1 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+        let target = hero(&mut simulation, PlayerId::Two);
+        let target_entity = game_entity(simulation.app.world(), target).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .entity_mut(target_entity)
+            .insert(Armor(3));
+        let bolt = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: bolt,
+                target: Some(target),
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+
+        let target = simulation
+            .snapshot()
+            .objects
+            .into_iter()
+            .find(|object| object.id == target)
+            .unwrap();
+        assert_that!(simulation.snapshot().players[1].armor, eq(1));
+        assert_that!(target.damage, eq(0));
+        assert_that!(
+            player(simulation.app.world(), PlayerId::One)
+                .unwrap()
+                .1
+                .temporary_resources,
+            eq(1)
+        );
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::Damage {
+                    target: damaged,
+                    proposed: 2,
+                    actual: 2,
+                    ..
+                } if *damaged == target.id
+            )),
+            is_true()
+        );
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::Damage,
+                    actual: Some(2),
+                    ..
+                }
+            )),
+            is_true()
+        );
+    }
+
+    #[googletest::test]
+    fn simultaneous_damage_is_applied_before_reactions_and_freezes_later_events() {
+        let late_observer =
+            Card::minion("Late Observer", 0, 1, 2).with_triggers(vec![self_event_trigger(
+                EventKind::Damage,
+                vec![Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                }],
+            )]);
+        let observer =
+            Card::minion("Batch Observer", 0, 1, 3).with_triggers(vec![self_event_trigger(
+                EventKind::Damage,
+                vec![Effect::Sequence(vec![
+                    Effect::Heal {
+                        targets: Selector::AllMinions,
+                        amount: ValueExpression::Constant(1),
+                    },
+                    Effect::Summon {
+                        player: PlayerSelector::Controller,
+                        card: late_observer,
+                        board_index: None,
+                    },
+                ])],
+            )]);
+        let target = Card::minion("Batch Target", 0, 1, 3);
+        let blast = Card::spell("Simultaneous Blast", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(1),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![observer, target, blast]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let observer = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: observer,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let target = hand_card(&mut simulation, PlayerId::One);
+        for _ in 0..2 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        let snapshot = simulation.snapshot();
+        for id in [observer, target] {
+            assert_that!(
+                snapshot
+                    .objects
+                    .iter()
+                    .find(|object| object.id == id)
+                    .unwrap()
+                    .damage,
+                eq(0)
+            );
+        }
+        assert_that!(
+            player(simulation.app.world(), PlayerId::One)
+                .unwrap()
+                .1
+                .temporary_resources,
+            eq(0)
+        );
+        let last_damage = simulation
+            .trace()
+            .iter()
+            .rposition(|entry| matches!(entry, TraceEntry::Damage { .. }))
+            .unwrap();
+        let first_reaction = simulation
+            .trace()
+            .iter()
+            .position(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
+            .unwrap();
+        assert_that!(last_damage < first_reaction, is_true());
+    }
+
+    #[googletest::test]
+    fn simultaneous_healing_is_applied_before_healing_reactions() {
+        let observer = Card::minion("Healing Observer", 0, 1, 4).with_triggers(vec![
+            self_event_trigger(
+                EventKind::ProposedHealing,
+                vec![Effect::ModifyEventValue {
+                    operation: EventValueOperation::Multiply,
+                    value: ValueExpression::Constant(2),
+                }],
+            ),
+            self_event_trigger(EventKind::Healing, Vec::new()),
+        ]);
+        let target = Card::minion("Healing Target", 0, 1, 4);
+        let blast = Card::spell("Setup Blast", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(2),
+        }]);
+        let healing = Card::spell("Simultaneous Healing", 0).with_effects(vec![Effect::Heal {
+            targets: Selector::AllMinions,
+            amount: ValueExpression::Constant(1),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![observer, target, blast, healing]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        for _ in 0..4 {
+            let card = hand_card(&mut simulation, PlayerId::One);
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .unwrap();
+        }
+
+        let trace = simulation.trace();
+        let healing_entries = trace
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| {
+                matches!(entry, TraceEntry::Healing { .. }).then_some(index)
+            })
+            .collect::<Vec<_>>();
+        let healing_reaction = trace
+            .iter()
+            .rposition(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
+            .unwrap();
+        assert_that!(healing_entries.len(), eq(2));
+        assert_that!(
+            healing_entries
+                .iter()
+                .all(|index| *index < healing_reaction),
+            is_true()
+        );
+        assert_that!(
+            trace
+                .iter()
+                .filter(|entry| matches!(
+                    entry,
+                    TraceEntry::EventCreated {
+                        kind: EventKind::ProposedHealing,
+                        ..
+                    }
+                ))
+                .count(),
+            eq(2)
+        );
+        let snapshot = simulation.snapshot();
+        let minion_damage = snapshot
+            .objects
+            .iter()
+            .filter(|object| object.kind == EntityKind::Minion)
+            .map(|object| object.damage)
+            .collect::<Vec<_>>();
+        assert_that!(minion_damage, eq(&vec![0, 1]));
+    }
+
+    #[googletest::test]
+    fn event_value_modifiers_are_rejected_outside_proposed_event_triggers() {
+        let invalid =
+            Card::spell("Invalid Modifier", 0).with_effects(vec![Effect::ModifyEventValue {
+                operation: EventValueOperation::Replace,
+                value: ValueExpression::Constant(0),
+            }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![invalid]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+        let before = simulation.snapshot();
+
+        assert_that!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            err(eq(&SimulationError::NoModifiableEventValue))
+        );
+        assert_that!(simulation.snapshot(), eq(&before));
     }
 
     #[googletest::test]
@@ -2347,7 +3385,7 @@ mod tests {
         });
         freeze_queue(&mut world, queue).expect("event queue should freeze");
 
-        resolve_prepared_death_events(&mut world, queue)
+        resolve_prepared_events(&mut world, queue)
             .expect("an aborted entry should not fail the Death Event queue");
 
         assert_that!(
@@ -3067,6 +4105,59 @@ mod tests {
             simulation.app.world().get::<Damage>(entity),
             eq(Some(&Damage(2)))
         );
+
+        apply_damage_batch(
+            simulation.app.world_mut(),
+            Vec::new(),
+            SimultaneousEventOrder::Given,
+        )
+        .unwrap();
+        apply_healing_batch(
+            simulation.app.world_mut(),
+            Vec::new(),
+            SimultaneousEventOrder::Given,
+        )
+        .unwrap();
+        apply_healing_batch(
+            simulation.app.world_mut(),
+            vec![HealingRequest {
+                source: None,
+                target,
+                proposed: 1,
+            }],
+            SimultaneousEventOrder::Given,
+        )
+        .unwrap();
+        assert_that!(
+            simulation.app.world().get::<Damage>(entity),
+            eq(Some(&Damage(1)))
+        );
+        let context = EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: Some(target),
+        };
+        assert_that!(
+            modify_active_event_value(
+                simulation.app.world_mut(),
+                &context,
+                EventValueOperation::Replace,
+                ValueExpression::Constant(0),
+            ),
+            err(eq(&SimulationError::NoModifiableEventValue))
+        );
+        begin_resolution(simulation.app.world_mut(), ResolutionKind::Sequence);
+        assert_that!(
+            modify_active_event_value(
+                simulation.app.world_mut(),
+                &context,
+                EventValueOperation::Replace,
+                ValueExpression::Constant(0),
+            ),
+            err(eq(&SimulationError::NoModifiableEventValue))
+        );
+        complete_active(simulation.app.world_mut()).unwrap();
+        cleanup_resolution(simulation.app.world_mut());
     }
 
     #[googletest::test]

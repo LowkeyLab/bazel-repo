@@ -31,8 +31,9 @@ Behavior classifications:
 | Global simultaneous death order and frozen Death Event batches        | Current rule        | `death`, event queue                 | cross-controller/frozen-batch tests | Implemented vertical slice |
 | Hero defeat locked at Death Creation                                  | Current rule        | `death::DefeatedHeroes`              | lethal-then-heal test               | Implemented vertical slice |
 | Death records, turn cache, Deathrattles, and chained Death Phases     | Current rule        | `death`, phase-boundary driver       | cache/chained Deathrattle tests     | Implemented vertical slice |
-| Proposed and actual damage/healing event reactions                    | Current rule        | effect reducer, `resolve_event`      | nested trigger reaction test        | Partial                    |
-| Damage protection (Armor, Immune, Divine Shield)                      | Current rule        | effect reducer                       | vertical mechanic tests             | Partial                    |
+| Proposed and actual damage/healing event reactions                    | Current rule        | effect reducer, event batches        | value-modifier/no-op reaction tests | Implemented vertical slice |
+| DH1/DH2 ordered proposals, mutations, then frozen actual reactions    | Current rule        | immutable event batches/queues       | predamage/interleaving tests        | Implemented vertical slice |
+| Damage protection (Armor, Immune, Divine Shield)                      | Current rule        | effect reducer                       | protection/Armor trigger tests      | Implemented vertical slice |
 | Draw, burn, and fatigue                                               | Current rule        | effect reducer/zone index            | fixture coverage                    | Partial                    |
 | Transformation and copying                                            | Current rule        | effect reducer                       | fixture coverage                    | Partial                    |
 | Forced Death Phase timing                                             | Compatibility quirk | named ruleset policy                 | esoteric tests                      | Planned                    |

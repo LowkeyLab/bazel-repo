@@ -10,6 +10,10 @@ pub enum Effect {
         targets: Selector,
         amount: ValueExpression,
     },
+    ModifyEventValue {
+        operation: EventValueOperation,
+        value: ValueExpression,
+    },
     Destroy {
         targets: Selector,
     },
@@ -67,6 +71,13 @@ pub enum PlayerSelector {
     Controller,
     Opponent,
     Player(PlayerId),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EventValueOperation {
+    Replace,
+    Add,
+    Multiply,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -23,6 +23,7 @@ pub enum TriggerCondition {
     SourceInZone(Zone),
     EventValueAtLeast(i32),
     EventSourceIsSelf,
+    EventTargetsSelf,
     ControllerIs(PlayerId),
 }
 
@@ -222,6 +223,10 @@ fn evaluate_condition(
             .get::<GameEntityId>(source)
             .zip(event.and_then(|event| event.source.as_ref()))
             .is_some_and(|(source, event_source)| source == event_source),
+        TriggerCondition::EventTargetsSelf => world
+            .get::<GameEntityId>(source)
+            .zip(event)
+            .is_some_and(|(source, event)| event.targets.contains(source)),
         TriggerCondition::ControllerIs(player) => world
             .get::<Controller>(source)
             .is_some_and(|controller| controller.0 == *player),
@@ -655,6 +660,18 @@ mod tests {
                     ..event.clone()
                 }),
                 &TriggerCondition::EventSourceIsSelf
+            ),
+            is_true()
+        );
+        assert_that!(
+            evaluate_condition(
+                &world,
+                source,
+                Some(&EventContext {
+                    targets: vec![GameEntityId(7)],
+                    ..event.clone()
+                }),
+                &TriggerCondition::EventTargetsSelf
             ),
             is_true()
         );
