@@ -132,6 +132,76 @@ fn negative_card_costs_are_floored_at_zero() {
 }
 
 #[googletest::test]
+fn invalid_play_position_does_not_spend_mana_or_change_replay_state() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Invalid Position", 1, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let before = simulation.snapshot();
+
+    assert_that!(
+        simulation.apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: Some(999),
+            choice: None,
+        }),
+        err(eq(&SimulationError::Zone(ZoneError::InvalidPosition {
+            zone: Zone::Play,
+            position: 999,
+            length: 1,
+        })))
+    );
+
+    assert_that!(simulation.snapshot(), eq(&before));
+    assert_that!(simulation.fork().unwrap().snapshot(), eq(&before));
+}
+
+#[googletest::test]
+fn play_zone_capacity_counts_minions_without_counting_the_hero() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            (0..7)
+                .map(|index| Card::minion(format!("Minion {index}"), 0, 1, 1))
+                .collect(),
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+
+    for _ in 0..7 {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .expect("all seven minion slots should be available");
+    }
+
+    let snapshot = simulation.snapshot();
+    assert_that!(snapshot.players[0].board.len(), eq(8));
+    assert_that!(
+        snapshot
+            .objects
+            .iter()
+            .filter(|object| {
+                object.controller == PlayerId::One
+                    && object.zone == Zone::Play
+                    && object.kind == EntityKind::Minion
+            })
+            .count(),
+        eq(7)
+    );
+    simulation.assert_invariants().unwrap();
+}
+
+#[googletest::test]
 fn rejected_actions_leave_resolution_idle() {
     let mut simulation = simulation();
     let missing = GameEntityId(99_999);

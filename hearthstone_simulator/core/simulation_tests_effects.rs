@@ -223,6 +223,11 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         },
     )
     .unwrap();
+    let board_before_invalid_position = world
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::Two, Zone::Play)
+        .to_vec();
+    let entities_before_invalid_position = world.resource::<GameEntityIndex>().0.len();
     assert_that!(
         matches!(
             execute_effect(
@@ -238,10 +243,25 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         ),
         is_true()
     );
-    world.resource_mut::<Ruleset>().board_limit = world
-        .resource::<ZoneIndex>()
-        .entities(PlayerId::Two, Zone::Play)
-        .len();
+    assert_that!(
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::Two, Zone::Play),
+        eq(board_before_invalid_position.as_slice())
+    );
+    assert_that!(
+        world.resource::<GameEntityIndex>().0.len(),
+        eq(entities_before_invalid_position)
+    );
+
+    let minion_count = board_before_invalid_position
+        .iter()
+        .filter(|id| {
+            game_entity(world, **id).and_then(|entity| world.get::<EntityKind>(entity))
+                == Some(&EntityKind::Minion)
+        })
+        .count();
+    world.resource_mut::<Ruleset>().board_limit = minion_count;
     execute_effect(
         world,
         &context,
@@ -252,6 +272,12 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         },
     )
     .unwrap();
+    assert_that!(
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::Two, Zone::Play),
+        eq(board_before_invalid_position.as_slice())
+    );
 }
 
 #[googletest::test]

@@ -11,7 +11,7 @@ use crate::{
         begin_resolution, cleanup_resolution, complete_active, consume_budget, push_resolution,
     },
     trigger::reset_trigger_guards,
-    zone::{ZoneIndex, assert_zone_invariants, move_entity},
+    zone::{ZoneIndex, assert_zone_invariants, board_is_full, move_entity, validate_zone_position},
 };
 
 use super::{
@@ -143,7 +143,7 @@ fn process_next_action(world: &mut World) {
                 .push(TraceEntry::ActionRejected {
                     player,
                     reason: error.to_string(),
-                })
+                });
         }
     }
     world.resource_mut::<ActionResults>().0.push_back(result);
@@ -220,18 +220,7 @@ fn play_card(
     if !matches!(kind, EntityKind::Minion | EntityKind::Spell) {
         return Err(SimulationError::NotPlayable(card_id));
     }
-    if kind == EntityKind::Minion
-        && world
-            .resource::<ZoneIndex>()
-            .entities(player_id, Zone::Play)
-            .iter()
-            .filter(|id| {
-                game_entity(world, **id).and_then(|entity| world.get::<EntityKind>(entity))
-                    == Some(&EntityKind::Minion)
-            })
-            .count()
-            >= world.resource::<Ruleset>().board_limit
-    {
+    if kind == EntityKind::Minion && board_is_full(world, player_id) {
         return Err(SimulationError::BoardFull(player_id));
     }
     let runtime = world
@@ -246,12 +235,13 @@ fn play_card(
         validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
     let cost = runtime.cost;
-    spend_resources(world, player_id, cost)?;
     let destination = if kind == EntityKind::Minion {
         Zone::Play
     } else {
         Zone::Graveyard
     };
+    validate_zone_position(world, player_id, destination, board_index)?;
+    spend_resources(world, player_id, cost)?;
     let (from, _) = move_entity(world, card_id, destination, board_index)?;
     let order = allocate_play_order(world);
     world.entity_mut(card_entity).insert(order);

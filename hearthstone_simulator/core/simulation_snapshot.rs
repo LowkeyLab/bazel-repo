@@ -166,7 +166,7 @@ pub(super) fn assert_game_entity_index(world: &World) -> Result<(), String> {
     }
     let count = world
         .iter_entities()
-        .filter(|entity| entity.contains::<GameObject>())
+        .filter(bevy::prelude::EntityRef::contains::<GameObject>)
         .count();
     if count != index.0.len() {
         return Err("not every GameObject is indexed".to_string());

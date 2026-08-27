@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use bevy::prelude::*;
 use thiserror::Error;
 
-use crate::{Controller, GameEntityId, PlayerId, Ruleset, entity::game_entity};
+use crate::{Controller, EntityKind, GameEntityId, PlayerId, Ruleset, entity::game_entity};
 
 #[derive(Component, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Zone {
@@ -50,9 +50,40 @@ pub enum ZoneError {
 pub(crate) fn zone_limit(ruleset: &Ruleset, zone: Zone) -> Option<usize> {
     match zone {
         Zone::Hand => Some(ruleset.hand_limit),
-        Zone::Play => Some(ruleset.board_limit),
         _ => None,
     }
+}
+
+pub(crate) fn board_is_full(world: &World, player: PlayerId) -> bool {
+    world
+        .resource::<ZoneIndex>()
+        .entities(player, Zone::Play)
+        .iter()
+        .filter(|id| {
+            game_entity(world, **id).and_then(|entity| world.get::<EntityKind>(entity))
+                == Some(&EntityKind::Minion)
+        })
+        .count()
+        >= world.resource::<Ruleset>().board_limit
+}
+
+pub(crate) fn validate_zone_position(
+    world: &World,
+    player: PlayerId,
+    zone: Zone,
+    position: Option<usize>,
+) -> Result<(), ZoneError> {
+    let length = world.resource::<ZoneIndex>().entities(player, zone).len();
+    if let Some(position) = position
+        && position > length
+    {
+        return Err(ZoneError::InvalidPosition {
+            zone,
+            position,
+            length,
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn insert_into_zone(
@@ -64,19 +95,18 @@ pub(crate) fn insert_into_zone(
 ) -> Result<(), ZoneError> {
     let entity = game_entity(world, id).ok_or(ZoneError::EntityNotFound(id))?;
     let limit = zone_limit(world.resource::<Ruleset>(), zone);
-    let mut index = world.resource_mut::<ZoneIndex>();
-    let entries = index.0.entry((player, zone)).or_default();
-    if limit.is_some_and(|limit| entries.len() >= limit) {
+    let entries = world.resource::<ZoneIndex>().entities(player, zone);
+    if limit.is_some_and(|limit| entries.len() >= limit)
+        || (zone == Zone::Play
+            && world.get::<EntityKind>(entity) == Some(&EntityKind::Minion)
+            && board_is_full(world, player))
+    {
         return Err(ZoneError::Full { player, zone });
     }
+    validate_zone_position(world, player, zone, position)?;
+    let mut index = world.resource_mut::<ZoneIndex>();
+    let entries = index.0.entry((player, zone)).or_default();
     let position = position.unwrap_or(entries.len());
-    if position > entries.len() {
-        return Err(ZoneError::InvalidPosition {
-            zone,
-            position,
-            length: entries.len(),
-        });
-    }
     entries.insert(position, id);
     world.entity_mut(entity).insert((Controller(player), zone));
     refresh_positions(world, player, zone);
@@ -213,11 +243,37 @@ mod tests {
                 zone: Zone::Hand,
             }))
         );
-        assert_that!(
-            zone_limit(world.resource::<Ruleset>(), Zone::Play),
-            eq(Some(7))
-        );
+        assert_that!(zone_limit(world.resource::<Ruleset>(), Zone::Play), none());
         assert_that!(zone_limit(world.resource::<Ruleset>(), Zone::Deck), none());
+    }
+
+    #[googletest::test]
+    fn play_zone_capacity_counts_only_minions() {
+        let mut world = world();
+        world.resource_mut::<Ruleset>().board_limit = 1;
+        world.spawn((GameObject, GameEntityId(1), EntityKind::Hero));
+        world.spawn((GameObject, GameEntityId(2), EntityKind::Minion));
+        world.spawn((GameObject, GameEntityId(3), EntityKind::Minion));
+
+        insert_into_zone(&mut world, GameEntityId(1), PlayerId::One, Zone::Play, None).unwrap();
+        assert_that!(board_is_full(&world, PlayerId::One), is_false());
+        insert_into_zone(&mut world, GameEntityId(2), PlayerId::One, Zone::Play, None).unwrap();
+        assert_that!(board_is_full(&world, PlayerId::One), is_true());
+        assert_that!(
+            insert_into_zone(&mut world, GameEntityId(3), PlayerId::One, Zone::Play, None,),
+            err(eq(&ZoneError::Full {
+                player: PlayerId::One,
+                zone: Zone::Play,
+            }))
+        );
+        assert_that!(
+            validate_zone_position(&world, PlayerId::One, Zone::Play, Some(3)),
+            err(eq(&ZoneError::InvalidPosition {
+                zone: Zone::Play,
+                position: 3,
+                length: 2,
+            }))
+        );
     }
 
     #[googletest::test]

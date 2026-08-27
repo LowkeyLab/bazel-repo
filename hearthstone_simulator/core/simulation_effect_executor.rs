@@ -12,7 +12,7 @@ use crate::{
     resolver::{complete_active, consume_budget, push_resolution},
     rng::choose_game_entity,
     trigger::TriggersSuppressed,
-    zone::{ZoneIndex, insert_into_zone, move_entity},
+    zone::{ZoneIndex, board_is_full, insert_into_zone, move_entity, validate_zone_position},
 };
 
 use super::{
@@ -112,33 +112,29 @@ pub(super) fn execute_effect(
             board_index,
         } => {
             let player = resolve_player(context.controller, *player);
-            if world
-                .resource::<ZoneIndex>()
-                .entities(player, Zone::Play)
-                .len()
-                < world.resource::<Ruleset>().board_limit
-            {
-                let summoned = spawn_card(world, player, card.clone(), Zone::Play)?;
-                if let Some(index) = board_index {
-                    move_entity(world, summoned, Zone::Play, Some(*index))?;
-                }
-                let order = allocate_play_order(world);
-                let entity = game_entity(world, summoned).expect("summoned entity was indexed");
-                world.entity_mut(entity).insert(order);
-                resolve_event_if_active(
-                    world,
-                    EventContext {
-                        kind: EventKind::Summoned,
-                        source: context.source,
-                        targets: vec![summoned],
-                        controller: player,
-                        proposed_value: None,
-                        actual_value: None,
-                        simultaneous_ordinal: 0,
-                    },
-                )?;
+            if card.kind == EntityKind::Minion && board_is_full(world, player) {
+                return Ok(());
             }
-            Ok(())
+            validate_zone_position(world, player, Zone::Play, *board_index)?;
+            let summoned = spawn_card(world, player, card.clone(), Zone::Play)?;
+            if let Some(index) = board_index {
+                move_entity(world, summoned, Zone::Play, Some(*index))?;
+            }
+            let order = allocate_play_order(world);
+            let entity = game_entity(world, summoned).expect("summoned entity was indexed");
+            world.entity_mut(entity).insert(order);
+            resolve_event_if_active(
+                world,
+                EventContext {
+                    kind: EventKind::Summoned,
+                    source: context.source,
+                    targets: vec![summoned],
+                    controller: player,
+                    proposed_value: None,
+                    actual_value: None,
+                    simultaneous_ordinal: 0,
+                },
+            )
         }
         Effect::AttachStatModifier { targets, modifier } => {
             for target in select_entities(world, context, targets) {
@@ -248,7 +244,8 @@ pub(super) fn attach_stat_modifier(
         modifier,
         AttachedTo(target_entity),
     ));
-    insert_into_zone(world, id, controller, Zone::SetAside, None)?;
+    insert_into_zone(world, id, controller, Zone::SetAside, None)
+        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
     recalculate_stats(world, target);
     Ok(())
 }
