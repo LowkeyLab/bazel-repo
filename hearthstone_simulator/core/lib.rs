@@ -24,7 +24,9 @@ mod zone;
 
 pub use card_definition::{CardDefinition, CardDefinitions};
 pub use death::{DeathEventCache, DeathRecord};
-pub use effect::{Effect, EffectContext, PlayerSelector, Selector, ValueExpression};
+pub use effect::{
+    Effect, EffectContext, EventValueOperation, PlayerSelector, Selector, ValueExpression,
+};
 pub use enchantment::{AttachedEnchantments, AttachedTo, AuraApplication, AuraCache, StatModifier};
 pub use entity::{
     Abilities, Armor, AttackState, BaseStats, Controller, CurrentStats, Damage, DefinitionId,

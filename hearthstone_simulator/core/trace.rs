@@ -1,6 +1,8 @@
 use bevy::prelude::Resource;
 
-use crate::{EventKind, GameEntityId, PlayerId, ResolutionId, RulesetId, Zone};
+use crate::{
+    EventKind, EventValueOperation, GameEntityId, PlayerId, ResolutionId, RulesetId, Zone,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TraceEntry {
@@ -32,6 +34,12 @@ pub enum TraceEntry {
         queue: ResolutionId,
         entries: Vec<ResolutionId>,
     },
+    EventValueChanged {
+        event: ResolutionId,
+        operation: EventValueOperation,
+        previous: i32,
+        current: i32,
+    },
     TriggerAborted {
         id: ResolutionId,
         source: GameEntityId,
@@ -50,6 +58,12 @@ pub enum TraceEntry {
         amount: i32,
     },
     Damage {
+        source: Option<GameEntityId>,
+        target: GameEntityId,
+        proposed: i32,
+        actual: i32,
+    },
+    Healing {
         source: Option<GameEntityId>,
         target: GameEntityId,
         proposed: i32,
