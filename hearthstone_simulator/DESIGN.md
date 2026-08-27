@@ -148,7 +148,7 @@ No canonical output contains a raw Bevy entity ID.
 
 ### Required components
 
-Primary concept components use Bevy required components to establish deterministic structural defaults. For example, inserting a minion-form component can require game-object identity markers, zone state, base stats, computed stats, health state, and controller state.
+Primary concept components use Bevy required components to establish deterministic structural defaults. For example, inserting a minion-form component can require the `GameObject` marker, base stats, computed stats, and health state. Contextual identity and placement components such as `GameEntityId`, `DefinitionId`, `Controller`, and `Zone` are inserted explicitly by the validated spawn path.
 
 Required-component constructors may create constant defaults. They must not:
 
@@ -841,7 +841,7 @@ Useful invariants include:
 - The logical-ID index agrees with ECS membership.
 - Every zoned object occurs exactly once in its authoritative zone index.
 - Every attached enchantment has one valid target parent.
-- `ComputedStats` equals a fresh deterministic reduction of current inputs.
+- At every stable phase boundary, no stat-bearing entity is dirty and its `ComputedStats` equals a fresh deterministic reduction of current inputs; intermediate coordinator states may remain dirty until their designated recomputation step.
 - No trigger ordering key is incomplete.
 - No card mechanic depends on Observer registration or query order.
 - A phase cannot advance while its nested reaction chain has pending work.
