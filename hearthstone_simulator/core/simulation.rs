@@ -1143,14 +1143,11 @@ fn reduce_damage(
     }
     let health_damage = proposed - absorbed;
     if health_damage > 0 {
-        world
-            .entity_mut(entity)
-            .entry::<Damage>()
-            .or_default()
-            .into_mut()
-            .0 += health_damage;
+        let mut entity = world.entity_mut(entity);
+        let mut damage = entity.entry::<Damage>().or_default().into_mut();
+        damage.0 = damage.0.saturating_add(health_damage);
     }
-    let actual = absorbed + health_damage;
+    let actual = absorbed.saturating_add(health_damage);
     trace_damage(world, request, actual);
     EventContext {
         kind: EventKind::Damage,
@@ -1667,6 +1664,10 @@ fn execute_effect(
                     id: id.clone(),
                     reason: error.to_string(),
                 })?;
+            let event = nearest_active_event(world)
+                .and_then(|entity| world.get::<EventContext>(entity))
+                .map(|event| event.kind);
+            validate_effect_program(world, &plan, event)?;
             execute_effects(world, context, &plan)
         }
         Effect::Sequence(nested) => execute_effects(world, context, nested),
@@ -1882,28 +1883,32 @@ fn evaluate_value(
     }
 }
 
+fn nearest_active_event(world: &World) -> Option<Entity> {
+    let mut current = world.resource::<ResolutionCursor>().active;
+    while let Some(entity) = current {
+        if world.get::<EventContext>(entity).is_some() {
+            return Some(entity);
+        }
+        current = world.get::<NestedUnder>(entity).map(|parent| parent.0);
+    }
+    None
+}
+
 fn modify_active_event_value(
     world: &mut World,
     context: &EffectContext,
     operation: EventValueOperation,
     expression: ValueExpression,
 ) -> Result<(), SimulationError> {
-    let mut current = world.resource::<ResolutionCursor>().active;
-    let event_entity = loop {
-        let Some(entity) = current else {
-            return Err(SimulationError::NoModifiableEventValue);
-        };
-        if world.get::<EventContext>(entity).is_some_and(|event| {
-            (event.kind == EventKind::ProposedDamage || event.kind == EventKind::ProposedHealing)
-                && event.proposed_value.is_some()
-        }) {
-            break entity;
-        }
-        current = world.get::<NestedUnder>(entity).map(|parent| parent.0);
-    };
+    let event_entity =
+        nearest_active_event(world).ok_or(SimulationError::NoModifiableEventValue)?;
     let event = world
         .get::<EventContext>(event_entity)
-        .expect("modifiable event was just found");
+        .filter(|event| {
+            (event.kind == EventKind::ProposedDamage || event.kind == EventKind::ProposedHealing)
+                && event.proposed_value.is_some()
+        })
+        .ok_or(SimulationError::NoModifiableEventValue)?;
     let previous = event
         .proposed_value
         .expect("modifiable event has a proposed value");
@@ -4132,6 +4137,11 @@ mod tests {
             simulation.app.world().get::<Damage>(entity),
             eq(Some(&Damage(1)))
         );
+        apply_damage(simulation.app.world_mut(), None, target, i32::MAX).unwrap();
+        assert_that!(
+            simulation.app.world().get::<Damage>(entity),
+            eq(Some(&Damage(i32::MAX)))
+        );
         let context = EffectContext {
             source: None,
             controller: PlayerId::One,
@@ -4408,6 +4418,13 @@ mod tests {
         }]
     }
 
+    fn synthetic_native_modifier_handler(In(_): In<EffectContext>) -> Vec<Effect> {
+        vec![Effect::ModifyEventValue {
+            operation: EventValueOperation::Replace,
+            value: ValueExpression::Constant(0),
+        }]
+    }
+
     #[googletest::test]
     fn native_handlers_flush_commands_and_return_nested_effect_plans() {
         let native_id = NativeEffectId::new("synthetic:native_damage");
@@ -4464,6 +4481,111 @@ mod tests {
             execute_effect(world, &context, &Effect::Native(missing.clone())),
             err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
         );
+        complete_active(world).unwrap();
+        cleanup_resolution(world);
+    }
+
+    #[googletest::test]
+    fn native_returned_event_modifiers_are_validated_before_execution() {
+        let native_id = NativeEffectId::new("synthetic:native_modifier");
+        let mut simulation = simulation();
+        simulation
+            .register_native_effect(native_id.clone(), synthetic_native_modifier_handler)
+            .unwrap();
+        let world = simulation.app.world_mut();
+        begin_resolution(world, ResolutionKind::Sequence);
+        let context = EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+        };
+
+        assert_that!(
+            execute_effect(world, &context, &Effect::Native(native_id.clone())),
+            err(eq(&SimulationError::NoModifiableEventValue))
+        );
+        assert_that!(
+            world
+                .resource::<CanonicalTrace>()
+                .entries
+                .iter()
+                .any(|entry| matches!(entry, TraceEntry::EventValueChanged { .. })),
+            is_false()
+        );
+        complete_active(world).unwrap();
+        cleanup_resolution(world);
+
+        let root = begin_resolution(world, ResolutionKind::Sequence);
+        let event = spawn_resolution_child(world, root, ResolutionKind::Event);
+        world.entity_mut(event).insert(EventContext {
+            kind: EventKind::ProposedDamage,
+            source: None,
+            targets: Vec::new(),
+            controller: PlayerId::One,
+            proposed_value: Some(5),
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        });
+        activate_resolution_child(world, event).unwrap();
+        execute_effect(world, &context, &Effect::Native(native_id)).unwrap();
+        assert_that!(
+            world.get::<EventContext>(event).unwrap().proposed_value,
+            eq(Some(0))
+        );
+        complete_active(world).unwrap();
+        complete_active(world).unwrap();
+        cleanup_resolution(world);
+    }
+
+    #[googletest::test]
+    fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
+        let mut simulation = simulation();
+        let target = hero(&mut simulation, PlayerId::Two);
+        let world = simulation.app.world_mut();
+        let root = begin_resolution(world, ResolutionKind::Sequence);
+        let outer = spawn_resolution_child(world, root, ResolutionKind::Event);
+        world.entity_mut(outer).insert(EventContext {
+            kind: EventKind::ProposedDamage,
+            source: None,
+            targets: vec![target],
+            controller: PlayerId::One,
+            proposed_value: Some(5),
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        });
+        activate_resolution_child(world, outer).unwrap();
+        let inner = spawn_resolution_child(world, outer, ResolutionKind::Event);
+        world.entity_mut(inner).insert(EventContext {
+            kind: EventKind::Damage,
+            source: None,
+            targets: vec![target],
+            controller: PlayerId::One,
+            proposed_value: Some(1),
+            actual_value: Some(1),
+            simultaneous_ordinal: 0,
+        });
+        activate_resolution_child(world, inner).unwrap();
+        let context = EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: Some(target),
+        };
+
+        assert_that!(
+            modify_active_event_value(
+                world,
+                &context,
+                EventValueOperation::Replace,
+                ValueExpression::Constant(0),
+            ),
+            err(eq(&SimulationError::NoModifiableEventValue))
+        );
+        assert_that!(
+            world.get::<EventContext>(outer).unwrap().proposed_value,
+            eq(Some(5))
+        );
+        complete_active(world).unwrap();
+        complete_active(world).unwrap();
         complete_active(world).unwrap();
         cleanup_resolution(world);
     }

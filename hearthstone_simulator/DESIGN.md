@@ -547,7 +547,9 @@ Event data captures identity and declared targets, but effects query current gam
 
 ### Simultaneous events
 
-An effect that creates simultaneous damage, healing, movement, or death events first creates all event nodes, orders them according to the applicable rule, and freezes an event queue. Each event then resolves fully before its next sibling begins.
+An effect that creates simultaneous damage or healing first fixes the request order according to the applicable rule. In that order, each request passes protection, resolves its proposed event, and applies its durable mutation before the next request begins. Positive actual events are collected without resolving reactions; after every mutation is applied, that actual-event queue is frozen and resolved. This preserves proposal-time observation of earlier mutations while preventing actual-event reactions from interrupting the batch.
+
+Movement and death batches create and order all applicable event nodes before freezing their event queue. Each frozen event then resolves fully before its next sibling begins.
 
 Combat-specific attacker/defender event order is encoded by the combat event builder rather than inferred from play order.
 
