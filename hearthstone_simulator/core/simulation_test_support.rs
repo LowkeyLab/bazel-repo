@@ -1,0 +1,47 @@
+use super::*;
+
+pub(super) fn simulation() -> Simulation {
+    Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Training Minion", 1, 3, 2)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ])
+}
+
+pub(super) fn hand_card(simulation: &mut Simulation, player: PlayerId) -> GameEntityId {
+    simulation.snapshot().players[player.bucket() as usize].hand[0]
+}
+
+pub(super) fn hero(simulation: &mut Simulation, player: PlayerId) -> GameEntityId {
+    let snapshot = simulation.snapshot();
+    snapshot.players[player.bucket() as usize]
+        .board
+        .iter()
+        .copied()
+        .find(|id| {
+            snapshot
+                .objects
+                .iter()
+                .any(|object| object.id == *id && object.kind == EntityKind::Hero)
+        })
+        .expect("hero should be on the board")
+}
+
+pub(super) fn self_event_trigger(
+    event: EventKind,
+    effect_program: Vec<Effect>,
+) -> crate::TriggerDefinition {
+    crate::TriggerDefinition {
+        event,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![crate::TimedCondition {
+            timing: crate::ConditionTiming::QueueTime,
+            condition: crate::TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        allow_repeated_event: false,
+        allow_direct_self_nesting: false,
+        wounded_target_policy: crate::WoundedTargetPolicy::IncludeMortallyWounded,
+        effect_program,
+    }
+}

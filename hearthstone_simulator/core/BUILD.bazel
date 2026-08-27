@@ -3,6 +3,13 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
+# gazelle:exclude simulation_test_support.rs
+# gazelle:exclude simulation_tests_actions.rs
+# gazelle:exclude simulation_tests_api.rs
+# gazelle:exclude simulation_tests_effects.rs
+# gazelle:exclude simulation_tests_events.rs
+# gazelle:exclude simulation_tests_health.rs
+
 rust_library(
     name = "core",
     srcs = [
@@ -23,11 +30,27 @@ rust_library(
         "rng.rs",
         "ruleset.rs",
         "simulation.rs",
+        "simulation_action.rs",  # keep
+        "simulation_card_runtime.rs",  # keep
+        "simulation_effect_executor.rs",  # keep
+        "simulation_error.rs",  # keep
+        "simulation_event_resolver.rs",  # keep
+        "simulation_health.rs",  # keep
+        "simulation_player.rs",  # keep
+        "simulation_snapshot.rs",  # keep
         "trace.rs",
         "trigger.rs",
         "zone.rs",
     ],
-    compile_data = ["//:Cargo.toml"],
+    compile_data = [
+        "//:Cargo.toml",
+        "simulation_test_support.rs",  # keep
+        "simulation_tests_actions.rs",  # keep
+        "simulation_tests_api.rs",  # keep
+        "simulation_tests_effects.rs",  # keep
+        "simulation_tests_events.rs",  # keep
+        "simulation_tests_health.rs",  # keep
+    ],
     crate_name = "hearthstone_simulator_core",
     rustc_env = {"CARGO_MANIFEST_DIR": "."},
     deps = [
