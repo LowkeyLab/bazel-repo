@@ -1,0 +1,445 @@
+[
+    FrameBegin {
+        id: ResolutionId(
+            7,
+        ),
+        kind: "Sequence",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            8,
+        ),
+        kind: "Phase",
+    },
+    ResourceSpent {
+        player: One,
+        amount: 0,
+    },
+    ZoneMoved {
+        entity: GameEntityId(
+            3,
+        ),
+        from: Hand,
+        to: Graveyard,
+    },
+    EventCreated {
+        id: ResolutionId(
+            9,
+        ),
+        kind: CardPlayed,
+        source: Some(
+            GameEntityId(
+                3,
+            ),
+        ),
+        targets: [
+            GameEntityId(
+                2,
+            ),
+        ],
+        proposed: None,
+        actual: None,
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            10,
+        ),
+        entries: [],
+    },
+    FrameBegin {
+        id: ResolutionId(
+            9,
+        ),
+        kind: "Event",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            10,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            10,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            9,
+        ),
+        kind: "Event",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            11,
+        ),
+        kind: "Effect",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            12,
+        ),
+        kind: "EventBatch",
+    },
+    EventCreated {
+        id: ResolutionId(
+            14,
+        ),
+        kind: ProposedDamage,
+        source: Some(
+            GameEntityId(
+                3,
+            ),
+        ),
+        targets: [
+            GameEntityId(
+                2,
+            ),
+        ],
+        proposed: Some(
+            1,
+        ),
+        actual: None,
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            15,
+        ),
+        entries: [],
+    },
+    FrameBegin {
+        id: ResolutionId(
+            14,
+        ),
+        kind: "Event",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            15,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            15,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            14,
+        ),
+        kind: "Event",
+    },
+    Damage {
+        source: Some(
+            GameEntityId(
+                3,
+            ),
+        ),
+        target: GameEntityId(
+            2,
+        ),
+        proposed: 1,
+        actual: 1,
+    },
+    EventCreated {
+        id: ResolutionId(
+            16,
+        ),
+        kind: Damage,
+        source: Some(
+            GameEntityId(
+                3,
+            ),
+        ),
+        targets: [
+            GameEntityId(
+                2,
+            ),
+        ],
+        proposed: Some(
+            1,
+        ),
+        actual: Some(
+            1,
+        ),
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            17,
+        ),
+        entries: [
+            ResolutionId(
+                18,
+            ),
+        ],
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            13,
+        ),
+        entries: [
+            ResolutionId(
+                16,
+            ),
+        ],
+    },
+    FrameBegin {
+        id: ResolutionId(
+            13,
+        ),
+        kind: "EventQueue",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            16,
+        ),
+        kind: "Event",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            17,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            19,
+        ),
+        kind: "Trigger",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            20,
+        ),
+        kind: "Effect",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            21,
+        ),
+        kind: "EventBatch",
+    },
+    EventCreated {
+        id: ResolutionId(
+            23,
+        ),
+        kind: ProposedDamage,
+        source: Some(
+            GameEntityId(
+                2,
+            ),
+        ),
+        targets: [
+            GameEntityId(
+                5,
+            ),
+        ],
+        proposed: Some(
+            2,
+        ),
+        actual: None,
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            24,
+        ),
+        entries: [],
+    },
+    FrameBegin {
+        id: ResolutionId(
+            23,
+        ),
+        kind: "Event",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            24,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            24,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            23,
+        ),
+        kind: "Event",
+    },
+    Damage {
+        source: Some(
+            GameEntityId(
+                2,
+            ),
+        ),
+        target: GameEntityId(
+            5,
+        ),
+        proposed: 2,
+        actual: 2,
+    },
+    EventCreated {
+        id: ResolutionId(
+            25,
+        ),
+        kind: Damage,
+        source: Some(
+            GameEntityId(
+                2,
+            ),
+        ),
+        targets: [
+            GameEntityId(
+                5,
+            ),
+        ],
+        proposed: Some(
+            2,
+        ),
+        actual: Some(
+            2,
+        ),
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            26,
+        ),
+        entries: [],
+    },
+    QueueFrozen {
+        queue: ResolutionId(
+            22,
+        ),
+        entries: [
+            ResolutionId(
+                25,
+            ),
+        ],
+    },
+    FrameBegin {
+        id: ResolutionId(
+            22,
+        ),
+        kind: "EventQueue",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            25,
+        ),
+        kind: "Event",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            26,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            26,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            25,
+        ),
+        kind: "Event",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            22,
+        ),
+        kind: "EventQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            21,
+        ),
+        kind: "EventBatch",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            20,
+        ),
+        kind: "Effect",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            19,
+        ),
+        kind: "Trigger",
+    },
+    TriggerResolved {
+        id: ResolutionId(
+            18,
+        ),
+        source: GameEntityId(
+            2,
+        ),
+    },
+    FrameEnd {
+        id: ResolutionId(
+            17,
+        ),
+        kind: "TriggerQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            16,
+        ),
+        kind: "Event",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            13,
+        ),
+        kind: "EventQueue",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            12,
+        ),
+        kind: "EventBatch",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            11,
+        ),
+        kind: "Effect",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            8,
+        ),
+        kind: "Phase",
+    },
+    FrameBegin {
+        id: ResolutionId(
+            27,
+        ),
+        kind: "PhaseBoundary",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            27,
+        ),
+        kind: "PhaseBoundary",
+    },
+    FrameEnd {
+        id: ResolutionId(
+            7,
+        ),
+        kind: "Sequence",
+    },
+    ActionAccepted {
+        player: One,
+        action: "PlayCard",
+    },
+]

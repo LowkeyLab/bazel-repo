@@ -3,11 +3,14 @@ use bevy::prelude::*;
 use crate::{
     AttachedTo, AuraCache, BaseStats, CanonicalTrace, Card, Controller, CurrentStats, Damage,
     DefinitionId, DisplayName, Effect, EffectContext, EntityKind, EventContext, EventKind,
-    EventValueOperation, GameEntityId, Keywords, NestedUnder, PendingDestroy, PlayerId,
-    PlayerSelector, ResolutionCursor, ResolutionIdentity, ResolutionKind, Ruleset, RuntimeTriggers,
-    Selector, StatModifier, TraceEntry, ValueExpression, Zone,
+    EventValueOperation, GameEntityId, NestedUnder, PendingDestroy, PlayerId, PlayerSelector,
+    ResolutionCursor, ResolutionIdentity, ResolutionKind, Ruleset, RuntimeTriggers, Selector,
+    StatModifier, TraceEntry, ValueExpression, Zone,
     enchantment::recalculate_stats,
-    entity::{allocate_game_id, allocate_play_order, game_entity},
+    entity::{
+        allocate_game_id, allocate_play_order, clear_keywords, entity_keywords, game_entity,
+        materialize_entity_form, materialize_keywords,
+    },
     native_effect::NativeEffectRegistry,
     resolver::{complete_active, consume_budget, push_resolution},
     rng::choose_game_entity,
@@ -255,9 +258,7 @@ pub(super) fn silence_entity(
     target: GameEntityId,
 ) -> Result<(), SimulationError> {
     let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    if let Some(mut keywords) = world.get_mut::<Keywords>(entity) {
-        keywords.0.clear();
-    }
+    clear_keywords(world, entity);
     world.entity_mut(entity).remove::<PendingDestroy>();
     world
         .entity_mut(entity)
@@ -290,26 +291,35 @@ pub(super) fn transform_entity(
     card: Card,
 ) -> Result<(), SimulationError> {
     let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let Card {
+        definition_id,
+        name,
+        kind,
+        mana_cost,
+        attack,
+        health,
+        keywords,
+        effects,
+        triggers,
+    } = card;
     world.entity_mut(entity).insert((
-        DefinitionId(card.definition_id),
-        DisplayName(card.name),
-        card.kind,
-        BaseStats {
-            attack: card.attack,
-            health: card.health,
-        },
+        DefinitionId(definition_id),
+        DisplayName(name),
+        kind,
+        BaseStats { attack, health },
         CurrentStats {
-            attack: card.attack,
-            maximum_health: card.health,
+            attack,
+            maximum_health: health,
         },
         Damage::default(),
-        Keywords::default(),
         CardRuntime {
-            cost: card.mana_cost,
-            program: card.effects,
+            cost: mana_cost,
+            program: effects,
         },
-        RuntimeTriggers(card.triggers),
+        RuntimeTriggers(triggers),
     ));
+    materialize_entity_form(world, entity, kind);
+    materialize_keywords(world, entity, &keywords);
     world.entity_mut(entity).remove::<PendingDestroy>();
     world.entity_mut(entity).remove::<TriggersSuppressed>();
     Ok(())
@@ -326,6 +336,7 @@ pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card
         mana_cost: runtime.cost,
         attack: base.attack,
         health: base.health,
+        keywords: entity_keywords(world, entity),
         effects: runtime.program.clone(),
         triggers: world
             .get::<RuntimeTriggers>(entity)

@@ -1,0 +1,196 @@
+GameSnapshot {
+    ruleset: AdvancedRulebook2026_06_26,
+    game: GameState {
+        active_player: One,
+        turn_number: 1,
+        outcome: None,
+        status: AwaitingAction,
+    },
+    players: [
+        PlayerSnapshot {
+            entity: GameEntityId(
+                0,
+            ),
+            id: One,
+            name: "Jaina",
+            health: 30,
+            armor: 0,
+            available_resources: 1,
+            maximum_resources: 1,
+            used_resources: 0,
+            temporary_resources: 0,
+            pending_overload: 0,
+            locked_overload: 0,
+            resources_spent: 0,
+            fatigue: 0,
+            hand: [],
+            deck: [],
+            board: [
+                GameEntityId(
+                    2,
+                ),
+                GameEntityId(
+                    1,
+                ),
+            ],
+        },
+        PlayerSnapshot {
+            entity: GameEntityId(
+                4,
+            ),
+            id: Two,
+            name: "Rexxar",
+            health: 28,
+            armor: 0,
+            available_resources: 0,
+            maximum_resources: 0,
+            used_resources: 0,
+            temporary_resources: 0,
+            pending_overload: 0,
+            locked_overload: 0,
+            resources_spent: 0,
+            fatigue: 0,
+            hand: [],
+            deck: [],
+            board: [
+                GameEntityId(
+                    5,
+                ),
+            ],
+        },
+    ],
+    objects: [
+        GameObjectSnapshot {
+            id: GameEntityId(
+                0,
+            ),
+            definition_id: "system:player",
+            name: "Jaina",
+            kind: Player,
+            controller: One,
+            zone: SetAside,
+            zone_position: 0,
+            play_order: 0,
+            attack: None,
+            maximum_health: None,
+            damage: 0,
+            exhausted: None,
+            keywords: {},
+        },
+        GameObjectSnapshot {
+            id: GameEntityId(
+                1,
+            ),
+            definition_id: "system:hero",
+            name: "Jaina's Hero",
+            kind: Hero,
+            controller: One,
+            zone: Play,
+            zone_position: 1,
+            play_order: 0,
+            attack: Some(
+                0,
+            ),
+            maximum_health: Some(
+                30,
+            ),
+            damage: 0,
+            exhausted: Some(
+                false,
+            ),
+            keywords: {},
+        },
+        GameObjectSnapshot {
+            id: GameEntityId(
+                2,
+            ),
+            definition_id: "synthetic:migration_reactor",
+            name: "Migration Reactor",
+            kind: Minion,
+            controller: One,
+            zone: Play,
+            zone_position: 0,
+            play_order: 0,
+            attack: Some(
+                2,
+            ),
+            maximum_health: Some(
+                3,
+            ),
+            damage: 1,
+            exhausted: Some(
+                true,
+            ),
+            keywords: {},
+        },
+        GameObjectSnapshot {
+            id: GameEntityId(
+                3,
+            ),
+            definition_id: "synthetic:migration_bolt",
+            name: "Migration Bolt",
+            kind: Spell,
+            controller: One,
+            zone: Graveyard,
+            zone_position: 0,
+            play_order: 1,
+            attack: Some(
+                0,
+            ),
+            maximum_health: Some(
+                0,
+            ),
+            damage: 0,
+            exhausted: Some(
+                true,
+            ),
+            keywords: {},
+        },
+        GameObjectSnapshot {
+            id: GameEntityId(
+                4,
+            ),
+            definition_id: "system:player",
+            name: "Rexxar",
+            kind: Player,
+            controller: Two,
+            zone: SetAside,
+            zone_position: 0,
+            play_order: 0,
+            attack: None,
+            maximum_health: None,
+            damage: 0,
+            exhausted: None,
+            keywords: {},
+        },
+        GameObjectSnapshot {
+            id: GameEntityId(
+                5,
+            ),
+            definition_id: "system:hero",
+            name: "Rexxar's Hero",
+            kind: Hero,
+            controller: Two,
+            zone: Play,
+            zone_position: 0,
+            play_order: 0,
+            attack: Some(
+                0,
+            ),
+            maximum_health: Some(
+                30,
+            ),
+            damage: 2,
+            exhausted: Some(
+                false,
+            ),
+            keywords: {},
+        },
+    ],
+    deaths: [],
+    rng: RngSnapshot {
+        algorithm_version: 1,
+        state: 24301,
+        position: 0,
+    },
+}

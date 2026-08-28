@@ -10,18 +10,23 @@ The target redesign and the running implementation use separate milestone tracks
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Target architecture: deterministic immediate `EntityEvent`/Observer dispatch with layered recomputation and a phase coordinator
 - Running implementation baseline: ECS resolution nodes and frozen event/trigger queues
-- Active target milestone: Target Milestone 0 architecture and conformance migration
+- Active target milestone: Target Milestone 2 child enchantments and layered recomputation
 - Ongoing baseline work: Legacy Milestone 5 aura timing and Legacy Milestone 7 general mechanics
 - Verification: Gazelle, formatting, all Hearthstone targets, and the full repository build pass
 
 ## Target redesign migration
 
-- [ ] **Target 0 — Architecture and conformance contract**
+- [x] **Target 0 — Architecture and conformance contract**
   - [x] Document the Observer-driven target architecture and migration milestones.
-  - [ ] Update `RULEBOOK_CONFORMANCE.md` for immediate dispatch and the new phase model.
-  - [ ] Record behavior-equivalence fixtures for the current resolution graph and frozen queues.
-  - [ ] Define snapshot, trace, and continuation-equivalence fixtures for migration.
-- [ ] **Target 1 — Flat entity shapes**
+  - [x] Update `RULEBOOK_CONFORMANCE.md` for immediate dispatch and the new phase model.
+  - [x] Record behavior-equivalence fixtures for the current resolution graph and frozen queues.
+  - [x] Check in a canonical baseline snapshot and ordered nested-trigger trace with quiescence assertions.
+  - [x] Keep replay/continuation and divergent-fork isolation fixtures separate from the baseline oracle.
+- [x] **Target 1 — Flat entity shapes**
+  - [x] Preserve stable logical IDs through required `GameObject` insertion and hook-maintained indexes.
+  - [x] Add required-component Hero/minion runtime form markers and validate shapes bidirectionally at stable boundaries.
+  - [x] Materialize frequently queried binary keywords as marker components and canonical snapshot state.
+  - [x] Preserve authoritative zone indexes and runtime identity across ordinary movement.
 - [ ] **Target 2 — Child enchantments and layered recomputation**
 - [ ] **Target 3 — Immediate event dispatch**
 - [ ] **Target 4 — Phase and death schedule**
@@ -107,6 +112,11 @@ The completed items in this section describe the currently running baseline, not
 | 2026-08-27 | `aspect format --scope=all`                                                    | Passed DH1/DH2 compliance fixes             |
 | 2026-08-27 | `aspect test //hearthstone_simulator/...`                                      | Passed all four compliance regressions      |
 | 2026-08-27 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 100% changed-line coverage (481/481)        |
+| 2026-08-27 | `aspect lint`                                                                  | Passed all repository linters               |
+| 2026-08-27 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-27 | `bazel run //:gazelle`                                                         | Passed Target 0/1 compliance corrections    |
+| 2026-08-27 | `aspect format --scope=all`                                                    | Passed compliance corrections               |
+| 2026-08-27 | `aspect test //hearthstone_simulator/...`                                      | Passed baseline/keyword/shape regressions   |
 | 2026-08-27 | `aspect lint`                                                                  | Passed all repository linters               |
 | 2026-08-27 | `aspect build //...`                                                           | Passed full repository build                |
 

@@ -30,7 +30,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
     let friendly = spawn_card(
         world,
         PlayerId::One,
-        Card::minion("Friendly", 0, 2, 3),
+        Card::minion("Friendly", 0, 2, 3).with_keywords([Keyword::Taunt]),
         Zone::Play,
     )
     .unwrap();
@@ -172,7 +172,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
             },
             Effect::Transform {
                 targets: Selector::DeclaredTarget,
-                card: Card::minion("Sheep", 1, 1, 1),
+                card: Card::minion("Sheep", 1, 1, 1).with_keywords([Keyword::Rush]),
             },
             Effect::Copy {
                 targets: Selector::DeclaredTarget,
@@ -190,19 +190,19 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         eq(Some(&Damage(0)))
     );
     assert_that!(
-        world
-            .get::<Keywords>(game_entity(world, friendly).unwrap())
-            .unwrap()
-            .0
-            .contains(&Keyword::Taunt),
+        has_keyword(world, game_entity(world, friendly).unwrap(), Keyword::Taunt,),
         is_false()
     );
+    let copied = world
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::One, Zone::Hand)[0];
     assert_that!(
-        world
-            .resource::<ZoneIndex>()
-            .entities(PlayerId::One, Zone::Hand)
-            .len(),
-        eq(1)
+        has_keyword(world, game_entity(world, enemy).unwrap(), Keyword::Rush),
+        is_true()
+    );
+    assert_that!(
+        has_keyword(world, game_entity(world, copied).unwrap(), Keyword::Rush),
+        is_true()
     );
     assert_that!(
         player(world, PlayerId::One).unwrap().1.temporary_resources,

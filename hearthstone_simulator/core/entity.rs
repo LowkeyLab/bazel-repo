@@ -46,10 +46,12 @@ pub struct BaseStats {
 }
 
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct CurrentStats {
+pub struct ComputedStats {
     pub attack: i32,
     pub maximum_health: i32,
 }
+
+pub type CurrentStats = ComputedStats;
 
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Damage(pub i32);
@@ -59,6 +61,18 @@ pub struct Armor(pub i32);
 
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PendingDestroy;
+
+#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[require(GameObject, BaseStats, ComputedStats, Damage, AttackState)]
+pub struct StatBearing;
+
+#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[require(StatBearing, Armor)]
+pub struct HeroForm;
+
+#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[require(StatBearing)]
+pub struct MinionForm;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Keyword {
@@ -73,8 +87,41 @@ pub enum Keyword {
     Windfury,
 }
 
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
-pub struct Keywords(pub BTreeSet<Keyword>);
+impl Keyword {
+    pub const ALL: [Self; 9] = [
+        Self::Charge,
+        Self::DivineShield,
+        Self::Immune,
+        Self::Lifesteal,
+        Self::Poisonous,
+        Self::Rush,
+        Self::Stealth,
+        Self::Taunt,
+        Self::Windfury,
+    ];
+}
+
+macro_rules! keyword_markers {
+    ($($keyword:ident),+ $(,)?) => {
+        $(
+            #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+            #[require(GameObject)]
+            pub struct $keyword;
+        )+
+    };
+}
+
+keyword_markers!(
+    Charge,
+    DivineShield,
+    Immune,
+    Lifesteal,
+    Poisonous,
+    Rush,
+    Stealth,
+    Taunt,
+    Windfury,
+);
 
 #[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Abilities(pub Vec<String>);
@@ -162,11 +209,251 @@ pub(crate) fn game_entity(world: &World, id: GameEntityId) -> Option<Entity> {
     world.resource::<GameEntityIndex>().0.get(&id).copied()
 }
 
+pub(crate) fn assert_runtime_shape_invariants(world: &World) -> Result<(), String> {
+    for entity in world.iter_entities() {
+        let has_hero_form = entity.contains::<HeroForm>();
+        let has_minion_form = entity.contains::<MinionForm>();
+        if has_hero_form && has_minion_form {
+            return Err("entity has conflicting runtime forms".to_string());
+        }
+        match entity.get::<EntityKind>() {
+            Some(EntityKind::Hero) if !has_hero_form => {
+                return Err("Hero entity has an invalid runtime form".to_string());
+            }
+            Some(EntityKind::Minion) if !has_minion_form => {
+                return Err("minion entity has an invalid runtime form".to_string());
+            }
+            Some(EntityKind::Hero | EntityKind::Minion) => {}
+            _ if has_hero_form => {
+                return Err("non-Hero entity has a Hero runtime form".to_string());
+            }
+            _ if has_minion_form => {
+                return Err("non-minion entity has a minion runtime form".to_string());
+            }
+            _ => {}
+        }
+        if (has_hero_form || has_minion_form) && !entity.contains::<StatBearing>() {
+            return Err("runtime-form entity is missing StatBearing".to_string());
+        }
+        if has_hero_form && !entity.contains::<Armor>() {
+            return Err("Hero-form entity is missing Armor".to_string());
+        }
+        if entity.contains::<StatBearing>()
+            && (!entity.contains::<GameObject>()
+                || !entity.contains::<BaseStats>()
+                || !entity.contains::<ComputedStats>()
+                || !entity.contains::<Damage>()
+                || !entity.contains::<AttackState>())
+        {
+            return Err("stat-bearing entity is missing a required component".to_string());
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn materialize_entity_form(world: &mut World, entity: Entity, kind: EntityKind) {
+    let mut entity = world.entity_mut(entity);
+    entity.remove::<(HeroForm, MinionForm)>();
+    match kind {
+        EntityKind::Hero => {
+            entity.insert(HeroForm);
+        }
+        EntityKind::Minion => {
+            entity.insert(MinionForm);
+        }
+        _ => {}
+    }
+}
+
+pub(crate) fn has_keyword(world: &World, entity: Entity, keyword: Keyword) -> bool {
+    match keyword {
+        Keyword::Charge => world.get::<Charge>(entity).is_some(),
+        Keyword::DivineShield => world.get::<DivineShield>(entity).is_some(),
+        Keyword::Immune => world.get::<Immune>(entity).is_some(),
+        Keyword::Lifesteal => world.get::<Lifesteal>(entity).is_some(),
+        Keyword::Poisonous => world.get::<Poisonous>(entity).is_some(),
+        Keyword::Rush => world.get::<Rush>(entity).is_some(),
+        Keyword::Stealth => world.get::<Stealth>(entity).is_some(),
+        Keyword::Taunt => world.get::<Taunt>(entity).is_some(),
+        Keyword::Windfury => world.get::<Windfury>(entity).is_some(),
+    }
+}
+
+pub(crate) fn entity_keywords(world: &World, entity: Entity) -> BTreeSet<Keyword> {
+    Keyword::ALL
+        .into_iter()
+        .filter(|keyword| has_keyword(world, entity, *keyword))
+        .collect()
+}
+
+pub(crate) fn insert_keyword(world: &mut World, entity: Entity, keyword: Keyword) {
+    let mut entity = world.entity_mut(entity);
+    match keyword {
+        Keyword::Charge => entity.insert(Charge),
+        Keyword::DivineShield => entity.insert(DivineShield),
+        Keyword::Immune => entity.insert(Immune),
+        Keyword::Lifesteal => entity.insert(Lifesteal),
+        Keyword::Poisonous => entity.insert(Poisonous),
+        Keyword::Rush => entity.insert(Rush),
+        Keyword::Stealth => entity.insert(Stealth),
+        Keyword::Taunt => entity.insert(Taunt),
+        Keyword::Windfury => entity.insert(Windfury),
+    };
+}
+
+pub(crate) fn remove_keyword(world: &mut World, entity: Entity, keyword: Keyword) {
+    let mut entity = world.entity_mut(entity);
+    match keyword {
+        Keyword::Charge => entity.remove::<Charge>(),
+        Keyword::DivineShield => entity.remove::<DivineShield>(),
+        Keyword::Immune => entity.remove::<Immune>(),
+        Keyword::Lifesteal => entity.remove::<Lifesteal>(),
+        Keyword::Poisonous => entity.remove::<Poisonous>(),
+        Keyword::Rush => entity.remove::<Rush>(),
+        Keyword::Stealth => entity.remove::<Stealth>(),
+        Keyword::Taunt => entity.remove::<Taunt>(),
+        Keyword::Windfury => entity.remove::<Windfury>(),
+    };
+}
+
+pub(crate) fn clear_keywords(world: &mut World, entity: Entity) {
+    world.entity_mut(entity).remove::<(
+        Charge,
+        DivineShield,
+        Immune,
+        Lifesteal,
+        Poisonous,
+        Rush,
+        Stealth,
+        Taunt,
+        Windfury,
+    )>();
+}
+
+pub(crate) fn materialize_keywords(
+    world: &mut World,
+    entity: Entity,
+    keywords: &BTreeSet<Keyword>,
+) {
+    clear_keywords(world, entity);
+    for keyword in keywords {
+        insert_keyword(world, entity, *keyword);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use googletest::prelude::*;
 
     use super::*;
+
+    #[googletest::test]
+    fn runtime_form_markers_materialize_required_structural_components() {
+        let mut world = World::new();
+        let minion = world.spawn(MinionForm).id();
+        let hero = world.spawn(HeroForm).id();
+
+        for entity in [minion, hero] {
+            assert_that!(world.get::<GameObject>(entity).is_some(), is_true());
+            assert_that!(world.get::<StatBearing>(entity).is_some(), is_true());
+            assert_that!(
+                world.get::<BaseStats>(entity),
+                eq(Some(&BaseStats::default()))
+            );
+            assert_that!(
+                world.get::<ComputedStats>(entity),
+                eq(Some(&ComputedStats::default()))
+            );
+            assert_that!(world.get::<Damage>(entity), eq(Some(&Damage::default())));
+            assert_that!(
+                world.get::<AttackState>(entity),
+                eq(Some(&AttackState::default()))
+            );
+        }
+        assert_that!(world.get::<Armor>(minion).is_none(), is_true());
+        assert_that!(world.get::<Armor>(hero), eq(Some(&Armor::default())));
+    }
+
+    #[googletest::test]
+    fn runtime_shape_invariants_reject_kind_marker_drift() {
+        let mut world = World::new();
+        world.spawn((EntityKind::Minion, GameObject));
+
+        assert_that!(
+            assert_runtime_shape_invariants(&world),
+            err(eq(&"minion entity has an invalid runtime form".to_string()))
+        );
+    }
+
+    #[googletest::test]
+    fn runtime_shape_invariants_reject_inverse_and_conflicting_form_drift() {
+        let mut non_hero = World::new();
+        non_hero.spawn((EntityKind::Spell, HeroForm));
+        assert_that!(
+            assert_runtime_shape_invariants(&non_hero),
+            err(eq(&"non-Hero entity has a Hero runtime form".to_string()))
+        );
+
+        let mut non_minion = World::new();
+        non_minion.spawn((EntityKind::Spell, MinionForm));
+        assert_that!(
+            assert_runtime_shape_invariants(&non_minion),
+            err(eq(
+                &"non-minion entity has a minion runtime form".to_string()
+            ))
+        );
+
+        let mut conflicting = World::new();
+        conflicting.spawn((EntityKind::Hero, HeroForm, MinionForm));
+        assert_that!(
+            assert_runtime_shape_invariants(&conflicting),
+            err(eq(&"entity has conflicting runtime forms".to_string()))
+        );
+    }
+
+    #[googletest::test]
+    fn runtime_shape_invariants_reject_missing_form_requirements() {
+        let mut missing_stats = World::new();
+        let minion = missing_stats.spawn((EntityKind::Minion, MinionForm)).id();
+        missing_stats.entity_mut(minion).remove::<StatBearing>();
+        assert_that!(
+            assert_runtime_shape_invariants(&missing_stats),
+            err(eq(&"runtime-form entity is missing StatBearing".to_string()))
+        );
+
+        let mut missing_armor = World::new();
+        let hero = missing_armor.spawn((EntityKind::Hero, HeroForm)).id();
+        missing_armor.entity_mut(hero).remove::<Armor>();
+        assert_that!(
+            assert_runtime_shape_invariants(&missing_armor),
+            err(eq(&"Hero-form entity is missing Armor".to_string()))
+        );
+    }
+
+    #[googletest::test]
+    fn runtime_form_and_keyword_materialization_replace_previous_shape() {
+        let mut world = World::new();
+        let entity = world.spawn_empty().id();
+
+        materialize_entity_form(&mut world, entity, EntityKind::Hero);
+        materialize_keywords(
+            &mut world,
+            entity,
+            &BTreeSet::from([Keyword::DivineShield, Keyword::Taunt]),
+        );
+        assert_that!(world.get::<HeroForm>(entity).is_some(), is_true());
+        assert_that!(world.get::<MinionForm>(entity).is_none(), is_true());
+        assert_that!(has_keyword(&world, entity, Keyword::Taunt), is_true());
+
+        materialize_entity_form(&mut world, entity, EntityKind::Minion);
+        materialize_keywords(&mut world, entity, &BTreeSet::from([Keyword::Rush]));
+        assert_that!(world.get::<HeroForm>(entity).is_none(), is_true());
+        assert_that!(world.get::<MinionForm>(entity).is_some(), is_true());
+        assert_that!(
+            entity_keywords(&world, entity),
+            eq(&BTreeSet::from([Keyword::Rush]))
+        );
+    }
 
     #[googletest::test]
     fn despawning_a_game_entity_removes_its_logical_index_entry() {
