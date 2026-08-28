@@ -238,6 +238,12 @@ pub(crate) fn assert_runtime_shape_invariants(world: &World) -> Result<(), Strin
         if has_hero_form && !entity.contains::<Armor>() {
             return Err("Hero-form entity is missing Armor".to_string());
         }
+        if !has_hero_form && entity.contains::<Armor>() {
+            return Err("non-Hero-form entity has Armor".to_string());
+        }
+        if entity.contains::<StatBearing>() && !(has_hero_form || has_minion_form) {
+            return Err("entity without a runtime form has StatBearing".to_string());
+        }
         if entity.contains::<StatBearing>()
             && (!entity.contains::<GameObject>()
                 || !entity.contains::<BaseStats>()
@@ -253,7 +259,7 @@ pub(crate) fn assert_runtime_shape_invariants(world: &World) -> Result<(), Strin
 
 pub(crate) fn materialize_entity_form(world: &mut World, entity: Entity, kind: EntityKind) {
     let mut entity = world.entity_mut(entity);
-    entity.remove::<(HeroForm, MinionForm)>();
+    entity.remove::<(HeroForm, MinionForm, StatBearing, Armor)>();
     match kind {
         EntityKind::Hero => {
             entity.insert(HeroForm);
@@ -431,11 +437,31 @@ mod tests {
     }
 
     #[googletest::test]
+    fn runtime_shape_invariants_reject_stale_form_owned_components() {
+        let mut stale_armor = World::new();
+        stale_armor.spawn((EntityKind::Minion, MinionForm, Armor(3)));
+        assert_that!(
+            assert_runtime_shape_invariants(&stale_armor),
+            err(eq(&"non-Hero-form entity has Armor".to_string()))
+        );
+
+        let mut stale_stat_bearing = World::new();
+        stale_stat_bearing.spawn((EntityKind::Spell, StatBearing));
+        assert_that!(
+            assert_runtime_shape_invariants(&stale_stat_bearing),
+            err(eq(
+                &"entity without a runtime form has StatBearing".to_string()
+            ))
+        );
+    }
+
+    #[googletest::test]
     fn runtime_form_and_keyword_materialization_replace_previous_shape() {
         let mut world = World::new();
         let entity = world.spawn_empty().id();
 
         materialize_entity_form(&mut world, entity, EntityKind::Hero);
+        world.entity_mut(entity).get_mut::<Armor>().unwrap().0 = 7;
         materialize_keywords(
             &mut world,
             entity,
@@ -449,10 +475,17 @@ mod tests {
         materialize_keywords(&mut world, entity, &BTreeSet::from([Keyword::Rush]));
         assert_that!(world.get::<HeroForm>(entity).is_none(), is_true());
         assert_that!(world.get::<MinionForm>(entity).is_some(), is_true());
+        assert_that!(world.get::<StatBearing>(entity).is_some(), is_true());
+        assert_that!(world.get::<Armor>(entity).is_none(), is_true());
         assert_that!(
             entity_keywords(&world, entity),
             eq(&BTreeSet::from([Keyword::Rush]))
         );
+
+        materialize_entity_form(&mut world, entity, EntityKind::Spell);
+        assert_that!(world.get::<MinionForm>(entity).is_none(), is_true());
+        assert_that!(world.get::<StatBearing>(entity).is_none(), is_true());
+        assert_that!(world.get::<Armor>(entity).is_none(), is_true());
     }
 
     #[googletest::test]

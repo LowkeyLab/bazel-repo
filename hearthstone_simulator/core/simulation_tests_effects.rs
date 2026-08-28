@@ -514,6 +514,45 @@ fn missing_native_deathrattles_are_rejected_before_card_play_mutates_state() {
 }
 
 #[googletest::test]
+fn transforming_a_hero_clears_hero_only_armor_before_damage() {
+    let mut simulation = simulation();
+    let target = hero(&mut simulation, PlayerId::Two);
+    let entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(Armor(3));
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Transformed Hero", 0, 2, 5),
+    )
+    .unwrap();
+
+    assert_that!(simulation.app.world().get::<Armor>(entity), none());
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<crate::MinionForm>(entity)
+            .is_some(),
+        is_true()
+    );
+    assert_that!(
+        assert_runtime_shape_invariants(simulation.app.world()),
+        ok(())
+    );
+
+    apply_damage(simulation.app.world_mut(), None, target, 2).unwrap();
+    assert_that!(
+        simulation.app.world().get::<Damage>(entity),
+        eq(Some(&Damage(2)))
+    );
+}
+
+#[googletest::test]
 fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
     let suppressor =
         Card::minion("Suppressor", 0, 1, 3).with_triggers(vec![crate::TriggerDefinition {
