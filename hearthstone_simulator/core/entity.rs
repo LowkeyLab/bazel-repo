@@ -382,11 +382,17 @@ mod tests {
 
     #[googletest::test]
     fn runtime_shape_invariants_reject_kind_marker_drift() {
-        let mut world = World::new();
-        world.spawn((EntityKind::Minion, GameObject));
-
+        let mut hero = World::new();
+        hero.spawn((EntityKind::Hero, GameObject));
         assert_that!(
-            assert_runtime_shape_invariants(&world),
+            assert_runtime_shape_invariants(&hero),
+            err(eq(&"Hero entity has an invalid runtime form".to_string()))
+        );
+
+        let mut minion = World::new();
+        minion.spawn((EntityKind::Minion, GameObject));
+        assert_that!(
+            assert_runtime_shape_invariants(&minion),
             err(eq(&"minion entity has an invalid runtime form".to_string()))
         );
     }
@@ -433,6 +439,18 @@ mod tests {
         assert_that!(
             assert_runtime_shape_invariants(&missing_armor),
             err(eq(&"Hero-form entity is missing Armor".to_string()))
+        );
+
+        let mut missing_structure = World::new();
+        let minion = missing_structure
+            .spawn((EntityKind::Minion, MinionForm))
+            .id();
+        missing_structure.entity_mut(minion).remove::<GameObject>();
+        assert_that!(
+            assert_runtime_shape_invariants(&missing_structure),
+            err(eq(
+                &"stat-bearing entity is missing a required component".to_string()
+            ))
         );
     }
 
@@ -486,6 +504,23 @@ mod tests {
         assert_that!(world.get::<MinionForm>(entity).is_none(), is_true());
         assert_that!(world.get::<StatBearing>(entity).is_none(), is_true());
         assert_that!(world.get::<Armor>(entity).is_none(), is_true());
+    }
+
+    #[googletest::test]
+    fn every_keyword_marker_supports_insertion_detection_and_removal() {
+        let mut world = World::new();
+        let entity = world.spawn_empty().id();
+
+        for keyword in Keyword::ALL {
+            insert_keyword(&mut world, entity, keyword);
+            assert_that!(has_keyword(&world, entity, keyword), is_true());
+            assert_that!(
+                entity_keywords(&world, entity),
+                eq(&BTreeSet::from([keyword]))
+            );
+            remove_keyword(&mut world, entity, keyword);
+            assert_that!(has_keyword(&world, entity, keyword), is_false());
+        }
     }
 
     #[googletest::test]
