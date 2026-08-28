@@ -6,7 +6,9 @@ use crate::{
     CanonicalTrace, DeathEventCache, DeterministicRng, Effect, EffectContext, GameState,
     NativeEffectId, PlayerConfig, ResolutionCursor, Ruleset, SimulationStatus, TraceEntry,
     death::{DefeatedHeroes, PendingDeaths},
-    entity::{GameEntityIndex, NextGameEntityId, PlayOrderCounter},
+    entity::{
+        GameEntityIndex, NextGameEntityId, PlayOrderCounter, assert_runtime_shape_invariants,
+    },
     native_effect::{NativeEffectFactory, NativeEffectRegistry},
     resolver::{NextResolutionId, assert_resolution_invariants, configure_resolution},
     trigger::TriggerGuards,
@@ -16,11 +18,11 @@ use crate::{
 #[cfg(test)]
 use crate::{
     Armor, Card, Damage, EntityKind, EventContext, EventKind, EventOrderKey, EventValueOperation,
-    GameEntityId, GameObject, GameOutcome, Keyword, Keywords, PlayerId, PlayerSelector, QueueKind,
+    GameEntityId, GameObject, GameOutcome, Keyword, PlayerId, PlayerSelector, QueueKind,
     QueueState, QueuedEvent, QueuedTrigger, ResolutionKind, ResolutionQueue, RuntimeTriggers,
     STARTING_HEALTH, Selector, ValueExpression, Zone,
     enchantment::StatModifier,
-    entity::game_entity,
+    entity::{game_entity, has_keyword, insert_keyword, materialize_entity_form, remove_keyword},
     queue::{add_event_entry, freeze_queue},
     resolver::{
         activate_resolution_child, begin_resolution, cleanup_resolution, complete_active,
@@ -114,6 +116,8 @@ impl Simulation {
         app.add_plugins(HearthstoneSimulationPlugin);
         app.world_mut().insert_resource(DeterministicRng::new(seed));
         setup_game(app.world_mut(), players).expect("valid player fixture should initialize");
+        assert_runtime_shape_invariants(app.world())
+            .expect("game setup should materialize valid runtime shapes");
         app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
         Self {
             app,
@@ -188,13 +192,20 @@ impl Simulation {
         for action in &self.action_history {
             fork.apply(action.clone())?;
         }
+        fork.assert_invariants()?;
         Ok(fork)
     }
 
+    /// Verifies zone, resolution, logical-index, and runtime-shape invariants.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimulationError::Invariant`] when durable or execution state has drifted.
     pub fn assert_invariants(&self) -> Result<(), SimulationError> {
         assert_zone_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
         assert_resolution_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
-        assert_game_entity_index(self.app.world()).map_err(SimulationError::Invariant)
+        assert_game_entity_index(self.app.world()).map_err(SimulationError::Invariant)?;
+        assert_runtime_shape_invariants(self.app.world()).map_err(SimulationError::Invariant)
     }
 }
 

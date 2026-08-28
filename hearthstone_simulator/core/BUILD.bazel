@@ -44,6 +44,8 @@ rust_library(
     ],
     compile_data = [
         "//:Cargo.toml",
+        "test_fixtures/migration_baseline_snapshot.txt",
+        "test_fixtures/migration_baseline_trace.txt",
         "simulation_test_support.rs",  # keep
         "simulation_tests_actions.rs",  # keep
         "simulation_tests_api.rs",  # keep

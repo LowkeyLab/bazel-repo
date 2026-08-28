@@ -304,6 +304,7 @@ fn action_validation_reports_each_rejection_and_concede_completes_game() {
         .world_mut()
         .entity_mut(card_entity)
         .insert(EntityKind::Weapon);
+    materialize_entity_form(invalid.app.world_mut(), card_entity, EntityKind::Weapon);
     assert_that!(
         invalid.apply(GameAction::PlayCard {
             player: PlayerId::One,
