@@ -89,7 +89,7 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependenc
 bazel_dep(name = "gazelle_ts", dev_dependency = True)
 git_override(
     module_name = "gazelle_ts",
-    commit = "317c836c2b1aafe0de9c5959fcebc6667061324f",
+    commit = "0e2fccfbdb34d2af7853a6d4379f8d9cd5f638d9",
     patch_args = ["-p1"],
     patches = ["//3rdparty/gazelle_ts:unique_rust_toolchain.patch"],
     remote = "https://github.com/hermeticbuild/gazelle_ts.git",
