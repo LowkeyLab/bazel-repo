@@ -6,7 +6,7 @@ use crate::{
     AttackState, CanonicalTrace, Controller, CurrentStats, EffectContext, EntityKind, EventContext,
     EventKind, GameEntityId, GameOutcome, GameState, PlayerId, ResolutionKind, ResolveFrame,
     Ruleset, RuntimeTriggers, SimulationStatus, TraceEntry, Zone,
-    entity::{allocate_play_order, assert_runtime_shape_invariants, game_entity},
+    entity::{allocate_play_order, game_entity},
     resolver::{
         begin_resolution, cleanup_resolution, complete_active, consume_budget, push_resolution,
     },
@@ -193,10 +193,9 @@ fn apply_action(world: &mut World, action: GameAction) -> Result<(), SimulationE
     } else {
         world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
     }
+    result?;
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
-    assert_game_entity_index(world).map_err(SimulationError::Invariant)?;
-    assert_runtime_shape_invariants(world).map_err(SimulationError::Invariant)?;
-    result
+    assert_game_entity_index(world).map_err(SimulationError::Invariant)
 }
 
 fn validate_turn(world: &World, player: PlayerId) -> Result<(), SimulationError> {

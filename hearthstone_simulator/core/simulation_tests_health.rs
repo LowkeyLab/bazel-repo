@@ -208,7 +208,13 @@ fn damage_protection_precedes_predamage_triggers_and_zero_damage_is_not_an_event
         (minions[1], Keyword::DivineShield),
     ] {
         let entity = game_entity(simulation.app.world(), target).unwrap();
-        insert_keyword(simulation.app.world_mut(), entity, keyword);
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<Keywords>(entity)
+            .unwrap()
+            .0
+            .insert(keyword);
     }
     for _ in 0..2 {
         let card = hand_card(&mut simulation, PlayerId::One);
@@ -741,17 +747,41 @@ fn damage_handles_missing_targets_immunity_shields_armor_and_negative_values() {
         err(eq(&SimulationError::EntityNotFound(GameEntityId(99))))
     );
 
-    insert_keyword(simulation.app.world_mut(), entity, Keyword::Immune);
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<Keywords>(entity)
+        .unwrap()
+        .0
+        .insert(Keyword::Immune);
     apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
     assert_that!(
         simulation.app.world().get::<Damage>(entity),
         eq(Some(&Damage(0)))
     );
-    remove_keyword(simulation.app.world_mut(), entity, Keyword::Immune);
-    insert_keyword(simulation.app.world_mut(), entity, Keyword::DivineShield);
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<Keywords>(entity)
+        .unwrap()
+        .0
+        .remove(&Keyword::Immune);
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<Keywords>(entity)
+        .unwrap()
+        .0
+        .insert(Keyword::DivineShield);
     apply_damage(simulation.app.world_mut(), None, target, 5).unwrap();
     assert_that!(
-        has_keyword(simulation.app.world(), entity, Keyword::DivineShield,),
+        simulation
+            .app
+            .world()
+            .get::<Keywords>(entity)
+            .unwrap()
+            .0
+            .contains(&Keyword::DivineShield),
         is_false()
     );
     simulation

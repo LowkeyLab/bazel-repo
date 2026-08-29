@@ -1,7 +1,5 @@
-use std::collections::BTreeSet;
-
 use crate::{
-    ConditionTiming, Effect, EntityKind, EventKind, Keyword, PlayerId, SourceEligibilityPolicy,
+    ConditionTiming, Effect, EntityKind, EventKind, PlayerId, SourceEligibilityPolicy,
     TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
 };
 
@@ -13,7 +11,6 @@ pub struct Card {
     pub mana_cost: i32,
     pub attack: i32,
     pub health: i32,
-    pub keywords: BTreeSet<Keyword>,
     pub effects: Vec<Effect>,
     pub triggers: Vec<TriggerDefinition>,
 }
@@ -28,7 +25,6 @@ impl Card {
             mana_cost,
             attack,
             health,
-            keywords: BTreeSet::new(),
             effects: Vec::new(),
             triggers: Vec::new(),
         }
@@ -43,7 +39,6 @@ impl Card {
             mana_cost,
             attack: 0,
             health: 0,
-            keywords: BTreeSet::new(),
             effects: Vec::new(),
             triggers: Vec::new(),
         }
@@ -56,12 +51,6 @@ impl Card {
 
     pub fn with_triggers(mut self, triggers: Vec<TriggerDefinition>) -> Self {
         self.triggers = triggers;
-        self
-    }
-
-    #[must_use]
-    pub fn with_keywords(mut self, keywords: impl IntoIterator<Item = Keyword>) -> Self {
-        self.keywords = keywords.into_iter().collect();
         self
     }
 

@@ -2,9 +2,8 @@ use bevy::prelude::*;
 
 use crate::{
     Armor, AttackState, BaseStats, Card, Controller, CurrentStats, Damage, DefinitionId,
-    DisplayName, Effect, EntityKind, GameEntityId, GameObject, PlayOrder, Player, PlayerConfig,
-    PlayerId, RuntimeTriggers, STARTING_HEALTH, Zone,
-    entity::{allocate_game_id, materialize_entity_form, materialize_keywords},
+    DisplayName, Effect, EntityKind, GameEntityId, GameObject, Keywords, PlayOrder, Player,
+    PlayerConfig, PlayerId, RuntimeTriggers, STARTING_HEALTH, Zone, entity::allocate_game_id,
     zone::insert_into_zone,
 };
 
@@ -64,29 +63,27 @@ fn spawn_player(
     insert_into_zone(world, player_object_id, player_id, Zone::SetAside, None)?;
 
     let hero_id = allocate_game_id(world);
-    let hero = world
-        .spawn((
-            GameObject,
-            hero_id,
-            DefinitionId("system:hero".to_string()),
-            EntityKind::Hero,
-            Controller(player_id),
-            DisplayName(format!("{name}'s Hero")),
-            PlayOrder::default(),
-            BaseStats {
-                attack: 0,
-                health: STARTING_HEALTH,
-            },
-            CurrentStats {
-                attack: 0,
-                maximum_health: STARTING_HEALTH,
-            },
-            Damage::default(),
-            Armor::default(),
-            AttackState::default(),
-        ))
-        .id();
-    materialize_entity_form(world, hero, EntityKind::Hero);
+    world.spawn((
+        GameObject,
+        hero_id,
+        DefinitionId("system:hero".to_string()),
+        EntityKind::Hero,
+        Controller(player_id),
+        DisplayName(format!("{name}'s Hero")),
+        PlayOrder::default(),
+        BaseStats {
+            attack: 0,
+            health: STARTING_HEALTH,
+        },
+        CurrentStats {
+            attack: 0,
+            maximum_health: STARTING_HEALTH,
+        },
+        Damage::default(),
+        Armor::default(),
+        AttackState::default(),
+        Keywords::default(),
+    ));
     insert_into_zone(world, hero_id, player_id, Zone::Play, None)?;
     Ok(())
 }
@@ -97,46 +94,37 @@ pub(super) fn spawn_card(
     card: Card,
     zone: Zone,
 ) -> Result<GameEntityId, SimulationError> {
-    let Card {
-        definition_id,
-        name,
-        kind,
-        mana_cost,
-        attack,
-        health,
-        keywords,
-        effects,
-        triggers,
-    } = card;
     let id = allocate_game_id(world);
     let entity = world
         .spawn((
             GameObject,
             id,
-            DefinitionId(definition_id),
-            kind,
+            DefinitionId(card.definition_id),
+            card.kind,
             Controller(player_id),
-            DisplayName(name),
+            DisplayName(card.name),
             PlayOrder::default(),
-            BaseStats { attack, health },
+            BaseStats {
+                attack: card.attack,
+                health: card.health,
+            },
             CurrentStats {
-                attack,
-                maximum_health: health,
+                attack: card.attack,
+                maximum_health: card.health,
             },
             Damage::default(),
             AttackState {
                 attacks_this_turn: 0,
                 exhausted: true,
             },
+            Keywords::default(),
             CardRuntime {
-                cost: mana_cost,
-                program: effects,
+                cost: card.mana_cost,
+                program: card.effects,
             },
-            RuntimeTriggers(triggers),
+            RuntimeTriggers(card.triggers),
         ))
         .id();
-    materialize_entity_form(world, entity, kind);
-    materialize_keywords(world, entity, &keywords);
     if let Err(error) = insert_into_zone(world, id, player_id, zone, None) {
         world.despawn(entity);
         return Err(error.into());

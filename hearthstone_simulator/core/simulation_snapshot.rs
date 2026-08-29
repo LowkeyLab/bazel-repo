@@ -1,12 +1,10 @@
-use std::collections::BTreeSet;
-
 use bevy::prelude::*;
 
 use crate::{
     Armor, AttackState, Controller, CurrentStats, Damage, DeathEventCache, DeathRecord,
     DefinitionId, DeterministicRng, DisplayName, EntityKind, GameEntityId, GameObject, GameState,
-    Keyword, PlayOrder, Player, PlayerId, RngSnapshot, Ruleset, RulesetId, Zone, ZonePosition,
-    entity::{GameEntityIndex, entity_keywords, game_entity},
+    PlayOrder, Player, PlayerId, RngSnapshot, Ruleset, RulesetId, Zone, ZonePosition,
+    entity::{GameEntityIndex, game_entity},
     zone::ZoneIndex,
 };
 
@@ -46,7 +44,6 @@ pub struct GameObjectSnapshot {
     pub maximum_health: Option<i32>,
     pub damage: i32,
     pub exhausted: Option<bool>,
-    pub keywords: BTreeSet<Keyword>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -100,7 +97,6 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
     players.sort_by_key(|player| player.id);
 
     let mut object_query = world.query::<(
-        Entity,
         &GameEntityId,
         &DefinitionId,
         &DisplayName,
@@ -117,7 +113,6 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
         .iter(world)
         .map(
             |(
-                entity,
                 id,
                 definition,
                 name,
@@ -143,7 +138,6 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
                     maximum_health: stats.map(|stats| stats.maximum_health),
                     damage: damage.map_or(0, |damage| damage.0),
                     exhausted: attack.map(|attack| attack.exhausted),
-                    keywords: entity_keywords(world, entity),
                 }
             },
         )
