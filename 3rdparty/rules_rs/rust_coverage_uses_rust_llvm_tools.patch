@@ -1,11 +1,11 @@
 diff --git a/rs/private/rustc_repository.bzl b/rs/private/rustc_repository.bzl
-index cbfbe77..2ee6eca 100644
---- a/rs/private/rustc_repository.bzl
-+++ b/rs/private/rustc_repository.bzl
-@@ -44,6 +44,20 @@ filegroup(
+--- a/rs/private/rustc_repository.bzl	2026-08-29 17:30:26.663272102 +0000
++++ b/rs/private/rustc_repository.bzl	2026-08-29 17:35:03.512262254 +0000
+@@ -41,6 +41,19 @@
+     ),
      visibility = ["//visibility:public"],
  )
- 
++
 +filegroup(
 +    name = "llvm-cov",
 +    srcs = ["lib/rustlib/{target_triple}/bin/llvm-cov{binary_ext}"],
@@ -18,11 +18,10 @@ index cbfbe77..2ee6eca 100644
 +    data = glob(["lib/rustlib/{target_triple}/lib/*"], allow_empty = True),
 +    visibility = ["//visibility:public"],
 +)
-+
+ """
+ 
  _proc_macro_srv_build_file_tmpl = """\
- filegroup(
-     name = "rust_analyzer_proc_macro_srv",
-@@ -102,9 +116,12 @@ def _rustc_repository_impl(rctx):
+@@ -102,9 +115,12 @@
      exec_triple = triple(rctx.attr.triple)
      binary_ext = system_to_binary_ext(exec_triple.system)
      download_and_extract(rctx, "rustc", "rustc", exec_triple)
@@ -35,7 +34,8 @@ index cbfbe77..2ee6eca 100644
      _symlink_rust_objcopy_shared_libraries(rctx, exec_triple)
      build_content = _build_file_tmpl.format(
          binary_ext = binary_ext,
-@@ -120,4 +137,7 @@ def _rustc_repository_impl(rctx):
+@@ -119,5 +135,7 @@
+ 
  rustc_repository = repository_rule(
      implementation = _rustc_repository_impl,
 -    attrs = RUST_REPOSITORY_COMMON_ATTR,
@@ -44,10 +44,9 @@ index cbfbe77..2ee6eca 100644
 +    },
  )
 diff --git a/rs/toolchains/declare_rustc_toolchains.bzl b/rs/toolchains/declare_rustc_toolchains.bzl
-index 6450cbe..6744cfa 100644
---- a/rs/toolchains/declare_rustc_toolchains.bzl
-+++ b/rs/toolchains/declare_rustc_toolchains.bzl
-@@ -129,8 +129,8 @@ def declare_rustc_toolchains(
+--- a/rs/toolchains/declare_rustc_toolchains.bzl	2026-08-29 17:30:26.665272102 +0000
++++ b/rs/toolchains/declare_rustc_toolchains.bzl	2026-08-29 17:35:03.512487484 +0000
+@@ -129,8 +129,8 @@
              cargo = _component(cargo, triple, cargo_repo_label + "cargo"),
              clippy_driver = _component(clippy_driver, triple, clippy_repo_label + "clippy_driver_bin"),
              cargo_clippy = _component(cargo_clippy, triple, clippy_repo_label + "cargo_clippy_bin"),
@@ -59,10 +58,9 @@ index 6450cbe..6744cfa 100644
                  "@rules_rs//rs/platforms/config:riscv32imac-unknown-none-elf": lld_label,
                  "@rules_rs//rs/platforms/config:riscv32imc-unknown-none-elf": lld_label,
 diff --git a/rs/toolchains/module_extension.bzl b/rs/toolchains/module_extension.bzl
-index 4fba71d..75a2f50 100644
---- a/rs/toolchains/module_extension.bzl
-+++ b/rs/toolchains/module_extension.bzl
-@@ -322,7 +322,7 @@ def _toolchains_impl(mctx):
+--- a/rs/toolchains/module_extension.bzl	2026-08-29 17:30:26.665272102 +0000
++++ b/rs/toolchains/module_extension.bzl	2026-08-29 17:35:03.512718785 +0000
+@@ -322,7 +322,7 @@
  
          for triple in SUPPORTED_EXEC_TRIPLES:
              exec_triple = _parse_triple(triple)
@@ -71,10 +69,11 @@ index 4fba71d..75a2f50 100644
                  _request_sha(tool_name, base_version, iso_date, exec_triple)
              if version in versions:
                  _request_sha("clippy", base_version, iso_date, exec_triple)
-@@ -396,6 +396,7 @@ def _toolchains_impl(mctx):
+@@ -395,6 +395,7 @@
                  version = base_version,
                  iso_date = iso_date,
                  sha256 = _sha_for("rustc", base_version, iso_date, exec_triple),
 +                llvm_tools_sha256 = _sha_for("llvm-tools", base_version, iso_date, exec_triple),
                  urls = urls,
              )
+ 
