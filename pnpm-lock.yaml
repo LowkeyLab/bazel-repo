@@ -6,6 +6,12 @@ settings:
 
 catalogs:
   default:
+    '@angular-devkit/architect':
+      specifier: ^0.2201.0
+      version: 0.2201.6
+    '@angular/build':
+      specifier: ^22.0.0
+      version: 22.1.6
     '@angular/cli':
       specifier: 22.1.6
       version: 22.1.6
@@ -132,9 +138,6 @@ catalogs:
     js-pkce:
       specifier: ^2.0.0
       version: 2.0.0
-    js-yaml:
-      specifier: ^5.0.0
-      version: 5.3.0
     jsdom:
       specifier: ^30.0.0
       version: 30.0.1
@@ -156,6 +159,9 @@ catalogs:
     rxjs:
       specifier: ~7.8.0
       version: 7.8.2
+    sharp:
+      specifier: ^0.35.0
+      version: 0.35.4
     stylelint:
       specifier: ^17.0.0
       version: 17.14.1
@@ -310,7 +316,7 @@ importers:
         version: 2.0.0
       js-yaml:
         specifier: 'catalog:'
-        version: 5.3.0
+        version: 5.4.0
       jwt-decode:
         specifier: 'catalog:'
         version: 4.0.0
@@ -4234,8 +4240,8 @@ packages:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
 
-  js-yaml@5.3.0:
-    resolution: {integrity: sha512-muutsYr+e2+d3rTgUGslq5rxbBlUy3cJ61IsHag2QNDQV+7zXWjkUpmALIajhrlLlrgRUiymj6U3zUr/TMK84Q==}
+  js-yaml@5.4.0:
+    resolution: {integrity: sha512-jE7vUJIebKzYQI5xu4co5CRBDlDEYnHrdzsxs4O2giCz4v2SbVMYKpmt1D9L38OKQAeCWmrOTRiCV93u0UkaJA==}
     hasBin: true
 
   jsdom@30.0.1:
@@ -9806,7 +9812,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  js-yaml@5.3.0:
+  js-yaml@5.4.0:
     dependencies:
       argparse: 2.0.1
 
