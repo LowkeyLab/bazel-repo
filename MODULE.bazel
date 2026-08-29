@@ -38,7 +38,10 @@ git_override(
     module_name = "rules_rs",
     commit = "c86afd0a53f91f91130146087ab78899e656a165",
     patch_args = ["-p1"],
-    patches = ["//3rdparty/rules_rs:toolchain_repository_compatibility.patch"],
+    patches = [
+        "//3rdparty/rules_rs:toolchain_repository_compatibility.patch",
+        "//3rdparty/rules_rs:rust_coverage_uses_rust_llvm_tools.patch",
+    ],
     remote = "https://github.com/hermeticbuild/rules_rs.git",
 )
 
