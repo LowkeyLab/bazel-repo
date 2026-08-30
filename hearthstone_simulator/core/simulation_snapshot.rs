@@ -2,8 +2,9 @@ use bevy::prelude::*;
 
 use crate::{
     Armor, AttackState, Controller, CurrentStats, Damage, DeathEventCache, DeathRecord,
-    DefinitionId, DeterministicRng, DisplayName, EntityKind, GameEntityId, GameObject, GameState,
-    PlayOrder, Player, PlayerId, RngSnapshot, Ruleset, RulesetId, Zone, ZonePosition,
+    DefinitionId, DeterministicRng, DisplayName, DominantPlayer, EntityKind, GameEntityId,
+    GameObject, GameState, PlayOrder, Player, PlayerId, ResolutionWork, RngSnapshot, Ruleset,
+    RulesetId, Zone, ZonePosition,
     entity::{GameEntityIndex, game_entity},
     zone::ZoneIndex,
 };
@@ -50,10 +51,12 @@ pub struct GameObjectSnapshot {
 pub struct GameSnapshot {
     pub ruleset: RulesetId,
     pub game: GameState,
+    pub dominant_player: PlayerId,
     pub players: Vec<PlayerSnapshot>,
     pub objects: Vec<GameObjectSnapshot>,
     pub deaths: Vec<DeathRecord>,
     pub rng: RngSnapshot,
+    pub resolution: ResolutionWork,
 }
 
 pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
@@ -148,10 +151,12 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
     GameSnapshot {
         ruleset,
         game,
+        dominant_player: world.resource::<DominantPlayer>().0,
         players,
         objects,
         deaths: world.resource::<DeathEventCache>().records.clone(),
         rng,
+        resolution: world.resource::<ResolutionWork>().clone(),
     }
 }
 

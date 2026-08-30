@@ -12,8 +12,6 @@ mod game;
 mod ids;
 mod model;
 mod native_effect;
-mod queue;
-mod relationships;
 mod resolver;
 mod rng;
 mod ruleset;
@@ -34,18 +32,15 @@ pub use entity::{
     PlayOrder, Player,
 };
 pub use event::{EventContext, EventKind};
-pub use game::{GameOutcome, GameState, SimulationStatus};
-pub use ids::{ChoiceId, GameEntityId, PlayerId, ResolutionId};
+pub use game::{DominantPlayer, GameOutcome, GameState, SimulationStatus};
+pub use ids::{ChoiceId, EventId, EventSlotId, GameEntityId, PlayerId, ResolutionId};
 pub use model::{Card, PlayerConfig, PlayerRef};
 pub use native_effect::NativeEffectId;
-pub use queue::{
-    EventOrderKey, FrozenQueueEntries, QueueCursor, QueueEntryStatus, QueueKind,
-    QueueMutationError, QueueState, QueuedEvent, QueuedTrigger, ResolutionQueue, TriggerOrderKey,
-};
-pub use relationships::{NestedFrames, NestedUnder, QueueEntries, QueuedIn};
 pub use resolver::{
-    PhaseBoundarySet, ResolutionCursor, ResolutionIdentity, ResolutionKind, ResolutionNode,
-    ResolutionProgress, ResolutionState, ResolveFrame, ResolvePhaseBoundary,
+    ChoiceOption, ChoiceRequest, CurrentResolutionOp, DamageRequest, HealingRequest, PendingChoice,
+    PhaseBoundaryPlan, PhaseBoundarySet, PreparedEvent, PreparedEventSlot, ResolutionError,
+    ResolutionOp, ResolutionWork, ResolveFrame, ResolvePhaseBoundary, SequenceStep,
+    StackedResolutionOp,
 };
 pub use rng::{DeterministicRng, RNG_ALGORITHM_VERSION, RngSnapshot};
 pub use ruleset::{
@@ -53,12 +48,13 @@ pub use ruleset::{
     RULEBOOK_REVISION, Ruleset, RulesetId, STARTING_HEALTH,
 };
 pub use simulation::{
-    GameAction, GameObjectSnapshot, GameSnapshot, HearthstoneSimulationPlugin, PlayerSnapshot,
-    Simulation, SimulationError,
+    CHECKPOINT_SCHEMA_VERSION, CardRuntimeCheckpoint, GameAction, GameEntityCheckpoint,
+    GameObjectSnapshot, GameSnapshot, HearthstoneSimulationPlugin, PlayerSnapshot, Simulation,
+    SimulationCheckpoint, SimulationError,
 };
 pub use trace::{CanonicalTrace, TraceEntry};
 pub use trigger::{
-    ConditionTiming, RuntimeTriggers, SourceEligibilityPolicy, TimedCondition, TriggerCondition,
-    TriggerDefinition, TriggerExecution, WoundedTargetPolicy,
+    ConditionTiming, RuntimeTriggers, SourceEligibilityPolicy, TimedCondition, TriggerCandidate,
+    TriggerCondition, TriggerDefinition, TriggerOrderKey, TriggerSeed, WoundedTargetPolicy,
 };
 pub use zone::{Zone, ZonePosition};

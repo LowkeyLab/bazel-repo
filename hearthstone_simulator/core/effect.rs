@@ -1,6 +1,6 @@
 use crate::{Card, GameEntityId, NativeEffectId, PlayerId, StatModifier, Zone};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Effect {
     DealDamage {
         targets: Selector,
@@ -51,7 +51,7 @@ pub enum Effect {
     Sequence(Vec<Effect>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Selector {
     Source,
     DeclaredTarget,
@@ -66,28 +66,28 @@ pub enum Selector {
     Random(Box<Selector>),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PlayerSelector {
     Controller,
     Opponent,
     Player(PlayerId),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum EventValueOperation {
     Replace,
     Add,
     Multiply,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum ValueExpression {
     Constant(i32),
     SourceAttack,
     TargetCount,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct EffectContext {
     pub source: Option<GameEntityId>,
     pub controller: PlayerId,

@@ -56,6 +56,48 @@ fn lethal_hero_state_is_irreversible_before_simultaneous_deathrattle_healing() {
 }
 
 #[googletest::test]
+fn outcome_waits_for_deathrattles_that_defeat_the_other_hero() {
+    let mutual_destruction =
+        Card::minion("Mutual Destruction", 0, 1, 1).with_deathrattle(vec![Effect::DealDamage {
+            targets: Selector::EnemyCharacters,
+            amount: ValueExpression::Constant(30),
+        }]);
+    let lethal = Card::spell("Lethal Friendly Blast", 0).with_effects(vec![Effect::DealDamage {
+        targets: Selector::FriendlyCharacters,
+        amount: ValueExpression::Constant(30),
+    }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![mutual_destruction, lethal]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    for _ in 0..2 {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+    }
+
+    assert_that!(
+        simulation.snapshot().game.outcome,
+        eq(Some(GameOutcome::Draw))
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .filter(|entry| matches!(entry, TraceEntry::HeroDefeated { .. }))
+            .count(),
+        eq(2)
+    );
+}
+
+#[googletest::test]
 fn simultaneous_deaths_use_global_play_order_and_cache_the_turn() {
     let blast = Card::spell("Cross Controller Blast", 0).with_effects(vec![Effect::DealDamage {
         targets: Selector::AllMinions,
@@ -124,7 +166,98 @@ fn simultaneous_deaths_use_global_play_order_and_cache_the_turn() {
 }
 
 #[googletest::test]
-fn death_event_trigger_queues_are_frozen_before_the_batch_resolves() {
+fn death_triggers_group_by_dominant_player_before_priority() {
+    fn observer(name: &str, priority: i16) -> Card {
+        Card::minion(name, 0, 1, 2).with_triggers(vec![crate::TriggerDefinition {
+            event: EventKind::Death,
+            eligible_zones: vec![Zone::Play],
+            conditions: Vec::new(),
+            source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+            priority,
+            wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+            effect_program: Vec::new(),
+        }])
+    }
+
+    let blast = Card::spell("Dominant Grouping Blast", 0).with_effects(vec![Effect::DealDamage {
+        targets: Selector::AllMinions,
+        amount: ValueExpression::Constant(1),
+    }]);
+    let mut simulation = Simulation::with_seed_and_dominant_player(
+        [
+            PlayerConfig::new(
+                "Jaina",
+                vec![
+                    Card::minion("Victim", 0, 1, 1),
+                    observer("Dominant", 100),
+                    blast,
+                ],
+            ),
+            PlayerConfig::new("Rexxar", vec![observer("Secondary", -100)]),
+        ],
+        0,
+        PlayerId::One,
+    );
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    let secondary = hand_card(&mut simulation, PlayerId::Two);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::Two,
+            card: secondary,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    let victim = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: victim,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let dominant = hand_card(&mut simulation, PlayerId::One);
+    for _ in 0..2 {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+    }
+
+    assert_that!(simulation.snapshot().dominant_player, eq(PlayerId::One));
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .filter_map(|entry| match entry {
+                TraceEntry::TriggerResolved { source, .. } => Some(*source),
+                _ => None,
+            })
+            .collect::<Vec<_>>(),
+        eq(&vec![dominant, secondary])
+    );
+}
+
+#[googletest::test]
+fn death_prechecks_exclude_trigger_sources_created_during_the_batch() {
     let late_observer =
         Card::minion("Late Observer", 0, 1, 2).with_triggers(vec![crate::TriggerDefinition {
             event: EventKind::Death,
@@ -132,8 +265,6 @@ fn death_event_trigger_queues_are_frozen_before_the_batch_resolves() {
             conditions: Vec::new(),
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
             effect_program: vec![Effect::GainResource {
                 player: PlayerSelector::Controller,
@@ -190,69 +321,109 @@ fn death_event_trigger_queues_are_frozen_before_the_batch_resolves() {
             .collect::<Vec<_>>(),
         eq(&vec![summoner])
     );
-    assert_that!(
-        simulation.trace().iter().any(|entry| matches!(
-            entry,
-            TraceEntry::FrameBegin { kind, .. } if kind == "EventBatch"
-        )),
-        is_true()
-    );
-    assert_that!(
-        simulation.trace().iter().any(|entry| matches!(
-            entry,
-            TraceEntry::FrameBegin { kind, .. } if kind == "EventQueue"
-        )),
-        is_true()
-    );
+    let trace = simulation.trace();
+    let death_snapshots = trace
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| match entry {
+            TraceEntry::TriggerSnapshot { event, .. }
+                if trace.iter().any(|candidate| {
+                    matches!(
+                        candidate,
+                        TraceEntry::EventCreated {
+                            id,
+                            kind: EventKind::Death,
+                            ..
+                        } if id == event
+                    )
+                }) =>
+            {
+                Some(index)
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let first_trigger = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
+        .unwrap();
+    assert_that!(death_snapshots.len(), eq(2));
+    assert_that!(death_snapshots[0] < first_trigger, is_true());
+    assert_that!(death_snapshots[1] > first_trigger, is_true());
 }
 
 #[googletest::test]
-fn aborted_death_event_entries_do_not_block_queue_completion() {
-    let mut world = World::new();
-    world.init_resource::<GameEntityIndex>();
-    let queue = world
-        .spawn((ResolutionQueue(QueueKind::Events), QueueState::Collecting))
-        .id();
-    let entry = add_event_entry(
-        &mut world,
-        queue,
-        QueuedEvent {
-            event: crate::ResolutionId(1),
-            event_entity: Entity::PLACEHOLDER,
-            order: EventOrderKey {
-                player_bucket: 0,
-                ordinal: 0,
-                tie_breaker: 0,
-            },
-        },
-    )
-    .expect("collecting queue should accept the event");
-    world.entity_mut(entry).insert(QueuedTrigger {
-        source: GameEntityId(u64::MAX),
-        event: crate::ResolutionId(1),
-        event_entity: Entity::PLACEHOLDER,
-        definition_index: 0,
-        order: crate::TriggerOrderKey {
-            player_bucket: 0,
-            zone_bucket: 0,
+fn earlier_deathrattle_can_enable_an_existing_trigger_for_a_later_death() {
+    let reinforcement = Card::minion("Reinforcement", 0, 1, 2);
+    let summoner = Card::minion("Early Summoner", 0, 1, 1).with_deathrattle(vec![Effect::Summon {
+        player: PlayerSelector::Controller,
+        card: reinforcement,
+        board_index: None,
+    }]);
+    let observer = Card::minion("Conditional Observer", 0, 1, 2).with_triggers(vec![
+        crate::TriggerDefinition {
+            event: EventKind::Death,
+            eligible_zones: vec![Zone::Play],
+            conditions: vec![crate::TimedCondition {
+                timing: crate::ConditionTiming::QueueTime,
+                condition: crate::TriggerCondition::MinimumEntityCount {
+                    selector: Selector::FriendlyMinions,
+                    count: 2,
+                },
+            }],
+            source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            play_order: 0,
-            source: GameEntityId(u64::MAX),
-            tie_breaker: 0,
+            wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+            effect_program: vec![Effect::GainResource {
+                player: PlayerSelector::Controller,
+                amount: 1,
+                temporary: true,
+            }],
         },
-    });
-    freeze_queue(&mut world, queue).expect("event queue should freeze");
-
-    resolve_prepared_events(&mut world, queue)
-        .expect("an aborted entry should not fail the Death Event queue");
+    ]);
+    let blast = Card::spell("Staged Death Blast", 0).with_effects(vec![Effect::DealDamage {
+        targets: Selector::AllMinions,
+        amount: ValueExpression::Constant(1),
+    }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                summoner,
+                Card::minion("Later Death", 0, 1, 1),
+                observer,
+                blast,
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    for _ in 0..4 {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+    }
 
     assert_that!(
-        world.get::<QueueState>(queue),
-        eq(Some(&QueueState::Complete))
+        player(simulation.app.world(), PlayerId::One)
+            .unwrap()
+            .1
+            .temporary_resources,
+        eq(1)
     );
     assert_that!(
-        world.get::<crate::QueueEntryStatus>(entry),
-        eq(Some(&crate::QueueEntryStatus::Aborted))
+        simulation
+            .trace()
+            .iter()
+            .filter(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
+            .count(),
+        eq(2)
     );
 }
 
@@ -266,8 +437,6 @@ fn deathrattles_and_board_observers_mingle_by_play_order() {
             conditions: Vec::new(),
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
             effect_program: Vec::new(),
         }]);
@@ -439,14 +608,18 @@ fn damage_events_freeze_and_resolve_trigger_effects_depth_first() {
         Card::minion("Reactive", 0, 1, 4).with_triggers(vec![crate::TriggerDefinition {
             event: EventKind::Damage,
             eligible_zones: vec![Zone::Play],
-            conditions: vec![crate::TimedCondition {
-                timing: crate::ConditionTiming::QueueTime,
-                condition: crate::TriggerCondition::EventValueAtLeast(1),
-            }],
+            conditions: vec![
+                crate::TimedCondition {
+                    timing: crate::ConditionTiming::QueueTime,
+                    condition: crate::TriggerCondition::EventValueAtLeast(1),
+                },
+                crate::TimedCondition {
+                    timing: crate::ConditionTiming::QueueTime,
+                    condition: crate::TriggerCondition::EventTargetsSelf,
+                },
+            ],
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: vec![Effect::DealDamage {
                 targets: Selector::EnemyMinions,
@@ -519,7 +692,7 @@ fn damage_events_freeze_and_resolve_trigger_effects_depth_first() {
             .find(|object| object.id == target)
             .unwrap()
             .damage,
-        eq(3)
+        eq(2)
     );
     assert_that!(
         simulation
@@ -527,7 +700,7 @@ fn damage_events_freeze_and_resolve_trigger_effects_depth_first() {
             .iter()
             .filter(|entry| matches!(entry, TraceEntry::TriggerResolved { .. }))
             .count(),
-        eq(2)
+        eq(1)
     );
     assert_that!(
         simulation
@@ -535,28 +708,22 @@ fn damage_events_freeze_and_resolve_trigger_effects_depth_first() {
             .iter()
             .filter(|entry| matches!(entry, TraceEntry::TriggerAborted { .. }))
             .count(),
-        eq(2)
+        eq(0)
     );
-    assert_that!(
-        simulation.trace().iter().any(|entry| matches!(
-            entry,
-            TraceEntry::QueueFrozen { entries, .. } if !entries.is_empty()
-        )),
-        is_true()
-    );
-    let frozen_ids = simulation
+    let captured_sources = simulation
         .trace()
         .iter()
         .filter_map(|entry| match entry {
-            TraceEntry::QueueFrozen { entries, .. } => Some(entries.as_slice()),
+            TraceEntry::TriggerSnapshot { candidates, .. } => Some(candidates.as_slice()),
             _ => None,
         })
         .flatten()
-        .copied()
+        .map(|candidate| candidate.source)
         .collect::<std::collections::BTreeSet<_>>();
+    assert_that!(captured_sources.is_empty(), is_false());
     assert_that!(
         simulation.trace().iter().all(|entry| match entry {
-            TraceEntry::TriggerResolved { id, .. } => frozen_ids.contains(id),
+            TraceEntry::TriggerResolved { source, .. } => captured_sources.contains(source),
             _ => true,
         }),
         is_true()
@@ -576,8 +743,6 @@ fn resolution_time_conditions_abort_frozen_trigger_entries() {
             }],
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: vec![Effect::GainResource {
                 player: PlayerSelector::Controller,

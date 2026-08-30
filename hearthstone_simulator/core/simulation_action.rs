@@ -3,24 +3,24 @@ use std::collections::VecDeque;
 use bevy::prelude::*;
 
 use crate::{
-    AttackState, CanonicalTrace, Controller, CurrentStats, EffectContext, EntityKind, EventContext,
-    EventKind, GameEntityId, GameOutcome, GameState, PlayerId, ResolutionKind, ResolveFrame,
-    Ruleset, RuntimeTriggers, SimulationStatus, TraceEntry, Zone,
+    AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp, CurrentStats,
+    DamageRequest, EffectContext, EntityKind, EventContext, EventKind, GameEntityId, GameOutcome,
+    GameState, PhaseBoundaryPlan, PlayerId, ResolutionOp, ResolutionWork, ResolveFrame, Ruleset,
+    RuntimeTriggers, SequenceStep, SimulationStatus, TraceEntry, Zone,
     entity::{allocate_play_order, game_entity},
     resolver::{
-        begin_resolution, cleanup_resolution, complete_active, consume_budget, push_resolution,
+        abandon_sequence, begin_sequence, consume_budget, finish_sequence, pop_resolution_op,
+        push_resolution_ops,
     },
-    trigger::reset_trigger_guards,
     zone::{ZoneIndex, assert_zone_invariants, board_is_full, move_entity, validate_zone_position},
 };
 
 use super::{
     card_runtime::CardRuntime,
-    effect_executor::{execute_effects, validate_effect_program},
+    effect_executor::validate_effect_program,
     error::SimulationError,
-    event_resolver::{resolve_event_if_active, resolve_phase_boundaries},
-    health::{DamageRequest, SimultaneousEventOrder, apply_damage_batch},
-    player::{check_outcome, controlled_entity_in_zone, player, player_mut},
+    event_resolver::OperationFailure,
+    player::{controlled_entity_in_zone, player, player_mut},
     snapshot::assert_game_entity_index,
 };
 
@@ -31,7 +31,7 @@ pub enum GameAction {
         card: GameEntityId,
         target: Option<GameEntityId>,
         board_index: Option<usize>,
-        choice: Option<crate::ChoiceId>,
+        choice: Option<ChoiceId>,
     },
     Attack {
         player: PlayerId,
@@ -91,6 +91,21 @@ pub(super) fn submit_action(app: &mut App, action: GameAction) -> Result<(), Sim
         .ok_or(SimulationError::MissingActionResult)?
 }
 
+pub(super) fn submit_choice(app: &mut App, option: ChoiceId) -> Result<(), SimulationError> {
+    answer_choice(app.world_mut(), option)?;
+    if let Err(error) = drive_resolution(app.world_mut()) {
+        abandon_sequence(app.world_mut());
+        let status = if app.world().resource::<GameState>().outcome.is_some() {
+            SimulationStatus::Complete
+        } else {
+            SimulationStatus::AwaitingAction
+        };
+        app.world_mut().resource_mut::<GameState>().status = status;
+        return Err(error);
+    }
+    finish_resolution_if_idle(app.world_mut())
+}
+
 pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
     if world.resource::<GameState>().status != SimulationStatus::AwaitingAction {
         return Vec::new();
@@ -127,7 +142,7 @@ fn process_next_action(world: &mut World) {
     };
     let player = action.player();
     let label = action.label().to_string();
-    let result = apply_action(world, action);
+    let result = apply_action(world, &action);
     match &result {
         Ok(()) => world
             .resource_mut::<CanonicalTrace>()
@@ -149,7 +164,52 @@ fn process_next_action(world: &mut World) {
     world.resource_mut::<ActionResults>().0.push_back(result);
 }
 
-fn apply_action(world: &mut World, action: GameAction) -> Result<(), SimulationError> {
+fn apply_action(world: &mut World, action: &GameAction) -> Result<(), SimulationError> {
+    validate_action(world, action)?;
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    begin_sequence(world)?;
+    let step = match action {
+        GameAction::PlayCard {
+            player,
+            card,
+            target,
+            board_index,
+            ..
+        } => SequenceStep::PlayCard {
+            player: *player,
+            card: *card,
+            target: *target,
+            board_index: *board_index,
+        },
+        GameAction::Attack {
+            player,
+            attacker,
+            defender,
+        } => SequenceStep::Attack {
+            player: *player,
+            attacker: *attacker,
+            defender: *defender,
+        },
+        GameAction::EndTurn { player } => SequenceStep::EndTurn { player: *player },
+        GameAction::Concede { player } => SequenceStep::Concede { player: *player },
+    };
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunSequenceStep(step),
+            ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+            ResolutionOp::CheckOutcome,
+        ],
+    );
+    if let Err(error) = drive_resolution(world) {
+        abandon_sequence(world);
+        world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+        return Err(error);
+    }
+    finish_resolution_if_idle(world)
+}
+
+fn validate_action(world: &World, action: &GameAction) -> Result<(), SimulationError> {
     let game = world.resource::<GameState>();
     if game.outcome.is_some() {
         return Err(SimulationError::GameOver);
@@ -157,60 +217,30 @@ fn apply_action(world: &mut World, action: GameAction) -> Result<(), SimulationE
     if game.status != SimulationStatus::AwaitingAction {
         return Err(SimulationError::NotAwaitingAction);
     }
-    validate_turn(world, action.player())?;
-    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
-    reset_trigger_guards(world);
-    begin_resolution(world, ResolutionKind::Sequence);
-    consume_budget(world)?;
-    push_resolution(world, ResolutionKind::Phase)?;
-    consume_budget(world)?;
-    world.run_schedule(ResolveFrame);
-
-    let result = match action {
+    if game.active_player != action.player() {
+        return Err(SimulationError::NotPlayersTurn(action.player()));
+    }
+    match action {
         GameAction::PlayCard {
             player,
             card,
-            target,
+            target: _,
             board_index,
             ..
-        } => play_card(world, player, card, target, board_index),
+        } => validate_play_card(world, *player, *card, *board_index),
         GameAction::Attack {
             player,
             attacker,
             defender,
-        } => attack(world, player, attacker, defender),
-        GameAction::EndTurn { player } => end_turn(world, player),
-        GameAction::Concede { player } => concede(world, player),
-    };
-
-    complete_active(world)?;
-    resolve_phase_boundaries(world)?;
-    check_outcome(world);
-    complete_active(world)?;
-    cleanup_resolution(world);
-    if world.resource::<GameState>().outcome.is_some() {
-        world.resource_mut::<GameState>().status = SimulationStatus::Complete;
-    } else {
-        world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
-    }
-    result?;
-    assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
-    assert_game_entity_index(world).map_err(SimulationError::Invariant)
-}
-
-fn validate_turn(world: &World, player: PlayerId) -> Result<(), SimulationError> {
-    if world.resource::<GameState>().active_player == player {
-        Ok(())
-    } else {
-        Err(SimulationError::NotPlayersTurn(player))
+        } => validate_attack(world, *player, *attacker, *defender),
+        GameAction::EndTurn { .. } | GameAction::Concede { .. } => Ok(()),
     }
 }
 
-fn play_card(
-    world: &mut World,
+fn validate_play_card(
+    world: &World,
     player_id: PlayerId,
     card_id: GameEntityId,
-    declared_target: Option<GameEntityId>,
     board_index: Option<usize>,
 ) -> Result<(), SimulationError> {
     let card_entity = controlled_entity_in_zone(world, player_id, card_id, Zone::Hand)?;
@@ -225,73 +255,42 @@ fn play_card(
     }
     let runtime = world
         .get::<CardRuntime>(card_entity)
-        .cloned()
         .ok_or(SimulationError::NotPlayable(card_id))?;
     validate_effect_program(world, &runtime.program, None)?;
-    let triggers = world
+    for trigger in &world
         .get::<RuntimeTriggers>(card_entity)
-        .ok_or(SimulationError::NotPlayable(card_id))?;
-    for trigger in &triggers.0 {
+        .ok_or(SimulationError::NotPlayable(card_id))?
+        .0
+    {
         validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
-    let cost = runtime.cost;
-    let destination = if kind == EntityKind::Minion {
-        Zone::Play
-    } else {
-        Zone::Graveyard
-    };
-    validate_zone_position(world, player_id, destination, board_index)?;
-    spend_resources(world, player_id, cost)?;
-    let (from, _) = move_entity(world, card_id, destination, board_index)?;
-    let order = allocate_play_order(world);
-    world.entity_mut(card_entity).insert(order);
-    world
-        .resource_mut::<CanonicalTrace>()
-        .entries
-        .push(TraceEntry::ZoneMoved {
-            entity: card_id,
-            from,
-            to: destination,
+    let available = player(world, player_id)
+        .ok_or(SimulationError::PlayerNotFound(player_id))?
+        .1
+        .available_resources();
+    let cost = runtime.cost.max(0);
+    if available < cost {
+        return Err(SimulationError::NotEnoughMana {
+            player: player_id,
+            required: cost,
+            available,
         });
-    resolve_event_if_active(
-        world,
-        EventContext {
-            kind: EventKind::CardPlayed,
-            source: Some(card_id),
-            targets: declared_target.into_iter().collect(),
-            controller: player_id,
-            proposed_value: None,
-            actual_value: None,
-            simultaneous_ordinal: 0,
-        },
-    )?;
-    if kind == EntityKind::Minion {
-        resolve_event_if_active(
-            world,
-            EventContext {
-                kind: EventKind::Summoned,
-                source: Some(card_id),
-                targets: vec![card_id],
-                controller: player_id,
-                proposed_value: None,
-                actual_value: None,
-                simultaneous_ordinal: 0,
-            },
-        )?;
     }
-    execute_effects(
+    validate_zone_position(
         world,
-        &EffectContext {
-            source: Some(card_id),
-            controller: player_id,
-            declared_target,
+        player_id,
+        if kind == EntityKind::Minion {
+            Zone::Play
+        } else {
+            Zone::Graveyard
         },
-        &runtime.program,
-    )
+        board_index,
+    )?;
+    Ok(())
 }
 
-fn attack(
-    world: &mut World,
+fn validate_attack(
+    world: &World,
     player_id: PlayerId,
     attacker_id: GameEntityId,
     defender_id: GameEntityId,
@@ -301,10 +300,11 @@ fn attack(
         .get::<AttackState>(attacker)
         .copied()
         .ok_or(SimulationError::CannotAttack(attacker_id))?;
-    let attack_value = world
-        .get::<CurrentStats>(attacker)
-        .map_or(0, |stats| stats.attack);
-    if attack_state.exhausted || attack_value <= 0 {
+    if attack_state.exhausted
+        || world
+            .get::<CurrentStats>(attacker)
+            .is_none_or(|stats| stats.attack <= 0)
+    {
         return Err(SimulationError::CannotAttack(attacker_id));
     }
     let defender =
@@ -317,21 +317,200 @@ fn attack(
     {
         return Err(SimulationError::InvalidDefender(defender_id));
     }
-    let counter_damage = world
-        .get::<CurrentStats>(defender)
-        .map_or(0, |stats| stats.attack);
-    resolve_event_if_active(
-        world,
-        EventContext {
-            kind: EventKind::Attack,
-            source: Some(attacker_id),
-            targets: vec![defender_id],
+    Ok(())
+}
+
+pub(super) fn drive_resolution(world: &mut World) -> Result<(), SimulationError> {
+    while let Some(operation) = pop_resolution_op(world) {
+        consume_budget(world, operation.id)?;
+        world
+            .resource_mut::<CanonicalTrace>()
+            .entries
+            .push(TraceEntry::OperationPopped {
+                id: operation.id,
+                kind: operation.operation.kind().to_string(),
+            });
+        world.resource_mut::<CurrentResolutionOp>().0 = Some(operation);
+        world.run_schedule(ResolveFrame);
+        if let Some(error) = world.resource_mut::<OperationFailure>().0.take() {
+            return Err(error);
+        }
+        if world.resource::<GameState>().status == SimulationStatus::AwaitingChoice {
+            break;
+        }
+    }
+    Ok(())
+}
+
+fn finish_resolution_if_idle(world: &mut World) -> Result<(), SimulationError> {
+    if world.resource::<GameState>().status == SimulationStatus::AwaitingChoice {
+        return Ok(());
+    }
+    if !world.resource::<ResolutionWork>().stack.is_empty() {
+        return Ok(());
+    }
+    finish_sequence(world);
+    world.resource_mut::<GameState>().status = if world.resource::<GameState>().outcome.is_some() {
+        SimulationStatus::Complete
+    } else {
+        SimulationStatus::AwaitingAction
+    };
+    assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
+    assert_game_entity_index(world).map_err(SimulationError::Invariant)
+}
+
+fn answer_choice(world: &mut World, option: ChoiceId) -> Result<(), SimulationError> {
+    let pending = world
+        .resource_mut::<ResolutionWork>()
+        .pending_choice
+        .take()
+        .ok_or(crate::resolver::ResolutionError::NoPendingChoice)?;
+    let Some(selected) = pending
+        .request
+        .options
+        .iter()
+        .find(|candidate| candidate.id == option)
+        .cloned()
+    else {
+        world.resource_mut::<ResolutionWork>().pending_choice = Some(pending);
+        return Err(crate::resolver::ResolutionError::InvalidChoice(option).into());
+    };
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::ChoiceAnswered {
+            choice: pending.request.id,
+            option,
+        });
+    push_resolution_ops(world, selected.operations);
+    Ok(())
+}
+
+pub(super) fn run_sequence_step(
+    world: &mut World,
+    step: &SequenceStep,
+) -> Result<(), SimulationError> {
+    match step {
+        SequenceStep::PlayCard {
+            player,
+            card,
+            target,
+            board_index,
+        } => play_card(world, *player, *card, *target, *board_index),
+        SequenceStep::Attack {
+            player,
+            attacker,
+            defender,
+        } => {
+            attack(world, *player, *attacker, *defender);
+            Ok(())
+        }
+        SequenceStep::FinishAttack {
+            player,
+            attacker,
+            defender,
+        } => {
+            finish_attack(world, *player, *attacker, *defender);
+            Ok(())
+        }
+        SequenceStep::EndTurn { player } => {
+            end_turn(world, *player);
+            Ok(())
+        }
+        SequenceStep::StartTurn { player } => start_turn(world, *player),
+        SequenceStep::Concede { player } => {
+            concede(world, *player);
+            Ok(())
+        }
+    }
+}
+
+fn play_card(
+    world: &mut World,
+    player_id: PlayerId,
+    card_id: GameEntityId,
+    declared_target: Option<GameEntityId>,
+    board_index: Option<usize>,
+) -> Result<(), SimulationError> {
+    let card_entity = controlled_entity_in_zone(world, player_id, card_id, Zone::Hand)?;
+    let kind = *world
+        .get::<EntityKind>(card_entity)
+        .ok_or(SimulationError::NotPlayable(card_id))?;
+    let runtime = world
+        .get::<CardRuntime>(card_entity)
+        .cloned()
+        .ok_or(SimulationError::NotPlayable(card_id))?;
+    spend_resources(world, player_id, runtime.cost)?;
+    let destination = if kind == EntityKind::Minion {
+        Zone::Play
+    } else {
+        Zone::Graveyard
+    };
+    let (from, _) = move_entity(world, card_id, destination, board_index)?;
+    let order = allocate_play_order(world);
+    world.entity_mut(card_entity).insert(order);
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::ZoneMoved {
+            entity: card_id,
+            from,
+            to: destination,
+        });
+    let context = EffectContext {
+        source: Some(card_id),
+        controller: player_id,
+        declared_target,
+    };
+    let mut operations = vec![ResolutionOp::PrepareEvent(EventContext {
+        kind: EventKind::CardPlayed,
+        source: Some(card_id),
+        targets: declared_target.into_iter().collect(),
+        controller: player_id,
+        proposed_value: None,
+        actual_value: None,
+        simultaneous_ordinal: 0,
+    })];
+    if kind == EntityKind::Minion {
+        operations.push(ResolutionOp::PrepareEvent(EventContext {
+            kind: EventKind::Summoned,
+            source: Some(card_id),
+            targets: vec![card_id],
             controller: player_id,
             proposed_value: None,
             actual_value: None,
             simultaneous_ordinal: 0,
-        },
-    )?;
+        }));
+    }
+    operations.extend(
+        runtime
+            .program
+            .into_iter()
+            .map(|effect| ResolutionOp::RunEffect {
+                context: context.clone(),
+                effect,
+                event: None,
+            }),
+    );
+    push_resolution_ops(world, operations);
+    Ok(())
+}
+
+fn attack(
+    world: &mut World,
+    player_id: PlayerId,
+    attacker_id: GameEntityId,
+    defender_id: GameEntityId,
+) {
+    let attacker = game_entity(world, attacker_id).expect("validated attacker remains indexed");
+    let defender = game_entity(world, defender_id).expect("validated defender remains indexed");
+    let attack_value = world
+        .get::<CurrentStats>(attacker)
+        .map_or(0, |stats| stats.attack);
+    let counter_damage = world
+        .get::<CurrentStats>(defender)
+        .map_or(0, |stats| stats.attack);
     let mut damage = vec![DamageRequest {
         source: Some(attacker_id),
         target: defender_id,
@@ -344,15 +523,43 @@ fn attack(
             proposed: counter_damage,
         });
     }
-    apply_damage_batch(world, damage, SimultaneousEventOrder::Given)?;
-    let mut state = world
-        .get_mut::<AttackState>(attacker)
-        .ok_or(SimulationError::CannotAttack(attacker_id))?;
-    state.attacks_this_turn += 1;
-    state.exhausted = true;
-    resolve_event_if_active(
+    push_resolution_ops(
         world,
-        EventContext {
+        [
+            ResolutionOp::PrepareEvent(EventContext {
+                kind: EventKind::Attack,
+                source: Some(attacker_id),
+                targets: vec![defender_id],
+                controller: player_id,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            }),
+            ResolutionOp::ProcessDamageBatch(damage),
+            ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
+                player: player_id,
+                attacker: attacker_id,
+                defender: defender_id,
+            }),
+        ],
+    );
+}
+
+fn finish_attack(
+    world: &mut World,
+    player_id: PlayerId,
+    attacker_id: GameEntityId,
+    defender_id: GameEntityId,
+) {
+    if let Some(attacker) = game_entity(world, attacker_id)
+        && let Some(mut state) = world.get_mut::<AttackState>(attacker)
+    {
+        state.attacks_this_turn += 1;
+        state.exhausted = true;
+    }
+    push_resolution_ops(
+        world,
+        [ResolutionOp::PrepareEvent(EventContext {
             kind: EventKind::AfterAttack,
             source: Some(attacker_id),
             targets: vec![defender_id],
@@ -360,41 +567,46 @@ fn attack(
             proposed_value: None,
             actual_value: None,
             simultaneous_ordinal: 0,
-        },
-    )?;
-    Ok(())
+        })],
+    );
 }
 
-fn end_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
-    resolve_event_if_active(
+fn end_turn(world: &mut World, player_id: PlayerId) {
+    push_resolution_ops(
         world,
-        EventContext {
-            kind: EventKind::TurnEnded,
-            source: None,
-            targets: Vec::new(),
-            controller: player_id,
-            proposed_value: None,
-            actual_value: None,
-            simultaneous_ordinal: 0,
-        },
-    )?;
-    let next_player = player_id.opponent();
+        [
+            ResolutionOp::PrepareEvent(EventContext {
+                kind: EventKind::TurnEnded,
+                source: None,
+                targets: Vec::new(),
+                controller: player_id,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            }),
+            ResolutionOp::RunSequenceStep(SequenceStep::StartTurn {
+                player: player_id.opponent(),
+            }),
+        ],
+    );
+}
+
+fn start_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
     let maximum_mana = world.resource::<Ruleset>().maximum_mana;
     {
         let mut game = world.resource_mut::<GameState>();
-        game.active_player = next_player;
+        game.active_player = player_id;
         game.turn_number += 1;
     }
-    let (_, mut player, _, _) = player_mut(world, next_player)?;
+    let (_, mut player, _, _) = player_mut(world, player_id)?;
     player.maximum_resources = (player.maximum_resources + 1).min(maximum_mana);
     player.used_resources = 0;
     player.temporary_resources = 0;
     player.locked_overload = player.pending_overload;
     player.pending_overload = 0;
-
     let board = world
         .resource::<ZoneIndex>()
-        .entities(next_player, Zone::Play)
+        .entities(player_id, Zone::Play)
         .to_vec();
     for id in board {
         if let Some(entity) = game_entity(world, id)
@@ -409,24 +621,25 @@ fn end_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationErro
         .resource_mut::<CanonicalTrace>()
         .entries
         .push(TraceEntry::TurnChanged {
-            active_player: next_player,
+            active_player: player_id,
             turn,
         });
-    resolve_event_if_active(
+    push_resolution_ops(
         world,
-        EventContext {
+        [ResolutionOp::PrepareEvent(EventContext {
             kind: EventKind::TurnStarted,
             source: None,
             targets: Vec::new(),
-            controller: next_player,
+            controller: player_id,
             proposed_value: None,
             actual_value: None,
             simultaneous_ordinal: 0,
-        },
-    )
+        })],
+    );
+    Ok(())
 }
 
-fn concede(world: &mut World, player: PlayerId) -> Result<(), SimulationError> {
+fn concede(world: &mut World, player: PlayerId) {
     let winner = player.opponent();
     world.resource_mut::<GameState>().outcome = Some(GameOutcome::Winner(winner));
     world
@@ -435,7 +648,6 @@ fn concede(world: &mut World, player: PlayerId) -> Result<(), SimulationError> {
         .push(TraceEntry::Outcome {
             winner: Some(winner),
         });
-    Ok(())
 }
 
 fn spend_resources(
@@ -445,14 +657,6 @@ fn spend_resources(
 ) -> Result<(), SimulationError> {
     let amount = amount.max(0);
     let (_, mut player, _, _) = player_mut(world, player_id)?;
-    let available = player.available_resources();
-    if available < amount {
-        return Err(SimulationError::NotEnoughMana {
-            player: player_id,
-            required: amount,
-            available,
-        });
-    }
     player.used_resources += amount;
     player.resources_spent += amount;
     world

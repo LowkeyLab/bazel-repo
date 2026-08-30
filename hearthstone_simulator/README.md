@@ -7,14 +7,14 @@ This repository is synthetic-card-first: it implements reusable mechanics and co
 ## Implemented foundation
 
 - Immutable stable game/resolution IDs, hook-maintained indexes, persistent card identity, and ordered zone indexes
-- Relationship-backed, remappable resolution frames with strict schedules, suspension primitives, cleanup, and safety budgets
-- Explicit event/trigger queue entities with condition timing, complete order keys, immutable frozen membership, and cursor-based resolution
+- A single resource-owned LIFO stack of one-shot resolution operations, strict schedules, exact-once iterative execution, choice suspension, and per-sequence safety budgets
+- Immutable event records, Death pre-check trigger seeds, and queue-time candidate snapshots that expand directly onto the stack without executable queue entities or cursors
 - Data-oriented effects/selectors/values, fork-safe registered native effect handlers, and versioned seeded randomness with canonical RNG traces
-- Signed mana/Overload counters, drawing, burning, fatigue, proposed-value damage/healing modifiers, ordered health mutations with frozen actual-event reactions, DH-compliant Armor/Immune/Divine Shield handling, destroy, summon, silence, stat enchantments, transformation, and copying
-- Phase-boundary mortality collection with irreversible Hero defeat, globally ordered simultaneous removal, turn-stamped death records, frozen Death Event batches, play-order-mingled Deathrattles, and chained Death Phases
-- Stable-ID card play/combat/end-turn/concede actions, deterministic legal actions, canonical snapshots/traces, and replay-equivalent forks
+- Signed mana/Overload counters, drawing, burning, fatigue, proposed-value damage/healing modifiers, ordered health mutations with prepared actual-event slots, DH-compliant Armor/Immune/Divine Shield handling, destroy, summon, silence, stat enchantments, transformation, and copying
+- Phase-boundary mortality collection with irreversible Hero defeat, globally ordered simultaneous removal, staged Death Event trigger capture, dominant-player trigger grouping, chained Death Phases, and sequence-end outcomes
+- Stable-ID card play/combat/end-turn/concede actions, deterministic legal actions, canonical snapshots/traces, versioned JSON checkpoints, suspended-choice restoration, and checkpoint-exact forks
 
-Aura-provider discovery, complete movement reset policies, all card-type action sequences, suspended player choices, and esoteric compatibility policies remain tracked in the progress document.
+Aura-provider discovery, complete movement reset policies, all card-type action sequences, choice-producing card mechanics, and remaining esoteric compatibility policies are tracked in the progress document. The resolver and checkpoint API preserve and restore generic pending choices.
 
 ## Example
 

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{BaseStats, CurrentStats, GameEntityId, PlayOrder, entity::game_entity};
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct StatModifier {
     pub attack: i32,
     pub health: i32,
@@ -17,10 +17,10 @@ pub struct AttachedTo(#[relationship] pub Entity);
 #[relationship_target(relationship = AttachedTo, linked_spawn)]
 pub struct AttachedEnchantments(#[relationship] Vec<Entity>);
 
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AuraCache(pub Vec<AuraApplication>);
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AuraApplication {
     pub provider: GameEntityId,
     pub attack: i32,

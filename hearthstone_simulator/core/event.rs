@@ -2,7 +2,9 @@ use bevy::prelude::Component;
 
 use crate::{GameEntityId, PlayerId};
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
+)]
 pub enum EventKind {
     SequenceStarted,
     CardPlayed,
@@ -18,7 +20,7 @@ pub enum EventKind {
     TurnEnded,
 }
 
-#[derive(Component, Clone, Debug, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct EventContext {
     pub kind: EventKind,
     pub source: Option<GameEntityId>,

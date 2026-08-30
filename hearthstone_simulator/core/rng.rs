@@ -54,7 +54,7 @@ impl DeterministicRng {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct RngSnapshot {
     pub algorithm_version: u32,
     pub state: u64,
