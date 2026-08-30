@@ -549,7 +549,7 @@ fn deathrattles_resolve_in_chained_death_phases() {
             .iter()
             .map(|record| record.remembered_zone_position)
             .collect::<Vec<_>>(),
-        eq(&vec![1, 1])
+        eq(&vec![0, 0])
     );
     assert_that!(
         snapshot

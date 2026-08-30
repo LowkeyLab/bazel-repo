@@ -499,6 +499,54 @@ fn checkpoints_reject_invalid_versions_rng_entities_zones_and_enchantments() {
 }
 
 #[googletest::test]
+fn checkpoints_reject_missing_or_duplicate_active_heroes_and_powers() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let mut malformed = Vec::new();
+
+    for kind in [EntityKind::Hero, EntityKind::HeroPower] {
+        let mut missing = base.clone();
+        let index = missing
+            .entities
+            .iter()
+            .position(|entity| {
+                entity.kind == Some(kind)
+                    && entity.controller == Some(PlayerId::One)
+                    && entity.zone == Some(Zone::Play)
+            })
+            .unwrap();
+        missing.entities.remove(index);
+        malformed.push(missing);
+
+        let mut duplicate = base.clone();
+        let mut entity = duplicate
+            .entities
+            .iter()
+            .find(|entity| {
+                entity.kind == Some(kind)
+                    && entity.controller == Some(PlayerId::One)
+                    && entity.zone == Some(Zone::Play)
+            })
+            .unwrap()
+            .clone();
+        entity.id = GameEntityId(duplicate.next_game_entity_id);
+        duplicate.next_game_entity_id += 1;
+        duplicate.entities.push(entity);
+        malformed.push(duplicate);
+    }
+
+    for checkpoint in malformed {
+        assert_that!(
+            matches!(
+                Simulation::from_checkpoint(checkpoint),
+                Err(SimulationError::Checkpoint(_))
+            ),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
 fn checkpoints_reject_dangling_aura_provider_references() {
     let simulation = simulation();
     let mut checkpoint = simulation.checkpoint().unwrap();

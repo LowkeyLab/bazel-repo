@@ -11,6 +11,9 @@ package(default_visibility = ["//visibility:public"])
 # gazelle:exclude simulation_tests_effects.rs
 # gazelle:exclude simulation_tests_events.rs
 # gazelle:exclude simulation_tests_health.rs
+# gazelle:exclude simulation_tests_hero.rs
+# gazelle:exclude simulation_tests_movement.rs
+# gazelle:exclude simulation_tests_temporal.rs
 # gazelle:exclude simulation_checkpoint.rs
 
 rust_library(
@@ -54,6 +57,9 @@ rust_library(
         "simulation_tests_effects.rs",  # keep
         "simulation_tests_events.rs",  # keep
         "simulation_tests_health.rs",  # keep
+        "simulation_tests_hero.rs",  # keep
+        "simulation_tests_movement.rs",  # keep
+        "simulation_tests_temporal.rs",  # keep
     ],
     crate_name = "hearthstone_simulator_core",
     rustc_env = {"CARGO_MANIFEST_DIR": "."},

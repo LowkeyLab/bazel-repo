@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
+
 use crate::{
     AuraDefinition, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Effect,
-    EntityKind, EventKind, PlayerAudience, PlayerId, SourceEligibilityPolicy, TimedCondition,
-    TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
+    EntityKind, EventKind, Keyword, PlayerAudience, PlayerId, SourceEligibilityPolicy,
+    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -12,6 +14,7 @@ pub struct Card {
     pub mana_cost: i32,
     pub attack: i32,
     pub health: i32,
+    pub keywords: BTreeSet<Keyword>,
     pub effects: Vec<Effect>,
     pub triggers: Vec<TriggerDefinition>,
     pub auras: Vec<AuraDefinition>,
@@ -28,6 +31,7 @@ impl Card {
             mana_cost,
             attack,
             health,
+            keywords: BTreeSet::new(),
             effects: Vec::new(),
             triggers: Vec::new(),
             auras: Vec::new(),
@@ -36,14 +40,35 @@ impl Card {
     }
 
     pub fn spell(name: impl Into<String>, mana_cost: i32) -> Self {
+        Self::non_minion(name, EntityKind::Spell, mana_cost)
+    }
+
+    pub fn hero(name: impl Into<String>, health: i32) -> Self {
+        let mut card = Self::non_minion(name, EntityKind::Hero, 0);
+        card.health = health;
+        card
+    }
+
+    pub fn hero_power(name: impl Into<String>, mana_cost: i32) -> Self {
+        Self::non_minion(name, EntityKind::HeroPower, mana_cost)
+    }
+
+    pub fn weapon(name: impl Into<String>, mana_cost: i32, attack: i32) -> Self {
+        let mut card = Self::non_minion(name, EntityKind::Weapon, mana_cost);
+        card.attack = attack;
+        card
+    }
+
+    fn non_minion(name: impl Into<String>, kind: EntityKind, mana_cost: i32) -> Self {
         let name = name.into();
         Self {
             definition_id: synthetic_definition_id(&name),
             name,
-            kind: EntityKind::Spell,
+            kind,
             mana_cost,
             attack: 0,
             health: 0,
+            keywords: BTreeSet::new(),
             effects: Vec::new(),
             triggers: Vec::new(),
             auras: Vec::new(),
@@ -58,6 +83,18 @@ impl Card {
 
     pub fn with_triggers(mut self, triggers: Vec<TriggerDefinition>) -> Self {
         self.triggers = triggers;
+        self
+    }
+
+    #[must_use]
+    pub fn with_keyword(mut self, keyword: Keyword) -> Self {
+        self.keywords.insert(keyword);
+        self
+    }
+
+    #[must_use]
+    pub fn with_keywords(mut self, keywords: impl IntoIterator<Item = Keyword>) -> Self {
+        self.keywords.extend(keywords);
         self
     }
 

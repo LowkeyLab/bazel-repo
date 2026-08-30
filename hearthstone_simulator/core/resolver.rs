@@ -57,8 +57,12 @@ pub enum SequenceStep {
     EndTurn {
         player: PlayerId,
     },
+    AdvanceTurn {
+        ending_player: PlayerId,
+    },
     StartTurn {
         player: PlayerId,
+        kind: crate::ScheduledTurnKind,
     },
     Concede {
         player: PlayerId,

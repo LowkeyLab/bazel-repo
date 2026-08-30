@@ -3,12 +3,13 @@ use std::collections::BTreeSet;
 use bevy::prelude::*;
 
 use crate::{
-    Abilities, Armor, AttackAuraCache, AttackState, BaseStats, CanonicalTrace, Controller,
-    CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
+    Abilities, Armor, AttackAuraCache, AttackState, BaseKeywords, BaseStats, CanonicalTrace,
+    Controller, CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
     DisplayName, DominantPlayer, Enchantments, EntityKind, GameEntityId, GameObject, GameState,
-    HealthAuraCache, Keywords, OtherAuraCache, PlayOrder, Player, PlayerId, ResolutionWork,
-    RngSnapshot, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    SilenceRemovable, Silenced, StatModifier, Zone,
+    HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments, KeywordModifier, Keywords,
+    OtherAuraCache, PlayOrder, Player, PlayerId, ResolutionWork, RngSnapshot, Ruleset,
+    RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, SilenceRemovable, Silenced,
+    StatModifier, TemporaryDuration, TurnSchedule, Zone,
     death::{DefeatedHeroes, PendingDeaths},
     enchantment::AttachedTo,
     entity::{NextGameEntityId, PlayOrderCounter, game_entity},
@@ -17,10 +18,10 @@ use crate::{
 
 use super::{
     card_runtime::CardRuntime, effect_executor::validate_effect_program, error::SimulationError,
-    snapshot::assert_game_entity_index,
+    player::assert_player_role_invariants, snapshot::assert_game_entity_index,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 2;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
@@ -37,6 +38,7 @@ pub struct GameEntityCheckpoint {
     pub display_name: Option<String>,
     pub play_order: Option<u64>,
     pub base_stats: Option<BaseStats>,
+    pub base_keywords: Option<BaseKeywords>,
     pub current_stats: Option<CurrentStats>,
     pub damage: Option<Damage>,
     pub armor: Option<Armor>,
@@ -45,14 +47,19 @@ pub struct GameEntityCheckpoint {
     pub abilities: Option<Abilities>,
     pub enchantments: Option<Enchantments>,
     pub attack_state: Option<AttackState>,
+    pub hero_metadata: Option<HeroMetadata>,
+    pub hero_power_state: Option<HeroPowerState>,
     pub player: Option<Player>,
     pub card_runtime: Option<CardRuntimeCheckpoint>,
     pub runtime_triggers: Option<Vec<crate::TriggerDefinition>>,
     pub runtime_auras: Option<Vec<crate::AuraDefinition>>,
     pub runtime_continuous_effects: Option<Vec<crate::ContinuousEffectDefinition>>,
     pub silenced: bool,
+    pub keep_enchantments: bool,
     pub silence_removable: bool,
     pub stat_modifier: Option<StatModifier>,
+    pub keyword_modifier: Option<KeywordModifier>,
+    pub temporary_duration: Option<TemporaryDuration>,
     pub health_aura_cache: Option<HealthAuraCache>,
     pub attack_aura_cache: Option<AttackAuraCache>,
     pub other_aura_cache: Option<OtherAuraCache>,
@@ -67,6 +74,7 @@ pub struct SimulationCheckpoint {
     pub schema_version: u32,
     pub ruleset: Ruleset,
     pub game: GameState,
+    pub turn_schedule: TurnSchedule,
     pub dominant_player: PlayerId,
     pub next_game_entity_id: u64,
     pub next_play_order: u64,
@@ -133,6 +141,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                 display_name: entity.get::<DisplayName>().map(|value| value.0.clone()),
                 play_order: entity.get::<PlayOrder>().map(|value| value.0),
                 base_stats: entity.get::<BaseStats>().copied(),
+                base_keywords: entity.get::<BaseKeywords>().cloned(),
                 current_stats: entity.get::<CurrentStats>().copied(),
                 damage: entity.get::<Damage>().copied(),
                 armor: entity.get::<Armor>().copied(),
@@ -141,6 +150,8 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                 abilities: entity.get::<Abilities>().cloned(),
                 enchantments: entity.get::<Enchantments>().cloned(),
                 attack_state: entity.get::<AttackState>().copied(),
+                hero_metadata: entity.get::<HeroMetadata>().copied(),
+                hero_power_state: entity.get::<HeroPowerState>().copied(),
                 player: entity.get::<Player>().cloned(),
                 card_runtime: entity
                     .get::<CardRuntime>()
@@ -154,8 +165,11 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                     .get::<RuntimeContinuousEffects>()
                     .map(|value| value.0.clone()),
                 silenced: entity.contains::<Silenced>(),
+                keep_enchantments: entity.contains::<KeepEnchantments>(),
                 silence_removable: entity.contains::<SilenceRemovable>(),
                 stat_modifier: entity.get::<StatModifier>().copied(),
+                keyword_modifier: entity.get::<KeywordModifier>().copied(),
+                temporary_duration: entity.get::<TemporaryDuration>().copied(),
                 health_aura_cache: entity.get::<HealthAuraCache>().cloned(),
                 attack_aura_cache: entity.get::<AttackAuraCache>().cloned(),
                 other_aura_cache: entity.get::<OtherAuraCache>().cloned(),
@@ -172,6 +186,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
         schema_version: CHECKPOINT_SCHEMA_VERSION,
         ruleset: world.resource::<Ruleset>().clone(),
         game: world.resource::<GameState>().clone(),
+        turn_schedule: world.resource::<TurnSchedule>().clone(),
         dominant_player: world.resource::<DominantPlayer>().0,
         next_game_entity_id: world.resource::<NextGameEntityId>().0,
         next_play_order: world.resource::<PlayOrderCounter>().0,
@@ -199,6 +214,7 @@ pub(super) fn restore_checkpoint(
 
     world.insert_resource(checkpoint.ruleset);
     world.insert_resource(checkpoint.game);
+    world.insert_resource(checkpoint.turn_schedule);
     world.insert_resource(DominantPlayer(checkpoint.dominant_player));
     world.insert_resource(NextGameEntityId(checkpoint.next_game_entity_id));
     world.insert_resource(PlayOrderCounter(checkpoint.next_play_order));
@@ -251,6 +267,7 @@ pub(super) fn restore_checkpoint(
     }
 
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
+    assert_player_role_invariants(world).map_err(SimulationError::Invariant)?;
     crate::resolver::assert_resolution_invariants(world).map_err(SimulationError::Invariant)?;
     assert_game_entity_index(world).map_err(SimulationError::Invariant)
 }
@@ -276,6 +293,9 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
     if let Some(value) = object.base_stats {
         entity.insert(value);
     }
+    if let Some(value) = &object.base_keywords {
+        entity.insert(value.clone());
+    }
     if let Some(value) = object.current_stats {
         entity.insert(value);
     }
@@ -300,6 +320,12 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
     if let Some(value) = object.attack_state {
         entity.insert(value);
     }
+    if let Some(value) = object.hero_metadata {
+        entity.insert(value);
+    }
+    if let Some(value) = object.hero_power_state {
+        entity.insert(value);
+    }
     if let Some(value) = &object.player {
         entity.insert(value.clone());
     }
@@ -321,10 +347,19 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
     if object.silenced {
         entity.insert(Silenced);
     }
+    if object.keep_enchantments {
+        entity.insert(KeepEnchantments);
+    }
     if object.silence_removable {
         entity.insert(SilenceRemovable);
     }
     if let Some(value) = object.stat_modifier {
+        entity.insert(value);
+    }
+    if let Some(value) = object.keyword_modifier {
+        entity.insert(value);
+    }
+    if let Some(value) = object.temporary_duration {
         entity.insert(value);
     }
     if let Some(value) = &object.health_aura_cache {
@@ -480,6 +515,72 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
     }
     for entity in &checkpoint.entities {
         validate_checkpoint_entity(entity, &ids)?;
+    }
+    validate_checkpoint_player_roles(checkpoint)?;
+    Ok(())
+}
+
+fn validate_checkpoint_player_roles(
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), SimulationError> {
+    for player_id in PlayerId::ALL {
+        let players = checkpoint
+            .entities
+            .iter()
+            .filter(|entity| {
+                entity
+                    .player
+                    .as_ref()
+                    .is_some_and(|player| player.id == player_id)
+            })
+            .collect::<Vec<_>>();
+        if players.len() != 1
+            || players[0].kind != Some(EntityKind::Player)
+            || players[0].controller != Some(player_id)
+        {
+            return Err(SimulationError::Checkpoint(format!(
+                "player {player_id:?} must have exactly one valid Player entity"
+            )));
+        }
+
+        let heroes = checkpoint
+            .entities
+            .iter()
+            .filter(|entity| {
+                entity.kind == Some(EntityKind::Hero)
+                    && entity.controller == Some(player_id)
+                    && entity.zone == Some(Zone::Play)
+            })
+            .collect::<Vec<_>>();
+        if heroes.len() != 1
+            || heroes[0].current_stats.is_none()
+            || heroes[0].damage.is_none()
+            || heroes[0].armor.is_none()
+            || heroes[0].attack_state.is_none()
+            || heroes[0].hero_metadata.is_none()
+        {
+            return Err(SimulationError::Checkpoint(format!(
+                "player {player_id:?} must have exactly one valid active Hero"
+            )));
+        }
+
+        let powers = checkpoint
+            .entities
+            .iter()
+            .filter(|entity| {
+                entity.kind == Some(EntityKind::HeroPower)
+                    && entity.controller == Some(player_id)
+                    && entity.zone == Some(Zone::Play)
+            })
+            .collect::<Vec<_>>();
+        if powers.len() != 1
+            || powers[0].hero_power_state.is_none()
+            || powers[0].card_runtime.is_none()
+        {
+            return Err(SimulationError::Checkpoint(format!(
+                "player {player_id:?} must have exactly one valid active Hero Power"
+            )));
+        }
     }
     Ok(())
 }

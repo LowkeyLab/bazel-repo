@@ -3,16 +3,22 @@ use std::collections::VecDeque;
 use bevy::prelude::*;
 
 use crate::{
-    AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp, CurrentStats,
-    DamageRequest, EffectContext, EntityKind, EventContext, EventKind, GameEntityId, GameOutcome,
-    GameState, PhaseBoundaryPlan, PlayerId, ResolutionOp, ResolutionWork, ResolveFrame, Ruleset,
-    RuntimeTriggers, SequenceStep, SimulationStatus, TraceEntry, Zone,
-    entity::{allocate_play_order, game_entity},
+    AttachedTo, AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp,
+    CurrentStats, DamageRequest, EffectContext, EntityKind, EventContext, EventKind, GameEntityId,
+    GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan, PlayerId, ResolutionOp,
+    ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers, ScheduledTurnKind, SequenceStep,
+    SimulationStatus, TemporaryDuration, TraceEntry, TurnSchedule, Zone, ZoneMoveRequest,
+    ZoneMovementKind,
+    enchantment::{recalculate_keywords, recalculate_stats},
+    entity::game_entity,
     resolver::{
         abandon_sequence, begin_sequence, consume_budget, finish_sequence, pop_resolution_op,
         push_resolution_ops,
     },
-    zone::{ZoneIndex, assert_zone_invariants, board_is_full, move_entity, validate_zone_position},
+    zone::{
+        ZoneIndex, ZoneMoveOutcome, assert_zone_invariants, board_is_full, move_entity,
+        move_entity_with_request, validate_board_position, validate_zone_position,
+    },
 };
 
 use super::{
@@ -20,7 +26,7 @@ use super::{
     effect_executor::validate_effect_program,
     error::SimulationError,
     event_resolver::OperationFailure,
-    player::{controlled_entity_in_zone, player, player_mut},
+    player::{assert_player_role_invariants, controlled_entity_in_zone, player, player_mut},
     snapshot::assert_game_entity_index,
 };
 
@@ -276,16 +282,11 @@ fn validate_play_card(
             available,
         });
     }
-    validate_zone_position(
-        world,
-        player_id,
-        if kind == EntityKind::Minion {
-            Zone::Play
-        } else {
-            Zone::Graveyard
-        },
-        board_index,
-    )?;
+    if kind == EntityKind::Minion {
+        validate_board_position(world, player_id, board_index)?;
+    } else {
+        validate_zone_position(world, player_id, Zone::Graveyard, board_index)?;
+    }
     Ok(())
 }
 
@@ -356,6 +357,7 @@ fn finish_resolution_if_idle(world: &mut World) -> Result<(), SimulationError> {
         SimulationStatus::AwaitingAction
     };
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
+    assert_player_role_invariants(world).map_err(SimulationError::Invariant)?;
     assert_game_entity_index(world).map_err(SimulationError::Invariant)
 }
 
@@ -418,7 +420,11 @@ pub(super) fn run_sequence_step(
             end_turn(world, *player);
             Ok(())
         }
-        SequenceStep::StartTurn { player } => start_turn(world, *player),
+        SequenceStep::AdvanceTurn { ending_player } => {
+            advance_turn(world, *ending_player);
+            Ok(())
+        }
+        SequenceStep::StartTurn { player, kind } => start_turn(world, *player, *kind),
         SequenceStep::Concede { player } => {
             concede(world, *player);
             Ok(())
@@ -447,9 +453,12 @@ fn play_card(
     } else {
         Zone::Graveyard
     };
-    let (from, _) = move_entity(world, card_id, destination, board_index)?;
-    let order = allocate_play_order(world);
-    world.entity_mut(card_entity).insert(order);
+    let outcome = move_entity(world, card_id, destination, board_index)?;
+    let ZoneMoveOutcome::Moved { from, .. } = outcome else {
+        return Err(SimulationError::Invariant(format!(
+            "validated card move produced {outcome:?}"
+        )));
+    };
     world
         .resource_mut::<CanonicalTrace>()
         .entries
@@ -592,14 +601,83 @@ fn end_turn(world: &mut World, player_id: PlayerId) {
                 actual_value: None,
                 simultaneous_ordinal: 0,
             }),
-            ResolutionOp::RunSequenceStep(SequenceStep::StartTurn {
-                player: player_id.opponent(),
+            ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+            ResolutionOp::CheckOutcome,
+            ResolutionOp::RunSequenceStep(SequenceStep::AdvanceTurn {
+                ending_player: player_id,
             }),
         ],
     );
 }
 
-fn start_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
+fn advance_turn(world: &mut World, ending_player: PlayerId) {
+    if world.resource::<GameState>().outcome.is_some() {
+        return;
+    }
+    let next = world
+        .resource_mut::<TurnSchedule>()
+        .next_turn(ending_player);
+    expire_temporary_effects(world, ending_player, next.player);
+    push_resolution_ops(
+        world,
+        [ResolutionOp::RunSequenceStep(SequenceStep::StartTurn {
+            player: next.player,
+            kind: next.kind,
+        })],
+    );
+}
+
+fn expire_temporary_effects(world: &mut World, ending_player: PlayerId, next_player: PlayerId) {
+    let expiring = world
+        .iter_entities()
+        .filter_map(|entity| {
+            let duration = *entity.get::<TemporaryDuration>()?;
+            let expires = match duration {
+                TemporaryDuration::EndOfTurn(player) => player == ending_player,
+                TemporaryDuration::EndOfTurnSeries(player) => {
+                    player == ending_player && next_player != ending_player
+                }
+            };
+            if !expires {
+                return None;
+            }
+            Some((
+                *entity.get::<GameEntityId>()?,
+                entity.get::<Controller>()?.0,
+                entity.get::<AttachedTo>().map(|attached| attached.0),
+                entity.id(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    for (id, controller, attached_to, entity) in expiring {
+        let target = attached_to.and_then(|target| world.get::<GameEntityId>(target).copied());
+        world.entity_mut(entity).remove::<AttachedTo>();
+        let _ = move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: id,
+                destination_controller: controller,
+                destination: Zone::RemovedFromGame,
+                position: None,
+                kind: ZoneMovementKind::DetachEnchantment,
+            },
+        );
+        world
+            .resource_mut::<CanonicalTrace>()
+            .entries
+            .push(TraceEntry::TemporaryEffectExpired { entity: id });
+        if let Some(target) = target {
+            recalculate_stats(world, target);
+            recalculate_keywords(world, target);
+        }
+    }
+}
+
+fn start_turn(
+    world: &mut World,
+    player_id: PlayerId,
+    turn_kind: ScheduledTurnKind,
+) -> Result<(), SimulationError> {
     let maximum_mana = world.resource::<Ruleset>().maximum_mana;
     {
         let mut game = world.resource_mut::<GameState>();
@@ -612,16 +690,20 @@ fn start_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationEr
     player.temporary_resources = 0;
     player.locked_overload = player.pending_overload;
     player.pending_overload = 0;
-    let board = world
+    let turn_entities = world
         .resource::<ZoneIndex>()
         .entities(player_id, Zone::Play)
         .to_vec();
-    for id in board {
-        if let Some(entity) = game_entity(world, id)
-            && let Some(mut state) = world.get_mut::<AttackState>(entity)
-        {
-            state.attacks_this_turn = 0;
-            state.exhausted = false;
+    for id in turn_entities {
+        if let Some(entity) = game_entity(world, id) {
+            if let Some(mut state) = world.get_mut::<AttackState>(entity) {
+                state.attacks_this_turn = 0;
+                state.exhausted = false;
+            }
+            if let Some(mut state) = world.get_mut::<HeroPowerState>(entity) {
+                state.uses_this_turn = 0;
+                state.exhausted = false;
+            }
         }
     }
     let turn = world.resource::<GameState>().turn_number;
@@ -631,6 +713,7 @@ fn start_turn(world: &mut World, player_id: PlayerId) -> Result<(), SimulationEr
         .push(TraceEntry::TurnChanged {
             active_player: player_id,
             turn,
+            kind: turn_kind,
         });
     push_resolution_ops(
         world,

@@ -51,10 +51,46 @@ pub enum EntityKind {
     Dormant,
     Enchantment,
     Secret,
+    Quest,
+    Sidequest,
 }
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Controller(pub PlayerId);
+
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
+pub enum HeroClass {
+    DeathKnight,
+    DemonHunter,
+    Druid,
+    Hunter,
+    Mage,
+    Paladin,
+    Priest,
+    Rogue,
+    Shaman,
+    Warlock,
+    Warrior,
+    #[default]
+    Neutral,
+}
+
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
+pub struct HeroMetadata {
+    pub class: HeroClass,
+}
+
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
+pub struct HeroPowerState {
+    pub uses_this_turn: u32,
+    pub exhausted: bool,
+}
 
 #[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct DisplayName(pub String);
@@ -96,12 +132,16 @@ pub struct PendingDestroy;
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Silenced;
 
+#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct KeepEnchantments;
+
 #[derive(
     Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
 )]
 pub enum Keyword {
     Charge,
     DivineShield,
+    Frozen,
     Immune,
     Lifesteal,
     Poisonous,
@@ -110,6 +150,9 @@ pub enum Keyword {
     Taunt,
     Windfury,
 }
+
+#[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BaseKeywords(pub BTreeSet<Keyword>);
 
 #[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Keywords(pub BTreeSet<Keyword>);

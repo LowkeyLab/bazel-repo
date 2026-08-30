@@ -25,6 +25,8 @@ pub enum SimulationError {
     },
     #[error("entity {0:?} is not a playable card")]
     NotPlayable(GameEntityId),
+    #[error("invalid hero replacement: {0}")]
+    InvalidHeroReplacement(String),
     #[error("player {player:?} needs {required} mana but only has {available}")]
     NotEnoughMana {
         player: PlayerId,

@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 
 use crate::{
-    Armor, AttackState, BaseStats, Card, Controller, CurrentStats, Damage, DefinitionId,
-    DisplayName, Effect, EntityKind, GameEntityId, GameObject, Keywords, PlayOrder, Player,
-    PlayerConfig, PlayerId, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    STARTING_HEALTH, Zone, entity::allocate_game_id, zone::insert_into_zone,
+    Armor, AttackState, BaseKeywords, BaseStats, Card, Controller, CurrentStats, Damage,
+    DefinitionId, DisplayName, Effect, EntityKind, GameEntityId, GameObject, HeroClass,
+    HeroMetadata, HeroPowerState, Keywords, PlayOrder, Player, PlayerConfig, PlayerId,
+    RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, Zone,
+    entity::allocate_game_id,
+    zone::{insert_into_zone, validate_generation_capacity},
 };
 
 use super::error::SimulationError;
@@ -82,9 +84,20 @@ fn spawn_player(
         Damage::default(),
         Armor::default(),
         AttackState::default(),
+        BaseKeywords::default(),
         Keywords::default(),
+        HeroMetadata {
+            class: HeroClass::Neutral,
+        },
     ));
     insert_into_zone(world, hero_id, player_id, Zone::Play, None)?;
+
+    spawn_card(
+        world,
+        player_id,
+        Card::hero_power(format!("{name}'s Hero Power"), 2),
+        Zone::Play,
+    )?;
     Ok(())
 }
 
@@ -94,6 +107,10 @@ pub(super) fn spawn_card(
     card: Card,
     zone: Zone,
 ) -> Result<GameEntityId, SimulationError> {
+    validate_generation_capacity(world, player_id, zone, card.kind, &card.definition_id)?;
+    let kind = card.kind;
+    let base_keywords = BaseKeywords(card.keywords.clone());
+    let keywords = Keywords(card.keywords.clone());
     let id = allocate_game_id(world);
     let entity = world
         .spawn((
@@ -117,7 +134,8 @@ pub(super) fn spawn_card(
                 attacks_this_turn: 0,
                 exhausted: true,
             },
-            Keywords::default(),
+            base_keywords,
+            keywords,
             CardRuntime {
                 cost: card.mana_cost,
                 program: card.effects,
@@ -129,6 +147,17 @@ pub(super) fn spawn_card(
         RuntimeAuras(card.auras),
         RuntimeContinuousEffects(card.continuous_effects),
     ));
+    if kind == EntityKind::HeroPower {
+        world.entity_mut(entity).insert(HeroPowerState::default());
+    }
+    if kind == EntityKind::Hero {
+        world.entity_mut(entity).insert((
+            Armor::default(),
+            HeroMetadata {
+                class: HeroClass::Neutral,
+            },
+        ));
+    }
     if let Err(error) = insert_into_zone(world, id, player_id, zone, None) {
         world.despawn(entity);
         return Err(error.into());

@@ -1,9 +1,22 @@
 use bevy::prelude::*;
 
 use crate::{
-    AttackAuraCache, AuraModifier, BaseStats, CurrentStats, Damage, GameEntityId, HealthAuraCache,
-    PlayOrder, entity::game_entity,
+    AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, CurrentStats, Damage, GameEntityId,
+    HealthAuraCache, Keyword, Keywords, PlayOrder, PlayerId, Silenced, entity::game_entity,
 };
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum TemporaryDuration {
+    EndOfTurn(PlayerId),
+    EndOfTurnSeries(PlayerId),
+}
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct KeywordModifier {
+    pub keyword: Keyword,
+    pub granted: bool,
+    pub silence_removable: bool,
+}
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct StatModifier {
@@ -19,6 +32,51 @@ pub struct AttachedTo(#[relationship] pub Entity);
 #[derive(Component, Debug)]
 #[relationship_target(relationship = AttachedTo, linked_spawn)]
 pub struct AttachedEnchantments(#[relationship] Vec<Entity>);
+
+pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {
+    let Some(entity) = game_entity(world, target) else {
+        return;
+    };
+    let silenced = world.get::<Silenced>(entity).is_some();
+    let mut keywords = if silenced {
+        std::collections::BTreeSet::new()
+    } else {
+        world
+            .get::<BaseKeywords>(entity)
+            .map_or_else(std::collections::BTreeSet::new, |keywords| {
+                keywords.0.clone()
+            })
+    };
+    let mut modifiers = world
+        .get::<AttachedEnchantments>(entity)
+        .map(|attachments| {
+            attachments
+                .0
+                .iter()
+                .filter_map(|enchantment| {
+                    Some((
+                        world
+                            .get::<PlayOrder>(*enchantment)
+                            .map_or(0, |order| order.0),
+                        *world.get::<KeywordModifier>(*enchantment)?,
+                    ))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    modifiers.sort_by_key(|(order, _)| *order);
+    for (_, modifier) in modifiers {
+        if silenced && modifier.silence_removable {
+            continue;
+        }
+        if modifier.granted {
+            keywords.insert(modifier.keyword);
+        } else {
+            keywords.remove(&modifier.keyword);
+        }
+    }
+    world.entity_mut(entity).insert(Keywords(keywords));
+}
 
 pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {

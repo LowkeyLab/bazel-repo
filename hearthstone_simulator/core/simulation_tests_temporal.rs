@@ -1,0 +1,512 @@
+use googletest::prelude::*;
+
+use super::{test_support::*, *};
+use crate::{ExtraTurnTiming, KeywordModifier, ScheduledTurnKind, TemporaryDuration};
+
+fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
+    simulation
+        .snapshot()
+        .objects
+        .into_iter()
+        .find(|object| object.id == id)
+        .unwrap()
+}
+
+#[googletest::test]
+fn after_current_extra_turns_extend_the_active_players_turn_series() {
+    let time_warp =
+        Card::spell("Time Warp Fixture", 0).with_effects(vec![Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Controller,
+            count: 2,
+            timing: ExtraTurnTiming::AfterCurrentTurn,
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![time_warp]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let time_warp = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: time_warp,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    for expected in [PlayerId::One, PlayerId::One, PlayerId::Two] {
+        let active = simulation.snapshot().game.active_player;
+        simulation
+            .apply(GameAction::EndTurn { player: active })
+            .unwrap();
+        assert_that!(simulation.snapshot().game.active_player, eq(expected));
+    }
+    let changed = simulation
+        .trace()
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::TurnChanged {
+                active_player,
+                kind,
+                ..
+            } => Some((*active_player, *kind)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(
+        changed,
+        eq(&vec![
+            (PlayerId::One, ScheduledTurnKind::Extra),
+            (PlayerId::One, ScheduledTurnKind::Extra),
+            (PlayerId::Two, ScheduledTurnKind::Natural),
+        ])
+    );
+}
+
+#[googletest::test]
+fn next_series_extras_are_grouped_with_each_players_natural_turn() {
+    let temporus = Card::spell("Temporus Fixture", 0).with_effects(vec![
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Opponent,
+            count: 1,
+            timing: ExtraTurnTiming::DuringNextTurnSeries,
+        },
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Controller,
+            count: 1,
+            timing: ExtraTurnTiming::DuringNextTurnSeries,
+        },
+    ]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![temporus]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let temporus = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: temporus,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    let mut sequence = vec![PlayerId::One];
+    for _ in 0..4 {
+        let active = simulation.snapshot().game.active_player;
+        simulation
+            .apply(GameAction::EndTurn { player: active })
+            .unwrap();
+        sequence.push(simulation.snapshot().game.active_player);
+    }
+    assert_that!(
+        sequence,
+        eq(&vec![
+            PlayerId::One,
+            PlayerId::Two,
+            PlayerId::Two,
+            PlayerId::One,
+            PlayerId::One,
+        ])
+    );
+}
+
+#[googletest::test]
+fn end_of_turn_enchantments_expire_before_the_next_turn_starts() {
+    let buff =
+        Card::spell("Brief Strength", 0).with_effects(vec![Effect::AttachTemporaryStatModifier {
+            targets: Selector::DeclaredTarget,
+            modifier: StatModifier {
+                attack: 3,
+                health: 0,
+                silence_removable: true,
+            },
+            duration: TemporaryDuration::EndOfTurn(PlayerId::One),
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), buff]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let buff = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: buff,
+            target: Some(target),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    assert_that!(object(&mut simulation, target).attack, eq(Some(4)));
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    assert_that!(object(&mut simulation, target).attack, eq(Some(1)));
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::TemporaryEffectExpired { .. })),
+        is_true()
+    );
+}
+
+#[googletest::test]
+fn opponent_turn_series_duration_survives_contiguous_extra_turns() {
+    let setup = Card::spell("Series Fixture", 0).with_effects(vec![
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Opponent,
+            count: 1,
+            timing: ExtraTurnTiming::DuringNextTurnSeries,
+        },
+        Effect::AttachTemporaryStatModifier {
+            targets: Selector::DeclaredTarget,
+            modifier: StatModifier {
+                attack: 2,
+                health: 0,
+                silence_removable: true,
+            },
+            duration: TemporaryDuration::EndOfTurnSeries(PlayerId::Two),
+        },
+    ]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), setup]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let setup = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: setup,
+            target: Some(target),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    assert_that!(object(&mut simulation, target).attack, eq(Some(3)));
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(simulation.snapshot().game.active_player, eq(PlayerId::Two));
+    assert_that!(object(&mut simulation, target).attack, eq(Some(3)));
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(simulation.snapshot().game.active_player, eq(PlayerId::One));
+    assert_that!(object(&mut simulation, target).attack, eq(Some(1)));
+}
+
+fn play_named_card(simulation: &mut Simulation, name: &str) {
+    let card = simulation
+        .snapshot()
+        .objects
+        .iter()
+        .find(|object| object.name == name && object.zone == Zone::Hand)
+        .unwrap()
+        .id;
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+}
+
+fn temporus_time_warp_sequence(reverse_play_order: bool) -> Vec<PlayerId> {
+    let temporus = Card::spell("Brann Temporus Fixture", 0).with_effects(vec![
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Opponent,
+            count: 2,
+            timing: ExtraTurnTiming::DuringNextTurnSeries,
+        },
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Controller,
+            count: 1,
+            timing: ExtraTurnTiming::AfterCurrentTurn,
+        },
+    ]);
+    let time_warp = Card::spell("Time Warp Composition Fixture", 0).with_effects(vec![
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Controller,
+            count: 1,
+            timing: ExtraTurnTiming::AfterCurrentTurn,
+        },
+    ]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![temporus, time_warp]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let order = if reverse_play_order {
+        ["Time Warp Composition Fixture", "Brann Temporus Fixture"]
+    } else {
+        ["Brann Temporus Fixture", "Time Warp Composition Fixture"]
+    };
+    for name in order {
+        play_named_card(&mut simulation, name);
+    }
+
+    let mut sequence = vec![PlayerId::One];
+    for _ in 0..6 {
+        let active = simulation.snapshot().game.active_player;
+        simulation
+            .apply(GameAction::EndTurn { player: active })
+            .unwrap();
+        sequence.push(simulation.snapshot().game.active_player);
+    }
+    sequence
+}
+
+#[googletest::test]
+fn temporus_and_time_warp_follow_turn_series_precedence_in_either_play_order() {
+    let expected = vec![
+        PlayerId::One,
+        PlayerId::Two,
+        PlayerId::Two,
+        PlayerId::Two,
+        PlayerId::One,
+        PlayerId::One,
+        PlayerId::One,
+    ];
+    assert_that!(temporus_time_warp_sequence(false), eq(&expected));
+    assert_that!(temporus_time_warp_sequence(true), eq(&expected));
+}
+
+#[googletest::test]
+fn opposing_temporus_effects_produce_the_rulebook_turn_series() {
+    let mut schedule = TurnSchedule::default();
+    schedule.schedule(
+        PlayerId::One,
+        PlayerId::Two,
+        1,
+        ExtraTurnTiming::DuringNextTurnSeries,
+    );
+    schedule.schedule(
+        PlayerId::One,
+        PlayerId::One,
+        1,
+        ExtraTurnTiming::DuringNextTurnSeries,
+    );
+
+    let first = schedule.next_turn(PlayerId::One);
+    schedule.schedule(
+        PlayerId::Two,
+        PlayerId::One,
+        1,
+        ExtraTurnTiming::DuringNextTurnSeries,
+    );
+    schedule.schedule(
+        PlayerId::Two,
+        PlayerId::Two,
+        1,
+        ExtraTurnTiming::DuringNextTurnSeries,
+    );
+    let mut sequence = vec![first.player];
+    let mut ending = first.player;
+    for _ in 0..5 {
+        let next = schedule.next_turn(ending);
+        sequence.push(next.player);
+        ending = next.player;
+    }
+    assert_that!(
+        sequence,
+        eq(&vec![
+            PlayerId::Two,
+            PlayerId::Two,
+            PlayerId::One,
+            PlayerId::One,
+            PlayerId::One,
+            PlayerId::Two,
+        ])
+    );
+}
+
+#[googletest::test]
+fn after_current_grants_are_anchored_to_the_active_player_not_the_controller() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::Two,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Controller,
+            count: 1,
+            timing: ExtraTurnTiming::AfterCurrentTurn,
+        },
+    )
+    .unwrap();
+
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<TurnSchedule>()
+            .after_current_anchor,
+        eq(Some(PlayerId::One))
+    );
+}
+
+#[googletest::test]
+fn non_stat_keyword_enchantment_expires_after_the_full_turn_series() {
+    let setup = Card::spell("Series Immune Fixture", 0).with_effects(vec![
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Opponent,
+            count: 1,
+            timing: ExtraTurnTiming::DuringNextTurnSeries,
+        },
+        Effect::AttachKeywordModifier {
+            targets: Selector::DeclaredTarget,
+            modifier: KeywordModifier {
+                keyword: Keyword::Immune,
+                granted: true,
+                silence_removable: true,
+            },
+            duration: Some(TemporaryDuration::EndOfTurnSeries(PlayerId::Two)),
+        },
+    ]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Protected", 0, 1, 2), setup]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let setup = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: setup,
+            target: Some(target),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<Keywords>(target_entity)
+            .unwrap()
+            .0
+            .contains(&Keyword::Immune),
+        is_true()
+    );
+
+    for expected_active in [PlayerId::Two, PlayerId::Two] {
+        let active = simulation.snapshot().game.active_player;
+        simulation
+            .apply(GameAction::EndTurn { player: active })
+            .unwrap();
+        assert_that!(
+            simulation.snapshot().game.active_player,
+            eq(expected_active)
+        );
+        assert_that!(
+            simulation
+                .app
+                .world()
+                .get::<Keywords>(target_entity)
+                .unwrap()
+                .0
+                .contains(&Keyword::Immune),
+            is_true()
+        );
+    }
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<Keywords>(target_entity)
+            .unwrap()
+            .0
+            .contains(&Keyword::Immune),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn checkpoint_roundtrip_preserves_pending_turn_schedule() {
+    let warp = Card::spell("Warp", 0).with_effects(vec![Effect::ScheduleExtraTurns {
+        player: PlayerSelector::Controller,
+        count: 1,
+        timing: ExtraTurnTiming::AfterCurrentTurn,
+    }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![warp]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let warp = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: warp,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    let checkpoint = simulation.checkpoint().unwrap();
+    let restored = Simulation::from_checkpoint(checkpoint.clone()).unwrap();
+    assert_that!(
+        restored.app.world().resource::<TurnSchedule>(),
+        eq(&checkpoint.turn_schedule)
+    );
+}
