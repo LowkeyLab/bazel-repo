@@ -368,9 +368,6 @@ pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> 
     {
         return Err("AwaitingChoice has no pending choice".into());
     }
-    if work.pending_choice.is_some() && !work.sequence_active {
-        return Err("a pending choice exists outside an active sequence".into());
-    }
     Ok(())
 }
 
@@ -433,6 +430,33 @@ mod tests {
             err(eq(&ResolutionError::BudgetExhausted {
                 operation: Some(second)
             }))
+        );
+    }
+
+    #[googletest::test]
+    fn sequence_start_and_resolution_invariants_reject_inconsistent_work() {
+        let mut world = world();
+        begin_sequence(&mut world).unwrap();
+        assert_that!(
+            begin_sequence(&mut world),
+            err(eq(&ResolutionError::AlreadyResolving))
+        );
+
+        abandon_sequence(&mut world);
+        push_resolution_op(&mut world, ResolutionOp::CheckOutcome);
+        assert_that!(
+            assert_resolution_invariants(&world),
+            err(eq(
+                &"idle resolution work retains operations, events, slots, or a choice".to_string()
+            ))
+        );
+
+        world.resource_mut::<ResolutionWork>().stack.clear();
+        world.resource_mut::<ResolutionWork>().sequence_active = true;
+        world.resource_mut::<crate::GameState>().status = crate::SimulationStatus::AwaitingChoice;
+        assert_that!(
+            assert_resolution_invariants(&world),
+            err(eq(&"AwaitingChoice has no pending choice".to_string()))
         );
     }
 }

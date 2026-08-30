@@ -27,3 +27,17 @@ pub(crate) type NativeEffectFactory =
 
 #[derive(Default, Resource)]
 pub(crate) struct NativeEffectRegistry(pub BTreeMap<NativeEffectId, NativeEffectSystem>);
+
+#[cfg(test)]
+mod tests {
+    use googletest::prelude::*;
+
+    use super::*;
+
+    #[googletest::test]
+    fn native_effect_ids_convert_from_string_slices() {
+        let id: NativeEffectId = "synthetic:test".into();
+
+        assert_that!(id, eq(&NativeEffectId::new("synthetic:test")));
+    }
+}

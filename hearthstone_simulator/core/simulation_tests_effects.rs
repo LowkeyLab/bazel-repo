@@ -281,6 +281,59 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
 }
 
 #[googletest::test]
+fn multi_draw_expands_into_ordered_single_draw_operations() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck(
+            "Jaina",
+            vec![Card::spell("First", 0), Card::spell("Second", 0)],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+    };
+    execute_effect(
+        world,
+        &context,
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 0,
+        },
+    )
+    .unwrap();
+    execute_effect(
+        world,
+        &context,
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Hand)
+            .len(),
+        eq(2)
+    );
+    assert_that!(
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Deck)
+            .is_empty(),
+        is_true()
+    );
+}
+
+#[googletest::test]
 fn native_handlers_flush_commands_and_return_nested_effect_plans() {
     let native_id = NativeEffectId::new("synthetic:native_damage");
     let spell = Card::spell("Native Bolt", 0).with_effects(vec![Effect::Native(native_id.clone())]);
@@ -390,6 +443,38 @@ fn native_returned_event_modifiers_are_validated_before_execution() {
     );
     take_prepared_event(world, event).unwrap();
     finish_sequence(world);
+}
+
+#[googletest::test]
+fn action_resolution_errors_abandon_work_and_restore_input_state() {
+    let native_id = NativeEffectId::new("synthetic:invalid_action_modifier");
+    let card = Card::spell("Invalid Native Modifier", 0)
+        .with_effects(vec![Effect::Native(native_id.clone())]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![card]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    simulation
+        .register_native_effect(native_id, synthetic_native_modifier_handler)
+        .unwrap();
+    let card = hand_card(&mut simulation, PlayerId::One);
+
+    assert_that!(
+        simulation.apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        }),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+    assert_that!(simulation.resolution_work().sequence_active, is_false());
+    assert_that!(simulation.resolution_work().stack.is_empty(), is_true());
+    assert_that!(
+        simulation.app.world().resource::<GameState>().status,
+        eq(SimulationStatus::AwaitingAction)
+    );
 }
 
 #[googletest::test]

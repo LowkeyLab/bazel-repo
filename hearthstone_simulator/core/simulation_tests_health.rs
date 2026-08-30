@@ -814,6 +814,19 @@ fn damage_handles_missing_targets_immunity_shields_armor_and_negative_values() {
         SimultaneousEventOrder::Given,
     )
     .unwrap();
+    expand_damage_batch(simulation.app.world_mut(), Vec::new());
+    expand_healing_batch(simulation.app.world_mut(), Vec::new());
+    let player_entity = simulation.snapshot().players[0].entity;
+    apply_healing_batch(
+        simulation.app.world_mut(),
+        vec![HealingRequest {
+            source: None,
+            target: player_entity,
+            proposed: 1,
+        }],
+        SimultaneousEventOrder::Given,
+    )
+    .unwrap();
     apply_healing_batch(
         simulation.app.world_mut(),
         vec![HealingRequest {

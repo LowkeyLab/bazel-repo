@@ -15,11 +15,12 @@ use crate::{
 
 #[cfg(test)]
 use crate::{
-    Armor, Card, ChoiceId, ChoiceOption, ChoiceRequest, Damage, EntityKind, EventContext, EventId,
-    EventKind, EventSlotId, EventValueOperation, GameEntityId, GameObject, GameOutcome,
-    HealingRequest, Keyword, Keywords, PlayerId, PlayerSelector, PreparedEvent, PreparedEventSlot,
-    ResolutionError, ResolutionId, ResolutionOp, RuntimeTriggers, STARTING_HEALTH, Selector,
-    StackedResolutionOp, ValueExpression, Zone,
+    Abilities, Armor, AuraApplication, AuraCache, Card, ChoiceId, ChoiceOption, ChoiceRequest,
+    Damage, DeathRecord, Enchantments, EntityKind, EventContext, EventId, EventKind, EventSlotId,
+    EventValueOperation, GameEntityId, GameObject, GameOutcome, HealingRequest, Keyword, Keywords,
+    PendingDestroy, PlayerId, PlayerSelector, PreparedEvent, PreparedEventSlot, ResolutionError,
+    ResolutionId, ResolutionOp, RuntimeTriggers, STARTING_HEALTH, Selector, StackedResolutionOp,
+    ValueExpression, Zone,
     enchantment::StatModifier,
     entity::game_entity,
     resolver::{begin_sequence, finish_sequence, push_resolution_ops},
@@ -69,9 +70,14 @@ use effect_executor::{
     select_entities, silence_entity, transform_entity,
 };
 #[cfg(test)]
-use event_resolver::{prepare_event, take_prepared_event};
+use event_resolver::{
+    OperationFailure, execute_current_resolution_op, prepare_event, take_prepared_event,
+};
 #[cfg(test)]
-use health::{SimultaneousEventOrder, apply_damage, apply_damage_batch, apply_healing_batch};
+use health::{
+    SimultaneousEventOrder, apply_damage, apply_damage_batch, apply_healing_batch,
+    expand_damage_batch, expand_healing_batch,
+};
 #[cfg(test)]
 use player::{check_outcome, draw_card, hero_id, player};
 

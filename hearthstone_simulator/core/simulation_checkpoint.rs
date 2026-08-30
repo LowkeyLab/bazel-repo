@@ -321,6 +321,9 @@ fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
     for stacked in &resolution.stack {
         validate_resolution_operation(world, &stacked.operation)?;
     }
+    if let Some(pending) = &resolution.pending_choice {
+        validate_choice_request(world, &pending.request)?;
+    }
     for event in resolution.events.values() {
         if let Some(seeds) = &event.prechecked_triggers {
             for seed in seeds {
@@ -364,16 +367,21 @@ fn validate_resolution_operation(
             &candidate.definition.effect_program,
             Some(candidate.definition.event),
         ),
-        crate::ResolutionOp::RequestChoice(request) => {
-            for option in &request.options {
-                for operation in &option.operations {
-                    validate_resolution_operation(world, operation)?;
-                }
-            }
-            Ok(())
-        }
+        crate::ResolutionOp::RequestChoice(request) => validate_choice_request(world, request),
         _ => Ok(()),
     }
+}
+
+fn validate_choice_request(
+    world: &World,
+    request: &crate::ChoiceRequest,
+) -> Result<(), SimulationError> {
+    for option in &request.options {
+        for operation in &option.operations {
+            validate_resolution_operation(world, operation)?;
+        }
+    }
+    Ok(())
 }
 
 fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), SimulationError> {

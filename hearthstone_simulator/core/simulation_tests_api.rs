@@ -87,6 +87,34 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
 }
 
 #[googletest::test]
+fn current_operation_dispatch_handles_empty_and_missing_event_work() {
+    let mut simulation = simulation();
+    let world = simulation.app.world_mut();
+    execute_current_resolution_op(world);
+    assert_that!(world.resource::<OperationFailure>().0, none());
+
+    for operation in [
+        ResolutionOp::FinishEvent(EventId(999)),
+        ResolutionOp::ResolveEvent(EventId(999)),
+    ] {
+        world.resource_mut::<CurrentResolutionOp>().0 = Some(StackedResolutionOp {
+            id: ResolutionId(999),
+            operation,
+        });
+        execute_current_resolution_op(world);
+        assert_that!(
+            matches!(
+                world.resource_mut::<OperationFailure>().0.take(),
+                Some(SimulationError::Resolution(ResolutionError::MissingEvent(
+                    EventId(999)
+                )))
+            ),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
 fn choice_suspension_retains_lower_stack_work_and_resumes_selected_branch_first() {
     let mut simulation = simulation();
     let context = EffectContext {
@@ -228,6 +256,122 @@ fn failed_choice_resume_abandons_retained_work_and_recovers_input_state() {
 }
 
 #[googletest::test]
+fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
+    let mut original = simulation();
+    let target = hand_card(&mut original, PlayerId::One);
+    let world = original.app.world_mut();
+    attach_stat_modifier(
+        world,
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 2,
+            health: 3,
+            silence_removable: true,
+        },
+    )
+    .unwrap();
+    let enchantment = world
+        .iter_entities()
+        .find_map(|entity| {
+            entity
+                .contains::<StatModifier>()
+                .then(|| entity.get::<GameEntityId>().copied())
+                .flatten()
+        })
+        .unwrap();
+    let target_entity = game_entity(world, target).unwrap();
+    world.entity_mut(target_entity).insert((
+        Armor(4),
+        PendingDestroy,
+        Abilities(vec!["Battlecry".to_string()]),
+        Enchantments(vec![enchantment]),
+        AuraCache(vec![AuraApplication {
+            provider: target,
+            attack: 1,
+            health: 1,
+        }]),
+        TriggersSuppressed,
+        DeathRecord {
+            entity: target,
+            controller: PlayerId::One,
+            kind: EntityKind::Minion,
+            play_order: 3,
+            remembered_zone_position: 0,
+            simultaneous_ordinal: 0,
+            turn_of_death: 1,
+        },
+    ));
+
+    let checkpoint = original.checkpoint().unwrap();
+    let mut restored = simulation();
+    restored.restore(checkpoint.clone()).unwrap();
+
+    assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+    let restored_target = game_entity(restored.app.world(), target).unwrap();
+    assert_that!(
+        restored.app.world().get::<Armor>(restored_target),
+        eq(Some(&Armor(4)))
+    );
+    assert_that!(
+        restored.app.world().get::<Abilities>(restored_target),
+        eq(Some(&Abilities(vec!["Battlecry".to_string()])))
+    );
+    let restored_enchantment = game_entity(restored.app.world(), enchantment).unwrap();
+    assert_that!(
+        restored
+            .app
+            .world()
+            .get::<crate::AttachedTo>(restored_enchantment)
+            .map(|attached| attached.0),
+        eq(Some(restored_target))
+    );
+}
+
+#[googletest::test]
+fn checkpoint_builder_rejects_executing_ops_and_invalid_world_relationships() {
+    let mut simulation = simulation();
+    simulation
+        .app
+        .world_mut()
+        .resource_mut::<CurrentResolutionOp>()
+        .0 = Some(StackedResolutionOp {
+        id: ResolutionId(1),
+        operation: ResolutionOp::CheckOutcome,
+    });
+    assert_that!(
+        matches!(simulation.checkpoint(), Err(SimulationError::Checkpoint(_))),
+        is_true()
+    );
+    simulation
+        .app
+        .world_mut()
+        .resource_mut::<CurrentResolutionOp>()
+        .0 = None;
+
+    let without_id = simulation.app.world_mut().spawn(GameObject).id();
+    assert_that!(
+        matches!(simulation.checkpoint(), Err(SimulationError::Checkpoint(_))),
+        is_true()
+    );
+    simulation.app.world_mut().despawn(without_id);
+
+    let raw_target = simulation.app.world_mut().spawn_empty().id();
+    simulation
+        .app
+        .world_mut()
+        .spawn((GameEntityId(999), crate::AttachedTo(raw_target)));
+    assert_that!(
+        matches!(simulation.checkpoint(), Err(SimulationError::Checkpoint(_))),
+        is_true()
+    );
+    assert_that!(
+        SimulationCheckpoint::from_json("not json"),
+        err(matches_pattern!(SimulationError::Checkpoint(_)))
+    );
+}
+
+#[googletest::test]
 fn checkpoints_reject_missing_logical_relationship_targets() {
     let simulation = simulation();
     let mut checkpoint = simulation.checkpoint().unwrap();
@@ -292,6 +436,202 @@ fn checkpoints_reject_non_monotonic_resolution_counters() {
             is_true()
         );
     }
+}
+
+#[googletest::test]
+fn checkpoints_reject_invalid_versions_rng_entities_zones_and_enchantments() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let mut malformed = Vec::new();
+
+    let mut schema = base.clone();
+    schema.schema_version += 1;
+    malformed.push(schema);
+
+    let mut revision = base.clone();
+    revision.ruleset.rulebook_revision += 1;
+    malformed.push(revision);
+
+    let mut rng = base.clone();
+    rng.rng.algorithm_version = crate::RNG_ALGORITHM_VERSION + 1;
+    malformed.push(rng);
+
+    let mut duplicate = base.clone();
+    duplicate.entities.push(duplicate.entities[0].clone());
+    malformed.push(duplicate);
+
+    let mut counter = base.clone();
+    counter.next_game_entity_id = counter.entities.last().unwrap().id.0;
+    malformed.push(counter);
+
+    let mut controller = base.clone();
+    let zoned = controller
+        .entities
+        .iter_mut()
+        .find(|entity| entity.zone.is_some())
+        .unwrap();
+    zoned.controller = None;
+    malformed.push(controller);
+
+    let mut position = base.clone();
+    let zoned = position
+        .entities
+        .iter_mut()
+        .find(|entity| entity.zone.is_some())
+        .unwrap();
+    zoned.zone_position = None;
+    malformed.push(position);
+
+    let mut enchantment = base;
+    enchantment.entities[0].enchantments = Some(Enchantments(vec![GameEntityId(u64::MAX)]));
+    malformed.push(enchantment);
+
+    for checkpoint in malformed {
+        assert_that!(
+            matches!(
+                Simulation::from_checkpoint(checkpoint),
+                Err(SimulationError::Checkpoint(_))
+            ),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
+fn pending_choice_programs_are_validated_during_restoration() {
+    let mut simulation = simulation();
+    let missing = NativeEffectId::new("missing:pending_choice");
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(30),
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: ChoiceId(31),
+                operations: vec![ResolutionOp::RunEffect {
+                    context: EffectContext {
+                        source: None,
+                        controller: PlayerId::One,
+                        declared_target: None,
+                    },
+                    effect: Effect::Native(missing.clone()),
+                    event: None,
+                }],
+            }],
+        })],
+    );
+    drive_resolution(world).unwrap();
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(simulation.checkpoint().unwrap()),
+            Err(SimulationError::NativeEffectNotRegistered(id)) if id == missing
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
+fn retained_event_and_operation_programs_are_validated_during_restoration() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint.entities[0].id;
+    let definition = crate::TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: crate::SourceEligibilityPolicy::RememberedSource,
+        priority: 0,
+        wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let seed = crate::TriggerSeed {
+        source,
+        definition_index: 0,
+        definition: definition.clone(),
+        controller: PlayerId::One,
+        zone: Zone::Play,
+        play_order: 0,
+    };
+    let candidate = crate::TriggerCandidate {
+        source,
+        event: EventId(1),
+        definition_index: 0,
+        definition,
+        controller: PlayerId::One,
+        order: crate::TriggerOrderKey {
+            player_bucket: 0,
+            zone_bucket: 0,
+            priority: 0,
+            play_order: 0,
+            source,
+            tie_breaker: 0,
+        },
+    };
+    checkpoint.resolution.events.insert(
+        EventId(1),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: Some(source),
+                targets: vec![source],
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: Some(1),
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: Some(vec![seed]),
+            candidates: Some(vec![candidate.clone()]),
+        },
+    );
+    checkpoint.resolution.stack = vec![
+        StackedResolutionOp {
+            id: ResolutionId(1),
+            operation: ResolutionOp::RunEffect {
+                context: EffectContext {
+                    source: Some(source),
+                    controller: PlayerId::One,
+                    declared_target: Some(source),
+                },
+                effect: Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 1,
+                    temporary: true,
+                },
+                event: Some(EventId(1)),
+            },
+        },
+        StackedResolutionOp {
+            id: ResolutionId(2),
+            operation: ResolutionOp::AttemptTrigger(candidate),
+        },
+        StackedResolutionOp {
+            id: ResolutionId(3),
+            operation: ResolutionOp::RequestChoice(ChoiceRequest {
+                id: ChoiceId(40),
+                player: PlayerId::One,
+                options: vec![ChoiceOption {
+                    id: ChoiceId(41),
+                    operations: vec![ResolutionOp::CheckOutcome],
+                }],
+            }),
+        },
+    ];
+    checkpoint.resolution.next_resolution_id = 4;
+    checkpoint.resolution.next_event_id = 2;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    let restored = Simulation::from_checkpoint(checkpoint.clone()).unwrap();
+
+    assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
 }
 
 #[googletest::test]

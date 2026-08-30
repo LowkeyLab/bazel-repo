@@ -350,7 +350,7 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
-    use crate::{GameObject, entity::GameEntityIndex};
+    use crate::{GameObject, entity::GameEntityIndex, zone::ZoneIndex};
 
     fn definition() -> TriggerDefinition {
         TriggerDefinition {
@@ -442,6 +442,192 @@ mod tests {
                 ConditionTiming::ResolutionTime
             ),
             is_true()
+        );
+    }
+
+    #[googletest::test]
+    fn conditions_selectors_source_policies_and_zone_buckets_cover_the_domain() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.init_resource::<ZoneIndex>();
+        let source = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                Controller(PlayerId::One),
+                EntityKind::Minion,
+                Zone::Play,
+            ))
+            .id();
+        world.spawn((
+            GameObject,
+            GameEntityId(2),
+            Controller(PlayerId::One),
+            EntityKind::Hero,
+            Zone::Play,
+        ));
+        world.spawn((
+            GameObject,
+            GameEntityId(3),
+            Controller(PlayerId::Two),
+            EntityKind::Minion,
+            Zone::Play,
+        ));
+        world.spawn((
+            GameObject,
+            GameEntityId(4),
+            Controller(PlayerId::Two),
+            EntityKind::Hero,
+            Zone::Play,
+        ));
+        world.resource_mut::<ZoneIndex>().0.insert(
+            (PlayerId::One, Zone::Play),
+            vec![GameEntityId(1), GameEntityId(2)],
+        );
+        world.resource_mut::<ZoneIndex>().0.insert(
+            (PlayerId::Two, Zone::Play),
+            vec![GameEntityId(3), GameEntityId(4)],
+        );
+        let event = EventContext {
+            kind: EventKind::Damage,
+            source: Some(GameEntityId(1)),
+            targets: vec![GameEntityId(1)],
+            controller: PlayerId::One,
+            proposed_value: Some(1),
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        };
+
+        let counts = [
+            (Selector::Source, 1),
+            (Selector::DeclaredTarget, 1),
+            (Selector::Entity(GameEntityId(3)), 1),
+            (Selector::Entity(GameEntityId(99)), 0),
+            (
+                Selector::InZone {
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Play,
+                },
+                2,
+            ),
+            (
+                Selector::InZone {
+                    player: PlayerSelector::Opponent,
+                    zone: Zone::Play,
+                },
+                2,
+            ),
+            (
+                Selector::InZone {
+                    player: PlayerSelector::Player(PlayerId::One),
+                    zone: Zone::Play,
+                },
+                2,
+            ),
+            (Selector::FriendlyMinions, 1),
+            (Selector::EnemyMinions, 1),
+            (Selector::AllMinions, 2),
+            (Selector::FriendlyCharacters, 2),
+            (Selector::EnemyCharacters, 2),
+            (Selector::AllCharacters, 4),
+            (Selector::Random(Box::new(Selector::AllMinions)), 1),
+            (
+                Selector::Random(Box::new(Selector::Entity(GameEntityId(99)))),
+                0,
+            ),
+        ];
+        for (selector, expected) in counts {
+            assert_that!(
+                selector_count(
+                    &world,
+                    GameEntityId(1),
+                    PlayerId::One,
+                    Some(&event),
+                    &selector
+                ),
+                eq(expected)
+            );
+        }
+
+        for condition in [
+            TriggerCondition::Always,
+            TriggerCondition::SourceInPlay,
+            TriggerCondition::SourceInZone(Zone::Play),
+            TriggerCondition::EventValueAtLeast(1),
+            TriggerCondition::EventSourceIsSelf,
+            TriggerCondition::EventTargetsSelf,
+            TriggerCondition::ControllerIs(PlayerId::One),
+            TriggerCondition::MinimumEntityCount {
+                selector: Selector::FriendlyCharacters,
+                count: 2,
+            },
+        ] {
+            assert_that!(
+                evaluate_condition(
+                    &world,
+                    GameEntityId(1),
+                    Some(source),
+                    PlayerId::One,
+                    Some(&event),
+                    &condition
+                ),
+                is_true()
+            );
+        }
+        assert_that!(
+            evaluate_condition(
+                &world,
+                GameEntityId(1),
+                Some(source),
+                PlayerId::One,
+                Some(&event),
+                &TriggerCondition::SourceInZone(Zone::Hand)
+            ),
+            is_false()
+        );
+
+        let mut remembered = definition();
+        remembered.source_eligibility = SourceEligibilityPolicy::RememberedSource;
+        let missing = TriggerSeed {
+            source: GameEntityId(99),
+            definition_index: 0,
+            definition: remembered,
+            controller: PlayerId::One,
+            zone: Zone::Play,
+            play_order: 0,
+        };
+        assert_that!(
+            trigger_seed_is_eligible(&world, &missing, &event, ConditionTiming::QueueTime),
+            is_true()
+        );
+        let mut must_exist = missing.clone();
+        must_exist.definition.source_eligibility = SourceEligibilityPolicy::MustExist;
+        assert_that!(
+            trigger_seed_is_eligible(&world, &must_exist, &event, ConditionTiming::QueueTime),
+            is_false()
+        );
+        let mut must_remain = missing;
+        must_remain.source = GameEntityId(1);
+        must_remain.definition.source_eligibility =
+            SourceEligibilityPolicy::MustRemainInEligibleZone;
+        world.entity_mut(source).insert(Zone::Graveyard);
+        assert_that!(
+            trigger_seed_is_eligible(&world, &must_remain, &event, ConditionTiming::QueueTime),
+            is_false()
+        );
+
+        assert_that!(
+            [
+                Zone::Play,
+                Zone::Secret,
+                Zone::Hand,
+                Zone::Deck,
+                Zone::Graveyard,
+                Zone::SetAside,
+                Zone::RemovedFromGame,
+            ]
+            .map(zone_bucket),
+            eq([0, 1, 2, 3, 4, 5, 6])
         );
     }
 }
