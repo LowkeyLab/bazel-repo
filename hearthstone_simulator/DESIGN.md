@@ -14,8 +14,8 @@ The first complete ruleset profile covers the current constructed-game mechanics
 
 - Runtime entities and zones
 - Sequences, phases, events, and triggers
-- Immutable event and trigger queues
-- Depth-first resolution
+- Immutable event and trigger candidate snapshots
+- One-shot, depth-first LIFO resolution
 - Order of play, trigger priority, and player/zone ordering
 - Aura updates, summon resolution, death creation, and chained death phases
 - Start/end turn, card play, combat, location, and Hero Power sequences
@@ -59,10 +59,10 @@ These assumptions should be replaced rather than wrapped with exceptions.
 
 1. **Rules fidelity:** engine structure must directly express the advanced rulebook's timing and ordering rules.
 2. **Determinism:** the same initial state, ruleset, action sequence, and random seed must produce the same snapshot and trace.
-3. **Bevy-native state:** game and resolution state should be visible to ECS queries and processed through Bevy schedules and systems.
+3. **Bevy-native state:** durable game state remains visible to ECS queries, while serializable resolution data is owned by an explicit resource and processed through Bevy schedules and systems.
 4. **Explicit ordering:** no gameplay result may depend on Bevy query iteration, archetype layout, raw entity IDs, or parallel scheduler order.
-5. **Suspendability:** resolution can pause for a player choice and resume without losing queue or stack state.
-6. **Inspectability:** tests and debugging tools can inspect active sequences, phases, events, and frozen queues.
+5. **Suspendability:** resolution can pause for a player choice without losing pending LIFO work or prepared-event state.
+6. **Inspectability:** tests and debugging tools can inspect pending operations, events, prepared-event slots, and ordered trigger snapshots.
 7. **Data-oriented effects:** runtime state contains data, not closures or mutable object graphs.
 8. **Searchability:** snapshots and resolution state can eventually support AI branching and replay.
 9. **No hard-coded interactions:** general mechanics and ability metadata should explain interactions; exceptional behavior is isolated and named.
@@ -73,13 +73,13 @@ This document uses the rulebook's terms:
 
 - A **player action** begins a sequence while the simulation is awaiting input.
 - A **sequence** is an ordered plan of phases and steps for one player action or generated operation.
-- A **phase** surrounds one or more events or trigger queues. Only completion of the outermost phase runs normal boundary processing.
+- A **phase** surrounds one or more events or ordered trigger snapshots. A player-action compiler places normal boundary work after each outermost phase.
 - An **event** is a game-state change that triggers can observe.
 - A **trigger** reacts to an event and may produce nested events and effects.
-- A **queue** is an ordered, immutable snapshot once resolution starts.
-- **Resolution** is depth-first: consequences complete before processing the next queued sibling.
+- A **candidate snapshot** is the immutable, explicitly ordered trigger membership captured for an event at the timing required by the ruleset.
+- A **resolution operation** is a small, one-shot internal instruction that is popped from the LIFO work stack, executed atomically, and never resumed.
+- **Resolution** is depth-first: newly generated consequences are pushed above pending siblings and therefore complete first.
 - A **game entity** is an object meaningful to Hearthstone, such as a card, minion, Hero, weapon, enchantment, or hidden effect.
-- A **resolution node** is an engine-internal ECS entity representing active resolution. Resolution nodes do not participate in Hearthstone zones or order of play.
 
 ## High-level architecture
 
@@ -90,28 +90,28 @@ Simulation API
 Action validation schedule
     |
     v
-Sequence root resolution entity
+Compile one public GameAction into ResolutionOps
     |
     v
-Exclusive resolution driver
+Exclusive LIFO resolution driver
     |
-    +--> ResolveFrame schedule
-    |       +--> sequence/phase/event/trigger/effect systems
+    +--> pop one ResolveFrame operation
+    |       +--> mutate state and push child operations in reverse order
     |
-    +--> ResolvePhaseBoundary schedule
+    +--> execute explicit ResolvePhaseBoundary operations
             +--> aura, summon, death, and outcome systems
 
-Game ECS entities <---- primitive effect reducers ---- Resolution ECS entities
+Game ECS entities <---- primitive effect reducers ---- ResolutionWork resource
        |                                               |
        +--------------- canonical trace ---------------+
 ```
 
-Simulator-owned domain entities fall into two deliberately separate categories:
+Simulator-owned domain state falls into two deliberately separate categories:
 
 - `GameObject` entities hold durable game state.
-- `ResolutionNode` entities hold temporary or suspended resolution state.
+- `ResolutionWork` holds the serializable LIFO operation stack, safety budget, prepared-event slots, and pending choice data.
 
-These are not the only Bevy entities in the world. In Bevy 0.19, resources occupy singleton entities, and registered systems, observers, and other framework facilities may also own entities. Systems and snapshots must therefore select simulator entities through `GameObject` and `ResolutionNode` rather than iterating every world entity or assuming that every unmarked entity is gameplay state.
+Resolution operations and prepared events are values identified by logical IDs, not an ECS relationship graph. Bevy may still own entities for resources, registered systems, observers, and framework facilities. Gameplay systems must select durable simulator entities through `GameObject` rather than iterating every world entity or assuming that every unmarked entity is gameplay state.
 
 ## Runtime game entities
 
@@ -161,7 +161,7 @@ Enchantments
 
 Not every entity has every component. For example, a weapon has durability, an enchantment has an attachment relationship, and a Player has resource counters.
 
-Table storage remains the default. Frequently added or removed marker components, such as `PendingDestroy` and short-lived resolution tags, may use Bevy sparse-set storage after benchmarks confirm that avoiding archetype moves outweighs slower iteration. Value components such as `Zone` and `ResolutionState` remain table-stored.
+Table storage remains the default. Frequently added or removed marker components, such as `PendingDestroy`, may use Bevy sparse-set storage after benchmarks confirm that avoiding archetype moves outweighs slower iteration. Value components such as `Zone` remain table-stored.
 
 ### Zones and indexes
 
@@ -181,7 +181,7 @@ Explicit ordered zone indexes are authoritative for hand order, deck order, and 
 
 ### Order of play
 
-A monotonic `PlayOrderCounter` assigns timestamps whenever rules say an entity enters play or an attached enchantment establishes its own order. Queue ordering uses these values plus ruleset-specific priority and player/zone grouping.
+A monotonic `PlayOrderCounter` assigns timestamps whenever rules say an entity enters play or an attached enchantment establishes its own order. Trigger and simultaneous-event ordering use these values plus ruleset-specific priority and player/zone grouping.
 
 Heroes, weapons, locations, permanents, Dormants, Hero-zone cards, attached enchantments, and added Deathrattles participate when required by the rulebook.
 
@@ -228,9 +228,9 @@ struct ResolveFrame;
 struct ResolvePhaseBoundary;
 ```
 
-The normal Bevy `Update` schedule accepts at most one pending player action and invokes an exclusive resolution driver. The driver runs the custom schedules until resolution finishes, pauses, the game ends, or a configured safety budget is exhausted.
+The normal Bevy `Update` schedule accepts at most one pending player action, validates it, compiles it into internal `ResolutionOp` values, and invokes an exclusive resolution driver. The driver pops one operation at a time until the stack is empty, a choice suspends resolution, the game ends, or a configured safety budget is exhausted.
 
-The driver may invoke `ResolveFrame` and `ResolvePhaseBoundary` because they are different from the currently running `Update` schedule. It must not recursively invoke the same schedule label; Bevy temporarily removes a schedule from the world while running it.
+`ResolveFrame` executes the operation already popped by the driver. An operation may mutate state and append more one-shot operations, but it must never invoke the driver or resolve another operation recursively. Explicit `RunPhaseBoundary` operations may invoke `ResolvePhaseBoundary` because it is different from the currently running schedule. The driver must not recursively invoke the same schedule label; Bevy temporarily removes a schedule from the world while running it.
 
 ### Schedule guardrails
 
@@ -240,14 +240,13 @@ Resolution schedules are configured strictly:
 ScheduleBuildSettings {
     ambiguity_detection: LogLevel::Error,
     hierarchy_detection: LogLevel::Error,
-    auto_insert_apply_deferred: false,
     ..default()
 }
 ```
 
-They also disable final deferred application with `Schedule::set_apply_final_deferred(false)`. Consequently, unordered conflicting systems fail schedule construction, and no command buffer becomes visible merely because a schedule or ordered dependency happens to end. Every deferred synchronization point must appear explicitly in the configured pipeline.
+Consequently, unordered conflicting systems fail schedule construction. Resolution operations use exclusive direct world access and do not issue buffered `Commands`.
 
-A single-threaded executor may reduce overhead for small, mostly exclusive resolution schedules, but it is a benchmark-driven implementation choice, not a determinism guarantee. Gameplay order remains explicit even if independent discovery systems execute in parallel.
+A single-threaded executor may reduce overhead for small, mostly exclusive resolution schedules, but it is a benchmark-driven implementation choice, not a determinism guarantee. Gameplay order always comes from sorted value records and LIFO operation placement.
 
 ### Coarse simulation state
 
@@ -278,7 +277,7 @@ enum PhaseBoundarySet {
     RefreshHealthAttackAuras,
     CreateDeaths,
     OtherAuras,
-    QueueDeathPhase,
+    CompileDeathPhase,
 }
 ```
 
@@ -292,7 +291,7 @@ app.configure_sets(
         PhaseBoundarySet::RefreshHealthAttackAuras,
         PhaseBoundarySet::CreateDeaths,
         PhaseBoundarySet::OtherAuras,
-        PhaseBoundarySet::QueueDeathPhase,
+        PhaseBoundarySet::CompileDeathPhase,
     )
         .chain(),
 );
@@ -300,169 +299,112 @@ app.configure_sets(
 
 The exact pipeline is ruleset data and must be confirmed against the pinned rulebook during the conformance milestone.
 
-### Deferred commands
+### Direct mutation
 
-Exact mutation timing is essential. Resolution schedules should therefore use exclusive systems and direct `World` mutation for resolution-node creation and primitive game mutations. Ordinary deferred `Commands` are suitable only when an explicit `ApplyDeferred` boundary is part of the designed timing.
+Exact mutation timing is essential. Resolution schedules therefore use exclusive systems and direct `World` mutation for primitive game mutations, event-slot preparation, trigger candidate discovery, and LIFO stack expansion. Candidate discovery computes complete ordering keys, sorts value records, and pushes one-shot attempt operations in reverse order. Resolution operations and primitive reducers do not issue buffered `Commands`.
 
-Queue candidate discovery is the primary safe use: independent systems may enqueue candidate entities in parallel, followed by an explicit `ApplyDeferred` and then an exclusive freeze system. Deferred insertion order is irrelevant because the freeze system computes complete ordering keys and sorts after every candidate is visible. Primitive reducers do not use this pattern unless the rulebook explicitly defines a simultaneous collection boundary.
+## LIFO resolution work stack
 
-## Resolution graph
+### One-shot operations
 
-### Frames as ECS entities
-
-The resolution stack is modeled as an active path through ECS relationships rather than an opaque Rust call stack.
+A validated public `GameAction` compiles into small internal `ResolutionOp` values. The operations live in one resource-owned `Vec` used strictly as a LIFO stack:
 
 ```rust
-#[derive(Component)]
-struct ResolutionNode;
-
-#[derive(Component)]
-#[component(immutable)]
-struct ResolutionIdentity {
-    id: ResolutionId,
-    kind: ResolutionKind,
-}
-
-#[derive(Component)]
-struct ResolutionState {
-    progress: ResolutionProgress,
-}
-
-#[derive(Component)]
-#[component(immutable)]
-#[relationship(relationship_target = NestedFrames)]
-struct NestedUnder(Entity);
-
-#[derive(Component)]
-#[relationship_target(relationship = NestedUnder, linked_spawn)]
-struct NestedFrames(Vec<Entity>);
-```
-
-Representative node kinds are:
-
-```text
-Sequence
-Phase
-EventBatch
-Event
-EventQueue
-TriggerQueue
-Trigger
-Effect
-PhaseBoundary
-DeathPhase
-Choice
-```
-
-A small resource points to the active leaf:
-
-```rust
-#[derive(Resource, Default)]
-#[component(map_entities)]
-struct ResolutionCursor {
-    root: Option<Entity>,
-    active: Option<Entity>,
+#[derive(Resource, Clone, Debug)]
+struct ResolutionWork {
+    stack: Vec<ResolutionOp>,
     remaining_budget: usize,
+    next_resolution_id: u64,
+    events: BTreeMap<EventId, PreparedEvent>,
+    event_slots: BTreeMap<EventSlotId, PreparedEventSlot>,
+    pending_choice: Option<PendingChoice>,
+}
+
+#[derive(Clone, Debug)]
+enum ResolutionOp {
+    RunSequenceStep(SequenceStep),
+    RunPhaseBoundary(PhaseBoundaryPlan),
+    ResolveEvent(EventId),
+    ResolveEventSlot(EventSlotId),
+    AttemptTrigger(TriggerCandidate),
+    RunEffect {
+        context: EffectContext,
+        effect: Effect,
+    },
+    ProcessDamage {
+        request: DamageRequest,
+        actual_event: EventSlotId,
+    },
+    ApplyDamage {
+        request: DamageRequest,
+        proposed_event: EventId,
+        actual_event: EventSlotId,
+    },
+    RequestChoice(ChoiceRequest),
 }
 ```
 
-`ResolutionCursor` implements `MapEntities` for its raw entity fields. Components that contain raw entity fields use `#[entities]` where the derive supports it. This allows Bevy cloning and tooling to remap internal references, while canonical serialization still converts them to logical resolution IDs.
+The concrete enum grows with primitive mechanics, but every variant obeys the same contract:
 
-The relationship ancestry is the logical stack:
+1. The exclusive driver pops it before execution.
+2. It performs one bounded mutation or expansion and runs to completion.
+3. It may push additional operations in reverse of their required execution order.
+4. It never calls the resolution driver, waits for a child, or resumes later.
+5. Once popped, that operation is never retried or re-resolved.
 
-```text
-Sequence
-└── Phase
-    └── Event
-        └── Trigger
-            └── Effect
-```
+Operations store logical game, event, choice, and slot IDs rather than raw Bevy `Entity` values. `EffectContext` carries gameplay inputs such as source, controller, and declared target; it is not execution ancestry. There is no active-frame cursor, parent relationship, execution ancestry, mutable program counter, or per-kind resume state.
 
-Pushing a frame spawns a `ResolutionNode` related to the current active frame and changes `ResolutionCursor.active`. Popping reads `NestedUnder`, completes or removes the current node, and restores its parent as active.
+### Iterative driver
 
-Completed nodes may be retained until the sequence ends for diagnostics, then removed through linked relationship cleanup. The canonical trace remains after resolution entities are cleaned up. Bevy relationship helpers such as ancestor, root-ancestor, and depth-first descendant traversal support diagnostics and graph-invariant checks; the active cursor remains authoritative for execution.
-
-### Iterative depth-first resolution
-
-The exclusive driver advances one active frame at a time:
+The driver is the only code allowed to pop work:
 
 ```rust
-fn drive_resolution(world: &mut World) {
-    while resolution_can_advance(world) {
-        match active_resolution_kind(world) {
-            ResolutionKind::PhaseBoundary => world.run_schedule(ResolvePhaseBoundary),
-            _ => world.run_schedule(ResolveFrame),
+fn drive_resolution(world: &mut World) -> Result<(), ResolutionError> {
+    while let Some(operation) = pop_resolution_op(world) {
+        consume_resolution_budget(world)?;
+        world.insert_resource(CurrentResolutionOp(operation));
+        world.run_schedule(ResolveFrame);
+        if resolution_is_suspended(world) {
+            break;
         }
     }
+    Ok(())
 }
 ```
 
-Nested effects push children. The next driver iteration processes the new active child before returning to its parent, producing depth-first resolution without recursive Rust calls.
+`ResolveFrame` consumes the already-popped operation exactly once. An operation that produces ordered children pushes the last child first and the first child last. The first logical child is therefore on top and runs next. If that child creates nested work, the nested operations land above every pending sibling and complete first, providing depth-first semantics without recursive Rust calls.
 
-A per-sequence resolution budget prevents pathological or accidental infinite loops from exhausting memory or CPU. Budget exhaustion is a typed simulation error containing the active resolution trace.
+For example, resolving event `A` with triggers `T1` and `T2` replaces the popped event operation with this pending work, shown bottom to top:
 
-### Phase depth
-
-Each phase records its nesting depth or enough ancestry to determine whether it is outermost. Completing a nested phase returns directly to its parent. Completing the outermost phase creates a `PhaseBoundary` node before the sequence advances.
-
-Forced death phases use an explicit specialized boundary plan and do not pretend to be ordinary outermost phases.
-
-## Bevy-modeled queues
-
-### Queue entities and relationships
-
-Every event or phase requiring ordered responses creates a queue resolution entity:
-
-```rust
-#[derive(Component)]
-#[component(immutable)]
-struct ResolutionQueue(QueueKind);
-
-#[derive(Component)]
-enum QueueState {
-    Collecting,
-    Frozen,
-    Resolving,
-    Complete,
-}
-
-#[derive(Component)]
-#[component(immutable)]
-#[relationship(relationship_target = QueueEntries)]
-struct QueuedIn(Entity);
-
-#[derive(Component)]
-#[relationship_target(relationship = QueuedIn, linked_spawn)]
-struct QueueEntries(Vec<Entity>);
+```text
+AttemptTrigger(T2)
+AttemptTrigger(T1)  <- top
 ```
 
-Queue entries are ECS entities with typed payload components. A trigger entry contains at least:
+If `T1` produces event `B`, `ResolveEvent(B)` is pushed above `T2`; all work generated by `B` is exhausted before `T2` can be popped.
+
+A per-sequence operation budget prevents pathological or accidental infinite event generation from exhausting memory or CPU. The LIFO exact-once invariant prevents an existing item from being repeated, but it does not prevent effects from generating an unbounded series of new items. Budget exhaustion is therefore the universal resolver safety mechanism and reports the operation that exhausted the budget. There is no generic repeated-event or active-trigger recursion guard; any rulebook-mandated suppression is an explicit named trigger policy.
+
+### Sequences, phases, and boundaries
+
+Sequence builders encode ordering directly by pushing granular operations in reverse. They place a `RunPhaseBoundary` operation beneath all work belonging to an outermost phase, so that the boundary becomes reachable only after the phase's nested consequences are exhausted. No runtime phase ancestry or completion callback is needed.
+
+Nested phases omit the ordinary boundary operation. Forced Death Phases compile an explicit specialized boundary plan rather than pretending to be ordinary outermost phases. Ordering barriers are ordinary one-shot operations pre-positioned below the work they follow, not resumable parent frames.
+
+### Ordered trigger snapshots
+
+Events do not create executable queue entities. When an event captures its trigger membership, discovery applies pre-check and queue-time conditions, computes complete order keys, sorts value records, and stores an immutable candidate snapshot. When `ResolveEvent` is popped, it pushes one `AttemptTrigger` operation per candidate in reverse order. The stack is the only executable queue.
 
 ```rust
-#[derive(Component)]
-#[component(immutable)]
-struct QueuedTrigger {
+#[derive(Clone, Debug)]
+struct TriggerCandidate {
     source: GameEntityId,
-    event: ResolutionId,
+    event: EventId,
+    definition_index: u32,
     order: TriggerOrderKey,
 }
 
-#[derive(Component)]
-enum QueueEntryStatus {
-    Pending,
-    Resolving,
-    Resolved,
-    Aborted,
-}
-```
-
-An event entry similarly references its event resolution node and event ordering data.
-
-### Ordering keys
-
-Queue order is always explicit:
-
-```rust
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct TriggerOrderKey {
     player_bucket: u8,
     zone_bucket: u8,
@@ -473,63 +415,40 @@ struct TriggerOrderKey {
 }
 ```
 
-The selected ruleset computes these fields. The stable logical source ID precedes the per-source definition tie-breaker, so equal play-order values outside the battlefield never fall back to ECS iteration order. The key can therefore represent normal global order of play, special trigger priority, dominant-player grouping, battlefield/hand/deck grouping, and deterministic ties without changing scheduler configuration.
+The selected ruleset computes every ordering field. Stable logical source IDs and definition indexes provide deterministic ties, so no gameplay order falls back to ECS iteration or raw entity order.
 
-### Queue lifecycle
+`AttemptTrigger` checks source eligibility and resolution-time conditions when it is popped. If the source or condition is no longer valid, it records an abort and produces no child work. If valid, it pushes the trigger's effects in reverse order. Newly created entities cannot join the already captured candidate snapshot, while removed sources remain represented by their pending attempt and can abort at execution time.
 
-#### Collecting
+There is no `QueueState`, `FrozenQueueEntries`, `QueueCursor`, `select_next`, `finish_selected`, or separate queue resolver. Exact-once stack consumption is the mutable progress mechanism. Snapshot immutability is enforced by constructing candidate values once and never exposing a mutation API for their membership or order.
 
-Candidate-discovery systems query eligible game entities and spawn related queue-entry entities. Collection checks pre-check and queue-time conditions but does not run trigger effects. Discovery may use deferred commands and parallel systems only in a pipeline with an explicit `ApplyDeferred` before freezing.
+### Prepared event slots
 
-Only queues in `Collecting` state accept entries.
-
-#### Frozen
-
-An exclusive freeze system:
-
-1. Reads all related entries.
-2. Sorts them by the applicable explicit key.
-3. Stores the ordered entity IDs in a frozen snapshot.
-4. Changes the queue state to `Frozen`.
+Some events occur now but must react later. A simultaneous batch preallocates logical `EventSlotId` values and places `ResolveEventSlot` operations below all mutation work. Applying a mutation fills its slot with either no event or an immutable prepared event:
 
 ```rust
-#[derive(Component)]
-#[component(immutable)]
-struct FrozenQueueEntries {
-    #[entities]
-    entries: Vec<Entity>,
+#[derive(Clone, Debug, Default)]
+struct PreparedEventSlot {
+    event: Option<EventId>,
 }
 
-#[derive(Component)]
-struct QueueCursor(usize);
+#[derive(Clone, Debug)]
+struct PreparedEvent {
+    context: EventContext,
+    candidates: Vec<TriggerCandidate>,
+}
 ```
 
-The immutable frozen vector intentionally duplicates the current relationship ordering. Bevy relationships continue to describe ownership, while `FrozenQueueEntries` is the authoritative rulebook queue and `QueueCursor` is its separately mutable progress. Later entity creation or relationship changes cannot mutate frozen membership through an ordinary mutable query.
+Applying a positive mutation allocates an `EventId`, inserts its `PreparedEvent` in `ResolutionWork.events`, and writes that ID into the slot. Capturing candidates at that moment preserves timing: an entity introduced by a later mutation cannot observe an earlier event. Much later, popping `ResolveEventSlot` takes the ID and pushes `ResolveEvent`; popping `ResolveEvent` then takes the prepared record and pushes its trigger attempts. An empty slot is a no-op. Slots and event records are data dependencies, not executable queues, and are removed after consumption.
 
-#### Resolving
+### Choices and suspension
 
-The queue reads the entry at `cursor`, checks source eligibility and resolution-time trigger conditions, and pushes a child `Trigger` frame. The queue does not advance to its next sibling until that child and all descendants complete.
-
-An invalid queued trigger is marked `Aborted`; it is not removed from or replaced in the frozen queue.
-
-#### Complete
-
-After the final entry, the queue is marked complete and its parent frame resumes. Queue entries are cleaned up with their queue owner after trace information is recorded.
-
-### Immutability enforcement
-
-Queue collection and freezing are separate system sets with an explicit deferred-application boundary when collection uses commands. Candidate systems query only collecting queues. Bevy's immutable-component access prevents in-place mutation of frozen membership; internal replacement APIs reject frozen queues, and invariant tests assert that:
-
-- Frozen entry membership never changes
-- Frozen order never changes
-- Newly created game entities cannot respond to the event currently resolving
-- Removed trigger sources leave their queued entry in place but may abort when selected
+`RequestChoice` is also one-shot. When popped, it stores a serializable `PendingChoice`, changes the simulation to `AwaitingChoice`, and stops the driver while leaving lower stack items untouched. Supplying a valid answer compiles the selected branch into new operations above those pending items and restarts the driver. No operation remains half-executed, and no frame needs suspend/resume state.
 
 ## Events and triggers
 
 ### Event context
 
-An event resolution node records stable data needed throughout resolution:
+An immutable event record stores the stable data needed throughout resolution:
 
 ```text
 Event ID
@@ -547,9 +466,22 @@ Event data captures identity and declared targets, but effects query current gam
 
 ### Simultaneous events
 
-An effect that creates simultaneous damage or healing first fixes the request order according to the applicable rule. In that order, each request passes protection, resolves its proposed event, and applies its durable mutation before the next request begins. Positive actual events are collected without resolving reactions; after every mutation is applied, that actual-event queue is frozen and resolved. This preserves proposal-time observation of earlier mutations while preventing actual-event reactions from interrupting the batch.
+An effect that creates simultaneous damage or healing first fixes the request order according to the applicable rule and allocates one eventual-event slot per request. It then pushes actual-event slot resolvers and request processors so the LIFO pop order is:
 
-Movement and death batches create and order all applicable event nodes before freezing their event queue. Each frozen event then resolves fully before its next sibling begins.
+```text
+Process request 1
+Process request 2
+...
+Process request N
+Resolve actual-event slot 1
+Resolve actual-event slot 2
+...
+Resolve actual-event slot N
+```
+
+Each request processor passes protection, creates and resolves its proposed event, and leaves an `ApplyDamage` or `ApplyHealing` operation directly beneath that proposed event. The apply operation reads the possibly modified value, performs the durable mutation, and fills its actual-event slot only for a positive actual change. Every mutation therefore occurs before any actual-event reaction, while proposed-event work for request N can still observe mutations from requests 1 through N-1.
+
+This requires no batch queue or separate freeze-and-resolve pass. The pre-positioned slot operations are the ordering barrier, and each prepared event captures its own candidate snapshot when the event occurs. Movement and death batches use the same pattern: fix explicit event order, place one-shot event resolvers beneath all required batch mutations, and let each event resolve fully when its operation reaches the top.
 
 Combat-specific attacker/defender event order is encoded by the combat event builder rather than inferred from play order.
 
@@ -566,18 +498,20 @@ A trigger definition separates:
 - Priority
 - Controller used for ordering
 - Mortally wounded/pending-destroy target policy
-- Self-trigger and repeated-event safeguards
+- Any rulebook-specific suppression policy
 - Effect program
 
-This separation is required for interactions such as Secrets that queue but later abort, and effects that must have been valid when a sequence began.
+This separation is required for interactions such as Secrets captured as candidates that later abort, and effects that must have been valid when a sequence began.
 
-### Re-entrancy
+### Re-entrancy and termination
 
-Each event has a stable logical ID. Trigger execution tracks trigger/event pairs so one trigger cannot respond twice to the same event unless explicitly allowed. A separate active-trigger guard prevents unsupported direct self-nesting. Any rulebook-compatible deferred compensation behavior must be added as a named policy with focused tests.
+Each event has a stable logical ID and captures each eligible trigger definition at most once. That snapshot expands into exactly one `AttemptTrigger` operation per candidate, and popping the operation guarantees it cannot run twice for the same event.
+
+A trigger responding to a newly generated event is new work and is not suppressed merely because the same definition caused that event. There is no execution ancestry, active-trigger set, direct self-nesting guard, or generic repeated-event guard. Interactions continue according to ordinary event semantics until they terminate naturally or exhaust the per-sequence operation budget. If the selected ruleset suppresses a specific interaction, that behavior is represented as a named trigger policy with focused conformance tests rather than a resolver-wide recursion rule.
 
 ## Primitive reducers
 
-Only primitive reducers mutate durable game state. Initial primitives include:
+A primitive reducer is a deterministic function that accepts validated input, performs one bounded durable game-state mutation, and returns the observed result. It never resolves an event, invokes the driver, or pushes LIFO work. Initial reducer families include:
 
 ```text
 MoveEntity
@@ -585,11 +519,9 @@ GenerateEntity
 ChangeController
 SpendResource
 GainResource
-Draw
-DealDamage
-Heal
-Destroy
-Summon
+ApplyDamage
+ApplyHealing
+MarkPendingDestroy
 Transform
 AttachEnchantment
 DetachEnchantment
@@ -599,9 +531,9 @@ ReplaceHero
 RefreshHeroPower
 ```
 
-A primitive may create nested event nodes. For example, `DealDamage` creates a proposed damage event, processes prevention and predamage triggers, applies the final amount, and then resolves damage reactions.
+Resolution operations orchestrate reducers and event preparation. For example, `ProcessDamage` pushes `ApplyDamage` beneath a proposed-damage event. The proposed event and every consequence it generates resolve first; `ApplyDamage` then invokes the damage reducer with the final amount and prepares the delayed actual-damage event for its pre-positioned slot.
 
-Reducers append canonical trace entries for all observable changes.
+Reducers append canonical trace entries for observable mutations and return enough data for the calling operation to prepare any resulting event.
 
 ## Phase-boundary processing
 
@@ -615,7 +547,7 @@ The ordinary outermost phase boundary is modeled as ordered systems, not hidden 
 6. Other aura update
 7. Creation of a Death Phase when deaths were recorded
 
-Death Phases are ordinary outermost phase nodes and can be followed by additional Death Phases until no new deaths exist.
+Death Phases are explicit outermost operation plans and can enqueue additional Death Phase plans until no new deaths exist.
 
 The Death Creation system:
 
@@ -650,7 +582,7 @@ Spell Damage and any other continuously evaluated exceptions use dedicated curre
 
 ## Player-action sequences
 
-Player actions compile into sequence resolution entities with captured inputs, targets, and subject guards.
+Player actions compile into one-shot sequence operations with captured inputs, targets, and subject guards.
 
 Required sequence builders include:
 
@@ -715,26 +647,26 @@ Library-default RNG behavior must not silently change simulation results across 
 
 A canonical full snapshot includes all durable game state and the selected ruleset and RNG state. A player-filtered view may hide opponent information for clients.
 
-Normally `Simulation::apply` returns only after the sequence resolves. If a choice is required, the simulation enters `AwaitingChoice` and retains the active resolution graph and frozen queues. Snapshot support for suspended resolution must serialize logical resolution IDs and reconstruct Bevy relationships without depending on raw Bevy entities.
+Normally `Simulation::apply` returns only after the operation stack is empty. If a choice is required, the simulation enters `AwaitingChoice` and retains the untouched lower stack, prepared-event slots, pending choice, logical ID counters, and remaining budget. Suspended-resolution snapshots serialize these values directly; stack payloads use logical IDs and never depend on raw Bevy entities or runtime ancestry.
 
-Internal components and resources that contain Bevy entity references implement `MapEntities`, allowing Bevy's entity-cloning and relationship tooling to remap references in fixtures and in-memory utilities. `Simulation::fork` may reuse those facilities after profiling, but its observable equivalence is defined by the canonical logical-ID snapshot rather than Bevy world serialization or raw entity allocation.
+Internal durable components that contain Bevy entity references implement `MapEntities`, allowing Bevy's entity-cloning and relationship tooling to remap references in fixtures and in-memory utilities. `Simulation::fork` may reuse those facilities after profiling, but its observable equivalence is defined by the canonical logical-ID snapshot rather than Bevy world serialization or raw entity allocation.
 
 ### Trace
 
 The canonical trace records:
 
 - Action acceptance or rejection
-- Sequence, phase, and frame begin/end
-- Event creation
-- Queue collection and frozen order
-- Trigger resolution or abortion
+- Sequence and phase-plan execution
+- Each popped resolution operation and its logical ID
+- Event creation and ordered candidate snapshots
+- Trigger activation or abortion
 - RNG decisions
 - Primitive mutations
 - Aura and death steps
 - Zone movement
 - Outcome checks
 
-Trace data supports conformance assertions, replay diagnostics, and future UI animation. In Bevy 0.19, buffered adapter notifications use Bevy Messages, while immediate targeted diagnostics may use EntityEvents and Observers. Neither is the authoritative gameplay trigger mechanism: rulebook events are resolution entities, and reducers append the canonical trace before publishing any optional notification.
+Trace data supports conformance assertions, replay diagnostics, and future UI animation. In Bevy 0.19, buffered adapter notifications use Bevy Messages, while immediate targeted diagnostics may use EntityEvents and Observers. Neither is the authoritative gameplay trigger mechanism: rulebook events are immutable resolver data, pending `ResolutionOp` values define execution order, and reducers append the canonical trace before publishing any optional notification.
 
 ## Public API direction
 
@@ -787,7 +719,6 @@ hearthstone_simulator/core/
 ├── ids.rs
 ├── mana.rs
 ├── model.rs
-├── queue.rs
 ├── relationships.rs
 ├── resolver.rs
 ├── rng.rs
@@ -828,22 +759,22 @@ Gazelle determines the final Bazel package layout. Subdirectories should not int
 - Implement basic zone movement and limits.
 - Migrate vanilla minion play to move the same entity from Hand to Play.
 
-### Milestone 2: Bevy resolution graph
+### Milestone 2: LIFO resolution work stack
 
-- Add resolution-node components and custom relationships.
-- Add `ResolutionCursor` and the exclusive driver.
-- Add custom schedules, ordered system sets, strict ambiguity checks, and explicit deferred boundaries.
-- Add entity-reference remapping for the resolution cursor and relationship-bearing components.
-- Support push, suspend, resume, complete, and cleanup.
-- Add resolution budget and graph invariants.
+- Add serializable `ResolutionOp` and `ResolutionWork` values.
+- Add the exclusive pop/execute/push driver and exact-once operation contract.
+- Add custom schedules, ordered system sets, and strict ambiguity checks.
+- Compile public actions and phase boundaries into granular operations pushed in reverse order.
+- Add choice suspension without partially executed operations.
+- Add the per-sequence operation budget and stack invariants.
 
-### Milestone 3: Event and trigger queues
+### Milestone 3: Events and trigger expansion
 
-- Add queue and entry entities with ownership relationships.
-- Implement candidate collection, explicit ordering, immutable frozen membership, and cursor-based resolution.
-- Separate immutable frozen entries from mutable queue progress.
-- Add event context, trigger definitions, and condition timings.
-- Prove queue immutability and depth-first behavior with focused tests.
+- Add immutable event records, prepared-event slots, trigger candidates, and complete ordering keys.
+- Implement pre-check and queue-time candidate capture followed by reverse-order stack expansion.
+- Check source eligibility and resolution-time conditions in one-shot `AttemptTrigger` operations.
+- Keep executable ordering solely in the LIFO stack; do not add queue entities, cursors, or a separate queue resolver.
+- Prove candidate-snapshot immutability, exact-once execution, and depth-first behavior with focused tests.
 
 ### Milestone 4: Effects and deterministic randomness
 
@@ -864,7 +795,7 @@ Gazelle determines the final Bazel package layout. Subdirectories should not int
 
 - Implement proposed damage/healing events and predamage triggers.
 - Add immunity, Divine Shield, armor, prevention, and multipliers.
-- Add simultaneous event batches.
+- Add simultaneous operation plans with pre-positioned prepared-event slots.
 - Implement mortality, pending destroy, death creation, Death Phases, and the death cache.
 - Delay outcome checks to ruleset-defined boundaries.
 
@@ -892,7 +823,7 @@ The first complete vertical slice ends here: an area effect damages several enti
 - Summon Resolution and Quest Reward steps
 - Dominant-player and cross-zone trigger grouping
 - Mid-phase removal and Deathrattle eligibility
-- Special queue and trigger conditions
+- Special candidate-ordering and trigger conditions
 - Deathrattle summon positions
 - Enchantment controller rules
 - Mortally wounded targeting policies
@@ -905,7 +836,7 @@ Each quirk is a named rule or policy, not an unexplained branch in a card handle
 - Add full and filtered snapshots and optional Bevy Message notifications.
 - Add suspended choices and `Simulation::fork`.
 - Add invariant and stress tests.
-- Benchmark deep and broad resolution graphs.
+- Benchmark deep and broad LIFO resolution workloads.
 - Complete rulebook conformance documentation.
 
 ## Testing strategy
@@ -914,8 +845,8 @@ Every normative rule receives a focused conformance test. Ordering-sensitive tes
 
 Required suites cover:
 
-- Queue immutability
-- Queue pre-check, queue-time, and resolution-time conditions
+- Candidate-snapshot immutability and exact-once stack execution
+- Trigger pre-check, queue-time, and resolution-time conditions
 - Global order of play and special priority
 - Nested depth-first resolution
 - Simultaneous event ordering
@@ -930,19 +861,20 @@ Required suites cover:
 - Win, loss, and draw timing
 - Same-seed determinism
 - Snapshot and fork equivalence
-- Suspension and resumption at a choice
-- Cleanup of linked resolution entities
+- Suspension and continuation at a choice
+- Cleanup of consumed operations and prepared-event slots
 
 Useful invariants include:
 
 - Every game object has exactly one immutable logical ID, and the logical-ID index agrees with ECS membership.
 - Every zoned entity occurs exactly once in its zone index.
 - Board and hand limits are never exceeded except by an explicit ruleset exception.
-- Frozen queue membership and order never change.
-- The active resolution entity is the leaf of its active ancestry.
-- Resolution entities never participate in game zones or order of play.
-- No canonical output contains raw Bevy entity IDs.
-- An idle or complete simulation has no live resolution root.
+- Captured candidate membership and order never change.
+- Only the driver pops operations, and every popped operation executes at most once.
+- An operation may push work but cannot invoke resolution recursively or remain partially executed.
+- Resolution operations and prepared events never participate in game zones or order of play.
+- Stack payloads and canonical output contain logical IDs, never raw Bevy entity IDs.
+- An idle or complete simulation has no pending operations, event slots, or pending choice.
 
 ## Development workflow
 
@@ -965,19 +897,15 @@ Mitigation: pin source revisions, version ruleset profiles, record uncertainties
 
 ### ECS iteration and scheduler parallelism are not gameplay ordering
 
-Mitigation: collect candidates into explicit queue entries, sort by complete ruleset keys, freeze queues, and chain mutation-sensitive system sets.
+Mitigation: collect candidates as values through exclusive world access, sort by complete ruleset keys, capture immutable snapshots, push operations in reverse order, and chain mutation-sensitive system sets.
 
-### Fully ECS-modeled resolution creates entity churn
+### LIFO work can grow without bound
 
-Mitigation: benchmark representative deep and broad graphs, clean linked nodes at sequence completion, and optimize only after conformance. Correctness and inspectability take precedence initially.
+Mitigation: decrement a per-sequence budget for every popped operation, store compact logical IDs in payloads, consume prepared-event slots eagerly, and stress-test representative deep and broad workloads. Correctness and inspectability take precedence over premature optimization.
 
 ### Bevy entity IDs are not stable serialization IDs
 
-Mitigation: assign logical IDs to both game and resolution entities and remap relationships during snapshot restoration.
-
-### Deferred operations can shift timing
-
-Mitigation: disable automatic and final deferred application in resolution schedules, use direct `World` mutation in exclusive resolution systems, and place explicit `ApplyDeferred` steps where deferred behavior is intended. Native registered handlers either avoid commands or document their immediate post-handler flush as part of the reducer boundary.
+Mitigation: assign logical IDs to game entities, events, choices, and prepared-event slots. Resolution operations persist only logical IDs, so snapshot restoration does not reconstruct an execution relationship graph.
 
 ### Complete card coverage could distort engine design
 
@@ -994,13 +922,13 @@ Unless superseded by a documented decision:
 1. The initial ruleset targets the pinned 2026-06-26 advanced rulebook revision.
 2. Historical mechanics are excluded unless the current ruleset explicitly enables them.
 3. The scaffold API may break to preserve entity identity and correct timing.
-4. Bevy schedules and system sets orchestrate resolution.
-5. The resolution stack is an ECS relationship graph with a small active-cursor resource.
-6. Event and trigger queues are ECS entities whose ordered membership is frozen explicitly.
+4. Bevy schedules and system sets orchestrate atomic resolution operations.
+5. The sole execution mechanism is a resource-owned LIFO stack of one-shot `ResolutionOp` values.
+6. Events capture immutable, explicitly ordered trigger candidates and expand them onto the stack in reverse order; there are no executable event or trigger queue entities.
 7. Bevy Messages, EntityEvents, and Observers provide diagnostics and integration, not authoritative card-trigger ordering.
 8. Game and resolution ordering never depend on raw Bevy entity or query order.
-9. Resolution uses an iterative driver and safety budget, not recursive Rust calls.
+9. Resolution uses an iterative driver and per-sequence operation budget, not recursive Rust calls, execution ancestry, recursion guards, active cursors, or resumable frames.
 10. Card definitions are data-oriented; exceptional native handlers are identified explicitly and may map to registered Bevy systems.
-11. Write-once identity and frozen queue membership use immutable components; mutable queue progress is stored separately.
-12. Resolution schedules reject ECS access ambiguities and expose deferred mutations only at explicit boundaries.
-13. Raw Bevy entity references implement remapping for internal cloning, but canonical persistence uses logical IDs.
+11. Simultaneous operations pre-position prepared-event slot resolvers below mutation work so all required mutations precede reactions without a separate batch queue.
+12. Resolution schedules reject ECS access ambiguities; resolution operations and primitive reducers use exclusive direct mutation rather than deferred commands.
+13. Raw Bevy entity references implement remapping for internal cloning where needed, but resolution work and canonical persistence use logical IDs.
