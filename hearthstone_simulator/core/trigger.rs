@@ -2,7 +2,8 @@ use bevy::prelude::{Component, Entity, World};
 
 use crate::{
     Controller, DominantPlayer, Effect, EntityKind, EventContext, EventId, EventKind, GameEntityId,
-    PlayOrder, PlayerId, PlayerSelector, Selector, Zone, entity::game_entity, zone::ZoneIndex,
+    PlayOrder, PlayerId, PlayerSelector, Selector, Silenced, Zone, entity::game_entity,
+    zone::ZoneIndex,
 };
 
 #[derive(
@@ -64,9 +65,6 @@ pub struct TriggerDefinition {
 #[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
 pub struct RuntimeTriggers(pub Vec<TriggerDefinition>);
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct TriggersSuppressed;
-
 #[derive(
     Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
 )]
@@ -106,7 +104,7 @@ pub(crate) fn collect_trigger_seeds(world: &World, event: &EventContext) -> Vec<
             entity.get::<GameEntityId>(),
             entity
                 .get::<RuntimeTriggers>()
-                .filter(|_| !entity.contains::<TriggersSuppressed>()),
+                .filter(|_| !entity.contains::<Silenced>()),
             entity.get::<Zone>(),
             entity.get::<Controller>(),
         ) else {

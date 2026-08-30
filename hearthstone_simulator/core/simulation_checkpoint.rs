@@ -3,15 +3,15 @@ use std::collections::BTreeSet;
 use bevy::prelude::*;
 
 use crate::{
-    Abilities, Armor, AttackState, AuraCache, BaseStats, CanonicalTrace, Controller, CurrentStats,
-    Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng, DisplayName,
-    DominantPlayer, Enchantments, EntityKind, GameEntityId, GameObject, GameState, Keywords,
-    PlayOrder, Player, PlayerId, ResolutionWork, RngSnapshot, Ruleset, RuntimeTriggers,
-    StatModifier, Zone,
+    Abilities, Armor, AttackAuraCache, AttackState, BaseStats, CanonicalTrace, Controller,
+    CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
+    DisplayName, DominantPlayer, Enchantments, EntityKind, GameEntityId, GameObject, GameState,
+    HealthAuraCache, Keywords, OtherAuraCache, PlayOrder, Player, PlayerId, ResolutionWork,
+    RngSnapshot, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
+    SilenceRemovable, Silenced, StatModifier, Zone,
     death::{DefeatedHeroes, PendingDeaths},
     enchantment::AttachedTo,
     entity::{NextGameEntityId, PlayOrderCounter, game_entity},
-    trigger::TriggersSuppressed,
     zone::{assert_zone_invariants, insert_into_zone},
 };
 
@@ -20,7 +20,7 @@ use super::{
     snapshot::assert_game_entity_index,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 1;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
@@ -48,9 +48,14 @@ pub struct GameEntityCheckpoint {
     pub player: Option<Player>,
     pub card_runtime: Option<CardRuntimeCheckpoint>,
     pub runtime_triggers: Option<Vec<crate::TriggerDefinition>>,
-    pub triggers_suppressed: bool,
+    pub runtime_auras: Option<Vec<crate::AuraDefinition>>,
+    pub runtime_continuous_effects: Option<Vec<crate::ContinuousEffectDefinition>>,
+    pub silenced: bool,
+    pub silence_removable: bool,
     pub stat_modifier: Option<StatModifier>,
-    pub aura_cache: Option<AuraCache>,
+    pub health_aura_cache: Option<HealthAuraCache>,
+    pub attack_aura_cache: Option<AttackAuraCache>,
+    pub other_aura_cache: Option<OtherAuraCache>,
     pub attached_to: Option<GameEntityId>,
     pub death_record: Option<DeathRecord>,
     pub zone: Option<Zone>,
@@ -144,9 +149,16 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                         program: runtime.program.clone(),
                     }),
                 runtime_triggers: entity.get::<RuntimeTriggers>().map(|value| value.0.clone()),
-                triggers_suppressed: entity.contains::<TriggersSuppressed>(),
+                runtime_auras: entity.get::<RuntimeAuras>().map(|value| value.0.clone()),
+                runtime_continuous_effects: entity
+                    .get::<RuntimeContinuousEffects>()
+                    .map(|value| value.0.clone()),
+                silenced: entity.contains::<Silenced>(),
+                silence_removable: entity.contains::<SilenceRemovable>(),
                 stat_modifier: entity.get::<StatModifier>().copied(),
-                aura_cache: entity.get::<AuraCache>().cloned(),
+                health_aura_cache: entity.get::<HealthAuraCache>().cloned(),
+                attack_aura_cache: entity.get::<AttackAuraCache>().cloned(),
+                other_aura_cache: entity.get::<OtherAuraCache>().cloned(),
                 attached_to,
                 death_record: entity.get::<DeathRecord>().cloned(),
                 zone: entity.get::<Zone>().copied(),
@@ -300,13 +312,28 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
     if let Some(value) = &object.runtime_triggers {
         entity.insert(RuntimeTriggers(value.clone()));
     }
-    if object.triggers_suppressed {
-        entity.insert(TriggersSuppressed);
+    if let Some(value) = &object.runtime_auras {
+        entity.insert(RuntimeAuras(value.clone()));
+    }
+    if let Some(value) = &object.runtime_continuous_effects {
+        entity.insert(RuntimeContinuousEffects(value.clone()));
+    }
+    if object.silenced {
+        entity.insert(Silenced);
+    }
+    if object.silence_removable {
+        entity.insert(SilenceRemovable);
     }
     if let Some(value) = object.stat_modifier {
         entity.insert(value);
     }
-    if let Some(value) = &object.aura_cache {
+    if let Some(value) = &object.health_aura_cache {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = &object.attack_aura_cache {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = &object.other_aura_cache {
         entity.insert(value.clone());
     }
     if let Some(value) = &object.death_record {
@@ -452,32 +479,65 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
         ));
     }
     for entity in &checkpoint.entities {
-        if entity.zone.is_some() && (entity.controller.is_none() || entity.zone_position.is_none())
-        {
-            return Err(SimulationError::Checkpoint(format!(
-                "zoned entity {:?} lacks a controller or position",
-                entity.id
-            )));
-        }
-        if entity
-            .attached_to
-            .is_some_and(|target| !ids.contains(&target))
-        {
-            return Err(SimulationError::Checkpoint(format!(
-                "entity {:?} has a missing attachment target",
-                entity.id
-            )));
-        }
-        if entity
-            .enchantments
-            .as_ref()
-            .is_some_and(|enchantments| enchantments.0.iter().any(|id| !ids.contains(id)))
-        {
-            return Err(SimulationError::Checkpoint(format!(
-                "entity {:?} references a missing enchantment",
-                entity.id
-            )));
-        }
+        validate_checkpoint_entity(entity, &ids)?;
+    }
+    Ok(())
+}
+
+fn validate_checkpoint_entity(
+    entity: &GameEntityCheckpoint,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    if entity.zone.is_some() && (entity.controller.is_none() || entity.zone_position.is_none()) {
+        return Err(SimulationError::Checkpoint(format!(
+            "zoned entity {:?} lacks a controller or position",
+            entity.id
+        )));
+    }
+    if entity
+        .attached_to
+        .is_some_and(|target| !ids.contains(&target))
+    {
+        return Err(SimulationError::Checkpoint(format!(
+            "entity {:?} has a missing attachment target",
+            entity.id
+        )));
+    }
+    if entity
+        .enchantments
+        .as_ref()
+        .is_some_and(|enchantments| enchantments.0.iter().any(|id| !ids.contains(id)))
+    {
+        return Err(SimulationError::Checkpoint(format!(
+            "entity {:?} references a missing enchantment",
+            entity.id
+        )));
+    }
+    let dangling_aura_provider = entity
+        .health_aura_cache
+        .as_ref()
+        .into_iter()
+        .flat_map(|cache| &cache.0)
+        .chain(
+            entity
+                .attack_aura_cache
+                .as_ref()
+                .into_iter()
+                .flat_map(|cache| &cache.0),
+        )
+        .chain(
+            entity
+                .other_aura_cache
+                .as_ref()
+                .into_iter()
+                .flat_map(|cache| &cache.0),
+        )
+        .find(|application| !ids.contains(&application.provider));
+    if let Some(application) = dangling_aura_provider {
+        return Err(SimulationError::Checkpoint(format!(
+            "entity {:?} references missing aura provider {:?}",
+            entity.id, application.provider
+        )));
     }
     Ok(())
 }

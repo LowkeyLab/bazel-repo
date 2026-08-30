@@ -7,8 +7,10 @@ use bevy::{
 use thiserror::Error;
 
 use crate::{
-    ChoiceId, Effect, EffectContext, EventContext, EventId, EventSlotId, GameEntityId, PlayerId,
-    ResolutionId, Ruleset, TriggerCandidate, death::create_deaths,
+    AuraRefreshPlan, ChoiceId, Effect, EffectContext, EventContext, EventId, EventSlotId,
+    GameEntityId, PlayerId, ResolutionId, Ruleset, TriggerCandidate,
+    aura::{refresh_health_attack_auras, refresh_post_death_auras},
+    death::create_deaths,
 };
 
 #[derive(ScheduleLabel, Clone, Debug, Eq, Hash, PartialEq)]
@@ -99,6 +101,7 @@ pub struct PendingChoice {
 pub enum ResolutionOp {
     RunSequenceStep(SequenceStep),
     RunPhaseBoundary(PhaseBoundaryPlan),
+    RefreshAuras(AuraRefreshPlan),
     CheckOutcome,
     PrepareEvent(EventContext),
     ResolveEvent(EventId),
@@ -147,6 +150,7 @@ impl ResolutionOp {
         match self {
             Self::RunSequenceStep(_) => "RunSequenceStep",
             Self::RunPhaseBoundary(_) => "RunPhaseBoundary",
+            Self::RefreshAuras(_) => "RefreshAuras",
             Self::CheckOutcome => "CheckOutcome",
             Self::PrepareEvent(_) => "PrepareEvent",
             Self::ResolveEvent(_) => "ResolveEvent",
@@ -234,7 +238,12 @@ pub(crate) fn configure_resolution(app: &mut App) {
         )
         .add_systems(
             ResolvePhaseBoundary,
-            create_deaths.in_set(PhaseBoundarySet::CreateDeaths),
+            (
+                refresh_health_attack_auras.in_set(PhaseBoundarySet::HealthAttackAuras),
+                refresh_health_attack_auras.in_set(PhaseBoundarySet::RefreshHealthAttackAuras),
+                create_deaths.in_set(PhaseBoundarySet::CreateDeaths),
+                refresh_post_death_auras.in_set(PhaseBoundarySet::OtherAuras),
+            ),
         );
     let settings = ScheduleBuildSettings {
         ambiguity_detection: LogLevel::Error,

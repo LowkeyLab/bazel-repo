@@ -10,11 +10,11 @@ This repository is synthetic-card-first: it implements reusable mechanics and co
 - A single resource-owned LIFO stack of one-shot resolution operations, strict schedules, exact-once iterative execution, choice suspension, and per-sequence safety budgets
 - Immutable event records, Death pre-check trigger seeds, and queue-time candidate snapshots that expand directly onto the stack without executable queue entities or cursors
 - Data-oriented effects/selectors/values, fork-safe registered native effect handlers, and versioned seeded randomness with canonical RNG traces
-- Signed mana/Overload counters, drawing, burning, fatigue, proposed-value damage/healing modifiers, ordered health mutations with prepared actual-event slots, DH-compliant Armor/Immune/Divine Shield handling, destroy, summon, silence, stat enchantments, transformation, and copying
+- Signed mana/Overload counters, drawing, burning, fatigue, H1/H2-compliant Health recalculation, proposed-value damage/healing modifiers, ordered health mutations with prepared actual-event slots, Armor/Immune/Divine Shield handling, typed Health/Attack/Other auras, live in-play and attached Spell Damage, silence, transformation, and zone-aware copying
 - Phase-boundary mortality collection with irreversible Hero defeat, globally ordered simultaneous removal, staged Death Event trigger capture, dominant-player trigger grouping, chained Death Phases, and sequence-end outcomes
 - Stable-ID card play/combat/end-turn/concede actions, deterministic legal actions, canonical snapshots/traces, versioned JSON checkpoints, suspended-choice restoration, and checkpoint-exact forks
 
-Aura-provider discovery, complete movement reset policies, all card-type action sequences, choice-producing card mechanics, and remaining esoteric compatibility policies are tracked in the progress document. The resolver and checkpoint API preserve and restore generic pending choices.
+Complete movement reset policies, all card-type action sequences, choice-producing card mechanics, and remaining esoteric compatibility policies are tracked in the progress document. The resolver and checkpoint API preserve and restore generic pending choices.
 
 ## Example
 

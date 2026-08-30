@@ -46,6 +46,15 @@ fn execute_resolution_op(
             run_phase_boundary(world, plan);
             Ok(())
         }
+        ResolutionOp::RefreshAuras(plan) => {
+            match plan {
+                crate::AuraRefreshPlan::PlayedProvider(provider) => {
+                    crate::aura::refresh_played_provider(world, provider);
+                }
+                crate::AuraRefreshPlan::Summon => crate::aura::refresh_all_auras(world),
+            }
+            Ok(())
+        }
         ResolutionOp::CheckOutcome => {
             check_outcome(world);
             Ok(())
@@ -244,6 +253,7 @@ fn attempt_trigger(
         source: game_entity(world, candidate.source).map(|_| candidate.source),
         controller: candidate.controller,
         declared_target: event.targets.first().copied(),
+        origin: crate::EffectOrigin::Other,
     };
     push_resolution_op(
         world,

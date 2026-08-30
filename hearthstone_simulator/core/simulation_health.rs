@@ -4,6 +4,7 @@ use crate::{
     Armor, CanonicalTrace, Controller, Damage, DamageRequest, EventContext, EventKind, EventSlotId,
     GameEntityId, HealingRequest, Keyword, Keywords, PlayOrder, PlayerId, ResolutionOp,
     ResolutionWork, TraceEntry,
+    aura::has_keyword,
     entity::game_entity,
     resolver::{
         allocate_event_slot, push_resolution_op, push_resolution_ops, resolution_is_active,
@@ -150,10 +151,7 @@ fn damage_passes_protection(world: &mut World, request: DamageRequest) -> bool {
     }
     let entity = game_entity(world, request.target)
         .expect("validated damage target remains indexed during damage prevention");
-    if world
-        .get::<Keywords>(entity)
-        .is_some_and(|keywords| keywords.0.contains(&Keyword::Immune))
-    {
+    if has_keyword(world, entity, Keyword::Immune) {
         return false;
     }
     if world

@@ -1,8 +1,8 @@
 use bevy::prelude::Resource;
 
 use crate::{
-    EventId, EventKind, EventValueOperation, GameEntityId, PlayerId, ResolutionId, RulesetId,
-    TriggerCandidate, Zone,
+    AuraApplication, AuraCategory, EventId, EventKind, EventValueOperation, GameEntityId, PlayerId,
+    ResolutionId, RulesetId, TriggerCandidate, Zone,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -49,6 +49,11 @@ pub enum TraceEntry {
         entity: GameEntityId,
         from: Zone,
         to: Zone,
+    },
+    AuraUpdated {
+        target: GameEntityId,
+        category: AuraCategory,
+        applications: Vec<AuraApplication>,
     },
     ResourceSpent {
         player: PlayerId,
