@@ -1,13 +1,15 @@
+use std::collections::BTreeMap;
+
 use bevy::{
-    ecs::{
-        entity::MapEntities,
-        schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel},
-    },
+    ecs::schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel},
     prelude::*,
 };
 use thiserror::Error;
 
-use crate::{CanonicalTrace, NestedUnder, ResolutionId, Ruleset, TraceEntry, death::create_deaths};
+use crate::{
+    ChoiceId, Effect, EffectContext, EventContext, EventId, EventSlotId, GameEntityId, PlayerId,
+    ResolutionId, Ruleset, TriggerCandidate, death::create_deaths,
+};
 
 #[derive(ScheduleLabel, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ResolveFrame;
@@ -23,65 +25,195 @@ pub enum PhaseBoundarySet {
     RefreshHealthAttackAuras,
     CreateDeaths,
     OtherAuras,
-    QueueDeathPhase,
+    CompileDeathPhase,
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct ResolutionNode;
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ResolutionKind {
-    Sequence,
-    Phase,
-    EventBatch,
-    Event,
-    EventQueue,
-    TriggerQueue,
-    Trigger,
-    Effect,
-    PhaseBoundary,
-    DeathPhase,
-    Choice,
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum PhaseBoundaryPlan {
+    Ordinary,
+    ForcedDeath,
 }
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
-#[component(immutable)]
-pub struct ResolutionIdentity {
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum SequenceStep {
+    PlayCard {
+        player: PlayerId,
+        card: GameEntityId,
+        target: Option<GameEntityId>,
+        board_index: Option<usize>,
+    },
+    Attack {
+        player: PlayerId,
+        attacker: GameEntityId,
+        defender: GameEntityId,
+    },
+    FinishAttack {
+        player: PlayerId,
+        attacker: GameEntityId,
+        defender: GameEntityId,
+    },
+    EndTurn {
+        player: PlayerId,
+    },
+    StartTurn {
+        player: PlayerId,
+    },
+    Concede {
+        player: PlayerId,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DamageRequest {
+    pub source: Option<GameEntityId>,
+    pub target: GameEntityId,
+    pub proposed: i32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct HealingRequest {
+    pub source: Option<GameEntityId>,
+    pub target: GameEntityId,
+    pub proposed: i32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct ChoiceOption {
+    pub id: ChoiceId,
+    pub operations: Vec<ResolutionOp>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct ChoiceRequest {
+    pub id: ChoiceId,
+    pub player: PlayerId,
+    pub options: Vec<ChoiceOption>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PendingChoice {
+    pub request: ChoiceRequest,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ResolutionOp {
+    RunSequenceStep(SequenceStep),
+    RunPhaseBoundary(PhaseBoundaryPlan),
+    CheckOutcome,
+    PrepareEvent(EventContext),
+    ResolveEvent(EventId),
+    FinishEvent(EventId),
+    ResolveEventSlot(EventSlotId),
+    AttemptTrigger(TriggerCandidate),
+    FinishTrigger {
+        attempt: ResolutionId,
+        source: GameEntityId,
+    },
+    RunEffect {
+        context: EffectContext,
+        effect: Effect,
+        event: Option<EventId>,
+    },
+    ProcessDamageBatch(Vec<DamageRequest>),
+    ProcessDamage {
+        request: DamageRequest,
+        actual_event: EventSlotId,
+        ordinal: u32,
+    },
+    ApplyDamage {
+        request: DamageRequest,
+        proposed_event: EventId,
+        actual_event: EventSlotId,
+        ordinal: u32,
+    },
+    ProcessHealingBatch(Vec<HealingRequest>),
+    ProcessHealing {
+        request: HealingRequest,
+        actual_event: EventSlotId,
+        ordinal: u32,
+    },
+    ApplyHealing {
+        request: HealingRequest,
+        proposed_event: EventId,
+        actual_event: EventSlotId,
+        ordinal: u32,
+    },
+    RequestChoice(ChoiceRequest),
+}
+
+impl ResolutionOp {
+    #[must_use]
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::RunSequenceStep(_) => "RunSequenceStep",
+            Self::RunPhaseBoundary(_) => "RunPhaseBoundary",
+            Self::CheckOutcome => "CheckOutcome",
+            Self::PrepareEvent(_) => "PrepareEvent",
+            Self::ResolveEvent(_) => "ResolveEvent",
+            Self::FinishEvent(_) => "FinishEvent",
+            Self::ResolveEventSlot(_) => "ResolveEventSlot",
+            Self::AttemptTrigger(_) => "AttemptTrigger",
+            Self::FinishTrigger { .. } => "FinishTrigger",
+            Self::RunEffect { .. } => "RunEffect",
+            Self::ProcessDamageBatch(_) => "ProcessDamageBatch",
+            Self::ProcessDamage { .. } => "ProcessDamage",
+            Self::ApplyDamage { .. } => "ApplyDamage",
+            Self::ProcessHealingBatch(_) => "ProcessHealingBatch",
+            Self::ProcessHealing { .. } => "ProcessHealing",
+            Self::ApplyHealing { .. } => "ApplyHealing",
+            Self::RequestChoice(_) => "RequestChoice",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct StackedResolutionOp {
     pub id: ResolutionId,
-    pub kind: ResolutionKind,
+    pub operation: ResolutionOp,
 }
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ResolutionProgress {
-    Ready,
-    Running,
-    Suspended,
-    Complete,
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PreparedEventSlot {
+    pub event: Option<EventId>,
 }
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ResolutionState {
-    pub progress: ResolutionProgress,
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PreparedEvent {
+    pub context: EventContext,
+    pub prechecked_triggers: Option<Vec<crate::TriggerSeed>>,
+    pub candidates: Option<Vec<TriggerCandidate>>,
 }
 
-#[derive(Resource, Clone, Debug, Default, Eq, PartialEq, MapEntities)]
-pub struct ResolutionCursor {
-    #[entities]
-    pub root: Option<Entity>,
-    #[entities]
-    pub active: Option<Entity>,
+#[derive(Clone, Debug, Default, Eq, PartialEq, Resource, serde::Deserialize, serde::Serialize)]
+pub struct ResolutionWork {
+    pub stack: Vec<StackedResolutionOp>,
     pub remaining_budget: usize,
+    pub next_resolution_id: u64,
+    pub next_event_id: u64,
+    pub next_event_slot_id: u64,
+    pub events: BTreeMap<EventId, PreparedEvent>,
+    pub event_slots: BTreeMap<EventSlotId, PreparedEventSlot>,
+    pub pending_choice: Option<PendingChoice>,
+    pub sequence_active: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, Resource)]
-pub struct NextResolutionId(pub u64);
+#[derive(Clone, Debug, Default, Resource)]
+pub struct CurrentResolutionOp(pub Option<StackedResolutionOp>);
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum ResolutionError {
-    #[error("resolution budget exhausted at {active:?}")]
-    BudgetExhausted { active: Option<ResolutionId> },
-    #[error("active resolution cursor does not point to a live node")]
-    InvalidCursor,
+    #[error("resolution budget exhausted while executing {operation:?}")]
+    BudgetExhausted { operation: Option<ResolutionId> },
+    #[error("resolution work already exists")]
+    AlreadyResolving,
+    #[error("prepared event {0:?} does not exist")]
+    MissingEvent(EventId),
+    #[error("prepared event slot {0:?} does not exist")]
+    MissingEventSlot(EventSlotId),
+    #[error("no player choice is pending")]
+    NoPendingChoice,
+    #[error("choice option {0:?} is invalid")]
+    InvalidChoice(ChoiceId),
 }
 
 pub(crate) fn configure_resolution(app: &mut App) {
@@ -96,7 +228,7 @@ pub(crate) fn configure_resolution(app: &mut App) {
                 PhaseBoundarySet::RefreshHealthAttackAuras,
                 PhaseBoundarySet::CreateDeaths,
                 PhaseBoundarySet::OtherAuras,
-                PhaseBoundarySet::QueueDeathPhase,
+                PhaseBoundarySet::CompileDeathPhase,
             )
                 .chain(),
         )
@@ -122,196 +254,124 @@ pub(crate) fn configure_resolution(app: &mut App) {
     });
 }
 
-pub(crate) fn begin_resolution(world: &mut World, kind: ResolutionKind) -> Entity {
-    let id = allocate_resolution_id(world);
-    let entity = world
-        .spawn((
-            ResolutionNode,
-            ResolutionIdentity { id, kind },
-            ResolutionState {
-                progress: ResolutionProgress::Ready,
-            },
-        ))
-        .id();
+pub(crate) fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
     let budget = world.resource::<Ruleset>().resolution_budget;
-    *world.resource_mut::<ResolutionCursor>() = ResolutionCursor {
-        root: Some(entity),
-        active: Some(entity),
-        remaining_budget: budget,
-    };
-    world
-        .resource_mut::<CanonicalTrace>()
-        .entries
-        .push(TraceEntry::FrameBegin {
-            id,
-            kind: format!("{kind:?}"),
-        });
-    entity
-}
-
-pub(crate) fn push_resolution(
-    world: &mut World,
-    kind: ResolutionKind,
-) -> Result<Entity, ResolutionError> {
-    let parent = world
-        .resource::<ResolutionCursor>()
-        .active
-        .ok_or(ResolutionError::InvalidCursor)?;
-    let child = spawn_resolution_child(world, parent, kind);
-    activate_resolution_child(world, child)?;
-    Ok(child)
-}
-
-pub(crate) fn spawn_resolution_child(
-    world: &mut World,
-    parent: Entity,
-    kind: ResolutionKind,
-) -> Entity {
-    let id = allocate_resolution_id(world);
-    world
-        .spawn((
-            ResolutionNode,
-            ResolutionIdentity { id, kind },
-            ResolutionState {
-                progress: ResolutionProgress::Ready,
-            },
-            NestedUnder(parent),
-        ))
-        .id()
-}
-
-pub(crate) fn activate_resolution_child(
-    world: &mut World,
-    child: Entity,
-) -> Result<(), ResolutionError> {
-    let parent = world
-        .get::<NestedUnder>(child)
-        .map(|parent| parent.0)
-        .ok_or(ResolutionError::InvalidCursor)?;
-    if world.resource::<ResolutionCursor>().active != Some(parent) {
-        return Err(ResolutionError::InvalidCursor);
-    }
-    let identity = *world
-        .get::<ResolutionIdentity>(child)
-        .ok_or(ResolutionError::InvalidCursor)?;
-    world.resource_mut::<ResolutionCursor>().active = Some(child);
-    world
-        .resource_mut::<CanonicalTrace>()
-        .entries
-        .push(TraceEntry::FrameBegin {
-            id: identity.id,
-            kind: format!("{:?}", identity.kind),
-        });
-    Ok(())
-}
-
-#[allow(dead_code, reason = "used by the upcoming suspended-choice driver")]
-pub(crate) fn suspend_active(world: &mut World) -> Result<(), ResolutionError> {
-    let active = world
-        .resource::<ResolutionCursor>()
-        .active
-        .ok_or(ResolutionError::InvalidCursor)?;
-    world.entity_mut(active).insert(ResolutionState {
-        progress: ResolutionProgress::Suspended,
-    });
-    Ok(())
-}
-
-#[allow(dead_code, reason = "used by the upcoming suspended-choice driver")]
-pub(crate) fn resume_active(world: &mut World) -> Result<(), ResolutionError> {
-    let active = world
-        .resource::<ResolutionCursor>()
-        .active
-        .ok_or(ResolutionError::InvalidCursor)?;
-    if world
-        .get::<ResolutionState>(active)
-        .map(|state| state.progress)
-        != Some(ResolutionProgress::Suspended)
+    let mut work = world.resource_mut::<ResolutionWork>();
+    if work.sequence_active
+        || !work.stack.is_empty()
+        || !work.events.is_empty()
+        || !work.event_slots.is_empty()
+        || work.pending_choice.is_some()
     {
-        return Err(ResolutionError::InvalidCursor);
+        return Err(ResolutionError::AlreadyResolving);
     }
-    world.entity_mut(active).insert(ResolutionState {
-        progress: ResolutionProgress::Running,
-    });
+    work.remaining_budget = budget;
+    work.sequence_active = true;
     Ok(())
 }
 
-pub(crate) fn complete_active(world: &mut World) -> Result<(), ResolutionError> {
-    let active = world
-        .resource::<ResolutionCursor>()
-        .active
-        .ok_or(ResolutionError::InvalidCursor)?;
-    let identity = *world
-        .get::<ResolutionIdentity>(active)
-        .ok_or(ResolutionError::InvalidCursor)?;
-    let parent = world.get::<NestedUnder>(active).map(|parent| parent.0);
-    world.entity_mut(active).insert(ResolutionState {
-        progress: ResolutionProgress::Complete,
-    });
-    world
-        .resource_mut::<CanonicalTrace>()
-        .entries
-        .push(TraceEntry::FrameEnd {
-            id: identity.id,
-            kind: format!("{:?}", identity.kind),
+pub(crate) fn finish_sequence(world: &mut World) {
+    world.resource_mut::<ResolutionWork>().sequence_active = false;
+}
+
+pub(crate) fn abandon_sequence(world: &mut World) {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    work.stack.clear();
+    work.events.clear();
+    work.event_slots.clear();
+    work.pending_choice = None;
+    work.sequence_active = false;
+    work.remaining_budget = 0;
+}
+
+pub(crate) fn push_resolution_op(world: &mut World, operation: ResolutionOp) -> ResolutionId {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    let id = ResolutionId(work.next_resolution_id);
+    work.next_resolution_id = work
+        .next_resolution_id
+        .checked_add(1)
+        .expect("resolution ID overflow");
+    work.stack.push(StackedResolutionOp { id, operation });
+    id
+}
+
+pub(crate) fn push_resolution_ops(
+    world: &mut World,
+    operations_in_execution_order: impl IntoIterator<Item = ResolutionOp>,
+) {
+    let operations = operations_in_execution_order
+        .into_iter()
+        .collect::<Vec<_>>();
+    for operation in operations.into_iter().rev() {
+        push_resolution_op(world, operation);
+    }
+}
+
+pub(crate) fn pop_resolution_op(world: &mut World) -> Option<StackedResolutionOp> {
+    world.resource_mut::<ResolutionWork>().stack.pop()
+}
+
+pub(crate) fn consume_budget(
+    world: &mut World,
+    operation: ResolutionId,
+) -> Result<(), ResolutionError> {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    if work.remaining_budget == 0 {
+        return Err(ResolutionError::BudgetExhausted {
+            operation: Some(operation),
         });
-    world.resource_mut::<ResolutionCursor>().active = parent;
+    }
+    work.remaining_budget -= 1;
     Ok(())
 }
 
-pub(crate) fn consume_budget(world: &mut World) -> Result<(), ResolutionError> {
-    let active_entity = {
-        let mut cursor = world.resource_mut::<ResolutionCursor>();
-        if cursor.remaining_budget > 0 {
-            cursor.remaining_budget -= 1;
-            return Ok(());
-        }
-        cursor.active
-    };
-    let active = active_entity.and_then(|entity| {
-        world
-            .get::<ResolutionIdentity>(entity)
-            .map(|identity| identity.id)
-    });
-    Err(ResolutionError::BudgetExhausted { active })
+pub(crate) fn allocate_event_id(world: &mut World) -> EventId {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    let id = EventId(work.next_event_id);
+    work.next_event_id = work
+        .next_event_id
+        .checked_add(1)
+        .expect("event ID overflow");
+    id
 }
 
-pub(crate) fn cleanup_resolution(world: &mut World) {
-    let root = world.resource::<ResolutionCursor>().root;
-    if let Some(root) = root {
-        let _ = world.despawn(root);
-    }
-    *world.resource_mut::<ResolutionCursor>() = ResolutionCursor::default();
+pub(crate) fn allocate_event_slot(world: &mut World) -> EventSlotId {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    let id = EventSlotId(work.next_event_slot_id);
+    work.next_event_slot_id = work
+        .next_event_slot_id
+        .checked_add(1)
+        .expect("event slot ID overflow");
+    let previous = work.event_slots.insert(id, PreparedEventSlot::default());
+    debug_assert!(previous.is_none());
+    id
+}
+
+pub(crate) fn resolution_is_active(world: &World) -> bool {
+    world.resource::<ResolutionWork>().sequence_active
 }
 
 pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> {
-    let cursor = world.resource::<ResolutionCursor>();
-    let (Some(root), Some(active)) = (cursor.root, cursor.active) else {
-        if cursor.root.is_none() && cursor.active.is_none() {
-            return Ok(());
+    let work = world.resource::<ResolutionWork>();
+    if !work.sequence_active {
+        if !work.stack.is_empty()
+            || !work.events.is_empty()
+            || !work.event_slots.is_empty()
+            || work.pending_choice.is_some()
+        {
+            return Err(
+                "idle resolution work retains operations, events, slots, or a choice".into(),
+            );
         }
-        return Err("resolution root and active cursor disagree".to_string());
-    };
-    if !world.entity(root).contains::<ResolutionNode>()
-        || !world.entity(active).contains::<ResolutionNode>()
+    } else if world.resource::<crate::GameState>().status == crate::SimulationStatus::AwaitingChoice
+        && work.pending_choice.is_none()
     {
-        return Err("resolution cursor references a non-resolution entity".to_string());
+        return Err("AwaitingChoice has no pending choice".into());
     }
-    let mut current = active;
-    while let Some(parent) = world.get::<NestedUnder>(current).map(|parent| parent.0) {
-        current = parent;
-    }
-    if current != root {
-        return Err("active resolution node is outside the root ancestry".to_string());
+    if work.pending_choice.is_some() && !work.sequence_active {
+        return Err("a pending choice exists outside an active sequence".into());
     }
     Ok(())
-}
-
-pub(crate) fn allocate_resolution_id(world: &mut World) -> ResolutionId {
-    let mut next = world.resource_mut::<NextResolutionId>();
-    let id = ResolutionId(next.0);
-    next.0 = next.0.checked_add(1).expect("resolution ID overflow");
-    id
 }
 
 #[cfg(test)]
@@ -320,140 +380,59 @@ mod tests {
 
     use super::*;
 
-    fn app_with_resolution() -> App {
-        let mut app = App::new();
-        app.init_resource::<Ruleset>()
-            .init_resource::<CanonicalTrace>()
-            .init_resource::<ResolutionCursor>()
-            .init_resource::<NextResolutionId>();
-        configure_resolution(&mut app);
-        app
+    fn world() -> World {
+        let mut world = World::new();
+        world.init_resource::<Ruleset>();
+        world.init_resource::<ResolutionWork>();
+        world.init_resource::<crate::GameState>();
+        world
     }
 
     #[googletest::test]
-    fn active_cursor_follows_depth_first_relationship_path() {
-        let mut app = app_with_resolution();
-        let world = app.world_mut();
-        let root = begin_resolution(world, ResolutionKind::Sequence);
-        let phase = push_resolution(world, ResolutionKind::Phase).expect("phase should push");
-        let effect = push_resolution(world, ResolutionKind::Effect).expect("effect should push");
+    fn reverse_push_produces_one_shot_lifo_execution_order() {
+        let mut world = world();
+        begin_sequence(&mut world).unwrap();
+        push_resolution_ops(
+            &mut world,
+            [
+                ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+                ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::ForcedDeath),
+            ],
+        );
 
         assert_that!(
-            world.resource::<ResolutionCursor>().active,
-            eq(Some(effect))
-        );
-        assert_that!(world.get::<NestedUnder>(effect).unwrap().0, eq(phase));
-        assert_that!(world.get::<NestedUnder>(phase).unwrap().0, eq(root));
-        assert_resolution_invariants(world).expect("active leaf should belong to root");
-        suspend_active(world).expect("active frame should suspend");
-        assert_that!(
-            world.get::<ResolutionState>(effect).unwrap().progress,
-            eq(ResolutionProgress::Suspended)
-        );
-        resume_active(world).expect("active frame should resume");
-
-        complete_active(world).expect("effect should complete");
-        assert_that!(world.resource::<ResolutionCursor>().active, eq(Some(phase)));
-        complete_active(world).expect("phase should complete");
-        complete_active(world).expect("root should complete");
-        cleanup_resolution(world);
-
-        assert_that!(
-            *world.resource::<ResolutionCursor>(),
-            eq(&ResolutionCursor::default())
+            pop_resolution_op(&mut world).unwrap().operation,
+            eq(&ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary))
         );
         assert_that!(
-            world
-                .iter_entities()
-                .filter(|entity| entity.contains::<ResolutionNode>())
-                .count(),
-            eq(0)
+            pop_resolution_op(&mut world).unwrap().operation,
+            eq(&ResolutionOp::RunPhaseBoundary(
+                PhaseBoundaryPlan::ForcedDeath
+            ))
         );
+        assert_that!(pop_resolution_op(&mut world), none());
     }
 
     #[googletest::test]
-    fn resolution_budget_reports_the_active_logical_id() {
-        let mut app = app_with_resolution();
-        app.world_mut().resource_mut::<Ruleset>().resolution_budget = 1;
-        let world = app.world_mut();
-        begin_resolution(world, ResolutionKind::Sequence);
+    fn budget_reports_the_exact_popped_operation() {
+        let mut world = world();
+        world.resource_mut::<Ruleset>().resolution_budget = 1;
+        begin_sequence(&mut world).unwrap();
+        let first = push_resolution_op(
+            &mut world,
+            ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+        );
+        consume_budget(&mut world, first).unwrap();
+        let second = push_resolution_op(
+            &mut world,
+            ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+        );
 
-        consume_budget(world).expect("first step fits budget");
         assert_that!(
-            consume_budget(world),
+            consume_budget(&mut world, second),
             err(eq(&ResolutionError::BudgetExhausted {
-                active: Some(ResolutionId(0)),
+                operation: Some(second)
             }))
         );
-    }
-
-    #[googletest::test]
-    fn invalid_cursor_operations_and_invariants_are_reported() {
-        let mut app = app_with_resolution();
-        let world = app.world_mut();
-
-        assert_that!(
-            push_resolution(world, ResolutionKind::Effect),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-        assert_that!(
-            suspend_active(world),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-        assert_that!(
-            resume_active(world),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-        assert_that!(
-            complete_active(world),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-
-        let root = begin_resolution(world, ResolutionKind::Sequence);
-        assert_that!(
-            resume_active(world),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-        let active_child = spawn_resolution_child(world, root, ResolutionKind::Effect);
-        let inactive_sibling = spawn_resolution_child(world, root, ResolutionKind::Effect);
-        activate_resolution_child(world, active_child).expect("child should activate");
-        assert_that!(
-            activate_resolution_child(world, inactive_sibling),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-        complete_active(world).expect("active child should complete");
-        let malformed = world.spawn_empty().id();
-        world.resource_mut::<ResolutionCursor>().active = Some(malformed);
-        assert_that!(
-            complete_active(world),
-            err(eq(&ResolutionError::InvalidCursor))
-        );
-        world.resource_mut::<ResolutionCursor>().remaining_budget = 0;
-        assert_that!(
-            consume_budget(world),
-            err(eq(&ResolutionError::BudgetExhausted { active: None }))
-        );
-
-        world.resource_mut::<ResolutionCursor>().active = None;
-        assert_that!(
-            assert_resolution_invariants(world),
-            err(eq(&"resolution root and active cursor disagree".to_string()))
-        );
-        world.resource_mut::<ResolutionCursor>().active = Some(malformed);
-        assert_that!(
-            assert_resolution_invariants(world),
-            err(eq(
-                &"resolution cursor references a non-resolution entity".to_string()
-            ))
-        );
-        world.entity_mut(malformed).insert(ResolutionNode);
-        assert_that!(
-            assert_resolution_invariants(world),
-            err(eq(
-                &"active resolution node is outside the root ancestry".to_string()
-            ))
-        );
-        world.entity_mut(malformed).insert(NestedUnder(root));
-        assert_resolution_invariants(world).unwrap();
     }
 }

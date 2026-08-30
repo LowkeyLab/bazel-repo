@@ -10,11 +10,34 @@ use crate::{GameEntityId, PlayerId};
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct GameObject;
 
-#[derive(Component, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Component,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 #[component(immutable)]
 pub struct DefinitionId(pub String);
 
-#[derive(Component, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Component,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 pub enum EntityKind {
     Player,
     Hero,
@@ -30,37 +53,49 @@ pub enum EntityKind {
     Secret,
 }
 
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Controller(pub PlayerId);
 
-#[derive(Component, Clone, Debug, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct DisplayName(pub String);
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct PlayOrder(pub u64);
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct BaseStats {
     pub attack: i32,
     pub health: i32,
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct CurrentStats {
     pub attack: i32,
     pub maximum_health: i32,
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct Damage(pub i32);
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct Armor(pub i32);
 
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PendingDestroy;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
+)]
 pub enum Keyword {
     Charge,
     DivineShield,
@@ -73,22 +108,24 @@ pub enum Keyword {
     Windfury,
 }
 
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Keywords(pub BTreeSet<Keyword>);
 
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Abilities(pub Vec<String>);
 
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Enchantments(pub Vec<GameEntityId>);
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct AttackState {
     pub attacks_this_turn: u8,
     pub exhausted: bool,
 }
 
-#[derive(Component, Clone, Debug, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Player {
     pub id: PlayerId,
     pub name: String,

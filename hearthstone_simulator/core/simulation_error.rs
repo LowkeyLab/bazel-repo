@@ -1,8 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    GameEntityId, NativeEffectId, PlayerId, QueueMutationError, Zone, resolver::ResolutionError,
-    zone::ZoneError,
+    GameEntityId, NativeEffectId, PlayerId, Zone, resolver::ResolutionError, zone::ZoneError,
 };
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
@@ -44,8 +43,6 @@ pub enum SimulationError {
     Resolution(#[from] ResolutionError),
     #[error("zone operation failed: {0}")]
     Zone(#[from] ZoneError),
-    #[error("queue operation failed: {0}")]
-    Queue(#[from] QueueMutationError),
     #[error("native effect {0:?} is already registered")]
     NativeEffectAlreadyRegistered(NativeEffectId),
     #[error("native effect {0:?} is not registered")]
@@ -54,6 +51,8 @@ pub enum SimulationError {
     NativeEffectFailed { id: NativeEffectId, reason: String },
     #[error("an event-value modifier requires an active proposed damage or healing event")]
     NoModifiableEventValue,
+    #[error("simulation checkpoint failed: {0}")]
+    Checkpoint(String),
     #[error("simulation invariant failed: {0}")]
     Invariant(String),
 }

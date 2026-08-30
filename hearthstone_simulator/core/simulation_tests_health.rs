@@ -350,7 +350,7 @@ fn no_op_healing_does_not_create_healing_reactions() {
 }
 
 #[googletest::test]
-fn each_predamage_queue_resolves_after_prior_damage_is_applied() {
+fn each_predamage_event_resolves_after_prior_damage_is_applied() {
     let first = Card::minion("First Damage Target", 0, 1, 5);
     let healer = Card::minion("Predamage Healer", 0, 1, 5).with_triggers(vec![self_event_trigger(
         EventKind::ProposedDamage,
@@ -455,8 +455,6 @@ fn armor_loss_counts_as_actual_damage_for_traces_and_triggers() {
             }],
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: vec![Effect::GainResource {
                 player: PlayerSelector::Controller,
@@ -849,16 +847,4 @@ fn damage_handles_missing_targets_immunity_shields_armor_and_negative_values() {
         ),
         err(eq(&SimulationError::NoModifiableEventValue))
     );
-    begin_resolution(simulation.app.world_mut(), ResolutionKind::Sequence);
-    assert_that!(
-        modify_active_event_value(
-            simulation.app.world_mut(),
-            &context,
-            EventValueOperation::Replace,
-            ValueExpression::Constant(0),
-        ),
-        err(eq(&SimulationError::NoModifiableEventValue))
-    );
-    complete_active(simulation.app.world_mut()).unwrap();
-    cleanup_resolution(simulation.app.world_mut());
 }

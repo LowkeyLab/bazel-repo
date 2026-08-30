@@ -124,7 +124,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         eq(PlayerId::Two)
     );
 
-    begin_resolution(world, ResolutionKind::Sequence);
+    begin_sequence(world).unwrap();
     execute_effects(
         world,
         &context,
@@ -182,8 +182,8 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         ])],
     )
     .unwrap();
-    complete_active(world).unwrap();
-    cleanup_resolution(world);
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
 
     assert_that!(
         world.get::<Damage>(game_entity(world, enemy).unwrap()),
@@ -325,7 +325,6 @@ fn native_handlers_flush_commands_and_return_nested_effect_plans() {
 
     let missing = NativeEffectId::new("synthetic:missing");
     let world = simulation.app.world_mut();
-    begin_resolution(world, ResolutionKind::Sequence);
     let context = EffectContext {
         source: None,
         controller: PlayerId::One,
@@ -335,8 +334,6 @@ fn native_handlers_flush_commands_and_return_nested_effect_plans() {
         execute_effect(world, &context, &Effect::Native(missing.clone())),
         err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
     );
-    complete_active(world).unwrap();
-    cleanup_resolution(world);
 }
 
 #[googletest::test]
@@ -347,7 +344,6 @@ fn native_returned_event_modifiers_are_validated_before_execution() {
         .register_native_effect(native_id.clone(), synthetic_native_modifier_handler)
         .unwrap();
     let world = simulation.app.world_mut();
-    begin_resolution(world, ResolutionKind::Sequence);
     let context = EffectContext {
         source: None,
         controller: PlayerId::One,
@@ -366,29 +362,34 @@ fn native_returned_event_modifiers_are_validated_before_execution() {
             .any(|entry| matches!(entry, TraceEntry::EventValueChanged { .. })),
         is_false()
     );
-    complete_active(world).unwrap();
-    cleanup_resolution(world);
 
-    let root = begin_resolution(world, ResolutionKind::Sequence);
-    let event = spawn_resolution_child(world, root, ResolutionKind::Event);
-    world.entity_mut(event).insert(EventContext {
-        kind: EventKind::ProposedDamage,
-        source: None,
-        targets: Vec::new(),
-        controller: PlayerId::One,
-        proposed_value: Some(5),
-        actual_value: None,
-        simultaneous_ordinal: 0,
-    });
-    activate_resolution_child(world, event).unwrap();
-    execute_effect(world, &context, &Effect::Native(native_id)).unwrap();
+    begin_sequence(world).unwrap();
+    let event = prepare_event(
+        world,
+        EventContext {
+            kind: EventKind::ProposedDamage,
+            source: None,
+            targets: Vec::new(),
+            controller: PlayerId::One,
+            proposed_value: Some(5),
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    );
+    execute_effect_operation(world, &context, &Effect::Native(native_id), Some(event)).unwrap();
+    drive_resolution(world).unwrap();
     assert_that!(
-        world.get::<EventContext>(event).unwrap().proposed_value,
+        world
+            .resource::<ResolutionWork>()
+            .events
+            .get(&event)
+            .unwrap()
+            .context
+            .proposed_value,
         eq(Some(0))
     );
-    complete_active(world).unwrap();
-    complete_active(world).unwrap();
-    cleanup_resolution(world);
+    take_prepared_event(world, event).unwrap();
+    finish_sequence(world);
 }
 
 #[googletest::test]
@@ -396,29 +397,31 @@ fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
     let mut simulation = simulation();
     let target = hero(&mut simulation, PlayerId::Two);
     let world = simulation.app.world_mut();
-    let root = begin_resolution(world, ResolutionKind::Sequence);
-    let outer = spawn_resolution_child(world, root, ResolutionKind::Event);
-    world.entity_mut(outer).insert(EventContext {
-        kind: EventKind::ProposedDamage,
-        source: None,
-        targets: vec![target],
-        controller: PlayerId::One,
-        proposed_value: Some(5),
-        actual_value: None,
-        simultaneous_ordinal: 0,
-    });
-    activate_resolution_child(world, outer).unwrap();
-    let inner = spawn_resolution_child(world, outer, ResolutionKind::Event);
-    world.entity_mut(inner).insert(EventContext {
-        kind: EventKind::Damage,
-        source: None,
-        targets: vec![target],
-        controller: PlayerId::One,
-        proposed_value: Some(1),
-        actual_value: Some(1),
-        simultaneous_ordinal: 0,
-    });
-    activate_resolution_child(world, inner).unwrap();
+    begin_sequence(world).unwrap();
+    let outer = prepare_event(
+        world,
+        EventContext {
+            kind: EventKind::ProposedDamage,
+            source: None,
+            targets: vec![target],
+            controller: PlayerId::One,
+            proposed_value: Some(5),
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        },
+    );
+    let inner = prepare_event(
+        world,
+        EventContext {
+            kind: EventKind::Damage,
+            source: None,
+            targets: vec![target],
+            controller: PlayerId::One,
+            proposed_value: Some(1),
+            actual_value: Some(1),
+            simultaneous_ordinal: 0,
+        },
+    );
     let context = EffectContext {
         source: None,
         controller: PlayerId::One,
@@ -426,8 +429,9 @@ fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
     };
 
     assert_that!(
-        modify_active_event_value(
+        modify_event_value(
             world,
+            Some(inner),
             &context,
             EventValueOperation::Replace,
             ValueExpression::Constant(0),
@@ -435,13 +439,18 @@ fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
         err(eq(&SimulationError::NoModifiableEventValue))
     );
     assert_that!(
-        world.get::<EventContext>(outer).unwrap().proposed_value,
+        world
+            .resource::<ResolutionWork>()
+            .events
+            .get(&outer)
+            .unwrap()
+            .context
+            .proposed_value,
         eq(Some(5))
     );
-    complete_active(world).unwrap();
-    complete_active(world).unwrap();
-    complete_active(world).unwrap();
-    cleanup_resolution(world);
+    take_prepared_event(world, inner).unwrap();
+    take_prepared_event(world, outer).unwrap();
+    finish_sequence(world);
 }
 
 #[googletest::test]
@@ -522,8 +531,6 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
             conditions: Vec::new(),
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: vec![Effect::Silence {
                 targets: Selector::DeclaredTarget,
@@ -536,8 +543,6 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
             conditions: Vec::new(),
             source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: vec![Effect::GainResource {
                 player: PlayerSelector::Controller,
@@ -622,8 +627,6 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
             conditions: Vec::new(),
             source_eligibility: crate::SourceEligibilityPolicy::MustExist,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: Vec::new(),
         }]),

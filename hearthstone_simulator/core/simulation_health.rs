@@ -1,33 +1,19 @@
 use bevy::prelude::*;
 
 use crate::{
-    Armor, CanonicalTrace, Controller, Damage, EventContext, EventKind, GameEntityId, Keyword,
-    Keywords, PlayOrder, PlayerId, ResolutionCursor, ResolutionKind, TraceEntry,
+    Armor, CanonicalTrace, Controller, Damage, DamageRequest, EventContext, EventKind, EventSlotId,
+    GameEntityId, HealingRequest, Keyword, Keywords, PlayOrder, PlayerId, ResolutionOp,
+    ResolutionWork, TraceEntry,
     entity::game_entity,
-    resolver::{activate_resolution_child, complete_active, consume_budget, push_resolution},
+    resolver::{
+        allocate_event_slot, push_resolution_op, push_resolution_ops, resolution_is_active,
+    },
 };
 
 use super::{
     error::SimulationError,
-    event_resolver::{
-        add_prepared_event, freeze_prepared_event_queue, prepare_collecting_event_queue,
-        prepare_event_child, resolve_prepared_event, resolve_prepared_events,
-    },
+    event_resolver::{prepare_event, take_prepared_event},
 };
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct DamageRequest {
-    pub(super) source: Option<GameEntityId>,
-    pub(super) target: GameEntityId,
-    pub(super) proposed: i32,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct HealingRequest {
-    pub(super) source: Option<GameEntityId>,
-    pub(super) target: GameEntityId,
-    pub(super) proposed: i32,
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum SimultaneousEventOrder {
@@ -59,10 +45,9 @@ pub(super) fn apply_damage_batch(
 ) -> Result<(), SimulationError> {
     validate_health_change_targets(world, requests.iter().map(|request| request.target))?;
     order_health_change_requests(world, &mut requests, order, |request| request.target);
-    if requests.is_empty() {
-        return Ok(());
-    }
-    if world.resource::<ResolutionCursor>().active.is_none() {
+    if resolution_is_active(world) {
+        push_resolution_op(world, ResolutionOp::ProcessDamageBatch(requests));
+    } else {
         for (ordinal, mut request) in requests.into_iter().enumerate() {
             request.proposed = request.proposed.max(0);
             if damage_passes_protection(world, request) {
@@ -75,21 +60,47 @@ pub(super) fn apply_damage_batch(
                 trace_damage(world, request, 0);
             }
         }
-        return Ok(());
     }
+    Ok(())
+}
 
-    let batch = push_resolution(world, ResolutionKind::EventBatch)?;
-    consume_budget(world)?;
-    let actual_queue = prepare_collecting_event_queue(world, batch)?;
-    for (ordinal, mut request) in requests.into_iter().enumerate() {
-        let ordinal = u32::try_from(ordinal).expect("damage batch exceeds u32");
-        request.proposed = request.proposed.max(0);
-        if !damage_passes_protection(world, request) {
-            trace_damage(world, request, 0);
-            continue;
-        }
+pub(super) fn expand_damage_batch(world: &mut World, requests: Vec<DamageRequest>) {
+    if requests.is_empty() {
+        return;
+    }
+    let slots = (0..requests.len())
+        .map(|_| allocate_event_slot(world))
+        .collect::<Vec<_>>();
+    let mut operations = requests
+        .into_iter()
+        .zip(slots.iter().copied())
+        .enumerate()
+        .map(
+            |(ordinal, (request, actual_event))| ResolutionOp::ProcessDamage {
+                request,
+                actual_event,
+                ordinal: u32::try_from(ordinal).expect("damage batch exceeds u32"),
+            },
+        )
+        .collect::<Vec<_>>();
+    operations.extend(slots.into_iter().map(ResolutionOp::ResolveEventSlot));
+    push_resolution_ops(world, operations);
+}
 
-        let proposed_event = EventContext {
+pub(super) fn process_damage(
+    world: &mut World,
+    mut request: DamageRequest,
+    actual_event: EventSlotId,
+    ordinal: u32,
+) {
+    request.proposed = request.proposed.max(0);
+    if !damage_passes_protection(world, request) {
+        trace_damage(world, request, 0);
+        return;
+    }
+    let proposed_event = prepare_event(
+        world,
+        EventContext {
             kind: EventKind::ProposedDamage,
             source: request.source,
             targets: vec![request.target],
@@ -97,25 +108,44 @@ pub(super) fn apply_damage_batch(
             proposed_value: Some(request.proposed),
             actual_value: None,
             simultaneous_ordinal: ordinal,
-        };
-        request.proposed = resolve_proposed_health_event(world, batch, proposed_event)?;
-        let actual = reduce_damage(world, request, ordinal);
-        if actual.actual_value.is_some_and(|value| value > 0) {
-            add_prepared_event(world, actual_queue, actual, None)?;
-        }
-    }
+        },
+    );
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::ResolveEvent(proposed_event),
+            ResolutionOp::ApplyDamage {
+                request,
+                proposed_event,
+                actual_event,
+                ordinal,
+            },
+        ],
+    );
+}
 
-    freeze_prepared_event_queue(world, actual_queue)?;
-    activate_resolution_child(world, actual_queue)?;
-    resolve_prepared_events(world, actual_queue)?;
-    complete_active(world)?;
-    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
-    complete_active(world)?;
+pub(super) fn apply_prepared_damage(
+    world: &mut World,
+    mut request: DamageRequest,
+    proposed_event: crate::EventId,
+    actual_event: EventSlotId,
+    ordinal: u32,
+) -> Result<(), SimulationError> {
+    let proposed = take_prepared_event(world, proposed_event)?
+        .context
+        .proposed_value
+        .unwrap_or_default()
+        .max(0);
+    request.proposed = proposed;
+    let event = reduce_damage(world, request, ordinal);
+    if event.actual_value.is_some_and(|actual| actual > 0) {
+        fill_event_slot(world, actual_event, event)?;
+    }
     Ok(())
 }
 
 fn damage_passes_protection(world: &mut World, request: DamageRequest) -> bool {
-    if request.proposed == 0 {
+    if request.proposed <= 0 {
         return false;
     }
     let entity = game_entity(world, request.target)
@@ -138,23 +168,6 @@ fn damage_passes_protection(world: &mut World, request: DamageRequest) -> bool {
         return false;
     }
     true
-}
-
-fn resolve_proposed_health_event(
-    world: &mut World,
-    parent: Entity,
-    event: EventContext,
-) -> Result<i32, SimulationError> {
-    let event_entity = prepare_event_child(world, parent, event, None)?;
-    activate_resolution_child(world, event_entity)?;
-    resolve_prepared_event(world, event_entity)?;
-    let proposed = world
-        .get::<EventContext>(event_entity)
-        .and_then(|event| event.proposed_value)
-        .unwrap_or_default()
-        .max(0);
-    complete_active(world)?;
-    Ok(proposed)
 }
 
 fn reduce_damage(
@@ -211,10 +224,9 @@ pub(super) fn apply_healing_batch(
 ) -> Result<(), SimulationError> {
     validate_health_change_targets(world, requests.iter().map(|request| request.target))?;
     order_health_change_requests(world, &mut requests, order, |request| request.target);
-    if requests.is_empty() {
-        return Ok(());
-    }
-    if world.resource::<ResolutionCursor>().active.is_none() {
+    if resolution_is_active(world) {
+        push_resolution_op(world, ResolutionOp::ProcessHealingBatch(requests));
+    } else {
         for (ordinal, request) in requests.into_iter().enumerate() {
             reduce_healing(
                 world,
@@ -222,39 +234,86 @@ pub(super) fn apply_healing_batch(
                 u32::try_from(ordinal).expect("healing batch exceeds u32"),
             );
         }
-        return Ok(());
     }
+    Ok(())
+}
 
-    let batch = push_resolution(world, ResolutionKind::EventBatch)?;
-    consume_budget(world)?;
-    let actual_queue = prepare_collecting_event_queue(world, batch)?;
-    for (ordinal, mut request) in requests.into_iter().enumerate() {
-        let ordinal = u32::try_from(ordinal).expect("healing batch exceeds u32");
-        request.proposed = request.proposed.max(0);
-        if request.proposed > 0 {
-            let proposed_event = EventContext {
-                kind: EventKind::ProposedHealing,
-                source: request.source,
-                targets: vec![request.target],
-                controller: event_controller(world, request.source, request.target),
-                proposed_value: Some(request.proposed),
-                actual_value: None,
-                simultaneous_ordinal: ordinal,
-            };
-            request.proposed = resolve_proposed_health_event(world, batch, proposed_event)?;
-        }
-        let actual = reduce_healing(world, request, ordinal);
-        if actual.actual_value.is_some_and(|value| value > 0) {
-            add_prepared_event(world, actual_queue, actual, None)?;
-        }
+pub(super) fn expand_healing_batch(world: &mut World, requests: Vec<HealingRequest>) {
+    if requests.is_empty() {
+        return;
     }
+    let slots = (0..requests.len())
+        .map(|_| allocate_event_slot(world))
+        .collect::<Vec<_>>();
+    let mut operations = requests
+        .into_iter()
+        .zip(slots.iter().copied())
+        .enumerate()
+        .map(
+            |(ordinal, (request, actual_event))| ResolutionOp::ProcessHealing {
+                request,
+                actual_event,
+                ordinal: u32::try_from(ordinal).expect("healing batch exceeds u32"),
+            },
+        )
+        .collect::<Vec<_>>();
+    operations.extend(slots.into_iter().map(ResolutionOp::ResolveEventSlot));
+    push_resolution_ops(world, operations);
+}
 
-    freeze_prepared_event_queue(world, actual_queue)?;
-    activate_resolution_child(world, actual_queue)?;
-    resolve_prepared_events(world, actual_queue)?;
-    complete_active(world)?;
-    debug_assert_eq!(world.resource::<ResolutionCursor>().active, Some(batch));
-    complete_active(world)?;
+pub(super) fn process_healing(
+    world: &mut World,
+    mut request: HealingRequest,
+    actual_event: EventSlotId,
+    ordinal: u32,
+) {
+    request.proposed = request.proposed.max(0);
+    if request.proposed == 0 {
+        reduce_healing(world, request, ordinal);
+        return;
+    }
+    let proposed_event = prepare_event(
+        world,
+        EventContext {
+            kind: EventKind::ProposedHealing,
+            source: request.source,
+            targets: vec![request.target],
+            controller: event_controller(world, request.source, request.target),
+            proposed_value: Some(request.proposed),
+            actual_value: None,
+            simultaneous_ordinal: ordinal,
+        },
+    );
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::ResolveEvent(proposed_event),
+            ResolutionOp::ApplyHealing {
+                request,
+                proposed_event,
+                actual_event,
+                ordinal,
+            },
+        ],
+    );
+}
+
+pub(super) fn apply_prepared_healing(
+    world: &mut World,
+    mut request: HealingRequest,
+    proposed_event: crate::EventId,
+    actual_event: EventSlotId,
+    ordinal: u32,
+) -> Result<(), SimulationError> {
+    request.proposed = take_prepared_event(world, proposed_event)?
+        .context
+        .proposed_value
+        .unwrap_or_default()
+        .max(0);
+    let event = reduce_healing(world, request, ordinal);
+    if event.actual_value.is_some_and(|actual| actual > 0) {
+        fill_event_slot(world, actual_event, event)?;
+    }
     Ok(())
 }
 
@@ -291,6 +350,21 @@ fn reduce_healing(
         actual_value: Some(actual),
         simultaneous_ordinal,
     }
+}
+
+fn fill_event_slot(
+    world: &mut World,
+    slot: EventSlotId,
+    context: EventContext,
+) -> Result<(), SimulationError> {
+    let event = prepare_event(world, context);
+    let mut work = world.resource_mut::<ResolutionWork>();
+    let prepared_slot = work
+        .event_slots
+        .get_mut(&slot)
+        .ok_or(crate::resolver::ResolutionError::MissingEventSlot(slot))?;
+    prepared_slot.event = Some(event);
+    Ok(())
 }
 
 fn validate_health_change_targets(

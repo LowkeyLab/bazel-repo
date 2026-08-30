@@ -3,7 +3,7 @@ use crate::{
     TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Card {
     pub definition_id: String,
     pub name: String,
@@ -65,8 +65,6 @@ impl Card {
             }],
             source_eligibility: SourceEligibilityPolicy::RememberedSource,
             priority: 0,
-            allow_repeated_event: false,
-            allow_direct_self_nesting: false,
             wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
             effect_program: effects,
         });

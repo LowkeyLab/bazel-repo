@@ -5,7 +5,19 @@ use thiserror::Error;
 
 use crate::{Controller, EntityKind, GameEntityId, PlayerId, Ruleset, entity::game_entity};
 
-#[derive(Component, Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Component,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize,
+)]
 pub enum Zone {
     Deck,
     Hand,
@@ -16,7 +28,9 @@ pub enum Zone {
     RemovedFromGame,
 }
 
-#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(
+    Component, Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize,
+)]
 pub struct ZonePosition(pub usize);
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Resource)]

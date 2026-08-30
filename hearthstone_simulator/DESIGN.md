@@ -76,7 +76,8 @@ This document uses the rulebook's terms:
 - A **phase** surrounds one or more events or ordered trigger snapshots. A player-action compiler places normal boundary work after each outermost phase.
 - An **event** is a game-state change that triggers can observe.
 - A **trigger** reacts to an event and may produce nested events and effects.
-- A **candidate snapshot** is the immutable, explicitly ordered trigger membership captured for an event at the timing required by the ruleset.
+- A **trigger seed** records a trigger source and definition that passed pre-check at the timing required by the ruleset.
+- A **candidate snapshot** is the immutable, explicitly ordered trigger membership captured after queue-time conditions are evaluated when an event begins resolution.
 - A **resolution operation** is a small, one-shot internal instruction that is popped from the LIFO work stack, executed atomically, and never resumed.
 - **Resolution** is depth-first: newly generated consequences are pushed above pending siblings and therefore complete first.
 - A **game entity** is an object meaningful to Hearthstone, such as a card, minion, Hero, weapon, enchantment, or hidden effect.
@@ -99,7 +100,9 @@ Exclusive LIFO resolution driver
     |       +--> mutate state and push child operations in reverse order
     |
     +--> execute explicit ResolvePhaseBoundary operations
-            +--> aura, summon, death, and outcome systems
+    |       +--> aura, summon, and death systems
+    |
+    +--> execute explicit CheckOutcome operations at ruleset checkpoints
 
 Game ECS entities <---- primitive effect reducers ---- ResolutionWork resource
        |                                               |
@@ -393,7 +396,7 @@ Nested phases omit the ordinary boundary operation. Forced Death Phases compile 
 
 ### Ordered trigger snapshots
 
-Events do not create executable queue entities. When an event captures its trigger membership, discovery applies pre-check and queue-time conditions, computes complete order keys, sorts value records, and stores an immutable candidate snapshot. When `ResolveEvent` is popped, it pushes one `AttemptTrigger` operation per candidate in reverse order. The stack is the only executable queue.
+Events do not create executable queue entities. Event occurrence records immutable context without necessarily populating its trigger queue. At ruleset-defined pre-check timing, discovery may store immutable `TriggerSeed` values. When `ResolveEvent` is popped, it evaluates queue-time conditions over those seeds (or discovers and pre-checks ordinary-event seeds at that point), computes complete order keys, and stores an immutable candidate snapshot. It then pushes one `AttemptTrigger` operation per candidate in reverse order. The stack is the only executable queue.
 
 ```rust
 #[derive(Clone, Debug)]
@@ -401,6 +404,8 @@ struct TriggerCandidate {
     source: GameEntityId,
     event: EventId,
     definition_index: u32,
+    definition: TriggerDefinition,
+    controller: PlayerId,
     order: TriggerOrderKey,
 }
 
@@ -415,9 +420,9 @@ struct TriggerOrderKey {
 }
 ```
 
-The selected ruleset computes every ordering field. Stable logical source IDs and definition indexes provide deterministic ties, so no gameplay order falls back to ECS iteration or raw entity order.
+The selected ruleset computes every ordering field. The player bucket is derived from durable `DominantPlayer` state, so the dominant player's triggers remain ahead of the secondary player's triggers and priority applies only within those groups. Stable logical source IDs and definition indexes provide deterministic ties, so no gameplay order falls back to ECS iteration or raw entity order.
 
-`AttemptTrigger` checks source eligibility and resolution-time conditions when it is popped. If the source or condition is no longer valid, it records an abort and produces no child work. If valid, it pushes the trigger's effects in reverse order. Newly created entities cannot join the already captured candidate snapshot, while removed sources remain represented by their pending attempt and can abort at execution time.
+`AttemptTrigger` checks source eligibility and resolution-time conditions when it is popped. If the source or condition is no longer valid, it records an abort and produces no child work. If valid, it pushes the captured trigger definition's effects in reverse order. Sources created after a pre-check seed snapshot cannot join that event, while current game state may make an existing seed pass its later queue-time conditions.
 
 There is no `QueueState`, `FrozenQueueEntries`, `QueueCursor`, `select_next`, `finish_selected`, or separate queue resolver. Exact-once stack consumption is the mutable progress mechanism. Snapshot immutability is enforced by constructing candidate values once and never exposing a mutation API for their membership or order.
 
@@ -434,11 +439,12 @@ struct PreparedEventSlot {
 #[derive(Clone, Debug)]
 struct PreparedEvent {
     context: EventContext,
-    candidates: Vec<TriggerCandidate>,
+    prechecked_triggers: Option<Vec<TriggerSeed>>,
+    candidates: Option<Vec<TriggerCandidate>>,
 }
 ```
 
-Applying a positive mutation allocates an `EventId`, inserts its `PreparedEvent` in `ResolutionWork.events`, and writes that ID into the slot. Capturing candidates at that moment preserves timing: an entity introduced by a later mutation cannot observe an earlier event. Much later, popping `ResolveEventSlot` takes the ID and pushes `ResolveEvent`; popping `ResolveEvent` then takes the prepared record and pushes its trigger attempts. An empty slot is a no-op. Slots and event records are data dependencies, not executable queues, and are removed after consumption.
+Applying a positive mutation allocates an `EventId`, inserts its context-only `PreparedEvent` in `ResolutionWork.events`, and writes that ID into the slot. Much later, popping `ResolveEventSlot` takes the ID and pushes `ResolveEvent`; popping `ResolveEvent` captures queue-time candidates and pushes their attempts. An empty slot is a no-op. Slots and event records are data dependencies, not executable queues, and are removed after consumption.
 
 ### Choices and suspension
 
@@ -481,7 +487,7 @@ Resolve actual-event slot N
 
 Each request processor passes protection, creates and resolves its proposed event, and leaves an `ApplyDamage` or `ApplyHealing` operation directly beneath that proposed event. The apply operation reads the possibly modified value, performs the durable mutation, and fills its actual-event slot only for a positive actual change. Every mutation therefore occurs before any actual-event reaction, while proposed-event work for request N can still observe mutations from requests 1 through N-1.
 
-This requires no batch queue or separate freeze-and-resolve pass. The pre-positioned slot operations are the ordering barrier, and each prepared event captures its own candidate snapshot when the event occurs. Movement and death batches use the same pattern: fix explicit event order, place one-shot event resolvers beneath all required batch mutations, and let each event resolve fully when its operation reaches the top.
+This requires no batch queue or separate freeze-and-resolve pass. The pre-positioned slot operations are the ordering barrier. Each event records immutable context when it occurs and captures queue-time candidates when its resolver reaches the top. Death batches additionally freeze pre-check-eligible trigger seeds for all Death Events at Death Creation, then evaluate each event's queue-time conditions only after earlier Death Events have resolved fully.
 
 Combat-specific attacker/defender event order is encoded by the combat event builder rather than inferred from play order.
 
@@ -547,7 +553,7 @@ The ordinary outermost phase boundary is modeled as ordered systems, not hidden 
 6. Other aura update
 7. Creation of a Death Phase when deaths were recorded
 
-Death Phases are explicit outermost operation plans and can enqueue additional Death Phase plans until no new deaths exist.
+Death Phases are explicit outermost operation plans and can enqueue additional Death Phase plans until no new deaths exist. A normal action plan places `CheckOutcome` below its ordinary boundary, so every chained Death Phase finishes before defeated-Hero markers become the final result. Exceptional combat checkpoints are represented by their own explicit outcome operation.
 
 The Death Creation system:
 
@@ -556,7 +562,8 @@ The Death Creation system:
 3. Captures controller and remembered board position.
 4. Removes them from play without running intervening triggers.
 5. Creates immutable death records and Death Events.
-6. Updates the death-event cache.
+6. Captures each Death Event's pre-check-eligible trigger seeds before any Death Event resolves.
+7. Updates the death-event cache.
 
 Forced death processing is a separate resolution plan with the rulebook's specialized aura, summon, death, and follow-up behavior.
 
@@ -645,11 +652,11 @@ Library-default RNG behavior must not silently change simulation results across 
 
 ### Snapshots
 
-A canonical full snapshot includes all durable game state and the selected ruleset and RNG state. A player-filtered view may hide opponent information for clients.
+`GameSnapshot` is a canonical observable view suitable for tests and clients. `SimulationCheckpoint` is the versioned persistence DTO containing every durable component/resource, selected ruleset and dominant player, RNG and trace state, logical counters, death state, and resolution work. A player-filtered snapshot may hide opponent information, but a checkpoint never omits hidden durable state.
 
-Normally `Simulation::apply` returns only after the operation stack is empty. If a choice is required, the simulation enters `AwaitingChoice` and retains the untouched lower stack, prepared-event slots, pending choice, logical ID counters, and remaining budget. Suspended-resolution snapshots serialize these values directly; stack payloads use logical IDs and never depend on raw Bevy entities or runtime ancestry.
+Normally `Simulation::apply` returns only after the operation stack is empty. If a choice is required, the simulation enters `AwaitingChoice` and retains the untouched lower stack, prepared-event slots, pending choice, logical ID counters, and remaining budget. `Simulation::checkpoint`, JSON serialization, and `Simulation::from_checkpoint` preserve these values directly; stack payloads use logical IDs and never depend on raw Bevy entities or runtime ancestry.
 
-Internal durable components that contain Bevy entity references implement `MapEntities`, allowing Bevy's entity-cloning and relationship tooling to remap references in fixtures and in-memory utilities. `Simulation::fork` may reuse those facilities after profiling, but its observable equivalence is defined by the canonical logical-ID snapshot rather than Bevy world serialization or raw entity allocation.
+Checkpoint construction converts internal Bevy relationship references such as `AttachedTo` into logical `GameEntityId` references. Restoration validates schema/ruleset versions and logical references, rebuilds entities, indexes, zones, and relationships, then checks invariants. `Simulation::fork` uses this checkpoint path, so its equivalence does not depend on action replay or raw Bevy entity allocation.
 
 ### Trace
 
@@ -924,11 +931,11 @@ Unless superseded by a documented decision:
 3. The scaffold API may break to preserve entity identity and correct timing.
 4. Bevy schedules and system sets orchestrate atomic resolution operations.
 5. The sole execution mechanism is a resource-owned LIFO stack of one-shot `ResolutionOp` values.
-6. Events capture immutable, explicitly ordered trigger candidates and expand them onto the stack in reverse order; there are no executable event or trigger queue entities.
+6. Events record immutable context, preserve any ruleset-timed pre-check seeds, capture immutable ordered candidates at queue time, and expand them onto the stack in reverse order; there are no executable event or trigger queue entities.
 7. Bevy Messages, EntityEvents, and Observers provide diagnostics and integration, not authoritative card-trigger ordering.
 8. Game and resolution ordering never depend on raw Bevy entity or query order.
 9. Resolution uses an iterative driver and per-sequence operation budget, not recursive Rust calls, execution ancestry, recursion guards, active cursors, or resumable frames.
 10. Card definitions are data-oriented; exceptional native handlers are identified explicitly and may map to registered Bevy systems.
 11. Simultaneous operations pre-position prepared-event slot resolvers below mutation work so all required mutations precede reactions without a separate batch queue.
 12. Resolution schedules reject ECS access ambiguities; resolution operations and primitive reducers use exclusive direct mutation rather than deferred commands.
-13. Raw Bevy entity references implement remapping for internal cloning where needed, but resolution work and canonical persistence use logical IDs.
+13. Checkpoints translate raw Bevy relationship references into logical IDs and restore indexes and relationships only after validating those references.

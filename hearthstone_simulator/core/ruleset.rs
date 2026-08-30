@@ -8,12 +8,14 @@ pub const MAX_MANA: i32 = 10;
 pub const STARTING_HEALTH: i32 = 30;
 pub const DEFAULT_RESOLUTION_BUDGET: usize = 100_000;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
+)]
 pub enum RulesetId {
     AdvancedRulebook2026_06_26,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Resource)]
+#[derive(Clone, Debug, Eq, PartialEq, Resource, serde::Deserialize, serde::Serialize)]
 pub struct Ruleset {
     pub id: RulesetId,
     pub rulebook_revision: u64,

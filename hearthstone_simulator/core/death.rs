@@ -8,7 +8,7 @@ use crate::{
     zone::move_entity,
 };
 
-#[derive(Component, Clone, Debug, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[component(immutable)]
 pub struct DeathRecord {
     pub entity: GameEntityId,
@@ -20,7 +20,7 @@ pub struct DeathRecord {
     pub turn_of_death: u32,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Resource)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Resource, serde::Deserialize, serde::Serialize)]
 pub struct DeathEventCache {
     pub records: Vec<DeathRecord>,
 }

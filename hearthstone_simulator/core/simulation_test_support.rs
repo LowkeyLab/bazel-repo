@@ -39,8 +39,6 @@ pub(super) fn self_event_trigger(
         }],
         source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
         priority: 0,
-        allow_repeated_event: false,
-        allow_direct_self_nesting: false,
         wounded_target_policy: crate::WoundedTargetPolicy::IncludeMortallyWounded,
         effect_program,
     }

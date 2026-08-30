@@ -61,6 +61,9 @@ pub(super) fn hero_id(world: &World, player: PlayerId) -> Option<GameEntityId> {
 }
 
 pub(super) fn check_outcome(world: &mut World) {
+    if world.resource::<GameState>().outcome.is_some() {
+        return;
+    }
     let defeated = world
         .resource::<DefeatedHeroes>()
         .0

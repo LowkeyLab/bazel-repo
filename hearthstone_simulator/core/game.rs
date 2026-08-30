@@ -2,7 +2,16 @@ use bevy::prelude::Resource;
 
 use crate::PlayerId;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Resource, serde::Deserialize, serde::Serialize)]
+pub struct DominantPlayer(pub PlayerId);
+
+impl Default for DominantPlayer {
+    fn default() -> Self {
+        Self(PlayerId::One)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum SimulationStatus {
     SettingUp,
     AwaitingAction,
@@ -11,13 +20,13 @@ pub enum SimulationStatus {
     Complete,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum GameOutcome {
     Winner(PlayerId),
     Draw,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Resource)]
+#[derive(Clone, Debug, Eq, PartialEq, Resource, serde::Deserialize, serde::Serialize)]
 pub struct GameState {
     pub active_player: PlayerId,
     pub turn_number: u32,

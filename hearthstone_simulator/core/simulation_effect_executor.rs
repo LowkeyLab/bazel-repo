@@ -2,14 +2,14 @@ use bevy::prelude::*;
 
 use crate::{
     AttachedTo, AuraCache, BaseStats, CanonicalTrace, Card, Controller, CurrentStats, Damage,
-    DefinitionId, DisplayName, Effect, EffectContext, EntityKind, EventContext, EventKind,
-    EventValueOperation, GameEntityId, Keywords, NestedUnder, PendingDestroy, PlayerId,
-    PlayerSelector, ResolutionCursor, ResolutionIdentity, ResolutionKind, Ruleset, RuntimeTriggers,
-    Selector, StatModifier, TraceEntry, ValueExpression, Zone,
+    DamageRequest, DefinitionId, DisplayName, Effect, EffectContext, EntityKind, EventId,
+    EventKind, EventValueOperation, GameEntityId, HealingRequest, Keywords, PendingDestroy,
+    PlayerId, PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeTriggers, Selector,
+    StatModifier, TraceEntry, ValueExpression, Zone,
     enchantment::recalculate_stats,
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
-    resolver::{complete_active, consume_budget, push_resolution},
+    resolver::{push_resolution_op, push_resolution_ops},
     rng::choose_game_entity,
     trigger::TriggersSuppressed,
     zone::{ZoneIndex, board_is_full, insert_into_zone, move_entity, validate_zone_position},
@@ -18,33 +18,58 @@ use crate::{
 use super::{
     card_runtime::{CardRuntime, spawn_card},
     error::SimulationError,
-    event_resolver::resolve_event_if_active,
-    health::{
-        DamageRequest, HealingRequest, SimultaneousEventOrder, apply_damage_batch,
-        apply_healing_batch,
-    },
+    event_resolver::prepare_event,
+    health::{SimultaneousEventOrder, apply_damage_batch, apply_healing_batch},
     player::{draw_card, player_mut},
 };
 
+#[cfg(test)]
 pub(super) fn execute_effects(
     world: &mut World,
     context: &EffectContext,
     effects: &[Effect],
 ) -> Result<(), SimulationError> {
-    for effect in effects {
-        push_resolution(world, ResolutionKind::Effect)?;
-        consume_budget(world)?;
-        let result = execute_effect(world, context, effect);
-        complete_active(world)?;
-        result?;
-    }
+    push_effects(world, context, effects, None);
     Ok(())
 }
 
+pub(super) fn push_effects(
+    world: &mut World,
+    context: &EffectContext,
+    effects: &[Effect],
+    event: Option<EventId>,
+) {
+    push_resolution_ops(
+        world,
+        effects
+            .iter()
+            .cloned()
+            .map(|effect| ResolutionOp::RunEffect {
+                context: context.clone(),
+                effect,
+                event,
+            }),
+    );
+}
+
+#[cfg(test)]
 pub(super) fn execute_effect(
     world: &mut World,
     context: &EffectContext,
     effect: &Effect,
+) -> Result<(), SimulationError> {
+    execute_effect_operation(world, context, effect, None)
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "the exhaustive effect dispatcher keeps one-shot operation semantics in one place"
+)]
+pub(super) fn execute_effect_operation(
+    world: &mut World,
+    context: &EffectContext,
+    effect: &Effect,
+    event: Option<EventId>,
 ) -> Result<(), SimulationError> {
     match effect {
         Effect::DealDamage { targets, amount } => {
@@ -74,7 +99,7 @@ pub(super) fn execute_effect(
             apply_healing_batch(world, requests, SimultaneousEventOrder::OrderOfPlay)
         }
         Effect::ModifyEventValue { operation, value } => {
-            modify_active_event_value(world, context, *operation, *value)
+            modify_event_value(world, event, context, *operation, *value)
         }
         Effect::Destroy { targets } => {
             for target in select_entities(world, context, targets) {
@@ -84,10 +109,23 @@ pub(super) fn execute_effect(
             }
             Ok(())
         }
+        Effect::Draw { player, count } if *count > 1 => {
+            push_effects(
+                world,
+                context,
+                &(0..*count)
+                    .map(|_| Effect::Draw {
+                        player: *player,
+                        count: 1,
+                    })
+                    .collect::<Vec<_>>(),
+                event,
+            );
+            Ok(())
+        }
         Effect::Draw { player, count } => {
-            let player = resolve_player(context.controller, *player);
-            for _ in 0..*count {
-                draw_card(world, player)?;
+            if *count == 1 {
+                draw_card(world, resolve_player(context.controller, *player))?;
             }
             Ok(())
         }
@@ -123,18 +161,22 @@ pub(super) fn execute_effect(
             let order = allocate_play_order(world);
             let entity = game_entity(world, summoned).expect("summoned entity was indexed");
             world.entity_mut(entity).insert(order);
-            resolve_event_if_active(
-                world,
-                EventContext {
-                    kind: EventKind::Summoned,
-                    source: context.source,
-                    targets: vec![summoned],
-                    controller: player,
-                    proposed_value: None,
-                    actual_value: None,
-                    simultaneous_ordinal: 0,
-                },
-            )
+            if crate::resolver::resolution_is_active(world) {
+                let event = prepare_event(
+                    world,
+                    crate::EventContext {
+                        kind: EventKind::Summoned,
+                        source: context.source,
+                        targets: vec![summoned],
+                        controller: player,
+                        proposed_value: None,
+                        actual_value: None,
+                        simultaneous_ordinal: 0,
+                    },
+                );
+                push_resolution_op(world, ResolutionOp::ResolveEvent(event));
+            }
+            Ok(())
         }
         Effect::AttachStatModifier { targets, modifier } => {
             for target in select_entities(world, context, targets) {
@@ -183,13 +225,21 @@ pub(super) fn execute_effect(
                     id: id.clone(),
                     reason: error.to_string(),
                 })?;
-            let event = nearest_active_event(world)
-                .and_then(|entity| world.get::<EventContext>(entity))
-                .map(|event| event.kind);
-            validate_effect_program(world, &plan, event)?;
-            execute_effects(world, context, &plan)
+            let event_kind = event.and_then(|event| {
+                world
+                    .resource::<ResolutionWork>()
+                    .events
+                    .get(&event)
+                    .map(|event| event.context.kind)
+            });
+            validate_effect_program(world, &plan, event_kind)?;
+            push_effects(world, context, &plan, event);
+            Ok(())
         }
-        Effect::Sequence(nested) => execute_effects(world, context, nested),
+        Effect::Sequence(nested) => {
+            push_effects(world, context, nested, event);
+            Ok(())
+        }
     }
 }
 
@@ -406,36 +456,40 @@ pub(super) fn evaluate_value(
     }
 }
 
-fn nearest_active_event(world: &World) -> Option<Entity> {
-    let mut current = world.resource::<ResolutionCursor>().active;
-    while let Some(entity) = current {
-        if world.get::<EventContext>(entity).is_some() {
-            return Some(entity);
-        }
-        current = world.get::<NestedUnder>(entity).map(|parent| parent.0);
-    }
-    None
-}
-
+#[cfg(test)]
 pub(super) fn modify_active_event_value(
     world: &mut World,
     context: &EffectContext,
     operation: EventValueOperation,
     expression: ValueExpression,
 ) -> Result<(), SimulationError> {
-    let event_entity =
-        nearest_active_event(world).ok_or(SimulationError::NoModifiableEventValue)?;
-    let event = world
-        .get::<EventContext>(event_entity)
-        .filter(|event| {
-            (event.kind == EventKind::ProposedDamage || event.kind == EventKind::ProposedHealing)
-                && event.proposed_value.is_some()
+    modify_event_value(world, None, context, operation, expression)
+}
+
+pub(super) fn modify_event_value(
+    world: &mut World,
+    event: Option<EventId>,
+    context: &EffectContext,
+    operation: EventValueOperation,
+    expression: ValueExpression,
+) -> Result<(), SimulationError> {
+    let event = event.ok_or(SimulationError::NoModifiableEventValue)?;
+    let prepared = world
+        .resource::<ResolutionWork>()
+        .events
+        .get(&event)
+        .filter(|prepared| {
+            matches!(
+                prepared.context.kind,
+                EventKind::ProposedDamage | EventKind::ProposedHealing
+            ) && prepared.context.proposed_value.is_some()
         })
         .ok_or(SimulationError::NoModifiableEventValue)?;
-    let previous = event
+    let previous = prepared
+        .context
         .proposed_value
         .expect("modifiable event has a proposed value");
-    let operand = evaluate_value(world, context, expression, event.targets.len());
+    let operand = evaluate_value(world, context, expression, prepared.context.targets.len());
     let current = match operation {
         EventValueOperation::Replace => operand,
         EventValueOperation::Add => previous.saturating_add(operand),
@@ -443,13 +497,12 @@ pub(super) fn modify_active_event_value(
     }
     .max(0);
     world
-        .get_mut::<EventContext>(event_entity)
+        .resource_mut::<ResolutionWork>()
+        .events
+        .get_mut(&event)
         .expect("modifiable event still exists")
+        .context
         .proposed_value = Some(current);
-    let event = world
-        .get::<ResolutionIdentity>(event_entity)
-        .expect("event has a resolution identity")
-        .id;
     world
         .resource_mut::<CanonicalTrace>()
         .entries

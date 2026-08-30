@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 # gazelle:exclude simulation_tests_effects.rs
 # gazelle:exclude simulation_tests_events.rs
 # gazelle:exclude simulation_tests_health.rs
+# gazelle:exclude simulation_checkpoint.rs
 
 rust_library(
     name = "core",
@@ -24,14 +25,13 @@ rust_library(
         "lib.rs",
         "model.rs",
         "native_effect.rs",
-        "queue.rs",
-        "relationships.rs",
         "resolver.rs",
         "rng.rs",
         "ruleset.rs",
         "simulation.rs",
         "simulation_action.rs",  # keep
         "simulation_card_runtime.rs",  # keep
+        "simulation_checkpoint.rs",  # keep
         "simulation_effect_executor.rs",  # keep
         "simulation_error.rs",  # keep
         "simulation_event_resolver.rs",  # keep
@@ -55,6 +55,8 @@ rust_library(
     rustc_env = {"CARGO_MANIFEST_DIR": "."},
     deps = [
         "@crates//:bevy",
+        "@crates//:serde",
+        "@crates//:serde_json",  # keep
         "@crates//:thiserror",
     ],
 )

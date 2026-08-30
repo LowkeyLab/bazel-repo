@@ -87,6 +87,113 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
 }
 
 #[googletest::test]
+fn choice_suspension_retains_lower_stack_work_and_resumes_selected_branch_first() {
+    let mut simulation = simulation();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+    };
+    let choice = ChoiceId(7);
+    let option = ChoiceId(8);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RequestChoice(ChoiceRequest {
+                id: choice,
+                player: PlayerId::One,
+                options: vec![ChoiceOption {
+                    id: option,
+                    operations: vec![ResolutionOp::RunEffect {
+                        context: context.clone(),
+                        effect: Effect::GainResource {
+                            player: PlayerSelector::Controller,
+                            amount: 1,
+                            temporary: true,
+                        },
+                        event: None,
+                    }],
+                }],
+            }),
+            ResolutionOp::RunEffect {
+                context,
+                effect: Effect::GainResource {
+                    player: PlayerSelector::Controller,
+                    amount: 10,
+                    temporary: true,
+                },
+                event: None,
+            },
+        ],
+    );
+    drive_resolution(world).unwrap();
+
+    assert_that!(simulation.pending_choice().unwrap().request.id, eq(choice));
+    assert_that!(simulation.resolution_work().stack.len(), eq(1));
+    let checkpoint = simulation.checkpoint().unwrap();
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+    assert_that!(decoded, eq(&checkpoint));
+    let mut restored = Simulation::from_checkpoint(decoded).unwrap();
+    assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+    assert_that!(restored.snapshot(), eq(&simulation.snapshot()));
+    assert_that!(restored.trace(), eq(simulation.trace()));
+
+    assert_that!(
+        simulation.choose(ChoiceId(99)),
+        err(eq(&SimulationError::Resolution(
+            ResolutionError::InvalidChoice(ChoiceId(99))
+        )))
+    );
+    simulation.choose(option).unwrap();
+    restored.choose(option).unwrap();
+
+    assert_that!(simulation.pending_choice(), none());
+    assert_that!(restored.snapshot(), eq(&simulation.snapshot()));
+    assert_that!(restored.trace(), eq(simulation.trace()));
+    assert_that!(simulation.resolution_work().stack.is_empty(), is_true());
+    assert_that!(
+        player(simulation.app.world(), PlayerId::One)
+            .unwrap()
+            .1
+            .temporary_resources,
+        eq(11)
+    );
+    let popped = simulation
+        .trace()
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::OperationPopped { id, kind } => Some((*id, kind.as_str())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(
+        popped.iter().map(|(_, kind)| *kind).collect::<Vec<_>>(),
+        eq(&vec!["RequestChoice", "RunEffect", "RunEffect"])
+    );
+    assert_that!(popped[1].0 > popped[0].0, is_true());
+    assert_that!(popped[2].0 < popped[0].0, is_true());
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_logical_relationship_targets() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint.entities[0].attached_to = Some(GameEntityId(u64::MAX));
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::Checkpoint(_))
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
 fn spawn_and_index_helpers_report_cleanup_and_drift() {
     let mut simulation = simulation();
     let world = simulation.app.world_mut();

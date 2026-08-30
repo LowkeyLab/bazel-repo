@@ -19,20 +19,20 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Stable immutable game IDs, required `GameObject`, and hook-maintained lookup index.
   - [x] Authoritative ordered zone indexes.
   - [x] Persistent identity when a card moves from Hand to Play.
-- [x] **2 — Bevy resolution graph**
-  - [x] Relationship-backed resolution nodes and remappable active cursor.
-  - [x] Strict custom schedules and iterative budget accounting.
-  - [x] Push, suspend, resume, cleanup, and graph invariants.
-- [x] **3 — Event and trigger queues**
-  - [x] ECS queue entries, explicit ordering, frozen membership, and cursor.
-  - [x] Pre-check, queue-time, and resolution-time condition data/evaluation.
-  - [x] Queue immutability, non-advancement while a child resolves, and depth-first tests.
+- [x] **2 — LIFO resolution work stack**
+  - [x] Resource-owned stack of one-shot logical `ResolutionOp` values with no frame graph or active cursor.
+  - [x] Strict custom schedules, iterative exact-once execution, and per-sequence budget accounting.
+  - [x] Reverse-order expansion, generic choice suspension/resumption, cleanup, and idle-work invariants.
+- [x] **3 — Prepared events and trigger snapshots**
+  - [x] Immutable event records, complete trigger order keys, and captured candidate membership.
+  - [x] Staged pre-check seeds, queue-time candidate snapshots, and resolution-time condition evaluation.
+  - [x] Reverse stack expansion, delayed event slots, abort handling, and depth-first tests.
 - [x] **4 — Effects and deterministic randomness**
   - [x] Cloneable selector/value/effect IR and depth-first effect frames.
   - [x] Versioned SplitMix64 RNG with sorted candidates and canonical trace entries.
   - [x] Damage, healing, destroy, draw, resource, summon, and sequence primitives.
   - [x] Stable native-effect registry whose Bevy systems return ordinary effect plans.
-  - [x] Event frames, immutable trigger queues, timed conditions, trigger guards, and depth-first trigger effect programs.
+  - [x] Prepared events, immutable trigger snapshots, timed conditions, and depth-first trigger effect programs without generic recursion guards.
 - [ ] **5 — Stats, enchantments, and auras**
   - [x] Base/current stats, damage, armor, keywords, enchantment relationships, and aura-cache data.
   - [x] Effect-driven stat attachment, silence removal, and deterministic stat recalculation.
@@ -41,7 +41,8 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Armor, Immune, Divine Shield, mortality, pending destroy, and ordered boundary removal.
   - [x] Synthetic area-damage test proving deaths are collected before boundary removal.
   - [x] Immutable death records/cache (including turn of death), self-filtered Deathrattles, and chained Death Phases.
-  - [x] Irreversible Hero defeat at Death Creation, global simultaneous-death ordering, frozen Death Event batches, and play-order-mingled death triggers.
+  - [x] Irreversible Hero defeat at Death Creation, global simultaneous-death ordering, per-event queue-time capture, dominant-player grouping, and same-player death-trigger mingling.
+  - [x] Explicit sequence-end outcome checks after all chained Death Phases.
   - [x] Proposed damage/healing modifiers; DH1/DH2 protection, mutation, and reaction timing; and immutable simultaneous event batches.
 - [ ] **7 — General mechanics**
   - [x] Drawing, burning, fatigue, signed resources, temporary resources, and Overload counters.
@@ -52,10 +53,12 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Deterministic legal actions and captured declared targets.
   - [ ] Weapon, Hero card, location, Hero Power, redirection, and full subject-guard sequences.
 - [ ] **9 — Esoteric compatibility**
-  - [ ] Named forced-death, dominant-player, Deathrattle-position, and wounded-target policies.
+  - [x] Durable dominant-player identity and dominant/secondary trigger grouping.
+  - [ ] Named forced-death, Deathrattle-position, and wounded-target policies.
 - [ ] **10 — Hardening and migration**
-  - [x] Canonical logical-ID snapshots/traces, migrated CLI, invariants, and replay-equivalent `fork`.
-  - [ ] True suspended-choice persistence, filtered snapshots, stress benchmarks, and full conformance coverage.
+  - [x] Canonical logical-ID snapshots/traces, migrated CLI, invariants, and checkpoint-exact `fork`.
+  - [x] Versioned logical checkpoints, JSON serialization, restoration validation, and suspended-choice continuation.
+  - [ ] Filtered snapshots, stress benchmarks, and full conformance coverage.
 
 ## Verification log
 
@@ -87,7 +90,12 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-08-27 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 100% changed-line coverage (481/481)        |
 | 2026-08-27 | `aspect lint`                                                                  | Passed all repository linters               |
 | 2026-08-27 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-30 | `bazel run //:gazelle`                                                         | Passed staged-trigger/checkpoint generation |
+| 2026-08-30 | `aspect format --scope=all`                                                    | Passed repository formatting                |
+| 2026-08-30 | `aspect test //hearthstone_simulator/...`                                      | Passed 57 simulator tests and CLI build     |
+| 2026-08-30 | `aspect lint`                                                                  | Passed all repository linters               |
+| 2026-08-30 | `aspect build //...`                                                           | Passed full repository build                |
 
 ## Known gaps
 
-The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Damage and healing now process each proposed event and durable mutation in event order, then resolve the frozen actual-event reaction queue. Damage prevention precedes predamage triggers, no-op health changes do not create actual events, and Armor loss counts as actual damage. Boundary-created death records drive self-filtered Deathrattles through chained Death Phases. Death Creation locks Hero defeat, orders deaths globally by play order, records the turn of death, and freezes every Death Event and trigger queue before batch resolution.
+The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Damage and healing process each proposed event and durable mutation in event order, fill pre-positioned actual-event slots, and delay actual reactions until every simultaneous mutation completes. Damage prevention precedes predamage triggers, no-op health changes do not create actual events, and Armor loss counts as actual damage. Boundary-created death records drive self-filtered Deathrattles through chained Death Phases. Death Creation locks Hero defeat, orders deaths globally by play order, and records each Death Event plus its pre-check-eligible trigger seeds. Each Death Event evaluates queue-time conditions only when it begins resolution, and the final outcome is checked after all chained Death Phases.

@@ -4,7 +4,9 @@ use bevy::{ecs::system::SystemId, prelude::*};
 
 use crate::{Effect, EffectContext};
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
+)]
 pub struct NativeEffectId(pub String);
 
 impl NativeEffectId {

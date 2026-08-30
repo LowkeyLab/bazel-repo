@@ -1,10 +1,11 @@
 use bevy::prelude::Resource;
 
 use crate::{
-    EventKind, EventValueOperation, GameEntityId, PlayerId, ResolutionId, RulesetId, Zone,
+    EventId, EventKind, EventValueOperation, GameEntityId, PlayerId, ResolutionId, RulesetId,
+    TriggerCandidate, Zone,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum TraceEntry {
     ActionAccepted {
         player: PlayerId,
@@ -14,28 +15,24 @@ pub enum TraceEntry {
         player: PlayerId,
         reason: String,
     },
-    FrameBegin {
-        id: ResolutionId,
-        kind: String,
-    },
-    FrameEnd {
+    OperationPopped {
         id: ResolutionId,
         kind: String,
     },
     EventCreated {
-        id: ResolutionId,
+        id: EventId,
         kind: EventKind,
         source: Option<GameEntityId>,
         targets: Vec<GameEntityId>,
         proposed: Option<i32>,
         actual: Option<i32>,
     },
-    QueueFrozen {
-        queue: ResolutionId,
-        entries: Vec<ResolutionId>,
+    TriggerSnapshot {
+        event: EventId,
+        candidates: Vec<TriggerCandidate>,
     },
     EventValueChanged {
-        event: ResolutionId,
+        event: EventId,
         operation: EventValueOperation,
         previous: i32,
         current: i32,
@@ -79,6 +76,14 @@ pub enum TraceEntry {
     DeathPhaseQueued {
         deaths: Vec<GameEntityId>,
     },
+    ChoiceRequested {
+        choice: crate::ChoiceId,
+        player: PlayerId,
+    },
+    ChoiceAnswered {
+        choice: crate::ChoiceId,
+        option: crate::ChoiceId,
+    },
     TurnChanged {
         active_player: PlayerId,
         turn: u32,
@@ -93,7 +98,7 @@ pub enum TraceEntry {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Resource)]
+#[derive(Clone, Debug, Eq, PartialEq, Resource, serde::Deserialize, serde::Serialize)]
 pub struct CanonicalTrace {
     pub ruleset: RulesetId,
     pub entries: Vec<TraceEntry>,
