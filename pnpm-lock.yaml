@@ -108,6 +108,9 @@ catalogs:
     apollo-angular:
       specifier: ^14.0.0
       version: 14.2.0
+    astro:
+      specifier: ^7.0.0
+      version: 7.2.8
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
@@ -135,9 +138,6 @@ catalogs:
     js-pkce:
       specifier: ^2.0.0
       version: 2.0.0
-    js-yaml:
-      specifier: ^5.0.0
-      version: 5.4.0
     jsdom:
       specifier: ^30.0.0
       version: 30.0.1
@@ -316,7 +316,7 @@ importers:
         version: 2.0.0
       js-yaml:
         specifier: 'catalog:'
-        version: 5.4.0
+        version: 5.4.1
       jwt-decode:
         specifier: 'catalog:'
         version: 4.0.0
@@ -4236,8 +4236,8 @@ packages:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
 
-  js-yaml@5.4.0:
-    resolution: {integrity: sha512-jE7vUJIebKzYQI5xu4co5CRBDlDEYnHrdzsxs4O2giCz4v2SbVMYKpmt1D9L38OKQAeCWmrOTRiCV93u0UkaJA==}
+  js-yaml@5.4.1:
+    resolution: {integrity: sha512-28R/k+NAjeuf7+CKlTxWZVExJGwVVLwY06DgEnOMz2gEpfNkDcD7QvyiVPT0xy0XXhU8vHsd4Ot42OOPdJG7dQ==}
     hasBin: true
 
   jsdom@30.0.1:
@@ -9795,7 +9795,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  js-yaml@5.4.0:
+  js-yaml@5.4.1:
     dependencies:
       argparse: 2.0.1
 
