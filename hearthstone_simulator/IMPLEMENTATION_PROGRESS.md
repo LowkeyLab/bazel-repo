@@ -6,7 +6,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
-- Active milestone: Milestone 5 aura timing and Milestone 7 general mechanics
+- Active milestone: Milestone 7 general mechanics
 - Verification: Gazelle, formatting, all Hearthstone targets, and the full repository build pass
 
 ## Milestones
@@ -33,10 +33,10 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Damage, healing, destroy, draw, resource, summon, and sequence primitives.
   - [x] Stable native-effect registry whose Bevy systems return ordinary effect plans.
   - [x] Prepared events, immutable trigger snapshots, timed conditions, and depth-first trigger effect programs without generic recursion guards.
-- [ ] **5 — Stats, enchantments, and auras**
-  - [x] Base/current stats, damage, armor, keywords, enchantment relationships, and aura-cache data.
-  - [x] Effect-driven stat attachment, silence removal, and deterministic stat recalculation.
-  - [ ] Scheduled aura-provider discovery and continuous Spell Damage exceptions.
+- [x] **5 — Stats, enchantments, and auras**
+  - [x] Base/current stats, damage, armor, keywords, enchantment relationships, and H1/H2-preserving stat recalculation.
+  - [x] Typed Health, Attack, and Other aura caches with deterministic discovery, played/summoned timing, and post-death expiration.
+  - [x] Live Spell Damage contributions from in-play and attached sources, including opponent recipients, with separate Hero Power modifiers.
 - [x] **6 — Damage, healing, and death (vertical slice)**
   - [x] Armor, Immune, Divine Shield, mortality, pending destroy, and ordered boundary removal.
   - [x] Synthetic area-damage test proving deaths are collected before boundary removal.
@@ -95,7 +95,17 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-08-30 | `aspect test //hearthstone_simulator/...`                                      | Passed 57 simulator tests and CLI build     |
 | 2026-08-30 | `aspect lint`                                                                  | Passed all repository linters               |
 | 2026-08-30 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-30 | `aspect test //hearthstone_simulator/core:core_test`                           | Passed Milestone 5 aura conformance tests   |
+| 2026-08-30 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.5% lines and 98.7% functions             |
+| 2026-08-30 | `aspect format --scope=all`                                                    | Passed repository formatting                |
+| 2026-08-30 | `aspect test //hearthstone_simulator/...`                                      | Passed aura-enabled simulator and CLI       |
+| 2026-08-30 | `aspect lint`                                                                  | Passed all repository linters               |
+| 2026-08-30 | `aspect build //...`                                                           | Passed full repository build                |
+| 2026-08-30 | `aspect test //hearthstone_simulator/...`                                      | Passed aura compliance suite and CLI        |
+| 2026-08-30 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.2% lines and 98.8% functions             |
+| 2026-08-30 | `aspect lint`                                                                  | Passed all repository linters               |
+| 2026-08-30 | `aspect build //...`                                                           | Passed full repository build                |
 
 ## Known gaps
 
-The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Damage and healing process each proposed event and durable mutation in event order, fill pre-positioned actual-event slots, and delay actual reactions until every simultaneous mutation completes. Damage prevention precedes predamage triggers, no-op health changes do not create actual events, and Armor loss counts as actual damage. Boundary-created death records drive self-filtered Deathrattles through chained Death Phases. Death Creation locks Hero defeat, orders deaths globally by play order, and records each Death Event plus its pre-check-eligible trigger seeds. Each Death Event evaluates queue-time conditions only when it begins resolution, and the final outcome is checked after all chained Death Phases.
+The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Maximum-Health recalculation preserves H1/H2; Health applications persist through the immediate Death Phase while Attack and Other applications from removed providers expire first. Played providers merge only their own applications, summons refresh all categories, and Spell Damage is queried from live in-play or attached contributions for each spell-originated damage effect. Damage and healing process each proposed event and durable mutation in event order, fill pre-positioned actual-event slots, and delay actual reactions until every simultaneous mutation completes. Damage prevention precedes predamage triggers, no-op health changes do not create actual events, and Armor loss counts as actual damage. Boundary-created death records drive self-filtered Deathrattles through chained Death Phases. Death Creation locks Hero defeat, orders deaths globally by play order, and records each Death Event plus its pre-check-eligible trigger seeds. Each Death Event evaluates queue-time conditions only when it begins resolution, and the final outcome is checked after all chained Death Phases.

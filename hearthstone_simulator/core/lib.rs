@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+mod aura;
 mod card_definition;
 mod death;
 mod effect;
@@ -20,16 +21,22 @@ mod trace;
 mod trigger;
 mod zone;
 
+pub use aura::{
+    AttackAuraCache, AuraApplication, AuraCategory, AuraDefinition, AuraModifier, AuraRefreshPlan,
+    AuraTarget, ContinuousEffectDefinition, ContinuousModifier, HealthAuraCache, OtherAuraCache,
+    OtherAuraModifier, PlayerAudience, RuntimeAuras, RuntimeContinuousEffects, SilenceRemovable,
+};
 pub use card_definition::{CardDefinition, CardDefinitions};
 pub use death::{DeathEventCache, DeathRecord};
 pub use effect::{
-    Effect, EffectContext, EventValueOperation, PlayerSelector, Selector, ValueExpression,
+    Effect, EffectContext, EffectOrigin, EventValueOperation, PlayerSelector, Selector,
+    ValueExpression,
 };
-pub use enchantment::{AttachedEnchantments, AttachedTo, AuraApplication, AuraCache, StatModifier};
+pub use enchantment::{AttachedEnchantments, AttachedTo, StatModifier};
 pub use entity::{
     Abilities, Armor, AttackState, BaseStats, Controller, CurrentStats, Damage, DefinitionId,
     DisplayName, Enchantments, EntityKind, GameObject, Keyword, Keywords, PendingDestroy,
-    PlayOrder, Player,
+    PlayOrder, Player, Silenced,
 };
 pub use event::{EventContext, EventKind};
 pub use game::{DominantPlayer, GameOutcome, GameState, SimulationStatus};

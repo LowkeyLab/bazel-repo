@@ -3,9 +3,11 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
+# gazelle:exclude aura.rs
 # gazelle:exclude simulation_test_support.rs
 # gazelle:exclude simulation_tests_actions.rs
 # gazelle:exclude simulation_tests_api.rs
+# gazelle:exclude simulation_tests_auras.rs
 # gazelle:exclude simulation_tests_effects.rs
 # gazelle:exclude simulation_tests_events.rs
 # gazelle:exclude simulation_tests_health.rs
@@ -14,6 +16,7 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "core",
     srcs = [
+        "aura.rs",
         "card_definition.rs",
         "death.rs",
         "effect.rs",
@@ -47,6 +50,7 @@ rust_library(
         "simulation_test_support.rs",  # keep
         "simulation_tests_actions.rs",  # keep
         "simulation_tests_api.rs",  # keep
+        "simulation_tests_auras.rs",  # keep
         "simulation_tests_effects.rs",  # keep
         "simulation_tests_events.rs",  # keep
         "simulation_tests_health.rs",  # keep

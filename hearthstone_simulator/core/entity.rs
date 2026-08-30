@@ -93,6 +93,9 @@ pub struct Armor(pub i32);
 #[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PendingDestroy;
 
+#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Silenced;
+
 #[derive(
     Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
 )]

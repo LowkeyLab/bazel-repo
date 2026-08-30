@@ -15,16 +15,15 @@ use crate::{
 
 #[cfg(test)]
 use crate::{
-    Abilities, Armor, AuraApplication, AuraCache, Card, ChoiceId, ChoiceOption, ChoiceRequest,
-    Damage, DeathRecord, Enchantments, EntityKind, EventContext, EventId, EventKind, EventSlotId,
-    EventValueOperation, GameEntityId, GameObject, GameOutcome, HealingRequest, Keyword, Keywords,
-    PendingDestroy, PlayerId, PlayerSelector, PreparedEvent, PreparedEventSlot, ResolutionError,
-    ResolutionId, ResolutionOp, RuntimeTriggers, STARTING_HEALTH, Selector, StackedResolutionOp,
-    ValueExpression, Zone,
+    Abilities, Armor, AttackAuraCache, AuraApplication, AuraModifier, Card, ChoiceId, ChoiceOption,
+    ChoiceRequest, Damage, DeathRecord, EffectOrigin, Enchantments, EntityKind, EventContext,
+    EventId, EventKind, EventSlotId, EventValueOperation, GameEntityId, GameObject, GameOutcome,
+    HealingRequest, Keyword, Keywords, PendingDestroy, PlayerId, PlayerSelector, PreparedEvent,
+    PreparedEventSlot, ResolutionError, ResolutionId, ResolutionOp, RuntimeTriggers,
+    STARTING_HEALTH, Selector, Silenced, StackedResolutionOp, ValueExpression, Zone,
     enchantment::StatModifier,
     entity::game_entity,
     resolver::{begin_sequence, finish_sequence, push_resolution_ops},
-    trigger::TriggersSuppressed,
     zone::ZoneError,
 };
 
@@ -301,6 +300,9 @@ mod action_tests;
 #[cfg(test)]
 #[path = "simulation_tests_api.rs"]
 mod api_tests;
+#[cfg(test)]
+#[path = "simulation_tests_auras.rs"]
+mod aura_tests;
 #[cfg(test)]
 #[path = "simulation_tests_effects.rs"]
 mod effect_tests;

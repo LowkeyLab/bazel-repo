@@ -1,17 +1,17 @@
 use bevy::prelude::*;
 
 use crate::{
-    AttachedTo, AuraCache, BaseStats, CanonicalTrace, Card, Controller, CurrentStats, Damage,
-    DamageRequest, DefinitionId, DisplayName, Effect, EffectContext, EntityKind, EventId,
-    EventKind, EventValueOperation, GameEntityId, HealingRequest, Keywords, PendingDestroy,
-    PlayerId, PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeTriggers, Selector,
-    StatModifier, TraceEntry, ValueExpression, Zone,
+    AttachedTo, BaseStats, CanonicalTrace, Card, Controller, CurrentStats, Damage, DamageRequest,
+    DefinitionId, DisplayName, Effect, EffectContext, EntityKind, EventId, EventKind,
+    EventValueOperation, GameEntityId, HealingRequest, Keywords, PendingDestroy, PlayerId,
+    PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects,
+    RuntimeTriggers, Selector, SilenceRemovable, Silenced, StatModifier, TraceEntry,
+    ValueExpression, Zone,
     enchantment::recalculate_stats,
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
-    resolver::{push_resolution_op, push_resolution_ops},
+    resolver::push_resolution_ops,
     rng::choose_game_entity,
-    trigger::TriggersSuppressed,
     zone::{ZoneIndex, board_is_full, insert_into_zone, move_entity, validate_zone_position},
 };
 
@@ -74,7 +74,15 @@ pub(super) fn execute_effect_operation(
     match effect {
         Effect::DealDamage { targets, amount } => {
             let targets = select_entities(world, context, targets);
-            let value = evaluate_value(world, context, *amount, targets.len());
+            let mut value = evaluate_value(world, context, *amount, targets.len());
+            value = match context.origin {
+                crate::EffectOrigin::Spell => value
+                    .saturating_add(crate::aura::current_spell_damage(world, context.controller)),
+                crate::EffectOrigin::HeroPower => value.saturating_add(
+                    crate::aura::hero_power_damage_bonus(world, context.controller),
+                ),
+                crate::EffectOrigin::Other => value,
+            };
             let requests = targets
                 .into_iter()
                 .map(|target| DamageRequest {
@@ -174,13 +182,35 @@ pub(super) fn execute_effect_operation(
                         simultaneous_ordinal: 0,
                     },
                 );
-                push_resolution_op(world, ResolutionOp::ResolveEvent(event));
+                push_resolution_ops(
+                    world,
+                    [
+                        ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon),
+                        ResolutionOp::ResolveEvent(event),
+                    ],
+                );
             }
             Ok(())
         }
         Effect::AttachStatModifier { targets, modifier } => {
             for target in select_entities(world, context, targets) {
                 attach_stat_modifier(world, context.controller, target, *modifier)?;
+            }
+            Ok(())
+        }
+        Effect::AttachContinuousEffect {
+            targets,
+            effect,
+            silence_removable,
+        } => {
+            for target in select_entities(world, context, targets) {
+                attach_continuous_effect(
+                    world,
+                    context.controller,
+                    target,
+                    *effect,
+                    *silence_removable,
+                )?;
             }
             Ok(())
         }
@@ -203,9 +233,7 @@ pub(super) fn execute_effect_operation(
         } => {
             let controller = resolve_player(context.controller, *player);
             for target in select_entities(world, context, targets) {
-                if let Some(card) = copy_card_data(world, target) {
-                    let _ = spawn_card(world, controller, card, *zone);
-                }
+                copy_entity(world, target, controller, *zone);
             }
             Ok(())
         }
@@ -300,6 +328,37 @@ pub(super) fn attach_stat_modifier(
     Ok(())
 }
 
+pub(super) fn attach_continuous_effect(
+    world: &mut World,
+    controller: PlayerId,
+    target: GameEntityId,
+    effect: crate::ContinuousEffectDefinition,
+    silence_removable: bool,
+) -> Result<(), SimulationError> {
+    let target_entity =
+        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let id = allocate_game_id(world);
+    let order = allocate_play_order(world);
+    let entity = world
+        .spawn((
+            id,
+            DefinitionId("synthetic:continuous_modifier".to_string()),
+            EntityKind::Enchantment,
+            Controller(controller),
+            DisplayName("Continuous modifier".to_string()),
+            order,
+            RuntimeContinuousEffects(vec![effect]),
+            AttachedTo(target_entity),
+        ))
+        .id();
+    if silence_removable {
+        world.entity_mut(entity).insert(SilenceRemovable);
+    }
+    insert_into_zone(world, id, controller, Zone::SetAside, None)
+        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
+    Ok(())
+}
+
 pub(super) fn silence_entity(
     world: &mut World,
     target: GameEntityId,
@@ -309,16 +368,15 @@ pub(super) fn silence_entity(
         keywords.0.clear();
     }
     world.entity_mut(entity).remove::<PendingDestroy>();
-    world
-        .entity_mut(entity)
-        .insert((AuraCache::default(), TriggersSuppressed));
+    world.entity_mut(entity).insert(Silenced);
     let enchantments = world
         .iter_entities()
         .filter_map(|candidate| {
             if candidate.get::<AttachedTo>().map(|attached| attached.0) == Some(entity)
-                && candidate
+                && (candidate
                     .get::<StatModifier>()
                     .is_some_and(|modifier| modifier.silence_removable)
+                    || candidate.contains::<SilenceRemovable>())
             {
                 Some((*candidate.get::<GameEntityId>()?, candidate.id()))
             } else {
@@ -359,10 +417,45 @@ pub(super) fn transform_entity(
             program: card.effects,
         },
         RuntimeTriggers(card.triggers),
+        RuntimeAuras(card.auras),
+        RuntimeContinuousEffects(card.continuous_effects),
     ));
     world.entity_mut(entity).remove::<PendingDestroy>();
-    world.entity_mut(entity).remove::<TriggersSuppressed>();
+    world.entity_mut(entity).remove::<Silenced>();
     Ok(())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CopySnapshot {
+    card: Card,
+    source_zone: Zone,
+    silenced: bool,
+}
+
+fn copy_entity(world: &mut World, source: GameEntityId, controller: PlayerId, destination: Zone) {
+    let Some(snapshot) = capture_copy_snapshot(world, source) else {
+        return;
+    };
+    let Ok(copy) = spawn_card(world, controller, snapshot.card, destination) else {
+        return;
+    };
+    let copy_entity = game_entity(world, copy).expect("new copy remains indexed");
+    if snapshot.source_zone == Zone::Play && destination == Zone::Play {
+        if snapshot.silenced {
+            world.entity_mut(copy_entity).insert(Silenced);
+        }
+        let play_order = allocate_play_order(world);
+        world.entity_mut(copy_entity).insert(play_order);
+    }
+}
+
+fn capture_copy_snapshot(world: &World, source: GameEntityId) -> Option<CopySnapshot> {
+    let entity = game_entity(world, source)?;
+    Some(CopySnapshot {
+        card: copy_card_data(world, source)?,
+        source_zone: *world.get::<Zone>(entity)?,
+        silenced: world.get::<Silenced>(entity).is_some(),
+    })
 }
 
 pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card> {
@@ -380,6 +473,12 @@ pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card
         triggers: world
             .get::<RuntimeTriggers>(entity)
             .map_or_else(Vec::new, |triggers| triggers.0.clone()),
+        auras: world
+            .get::<RuntimeAuras>(entity)
+            .map_or_else(Vec::new, |auras| auras.0.clone()),
+        continuous_effects: world
+            .get::<RuntimeContinuousEffects>(entity)
+            .map_or_else(Vec::new, |effects| effects.0.clone()),
     })
 }
 

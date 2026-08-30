@@ -462,6 +462,11 @@ fn play_card(
         source: Some(card_id),
         controller: player_id,
         declared_target,
+        origin: if kind == EntityKind::Spell {
+            crate::EffectOrigin::Spell
+        } else {
+            crate::EffectOrigin::Other
+        },
     };
     let mut operations = vec![ResolutionOp::PrepareEvent(EventContext {
         kind: EventKind::CardPlayed,
@@ -482,6 +487,9 @@ fn play_card(
             actual_value: None,
             simultaneous_ordinal: 0,
         }));
+        operations.push(ResolutionOp::RefreshAuras(
+            crate::AuraRefreshPlan::PlayedProvider(card_id),
+        ));
     }
     operations.extend(
         runtime

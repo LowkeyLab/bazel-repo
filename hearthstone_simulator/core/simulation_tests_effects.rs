@@ -45,6 +45,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         source: Some(friendly),
         controller: PlayerId::One,
         declared_target: Some(enemy),
+        origin: EffectOrigin::Other,
     };
 
     assert_that!(
@@ -295,6 +296,7 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        origin: EffectOrigin::Other,
     };
     execute_effect(
         world,
@@ -382,6 +384,7 @@ fn native_handlers_flush_commands_and_return_nested_effect_plans() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        origin: EffectOrigin::Other,
     };
     assert_that!(
         execute_effect(world, &context, &Effect::Native(missing.clone())),
@@ -401,6 +404,7 @@ fn native_returned_event_modifiers_are_validated_before_execution() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        origin: EffectOrigin::Other,
     };
 
     assert_that!(
@@ -511,6 +515,7 @@ fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
         source: None,
         controller: PlayerId::One,
         declared_target: Some(target),
+        origin: EffectOrigin::Other,
     };
 
     assert_that!(
@@ -698,7 +703,7 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
         simulation
             .app
             .world()
-            .get::<TriggersSuppressed>(reactive_entity)
+            .get::<Silenced>(reactive_entity)
             .is_some(),
         is_true()
     );
@@ -722,7 +727,7 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
         simulation
             .app
             .world()
-            .get::<TriggersSuppressed>(transformed)
+            .get::<Silenced>(transformed)
             .is_none(),
         is_true()
     );

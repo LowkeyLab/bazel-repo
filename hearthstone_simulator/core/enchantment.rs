@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{BaseStats, CurrentStats, GameEntityId, PlayOrder, entity::game_entity};
+use crate::{
+    AttackAuraCache, AuraModifier, BaseStats, CurrentStats, Damage, GameEntityId, HealthAuraCache,
+    PlayOrder, entity::game_entity,
+};
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct StatModifier {
@@ -16,16 +19,6 @@ pub struct AttachedTo(#[relationship] pub Entity);
 #[derive(Component, Debug)]
 #[relationship_target(relationship = AttachedTo, linked_spawn)]
 pub struct AttachedEnchantments(#[relationship] Vec<Entity>);
-
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct AuraCache(pub Vec<AuraApplication>);
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct AuraApplication {
-    pub provider: GameEntityId,
-    pub attack: i32,
-    pub health: i32,
-}
 
 pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {
@@ -52,19 +45,45 @@ pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
         })
         .unwrap_or_default();
     modifiers.sort_by_key(|(order, _)| *order);
-    let aura = world.get::<AuraCache>(entity).cloned().unwrap_or_default();
+    let attack_auras = world
+        .get::<AttackAuraCache>(entity)
+        .cloned()
+        .unwrap_or_default();
+    let health_auras = world
+        .get::<HealthAuraCache>(entity)
+        .cloned()
+        .unwrap_or_default();
     let (mut attack, mut health) = (base.attack, base.health);
     for (_, modifier) in modifiers {
         attack += modifier.attack;
         health += modifier.health;
     }
-    for application in aura.0 {
-        attack += application.attack;
-        health += application.health;
+    for application in attack_auras.0 {
+        if let AuraModifier::Attack(amount) = application.modifier {
+            attack += amount;
+        }
+    }
+    for application in health_auras.0 {
+        if let AuraModifier::MaximumHealth(amount) = application.modifier {
+            health += amount;
+        }
+    }
+    let maximum_health = health.max(0);
+    let previous_maximum = world
+        .get::<CurrentStats>(entity)
+        .map(|stats| stats.maximum_health);
+    let previous_damage = world.get::<Damage>(entity).copied();
+    if let (Some(previous_maximum), Some(previous_damage)) = (previous_maximum, previous_damage)
+        && maximum_health < previous_maximum
+    {
+        let previous_health = previous_maximum.saturating_sub(previous_damage.0);
+        world.entity_mut(entity).insert(Damage(
+            maximum_health.saturating_sub(previous_health).max(0),
+        ));
     }
     world.entity_mut(entity).insert(CurrentStats {
         attack,
-        maximum_health: health.max(0),
+        maximum_health,
     });
 }
 
@@ -87,10 +106,15 @@ mod tests {
                     attack: 2,
                     health: 2,
                 },
-                AuraCache(vec![AuraApplication {
+                AttackAuraCache(vec![crate::AuraApplication {
                     provider: GameEntityId(9),
-                    attack: 3,
-                    health: -10,
+                    definition_index: 0,
+                    modifier: AuraModifier::Attack(3),
+                }]),
+                HealthAuraCache(vec![crate::AuraApplication {
+                    provider: GameEntityId(9),
+                    definition_index: 0,
+                    modifier: AuraModifier::MaximumHealth(-10),
                 }]),
             ))
             .id();
@@ -130,5 +154,62 @@ mod tests {
         let without_base = world.spawn((GameObject, GameEntityId(5))).id();
         recalculate_stats(&mut world, GameEntityId(5));
         assert_that!(world.get::<CurrentStats>(without_base).is_none(), is_true());
+    }
+
+    #[googletest::test]
+    fn maximum_health_changes_follow_h1_and_h2() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let target = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                BaseStats {
+                    attack: 1,
+                    health: 2,
+                },
+                CurrentStats {
+                    attack: 1,
+                    maximum_health: 2,
+                },
+                Damage(1),
+                HealthAuraCache(vec![crate::AuraApplication {
+                    provider: GameEntityId(2),
+                    definition_index: 0,
+                    modifier: AuraModifier::MaximumHealth(2),
+                }]),
+            ))
+            .id();
+
+        recalculate_stats(&mut world, GameEntityId(1));
+        assert_that!(
+            world.get::<CurrentStats>(target),
+            eq(Some(&CurrentStats {
+                attack: 1,
+                maximum_health: 4,
+            }))
+        );
+        assert_that!(world.get::<Damage>(target), eq(Some(&Damage(1))));
+
+        world.entity_mut(target).insert(HealthAuraCache::default());
+        recalculate_stats(&mut world, GameEntityId(1));
+        assert_that!(
+            world.get::<CurrentStats>(target),
+            eq(Some(&CurrentStats {
+                attack: 1,
+                maximum_health: 2,
+            }))
+        );
+        assert_that!(world.get::<Damage>(target), eq(Some(&Damage(0))));
+
+        world.entity_mut(target).insert((
+            CurrentStats {
+                attack: 1,
+                maximum_health: 4,
+            },
+            Damage(3),
+        ));
+        recalculate_stats(&mut world, GameEntityId(1));
+        assert_that!(world.get::<Damage>(target), eq(Some(&Damage(1))));
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
-    ConditionTiming, Effect, EntityKind, EventKind, PlayerId, SourceEligibilityPolicy,
-    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
+    AuraDefinition, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Effect,
+    EntityKind, EventKind, PlayerAudience, PlayerId, SourceEligibilityPolicy, TimedCondition,
+    TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -13,6 +14,8 @@ pub struct Card {
     pub health: i32,
     pub effects: Vec<Effect>,
     pub triggers: Vec<TriggerDefinition>,
+    pub auras: Vec<AuraDefinition>,
+    pub continuous_effects: Vec<ContinuousEffectDefinition>,
 }
 
 impl Card {
@@ -27,6 +30,8 @@ impl Card {
             health,
             effects: Vec::new(),
             triggers: Vec::new(),
+            auras: Vec::new(),
+            continuous_effects: Vec::new(),
         }
     }
 
@@ -41,6 +46,8 @@ impl Card {
             health: 0,
             effects: Vec::new(),
             triggers: Vec::new(),
+            auras: Vec::new(),
+            continuous_effects: Vec::new(),
         }
     }
 
@@ -51,6 +58,34 @@ impl Card {
 
     pub fn with_triggers(mut self, triggers: Vec<TriggerDefinition>) -> Self {
         self.triggers = triggers;
+        self
+    }
+
+    #[must_use]
+    pub fn with_aura(mut self, aura: AuraDefinition) -> Self {
+        self.auras.push(aura);
+        self
+    }
+
+    #[must_use]
+    pub fn with_spell_damage(self, amount: i32) -> Self {
+        self.with_continuous_effect(ContinuousEffectDefinition {
+            recipients: PlayerAudience::Controller,
+            modifier: ContinuousModifier::SpellDamage(amount),
+        })
+    }
+
+    #[must_use]
+    pub fn with_opponent_spell_damage(self, amount: i32) -> Self {
+        self.with_continuous_effect(ContinuousEffectDefinition {
+            recipients: PlayerAudience::Opponent,
+            modifier: ContinuousModifier::SpellDamage(amount),
+        })
+    }
+
+    #[must_use]
+    pub fn with_continuous_effect(mut self, effect: ContinuousEffectDefinition) -> Self {
+        self.continuous_effects.push(effect);
         self
     }
 

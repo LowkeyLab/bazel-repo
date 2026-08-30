@@ -1,4 +1,6 @@
-use crate::{Card, GameEntityId, NativeEffectId, PlayerId, StatModifier, Zone};
+use crate::{
+    Card, ContinuousEffectDefinition, GameEntityId, NativeEffectId, PlayerId, StatModifier, Zone,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Effect {
@@ -34,6 +36,11 @@ pub enum Effect {
     AttachStatModifier {
         targets: Selector,
         modifier: StatModifier,
+    },
+    AttachContinuousEffect {
+        targets: Selector,
+        effect: ContinuousEffectDefinition,
+        silence_removable: bool,
     },
     Silence {
         targets: Selector,
@@ -87,9 +94,17 @@ pub enum ValueExpression {
     TargetCount,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum EffectOrigin {
+    Other,
+    Spell,
+    HeroPower,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct EffectContext {
     pub source: Option<GameEntityId>,
     pub controller: PlayerId,
     pub declared_target: Option<GameEntityId>,
+    pub origin: EffectOrigin,
 }

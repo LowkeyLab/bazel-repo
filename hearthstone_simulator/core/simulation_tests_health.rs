@@ -850,6 +850,7 @@ fn damage_handles_missing_targets_immunity_shields_armor_and_negative_values() {
         source: None,
         controller: PlayerId::One,
         declared_target: Some(target),
+        origin: EffectOrigin::Other,
     };
     assert_that!(
         modify_active_event_value(

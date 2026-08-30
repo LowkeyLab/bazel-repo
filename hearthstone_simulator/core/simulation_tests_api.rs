@@ -121,6 +121,7 @@ fn choice_suspension_retains_lower_stack_work_and_resumes_selected_branch_first(
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        origin: EffectOrigin::Other,
     };
     let choice = ChoiceId(7);
     let option = ChoiceId(8);
@@ -286,12 +287,12 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
         PendingDestroy,
         Abilities(vec!["Battlecry".to_string()]),
         Enchantments(vec![enchantment]),
-        AuraCache(vec![AuraApplication {
+        AttackAuraCache(vec![AuraApplication {
             provider: target,
-            attack: 1,
-            health: 1,
+            definition_index: 0,
+            modifier: AuraModifier::Attack(1),
         }]),
-        TriggersSuppressed,
+        Silenced,
         DeathRecord {
             entity: target,
             controller: PlayerId::One,
@@ -498,6 +499,25 @@ fn checkpoints_reject_invalid_versions_rng_entities_zones_and_enchantments() {
 }
 
 #[googletest::test]
+fn checkpoints_reject_dangling_aura_provider_references() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint.entities[0].attack_aura_cache = Some(AttackAuraCache(vec![AuraApplication {
+        provider: GameEntityId(u64::MAX),
+        definition_index: 0,
+        modifier: AuraModifier::Attack(1),
+    }]));
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::Checkpoint(reason)) if reason.contains("missing aura provider")
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
 fn pending_choice_programs_are_validated_during_restoration() {
     let mut simulation = simulation();
     let missing = NativeEffectId::new("missing:pending_choice");
@@ -516,6 +536,7 @@ fn pending_choice_programs_are_validated_during_restoration() {
                         source: None,
                         controller: PlayerId::One,
                         declared_target: None,
+                        origin: EffectOrigin::Other,
                     },
                     effect: Effect::Native(missing.clone()),
                     event: None,
@@ -599,6 +620,7 @@ fn retained_event_and_operation_programs_are_validated_during_restoration() {
                     source: Some(source),
                     controller: PlayerId::One,
                     declared_target: Some(source),
+                    origin: EffectOrigin::Other,
                 },
                 effect: Effect::GainResource {
                     player: PlayerSelector::Controller,

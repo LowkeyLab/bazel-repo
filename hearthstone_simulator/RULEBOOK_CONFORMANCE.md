@@ -26,7 +26,11 @@ Behavior classifications:
 | Unbounded generated-work safety                                     | Engine policy       | per-sequence operation budget  | exact-operation budget test         | Implemented foundation     |
 | Native exceptional effects return primitive effect plans            | Card definition     | `native_effect`, `effect`      | registered-handler test             | Implemented foundation     |
 | Seeded random selection                                             | Current rule        | `rng`                          | same-seed test                      | Implemented foundation     |
-| Health/Attack aura boundary steps                                   | Current rule        | `enchantment`, `resolver`      | stat recalculation only             | Partial                    |
+| Health H1/H2 maximum/current behavior                               | Current rule        | damage-preserving stat reducer | gain/clamp/preserve tests           | Implemented foundation     |
+| Health/Attack aura boundary steps                                   | Current rule        | typed category caches          | Health persistence/Attack expiry    | Implemented foundation     |
+| Aura Update (Other)                                                 | Current rule        | `OtherAuraCache`, resolver     | summon/Immune/post-death tests      | Implemented foundation     |
+| Played and summoned aura refresh timing                             | Current rule        | planned `RefreshAuras` op      | provider-only/global refresh tests  | Implemented foundation     |
+| Continuously evaluated Spell Damage                                 | Current rule        | live continuous contributions  | attached/opponent/silence tests     | Implemented foundation     |
 | Delayed simultaneous death creation                                 | Current rule        | `death`                        | synthetic area-damage test          | Implemented vertical slice |
 | Global Death order with staged pre-check and queue-time capture     | Current rule        | `death`, prepared events       | enabling/exclusion timing tests     | Implemented vertical slice |
 | Hero defeat locked at Death Creation                                | Current rule        | `death::DefeatedHeroes`        | lethal-then-heal test               | Implemented vertical slice |
@@ -36,8 +40,8 @@ Behavior classifications:
 | DH1/DH2 ordered proposals, mutations, then delayed actual reactions | Current rule        | prepared event slots           | predamage/interleaving tests        | Implemented vertical slice |
 | Damage protection (Armor, Immune, Divine Shield)                    | Current rule        | effect reducer                 | protection/Armor trigger tests      | Implemented vertical slice |
 | Draw, burn, and fatigue                                             | Current rule        | effect reducer/zone index      | fixture coverage                    | Partial                    |
-| Transformation and copying                                          | Current rule        | effect reducer                 | fixture coverage                    | Partial                    |
-| Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`         | JSON choice round-trip test         | Implemented foundation     |
+| Transformation and copying                                          | Current rule        | zone-direction copy state      | silenced Play-to-Play copy test     | Partial                    |
+| Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`         | JSON/reference-validation tests     | Implemented foundation     |
 | Forced Death Phase timing                                           | Compatibility quirk | named ruleset policy           | esoteric tests                      | Planned                    |
 | Historical retired interactions                                     | Historical          | excluded by profile            | profile tests                       | Planned                    |
 | Official card-specific exceptions                                   | Card definition     | definition/native effects      | fixture-specific tests              | Out of engine scope        |

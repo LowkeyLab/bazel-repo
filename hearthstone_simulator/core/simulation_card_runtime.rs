@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::{
     Armor, AttackState, BaseStats, Card, Controller, CurrentStats, Damage, DefinitionId,
     DisplayName, Effect, EntityKind, GameEntityId, GameObject, Keywords, PlayOrder, Player,
-    PlayerConfig, PlayerId, RuntimeTriggers, STARTING_HEALTH, Zone, entity::allocate_game_id,
-    zone::insert_into_zone,
+    PlayerConfig, PlayerId, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
+    STARTING_HEALTH, Zone, entity::allocate_game_id, zone::insert_into_zone,
 };
 
 use super::error::SimulationError;
@@ -125,6 +125,10 @@ pub(super) fn spawn_card(
             RuntimeTriggers(card.triggers),
         ))
         .id();
+    world.entity_mut(entity).insert((
+        RuntimeAuras(card.auras),
+        RuntimeContinuousEffects(card.continuous_effects),
+    ));
     if let Err(error) = insert_into_zone(world, id, player_id, zone, None) {
         world.despawn(entity);
         return Err(error.into());
