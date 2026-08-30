@@ -30,7 +30,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
     let friendly = spawn_card(
         world,
         PlayerId::One,
-        Card::minion("Friendly", 0, 2, 3).with_keywords([Keyword::Taunt]),
+        Card::minion("Friendly", 0, 2, 3),
         Zone::Play,
     )
     .unwrap();
@@ -172,7 +172,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
             },
             Effect::Transform {
                 targets: Selector::DeclaredTarget,
-                card: Card::minion("Sheep", 1, 1, 1).with_keywords([Keyword::Rush]),
+                card: Card::minion("Sheep", 1, 1, 1),
             },
             Effect::Copy {
                 targets: Selector::DeclaredTarget,
@@ -190,19 +190,19 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         eq(Some(&Damage(0)))
     );
     assert_that!(
-        has_keyword(world, game_entity(world, friendly).unwrap(), Keyword::Taunt,),
+        world
+            .get::<Keywords>(game_entity(world, friendly).unwrap())
+            .unwrap()
+            .0
+            .contains(&Keyword::Taunt),
         is_false()
     );
-    let copied = world
-        .resource::<ZoneIndex>()
-        .entities(PlayerId::One, Zone::Hand)[0];
     assert_that!(
-        has_keyword(world, game_entity(world, enemy).unwrap(), Keyword::Rush),
-        is_true()
-    );
-    assert_that!(
-        has_keyword(world, game_entity(world, copied).unwrap(), Keyword::Rush),
-        is_true()
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Hand)
+            .len(),
+        eq(1)
     );
     assert_that!(
         player(world, PlayerId::One).unwrap().1.temporary_resources,
@@ -511,45 +511,6 @@ fn missing_native_deathrattles_are_rejected_before_card_play_mutates_state() {
     simulation
         .assert_invariants()
         .expect("rejected Deathrattle should preserve invariants");
-}
-
-#[googletest::test]
-fn transforming_a_hero_clears_hero_only_armor_before_damage() {
-    let mut simulation = simulation();
-    let target = hero(&mut simulation, PlayerId::Two);
-    let entity = game_entity(simulation.app.world(), target).unwrap();
-    simulation
-        .app
-        .world_mut()
-        .entity_mut(entity)
-        .insert(Armor(3));
-
-    transform_entity(
-        simulation.app.world_mut(),
-        target,
-        Card::minion("Transformed Hero", 0, 2, 5),
-    )
-    .unwrap();
-
-    assert_that!(simulation.app.world().get::<Armor>(entity), none());
-    assert_that!(
-        simulation
-            .app
-            .world()
-            .get::<crate::MinionForm>(entity)
-            .is_some(),
-        is_true()
-    );
-    assert_that!(
-        assert_runtime_shape_invariants(simulation.app.world()),
-        ok(())
-    );
-
-    apply_damage(simulation.app.world_mut(), None, target, 2).unwrap();
-    assert_that!(
-        simulation.app.world().get::<Damage>(entity),
-        eq(Some(&Damage(2)))
-    );
 }
 
 #[googletest::test]

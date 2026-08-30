@@ -29,10 +29,9 @@ pub use effect::{
 };
 pub use enchantment::{AttachedEnchantments, AttachedTo, AuraApplication, AuraCache, StatModifier};
 pub use entity::{
-    Abilities, Armor, AttackState, BaseStats, Charge, ComputedStats, Controller, CurrentStats,
-    Damage, DefinitionId, DisplayName, DivineShield, Enchantments, EntityKind, GameObject,
-    HeroForm, Immune, Keyword, Lifesteal, MinionForm, PendingDestroy, PlayOrder, Player, Poisonous,
-    Rush, StatBearing, Stealth, Taunt, Windfury,
+    Abilities, Armor, AttackState, BaseStats, Controller, CurrentStats, Damage, DefinitionId,
+    DisplayName, Enchantments, EntityKind, GameObject, Keyword, Keywords, PendingDestroy,
+    PlayOrder, Player,
 };
 pub use event::{EventContext, EventKind};
 pub use game::{GameOutcome, GameState, SimulationStatus};

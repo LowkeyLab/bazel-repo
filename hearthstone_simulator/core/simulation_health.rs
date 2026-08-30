@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use crate::{
     Armor, CanonicalTrace, Controller, Damage, EventContext, EventKind, GameEntityId, Keyword,
-    PlayOrder, PlayerId, ResolutionCursor, ResolutionKind, TraceEntry,
-    entity::{game_entity, has_keyword, remove_keyword},
+    Keywords, PlayOrder, PlayerId, ResolutionCursor, ResolutionKind, TraceEntry,
+    entity::game_entity,
     resolver::{activate_resolution_child, complete_active, consume_budget, push_resolution},
 };
 
@@ -120,11 +120,21 @@ fn damage_passes_protection(world: &mut World, request: DamageRequest) -> bool {
     }
     let entity = game_entity(world, request.target)
         .expect("validated damage target remains indexed during damage prevention");
-    if has_keyword(world, entity, Keyword::Immune) {
+    if world
+        .get::<Keywords>(entity)
+        .is_some_and(|keywords| keywords.0.contains(&Keyword::Immune))
+    {
         return false;
     }
-    if has_keyword(world, entity, Keyword::DivineShield) {
-        remove_keyword(world, entity, Keyword::DivineShield);
+    if world
+        .get::<Keywords>(entity)
+        .is_some_and(|keywords| keywords.0.contains(&Keyword::DivineShield))
+    {
+        world
+            .get_mut::<Keywords>(entity)
+            .expect("keywords were just read")
+            .0
+            .remove(&Keyword::DivineShield);
         return false;
     }
     true
