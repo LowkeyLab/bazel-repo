@@ -146,7 +146,10 @@ pub(crate) fn collect_trigger_candidates(
         .iter()
         .filter(|seed| trigger_seed_is_eligible(world, seed, event, ConditionTiming::QueueTime))
         .map(|seed| {
-            let player_bucket = u8::from(seed.controller != world.resource::<DominantPlayer>().0);
+            let controller = game_entity(world, seed.source)
+                .and_then(|source| world.get::<Controller>(source))
+                .map_or(seed.controller, |controller| controller.0);
+            let player_bucket = u8::from(controller != world.resource::<DominantPlayer>().0);
             let zone_bucket = if event.kind == EventKind::Death {
                 0
             } else {
@@ -157,7 +160,7 @@ pub(crate) fn collect_trigger_candidates(
                 event: event_id,
                 definition_index: seed.definition_index,
                 definition: seed.definition.clone(),
-                controller: seed.controller,
+                controller,
                 order: TriggerOrderKey {
                     player_bucket,
                     zone_bucket,
@@ -241,6 +244,9 @@ fn evaluate_condition(
     event: Option<&EventContext>,
     condition: &TriggerCondition,
 ) -> bool {
+    let current_controller = source
+        .and_then(|source| world.get::<Controller>(source))
+        .map_or(controller, |controller| controller.0);
     match condition {
         TriggerCondition::Always => true,
         TriggerCondition::SourceInPlay => {
@@ -258,9 +264,9 @@ fn evaluate_condition(
         TriggerCondition::EventTargetsSelf => {
             event.is_some_and(|event| event.targets.contains(&source_id))
         }
-        TriggerCondition::ControllerIs(player) => controller == *player,
+        TriggerCondition::ControllerIs(player) => current_controller == *player,
         TriggerCondition::MinimumEntityCount { selector, count } => {
-            selector_count(world, source_id, controller, event, selector) >= *count
+            selector_count(world, source_id, current_controller, event, selector) >= *count
         }
     }
 }
@@ -391,6 +397,51 @@ mod tests {
                 .map(|candidate| candidate.source)
                 .collect::<Vec<_>>(),
             eq(&vec![GameEntityId(7), GameEntityId(9)])
+        );
+    }
+
+    #[googletest::test]
+    fn resolution_time_controller_conditions_use_the_live_controller() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.init_resource::<DominantPlayer>();
+        let mut trigger = definition();
+        trigger.conditions.push(TimedCondition {
+            timing: ConditionTiming::ResolutionTime,
+            condition: TriggerCondition::ControllerIs(PlayerId::Two),
+        });
+        let source = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                Controller(PlayerId::One),
+                Zone::Play,
+                RuntimeTriggers(vec![trigger]),
+            ))
+            .id();
+        let event = EventContext {
+            kind: EventKind::Damage,
+            source: None,
+            targets: Vec::new(),
+            controller: PlayerId::One,
+            proposed_value: None,
+            actual_value: Some(1),
+            simultaneous_ordinal: 0,
+        };
+        let seeds = collect_trigger_seeds(&world, &event);
+        let candidates = collect_trigger_candidates(&world, EventId(1), &event, &seeds);
+        assert_that!(candidates[0].controller, eq(PlayerId::One));
+
+        world.entity_mut(source).insert(Controller(PlayerId::Two));
+
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &candidates[0],
+                &event,
+                ConditionTiming::ResolutionTime
+            ),
+            is_true()
         );
     }
 }

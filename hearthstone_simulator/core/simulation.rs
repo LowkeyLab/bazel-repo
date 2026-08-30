@@ -15,10 +15,11 @@ use crate::{
 
 #[cfg(test)]
 use crate::{
-    Armor, Card, ChoiceId, ChoiceOption, ChoiceRequest, Damage, EntityKind, EventContext,
-    EventKind, EventValueOperation, GameEntityId, GameObject, GameOutcome, HealingRequest, Keyword,
-    Keywords, PlayerId, PlayerSelector, ResolutionError, ResolutionOp, RuntimeTriggers,
-    STARTING_HEALTH, Selector, ValueExpression, Zone,
+    Armor, Card, ChoiceId, ChoiceOption, ChoiceRequest, Damage, EntityKind, EventContext, EventId,
+    EventKind, EventSlotId, EventValueOperation, GameEntityId, GameObject, GameOutcome,
+    HealingRequest, Keyword, Keywords, PlayerId, PlayerSelector, PreparedEvent, PreparedEventSlot,
+    ResolutionError, ResolutionId, ResolutionOp, RuntimeTriggers, STARTING_HEALTH, Selector,
+    StackedResolutionOp, ValueExpression, Zone,
     enchantment::StatModifier,
     entity::game_entity,
     resolver::{begin_sequence, finish_sequence, push_resolution_ops},

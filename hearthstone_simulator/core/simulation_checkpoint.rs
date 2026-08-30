@@ -76,11 +76,19 @@ pub struct SimulationCheckpoint {
 
 impl SimulationCheckpoint {
     /// Serializes this versioned checkpoint as JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimulationError::Checkpoint`] if JSON serialization fails.
     pub fn to_json(&self) -> Result<String, SimulationError> {
         serde_json::to_string(self).map_err(|error| SimulationError::Checkpoint(error.to_string()))
     }
 
     /// Deserializes a versioned checkpoint from JSON. World-level validation occurs on restore.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimulationError::Checkpoint`] if the input is not a valid checkpoint document.
     pub fn from_json(json: &str) -> Result<Self, SimulationError> {
         serde_json::from_str(json).map_err(|error| SimulationError::Checkpoint(error.to_string()))
     }
@@ -94,7 +102,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
     }
     let mut entities = world
         .iter_entities()
-        .filter(|entity| entity.contains::<GameObject>())
+        .filter(bevy::prelude::EntityRef::contains::<GameObject>)
         .map(|entity| {
             let id = *entity.get::<GameEntityId>().ok_or_else(|| {
                 SimulationError::Checkpoint("GameObject has no logical ID".into())
@@ -192,74 +200,7 @@ pub(super) fn restore_checkpoint(
     world.insert_resource(checkpoint.resolution);
 
     for object in &checkpoint.entities {
-        let entity = world.spawn((GameObject, object.id)).id();
-        let mut entity = world.entity_mut(entity);
-        if let Some(value) = &object.definition_id {
-            entity.insert(DefinitionId(value.clone()));
-        }
-        if let Some(value) = object.kind {
-            entity.insert(value);
-        }
-        if let Some(value) = object.controller {
-            entity.insert(Controller(value));
-        }
-        if let Some(value) = &object.display_name {
-            entity.insert(DisplayName(value.clone()));
-        }
-        if let Some(value) = object.play_order {
-            entity.insert(PlayOrder(value));
-        }
-        if let Some(value) = object.base_stats {
-            entity.insert(value);
-        }
-        if let Some(value) = object.current_stats {
-            entity.insert(value);
-        }
-        if let Some(value) = object.damage {
-            entity.insert(value);
-        }
-        if let Some(value) = object.armor {
-            entity.insert(value);
-        }
-        if object.pending_destroy {
-            entity.insert(crate::PendingDestroy);
-        }
-        if let Some(value) = &object.keywords {
-            entity.insert(value.clone());
-        }
-        if let Some(value) = &object.abilities {
-            entity.insert(value.clone());
-        }
-        if let Some(value) = &object.enchantments {
-            entity.insert(value.clone());
-        }
-        if let Some(value) = object.attack_state {
-            entity.insert(value);
-        }
-        if let Some(value) = &object.player {
-            entity.insert(value.clone());
-        }
-        if let Some(value) = &object.card_runtime {
-            entity.insert(CardRuntime {
-                cost: value.cost,
-                program: value.program.clone(),
-            });
-        }
-        if let Some(value) = &object.runtime_triggers {
-            entity.insert(RuntimeTriggers(value.clone()));
-        }
-        if object.triggers_suppressed {
-            entity.insert(TriggersSuppressed);
-        }
-        if let Some(value) = object.stat_modifier {
-            entity.insert(value);
-        }
-        if let Some(value) = &object.aura_cache {
-            entity.insert(value.clone());
-        }
-        if let Some(value) = &object.death_record {
-            entity.insert(value.clone());
-        }
+        restore_entity_components(world, object);
     }
 
     let mut zoned = checkpoint
@@ -300,6 +241,77 @@ pub(super) fn restore_checkpoint(
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
     crate::resolver::assert_resolution_invariants(world).map_err(SimulationError::Invariant)?;
     assert_game_entity_index(world).map_err(SimulationError::Invariant)
+}
+
+fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
+    let entity = world.spawn((GameObject, object.id)).id();
+    let mut entity = world.entity_mut(entity);
+    if let Some(value) = &object.definition_id {
+        entity.insert(DefinitionId(value.clone()));
+    }
+    if let Some(value) = object.kind {
+        entity.insert(value);
+    }
+    if let Some(value) = object.controller {
+        entity.insert(Controller(value));
+    }
+    if let Some(value) = &object.display_name {
+        entity.insert(DisplayName(value.clone()));
+    }
+    if let Some(value) = object.play_order {
+        entity.insert(PlayOrder(value));
+    }
+    if let Some(value) = object.base_stats {
+        entity.insert(value);
+    }
+    if let Some(value) = object.current_stats {
+        entity.insert(value);
+    }
+    if let Some(value) = object.damage {
+        entity.insert(value);
+    }
+    if let Some(value) = object.armor {
+        entity.insert(value);
+    }
+    if object.pending_destroy {
+        entity.insert(crate::PendingDestroy);
+    }
+    if let Some(value) = &object.keywords {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = &object.abilities {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = &object.enchantments {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = object.attack_state {
+        entity.insert(value);
+    }
+    if let Some(value) = &object.player {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = &object.card_runtime {
+        entity.insert(CardRuntime {
+            cost: value.cost,
+            program: value.program.clone(),
+        });
+    }
+    if let Some(value) = &object.runtime_triggers {
+        entity.insert(RuntimeTriggers(value.clone()));
+    }
+    if object.triggers_suppressed {
+        entity.insert(TriggersSuppressed);
+    }
+    if let Some(value) = object.stat_modifier {
+        entity.insert(value);
+    }
+    if let Some(value) = &object.aura_cache {
+        entity.insert(value.clone());
+    }
+    if let Some(value) = &object.death_record {
+        entity.insert(value.clone());
+    }
 }
 
 fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
@@ -382,6 +394,36 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
             "trace and checkpoint rulesets disagree".to_string(),
         ));
     }
+    validate_next_counter(
+        "resolution",
+        checkpoint.resolution.next_resolution_id,
+        checkpoint
+            .resolution
+            .stack
+            .iter()
+            .map(|stacked| stacked.id.0)
+            .max(),
+    )?;
+    validate_next_counter(
+        "event",
+        checkpoint.resolution.next_event_id,
+        checkpoint
+            .resolution
+            .events
+            .keys()
+            .map(|event| event.0)
+            .max(),
+    )?;
+    validate_next_counter(
+        "event slot",
+        checkpoint.resolution.next_event_slot_id,
+        checkpoint
+            .resolution
+            .event_slots
+            .keys()
+            .map(|slot| slot.0)
+            .max(),
+    )?;
     let ids = checkpoint
         .entities
         .iter()
@@ -428,6 +470,19 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
                 entity.id
             )));
         }
+    }
+    Ok(())
+}
+
+fn validate_next_counter(
+    name: &str,
+    next: u64,
+    highest_retained: Option<u64>,
+) -> Result<(), SimulationError> {
+    if highest_retained.is_some_and(|highest| highest >= next) {
+        return Err(SimulationError::Checkpoint(format!(
+            "next {name} ID does not exceed retained IDs"
+        )));
     }
     Ok(())
 }

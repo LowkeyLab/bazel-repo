@@ -179,6 +179,55 @@ fn choice_suspension_retains_lower_stack_work_and_resumes_selected_branch_first(
 }
 
 #[googletest::test]
+fn failed_choice_resume_abandons_retained_work_and_recovers_input_state() {
+    let mut simulation = simulation();
+    let choice = ChoiceId(20);
+    let option = ChoiceId(21);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RequestChoice(ChoiceRequest {
+                id: choice,
+                player: PlayerId::One,
+                options: vec![ChoiceOption {
+                    id: option,
+                    operations: vec![ResolutionOp::CheckOutcome],
+                }],
+            }),
+            ResolutionOp::CheckOutcome,
+        ],
+    );
+    drive_resolution(world).unwrap();
+    world.resource_mut::<ResolutionWork>().remaining_budget = 0;
+
+    assert_that!(
+        matches!(
+            simulation.choose(option),
+            Err(SimulationError::Resolution(
+                ResolutionError::BudgetExhausted { .. }
+            ))
+        ),
+        is_true()
+    );
+    assert_that!(simulation.pending_choice(), none());
+    assert_that!(simulation.resolution_work().sequence_active, is_false());
+    assert_that!(simulation.resolution_work().stack.is_empty(), is_true());
+    assert_that!(
+        simulation.app.world().resource::<GameState>().status,
+        eq(SimulationStatus::AwaitingAction)
+    );
+    simulation.assert_invariants().unwrap();
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+}
+
+#[googletest::test]
 fn checkpoints_reject_missing_logical_relationship_targets() {
     let simulation = simulation();
     let mut checkpoint = simulation.checkpoint().unwrap();
@@ -191,6 +240,58 @@ fn checkpoints_reject_missing_logical_relationship_targets() {
         ),
         is_true()
     );
+}
+
+#[googletest::test]
+fn checkpoints_reject_non_monotonic_resolution_counters() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let mut malformed = Vec::new();
+
+    let mut resolution = base.clone();
+    resolution.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(7),
+        operation: ResolutionOp::CheckOutcome,
+    });
+    resolution.resolution.next_resolution_id = 7;
+    malformed.push(resolution);
+
+    let mut event = base.clone();
+    event.resolution.events.insert(
+        EventId(8),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: None,
+                targets: Vec::new(),
+                controller: PlayerId::One,
+                proposed_value: None,
+                actual_value: Some(1),
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: None,
+        },
+    );
+    event.resolution.next_event_id = 8;
+    malformed.push(event);
+
+    let mut slot = base;
+    slot.resolution
+        .event_slots
+        .insert(EventSlotId(9), PreparedEventSlot::default());
+    slot.resolution.next_event_slot_id = 9;
+    malformed.push(slot);
+
+    for checkpoint in malformed {
+        assert_that!(
+            matches!(
+                Simulation::from_checkpoint(checkpoint),
+                Err(SimulationError::Checkpoint(_))
+            ),
+            is_true()
+        );
+    }
 }
 
 #[googletest::test]

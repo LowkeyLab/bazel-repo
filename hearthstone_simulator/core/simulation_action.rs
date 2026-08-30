@@ -93,7 +93,16 @@ pub(super) fn submit_action(app: &mut App, action: GameAction) -> Result<(), Sim
 
 pub(super) fn submit_choice(app: &mut App, option: ChoiceId) -> Result<(), SimulationError> {
     answer_choice(app.world_mut(), option)?;
-    drive_resolution(app.world_mut())?;
+    if let Err(error) = drive_resolution(app.world_mut()) {
+        abandon_sequence(app.world_mut());
+        let status = if app.world().resource::<GameState>().outcome.is_some() {
+            SimulationStatus::Complete
+        } else {
+            SimulationStatus::AwaitingAction
+        };
+        app.world_mut().resource_mut::<GameState>().status = status;
+        return Err(error);
+    }
     finish_resolution_if_idle(app.world_mut())
 }
 
@@ -149,7 +158,7 @@ fn process_next_action(world: &mut World) {
                 .push(TraceEntry::ActionRejected {
                     player,
                     reason: error.to_string(),
-                })
+                });
         }
     }
     world.resource_mut::<ActionResults>().0.push_back(result);
