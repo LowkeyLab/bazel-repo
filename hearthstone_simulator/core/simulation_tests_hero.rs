@@ -366,35 +366,67 @@ fn hero_replacement_waits_for_the_phase_boundary_before_refreshing_auras() {
 }
 
 #[googletest::test]
-fn invalid_hero_replacement_is_rejected_before_mutation() {
-    let invalid = HeroReplacement {
-        hero: Card::minion("Not A Hero", 0, 1, 1),
-        hero_power: Card::hero_power("Power", 2),
-        armor_gain: 0,
-        health: HeroHealthPolicy::Preserve,
-        class: HeroClassPolicy::Keep,
-        weapon: None,
-    };
-    let card = Card::spell("Invalid", 0).with_effects(vec![Effect::ReplaceHero {
-        player: PlayerSelector::Controller,
-        replacement: Box::new(invalid),
-    }]);
-    let mut simulation = Simulation::new([
-        PlayerConfig::new("Jaina", vec![card]),
-        PlayerConfig::new("Rexxar", Vec::new()),
-    ]);
-    let before = simulation.snapshot();
-    let card = hand_card(&mut simulation, PlayerId::One);
+fn invalid_hero_replacements_are_rejected_before_mutation() {
+    let invalid_replacements = [
+        HeroReplacement {
+            hero: Card::minion("Not A Hero", 0, 1, 1),
+            hero_power: Card::hero_power("Power", 2),
+            armor_gain: 0,
+            health: HeroHealthPolicy::Preserve,
+            class: HeroClassPolicy::Keep,
+            weapon: None,
+        },
+        HeroReplacement {
+            hero: Card::hero("Hero", 30),
+            hero_power: Card::spell("Not A Power", 2),
+            armor_gain: 0,
+            health: HeroHealthPolicy::Preserve,
+            class: HeroClassPolicy::Keep,
+            weapon: None,
+        },
+        HeroReplacement {
+            hero: Card::hero("Hero", 30),
+            hero_power: Card::hero_power("Power", 2),
+            armor_gain: 0,
+            health: HeroHealthPolicy::Preserve,
+            class: HeroClassPolicy::Keep,
+            weapon: Some(Card::minion("Not A Weapon", 0, 1, 1)),
+        },
+        HeroReplacement {
+            hero: Card::hero("Hero", 30),
+            hero_power: Card::hero_power("Power", 2),
+            armor_gain: 0,
+            health: HeroHealthPolicy::Set {
+                maximum_health: 5,
+                current_health: 6,
+            },
+            class: HeroClassPolicy::Keep,
+            weapon: None,
+        },
+    ];
 
-    assert_that!(
-        simulation.apply(GameAction::PlayCard {
-            player: PlayerId::One,
-            card,
-            target: None,
-            board_index: None,
-            choice: None,
-        }),
-        err(matches_pattern!(SimulationError::InvalidHeroReplacement(_)))
-    );
-    assert_that!(simulation.snapshot(), eq(&before));
+    for invalid in invalid_replacements {
+        let card = Card::spell("Invalid", 0).with_effects(vec![Effect::ReplaceHero {
+            player: PlayerSelector::Controller,
+            replacement: Box::new(invalid),
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![card]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let before = simulation.snapshot();
+        let card = hand_card(&mut simulation, PlayerId::One);
+
+        assert_that!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            err(matches_pattern!(SimulationError::InvalidHeroReplacement(_)))
+        );
+        assert_that!(simulation.snapshot(), eq(&before));
+    }
 }

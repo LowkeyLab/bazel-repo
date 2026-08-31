@@ -3,7 +3,7 @@ use googletest::prelude::*;
 use super::{test_support::*, *};
 use crate::{
     AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition, ContinuousModifier,
-    OtherAuraModifier, PlayerAudience,
+    Controller, OtherAuraCache, OtherAuraModifier, PlayerAudience,
 };
 
 fn stat_aura(targets: AuraTarget, attack: i32, health: i32) -> AuraDefinition {
@@ -22,6 +22,55 @@ fn other_aura(targets: AuraTarget, modifier: OtherAuraModifier) -> AuraDefinitio
         health: 0,
         other: vec![modifier],
     }
+}
+
+#[googletest::test]
+fn both_player_continuous_effects_and_unrelated_other_auras_are_neutral() {
+    let mut simulation = simulation();
+    spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Shared spell damage", 0, 1, 1).with_continuous_effect(
+            ContinuousEffectDefinition {
+                recipients: PlayerAudience::Both,
+                modifier: ContinuousModifier::SpellDamage(2),
+            },
+        ),
+        Zone::Play,
+    )
+    .unwrap();
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(2)
+    );
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::Two),
+        eq(2)
+    );
+
+    let player = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| {
+            entity.get::<EntityKind>() == Some(&EntityKind::Player)
+                && entity.get::<Controller>() == Some(&Controller(PlayerId::One))
+        })
+        .unwrap()
+        .id();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(player)
+        .insert(OtherAuraCache(vec![AuraApplication {
+            provider: GameEntityId(999),
+            definition_index: 0,
+            modifier: AuraModifier::Immune,
+        }]));
+    assert_that!(
+        crate::aura::hero_power_damage_bonus(simulation.app.world(), PlayerId::One),
+        eq(0)
+    );
 }
 
 fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
@@ -214,6 +263,11 @@ fn attached_and_opponent_facing_spell_damage_are_live() {
         })
         .unwrap();
     assert_that!(simulation.snapshot().players[1].health, eq(27));
+    silence_entity(simulation.app.world_mut(), minion).unwrap();
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(0)
+    );
     let moonkin = hand_card(&mut simulation, PlayerId::One);
     simulation
         .apply(GameAction::PlayCard {

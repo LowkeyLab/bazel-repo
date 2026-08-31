@@ -118,8 +118,8 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-08-30 | `aspect build //...`                                                           | Passed full repository build                |
 | 2026-08-30 | `bazel run //:gazelle`                                                         | Passed compliance remediation generation    |
 | 2026-08-30 | `aspect format --scope=all`                                                    | Passed repository formatting                |
-| 2026-08-30 | `aspect test //hearthstone_simulator/...`                                      | Passed 113 simulator tests and CLI build    |
-| 2026-08-30 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 97.9% lines and 98.4% functions             |
+| 2026-08-30 | `aspect test //hearthstone_simulator/...`                                      | Passed 119 simulator tests and CLI build    |
+| 2026-08-30 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.0% lines and 98.9% functions             |
 | 2026-08-30 | `aspect lint`                                                                  | Passed all repository linters               |
 | 2026-08-30 | `aspect build //...`                                                           | Passed full repository build                |
 

@@ -1,6 +1,10 @@
 use googletest::prelude::*;
 
-use super::{test_support::*, *};
+use super::{card_runtime::CardRuntime, test_support::*, *};
+use crate::{
+    HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache, Player, SilenceRemovable,
+    TemporaryDuration,
+};
 
 #[googletest::test]
 fn fork_replays_to_an_equivalent_snapshot_and_trace() {
@@ -257,6 +261,108 @@ fn failed_choice_resume_abandons_retained_work_and_recovers_input_state() {
 }
 
 #[googletest::test]
+fn runtime_invariants_reject_malformed_player_hero_and_power_roles() {
+    let mut missing_player = simulation();
+    let player_entity = missing_player
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| {
+            entity
+                .get::<Player>()
+                .is_some_and(|player| player.id == PlayerId::One)
+        })
+        .unwrap()
+        .id();
+    missing_player
+        .app
+        .world_mut()
+        .entity_mut(player_entity)
+        .remove::<Player>();
+    assert_that!(
+        missing_player.assert_invariants().unwrap_err().to_string(),
+        contains_substring("0 Player entities")
+    );
+
+    let mut invalid_player = simulation();
+    let player_entity = invalid_player
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| {
+            entity
+                .get::<Player>()
+                .is_some_and(|player| player.id == PlayerId::One)
+        })
+        .unwrap()
+        .id();
+    invalid_player
+        .app
+        .world_mut()
+        .entity_mut(player_entity)
+        .insert(EntityKind::Minion);
+    assert_that!(
+        invalid_player.assert_invariants().unwrap_err().to_string(),
+        contains_substring("invalid Player components")
+    );
+
+    let mut missing_hero = simulation();
+    let hero = hero_id(missing_hero.app.world(), PlayerId::One).unwrap();
+    let hero_entity = game_entity(missing_hero.app.world(), hero).unwrap();
+    missing_hero
+        .app
+        .world_mut()
+        .entity_mut(hero_entity)
+        .insert(EntityKind::Spell);
+    assert_that!(
+        missing_hero.assert_invariants().unwrap_err().to_string(),
+        contains_substring("0 active Heroes")
+    );
+
+    let mut incomplete_hero = simulation();
+    let hero = hero_id(incomplete_hero.app.world(), PlayerId::One).unwrap();
+    let hero_entity = game_entity(incomplete_hero.app.world(), hero).unwrap();
+    incomplete_hero
+        .app
+        .world_mut()
+        .entity_mut(hero_entity)
+        .remove::<Armor>();
+    assert_that!(
+        incomplete_hero.assert_invariants().unwrap_err().to_string(),
+        contains_substring("Hero lacks required components")
+    );
+
+    let mut missing_power = simulation();
+    let power = missing_power.snapshot().players[0].hero_power.unwrap();
+    let power_entity = game_entity(missing_power.app.world(), power).unwrap();
+    missing_power
+        .app
+        .world_mut()
+        .entity_mut(power_entity)
+        .insert(EntityKind::Spell);
+    assert_that!(
+        missing_power.assert_invariants().unwrap_err().to_string(),
+        contains_substring("0 active Hero Powers")
+    );
+
+    let mut incomplete_power = simulation();
+    let power = incomplete_power.snapshot().players[0].hero_power.unwrap();
+    let power_entity = game_entity(incomplete_power.app.world(), power).unwrap();
+    incomplete_power
+        .app
+        .world_mut()
+        .entity_mut(power_entity)
+        .remove::<CardRuntime>();
+    assert_that!(
+        incomplete_power
+            .assert_invariants()
+            .unwrap_err()
+            .to_string(),
+        contains_substring("Hero Power lacks required components")
+    );
+}
+
+#[googletest::test]
 fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
     let mut original = simulation();
     let target = hand_card(&mut original, PlayerId::One);
@@ -292,6 +398,17 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             definition_index: 0,
             modifier: AuraModifier::Attack(1),
         }]),
+        HealthAuraCache(vec![AuraApplication {
+            provider: target,
+            definition_index: 1,
+            modifier: AuraModifier::MaximumHealth(2),
+        }]),
+        OtherAuraCache(vec![AuraApplication {
+            provider: target,
+            definition_index: 2,
+            modifier: AuraModifier::Immune,
+        }]),
+        KeepEnchantments,
         Silenced,
         DeathRecord {
             entity: target,
@@ -302,6 +419,16 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             simultaneous_ordinal: 0,
             turn_of_death: 1,
         },
+    ));
+    let enchantment_entity = game_entity(world, enchantment).unwrap();
+    world.entity_mut(enchantment_entity).insert((
+        KeywordModifier {
+            keyword: Keyword::Taunt,
+            granted: true,
+            silence_removable: true,
+        },
+        TemporaryDuration::EndOfTurn(PlayerId::One),
+        SilenceRemovable,
     ));
 
     let checkpoint = original.checkpoint().unwrap();
@@ -318,6 +445,22 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
         restored.app.world().get::<Abilities>(restored_target),
         eq(Some(&Abilities(vec!["Battlecry".to_string()])))
     );
+    assert_that!(
+        restored
+            .app
+            .world()
+            .entity(restored_target)
+            .contains::<KeepEnchantments>(),
+        is_true()
+    );
+    assert_that!(
+        restored.app.world().get::<HealthAuraCache>(restored_target),
+        some(anything())
+    );
+    assert_that!(
+        restored.app.world().get::<OtherAuraCache>(restored_target),
+        some(anything())
+    );
     let restored_enchantment = game_entity(restored.app.world(), enchantment).unwrap();
     assert_that!(
         restored
@@ -326,6 +469,21 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             .get::<crate::AttachedTo>(restored_enchantment)
             .map(|attached| attached.0),
         eq(Some(restored_target))
+    );
+    assert_that!(
+        restored
+            .app
+            .world()
+            .entity(restored_enchantment)
+            .contains::<SilenceRemovable>(),
+        is_true()
+    );
+    assert_that!(
+        restored
+            .app
+            .world()
+            .get::<TemporaryDuration>(restored_enchantment),
+        eq(Some(&TemporaryDuration::EndOfTurn(PlayerId::One)))
     );
 }
 
@@ -503,6 +661,34 @@ fn checkpoints_reject_missing_or_duplicate_active_heroes_and_powers() {
     let simulation = simulation();
     let base = simulation.checkpoint().unwrap();
     let mut malformed = Vec::new();
+
+    let mut missing_player = base.clone();
+    let index = missing_player
+        .entities
+        .iter()
+        .position(|entity| {
+            entity
+                .player
+                .as_ref()
+                .is_some_and(|player| player.id == PlayerId::One)
+        })
+        .unwrap();
+    missing_player.entities.remove(index);
+    malformed.push(missing_player);
+
+    let mut invalid_player = base.clone();
+    let player = invalid_player
+        .entities
+        .iter_mut()
+        .find(|entity| {
+            entity
+                .player
+                .as_ref()
+                .is_some_and(|player| player.id == PlayerId::One)
+        })
+        .unwrap();
+    player.kind = Some(EntityKind::Minion);
+    malformed.push(invalid_player);
 
     for kind in [EntityKind::Hero, EntityKind::HeroPower] {
         let mut missing = base.clone();

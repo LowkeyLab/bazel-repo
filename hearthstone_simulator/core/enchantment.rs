@@ -215,6 +215,55 @@ mod tests {
     }
 
     #[googletest::test]
+    fn keyword_recalculation_applies_ordered_grants_removals_and_silence() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let target = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                BaseKeywords(std::collections::BTreeSet::from([Keyword::Taunt])),
+                Keywords::default(),
+            ))
+            .id();
+        world.spawn((
+            GameObject,
+            GameEntityId(2),
+            PlayOrder(1),
+            KeywordModifier {
+                keyword: Keyword::Stealth,
+                granted: true,
+                silence_removable: true,
+            },
+            AttachedTo(target),
+        ));
+        world.spawn((
+            GameObject,
+            GameEntityId(3),
+            PlayOrder(2),
+            KeywordModifier {
+                keyword: Keyword::Taunt,
+                granted: false,
+                silence_removable: false,
+            },
+            AttachedTo(target),
+        ));
+
+        recalculate_keywords(&mut world, GameEntityId(1));
+        let keywords = &world.get::<Keywords>(target).unwrap().0;
+        assert_that!(keywords.contains(&Keyword::Stealth), is_true());
+        assert_that!(keywords.contains(&Keyword::Taunt), is_false());
+
+        world.entity_mut(target).insert(Silenced);
+        recalculate_keywords(&mut world, GameEntityId(1));
+        assert_that!(
+            world.get::<Keywords>(target).unwrap().0.is_empty(),
+            is_true()
+        );
+        recalculate_keywords(&mut world, GameEntityId(99));
+    }
+
+    #[googletest::test]
     fn maximum_health_changes_follow_h1_and_h2() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();

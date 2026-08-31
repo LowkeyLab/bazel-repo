@@ -123,7 +123,7 @@ fn death_reset_restores_innate_keywords() {
         PlayerConfig::new(
             "Jaina",
             vec![
-                Card::minion("Innate Taunt", 0, 1, 1).with_keyword(Keyword::Taunt),
+                Card::minion("Innate Taunt", 0, 1, 1).with_keywords([Keyword::Taunt]),
                 destroy,
             ],
         ),
@@ -535,6 +535,80 @@ fn full_zone_generation_does_not_consume_a_logical_identity() {
             .0,
         eq(next)
     );
+}
+
+#[googletest::test]
+fn death_movement_resets_hero_armor() {
+    let mut simulation = simulation();
+    let hero = hero(&mut simulation, PlayerId::One);
+    let entity = game_entity(simulation.app.world(), hero).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(Armor(7));
+
+    let outcome = crate::zone::move_entity_with_request(
+        simulation.app.world_mut(),
+        ZoneMoveRequest {
+            entity: hero,
+            destination_controller: PlayerId::One,
+            destination: Zone::Graveyard,
+            position: None,
+            kind: ZoneMovementKind::Death,
+        },
+    )
+    .unwrap();
+
+    assert_that!(matches!(outcome, ZoneMoveOutcome::Moved { .. }), is_true());
+    assert_that!(
+        simulation.app.world().get::<Armor>(entity),
+        eq(Some(&Armor(0)))
+    );
+}
+
+#[googletest::test]
+fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Copy source", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Copy {
+            targets: Selector::Entity(GameEntityId(u64::MAX)),
+            player: PlayerSelector::Controller,
+            zone: Zone::Hand,
+        },
+    )
+    .unwrap();
+
+    let source = hand_card(&mut simulation, PlayerId::One);
+    let before = simulation.snapshot().players[0].hand.clone();
+    simulation
+        .app
+        .world_mut()
+        .resource_mut::<Ruleset>()
+        .hand_limit = before.len();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Copy {
+            targets: Selector::Entity(source),
+            player: PlayerSelector::Controller,
+            zone: Zone::Hand,
+        },
+    )
+    .unwrap();
+
+    assert_that!(simulation.snapshot().players[0].hand, eq(&before));
 }
 
 #[googletest::test]
