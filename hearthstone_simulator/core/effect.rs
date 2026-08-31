@@ -1,6 +1,32 @@
 use crate::{
-    Card, ContinuousEffectDefinition, GameEntityId, NativeEffectId, PlayerId, StatModifier, Zone,
+    Card, ContinuousEffectDefinition, ExtraTurnTiming, GameEntityId, HeroClass, KeywordModifier,
+    NativeEffectId, PlayerId, StatModifier, TemporaryDuration, Zone, ZoneMovementKind,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum HeroClassPolicy {
+    Keep,
+    Replace(HeroClass),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum HeroHealthPolicy {
+    Preserve,
+    Set {
+        maximum_health: i32,
+        current_health: i32,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct HeroReplacement {
+    pub hero: Card,
+    pub hero_power: Card,
+    pub armor_gain: i32,
+    pub health: HeroHealthPolicy,
+    pub class: HeroClassPolicy,
+    pub weapon: Option<Card>,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Effect {
@@ -23,10 +49,25 @@ pub enum Effect {
         player: PlayerSelector,
         count: u32,
     },
+    Move {
+        targets: Selector,
+        player: PlayerSelector,
+        zone: Zone,
+        kind: ZoneMovementKind,
+    },
     GainResource {
         player: PlayerSelector,
         amount: i32,
         temporary: bool,
+    },
+    ScheduleExtraTurns {
+        player: PlayerSelector,
+        count: u32,
+        timing: ExtraTurnTiming,
+    },
+    ReplaceHero {
+        player: PlayerSelector,
+        replacement: Box<HeroReplacement>,
     },
     Summon {
         player: PlayerSelector,
@@ -36,6 +77,16 @@ pub enum Effect {
     AttachStatModifier {
         targets: Selector,
         modifier: StatModifier,
+    },
+    AttachTemporaryStatModifier {
+        targets: Selector,
+        modifier: StatModifier,
+        duration: TemporaryDuration,
+    },
+    AttachKeywordModifier {
+        targets: Selector,
+        modifier: KeywordModifier,
+        duration: Option<TemporaryDuration>,
     },
     AttachContinuousEffect {
         targets: Selector,

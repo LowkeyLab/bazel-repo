@@ -151,7 +151,7 @@ fn invalid_play_position_does_not_spend_mana_or_change_replay_state() {
         err(eq(&SimulationError::Zone(ZoneError::InvalidPosition {
             zone: Zone::Play,
             position: 999,
-            length: 1,
+            length: 0,
         })))
     );
 
@@ -185,7 +185,7 @@ fn play_zone_capacity_counts_minions_without_counting_the_hero() {
     }
 
     let snapshot = simulation.snapshot();
-    assert_that!(snapshot.players[0].board.len(), eq(8));
+    assert_that!(snapshot.players[0].board.len(), eq(7));
     assert_that!(
         snapshot
             .objects

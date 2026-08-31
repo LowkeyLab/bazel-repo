@@ -3,10 +3,10 @@ use bevy::prelude::*;
 use crate::{
     Armor, AttackState, Controller, CurrentStats, Damage, DeathEventCache, DeathRecord,
     DefinitionId, DeterministicRng, DisplayName, DominantPlayer, EntityKind, GameEntityId,
-    GameObject, GameState, PlayOrder, Player, PlayerId, ResolutionWork, RngSnapshot, Ruleset,
-    RulesetId, Zone, ZonePosition,
+    GameObject, GameState, HeroClass, HeroMetadata, HeroPowerState, PlayOrder, Player, PlayerId,
+    ResolutionWork, RngSnapshot, Ruleset, RulesetId, TurnSchedule, Zone, ZonePosition,
     entity::{GameEntityIndex, game_entity},
-    zone::ZoneIndex,
+    zone::{ZoneIndex, board_entities, semantic_zone_position},
 };
 
 use super::player::player;
@@ -16,6 +16,9 @@ pub struct PlayerSnapshot {
     pub entity: GameEntityId,
     pub id: PlayerId,
     pub name: String,
+    pub hero: GameEntityId,
+    pub hero_power: Option<GameEntityId>,
+    pub hero_class: HeroClass,
     pub health: i32,
     pub armor: i32,
     pub available_resources: i32,
@@ -45,12 +48,15 @@ pub struct GameObjectSnapshot {
     pub maximum_health: Option<i32>,
     pub damage: i32,
     pub exhausted: Option<bool>,
+    pub hero_class: Option<HeroClass>,
+    pub hero_power_exhausted: Option<bool>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GameSnapshot {
     pub ruleset: RulesetId,
     pub game: GameState,
+    pub turn_schedule: TurnSchedule,
     pub dominant_player: PlayerId,
     pub players: Vec<PlayerSnapshot>,
     pub objects: Vec<GameObjectSnapshot>,
@@ -69,18 +75,34 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
         .map(|(_, game_id, player_data)| {
             let (_, _, stats, damage) =
                 player(world, player_data.id).expect("every player has a hero");
-            let hero = zones
+            let (hero_id, hero) = zones
                 .entities(player_data.id, Zone::Play)
                 .iter()
                 .find_map(|id| {
                     let entity = game_entity(world, *id)?;
-                    (world.get::<EntityKind>(entity) == Some(&EntityKind::Hero)).then_some(entity)
+                    (world.get::<EntityKind>(entity) == Some(&EntityKind::Hero))
+                        .then_some((*id, entity))
                 })
                 .expect("every player has a hero");
+            let hero_power = zones
+                .entities(player_data.id, Zone::Play)
+                .iter()
+                .copied()
+                .find(|id| {
+                    game_entity(world, *id).is_some_and(|entity| {
+                        world.get::<EntityKind>(entity) == Some(&EntityKind::HeroPower)
+                    })
+                });
             PlayerSnapshot {
                 entity: *game_id,
                 id: player_data.id,
                 name: player_data.name.clone(),
+                hero: hero_id,
+                hero_power,
+                hero_class: world
+                    .get::<HeroMetadata>(hero)
+                    .map(|metadata| metadata.class)
+                    .unwrap_or_default(),
                 health: stats.maximum_health - damage.0,
                 armor: world.get::<Armor>(hero).map_or(0, |armor| armor.0),
                 available_resources: player_data.available_resources(),
@@ -93,7 +115,7 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
                 fatigue: player_data.fatigue,
                 hand: zones.entities(player_data.id, Zone::Hand).to_vec(),
                 deck: zones.entities(player_data.id, Zone::Deck).to_vec(),
-                board: zones.entities(player_data.id, Zone::Play).to_vec(),
+                board: board_entities(world, player_data.id),
             }
         })
         .collect::<Vec<_>>();
@@ -111,6 +133,8 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
         Option<&CurrentStats>,
         Option<&Damage>,
         Option<&AttackState>,
+        Option<&HeroMetadata>,
+        Option<&HeroPowerState>,
     )>();
     let mut objects = object_query
         .iter(world)
@@ -127,6 +151,8 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
                 stats,
                 damage,
                 attack,
+                hero,
+                hero_power,
             )| {
                 GameObjectSnapshot {
                     id: *id,
@@ -135,12 +161,15 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
                     kind: *kind,
                     controller: controller.0,
                     zone: *zone,
-                    zone_position: position.0,
+                    zone_position: semantic_zone_position(world, *id, controller.0, *zone)
+                        .unwrap_or(position.0),
                     play_order: order.0,
                     attack: stats.map(|stats| stats.attack),
                     maximum_health: stats.map(|stats| stats.maximum_health),
                     damage: damage.map_or(0, |damage| damage.0),
                     exhausted: attack.map(|attack| attack.exhausted),
+                    hero_class: hero.map(|hero| hero.class),
+                    hero_power_exhausted: hero_power.map(|power| power.exhausted),
                 }
             },
         )
@@ -151,6 +180,7 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
     GameSnapshot {
         ruleset,
         game,
+        turn_schedule: world.resource::<TurnSchedule>().clone(),
         dominant_player: world.resource::<DominantPlayer>().0,
         players,
         objects,

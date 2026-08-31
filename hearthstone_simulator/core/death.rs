@@ -4,8 +4,10 @@ use bevy::prelude::{Component, Resource, World};
 
 use crate::{
     CanonicalTrace, Controller, CurrentStats, Damage, EntityKind, GameEntityId, GameState,
-    PendingDestroy, PlayOrder, PlayerId, TraceEntry, Zone, ZonePosition, entity::game_entity,
-    zone::move_entity,
+    PendingDestroy, PlayOrder, PlayerId, TraceEntry, Zone, ZoneMoveRequest, ZoneMovementKind,
+    ZonePosition,
+    entity::game_entity,
+    zone::{move_entity_with_request, semantic_zone_position},
 };
 
 #[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -43,9 +45,12 @@ pub(crate) fn create_deaths(world: &mut World) {
                 entity.id(),
                 entity.get::<Controller>()?.0,
                 kind,
-                entity
-                    .get::<ZonePosition>()
-                    .map_or(0, |position| position.0),
+                semantic_zone_position(world, id, entity.get::<Controller>()?.0, Zone::Play)
+                    .unwrap_or_else(|| {
+                        entity
+                            .get::<ZonePosition>()
+                            .map_or(0, |position| position.0)
+                    }),
             ))
         })
         .collect::<Vec<_>>();
@@ -81,7 +86,18 @@ pub(crate) fn create_deaths(world: &mut World) {
     for (ordinal, (play_order, id, entity, controller, kind, zone_position)) in
         deaths.into_iter().enumerate()
     {
-        if move_entity(world, id, Zone::Graveyard, None).is_ok() {
+        if move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: id,
+                destination_controller: controller,
+                destination: Zone::Graveyard,
+                position: None,
+                kind: ZoneMovementKind::Death,
+            },
+        )
+        .is_ok()
+        {
             world.entity_mut(entity).remove::<PendingDestroy>();
             let record = DeathRecord {
                 entity: id,
@@ -106,8 +122,58 @@ pub(crate) fn create_deaths(world: &mut World) {
     world.resource_mut::<PendingDeaths>().0.extend(records);
 }
 
+pub(crate) fn record_full_zone_death(
+    world: &mut World,
+    id: GameEntityId,
+    remembered_zone_position: usize,
+) {
+    let Some(entity) = game_entity(world, id) else {
+        return;
+    };
+    let Some(controller) = world
+        .get::<Controller>(entity)
+        .map(|controller| controller.0)
+    else {
+        return;
+    };
+    let Some(kind) = world.get::<EntityKind>(entity).copied() else {
+        return;
+    };
+    if !matches!(kind, EntityKind::Minion | EntityKind::Location) {
+        return;
+    }
+    let record = DeathRecord {
+        entity: id,
+        controller,
+        kind,
+        play_order: world.get::<PlayOrder>(entity).map_or(0, |order| order.0),
+        remembered_zone_position,
+        simultaneous_ordinal: u32::try_from(world.resource::<PendingDeaths>().0.len())
+            .expect("pending full-zone death batch exceeds u32"),
+        turn_of_death: world.resource::<GameState>().turn_number,
+    };
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EntityDied { entity: id });
+    world
+        .resource_mut::<DeathEventCache>()
+        .records
+        .push(record.clone());
+    world.resource_mut::<PendingDeaths>().0.push(record);
+}
+
 pub(crate) fn take_pending_deaths(world: &mut World) -> Vec<DeathRecord> {
-    std::mem::take(&mut world.resource_mut::<PendingDeaths>().0)
+    let mut deaths = std::mem::take(&mut world.resource_mut::<PendingDeaths>().0);
+    // Full-zone deaths are recorded immediately while ordinary mortality is collected later at
+    // the boundary. Death Event order is nevertheless global order of play, not creation order.
+    // DeathEventCache retains its independently appended creation order for revival semantics.
+    deaths.sort_by_key(|record| (record.play_order, record.entity));
+    for (ordinal, record) in deaths.iter_mut().enumerate() {
+        record.simultaneous_ordinal =
+            u32::try_from(ordinal).expect("pending death batch exceeds u32");
+    }
+    deaths
 }
 
 pub(crate) fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {

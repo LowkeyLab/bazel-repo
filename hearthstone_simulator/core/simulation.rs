@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     CanonicalTrace, CurrentResolutionOp, DeathEventCache, DeterministicRng, DominantPlayer, Effect,
     EffectContext, GameState, NativeEffectId, PlayerConfig, ResolutionWork, Ruleset,
-    SimulationStatus, TraceEntry,
+    SimulationStatus, TraceEntry, TurnSchedule,
     death::{DefeatedHeroes, PendingDeaths},
     entity::{GameEntityIndex, NextGameEntityId, PlayOrderCounter},
     native_effect::{NativeEffectFactory, NativeEffectRegistry},
@@ -65,7 +65,7 @@ use card_runtime::spawn_card;
 #[cfg(test)]
 use effect_executor::{
     attach_stat_modifier, copy_card_data, evaluate_value, execute_effect, execute_effect_operation,
-    execute_effects, modify_active_event_value, modify_event_value, resolve_player,
+    execute_effects, modify_active_event_value, modify_event_value, replace_hero, resolve_player,
     select_entities, silence_entity, transform_entity,
 };
 #[cfg(test)]
@@ -85,6 +85,7 @@ pub struct HearthstoneSimulationPlugin;
 impl Plugin for HearthstoneSimulationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameState>()
+            .init_resource::<TurnSchedule>()
             .init_resource::<DominantPlayer>()
             .init_resource::<Ruleset>()
             .init_resource::<GameEntityIndex>()
@@ -289,6 +290,8 @@ impl Simulation {
     /// Returns [`SimulationError::Invariant`] describing the first violated invariant.
     pub fn assert_invariants(&self) -> Result<(), SimulationError> {
         assert_zone_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
+        player::assert_player_role_invariants(self.app.world())
+            .map_err(SimulationError::Invariant)?;
         assert_resolution_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
         assert_game_entity_index(self.app.world()).map_err(SimulationError::Invariant)
     }
@@ -312,6 +315,15 @@ mod event_tests;
 #[cfg(test)]
 #[path = "simulation_tests_health.rs"]
 mod health_tests;
+#[cfg(test)]
+#[path = "simulation_tests_hero.rs"]
+mod hero_tests;
+#[cfg(test)]
+#[path = "simulation_tests_movement.rs"]
+mod movement_tests;
+#[cfg(test)]
+#[path = "simulation_tests_temporal.rs"]
+mod temporal_tests;
 #[cfg(test)]
 #[path = "simulation_test_support.rs"]
 mod test_support;

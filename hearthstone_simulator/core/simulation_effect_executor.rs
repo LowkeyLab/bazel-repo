@@ -1,18 +1,23 @@
 use bevy::prelude::*;
 
 use crate::{
-    AttachedTo, BaseStats, CanonicalTrace, Card, Controller, CurrentStats, Damage, DamageRequest,
-    DefinitionId, DisplayName, Effect, EffectContext, EntityKind, EventId, EventKind,
-    EventValueOperation, GameEntityId, HealingRequest, Keywords, PendingDestroy, PlayerId,
-    PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects,
-    RuntimeTriggers, Selector, SilenceRemovable, Silenced, StatModifier, TraceEntry,
-    ValueExpression, Zone,
-    enchantment::recalculate_stats,
+    Armor, AttachedTo, AttackState, BaseKeywords, BaseStats, CanonicalTrace, Card, Controller,
+    CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, Effect, EffectContext,
+    EntityKind, EventId, EventKind, EventValueOperation, GameEntityId, HealingRequest,
+    HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState, HeroReplacement,
+    KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector, ResolutionOp,
+    ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, Selector,
+    SilenceRemovable, Silenced, StatModifier, TraceEntry, ValueExpression, Zone, ZoneMoveOutcome,
+    ZoneMoveRequest, ZoneMovementKind,
+    enchantment::{recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
     resolver::push_resolution_ops,
     rng::choose_game_entity,
-    zone::{ZoneIndex, board_is_full, insert_into_zone, move_entity, validate_zone_position},
+    zone::{
+        ZoneIndex, board_is_full, insert_into_zone, move_entity, move_entity_with_request,
+        validate_board_position,
+    },
 };
 
 use super::{
@@ -20,7 +25,7 @@ use super::{
     error::SimulationError,
     event_resolver::prepare_event,
     health::{SimultaneousEventOrder, apply_damage_batch, apply_healing_batch},
-    player::{draw_card, player_mut},
+    player::{draw_card, hero_id, player_mut},
 };
 
 #[cfg(test)]
@@ -137,6 +142,47 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
+        Effect::Move {
+            targets,
+            player,
+            zone,
+            kind,
+        } => {
+            let destination_controller = resolve_player(context.controller, *player);
+            let mut targets = select_entities(world, context, targets);
+            targets.sort_by_key(|id| {
+                let order = game_entity(world, *id)
+                    .and_then(|entity| world.get::<crate::PlayOrder>(entity))
+                    .map_or(0, |order| order.0);
+                (order, *id)
+            });
+            for target in targets {
+                let outcome = move_entity_with_request(
+                    world,
+                    ZoneMoveRequest {
+                        entity: target,
+                        destination_controller,
+                        destination: *zone,
+                        position: None,
+                        kind: *kind,
+                    },
+                )?;
+                let (from, to) = match outcome {
+                    ZoneMoveOutcome::Moved { from, .. } => (from, *zone),
+                    ZoneMoveOutcome::FullZoneRemoval { from, .. } => (from, Zone::Graveyard),
+                    ZoneMoveOutcome::PreventedByFullZone => continue,
+                };
+                world
+                    .resource_mut::<CanonicalTrace>()
+                    .entries
+                    .push(TraceEntry::ZoneMoved {
+                        entity: target,
+                        from,
+                        to,
+                    });
+            }
+            Ok(())
+        }
         Effect::GainResource {
             player,
             amount,
@@ -152,6 +198,37 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
+        Effect::ScheduleExtraTurns {
+            player,
+            count,
+            timing,
+        } => {
+            let player = resolve_player(context.controller, *player);
+            let active_player = world.resource::<crate::GameState>().active_player;
+            world.resource_mut::<crate::TurnSchedule>().schedule(
+                active_player,
+                player,
+                *count,
+                *timing,
+            );
+            world
+                .resource_mut::<CanonicalTrace>()
+                .entries
+                .push(TraceEntry::ExtraTurnsScheduled {
+                    player,
+                    count: *count,
+                    timing: *timing,
+                });
+            Ok(())
+        }
+        Effect::ReplaceHero {
+            player,
+            replacement,
+        } => replace_hero(
+            world,
+            resolve_player(context.controller, *player),
+            replacement,
+        ),
         Effect::Summon {
             player,
             card,
@@ -161,7 +238,7 @@ pub(super) fn execute_effect_operation(
             if card.kind == EntityKind::Minion && board_is_full(world, player) {
                 return Ok(());
             }
-            validate_zone_position(world, player, Zone::Play, *board_index)?;
+            validate_board_position(world, player, *board_index)?;
             let summoned = spawn_card(world, player, card.clone(), Zone::Play)?;
             if let Some(index) = board_index {
                 move_entity(world, summoned, Zone::Play, Some(*index))?;
@@ -195,6 +272,30 @@ pub(super) fn execute_effect_operation(
         Effect::AttachStatModifier { targets, modifier } => {
             for target in select_entities(world, context, targets) {
                 attach_stat_modifier(world, context.controller, target, *modifier)?;
+            }
+            Ok(())
+        }
+        Effect::AttachTemporaryStatModifier {
+            targets,
+            modifier,
+            duration,
+        } => {
+            for target in select_entities(world, context, targets) {
+                let enchantment =
+                    attach_stat_modifier(world, context.controller, target, *modifier)?;
+                let entity = game_entity(world, enchantment)
+                    .expect("new temporary enchantment remains indexed");
+                world.entity_mut(entity).insert(*duration);
+            }
+            Ok(())
+        }
+        Effect::AttachKeywordModifier {
+            targets,
+            modifier,
+            duration,
+        } => {
+            for target in select_entities(world, context, targets) {
+                attach_keyword_modifier(world, context.controller, target, *modifier, *duration)?;
             }
             Ok(())
         }
@@ -291,10 +392,10 @@ pub(super) fn validate_effect_program(
             }
             Effect::Sequence(nested) => validate_effect_program(world, nested, event)?,
             Effect::Summon { card, .. } | Effect::Transform { card, .. } => {
-                validate_effect_program(world, &card.effects, None)?;
-                for trigger in &card.triggers {
-                    validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
-                }
+                validate_card_program(world, card)?;
+            }
+            Effect::ReplaceHero { replacement, .. } => {
+                validate_hero_replacement(world, replacement)?;
             }
             _ => {}
         }
@@ -302,12 +403,266 @@ pub(super) fn validate_effect_program(
     Ok(())
 }
 
+fn validate_card_program(world: &World, card: &Card) -> Result<(), SimulationError> {
+    validate_effect_program(world, &card.effects, None)?;
+    for trigger in &card.triggers {
+        validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
+    }
+    Ok(())
+}
+
+fn validate_hero_replacement(
+    world: &World,
+    replacement: &HeroReplacement,
+) -> Result<(), SimulationError> {
+    if replacement.hero.kind != EntityKind::Hero {
+        return Err(SimulationError::InvalidHeroReplacement(
+            "replacement hero must have Hero kind".to_string(),
+        ));
+    }
+    if replacement.hero_power.kind != EntityKind::HeroPower {
+        return Err(SimulationError::InvalidHeroReplacement(
+            "replacement Hero Power must have HeroPower kind".to_string(),
+        ));
+    }
+    if replacement
+        .weapon
+        .as_ref()
+        .is_some_and(|weapon| weapon.kind != EntityKind::Weapon)
+    {
+        return Err(SimulationError::InvalidHeroReplacement(
+            "replacement weapon must have Weapon kind".to_string(),
+        ));
+    }
+    if let HeroHealthPolicy::Set {
+        maximum_health,
+        current_health,
+    } = replacement.health
+        && (maximum_health <= 0 || current_health < 0 || current_health > maximum_health)
+    {
+        return Err(SimulationError::InvalidHeroReplacement(
+            "replacement Health must satisfy 0 <= current <= maximum and maximum > 0".to_string(),
+        ));
+    }
+    validate_card_program(world, &replacement.hero)?;
+    validate_card_program(world, &replacement.hero_power)?;
+    if let Some(weapon) = &replacement.weapon {
+        validate_card_program(world, weapon)?;
+    }
+    Ok(())
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "hero replacement deliberately centralizes its atomic preservation and reset policy"
+)]
+pub(super) fn replace_hero(
+    world: &mut World,
+    player: PlayerId,
+    replacement: &HeroReplacement,
+) -> Result<(), SimulationError> {
+    validate_hero_replacement(world, replacement)?;
+    let previous = hero_id(world, player).ok_or(SimulationError::PlayerNotFound(player))?;
+    let previous_entity =
+        game_entity(world, previous).ok_or(SimulationError::EntityNotFound(previous))?;
+    let previous_stats = world
+        .get::<CurrentStats>(previous_entity)
+        .copied()
+        .ok_or(SimulationError::EntityNotFound(previous))?;
+    let previous_damage = world
+        .get::<Damage>(previous_entity)
+        .copied()
+        .unwrap_or_default();
+    let previous_armor = world
+        .get::<Armor>(previous_entity)
+        .copied()
+        .unwrap_or_default();
+    let previous_attack = world
+        .get::<AttackState>(previous_entity)
+        .copied()
+        .unwrap_or_default();
+    let previous_class = world
+        .get::<HeroMetadata>(previous_entity)
+        .map(|metadata| metadata.class)
+        .unwrap_or_default();
+    detach_all_enchantments(world, previous);
+    move_out_of_play(world, previous, player, Zone::SetAside)?;
+
+    let (maximum_health, current_health) = match replacement.health {
+        HeroHealthPolicy::Preserve => (
+            previous_stats.maximum_health,
+            previous_stats
+                .maximum_health
+                .saturating_sub(previous_damage.0),
+        ),
+        HeroHealthPolicy::Set {
+            maximum_health,
+            current_health,
+        } => (maximum_health, current_health),
+    };
+    let mut hero_card = replacement.hero.clone();
+    hero_card.health = maximum_health;
+    let hero = spawn_card(world, player, hero_card, Zone::Play)?;
+    let hero_entity = game_entity(world, hero).expect("replacement hero remains indexed");
+    let class = match replacement.class {
+        HeroClassPolicy::Keep => previous_class,
+        HeroClassPolicy::Replace(class) => class,
+    };
+    let hero_order = allocate_play_order(world);
+    world.entity_mut(hero_entity).insert((
+        CurrentStats {
+            attack: replacement.hero.attack,
+            maximum_health,
+        },
+        Damage(maximum_health.saturating_sub(current_health)),
+        Armor(
+            previous_armor
+                .0
+                .saturating_add(replacement.armor_gain)
+                .max(0),
+        ),
+        previous_attack,
+        HeroMetadata { class },
+        hero_order,
+    ));
+
+    let previous_power = controlled_kind(world, player, Zone::Play, EntityKind::HeroPower)
+        .first()
+        .copied();
+    for power in controlled_kind(world, player, Zone::Play, EntityKind::HeroPower) {
+        detach_all_enchantments(world, power);
+        move_out_of_play(world, power, player, Zone::RemovedFromGame)?;
+    }
+    let hero_power = spawn_card(world, player, replacement.hero_power.clone(), Zone::Play)?;
+    let hero_power_entity =
+        game_entity(world, hero_power).expect("replacement power remains indexed");
+    let power_order = allocate_play_order(world);
+    world
+        .entity_mut(hero_power_entity)
+        .insert((HeroPowerState::default(), power_order));
+
+    if let Some(weapon) = &replacement.weapon {
+        for old_weapon in controlled_kind(world, player, Zone::Play, EntityKind::Weapon) {
+            detach_all_enchantments(world, old_weapon);
+            move_out_of_play(world, old_weapon, player, Zone::Graveyard)?;
+        }
+        let weapon = spawn_card(world, player, weapon.clone(), Zone::Play)?;
+        let weapon_entity = game_entity(world, weapon).expect("replacement weapon remains indexed");
+        let order = allocate_play_order(world);
+        world.entity_mut(weapon_entity).insert(order);
+    }
+
+    world.resource_mut::<CanonicalTrace>().entries.extend([
+        TraceEntry::HeroReplaced {
+            player,
+            previous,
+            replacement: hero,
+        },
+        TraceEntry::HeroPowerReplaced {
+            player,
+            previous: previous_power,
+            replacement: hero_power,
+        },
+    ]);
+    // Hero replacement is not a minion summon. Its providers enter the ordinary aura lifecycle
+    // and become visible at the next ruleset-defined phase boundary; Hero-card sequencing may add
+    // a narrower played-provider refresh when that player-action sequence is implemented.
+    Ok(())
+}
+
+fn controlled_kind(
+    world: &World,
+    player: PlayerId,
+    zone: Zone,
+    kind: EntityKind,
+) -> Vec<GameEntityId> {
+    world
+        .resource::<ZoneIndex>()
+        .entities(player, zone)
+        .iter()
+        .copied()
+        .filter(|id| {
+            game_entity(world, *id).is_some_and(|entity| {
+                world.get::<EntityKind>(entity) == Some(&kind)
+                    && world
+                        .get::<Controller>(entity)
+                        .is_some_and(|controller| controller.0 == player)
+            })
+        })
+        .collect()
+}
+
+fn move_out_of_play(
+    world: &mut World,
+    id: GameEntityId,
+    player: PlayerId,
+    destination: Zone,
+) -> Result<(), SimulationError> {
+    let outcome = move_entity_with_request(
+        world,
+        ZoneMoveRequest {
+            entity: id,
+            destination_controller: player,
+            destination,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )?;
+    let ZoneMoveOutcome::Moved { from, .. } = outcome else {
+        return Err(SimulationError::Invariant(format!(
+            "hero replacement move produced {outcome:?}"
+        )));
+    };
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::ZoneMoved {
+            entity: id,
+            from,
+            to: destination,
+        });
+    Ok(())
+}
+
+fn detach_all_enchantments(world: &mut World, target: GameEntityId) {
+    let Some(target_entity) = game_entity(world, target) else {
+        return;
+    };
+    let attachments = world
+        .iter_entities()
+        .filter_map(|entity| {
+            if entity.get::<AttachedTo>().map(|attached| attached.0) != Some(target_entity) {
+                return None;
+            }
+            Some((
+                *entity.get::<GameEntityId>()?,
+                entity.get::<Controller>()?.0,
+                entity.id(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    for (id, controller, entity) in attachments {
+        world.entity_mut(entity).remove::<AttachedTo>();
+        let _ = move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: id,
+                destination_controller: controller,
+                destination: Zone::RemovedFromGame,
+                position: None,
+                kind: ZoneMovementKind::DetachEnchantment,
+            },
+        );
+    }
+    recalculate_stats(world, target);
+}
+
 pub(super) fn attach_stat_modifier(
     world: &mut World,
     controller: PlayerId,
     target: GameEntityId,
     modifier: StatModifier,
-) -> Result<(), SimulationError> {
+) -> Result<GameEntityId, SimulationError> {
     let target_entity =
         game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
     let id = allocate_game_id(world);
@@ -325,7 +680,42 @@ pub(super) fn attach_stat_modifier(
     insert_into_zone(world, id, controller, Zone::SetAside, None)
         .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
     recalculate_stats(world, target);
-    Ok(())
+    Ok(id)
+}
+
+pub(super) fn attach_keyword_modifier(
+    world: &mut World,
+    controller: PlayerId,
+    target: GameEntityId,
+    modifier: KeywordModifier,
+    duration: Option<crate::TemporaryDuration>,
+) -> Result<GameEntityId, SimulationError> {
+    let target_entity =
+        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let id = allocate_game_id(world);
+    let order = allocate_play_order(world);
+    let entity = world
+        .spawn((
+            id,
+            DefinitionId("synthetic:keyword_modifier".to_string()),
+            EntityKind::Enchantment,
+            Controller(controller),
+            DisplayName("Keyword modifier".to_string()),
+            order,
+            modifier,
+            AttachedTo(target_entity),
+        ))
+        .id();
+    if modifier.silence_removable {
+        world.entity_mut(entity).insert(SilenceRemovable);
+    }
+    if let Some(duration) = duration {
+        world.entity_mut(entity).insert(duration);
+    }
+    insert_into_zone(world, id, controller, Zone::SetAside, None)
+        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
+    recalculate_keywords(world, target);
+    Ok(id)
 }
 
 pub(super) fn attach_continuous_effect(
@@ -389,6 +779,7 @@ pub(super) fn silence_entity(
         let _ = move_entity(world, id, Zone::RemovedFromGame, None);
     }
     recalculate_stats(world, target);
+    recalculate_keywords(world, target);
     Ok(())
 }
 
@@ -411,7 +802,8 @@ pub(super) fn transform_entity(
             maximum_health: card.health,
         },
         Damage::default(),
-        Keywords::default(),
+        BaseKeywords(card.keywords.clone()),
+        Keywords(card.keywords.clone()),
         CardRuntime {
             cost: card.mana_cost,
             program: card.effects,
@@ -469,6 +861,11 @@ pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card
         mana_cost: runtime.cost,
         attack: base.attack,
         health: base.health,
+        keywords: world
+            .get::<BaseKeywords>(entity)
+            .map_or_else(std::collections::BTreeSet::new, |keywords| {
+                keywords.0.clone()
+            }),
         effects: runtime.program.clone(),
         triggers: world
             .get::<RuntimeTriggers>(entity)

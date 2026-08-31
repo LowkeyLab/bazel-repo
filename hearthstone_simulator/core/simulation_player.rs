@@ -1,14 +1,97 @@
 use bevy::prelude::*;
 
 use crate::{
-    CanonicalTrace, Controller, CurrentStats, Damage, EntityKind, GameEntityId, GameOutcome,
-    GameState, Player, PlayerId, Ruleset, TraceEntry, Zone,
+    Armor, AttackState, CanonicalTrace, Controller, CurrentStats, Damage, EntityKind, GameEntityId,
+    GameOutcome, GameState, HeroMetadata, HeroPowerState, Player, PlayerId, TraceEntry, Zone,
     death::DefeatedHeroes,
     entity::game_entity,
-    zone::{ZoneIndex, move_entity},
+    zone::{
+        ZoneIndex, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, move_entity_with_request,
+    },
 };
 
-use super::{error::SimulationError, health::apply_damage};
+use super::{card_runtime::CardRuntime, error::SimulationError, health::apply_damage};
+
+pub(super) fn assert_player_role_invariants(world: &World) -> Result<(), String> {
+    for player_id in PlayerId::ALL {
+        let players = world
+            .iter_entities()
+            .filter(|entity| {
+                entity
+                    .get::<Player>()
+                    .is_some_and(|player| player.id == player_id)
+            })
+            .collect::<Vec<_>>();
+        if players.len() != 1 {
+            return Err(format!(
+                "player {player_id:?} has {} Player entities instead of one",
+                players.len()
+            ));
+        }
+        let player_entity = players[0];
+        if player_entity
+            .get::<Controller>()
+            .map(|controller| controller.0)
+            != Some(player_id)
+            || player_entity.get::<EntityKind>() != Some(&EntityKind::Player)
+        {
+            return Err(format!(
+                "player {player_id:?} has invalid Player components"
+            ));
+        }
+
+        let active = world
+            .resource::<ZoneIndex>()
+            .entities(player_id, Zone::Play);
+        let heroes = active_kind(world, active, EntityKind::Hero);
+        if heroes.len() != 1 {
+            return Err(format!(
+                "player {player_id:?} has {} active Heroes instead of one",
+                heroes.len()
+            ));
+        }
+        let hero = game_entity(world, heroes[0])
+            .ok_or_else(|| format!("player {player_id:?} Hero is missing"))?;
+        if world.get::<CurrentStats>(hero).is_none()
+            || world.get::<Damage>(hero).is_none()
+            || world.get::<Armor>(hero).is_none()
+            || world.get::<AttackState>(hero).is_none()
+            || world.get::<HeroMetadata>(hero).is_none()
+        {
+            return Err(format!(
+                "player {player_id:?} Hero lacks required components"
+            ));
+        }
+
+        let powers = active_kind(world, active, EntityKind::HeroPower);
+        if powers.len() != 1 {
+            return Err(format!(
+                "player {player_id:?} has {} active Hero Powers instead of one",
+                powers.len()
+            ));
+        }
+        let power = game_entity(world, powers[0])
+            .ok_or_else(|| format!("player {player_id:?} Hero Power is missing"))?;
+        if world.get::<HeroPowerState>(power).is_none() || world.get::<CardRuntime>(power).is_none()
+        {
+            return Err(format!(
+                "player {player_id:?} Hero Power lacks required components"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn active_kind(world: &World, active: &[GameEntityId], kind: EntityKind) -> Vec<GameEntityId> {
+    active
+        .iter()
+        .copied()
+        .filter(|id| {
+            game_entity(world, *id).and_then(|entity| world.get::<EntityKind>(entity))
+                == Some(&kind)
+        })
+        .collect()
+}
 
 pub(super) fn draw_card(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
     let card = world
@@ -17,17 +100,25 @@ pub(super) fn draw_card(world: &mut World, player_id: PlayerId) -> Result<(), Si
         .first()
         .copied();
     if let Some(card) = card {
-        let destination = if world
-            .resource::<ZoneIndex>()
-            .entities(player_id, Zone::Hand)
-            .len()
-            >= world.resource::<Ruleset>().hand_limit
-        {
-            Zone::Graveyard
-        } else {
-            Zone::Hand
+        let outcome = move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: card,
+                destination_controller: player_id,
+                destination: Zone::Hand,
+                position: None,
+                kind: ZoneMovementKind::Draw,
+            },
+        )?;
+        let (from, destination) = match outcome {
+            ZoneMoveOutcome::Moved { from, .. } => (from, Zone::Hand),
+            ZoneMoveOutcome::FullZoneRemoval { from, .. } => (from, Zone::Graveyard),
+            ZoneMoveOutcome::PreventedByFullZone => {
+                return Err(SimulationError::Invariant(
+                    "draw was unexpectedly prevented by a full hand".to_string(),
+                ));
+            }
         };
-        let (from, _) = move_entity(world, card, destination, None)?;
         world
             .resource_mut::<CanonicalTrace>()
             .entries

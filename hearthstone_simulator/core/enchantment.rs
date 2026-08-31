@@ -1,9 +1,22 @@
 use bevy::prelude::*;
 
 use crate::{
-    AttackAuraCache, AuraModifier, BaseStats, CurrentStats, Damage, GameEntityId, HealthAuraCache,
-    PlayOrder, entity::game_entity,
+    AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, CurrentStats, Damage, GameEntityId,
+    HealthAuraCache, Keyword, Keywords, PlayOrder, PlayerId, Silenced, entity::game_entity,
 };
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum TemporaryDuration {
+    EndOfTurn(PlayerId),
+    EndOfTurnSeries(PlayerId),
+}
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct KeywordModifier {
+    pub keyword: Keyword,
+    pub granted: bool,
+    pub silence_removable: bool,
+}
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct StatModifier {
@@ -19,6 +32,51 @@ pub struct AttachedTo(#[relationship] pub Entity);
 #[derive(Component, Debug)]
 #[relationship_target(relationship = AttachedTo, linked_spawn)]
 pub struct AttachedEnchantments(#[relationship] Vec<Entity>);
+
+pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {
+    let Some(entity) = game_entity(world, target) else {
+        return;
+    };
+    let silenced = world.get::<Silenced>(entity).is_some();
+    let mut keywords = if silenced {
+        std::collections::BTreeSet::new()
+    } else {
+        world
+            .get::<BaseKeywords>(entity)
+            .map_or_else(std::collections::BTreeSet::new, |keywords| {
+                keywords.0.clone()
+            })
+    };
+    let mut modifiers = world
+        .get::<AttachedEnchantments>(entity)
+        .map(|attachments| {
+            attachments
+                .0
+                .iter()
+                .filter_map(|enchantment| {
+                    Some((
+                        world
+                            .get::<PlayOrder>(*enchantment)
+                            .map_or(0, |order| order.0),
+                        *world.get::<KeywordModifier>(*enchantment)?,
+                    ))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    modifiers.sort_by_key(|(order, _)| *order);
+    for (_, modifier) in modifiers {
+        if silenced && modifier.silence_removable {
+            continue;
+        }
+        if modifier.granted {
+            keywords.insert(modifier.keyword);
+        } else {
+            keywords.remove(&modifier.keyword);
+        }
+    }
+    world.entity_mut(entity).insert(Keywords(keywords));
+}
 
 pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {
@@ -154,6 +212,55 @@ mod tests {
         let without_base = world.spawn((GameObject, GameEntityId(5))).id();
         recalculate_stats(&mut world, GameEntityId(5));
         assert_that!(world.get::<CurrentStats>(without_base).is_none(), is_true());
+    }
+
+    #[googletest::test]
+    fn keyword_recalculation_applies_ordered_grants_removals_and_silence() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let target = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                BaseKeywords(std::collections::BTreeSet::from([Keyword::Taunt])),
+                Keywords::default(),
+            ))
+            .id();
+        world.spawn((
+            GameObject,
+            GameEntityId(2),
+            PlayOrder(1),
+            KeywordModifier {
+                keyword: Keyword::Stealth,
+                granted: true,
+                silence_removable: true,
+            },
+            AttachedTo(target),
+        ));
+        world.spawn((
+            GameObject,
+            GameEntityId(3),
+            PlayOrder(2),
+            KeywordModifier {
+                keyword: Keyword::Taunt,
+                granted: false,
+                silence_removable: false,
+            },
+            AttachedTo(target),
+        ));
+
+        recalculate_keywords(&mut world, GameEntityId(1));
+        let keywords = &world.get::<Keywords>(target).unwrap().0;
+        assert_that!(keywords.contains(&Keyword::Stealth), is_true());
+        assert_that!(keywords.contains(&Keyword::Taunt), is_false());
+
+        world.entity_mut(target).insert(Silenced);
+        recalculate_keywords(&mut world, GameEntityId(1));
+        assert_that!(
+            world.get::<Keywords>(target).unwrap().0.is_empty(),
+            is_true()
+        );
+        recalculate_keywords(&mut world, GameEntityId(99));
     }
 
     #[googletest::test]

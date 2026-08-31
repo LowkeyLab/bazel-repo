@@ -12,18 +12,7 @@ pub(super) fn hand_card(simulation: &mut Simulation, player: PlayerId) -> GameEn
 }
 
 pub(super) fn hero(simulation: &mut Simulation, player: PlayerId) -> GameEntityId {
-    let snapshot = simulation.snapshot();
-    snapshot.players[player.bucket() as usize]
-        .board
-        .iter()
-        .copied()
-        .find(|id| {
-            snapshot
-                .objects
-                .iter()
-                .any(|object| object.id == *id && object.kind == EntityKind::Hero)
-        })
-        .expect("hero should be on the board")
+    simulation.snapshot().players[player.bucket() as usize].hero
 }
 
 pub(super) fn self_event_trigger(

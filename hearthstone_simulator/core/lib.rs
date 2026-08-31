@@ -29,17 +29,23 @@ pub use aura::{
 pub use card_definition::{CardDefinition, CardDefinitions};
 pub use death::{DeathEventCache, DeathRecord};
 pub use effect::{
-    Effect, EffectContext, EffectOrigin, EventValueOperation, PlayerSelector, Selector,
-    ValueExpression,
+    Effect, EffectContext, EffectOrigin, EventValueOperation, HeroClassPolicy, HeroHealthPolicy,
+    HeroReplacement, PlayerSelector, Selector, ValueExpression,
 };
-pub use enchantment::{AttachedEnchantments, AttachedTo, StatModifier};
+pub use enchantment::{
+    AttachedEnchantments, AttachedTo, KeywordModifier, StatModifier, TemporaryDuration,
+};
 pub use entity::{
-    Abilities, Armor, AttackState, BaseStats, Controller, CurrentStats, Damage, DefinitionId,
-    DisplayName, Enchantments, EntityKind, GameObject, Keyword, Keywords, PendingDestroy,
-    PlayOrder, Player, Silenced,
+    Abilities, Armor, AttackState, BaseKeywords, BaseStats, Controller, CurrentStats, Damage,
+    DefinitionId, DisplayName, Enchantments, EntityKind, GameObject, HeroClass, HeroMetadata,
+    HeroPowerState, KeepEnchantments, Keyword, Keywords, PendingDestroy, PlayOrder, Player,
+    Silenced,
 };
 pub use event::{EventContext, EventKind};
-pub use game::{DominantPlayer, GameOutcome, GameState, SimulationStatus};
+pub use game::{
+    DominantPlayer, ExtraTurnTiming, GameOutcome, GameState, ScheduledTurn, ScheduledTurnKind,
+    SimulationStatus, TurnSchedule,
+};
 pub use ids::{ChoiceId, EventId, EventSlotId, GameEntityId, PlayerId, ResolutionId};
 pub use model::{Card, PlayerConfig, PlayerRef};
 pub use native_effect::NativeEffectId;
@@ -51,8 +57,8 @@ pub use resolver::{
 };
 pub use rng::{DeterministicRng, RNG_ALGORITHM_VERSION, RngSnapshot};
 pub use ruleset::{
-    DEFAULT_RESOLUTION_BUDGET, MAX_BOARD_SIZE, MAX_HAND_SIZE, MAX_MANA, RULEBOOK_DATE,
-    RULEBOOK_REVISION, Ruleset, RulesetId, STARTING_HEALTH,
+    DEFAULT_RESOLUTION_BUDGET, MAX_BOARD_SIZE, MAX_DECK_SIZE, MAX_HAND_SIZE, MAX_MANA,
+    MAX_SECRET_ZONE_SIZE, RULEBOOK_DATE, RULEBOOK_REVISION, Ruleset, RulesetId, STARTING_HEALTH,
 };
 pub use simulation::{
     CHECKPOINT_SCHEMA_VERSION, CardRuntimeCheckpoint, GameAction, GameEntityCheckpoint,
@@ -64,4 +70,4 @@ pub use trigger::{
     ConditionTiming, RuntimeTriggers, SourceEligibilityPolicy, TimedCondition, TriggerCandidate,
     TriggerCondition, TriggerDefinition, TriggerOrderKey, TriggerSeed, WoundedTargetPolicy,
 };
-pub use zone::{Zone, ZonePosition};
+pub use zone::{Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, ZonePosition};

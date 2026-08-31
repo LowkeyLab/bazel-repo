@@ -1,9 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use bevy::prelude::Resource;
 
 use crate::{
-    AuraDefinition, Card, ContinuousEffectDefinition, Effect, EntityKind, TriggerDefinition,
+    AuraDefinition, Card, ContinuousEffectDefinition, Effect, EntityKind, Keyword,
+    TriggerDefinition,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -14,6 +15,7 @@ pub struct CardDefinition {
     pub base_cost: i32,
     pub base_attack: i32,
     pub base_health: i32,
+    pub base_keywords: BTreeSet<Keyword>,
     pub program: Vec<Effect>,
     pub triggers: Vec<TriggerDefinition>,
     pub auras: Vec<AuraDefinition>,
@@ -29,6 +31,7 @@ impl From<Card> for CardDefinition {
             base_cost: card.mana_cost,
             base_attack: card.attack,
             base_health: card.health,
+            base_keywords: card.keywords,
             program: card.effects,
             triggers: card.triggers,
             auras: card.auras,
@@ -62,6 +65,7 @@ mod tests {
         assert_that!(definition.base_cost, eq(4));
         assert_that!(definition.base_attack, eq(3));
         assert_that!(definition.base_health, eq(5));
+        assert_that!(definition.base_keywords.is_empty(), is_true());
         assert_that!(definition.program.len(), eq(1));
         assert_that!(definition.triggers.is_empty(), is_true());
         assert_that!(definition.auras.is_empty(), is_true());

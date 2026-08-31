@@ -78,6 +78,16 @@ pub enum TraceEntry {
         entity: GameEntityId,
         controller: PlayerId,
     },
+    HeroReplaced {
+        player: PlayerId,
+        previous: GameEntityId,
+        replacement: GameEntityId,
+    },
+    HeroPowerReplaced {
+        player: PlayerId,
+        previous: Option<GameEntityId>,
+        replacement: GameEntityId,
+    },
     DeathPhaseQueued {
         deaths: Vec<GameEntityId>,
     },
@@ -89,9 +99,18 @@ pub enum TraceEntry {
         choice: crate::ChoiceId,
         option: crate::ChoiceId,
     },
+    ExtraTurnsScheduled {
+        player: PlayerId,
+        count: u32,
+        timing: crate::ExtraTurnTiming,
+    },
+    TemporaryEffectExpired {
+        entity: GameEntityId,
+    },
     TurnChanged {
         active_player: PlayerId,
         turn: u32,
+        kind: crate::ScheduledTurnKind,
     },
     Outcome {
         winner: Option<PlayerId>,

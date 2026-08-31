@@ -3,7 +3,14 @@ use std::collections::BTreeMap;
 use bevy::prelude::*;
 use thiserror::Error;
 
-use crate::{Controller, EntityKind, GameEntityId, PlayerId, Ruleset, entity::game_entity};
+use crate::{
+    Armor, AttachedTo, AttackAuraCache, AttackState, BaseKeywords, BaseStats, Controller,
+    CurrentStats, Damage, DefinitionId, EntityKind, GameEntityId, HealthAuraCache,
+    KeepEnchantments, Keywords, OtherAuraCache, PendingDestroy, PlayerId, Ruleset, Silenced,
+    TemporaryDuration,
+    enchantment::{recalculate_keywords, recalculate_stats},
+    entity::{allocate_play_order, game_entity},
+};
 
 #[derive(
     Component,
@@ -26,6 +33,40 @@ pub enum Zone {
     Graveyard,
     SetAside,
     RemovedFromGame,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum ZoneMovementKind {
+    Normal,
+    Draw,
+    ForcePlay,
+    Death,
+    Discard,
+    DetachEnchantment,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct ZoneMoveRequest {
+    pub entity: GameEntityId,
+    pub destination_controller: PlayerId,
+    pub destination: Zone,
+    pub position: Option<usize>,
+    pub kind: ZoneMovementKind,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ZoneMoveOutcome {
+    Moved {
+        from: Zone,
+        from_controller: PlayerId,
+        from_position: usize,
+    },
+    PreventedByFullZone,
+    FullZoneRemoval {
+        from: Zone,
+        from_controller: PlayerId,
+        from_position: usize,
+    },
 }
 
 #[derive(
@@ -63,22 +104,67 @@ pub enum ZoneError {
 
 pub(crate) fn zone_limit(ruleset: &Ruleset, zone: Zone) -> Option<usize> {
     match zone {
+        Zone::Deck => Some(ruleset.deck_limit),
         Zone::Hand => Some(ruleset.hand_limit),
+        Zone::Secret => Some(ruleset.secret_limit),
         _ => None,
     }
 }
 
-pub(crate) fn board_is_full(world: &World, player: PlayerId) -> bool {
+pub(crate) fn board_entities(world: &World, player: PlayerId) -> Vec<GameEntityId> {
     world
         .resource::<ZoneIndex>()
         .entities(player, Zone::Play)
         .iter()
+        .copied()
         .filter(|id| {
-            game_entity(world, **id).and_then(|entity| world.get::<EntityKind>(entity))
-                == Some(&EntityKind::Minion)
+            game_entity(world, *id)
+                .and_then(|entity| world.get::<EntityKind>(entity))
+                .is_some_and(|kind| is_board_entity(*kind))
         })
-        .count()
-        >= world.resource::<Ruleset>().board_limit
+        .collect()
+}
+
+pub(crate) fn board_is_full(world: &World, player: PlayerId) -> bool {
+    board_entities(world, player).len() >= world.resource::<Ruleset>().board_limit
+}
+
+const fn is_board_entity(kind: EntityKind) -> bool {
+    matches!(
+        kind,
+        EntityKind::Minion | EntityKind::Location | EntityKind::Permanent | EntityKind::Dormant
+    )
+}
+
+pub(crate) fn validate_generation_capacity(
+    world: &World,
+    player: PlayerId,
+    zone: Zone,
+    kind: EntityKind,
+    definition_id: &str,
+) -> Result<(), ZoneError> {
+    if generated_destination_is_full(world, player, zone, kind, definition_id) {
+        return Err(ZoneError::Full { player, zone });
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_board_position(
+    world: &World,
+    player: PlayerId,
+    position: Option<usize>,
+) -> Result<(), ZoneError> {
+    let length = board_entities(world, player).len();
+    if let Some(position) = position
+        && position > length
+    {
+        return Err(ZoneError::InvalidPosition {
+            zone: Zone::Play,
+            position,
+            length,
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_zone_position(
@@ -108,23 +194,28 @@ pub(crate) fn insert_into_zone(
     position: Option<usize>,
 ) -> Result<(), ZoneError> {
     let entity = game_entity(world, id).ok_or(ZoneError::EntityNotFound(id))?;
-    let limit = zone_limit(world.resource::<Ruleset>(), zone);
-    let entries = world.resource::<ZoneIndex>().entities(player, zone);
-    if limit.is_some_and(|limit| entries.len() >= limit)
-        || (zone == Zone::Play
-            && world.get::<EntityKind>(entity) == Some(&EntityKind::Minion)
-            && board_is_full(world, player))
-    {
+    if destination_is_full(world, entity, player, zone) {
         return Err(ZoneError::Full { player, zone });
     }
     validate_zone_position(world, player, zone, position)?;
+    insert_into_zone_unchecked(world, id, player, zone, position);
+    Ok(())
+}
+
+fn insert_into_zone_unchecked(
+    world: &mut World,
+    id: GameEntityId,
+    player: PlayerId,
+    zone: Zone,
+    position: Option<usize>,
+) {
+    let entity = game_entity(world, id).expect("unchecked zone insertion requires an entity");
     let mut index = world.resource_mut::<ZoneIndex>();
     let entries = index.0.entry((player, zone)).or_default();
     let position = position.unwrap_or(entries.len());
     entries.insert(position, id);
     world.entity_mut(entity).insert((Controller(player), zone));
     refresh_positions(world, player, zone);
-    Ok(())
 }
 
 pub(crate) fn move_entity(
@@ -132,23 +223,436 @@ pub(crate) fn move_entity(
     id: GameEntityId,
     destination: Zone,
     position: Option<usize>,
-) -> Result<(Zone, usize), ZoneError> {
+) -> Result<ZoneMoveOutcome, ZoneError> {
     let entity = game_entity(world, id).ok_or(ZoneError::EntityNotFound(id))?;
-    let source = *world
-        .get::<Zone>(entity)
-        .ok_or(ZoneError::EntityNotFound(id))?;
-    let player = world
+    let controller = world
         .get::<Controller>(entity)
         .map(|controller| controller.0)
         .ok_or(ZoneError::EntityNotFound(id))?;
-    let source_position = remove_from_index(world, id, player, source)?;
+    move_entity_with_request(
+        world,
+        ZoneMoveRequest {
+            entity: id,
+            destination_controller: controller,
+            destination,
+            position,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+}
 
-    if let Err(error) = insert_into_zone(world, id, player, destination, position) {
-        insert_into_zone(world, id, player, source, Some(source_position))
-            .expect("rolling back a valid zone move must succeed");
+pub(crate) fn move_entity_with_request(
+    world: &mut World,
+    request: ZoneMoveRequest,
+) -> Result<ZoneMoveOutcome, ZoneError> {
+    let entity =
+        game_entity(world, request.entity).ok_or(ZoneError::EntityNotFound(request.entity))?;
+    let source = *world
+        .get::<Zone>(entity)
+        .ok_or(ZoneError::EntityNotFound(request.entity))?;
+    let source_controller = world
+        .get::<Controller>(entity)
+        .map(|controller| controller.0)
+        .ok_or(ZoneError::EntityNotFound(request.entity))?;
+    let same_zone =
+        source == request.destination && source_controller == request.destination_controller;
+
+    if !same_zone
+        && destination_is_full(
+            world,
+            entity,
+            request.destination_controller,
+            request.destination,
+        )
+    {
+        return match request.kind {
+            ZoneMovementKind::ForcePlay => Ok(ZoneMoveOutcome::PreventedByFullZone),
+            ZoneMovementKind::Draw => move_to_graveyard_after_failed_move(
+                world,
+                request.entity,
+                source,
+                source_controller,
+                false,
+            ),
+            _ => move_to_graveyard_after_failed_move(
+                world,
+                request.entity,
+                source,
+                source_controller,
+                source == Zone::Play,
+            ),
+        };
+    }
+
+    let remembered_position =
+        semantic_zone_position(world, request.entity, source_controller, source).ok_or(
+            ZoneError::MissingIndexEntry {
+                entity: request.entity,
+                zone: source,
+            },
+        )?;
+    let source_position = remove_from_index(world, request.entity, source_controller, source)?;
+    let destination_position = match resolve_destination_position(
+        world,
+        entity,
+        request.destination_controller,
+        request.destination,
+        request.position,
+        same_zone.then_some(source_position),
+    ) {
+        Ok(position) => position,
+        Err(error) => {
+            insert_into_zone_unchecked(
+                world,
+                request.entity,
+                source_controller,
+                source,
+                Some(source_position),
+            );
+            return Err(error);
+        }
+    };
+    let insertion = if same_zone {
+        insert_into_zone_unchecked(
+            world,
+            request.entity,
+            request.destination_controller,
+            request.destination,
+            destination_position,
+        );
+        Ok(())
+    } else {
+        insert_into_zone(
+            world,
+            request.entity,
+            request.destination_controller,
+            request.destination,
+            destination_position,
+        )
+    };
+    if let Err(error) = insertion {
+        insert_into_zone_unchecked(
+            world,
+            request.entity,
+            source_controller,
+            source,
+            Some(source_position),
+        );
         return Err(error);
     }
-    Ok((source, source_position))
+
+    apply_movement_state_policy(world, request, source);
+    Ok(ZoneMoveOutcome::Moved {
+        from: source,
+        from_controller: source_controller,
+        from_position: remembered_position,
+    })
+}
+
+fn destination_is_full(world: &World, entity: Entity, player: PlayerId, zone: Zone) -> bool {
+    let entries = world.resource::<ZoneIndex>().entities(player, zone);
+    if zone_limit(world.resource::<Ruleset>(), zone).is_some_and(|limit| entries.len() >= limit) {
+        return true;
+    }
+    let Some(kind) = world.get::<EntityKind>(entity).copied() else {
+        return false;
+    };
+    let definition_id = world
+        .get::<DefinitionId>(entity)
+        .map_or("", |definition| definition.0.as_str());
+    generated_destination_is_full(world, player, zone, kind, definition_id)
+}
+
+fn generated_destination_is_full(
+    world: &World,
+    player: PlayerId,
+    zone: Zone,
+    kind: EntityKind,
+    definition_id: &str,
+) -> bool {
+    let entries = world.resource::<ZoneIndex>().entities(player, zone);
+    let ruleset = world.resource::<Ruleset>();
+    if zone_limit(ruleset, zone).is_some_and(|limit| entries.len() >= limit) {
+        return true;
+    }
+    if zone == Zone::Play {
+        let kind_limit = match kind {
+            EntityKind::Hero => Some(ruleset.hero_limit),
+            EntityKind::Weapon => Some(ruleset.weapon_limit),
+            EntityKind::HeroPower => Some(ruleset.hero_power_limit),
+            _ => None,
+        };
+        if (is_board_entity(kind) && board_is_full(world, player))
+            || kind_limit.is_some_and(|limit| count_kind(world, entries, kind) >= limit)
+        {
+            return true;
+        }
+    }
+    if zone == Zone::Secret {
+        if kind == EntityKind::Quest
+            && count_kind(world, entries, EntityKind::Quest) >= ruleset.quest_limit
+        {
+            return true;
+        }
+        if matches!(kind, EntityKind::Secret | EntityKind::Sidequest)
+            && entries.iter().any(|id| {
+                game_entity(world, *id)
+                    .and_then(|entity| world.get::<DefinitionId>(entity))
+                    .is_some_and(|definition| definition.0 == definition_id)
+            })
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn count_kind(world: &World, entries: &[GameEntityId], kind: EntityKind) -> usize {
+    entries
+        .iter()
+        .filter(|id| {
+            game_entity(world, **id).and_then(|entity| world.get::<EntityKind>(entity))
+                == Some(&kind)
+        })
+        .count()
+}
+
+pub(crate) fn semantic_zone_position(
+    world: &World,
+    id: GameEntityId,
+    player: PlayerId,
+    zone: Zone,
+) -> Option<usize> {
+    if zone == Zone::Play
+        && game_entity(world, id)
+            .and_then(|entity| world.get::<EntityKind>(entity))
+            .is_some_and(|kind| is_board_entity(*kind))
+    {
+        return board_entities(world, player)
+            .iter()
+            .position(|candidate| *candidate == id);
+    }
+    world
+        .resource::<ZoneIndex>()
+        .entities(player, zone)
+        .iter()
+        .position(|candidate| *candidate == id)
+}
+
+fn resolve_destination_position(
+    world: &World,
+    entity: Entity,
+    player: PlayerId,
+    zone: Zone,
+    requested: Option<usize>,
+    preserved_index: Option<usize>,
+) -> Result<Option<usize>, ZoneError> {
+    if zone == Zone::Play
+        && world
+            .get::<EntityKind>(entity)
+            .is_some_and(|kind| is_board_entity(*kind))
+        && let Some(board_position) = requested
+    {
+        validate_board_position(world, player, Some(board_position))?;
+        let entries = world.resource::<ZoneIndex>().entities(player, Zone::Play);
+        let flat_position = entries
+            .iter()
+            .enumerate()
+            .filter(|(_, id)| {
+                game_entity(world, **id)
+                    .and_then(|candidate| world.get::<EntityKind>(candidate))
+                    .is_some_and(|kind| is_board_entity(*kind))
+            })
+            .nth(board_position)
+            .map_or_else(
+                || {
+                    entries
+                        .iter()
+                        .rposition(|id| {
+                            game_entity(world, *id)
+                                .and_then(|candidate| world.get::<EntityKind>(candidate))
+                                .is_some_and(|kind| is_board_entity(*kind))
+                        })
+                        .map_or(entries.len(), |position| position + 1)
+                },
+                |(position, _)| position,
+            );
+        return Ok(Some(flat_position));
+    }
+    let position = requested.or(preserved_index);
+    validate_zone_position(world, player, zone, position)?;
+    Ok(position)
+}
+
+fn move_to_graveyard_after_failed_move(
+    world: &mut World,
+    id: GameEntityId,
+    source: Zone,
+    controller: PlayerId,
+    record_death: bool,
+) -> Result<ZoneMoveOutcome, ZoneError> {
+    let remembered_position = semantic_zone_position(world, id, controller, source).ok_or(
+        ZoneError::MissingIndexEntry {
+            entity: id,
+            zone: source,
+        },
+    )?;
+    remove_from_index(world, id, controller, source)?;
+    insert_into_zone(world, id, controller, Zone::Graveyard, None)?;
+    apply_movement_state_policy(
+        world,
+        ZoneMoveRequest {
+            entity: id,
+            destination_controller: controller,
+            destination: Zone::Graveyard,
+            position: None,
+            kind: if record_death {
+                ZoneMovementKind::Death
+            } else {
+                ZoneMovementKind::Discard
+            },
+        },
+        source,
+    );
+    if record_death {
+        crate::death::record_full_zone_death(world, id, remembered_position);
+    }
+    Ok(ZoneMoveOutcome::FullZoneRemoval {
+        from: source,
+        from_controller: controller,
+        from_position: remembered_position,
+    })
+}
+
+fn apply_movement_state_policy(world: &mut World, request: ZoneMoveRequest, source: Zone) {
+    if request.kind == ZoneMovementKind::DetachEnchantment
+        && let Some(entity) = game_entity(world, request.entity)
+    {
+        world.entity_mut(entity).remove::<TemporaryDuration>();
+    }
+
+    if request.destination == Zone::Play && source != Zone::Play {
+        let order = allocate_play_order(world);
+        if let Some(entity) = game_entity(world, request.entity) {
+            world.entity_mut(entity).insert(order);
+        }
+    }
+
+    let leaving_play = source == Zone::Play && request.destination != Zone::Play;
+    if leaving_play {
+        clear_post_death_auras(world, request.entity);
+    }
+
+    if world
+        .resource::<Ruleset>()
+        .resets_runtime_state(request.kind, source, request.destination)
+    {
+        reset_runtime_state(world, request.entity);
+    } else if source == Zone::Hand
+        && request.destination == Zone::Play
+        && let Some(entity) = game_entity(world, request.entity)
+    {
+        world.entity_mut(entity).remove::<PendingDestroy>();
+    }
+
+    if source == request.destination
+        && request.destination == Zone::Play
+        && let Some(entity) = game_entity(world, request.entity)
+        && let Some(mut attack) = world.get_mut::<AttackState>(entity)
+    {
+        attack.exhausted = true;
+    }
+}
+
+fn clear_post_death_auras(world: &mut World, id: GameEntityId) {
+    if let Some(entity) = game_entity(world, id) {
+        world
+            .entity_mut(entity)
+            .remove::<(AttackAuraCache, OtherAuraCache)>();
+        recalculate_stats(world, id);
+    }
+}
+
+fn clear_all_received_auras(world: &mut World, id: GameEntityId) {
+    if let Some(entity) = game_entity(world, id) {
+        world
+            .entity_mut(entity)
+            .remove::<(HealthAuraCache, AttackAuraCache, OtherAuraCache)>();
+    }
+}
+
+fn reset_runtime_state(world: &mut World, id: GameEntityId) {
+    let Some(entity) = game_entity(world, id) else {
+        return;
+    };
+    let base = world.get::<BaseStats>(entity).copied();
+    let base_keywords = world
+        .get::<BaseKeywords>(entity)
+        .cloned()
+        .unwrap_or_default();
+    let has_attack_state = world.get::<AttackState>(entity).is_some();
+    let has_armor = world.get::<Armor>(entity).is_some();
+    let attachments = if world.get::<KeepEnchantments>(entity).is_some() {
+        Vec::new()
+    } else {
+        world
+            .iter_entities()
+            .filter(|candidate| {
+                candidate.get::<AttachedTo>().map(|attached| attached.0) == Some(entity)
+            })
+            .map(|candidate| {
+                (
+                    *candidate
+                        .get::<GameEntityId>()
+                        .expect("attached enchantment is a game entity"),
+                    candidate.id(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (attachment_id, attachment) in attachments {
+        world.entity_mut(attachment).remove::<AttachedTo>();
+        let _ = move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: attachment_id,
+                destination_controller: world
+                    .get::<Controller>(attachment)
+                    .map_or(PlayerId::One, |controller| controller.0),
+                destination: Zone::RemovedFromGame,
+                position: None,
+                kind: ZoneMovementKind::DetachEnchantment,
+            },
+        );
+    }
+
+    let Some(entity) = game_entity(world, id) else {
+        return;
+    };
+    world
+        .entity_mut(entity)
+        .remove::<(PendingDestroy, Silenced)>();
+    world
+        .entity_mut(entity)
+        .insert((Damage::default(), Keywords(base_keywords.0)));
+    clear_all_received_auras(world, id);
+    if let Some(base) = base {
+        world.entity_mut(entity).insert(CurrentStats {
+            attack: base.attack,
+            maximum_health: base.health,
+        });
+    }
+    if has_attack_state {
+        world.entity_mut(entity).insert(AttackState {
+            attacks_this_turn: 0,
+            exhausted: true,
+        });
+    }
+    if has_armor {
+        world.entity_mut(entity).insert(Armor::default());
+    }
+    recalculate_stats(world, id);
+    recalculate_keywords(world, id);
 }
 
 fn remove_from_index(
@@ -258,7 +762,10 @@ mod tests {
             }))
         );
         assert_that!(zone_limit(world.resource::<Ruleset>(), Zone::Play), none());
-        assert_that!(zone_limit(world.resource::<Ruleset>(), Zone::Deck), none());
+        assert_that!(
+            zone_limit(world.resource::<Ruleset>(), Zone::Deck),
+            eq(Some(99))
+        );
     }
 
     #[googletest::test]

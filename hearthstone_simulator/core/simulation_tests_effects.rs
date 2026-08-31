@@ -1,6 +1,7 @@
 use googletest::prelude::*;
 
 use super::{test_support::*, *};
+use crate::{ContinuousEffectDefinition, ContinuousModifier, PlayerAudience, ZoneMovementKind};
 
 #[derive(Resource)]
 struct NativeHandlerObservation(EffectContext);
@@ -18,6 +19,71 @@ fn synthetic_native_modifier_handler(In(_): In<EffectContext>) -> Vec<Effect> {
         operation: EventValueOperation::Replace,
         value: ValueExpression::Constant(0),
     }]
+}
+
+#[googletest::test]
+fn effect_dispatch_reports_stale_targets_and_native_systems() {
+    let mut simulation = simulation();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    assert_that!(
+        execute_effect(
+            simulation.app.world_mut(),
+            &context,
+            &Effect::Move {
+                targets: Selector::Entity(GameEntityId(u64::MAX)),
+                player: PlayerSelector::Controller,
+                zone: Zone::Hand,
+                kind: ZoneMovementKind::Normal,
+            },
+        ),
+        err(matches_pattern!(SimulationError::Zone(_)))
+    );
+    assert_that!(
+        execute_effect(
+            simulation.app.world_mut(),
+            &context,
+            &Effect::AttachContinuousEffect {
+                targets: Selector::Entity(GameEntityId(u64::MAX)),
+                effect: ContinuousEffectDefinition {
+                    recipients: PlayerAudience::Controller,
+                    modifier: ContinuousModifier::SpellDamage(1),
+                },
+                silence_removable: true,
+            },
+        ),
+        err(eq(&SimulationError::EntityNotFound(GameEntityId(u64::MAX))))
+    );
+
+    let native_id = NativeEffectId::new("synthetic:stale_system");
+    simulation
+        .register_native_effect(native_id.clone(), synthetic_native_handler)
+        .unwrap();
+    let system = simulation
+        .app
+        .world()
+        .resource::<NativeEffectRegistry>()
+        .0
+        .get(&native_id)
+        .copied()
+        .unwrap();
+    simulation
+        .app
+        .world_mut()
+        .unregister_system(system)
+        .unwrap();
+    assert_that!(
+        execute_effect(
+            simulation.app.world_mut(),
+            &context,
+            &Effect::Native(native_id),
+        ),
+        err(matches_pattern!(SimulationError::NativeEffectFailed { .. }))
+    );
 }
 
 #[googletest::test]
