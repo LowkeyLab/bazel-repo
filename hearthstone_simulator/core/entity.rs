@@ -201,14 +201,16 @@ pub struct NextGameEntityId(pub u64);
 #[derive(Clone, Copy, Debug, Default, Resource)]
 pub struct PlayOrderCounter(pub u64);
 
-pub(crate) fn allocate_game_id(world: &mut World) -> GameEntityId {
+#[doc(hidden)]
+pub fn allocate_game_id(world: &mut World) -> GameEntityId {
     let mut next = world.resource_mut::<NextGameEntityId>();
     let id = GameEntityId(next.0);
     next.0 = next.0.checked_add(1).expect("game entity ID overflow");
     id
 }
 
-pub(crate) fn allocate_play_order(world: &mut World) -> PlayOrder {
+#[doc(hidden)]
+pub fn allocate_play_order(world: &mut World) -> PlayOrder {
     let mut next = world.resource_mut::<PlayOrderCounter>();
     let order = PlayOrder(next.0);
     next.0 = next.0.checked_add(1).expect("play order overflow");
@@ -241,7 +243,8 @@ pub(crate) fn unindex_game_entity_hook(mut world: DeferredWorld, context: HookCo
     );
 }
 
-pub(crate) fn game_entity(world: &World, id: GameEntityId) -> Option<Entity> {
+#[doc(hidden)]
+pub fn game_entity(world: &World, id: GameEntityId) -> Option<Entity> {
     world.resource::<GameEntityIndex>().0.get(&id).copied()
 }
 

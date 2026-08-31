@@ -1,4 +1,5 @@
-use hearthstone_simulator_core::{Card, GameAction, PlayerConfig, PlayerId, Simulation};
+use hearthstone_simulator::Simulation;
+use hearthstone_simulator_core::{Card, GameAction, PlayerConfig, PlayerId};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut simulation = Simulation::new([

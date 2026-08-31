@@ -1,8 +1,6 @@
 use thiserror::Error;
 
-use crate::{
-    GameEntityId, NativeEffectId, PlayerId, Zone, resolver::ResolutionError, zone::ZoneError,
-};
+use crate::{GameEntityId, NativeEffectId, PlayerId, ResolutionError, Zone, ZoneError};
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum SimulationError {

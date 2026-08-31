@@ -708,46 +708,30 @@ Simulation::fork
 
 This is intentionally a breaking redesign of the scaffold API.
 
-## Proposed module layout
+## Module layout
+
+The rules engine uses two library crates with a one-way dependency:
 
 ```text
-hearthstone_simulator/core/
-├── action.rs
-├── aura.rs
-├── card_definition.rs
-├── combat.rs
-├── damage.rs
-├── death.rs
-├── effect.rs
-├── enchantment.rs
-├── entity.rs
-├── event.rs
-├── game.rs
-├── ids.rs
-├── mana.rs
-├── model.rs
-├── relationships.rs
-├── resolver.rs
-├── rng.rs
-├── ruleset.rs
-├── sequence.rs
-├── simulation.rs
-├── snapshot.rs
-├── trace.rs
-├── trigger.rs
-└── zone.rs
-
-hearthstone_simulator/core/tests/
-├── fixtures.rs
-├── resolution_test.rs
-├── death_test.rs
-├── sequences_test.rs
-├── mechanics_test.rs
-├── esoteric_test.rs
-└── determinism_test.rs
+hearthstone_simulator/
+├── core/                  # hearthstone_simulator_core
+│   ├── action.rs          # public action values
+│   ├── effect.rs          # data-oriented effect language
+│   ├── entity.rs          # durable ECS component schema
+│   ├── resolver.rs        # serializable retained resolution state
+│   ├── checkpoint.rs      # persistence DTOs
+│   ├── snapshot.rs        # observable API DTOs
+│   └── ...                # ruleset, event, trigger, aura, trace, and zone models
+├── simulator/             # hearthstone_simulator
+│   ├── simulation.rs      # public facade and Bevy plugin
+│   ├── resolver.rs        # schedules and iterative driver
+│   ├── zone.rs            # zone mutation and validation
+│   ├── trigger.rs         # candidate discovery and condition evaluation
+│   └── ...                # action, effect, aura, death, health, and checkpoint logic
+└── app/                   # example consumer
 ```
 
-Gazelle determines the final Bazel package layout. Subdirectories should not introduce package boundaries that prevent one Rust crate from owning its modules unless separate crates are intentional.
+`hearthstone_simulator` depends on `hearthstone_simulator_core`; the core crate never depends on the simulator. Core retains Bevy component and resource derives so the durable runtime schema has one definition, but it does not own gameplay schedules or effect execution.
 
 ## Implementation milestones
 

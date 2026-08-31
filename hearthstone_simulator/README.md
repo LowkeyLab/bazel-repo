@@ -2,6 +2,8 @@
 
 A deterministic, headless Hearthstone rules-engine foundation using Bevy 0.19 ECS and schedules. The selected profile pins Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26).
 
+The implementation is split into `hearthstone_simulator_core`, which owns durable models and serializable API contracts, and `hearthstone_simulator`, which owns Bevy execution and rules logic.
+
 This repository is synthetic-card-first: it implements reusable mechanics and conformance fixtures, not the complete official card database. See [`DESIGN.md`](DESIGN.md), [`IMPLEMENTATION_PROGRESS.md`](IMPLEMENTATION_PROGRESS.md), and [`RULEBOOK_CONFORMANCE.md`](RULEBOOK_CONFORMANCE.md). Unchecked progress items are explicit implementation gaps.
 
 ## Implemented foundation
@@ -19,7 +21,8 @@ All card-type action sequences, choice-producing card mechanics, temporary cost/
 ## Example
 
 ```rust
-use hearthstone_simulator_core::{Card, GameAction, PlayerConfig, PlayerId, Simulation};
+use hearthstone_simulator::Simulation;
+use hearthstone_simulator_core::{Card, GameAction, PlayerConfig, PlayerId};
 
 let mut simulation = Simulation::new([
     PlayerConfig::new("One", vec![Card::minion("Training Minion", 1, 1, 2)]),

@@ -4,11 +4,11 @@ use bevy::prelude::*;
 
 use crate::{
     AttachedTo, AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp,
-    CurrentStats, DamageRequest, EffectContext, EntityKind, EventContext, EventKind, GameEntityId,
-    GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan, PlayerId, ResolutionOp,
-    ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers, ScheduledTurnKind, SequenceStep,
-    SimulationStatus, TemporaryDuration, TraceEntry, TurnSchedule, Zone, ZoneMoveRequest,
-    ZoneMovementKind,
+    CurrentStats, DamageRequest, EffectContext, EntityKind, EventContext, EventKind, GameAction,
+    GameEntityId, GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan, PlayerId,
+    ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers, ScheduledTurnKind,
+    SequenceStep, SimulationStatus, TemporaryDuration, TraceEntry, TurnSchedule, Zone,
+    ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_keywords, recalculate_stats},
     entity::game_entity,
     resolver::{
@@ -29,48 +29,6 @@ use super::{
     player::{assert_player_role_invariants, controlled_entity_in_zone, player, player_mut},
     snapshot::assert_game_entity_index,
 };
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum GameAction {
-    PlayCard {
-        player: PlayerId,
-        card: GameEntityId,
-        target: Option<GameEntityId>,
-        board_index: Option<usize>,
-        choice: Option<ChoiceId>,
-    },
-    Attack {
-        player: PlayerId,
-        attacker: GameEntityId,
-        defender: GameEntityId,
-    },
-    EndTurn {
-        player: PlayerId,
-    },
-    Concede {
-        player: PlayerId,
-    },
-}
-
-impl GameAction {
-    fn player(&self) -> PlayerId {
-        match self {
-            Self::PlayCard { player, .. }
-            | Self::Attack { player, .. }
-            | Self::EndTurn { player }
-            | Self::Concede { player } => *player,
-        }
-    }
-
-    fn label(&self) -> &'static str {
-        match self {
-            Self::PlayCard { .. } => "PlayCard",
-            Self::Attack { .. } => "Attack",
-            Self::EndTurn { .. } => "EndTurn",
-            Self::Concede { .. } => "Concede",
-        }
-    }
-}
 
 #[derive(Default, Resource)]
 struct PendingActions(VecDeque<GameAction>);
