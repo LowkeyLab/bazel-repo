@@ -4,8 +4,9 @@ use bevy::prelude::*;
 
 use crate::{
     CanonicalTrace, CurrentResolutionOp, DeathEventCache, DeterministicRng, DominantPlayer, Effect,
-    EffectContext, GameState, NativeEffectId, PlayerConfig, ResolutionWork, Ruleset,
-    SimulationStatus, TraceEntry, TurnSchedule,
+    EffectContext, GameAction, GameSnapshot, GameState, NativeEffectId, PlayerConfig,
+    ResolutionWork, Ruleset, SimulationCheckpoint, SimulationError, SimulationStatus, TraceEntry,
+    TurnSchedule,
     death::{DefeatedHeroes, PendingDeaths},
     entity::{GameEntityIndex, NextGameEntityId, PlayOrderCounter},
     native_effect::{NativeEffectFactory, NativeEffectRegistry},
@@ -17,10 +18,11 @@ use crate::{
 use crate::{
     Abilities, Armor, AttackAuraCache, AuraApplication, AuraModifier, Card, ChoiceId, ChoiceOption,
     ChoiceRequest, Damage, DeathRecord, EffectOrigin, Enchantments, EntityKind, EventContext,
-    EventId, EventKind, EventSlotId, EventValueOperation, GameEntityId, GameObject, GameOutcome,
-    HealingRequest, Keyword, Keywords, PendingDestroy, PlayerId, PlayerSelector, PreparedEvent,
-    PreparedEventSlot, ResolutionError, ResolutionId, ResolutionOp, RuntimeTriggers,
-    STARTING_HEALTH, Selector, Silenced, StackedResolutionOp, ValueExpression, Zone,
+    EventId, EventKind, EventSlotId, EventValueOperation, GameEntityId, GameObject,
+    GameObjectSnapshot, GameOutcome, HealingRequest, Keyword, Keywords, PendingDestroy, PlayerId,
+    PlayerSelector, PreparedEvent, PreparedEventSlot, ResolutionError, ResolutionId, ResolutionOp,
+    RuntimeTriggers, STARTING_HEALTH, Selector, Silenced, StackedResolutionOp, ValueExpression,
+    Zone,
     enchantment::StatModifier,
     entity::game_entity,
     resolver::{begin_sequence, finish_sequence, push_resolution_ops},
@@ -35,8 +37,9 @@ mod card_runtime;
 mod checkpoint;
 #[path = "simulation_effect_executor.rs"]
 mod effect_executor;
-#[path = "simulation_error.rs"]
-mod error;
+mod error {
+    pub use hearthstone_simulator_core::SimulationError;
+}
 #[path = "simulation_event_resolver.rs"]
 mod event_resolver;
 #[path = "simulation_health.rs"]
@@ -45,13 +48,6 @@ mod health;
 mod player;
 #[path = "simulation_snapshot.rs"]
 mod snapshot;
-
-pub use action::GameAction;
-pub use checkpoint::{
-    CHECKPOINT_SCHEMA_VERSION, CardRuntimeCheckpoint, GameEntityCheckpoint, SimulationCheckpoint,
-};
-pub use error::SimulationError;
-pub use snapshot::{GameObjectSnapshot, GameSnapshot, PlayerSnapshot};
 
 #[cfg(test)]
 use action::drive_resolution;

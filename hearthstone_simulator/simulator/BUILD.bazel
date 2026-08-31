@@ -1,0 +1,67 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# gazelle:exclude aura.rs
+# gazelle:exclude simulation_test_support.rs
+# gazelle:exclude simulation_tests_actions.rs
+# gazelle:exclude simulation_tests_api.rs
+# gazelle:exclude simulation_tests_auras.rs
+# gazelle:exclude simulation_tests_effects.rs
+# gazelle:exclude simulation_tests_events.rs
+# gazelle:exclude simulation_tests_health.rs
+# gazelle:exclude simulation_tests_hero.rs
+# gazelle:exclude simulation_tests_movement.rs
+# gazelle:exclude simulation_tests_temporal.rs
+# gazelle:exclude simulation_checkpoint.rs
+
+rust_library(
+    name = "simulator",
+    srcs = [
+        "aura.rs",
+        "death.rs",
+        "enchantment.rs",
+        "lib.rs",
+        "native_effect.rs",
+        "resolver.rs",
+        "rng.rs",
+        "simulation.rs",
+        "simulation_action.rs",  # keep
+        "simulation_card_runtime.rs",  # keep
+        "simulation_checkpoint.rs",  # keep
+        "simulation_effect_executor.rs",  # keep
+        "simulation_event_resolver.rs",  # keep
+        "simulation_health.rs",  # keep
+        "simulation_player.rs",  # keep
+        "simulation_snapshot.rs",  # keep
+        "trigger.rs",
+        "zone.rs",
+    ],
+    compile_data = [
+        "//:Cargo.toml",
+        "simulation_test_support.rs",  # keep
+        "simulation_tests_actions.rs",  # keep
+        "simulation_tests_api.rs",  # keep
+        "simulation_tests_auras.rs",  # keep
+        "simulation_tests_effects.rs",  # keep
+        "simulation_tests_events.rs",  # keep
+        "simulation_tests_health.rs",  # keep
+        "simulation_tests_hero.rs",  # keep
+        "simulation_tests_movement.rs",  # keep
+        "simulation_tests_temporal.rs",  # keep
+    ],
+    crate_name = "hearthstone_simulator",
+    rustc_env = {"CARGO_MANIFEST_DIR": "."},
+    deps = [
+        "//hearthstone_simulator/core",
+        "@crates//:bevy",
+    ],
+)
+
+rust_test(
+    name = "simulator_test",
+    size = "small",
+    crate = ":simulator",
+    deps = ["@crates//:googletest"],
+)

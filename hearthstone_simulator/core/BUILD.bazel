@@ -3,28 +3,18 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
-# gazelle:exclude aura.rs
-# gazelle:exclude simulation_test_support.rs
-# gazelle:exclude simulation_tests_actions.rs
-# gazelle:exclude simulation_tests_api.rs
-# gazelle:exclude simulation_tests_auras.rs
-# gazelle:exclude simulation_tests_effects.rs
-# gazelle:exclude simulation_tests_events.rs
-# gazelle:exclude simulation_tests_health.rs
-# gazelle:exclude simulation_tests_hero.rs
-# gazelle:exclude simulation_tests_movement.rs
-# gazelle:exclude simulation_tests_temporal.rs
-# gazelle:exclude simulation_checkpoint.rs
-
 rust_library(
     name = "core",
     srcs = [
+        "action.rs",
         "aura.rs",
         "card_definition.rs",
+        "checkpoint.rs",
         "death.rs",
         "effect.rs",
         "enchantment.rs",
         "entity.rs",
+        "error.rs",
         "event.rs",
         "game.rs",
         "ids.rs",
@@ -34,39 +24,18 @@ rust_library(
         "resolver.rs",
         "rng.rs",
         "ruleset.rs",
-        "simulation.rs",
-        "simulation_action.rs",  # keep
-        "simulation_card_runtime.rs",  # keep
-        "simulation_checkpoint.rs",  # keep
-        "simulation_effect_executor.rs",  # keep
-        "simulation_error.rs",  # keep
-        "simulation_event_resolver.rs",  # keep
-        "simulation_health.rs",  # keep
-        "simulation_player.rs",  # keep
-        "simulation_snapshot.rs",  # keep
+        "snapshot.rs",
         "trace.rs",
         "trigger.rs",
         "zone.rs",
     ],
-    compile_data = [
-        "//:Cargo.toml",
-        "simulation_test_support.rs",  # keep
-        "simulation_tests_actions.rs",  # keep
-        "simulation_tests_api.rs",  # keep
-        "simulation_tests_auras.rs",  # keep
-        "simulation_tests_effects.rs",  # keep
-        "simulation_tests_events.rs",  # keep
-        "simulation_tests_health.rs",  # keep
-        "simulation_tests_hero.rs",  # keep
-        "simulation_tests_movement.rs",  # keep
-        "simulation_tests_temporal.rs",  # keep
-    ],
+    compile_data = ["//:Cargo.toml"],
     crate_name = "hearthstone_simulator_core",
     rustc_env = {"CARGO_MANIFEST_DIR": "."},
     deps = [
         "@crates//:bevy",
         "@crates//:serde",
-        "@crates//:serde_json",  # keep
+        "@crates//:serde_json",
         "@crates//:thiserror",
     ],
 )
