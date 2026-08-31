@@ -168,7 +168,26 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
-    use crate::{GameObject, entity::GameEntityIndex};
+    use crate::{GameObject, PlayerId, entity::GameEntityIndex};
+
+    #[googletest::test]
+    fn full_zone_death_ignores_invalid_entities() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.spawn((GameObject, GameEntityId(1)));
+        world.spawn((GameObject, GameEntityId(2), Controller(PlayerId::One)));
+        world.spawn((
+            GameObject,
+            GameEntityId(3),
+            Controller(PlayerId::One),
+            EntityKind::Hero,
+        ));
+
+        record_full_zone_death(&mut world, GameEntityId(99), 0);
+        record_full_zone_death(&mut world, GameEntityId(1), 0);
+        record_full_zone_death(&mut world, GameEntityId(2), 0);
+        record_full_zone_death(&mut world, GameEntityId(3), 0);
+    }
 
     #[googletest::test]
     fn mortality_includes_lethal_damage_and_pending_destroy() {

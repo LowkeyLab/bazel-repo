@@ -223,34 +223,15 @@ pub(crate) fn move_entity_with_request(
             return Err(error);
         }
     };
-    let insertion = if same_zone {
-        insert_into_zone_unchecked(
-            world,
-            request.entity,
-            request.destination_controller,
-            request.destination,
-            destination_position,
-        );
-        Ok(())
-    } else {
-        insert_into_zone(
-            world,
-            request.entity,
-            request.destination_controller,
-            request.destination,
-            destination_position,
-        )
-    };
-    if let Err(error) = insertion {
-        insert_into_zone_unchecked(
-            world,
-            request.entity,
-            source_controller,
-            source,
-            Some(source_position),
-        );
-        return Err(error);
-    }
+    // Capacity and position were validated above under exclusive World access, so insertion cannot
+    // fail after the source entry is removed.
+    insert_into_zone_unchecked(
+        world,
+        request.entity,
+        request.destination_controller,
+        request.destination,
+        destination_position,
+    );
 
     apply_movement_state_policy(world, request, source);
     Ok(ZoneMoveOutcome::Moved {
@@ -537,9 +518,7 @@ fn reset_runtime_state(world: &mut World, id: GameEntityId) {
         );
     }
 
-    let Some(entity) = game_entity(world, id) else {
-        return;
-    };
+    let entity = game_entity(world, id).expect("reset target must remain indexed");
     world
         .entity_mut(entity)
         .remove::<(PendingDestroy, Silenced)>();
@@ -747,6 +726,32 @@ mod tests {
             ),
             is_true()
         );
+    }
+
+    #[googletest::test]
+    fn missing_runtime_entities_and_zone_entries_are_safe() {
+        let mut world = world();
+        world.spawn((
+            GameObject,
+            GameEntityId(1),
+            Controller(PlayerId::One),
+            Zone::Play,
+        ));
+
+        assert_that!(
+            move_to_graveyard_after_failed_move(
+                &mut world,
+                GameEntityId(1),
+                Zone::Play,
+                PlayerId::One,
+                true,
+            ),
+            err(eq(&ZoneError::MissingIndexEntry {
+                entity: GameEntityId(1),
+                zone: Zone::Play,
+            }))
+        );
+        reset_runtime_state(&mut world, GameEntityId(99));
     }
 
     #[googletest::test]

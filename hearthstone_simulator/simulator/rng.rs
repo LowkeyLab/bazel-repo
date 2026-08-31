@@ -15,7 +15,10 @@ pub(crate) fn choose_game_entity(
     let (position, index) = {
         let mut rng = world.resource_mut::<DeterministicRng>();
         let position = rng.state().position;
-        let index = (rng.next_u64() % candidates.len() as u64) as usize;
+        let candidate_count =
+            u64::try_from(candidates.len()).expect("candidate count must fit in u64");
+        let index = usize::try_from(rng.next_u64() % candidate_count)
+            .expect("candidate index must fit in usize");
         (position, index)
     };
     let selected = candidates[index];

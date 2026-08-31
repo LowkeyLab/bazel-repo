@@ -17,6 +17,8 @@ pub struct CardRuntimeCheckpoint {
     pub program: Vec<Effect>,
 }
 
+// Boolean fields preserve the stable, flat checkpoint schema for marker components.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct GameEntityCheckpoint {
     pub id: GameEntityId,

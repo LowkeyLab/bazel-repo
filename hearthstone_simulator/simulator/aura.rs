@@ -392,6 +392,63 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
+    use crate::{ContinuousEffectDefinition, GameObject, entity::GameEntityIndex};
+
+    #[googletest::test]
+    fn continuous_effects_and_stale_aura_cache_targets_are_handled() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.init_resource::<CanonicalTrace>();
+        world.spawn((
+            GameObject,
+            GameEntityId(1),
+            Controller(PlayerId::One),
+            Zone::Play,
+            RuntimeContinuousEffects(vec![ContinuousEffectDefinition {
+                recipients: PlayerAudience::Opponent,
+                modifier: ContinuousModifier::SpellDamage(2),
+            }]),
+        ));
+        world.spawn((
+            GameObject,
+            GameEntityId(2),
+            AttackAuraCache(vec![AuraApplication {
+                provider: GameEntityId(99),
+                definition_index: 0,
+                modifier: AuraModifier::Attack(1),
+            }]),
+        ));
+
+        assert_that!(current_spell_damage(&world, PlayerId::One), eq(0));
+        assert_that!(current_spell_damage(&world, PlayerId::Two), eq(2));
+
+        merge_provider_category(
+            &mut world,
+            AuraCategory::Attack,
+            GameEntityId(99),
+            &BTreeMap::new(),
+        );
+        let target = game_entity(&world, GameEntityId(2)).unwrap();
+        assert_that!(
+            world.get::<AttackAuraCache>(target).unwrap().0.is_empty(),
+            is_true()
+        );
+
+        let mut discovered = BTreeMap::new();
+        discovered.insert((AuraCategory::Attack, GameEntityId(100)), Vec::new());
+        merge_provider_category(
+            &mut world,
+            AuraCategory::Attack,
+            GameEntityId(99),
+            &discovered,
+        );
+        set_cache(
+            &mut world,
+            AuraCategory::Attack,
+            GameEntityId(100),
+            Vec::new(),
+        );
+    }
 
     #[googletest::test]
     fn aura_target_categories_distinguish_controller_kind_and_source() {

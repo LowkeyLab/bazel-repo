@@ -23,6 +23,7 @@ pub enum GameAction {
 }
 
 impl GameAction {
+    #[must_use]
     pub const fn player(&self) -> PlayerId {
         match self {
             Self::PlayCard { player, .. }
@@ -32,6 +33,7 @@ impl GameAction {
         }
     }
 
+    #[must_use]
     pub const fn label(&self) -> &'static str {
         match self {
             Self::PlayCard { .. } => "PlayCard",
