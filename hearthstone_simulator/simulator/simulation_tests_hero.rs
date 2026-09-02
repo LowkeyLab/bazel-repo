@@ -1,6 +1,6 @@
 use googletest::prelude::*;
 
-use super::{test_support::*, *};
+use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttackState, AuraDefinition, AuraModifier, AuraTarget, HeroClass, HeroClassPolicy,
     HeroHealthPolicy, HeroPowerState, HeroReplacement, OtherAuraCache, OtherAuraModifier,
@@ -158,6 +158,49 @@ fn hero_replacement_preserves_combat_state_and_refreshes_the_power() {
             .zone,
         eq(Zone::Play)
     );
+}
+
+#[googletest::test]
+fn hero_power_replacement_recalculates_cost_after_detaching_modifiers() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let old_power = simulation.snapshot().players[0].hero_power.unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(old_power),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -1,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+
+    replace_hero(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        &replacement(HeroHealthPolicy::Preserve, HeroClassPolicy::Keep, None),
+    )
+    .unwrap();
+
+    let old_power = game_entity(simulation.app.world(), old_power).unwrap();
+    let runtime = simulation
+        .app
+        .world()
+        .get::<CardRuntime>(old_power)
+        .unwrap();
+    assert_that!(runtime.cost, eq(runtime.base_cost));
 }
 
 #[googletest::test]

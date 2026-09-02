@@ -2,14 +2,14 @@ use bevy::prelude::*;
 
 use crate::{
     Armor, AttachedTo, AttackState, BaseKeywords, BaseStats, CanonicalTrace, Card, Controller,
-    CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, Effect, EffectContext,
-    EntityKind, EventId, EventKind, EventValueOperation, GameEntityId, HealingRequest,
-    HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState, HeroReplacement,
-    KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector, ResolutionOp,
-    ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, Selector,
-    SilenceRemovable, Silenced, StatModifier, TraceEntry, ValueExpression, Zone, ZoneMoveOutcome,
-    ZoneMoveRequest, ZoneMovementKind,
-    enchantment::{recalculate_keywords, recalculate_stats},
+    CostModifier, CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, Effect,
+    EffectContext, EntityKind, EventId, EventKind, EventValueOperation, GameEntityId,
+    HealingRequest, HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState,
+    HeroReplacement, KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector,
+    ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
+    Selector, SilenceRemovable, Silenced, StatModifier, TraceEntry, ValueExpression, Zone,
+    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
     resolver::push_resolution_ops,
@@ -296,6 +296,16 @@ pub(super) fn execute_effect_operation(
         } => {
             for target in select_entities(world, context, targets) {
                 attach_keyword_modifier(world, context.controller, target, *modifier, *duration)?;
+            }
+            Ok(())
+        }
+        Effect::AttachCostModifier {
+            targets,
+            modifier,
+            duration,
+        } => {
+            for target in select_entities(world, context, targets) {
+                attach_cost_modifier(world, context.controller, target, *modifier, *duration)?;
             }
             Ok(())
         }
@@ -655,6 +665,8 @@ fn detach_all_enchantments(world: &mut World, target: GameEntityId) {
         );
     }
     recalculate_stats(world, target);
+    recalculate_keywords(world, target);
+    recalculate_cost(world, target);
 }
 
 pub(super) fn attach_stat_modifier(
@@ -718,6 +730,41 @@ pub(super) fn attach_keyword_modifier(
     Ok(id)
 }
 
+pub(super) fn attach_cost_modifier(
+    world: &mut World,
+    controller: PlayerId,
+    target: GameEntityId,
+    modifier: CostModifier,
+    duration: Option<crate::TemporaryDuration>,
+) -> Result<GameEntityId, SimulationError> {
+    let target_entity =
+        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let id = allocate_game_id(world);
+    let order = allocate_play_order(world);
+    let entity = world
+        .spawn((
+            id,
+            DefinitionId("synthetic:cost_modifier".to_string()),
+            EntityKind::Enchantment,
+            Controller(controller),
+            DisplayName("Cost modifier".to_string()),
+            order,
+            modifier,
+            AttachedTo(target_entity),
+        ))
+        .id();
+    if modifier.silence_removable {
+        world.entity_mut(entity).insert(SilenceRemovable);
+    }
+    if let Some(duration) = duration {
+        world.entity_mut(entity).insert(duration);
+    }
+    insert_into_zone(world, id, controller, Zone::SetAside, None)
+        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
+    recalculate_cost(world, target);
+    Ok(id)
+}
+
 pub(super) fn attach_continuous_effect(
     world: &mut World,
     controller: PlayerId,
@@ -768,18 +815,32 @@ pub(super) fn silence_entity(
                     .is_some_and(|modifier| modifier.silence_removable)
                     || candidate.contains::<SilenceRemovable>())
             {
-                Some((*candidate.get::<GameEntityId>()?, candidate.id()))
+                Some((
+                    *candidate.get::<GameEntityId>()?,
+                    candidate.get::<Controller>()?.0,
+                    candidate.id(),
+                ))
             } else {
                 None
             }
         })
         .collect::<Vec<_>>();
-    for (id, enchantment) in enchantments {
+    for (id, controller, enchantment) in enchantments {
         world.entity_mut(enchantment).remove::<AttachedTo>();
-        let _ = move_entity(world, id, Zone::RemovedFromGame, None);
+        let _ = move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: id,
+                destination_controller: controller,
+                destination: Zone::RemovedFromGame,
+                position: None,
+                kind: ZoneMovementKind::DetachEnchantment,
+            },
+        );
     }
     recalculate_stats(world, target);
     recalculate_keywords(world, target);
+    recalculate_cost(world, target);
     Ok(())
 }
 
@@ -788,6 +849,7 @@ pub(super) fn transform_entity(
     target: GameEntityId,
     card: Card,
 ) -> Result<(), SimulationError> {
+    detach_all_enchantments(world, target);
     let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
     world.entity_mut(entity).insert((
         DefinitionId(card.definition_id),
@@ -805,6 +867,7 @@ pub(super) fn transform_entity(
         BaseKeywords(card.keywords.clone()),
         Keywords(card.keywords.clone()),
         CardRuntime {
+            base_cost: card.mana_cost,
             cost: card.mana_cost,
             program: card.effects,
         },
@@ -858,7 +921,7 @@ pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card
         definition_id: world.get::<DefinitionId>(entity)?.0.clone(),
         name: world.get::<DisplayName>(entity)?.0.clone(),
         kind: *world.get::<EntityKind>(entity)?,
-        mana_cost: runtime.cost,
+        mana_cost: runtime.base_cost,
         attack: base.attack,
         health: base.health,
         keywords: world

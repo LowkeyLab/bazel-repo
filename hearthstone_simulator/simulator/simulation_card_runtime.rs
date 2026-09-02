@@ -12,9 +12,10 @@ use crate::{
 use super::error::SimulationError;
 
 #[derive(Component, Clone, Debug, Eq, PartialEq)]
-pub(super) struct CardRuntime {
-    pub(super) cost: i32,
-    pub(super) program: Vec<Effect>,
+pub(crate) struct CardRuntime {
+    pub(crate) base_cost: i32,
+    pub(crate) cost: i32,
+    pub(crate) program: Vec<Effect>,
 }
 
 pub(super) fn setup_game(
@@ -137,6 +138,7 @@ pub(super) fn spawn_card(
             base_keywords,
             keywords,
             CardRuntime {
+                base_cost: card.mana_cost,
                 cost: card.mana_cost,
                 program: card.effects,
             },

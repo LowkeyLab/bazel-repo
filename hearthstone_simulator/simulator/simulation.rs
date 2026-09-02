@@ -17,12 +17,12 @@ use crate::{
 #[cfg(test)]
 use crate::{
     Abilities, Armor, AttackAuraCache, AuraApplication, AuraModifier, Card, ChoiceId, ChoiceOption,
-    ChoiceRequest, Damage, DeathRecord, EffectOrigin, Enchantments, EntityKind, EventContext,
-    EventId, EventKind, EventSlotId, EventValueOperation, GameEntityId, GameObject,
-    GameObjectSnapshot, GameOutcome, HealingRequest, Keyword, Keywords, PendingDestroy, PlayerId,
-    PlayerSelector, PreparedEvent, PreparedEventSlot, ResolutionError, ResolutionId, ResolutionOp,
-    RuntimeTriggers, STARTING_HEALTH, Selector, Silenced, StackedResolutionOp, ValueExpression,
-    Zone,
+    ChoiceRequest, CostModifier, CostOperation, Damage, DeathRecord, EffectOrigin, Enchantments,
+    EntityKind, EventContext, EventId, EventKind, EventSlotId, EventValueOperation, GameEntityId,
+    GameObject, GameObjectSnapshot, GameOutcome, HealingRequest, Keyword, Keywords, PendingDestroy,
+    PlayerId, PlayerSelector, PreparedEvent, PreparedEventSlot, ResolutionError, ResolutionId,
+    ResolutionOp, RuntimeTriggers, STARTING_HEALTH, Selector, Silenced, StackedResolutionOp,
+    ValueExpression, Zone,
     enchantment::StatModifier,
     entity::game_entity,
     resolver::{begin_sequence, finish_sequence, push_resolution_ops},
@@ -32,7 +32,7 @@ use crate::{
 #[path = "simulation_action.rs"]
 mod action;
 #[path = "simulation_card_runtime.rs"]
-mod card_runtime;
+pub(crate) mod card_runtime;
 #[path = "simulation_checkpoint.rs"]
 mod checkpoint;
 #[path = "simulation_effect_executor.rs"]

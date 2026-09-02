@@ -3,10 +3,12 @@ use bevy::prelude::*;
 pub(crate) use hearthstone_simulator_core::{AttachedTo, StatModifier};
 
 use crate::{
-    AttachedEnchantments, AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, CurrentStats,
-    Damage, GameEntityId, HealthAuraCache, KeywordModifier, Keywords, PlayOrder, Silenced,
-    entity::game_entity,
+    AttachedEnchantments, AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, CostModifier,
+    CurrentStats, Damage, GameEntityId, HealthAuraCache, KeywordModifier, Keywords, PlayOrder,
+    Silenced, entity::game_entity,
 };
+
+use super::simulation::card_runtime::CardRuntime;
 
 #[cfg(test)]
 use crate::Keyword;
@@ -54,6 +56,49 @@ pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {
         }
     }
     world.entity_mut(entity).insert(Keywords(keywords));
+}
+
+pub(crate) fn recalculate_cost(world: &mut World, target: GameEntityId) {
+    let Some(entity) = game_entity(world, target) else {
+        return;
+    };
+    let Some(base_cost) = world
+        .get::<CardRuntime>(entity)
+        .map(|runtime| runtime.base_cost)
+    else {
+        return;
+    };
+    let silenced = world.get::<Silenced>(entity).is_some();
+    let mut modifiers = world
+        .get::<AttachedEnchantments>(entity)
+        .map(|attachments| {
+            attachments
+                .entities()
+                .iter()
+                .filter_map(|enchantment| {
+                    Some((
+                        world
+                            .get::<PlayOrder>(*enchantment)
+                            .map_or(0, |order| order.0),
+                        *world.get::<GameEntityId>(*enchantment)?,
+                        *world.get::<CostModifier>(*enchantment)?,
+                    ))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    modifiers.sort_by_key(|(order, id, _)| (*order, *id));
+    let mut cost = base_cost;
+    for (_, _, modifier) in modifiers {
+        if silenced && modifier.silence_removable {
+            continue;
+        }
+        cost = modifier.apply(cost);
+    }
+    world
+        .get_mut::<CardRuntime>(entity)
+        .expect("card runtime remains present")
+        .cost = cost;
 }
 
 pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {

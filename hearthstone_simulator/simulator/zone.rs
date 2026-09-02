@@ -9,7 +9,7 @@ use crate::{
     CurrentStats, Damage, DefinitionId, EntityKind, GameEntityId, HealthAuraCache,
     KeepEnchantments, Keywords, OtherAuraCache, PendingDestroy, PlayerId, Ruleset, Silenced,
     TemporaryDuration, Zone, ZonePosition,
-    enchantment::{recalculate_keywords, recalculate_stats},
+    enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_play_order, game_entity},
 };
 
@@ -543,6 +543,7 @@ fn reset_runtime_state(world: &mut World, id: GameEntityId) {
     }
     recalculate_stats(world, id);
     recalculate_keywords(world, id);
+    recalculate_cost(world, id);
 }
 
 fn remove_from_index(

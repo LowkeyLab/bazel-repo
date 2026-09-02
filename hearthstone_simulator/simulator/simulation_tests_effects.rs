@@ -1,7 +1,10 @@
 use googletest::prelude::*;
 
-use super::{test_support::*, *};
-use crate::{ContinuousEffectDefinition, ContinuousModifier, PlayerAudience, ZoneMovementKind};
+use super::{card_runtime::CardRuntime, test_support::*, *};
+use crate::{
+    ContinuousEffectDefinition, ContinuousModifier, PlayerAudience, TemporaryDuration,
+    ZoneMovementKind,
+};
 
 #[derive(Resource)]
 struct NativeHandlerObservation(EffectContext);
@@ -806,5 +809,140 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
             .0[0]
             .event,
         eq(EventKind::Healing)
+    );
+}
+
+#[googletest::test]
+fn silence_removes_a_temporary_cost_modifier_completely() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Cost target", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(target),
+            modifier: CostModifier {
+                operation: CostOperation::Set,
+                value: 5,
+                silence_removable: true,
+            },
+            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+        },
+    )
+    .unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Silence {
+            targets: Selector::Entity(target),
+        },
+    )
+    .unwrap();
+
+    let target = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(target)
+            .unwrap()
+            .cost,
+        eq(0)
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .iter_entities()
+            .filter(|entity| entity.get::<TemporaryDuration>().is_some())
+            .count(),
+        eq(0)
+    );
+}
+
+#[googletest::test]
+fn transformation_discards_cost_modifiers_from_the_old_form() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Old form", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(target),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -2,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("New form", 4, 2, 2),
+    )
+    .unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(target),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -1,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+
+    let target = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(target)
+            .unwrap()
+            .cost,
+        eq(3)
     );
 }

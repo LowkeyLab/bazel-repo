@@ -657,6 +657,93 @@ fn checkpoints_reject_invalid_versions_rng_entities_zones_and_enchantments() {
 }
 
 #[googletest::test]
+fn checkpoints_reject_inconsistent_effective_costs() {
+    let simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Invalid cost", 3, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.zone == Some(Zone::Hand))
+        .unwrap()
+        .card_runtime
+        .as_mut()
+        .unwrap()
+        .cost = 0;
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::Checkpoint(_))
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_stale_play_order_counters() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Ordered cost", 3, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(card),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -1,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+    let checkpoint = simulation.checkpoint().unwrap();
+    let modifier = checkpoint
+        .entities
+        .iter()
+        .find(|entity| entity.cost_modifier.is_some())
+        .unwrap();
+    let modifier_id = modifier.id;
+    let modifier_order = modifier.play_order.unwrap();
+    let target_id = modifier.attached_to.unwrap();
+
+    let mut detached_modifier = checkpoint.clone();
+    detached_modifier
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == modifier_id)
+        .unwrap()
+        .attached_to = None;
+    let target = detached_modifier
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == target_id)
+        .unwrap();
+    let runtime = target.card_runtime.as_mut().unwrap();
+    runtime.cost = runtime.base_cost;
+    detached_modifier.next_play_order = modifier_order;
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(detached_modifier),
+            Err(SimulationError::Checkpoint(_))
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
 fn checkpoints_reject_missing_or_duplicate_active_heroes_and_powers() {
     let simulation = simulation();
     let base = simulation.checkpoint().unwrap();

@@ -1,6 +1,7 @@
 use crate::{
-    Card, ContinuousEffectDefinition, ExtraTurnTiming, GameEntityId, HeroClass, KeywordModifier,
-    NativeEffectId, PlayerId, StatModifier, TemporaryDuration, Zone, ZoneMovementKind,
+    Card, ContinuousEffectDefinition, CostModifier, ExtraTurnTiming, GameEntityId, HeroClass,
+    KeywordModifier, NativeEffectId, PlayerId, StatModifier, TemporaryDuration, Zone,
+    ZoneMovementKind,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -86,6 +87,11 @@ pub enum Effect {
     AttachKeywordModifier {
         targets: Selector,
         modifier: KeywordModifier,
+        duration: Option<TemporaryDuration>,
+    },
+    AttachCostModifier {
+        targets: Selector,
+        modifier: CostModifier,
         duration: Option<TemporaryDuration>,
     },
     AttachContinuousEffect {

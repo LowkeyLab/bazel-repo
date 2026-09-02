@@ -1,6 +1,7 @@
 use googletest::prelude::*;
 
 use super::{test_support::*, *};
+use crate::Player;
 
 #[googletest::test]
 fn cards_keep_identity_when_played() {
@@ -128,6 +129,30 @@ fn negative_card_costs_are_floored_at_zero() {
             }
         )),
         is_true()
+    );
+}
+
+#[googletest::test]
+fn legal_actions_floor_negative_costs_before_checking_affordability() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Negative cost", -2, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let player_entity = player(simulation.app.world(), PlayerId::One).unwrap().0;
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<Player>(player_entity)
+        .unwrap()
+        .used_resources = 2;
+
+    assert_that!(
+        simulation
+            .legal_actions()
+            .iter()
+            .any(|action| matches!(action, GameAction::PlayCard { card: id, .. } if *id == card)),
+        is_false()
     );
 }
 

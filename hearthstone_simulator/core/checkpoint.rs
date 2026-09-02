@@ -2,17 +2,18 @@ use std::collections::BTreeSet;
 
 use crate::{
     Abilities, Armor, AttackAuraCache, AttackState, AuraDefinition, BaseKeywords, BaseStats,
-    CanonicalTrace, ContinuousEffectDefinition, CurrentStats, Damage, DeathRecord, Effect,
-    Enchantments, EntityKind, GameEntityId, GameState, HealthAuraCache, HeroMetadata,
+    CanonicalTrace, ContinuousEffectDefinition, CostModifier, CurrentStats, Damage, DeathRecord,
+    Effect, Enchantments, EntityKind, GameEntityId, GameState, HealthAuraCache, HeroMetadata,
     HeroPowerState, KeywordModifier, Keywords, OtherAuraCache, Player, PlayerId, ResolutionWork,
     RngSnapshot, Ruleset, SimulationError, StatModifier, TemporaryDuration, TriggerDefinition,
     TurnSchedule, Zone,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 4;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 5;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
+    pub base_cost: i32,
     pub cost: i32,
     pub program: Vec<Effect>,
 }
@@ -49,6 +50,7 @@ pub struct GameEntityCheckpoint {
     pub silence_removable: bool,
     pub stat_modifier: Option<StatModifier>,
     pub keyword_modifier: Option<KeywordModifier>,
+    pub cost_modifier: Option<CostModifier>,
     pub temporary_duration: Option<TemporaryDuration>,
     pub health_aura_cache: Option<HealthAuraCache>,
     pub attack_aura_cache: Option<AttackAuraCache>,
