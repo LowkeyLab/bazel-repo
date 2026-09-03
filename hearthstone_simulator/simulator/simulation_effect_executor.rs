@@ -7,8 +7,8 @@ use crate::{
     GameEntityId, HealingRequest, HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState,
     HeroReplacement, KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector,
     ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    Selector, SilenceRemovable, Silenced, StatModifier, TraceEntry, ValueExpression, Zone,
-    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier, TraceEntry,
+    ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
@@ -317,6 +317,29 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
+        Effect::AttachTriggerEnchantment {
+            targets,
+            triggers,
+            duration,
+            silence_removable,
+        } => {
+            validate_trigger_enchantment(world, triggers)?;
+            for target in select_entities(world, context, targets) {
+                let (_, entity) = spawn_attached_enchantment(
+                    world,
+                    context.controller,
+                    target,
+                    "synthetic:trigger_enchantment",
+                    "Trigger enchantment",
+                    *duration,
+                    *silence_removable,
+                )?;
+                world
+                    .entity_mut(entity)
+                    .insert(RuntimeTriggers(triggers.clone()));
+            }
+            Ok(())
+        }
         Effect::Silence { targets } => {
             for target in select_entities(world, context, targets) {
                 silence_entity(world, target)?;
@@ -399,8 +422,41 @@ pub(super) fn validate_effect_program(
             Effect::ReplaceHero { replacement, .. } => {
                 validate_hero_replacement(world, replacement)?;
             }
+            Effect::AttachTriggerEnchantment { triggers, .. } => {
+                validate_trigger_enchantment(world, triggers)?;
+            }
             _ => {}
         }
+    }
+    Ok(())
+}
+
+fn validate_trigger_enchantment(
+    world: &World,
+    triggers: &[hearthstone_simulator_core::TriggerDefinition],
+) -> Result<(), SimulationError> {
+    if triggers.is_empty() {
+        return Err(SimulationError::InvalidTriggerEnchantment(
+            "at least one trigger is required".to_string(),
+        ));
+    }
+    for trigger in triggers {
+        if trigger.event == EventKind::Death {
+            return Err(SimulationError::InvalidTriggerEnchantment(
+                "added Deathrattles are not supported".to_string(),
+            ));
+        }
+        if trigger.eligible_zones.as_slice() != [Zone::Play] {
+            return Err(SimulationError::InvalidTriggerEnchantment(
+                "eligible zones must be exactly [Play]".to_string(),
+            ));
+        }
+        if trigger.source_eligibility != SourceEligibilityPolicy::MustRemainInEligibleZone {
+            return Err(SimulationError::InvalidTriggerEnchantment(
+                "source must remain in Play".to_string(),
+            ));
+        }
+        validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
     Ok(())
 }
@@ -933,6 +989,14 @@ pub(super) fn select_entities(
 ) -> Vec<GameEntityId> {
     let mut selected = match selector {
         Selector::Source => context.source.into_iter().collect(),
+        Selector::AttachedEntity => context
+            .source
+            .and_then(|source| game_entity(world, source))
+            .and_then(|source| world.get::<AttachedTo>(source))
+            .and_then(|attached| world.get::<GameEntityId>(attached.0))
+            .copied()
+            .into_iter()
+            .collect(),
         Selector::DeclaredTarget => context.declared_target.into_iter().collect(),
         Selector::Entity(entity) => vec![*entity],
         Selector::InZone { player, zone } => world

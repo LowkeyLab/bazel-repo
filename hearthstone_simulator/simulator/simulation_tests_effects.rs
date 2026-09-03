@@ -2,8 +2,9 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttachedTo, ContinuousEffectDefinition, ContinuousModifier, EnchantmentDuration,
-    PlayerAudience, ZoneMovementKind,
+    AttachedTo, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Controller,
+    DefinitionId, EnchantmentDuration, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
+    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind,
 };
 
 #[derive(Resource)]
@@ -22,6 +23,175 @@ fn synthetic_native_modifier_handler(In(_): In<EffectContext>) -> Vec<Effect> {
         operation: EventValueOperation::Replace,
         value: ValueExpression::Constant(0),
     }]
+}
+
+fn turn_end_trigger(effect_program: Vec<Effect>) -> TriggerDefinition {
+    TriggerDefinition {
+        event: EventKind::TurnEnded,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventControllerIs(PlayerSelector::Controller),
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program,
+    }
+}
+
+#[googletest::test]
+fn trigger_enchantment_records_attachment_context() {
+    let mut simulation = simulation();
+    let world = simulation.app.world_mut();
+    let target = spawn_card(
+        world,
+        PlayerId::One,
+        Card::minion("Target", 0, 1, 3),
+        Zone::Play,
+    )
+    .unwrap();
+    let trigger = turn_end_trigger(vec![Effect::DealDamage {
+        targets: Selector::AttachedEntity,
+        amount: ValueExpression::Constant(1),
+    }]);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::Two,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+
+    execute_effect(
+        world,
+        &context,
+        &Effect::AttachTriggerEnchantment {
+            targets: Selector::Entity(target),
+            triggers: vec![trigger.clone()],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        },
+    )
+    .unwrap();
+
+    let target_entity = game_entity(world, target).unwrap();
+    let enchantments = world
+        .iter_entities()
+        .filter(|entity| {
+            entity.get::<EntityKind>() == Some(&EntityKind::Enchantment)
+                && entity.get::<RuntimeTriggers>().is_some()
+        })
+        .collect::<Vec<_>>();
+    assert_that!(enchantments.len(), eq(1));
+    let enchantment = enchantments[0];
+    assert_that!(enchantment.get::<Zone>(), eq(Some(&Zone::Play)));
+    assert_that!(
+        enchantment.get::<AttachedTo>(),
+        eq(Some(&AttachedTo(target_entity)))
+    );
+    assert_that!(
+        enchantment.get::<RuntimeTriggers>(),
+        eq(Some(&RuntimeTriggers(vec![trigger])))
+    );
+    assert_that!(
+        enchantment.get::<Controller>(),
+        eq(Some(&Controller(PlayerId::Two)))
+    );
+    assert_that!(
+        enchantment.get::<EnchantmentDuration>(),
+        eq(Some(&EnchantmentDuration::Permanent))
+    );
+    assert_that!(
+        enchantment.get::<DefinitionId>(),
+        eq(Some(&DefinitionId(
+            "synthetic:trigger_enchantment".to_string()
+        )))
+    );
+    assert_that!(enchantment.contains::<SilenceRemovable>(), is_true());
+}
+
+#[googletest::test]
+fn action_validation_rejects_invalid_trigger_enchantments_without_creating_them() {
+    let missing = NativeEffectId::new("synthetic:missing_trigger_effect");
+    let valid = turn_end_trigger(Vec::new());
+    let mut death = valid.clone();
+    death.event = EventKind::Death;
+    let mut wrong_zones = valid.clone();
+    wrong_zones.eligible_zones = vec![Zone::Play, Zone::Hand];
+    let mut remembered = valid.clone();
+    remembered.source_eligibility = SourceEligibilityPolicy::RememberedSource;
+    let mut invalid_native = valid.clone();
+    invalid_native.effect_program = vec![Effect::Native(missing.clone())];
+    let cases = [
+        (
+            "empty triggers",
+            Vec::new(),
+            SimulationError::InvalidTriggerEnchantment(
+                "at least one trigger is required".to_string(),
+            ),
+        ),
+        (
+            "Death trigger",
+            vec![death],
+            SimulationError::InvalidTriggerEnchantment(
+                "added Deathrattles are not supported".to_string(),
+            ),
+        ),
+        (
+            "wrong eligible zones",
+            vec![wrong_zones],
+            SimulationError::InvalidTriggerEnchantment(
+                "eligible zones must be exactly [Play]".to_string(),
+            ),
+        ),
+        (
+            "remembered source",
+            vec![remembered],
+            SimulationError::InvalidTriggerEnchantment("source must remain in Play".to_string()),
+        ),
+        (
+            "invalid nested native effect",
+            vec![invalid_native],
+            SimulationError::NativeEffectNotRegistered(missing),
+        ),
+    ];
+
+    for (name, triggers, expected) in cases {
+        let card = Card::spell(name, 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::FriendlyMinions,
+            triggers,
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![card]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+
+        assert_that!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            err(eq(&expected))
+        );
+        assert_that!(
+            simulation
+                .app
+                .world()
+                .iter_entities()
+                .filter(|entity| {
+                    entity.get::<EntityKind>() == Some(&EntityKind::Enchantment)
+                        && entity.get::<RuntimeTriggers>().is_some()
+                })
+                .count(),
+            eq(0)
+        );
+    }
 }
 
 #[googletest::test]

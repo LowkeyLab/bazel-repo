@@ -1,6 +1,190 @@
 use googletest::prelude::*;
 
 use super::{test_support::*, *};
+use crate::{
+    ConditionTiming, EnchantmentDuration, SourceEligibilityPolicy, TimedCondition,
+    TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+};
+
+#[googletest::test]
+fn attached_trigger_uses_host_and_event_controller_context() {
+    let trigger = TriggerDefinition {
+        event: EventKind::TurnEnded,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventControllerIs(PlayerSelector::Controller),
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::DealDamage {
+            targets: Selector::AttachedEntity,
+            amount: ValueExpression::Constant(1),
+        }],
+    };
+    let grant =
+        Card::spell("Grant trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![trigger],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Host", 0, 1, 4), grant]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: host,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let grant = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: grant,
+            target: Some(host),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|object| object.id == host)
+            .unwrap()
+            .damage,
+        eq(1)
+    );
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|object| object.id == host)
+            .unwrap()
+            .damage,
+        eq(1)
+    );
+}
+
+#[googletest::test]
+fn attached_trigger_can_require_the_event_to_target_its_host() {
+    let trigger = TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![
+            TimedCondition {
+                timing: ConditionTiming::QueueTime,
+                condition: TriggerCondition::EventTargetsAttachedEntity,
+            },
+            TimedCondition {
+                timing: ConditionTiming::QueueTime,
+                condition: TriggerCondition::MinimumEntityCount {
+                    selector: Selector::AttachedEntity,
+                    count: 1,
+                },
+            },
+        ],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let grant =
+        Card::spell("Grant observer", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![trigger],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+    let bolt = || {
+        Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(1),
+        }])
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Host", 0, 1, 4),
+                Card::minion("Other", 0, 1, 4),
+                grant,
+                bolt(),
+                bolt(),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    let other = {
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: host,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let other = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: other,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        other
+    };
+    for target in [host, other, host] {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(target),
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+    }
+
+    assert_that!(
+        player(simulation.app.world(), PlayerId::One)
+            .unwrap()
+            .1
+            .temporary_resources,
+        eq(1)
+    );
+}
 
 #[googletest::test]
 fn lethal_hero_state_is_irreversible_before_simultaneous_deathrattle_healing() {

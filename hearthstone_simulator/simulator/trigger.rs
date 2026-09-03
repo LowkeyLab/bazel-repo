@@ -3,8 +3,8 @@ use bevy::prelude::{Entity, World};
 pub(crate) use hearthstone_simulator_core::ConditionTiming;
 
 use crate::{
-    Controller, DominantPlayer, EntityKind, EventContext, EventId, EventKind, GameEntityId,
-    PlayOrder, PlayerId, PlayerSelector, RuntimeTriggers, Selector, Silenced,
+    AttachedTo, Controller, DominantPlayer, EntityKind, EventContext, EventId, EventKind,
+    GameEntityId, PlayOrder, PlayerId, PlayerSelector, RuntimeTriggers, Selector, Silenced,
     SourceEligibilityPolicy, TriggerCandidate, TriggerCondition, TriggerOrderKey, TriggerSeed,
     Zone, entity::game_entity, zone::ZoneIndex,
 };
@@ -177,6 +177,18 @@ fn evaluate_condition(
         TriggerCondition::EventTargetsSelf => {
             event.is_some_and(|event| event.targets.contains(&source_id))
         }
+        TriggerCondition::EventTargetsAttachedEntity => source
+            .and_then(|source| world.get::<AttachedTo>(source))
+            .and_then(|attached| world.get::<GameEntityId>(attached.0))
+            .is_some_and(|attached| event.is_some_and(|event| event.targets.contains(attached))),
+        TriggerCondition::EventControllerIs(player) => event.is_some_and(|event| {
+            let expected = match player {
+                PlayerSelector::Controller => current_controller,
+                PlayerSelector::Opponent => current_controller.opponent(),
+                PlayerSelector::Player(player) => *player,
+            };
+            event.controller == expected
+        }),
         TriggerCondition::ControllerIs(player) => current_controller == *player,
         TriggerCondition::MinimumEntityCount { selector, count } => {
             selector_count(world, source_id, current_controller, event, selector) >= *count
@@ -193,6 +205,12 @@ fn selector_count(
 ) -> usize {
     match selector {
         Selector::Source => usize::from(game_entity(world, source).is_some()),
+        Selector::AttachedEntity => usize::from(
+            game_entity(world, source)
+                .and_then(|source| world.get::<AttachedTo>(source))
+                .and_then(|attached| world.get::<GameEntityId>(attached.0))
+                .is_some(),
+        ),
         Selector::DeclaredTarget => usize::from(
             event
                 .and_then(|event| event.targets.first())

@@ -1,7 +1,7 @@
 use crate::{
     Card, ContinuousEffectDefinition, CostModifier, EnchantmentDuration, ExtraTurnTiming,
-    GameEntityId, HeroClass, KeywordModifier, NativeEffectId, PlayerId, StatModifier, Zone,
-    ZoneMovementKind,
+    GameEntityId, HeroClass, KeywordModifier, NativeEffectId, PlayerId, StatModifier,
+    TriggerDefinition, Zone, ZoneMovementKind,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -96,6 +96,12 @@ pub enum Effect {
         silence_removable: bool,
         duration: EnchantmentDuration,
     },
+    AttachTriggerEnchantment {
+        targets: Selector,
+        triggers: Vec<TriggerDefinition>,
+        duration: EnchantmentDuration,
+        silence_removable: bool,
+    },
     Silence {
         targets: Selector,
     },
@@ -115,6 +121,7 @@ pub enum Effect {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Selector {
     Source,
+    AttachedEntity,
     DeclaredTarget,
     Entity(GameEntityId),
     FriendlyMinions,
