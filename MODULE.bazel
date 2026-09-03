@@ -7,7 +7,7 @@ module(
 )
 
 # Currently bazel-lib is only load()ed when platforms is used.
-bazel_dep(name = "bazel_lib", version = "3.7.1")
+bazel_dep(name = "bazel_lib", version = "3.7.2")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint", version = "2.8.0")
 bazel_dep(name = "aspect_rules_lint_rust", version = "0.0.2")
@@ -42,7 +42,7 @@ use_repo(llvm, "llvm-project")
 
 git_override(
     module_name = "rules_rs",
-    commit = "2b08e18c8806d3de9d41c9895537a2529ba81c83",
+    commit = "81336041f1c092b94ba0d35384c4dfc03ce45a07",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_rs:toolchain_repository_compatibility.patch"],
     remote = "https://github.com/hermeticbuild/rules_rs.git",
@@ -114,7 +114,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "0b3df623e1935b929f43a0981408a5cdc4fea953",
+    commit = "fbe1177a3afbc7768d11588ae170aeb03609416f",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
