@@ -1,7 +1,11 @@
 use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
-use crate::{EnchantmentDuration, ExtraTurnTiming, KeywordModifier, ScheduledTurnKind};
+use crate::{
+    ConditionTiming, EnchantmentDuration, ExtraTurnTiming, KeywordModifier, ScheduledTurnKind,
+    SourceEligibilityPolicy, TimedCondition, TriggerCondition, TriggerDefinition,
+    WoundedTargetPolicy,
+};
 
 fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
     simulation
@@ -27,6 +31,173 @@ fn play_card(
             choice: None,
         })
         .unwrap();
+}
+
+fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> TriggerDefinition {
+    TriggerDefinition {
+        event: EventKind::TurnEnded,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventControllerIs(event_player),
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: effects,
+    }
+}
+
+#[googletest::test]
+fn end_of_turn_trigger_resolves_before_its_enchantment_expires() {
+    let grant =
+        Card::spell("Brief trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![turn_end_trigger(
+                PlayerSelector::Controller,
+                vec![Effect::DealDamage {
+                    targets: Selector::AttachedEntity,
+                    amount: ValueExpression::Constant(1),
+                }],
+            )],
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
+            silence_removable: true,
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 4), grant]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, target, None);
+    let grant = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, grant, Some(target));
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<EnchantmentDuration>().is_some())
+        .and_then(|entity| entity.get::<GameEntityId>())
+        .copied()
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+
+    assert_that!(object(&mut simulation, target).damage, eq(1));
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::TriggerResolved { source, .. } if *source == enchantment
+        )),
+        is_true(),
+    );
+    assert_that!(
+        object(&mut simulation, enchantment).zone,
+        eq(Zone::RemovedFromGame),
+    );
+    let resolved_before = simulation
+        .trace()
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry,
+                TraceEntry::TriggerResolved { source, .. } if *source == enchantment
+            )
+        })
+        .count();
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    let resolved_after = simulation
+        .trace()
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry,
+                TraceEntry::TriggerResolved { source, .. } if *source == enchantment
+            )
+        })
+        .count();
+    assert_that!(resolved_before, eq(1));
+    assert_that!(resolved_after, eq(resolved_before));
+}
+
+#[googletest::test]
+fn turn_series_trigger_survives_contiguous_extra_turns_until_control_changes() {
+    let setup = Card::spell("Series trigger", 0).with_effects(vec![
+        Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Opponent,
+            count: 1,
+            timing: ExtraTurnTiming::DuringNextTurnSeries,
+        },
+        Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![turn_end_trigger(
+                PlayerSelector::Opponent,
+                vec![Effect::DealDamage {
+                    targets: Selector::AttachedEntity,
+                    amount: ValueExpression::Constant(1),
+                }],
+            )],
+            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
+            silence_removable: true,
+        },
+    ]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 4), setup]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, target, None);
+    let setup = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, setup, Some(target));
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<EnchantmentDuration>().is_some())
+        .and_then(|entity| entity.get::<GameEntityId>())
+        .copied()
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    assert_that!(object(&mut simulation, target).damage, eq(0));
+    assert_that!(object(&mut simulation, enchantment).zone, eq(Zone::Play));
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(simulation.snapshot().game.active_player, eq(PlayerId::Two));
+    assert_that!(object(&mut simulation, target).damage, eq(1));
+    assert_that!(object(&mut simulation, enchantment).zone, eq(Zone::Play));
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(simulation.snapshot().game.active_player, eq(PlayerId::One));
+    assert_that!(object(&mut simulation, target).damage, eq(2));
+    assert_that!(
+        object(&mut simulation, enchantment).zone,
+        eq(Zone::RemovedFromGame),
+    );
 }
 
 #[googletest::test]
