@@ -558,6 +558,20 @@ fn checkpoints_reject_enchantments_without_durations_and_schema_version_five() {
         ))),
     );
 
+    let mut wrong_zone = simulation.checkpoint().unwrap();
+    wrong_zone
+        .entities
+        .iter_mut()
+        .find(|entity| entity.kind == Some(EntityKind::Enchantment))
+        .unwrap()
+        .zone = Some(Zone::Hand);
+    assert_that!(
+        Simulation::from_checkpoint(wrong_zone).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("not in Play")
+        ))),
+    );
+
     let mut old_schema = simulation.checkpoint().unwrap();
     old_schema.schema_version = 5;
     assert_that!(

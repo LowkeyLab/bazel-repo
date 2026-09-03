@@ -69,7 +69,7 @@ fn play_zone_enchantments_do_not_consume_board_capacity() {
 }
 
 #[googletest::test]
-fn invariants_reject_enchantments_without_durations() {
+fn invariants_reject_enchantments_without_durations_or_play_zone() {
     let mut simulation = simulation();
     let target = hand_card(&mut simulation, PlayerId::One);
     attach_stat_modifier(
@@ -102,6 +102,16 @@ fn invariants_reject_enchantments_without_durations() {
         err(matches_pattern!(SimulationError::Invariant(
             contains_substring("enchantment duration")
         ))),
+    );
+
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(enchantment)
+        .insert((EnchantmentDuration::Permanent, Zone::Hand));
+    assert_that!(
+        assert_enchantment_invariants(simulation.app.world()),
+        err(contains_substring("not in Play")),
     );
 }
 

@@ -129,6 +129,11 @@ fn enchantment_controller_determines_trigger_group_not_host_controller() {
     play_card(&mut simulation, PlayerId::Two, player_two_source, None);
     let host = hand_card(&mut simulation, PlayerId::Two);
     play_card(&mut simulation, PlayerId::Two, host, None);
+    let mut trigger = turn_end_trigger(PlayerSelector::Opponent, Vec::new());
+    trigger.conditions.push(TimedCondition {
+        timing: ConditionTiming::QueueTime,
+        condition: TriggerCondition::EventControllerIs(PlayerSelector::Player(PlayerId::Two)),
+    });
     execute_effect(
         simulation.app.world_mut(),
         &EffectContext {
@@ -139,7 +144,7 @@ fn enchantment_controller_determines_trigger_group_not_host_controller() {
         },
         &Effect::AttachTriggerEnchantment {
             targets: Selector::Entity(host),
-            triggers: vec![turn_end_trigger(PlayerSelector::Opponent, Vec::new())],
+            triggers: vec![trigger],
             duration: EnchantmentDuration::Permanent,
             silence_removable: true,
         },
