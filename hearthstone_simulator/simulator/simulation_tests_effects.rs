@@ -2,8 +2,8 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    ContinuousEffectDefinition, ContinuousModifier, PlayerAudience, TemporaryDuration,
-    ZoneMovementKind,
+    AttachedTo, ContinuousEffectDefinition, ContinuousModifier, EnchantmentDuration,
+    PlayerAudience, ZoneMovementKind,
 };
 
 #[derive(Resource)]
@@ -57,6 +57,7 @@ fn effect_dispatch_reports_stale_targets_and_native_systems() {
                     modifier: ContinuousModifier::SpellDamage(1),
                 },
                 silence_removable: true,
+                duration: EnchantmentDuration::Permanent,
             },
         ),
         err(eq(&SimulationError::EntityNotFound(GameEntityId(u64::MAX))))
@@ -236,6 +237,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
                     health: 2,
                     silence_removable: true,
                 },
+                duration: EnchantmentDuration::Permanent,
             },
             Effect::Silence {
                 targets: Selector::Source,
@@ -844,7 +846,7 @@ fn silence_removes_a_temporary_cost_modifier_completely() {
                 value: 5,
                 silence_removable: true,
             },
-            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
         },
     )
     .unwrap();
@@ -872,7 +874,10 @@ fn silence_removes_a_temporary_cost_modifier_completely() {
             .app
             .world()
             .iter_entities()
-            .filter(|entity| entity.get::<TemporaryDuration>().is_some())
+            .filter(|entity| {
+                entity.get::<EnchantmentDuration>().is_some()
+                    && entity.get::<AttachedTo>().is_some()
+            })
             .count(),
         eq(0)
     );
@@ -910,7 +915,7 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
                 value: -2,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();
@@ -930,7 +935,7 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
                 value: -1,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();

@@ -2,9 +2,9 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttackState, CurrentStats, HeroClassPolicy, HeroHealthPolicy, HeroReplacement,
-    KeepEnchantments, PhaseBoundaryPlan, TemporaryDuration, ZoneMoveOutcome, ZoneMoveRequest,
-    ZoneMovementKind,
+    AttackState, CurrentStats, EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy,
+    HeroReplacement, KeepEnchantments, KeywordModifier, PhaseBoundaryPlan, ZoneMoveOutcome,
+    ZoneMoveRequest, ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -17,6 +17,60 @@ fn move_target_to_hand() -> Effect {
 }
 
 #[googletest::test]
+fn play_zone_enchantments_do_not_consume_board_capacity() {
+    let cards = (0..7)
+        .map(|index| Card::minion(format!("Minion {index}"), 0, 1, 1))
+        .collect::<Vec<_>>();
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", cards),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    for _ in 0..7 {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+    }
+    let target = simulation.snapshot().players[0].board[0];
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachKeywordModifier {
+            targets: Selector::Entity(target),
+            modifier: KeywordModifier {
+                keyword: Keyword::Taunt,
+                granted: true,
+                silence_removable: true,
+            },
+            duration: EnchantmentDuration::Permanent,
+        },
+    )
+    .unwrap();
+
+    assert_that!(simulation.snapshot().players[0].board.len(), eq(7));
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .filter(|object| { object.controller == PlayerId::One && object.zone == Zone::Play })
+            .count(),
+        gt(7),
+    );
+}
+
+#[googletest::test]
 fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
     let reset = Card::spell("Reset", 0).with_effects(vec![
         Effect::AttachStatModifier {
@@ -26,6 +80,7 @@ fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
                 health: 2,
                 silence_removable: true,
             },
+            duration: EnchantmentDuration::Permanent,
         },
         Effect::DealDamage {
             targets: Selector::DeclaredTarget,
@@ -113,6 +168,14 @@ fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
         .find(|object| object.kind == EntityKind::Enchantment)
         .unwrap();
     assert_that!(detached.zone, eq(Zone::RemovedFromGame));
+    let detached_entity = game_entity(simulation.app.world(), detached.id).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<EnchantmentDuration>(detached_entity),
+        eq(Some(&EnchantmentDuration::Permanent)),
+    );
 }
 
 #[googletest::test]
@@ -138,7 +201,7 @@ fn backward_movement_restores_cost_after_detaching_modifiers() {
                 value: -2,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();
@@ -257,6 +320,7 @@ fn keep_enchantments_preserves_attached_modifiers_during_backward_movement() {
             health: 2,
             silence_removable: true,
         },
+        EnchantmentDuration::Permanent,
     )
     .unwrap();
     let bounce = hand_card(&mut simulation, PlayerId::One);
@@ -288,7 +352,7 @@ fn keep_enchantments_preserves_attached_modifiers_during_backward_movement() {
             .objects
             .iter()
             .filter(|object| object.kind == EntityKind::Enchantment)
-            .all(|object| object.zone == Zone::SetAside),
+            .all(|object| object.zone == Zone::Play),
         is_true()
     );
 }
@@ -309,6 +373,7 @@ fn forward_movement_preserves_enchantments() {
             health: 0,
             silence_removable: true,
         },
+        EnchantmentDuration::Permanent,
     )
     .unwrap();
     draw_card(simulation.app.world_mut(), PlayerId::One).unwrap();
@@ -687,7 +752,7 @@ fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
                 value: -2,
                 silence_removable: false,
             },
-            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
         },
     )
     .unwrap();

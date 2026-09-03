@@ -1,6 +1,6 @@
 use crate::{
-    Card, ContinuousEffectDefinition, CostModifier, ExtraTurnTiming, GameEntityId, HeroClass,
-    KeywordModifier, NativeEffectId, PlayerId, StatModifier, TemporaryDuration, Zone,
+    Card, ContinuousEffectDefinition, CostModifier, EnchantmentDuration, ExtraTurnTiming,
+    GameEntityId, HeroClass, KeywordModifier, NativeEffectId, PlayerId, StatModifier, Zone,
     ZoneMovementKind,
 };
 
@@ -78,26 +78,23 @@ pub enum Effect {
     AttachStatModifier {
         targets: Selector,
         modifier: StatModifier,
-    },
-    AttachTemporaryStatModifier {
-        targets: Selector,
-        modifier: StatModifier,
-        duration: TemporaryDuration,
+        duration: EnchantmentDuration,
     },
     AttachKeywordModifier {
         targets: Selector,
         modifier: KeywordModifier,
-        duration: Option<TemporaryDuration>,
+        duration: EnchantmentDuration,
     },
     AttachCostModifier {
         targets: Selector,
         modifier: CostModifier,
-        duration: Option<TemporaryDuration>,
+        duration: EnchantmentDuration,
     },
     AttachContinuousEffect {
         targets: Selector,
         effect: ContinuousEffectDefinition,
         silence_removable: bool,
+        duration: EnchantmentDuration,
     },
     Silence {
         targets: Selector,

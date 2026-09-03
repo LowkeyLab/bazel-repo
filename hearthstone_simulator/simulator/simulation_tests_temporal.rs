@@ -1,7 +1,7 @@
 use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
-use crate::{ExtraTurnTiming, KeywordModifier, ScheduledTurnKind, TemporaryDuration};
+use crate::{EnchantmentDuration, ExtraTurnTiming, KeywordModifier, ScheduledTurnKind};
 
 fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
     simulation
@@ -10,6 +10,64 @@ fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
         .into_iter()
         .find(|object| object.id == id)
         .unwrap()
+}
+
+fn play_card(
+    simulation: &mut Simulation,
+    player: PlayerId,
+    card: GameEntityId,
+    target: Option<GameEntityId>,
+) {
+    simulation
+        .apply(GameAction::PlayCard {
+            player,
+            card,
+            target,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+}
+
+#[googletest::test]
+fn permanent_enchantment_has_explicit_duration_and_survives_turn_cleanup() {
+    let buff =
+        Card::spell("Permanent Strength", 0).with_effects(vec![Effect::AttachStatModifier {
+            targets: Selector::DeclaredTarget,
+            modifier: StatModifier {
+                attack: 2,
+                health: 0,
+                silence_removable: true,
+            },
+            duration: EnchantmentDuration::Permanent,
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), buff]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, target, None);
+    let buff = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, buff, Some(target));
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<StatModifier>().is_some())
+        .unwrap();
+    assert_that!(enchantment.get::<Zone>(), eq(Some(&Zone::Play)));
+    assert_that!(
+        enchantment.get::<EnchantmentDuration>(),
+        eq(Some(&EnchantmentDuration::Permanent)),
+    );
+    assert_that!(object(&mut simulation, target).attack, eq(Some(3)));
 }
 
 #[googletest::test]
@@ -115,16 +173,15 @@ fn next_series_extras_are_grouped_with_each_players_natural_turn() {
 
 #[googletest::test]
 fn end_of_turn_enchantments_expire_before_the_next_turn_starts() {
-    let buff =
-        Card::spell("Brief Strength", 0).with_effects(vec![Effect::AttachTemporaryStatModifier {
-            targets: Selector::DeclaredTarget,
-            modifier: StatModifier {
-                attack: 3,
-                health: 0,
-                silence_removable: true,
-            },
-            duration: TemporaryDuration::EndOfTurn(PlayerId::One),
-        }]);
+    let buff = Card::spell("Brief Strength", 0).with_effects(vec![Effect::AttachStatModifier {
+        targets: Selector::DeclaredTarget,
+        modifier: StatModifier {
+            attack: 3,
+            health: 0,
+            silence_removable: true,
+        },
+        duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
+    }]);
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), buff]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -176,7 +233,7 @@ fn temporary_cost_modifier_changes_legality_until_the_turn_ends() {
                 value: -2,
                 silence_removable: true,
             },
-            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
         }]);
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Expensive", 3, 3, 3), discount]),
@@ -264,7 +321,7 @@ fn ordered_cost_modifiers_keep_negative_values_until_payment() {
                     value,
                     silence_removable: false,
                 },
-                duration: None,
+                duration: EnchantmentDuration::Permanent,
             },
         )
         .unwrap();
@@ -315,7 +372,7 @@ fn checkpoint_restores_temporary_cost_modifier_payloads() {
                 value: -1,
                 silence_removable: false,
             },
-            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
         },
     )
     .unwrap();
@@ -340,7 +397,7 @@ fn checkpoint_restores_temporary_cost_modifier_payloads() {
                 value: -1,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();
@@ -360,14 +417,14 @@ fn opponent_turn_series_duration_survives_contiguous_extra_turns() {
             count: 1,
             timing: ExtraTurnTiming::DuringNextTurnSeries,
         },
-        Effect::AttachTemporaryStatModifier {
+        Effect::AttachStatModifier {
             targets: Selector::DeclaredTarget,
             modifier: StatModifier {
                 attack: 2,
                 health: 0,
                 silence_removable: true,
             },
-            duration: TemporaryDuration::EndOfTurnSeries(PlayerId::Two),
+            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
         },
     ]);
     let mut simulation = Simulation::new([
@@ -591,7 +648,7 @@ fn non_stat_keyword_enchantment_expires_after_the_full_turn_series() {
                 granted: true,
                 silence_removable: true,
             },
-            duration: Some(TemporaryDuration::EndOfTurnSeries(PlayerId::Two)),
+            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
         },
     ]);
     let mut simulation = Simulation::new([

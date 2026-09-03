@@ -2,8 +2,8 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache, Player, SilenceRemovable,
-    TemporaryDuration,
+    EnchantmentDuration, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
+    Player, SilenceRemovable,
 };
 
 #[googletest::test]
@@ -74,7 +74,8 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
                 attack: 1,
                 health: 1,
                 silence_removable: true,
-            }
+            },
+            EnchantmentDuration::Permanent,
         ),
         err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
     );
@@ -376,6 +377,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             health: 3,
             silence_removable: true,
         },
+        EnchantmentDuration::Permanent,
     )
     .unwrap();
     let enchantment = world
@@ -427,7 +429,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             granted: true,
             silence_removable: true,
         },
-        TemporaryDuration::EndOfTurn(PlayerId::One),
+        EnchantmentDuration::EndOfTurn(PlayerId::One),
         SilenceRemovable,
     ));
 
@@ -482,8 +484,8 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
         restored
             .app
             .world()
-            .get::<TemporaryDuration>(restored_enchantment),
-        eq(Some(&TemporaryDuration::EndOfTurn(PlayerId::One)))
+            .get::<EnchantmentDuration>(restored_enchantment),
+        eq(Some(&EnchantmentDuration::EndOfTurn(PlayerId::One)))
     );
 }
 
@@ -704,7 +706,7 @@ fn checkpoints_reject_cost_modifiers_without_play_order() {
                 value: -1,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();
@@ -747,7 +749,7 @@ fn checkpoints_reject_stale_play_order_counters() {
                 value: -1,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();

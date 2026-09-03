@@ -3,7 +3,7 @@ use googletest::prelude::*;
 use super::{test_support::*, *};
 use crate::{
     AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition, ContinuousModifier,
-    Controller, OtherAuraCache, OtherAuraModifier, PlayerAudience,
+    Controller, EnchantmentDuration, OtherAuraCache, OtherAuraModifier, PlayerAudience,
 };
 
 fn stat_aura(targets: AuraTarget, attack: i32, health: i32) -> AuraDefinition {
@@ -221,6 +221,7 @@ fn attached_and_opponent_facing_spell_damage_are_live() {
                 modifier: ContinuousModifier::SpellDamage(2),
             },
             silence_removable: true,
+            duration: EnchantmentDuration::Permanent,
         }]);
     let bolt = Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
         targets: Selector::DeclaredTarget,
