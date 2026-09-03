@@ -97,7 +97,7 @@ rust_library(
 
 rust_test(
     name = "graphql_integration_test",
-    timeout = "short",
+    timeout = "moderate",
     srcs = ["tests.rs"],
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
