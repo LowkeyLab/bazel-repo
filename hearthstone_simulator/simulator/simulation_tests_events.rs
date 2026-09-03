@@ -240,6 +240,25 @@ fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue(
 
     play_card(&mut simulation, PlayerId::One, bolt, Some(host));
 
+    let snapshot = simulation.snapshot();
+    assert_that!(
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id == host)
+            .unwrap()
+            .name,
+        eq("Transformed host"),
+    );
+    assert_that!(
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id == enchantment)
+            .unwrap()
+            .zone,
+        eq(Zone::RemovedFromGame),
+    );
     assert_that!(
         simulation.trace().iter().any(|entry| matches!(
             entry,
@@ -347,6 +366,12 @@ fn silence_removes_only_trigger_enchantments_marked_removable() {
             .unwrap()
             .zone,
         eq(Zone::Play),
+    );
+    let retained_entity = game_entity(simulation.app.world(), retained).unwrap();
+    let retained_host_entity = game_entity(simulation.app.world(), retained_host).unwrap();
+    assert_that!(
+        simulation.app.world().get::<AttachedTo>(retained_entity),
+        eq(Some(&AttachedTo(retained_host_entity))),
     );
     let turn_ended_event = simulation
         .trace()
