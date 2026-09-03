@@ -15,7 +15,7 @@
       }
     },
     {
-      "matchManagers": ["cargo"],
+      "matchManagers": ["cargo", "gomod"],
       "postUpgradeTasks": {
         "commands": [
           "bazel mod deps --lockfile_mode=update --config=ci-remote"
