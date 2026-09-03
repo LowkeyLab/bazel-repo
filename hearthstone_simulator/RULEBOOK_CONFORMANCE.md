@@ -23,6 +23,11 @@ Behavior classifications:
 | Trigger ordering by dominant player, zone, priority, and play order | Current rule        | `DominantPlayer`, order keys    | dominant grouping/depth-first tests  | Implemented foundation     |
 | Same-player Death trigger mingling by priority and play order       | Current rule        | `trigger`, Death Events         | Deathrattle/observer ordering test   | Implemented vertical slice |
 | Trigger pre-check, queue-time, and resolution-time conditions       | Current rule        | `trigger`, prepared events      | condition/abortion tests             | Implemented foundation     |
+| Explicit permanent and timed enchantment duration                   | Current rule        | `EnchantmentDuration`           | schema/checkpoint invariant tests    | Implemented foundation     |
+| Play-zone trigger enchantments outside board-row capacity           | Current rule        | `enchantment`, `trigger`        | capacity/play-order tests            | Implemented foundation     |
+| Attachment-aware host and event-controller conditions               | Current rule        | `TriggerCondition`              | validation/controller-grouping tests | Implemented foundation     |
+| End-turn and turn-series trigger-enchantment expiration             | Current rule        | phase-boundary expiration       | natural/extra-turn lifetime tests    | Implemented foundation     |
+| Captured trigger abortion after host transformation                 | Current rule        | prepared events, `trigger`      | transformation-abortion test         | Implemented foundation     |
 | Unbounded generated-work safety                                     | Engine policy       | per-sequence operation budget   | exact-operation budget test          | Implemented foundation     |
 | Native exceptional effects return primitive effect plans            | Card definition     | `native_effect`, `effect`       | registered-handler test              | Implemented foundation     |
 | Seeded random selection                                             | Current rule        | `rng`                           | same-seed test                       | Implemented foundation     |
@@ -48,6 +53,7 @@ Behavior classifications:
 | Hero replacement, aura timing, and irreversible defeat timing       | Current rule        | replacement reducer             | aura/before/after Death Creation     | Implemented vertical slice |
 | Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`          | JSON/reference-validation tests      | Implemented foundation     |
 | Forced Death Phase timing                                           | Compatibility quirk | named ruleset policy            | esoteric tests                       | Planned                    |
+| Added Deathrattles and Deathrattle-position policy                  | Current rule        | named ruleset policy            | esoteric tests                       | Planned                    |
 | Historical retired interactions                                     | Historical          | excluded by profile             | profile tests                        | Planned                    |
 | Official card-specific exceptions                                   | Card definition     | definition/native effects       | fixture-specific tests               | Out of engine scope        |
 
