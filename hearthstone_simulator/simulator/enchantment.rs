@@ -287,6 +287,47 @@ mod tests {
     }
 
     #[googletest::test]
+    fn cost_recalculation_tolerates_stale_targets() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+
+        recalculate_cost(&mut world, GameEntityId(99));
+    }
+
+    #[googletest::test]
+    fn cost_recalculation_ignores_silence_removable_modifiers_on_silenced_cards() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        let target = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                CardRuntime {
+                    base_cost: 5,
+                    cost: 3,
+                    program: Vec::new(),
+                },
+                Silenced,
+            ))
+            .id();
+        world.spawn((
+            GameObject,
+            GameEntityId(2),
+            PlayOrder(1),
+            CostModifier {
+                operation: crate::CostOperation::Add,
+                value: -2,
+                silence_removable: true,
+            },
+            AttachedTo(target),
+        ));
+
+        recalculate_cost(&mut world, GameEntityId(1));
+
+        assert_that!(world.get::<CardRuntime>(target).unwrap().cost, eq(5));
+    }
+
+    #[googletest::test]
     fn maximum_health_changes_follow_h1_and_h2() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();

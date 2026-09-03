@@ -683,6 +683,49 @@ fn checkpoints_reject_inconsistent_effective_costs() {
 }
 
 #[googletest::test]
+fn checkpoints_reject_cost_modifiers_without_play_order() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Missing order", 3, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(card),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -1,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.cost_modifier.is_some())
+        .unwrap()
+        .play_order = None;
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::Checkpoint(reason)) if reason.contains("lacks play order")
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
 fn checkpoints_reject_stale_play_order_counters() {
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Ordered cost", 3, 1, 1)]),
@@ -737,6 +780,40 @@ fn checkpoints_reject_stale_play_order_counters() {
     assert_that!(
         matches!(
             Simulation::from_checkpoint(detached_modifier),
+            Err(SimulationError::Checkpoint(_))
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_stale_non_cost_play_order_counters() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Played later", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint.next_play_order = checkpoint
+        .entities
+        .iter()
+        .find(|entity| entity.id == card)
+        .unwrap()
+        .play_order
+        .unwrap();
+
+    assert_that!(
+        matches!(
+            Simulation::from_checkpoint(checkpoint),
             Err(SimulationError::Checkpoint(_))
         ),
         is_true()

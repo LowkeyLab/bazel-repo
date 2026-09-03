@@ -440,7 +440,6 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
         checkpoint
             .entities
             .iter()
-            .filter(|entity| entity.cost_modifier.is_some())
             .filter_map(|entity| entity.play_order)
             .max(),
     )?;
