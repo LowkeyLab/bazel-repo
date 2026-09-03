@@ -58,9 +58,10 @@ Add attachment-aware vocabulary:
 ```rust
 Selector::AttachedEntity
 TriggerCondition::EventTargetsAttachedEntity
+TriggerCondition::EventControllerIs(PlayerSelector)
 ```
 
-`Selector::Source` and source-relative event conditions continue to mean the enchantment itself. Card definitions use the attachment-aware forms where text refers to the enchanted entity. Other attribution differences remain explicit in individual effect programs rather than being inferred globally.
+`Selector::Source` and source-relative event conditions continue to mean the enchantment itself. Card definitions use the attachment-aware forms where text refers to the enchanted entity. `EventControllerIs` resolves `PlayerSelector::Controller` and `PlayerSelector::Opponent` relative to the trigger source's current controller, enabling reusable start/end-turn conditions without hard-coded player IDs. Other attribution differences remain explicit in individual effect programs rather than being inferred globally.
 
 ## Entity And Zone Model
 
@@ -108,7 +109,7 @@ No trigger-specific queue or resolver path is added. Existing trigger discovery 
 - The enchantment play order.
 - The immutable trigger definition and definition index.
 
-When an attachment-aware selector or condition is evaluated, it resolves `AttachedTo` from the enchantment source to the current host. A missing relationship yields no selected entity or a false condition.
+When an attachment-aware selector or condition is evaluated, it resolves `AttachedTo` from the enchantment source to the current host. A missing relationship yields no selected entity or a false condition. `EventControllerIs` compares the event controller with a player resolved relative to the trigger source's live controller.
 
 Candidate membership remains immutable after queue-time capture. Resolution-time source eligibility remains live. If an earlier trigger silences the host, moves it through a reset boundary, transforms it, or otherwise detaches the enchantment, the enchantment leaves Play and the already captured trigger aborts through the existing eligibility path.
 
@@ -159,6 +160,7 @@ Focused conformance and regression tests cover:
 - Trigger enchantments intermingling with ordinary triggers using their own play order.
 - Controller grouping when an enchantment is attached to an opponent's entity.
 - Attachment-aware selection and target conditions referring to the host while traces identify the enchantment as source.
+- Relative event-controller conditions distinguishing the source controller's and opponent's start/end-turn events.
 - A captured trigger aborting after an earlier trigger detaches it or removes or transforms its host.
 - Every enchantment type occupying Play without consuming board-row capacity.
 - Silence-removable and non-removable trigger enchantments.
