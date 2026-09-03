@@ -111,6 +111,43 @@ fn trigger_enchantment_records_attachment_context() {
 }
 
 #[googletest::test]
+fn trigger_enchantment_attachment_reports_a_missing_explicit_target() {
+    let mut simulation = simulation();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+
+    assert_that!(
+        execute_effect(
+            simulation.app.world_mut(),
+            &context,
+            &Effect::AttachTriggerEnchantment {
+                targets: Selector::Entity(GameEntityId(999)),
+                triggers: vec![turn_end_trigger(Vec::new())],
+                duration: EnchantmentDuration::Permanent,
+                silence_removable: true,
+            },
+        ),
+        err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .iter_entities()
+            .filter(|entity| {
+                entity.get::<EntityKind>() == Some(&EntityKind::Enchantment)
+                    && entity.get::<RuntimeTriggers>().is_some()
+            })
+            .count(),
+        eq(0)
+    );
+}
+
+#[googletest::test]
 fn action_validation_rejects_invalid_trigger_enchantments_without_creating_them() {
     let missing = NativeEffectId::new("synthetic:missing_trigger_effect");
     let valid = turn_end_trigger(Vec::new());

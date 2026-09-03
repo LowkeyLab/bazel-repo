@@ -129,6 +129,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-09-04 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.3% lines; 106/107 changed lines covered  |
 | 2026-09-04 | `aspect lint`                                                                  | Passed with no findings                     |
 | 2026-09-04 | `aspect build //...`                                                           | Passed all 350 repository targets           |
+| 2026-09-04 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.4% lines; 107/107 changed lines covered  |
 
 ## Known gaps
 
