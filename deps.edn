@@ -1,7 +1,7 @@
 {:mvn/repos
  {"central" {:url "https://repo1.maven.org/maven2/"}}
  :deps
- {org.clojure/clojure {:mvn/version "1.12.5"}}
+ {org.clojure/clojure {:mvn/version "1.12.6"}}
  :paths ["clojure_sample/src" "clojure_sample/test"]
  :aliases
  {:dev {}
