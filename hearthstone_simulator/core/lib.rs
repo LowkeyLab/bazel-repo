@@ -40,7 +40,8 @@ pub use effect::{
     HeroReplacement, PlayerSelector, Selector, ValueExpression,
 };
 pub use enchantment::{
-    AttachedEnchantments, AttachedTo, KeywordModifier, StatModifier, TemporaryDuration,
+    AttachedEnchantments, AttachedTo, CostModifier, CostOperation, KeywordModifier, StatModifier,
+    TemporaryDuration,
 };
 pub use entity::{
     Abilities, Armor, AttackState, BaseKeywords, BaseStats, Controller, CurrentStats, Damage,

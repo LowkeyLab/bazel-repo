@@ -4,13 +4,13 @@ use bevy::prelude::*;
 
 use crate::{
     Abilities, Armor, AttackAuraCache, AttackState, BaseKeywords, BaseStats,
-    CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, CardRuntimeCheckpoint, Controller, CurrentStats,
-    Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng, DisplayName,
-    DominantPlayer, Enchantments, EntityKind, GameEntityCheckpoint, GameEntityId, GameObject,
-    GameState, HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments, KeywordModifier,
-    Keywords, OtherAuraCache, PlayOrder, Player, PlayerId, ResolutionWork, Ruleset, RuntimeAuras,
-    RuntimeContinuousEffects, RuntimeTriggers, SilenceRemovable, Silenced, SimulationCheckpoint,
-    StatModifier, TemporaryDuration, TurnSchedule, Zone,
+    CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, CardRuntimeCheckpoint, Controller, CostModifier,
+    CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
+    DisplayName, DominantPlayer, Enchantments, EntityKind, GameEntityCheckpoint, GameEntityId,
+    GameObject, GameState, HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments,
+    KeywordModifier, Keywords, OtherAuraCache, PlayOrder, Player, PlayerId, ResolutionWork,
+    Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, SilenceRemovable, Silenced,
+    SimulationCheckpoint, StatModifier, TemporaryDuration, TurnSchedule, Zone,
     death::{DefeatedHeroes, PendingDeaths},
     enchantment::AttachedTo,
     entity::{NextGameEntityId, PlayOrderCounter, game_entity},
@@ -71,6 +71,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                 card_runtime: entity
                     .get::<CardRuntime>()
                     .map(|runtime| CardRuntimeCheckpoint {
+                        base_cost: runtime.base_cost,
                         cost: runtime.cost,
                         program: runtime.program.clone(),
                     }),
@@ -84,6 +85,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                 silence_removable: entity.contains::<SilenceRemovable>(),
                 stat_modifier: entity.get::<StatModifier>().copied(),
                 keyword_modifier: entity.get::<KeywordModifier>().copied(),
+                cost_modifier: entity.get::<CostModifier>().copied(),
                 temporary_duration: entity.get::<TemporaryDuration>().copied(),
                 health_aura_cache: entity.get::<HealthAuraCache>().cloned(),
                 attack_aura_cache: entity.get::<AttackAuraCache>().cloned(),
@@ -246,6 +248,7 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
     }
     if let Some(value) = &object.card_runtime {
         entity.insert(CardRuntime {
+            base_cost: value.base_cost,
             cost: value.cost,
             program: value.program.clone(),
         });
@@ -272,6 +275,9 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
         entity.insert(value);
     }
     if let Some(value) = object.keyword_modifier {
+        entity.insert(value);
+    }
+    if let Some(value) = object.cost_modifier {
         entity.insert(value);
     }
     if let Some(value) = object.temporary_duration {
@@ -428,10 +434,63 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
             "next logical entity ID does not exceed existing IDs".to_string(),
         ));
     }
+    validate_next_counter(
+        "play order",
+        checkpoint.next_play_order,
+        checkpoint
+            .entities
+            .iter()
+            .filter_map(|entity| entity.play_order)
+            .max(),
+    )?;
     for entity in &checkpoint.entities {
         validate_checkpoint_entity(entity, &ids)?;
     }
+    validate_checkpoint_costs(checkpoint)?;
     validate_checkpoint_player_roles(checkpoint)?;
+    Ok(())
+}
+
+fn validate_checkpoint_costs(checkpoint: &SimulationCheckpoint) -> Result<(), SimulationError> {
+    for target in checkpoint
+        .entities
+        .iter()
+        .filter(|entity| entity.card_runtime.is_some())
+    {
+        let runtime = target
+            .card_runtime
+            .as_ref()
+            .expect("filtered card runtime exists");
+        let mut modifiers = checkpoint
+            .entities
+            .iter()
+            .filter(|entity| entity.attached_to == Some(target.id))
+            .filter_map(|entity| {
+                entity
+                    .cost_modifier
+                    .map(|modifier| (entity.play_order, entity.id, modifier))
+            })
+            .collect::<Vec<_>>();
+        if modifiers.iter().any(|(order, _, _)| order.is_none()) {
+            return Err(SimulationError::Checkpoint(format!(
+                "cost modifier attached to {:?} lacks play order",
+                target.id
+            )));
+        }
+        modifiers.sort_by_key(|(order, id, _)| (order.unwrap_or_default(), *id));
+        let cost = modifiers
+            .into_iter()
+            .filter(|(_, _, modifier)| !(target.silenced && modifier.silence_removable))
+            .fold(runtime.base_cost, |cost, (_, _, modifier)| {
+                modifier.apply(cost)
+            });
+        if cost != runtime.cost {
+            return Err(SimulationError::Checkpoint(format!(
+                "entity {:?} has inconsistent effective cost",
+                target.id
+            )));
+        }
+    }
     Ok(())
 }
 
@@ -563,9 +622,9 @@ fn validate_next_counter(
     next: u64,
     highest_retained: Option<u64>,
 ) -> Result<(), SimulationError> {
-    if highest_retained.is_some_and(|highest| highest >= next) {
+    if let Some(highest) = highest_retained.filter(|highest| *highest >= next) {
         return Err(SimulationError::Checkpoint(format!(
-            "next {name} ID does not exceed retained IDs"
+            "next {name} ID {next} does not exceed highest retained ID {highest}"
         )));
     }
     Ok(())

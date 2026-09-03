@@ -1,9 +1,10 @@
 use googletest::prelude::*;
 
-use super::{test_support::*, *};
+use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttackState, CurrentStats, HeroClassPolicy, HeroHealthPolicy, HeroReplacement,
-    KeepEnchantments, PhaseBoundaryPlan, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    KeepEnchantments, PhaseBoundaryPlan, TemporaryDuration, ZoneMoveOutcome, ZoneMoveRequest,
+    ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -112,6 +113,58 @@ fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
         .find(|object| object.kind == EntityKind::Enchantment)
         .unwrap();
     assert_that!(detached.zone, eq(Zone::RemovedFromGame));
+}
+
+#[googletest::test]
+fn backward_movement_restores_cost_after_detaching_modifiers() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Reset cost", 4, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(card),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -2,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+
+    crate::zone::move_entity_with_request(
+        simulation.app.world_mut(),
+        ZoneMoveRequest {
+            entity: card,
+            destination_controller: PlayerId::One,
+            destination: Zone::Deck,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+    .unwrap();
+
+    let card = game_entity(simulation.app.world(), card).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(card)
+            .unwrap()
+            .cost,
+        eq(4)
+    );
 }
 
 #[googletest::test]
@@ -609,6 +662,59 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
     .unwrap();
 
     assert_that!(simulation.snapshot().players[0].hand, eq(&before));
+}
+
+#[googletest::test]
+fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Discounted source", 5, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let source = hand_card(&mut simulation, PlayerId::One);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(source),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -2,
+                silence_removable: false,
+            },
+            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+        },
+    )
+    .unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Copy {
+            targets: Selector::Entity(source),
+            player: PlayerSelector::Controller,
+            zone: Zone::Hand,
+        },
+    )
+    .unwrap();
+
+    let copy = simulation
+        .app
+        .world()
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::One, Zone::Hand)
+        .iter()
+        .copied()
+        .find(|card| *card != source)
+        .unwrap();
+    let copy = game_entity(simulation.app.world(), copy).unwrap();
+    let runtime = simulation.app.world().get::<CardRuntime>(copy).unwrap();
+    assert_that!(runtime.base_cost, eq(5));
+    assert_that!(runtime.cost, eq(5));
 }
 
 #[googletest::test]

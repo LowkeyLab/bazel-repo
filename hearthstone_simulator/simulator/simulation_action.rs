@@ -9,7 +9,7 @@ use crate::{
     ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers, ScheduledTurnKind,
     SequenceStep, SimulationStatus, TemporaryDuration, TraceEntry, TurnSchedule, Zone,
     ZoneMoveRequest, ZoneMovementKind,
-    enchantment::{recalculate_keywords, recalculate_stats},
+    enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::game_entity,
     resolver::{
         abandon_sequence, begin_sequence, consume_budget, finish_sequence, pop_resolution_op,
@@ -84,7 +84,9 @@ pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
         let Some(entity) = game_entity(world, card) else {
             continue;
         };
-        let cost = world.get::<CardRuntime>(entity).map_or(0, |card| card.cost);
+        let cost = world
+            .get::<CardRuntime>(entity)
+            .map_or(0, |card| card.cost.max(0));
         if player(world, active)
             .is_some_and(|(_, player, _, _)| player.available_resources() >= cost)
         {
@@ -627,6 +629,7 @@ fn expire_temporary_effects(world: &mut World, ending_player: PlayerId, next_pla
         if let Some(target) = target {
             recalculate_stats(world, target);
             recalculate_keywords(world, target);
+            recalculate_cost(world, target);
         }
     }
 }

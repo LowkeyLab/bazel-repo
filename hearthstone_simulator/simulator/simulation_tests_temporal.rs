@@ -1,6 +1,6 @@
 use googletest::prelude::*;
 
-use super::{test_support::*, *};
+use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{ExtraTurnTiming, KeywordModifier, ScheduledTurnKind, TemporaryDuration};
 
 fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
@@ -163,6 +163,192 @@ fn end_of_turn_enchantments_expire_before_the_next_turn_starts() {
             .iter()
             .any(|entry| matches!(entry, TraceEntry::TemporaryEffectExpired { .. })),
         is_true()
+    );
+}
+
+#[googletest::test]
+fn temporary_cost_modifier_changes_legality_until_the_turn_ends() {
+    let discount =
+        Card::spell("Brief Discount", 0).with_effects(vec![Effect::AttachCostModifier {
+            targets: Selector::DeclaredTarget,
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -2,
+                silence_removable: true,
+            },
+            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Expensive", 3, 3, 3), discount]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let expensive = simulation
+        .snapshot()
+        .objects
+        .iter()
+        .find(|object| object.name == "Expensive")
+        .unwrap()
+        .id;
+    let discount = simulation
+        .snapshot()
+        .objects
+        .iter()
+        .find(|object| object.name == "Brief Discount")
+        .unwrap()
+        .id;
+
+    assert_that!(
+        simulation.legal_actions().iter().any(
+            |action| matches!(action, GameAction::PlayCard { card, .. } if *card == expensive)
+        ),
+        is_false()
+    );
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: discount,
+            target: Some(expensive),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    assert_that!(
+        simulation.legal_actions().iter().any(
+            |action| matches!(action, GameAction::PlayCard { card, .. } if *card == expensive)
+        ),
+        is_true()
+    );
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    let expensive = game_entity(simulation.app.world(), expensive).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(expensive)
+            .unwrap()
+            .cost,
+        eq(3)
+    );
+}
+
+#[googletest::test]
+fn ordered_cost_modifiers_keep_negative_values_until_payment() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Ordered Target", 5, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    for (operation, value) in [
+        (CostOperation::Set, 3),
+        (CostOperation::Multiply, 2),
+        (CostOperation::Add, -7),
+    ] {
+        execute_effect(
+            simulation.app.world_mut(),
+            &context,
+            &Effect::AttachCostModifier {
+                targets: Selector::Entity(target),
+                modifier: CostModifier {
+                    operation,
+                    value,
+                    silence_removable: false,
+                },
+                duration: None,
+            },
+        )
+        .unwrap();
+    }
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(target_entity)
+            .unwrap()
+            .cost,
+        eq(-1)
+    );
+
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    assert_that!(simulation.snapshot().players[0].resources_spent, eq(0));
+}
+
+#[googletest::test]
+fn checkpoint_restores_temporary_cost_modifier_payloads() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Checkpoint Target", 4, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        origin: EffectOrigin::Other,
+    };
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(card),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -1,
+                silence_removable: false,
+            },
+            duration: Some(TemporaryDuration::EndOfTurn(PlayerId::One)),
+        },
+    )
+    .unwrap();
+
+    let mut restored = Simulation::from_checkpoint(simulation.checkpoint().unwrap()).unwrap();
+    assert_that!(
+        restored
+            .app
+            .world()
+            .iter_entities()
+            .filter(|entity| entity.get::<CostModifier>().is_some())
+            .count(),
+        eq(1)
+    );
+    execute_effect(
+        restored.app.world_mut(),
+        &context,
+        &Effect::AttachCostModifier {
+            targets: Selector::Entity(card),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -1,
+                silence_removable: false,
+            },
+            duration: None,
+        },
+    )
+    .unwrap();
+
+    let card = game_entity(restored.app.world(), card).unwrap();
+    assert_that!(
+        restored.app.world().get::<CardRuntime>(card).unwrap().cost,
+        eq(2)
     );
 }
 

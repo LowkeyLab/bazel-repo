@@ -198,8 +198,14 @@ pub struct GameEntityIndex(pub BTreeMap<GameEntityId, Entity>);
 #[derive(Clone, Copy, Debug, Default, Resource)]
 pub struct NextGameEntityId(pub u64);
 
-#[derive(Clone, Copy, Debug, Default, Resource)]
+#[derive(Clone, Copy, Debug, Resource)]
 pub struct PlayOrderCounter(pub u64);
+
+impl Default for PlayOrderCounter {
+    fn default() -> Self {
+        Self(1)
+    }
+}
 
 #[doc(hidden)]
 pub fn allocate_game_id(world: &mut World) -> GameEntityId {
