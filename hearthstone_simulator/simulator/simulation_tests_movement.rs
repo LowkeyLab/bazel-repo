@@ -69,6 +69,43 @@ fn play_zone_enchantments_do_not_consume_board_capacity() {
 }
 
 #[googletest::test]
+fn invariants_reject_enchantments_without_durations() {
+    let mut simulation = simulation();
+    let target = hand_card(&mut simulation, PlayerId::One);
+    attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: true,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<EntityKind>() == Some(&EntityKind::Enchantment))
+        .unwrap()
+        .id();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(enchantment)
+        .remove::<EnchantmentDuration>();
+
+    assert_that!(
+        simulation.assert_invariants(),
+        err(matches_pattern!(SimulationError::Invariant(
+            contains_substring("enchantment duration")
+        ))),
+    );
+}
+
+#[googletest::test]
 fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
     let reset = Card::spell("Reset", 0).with_effects(vec![
         Effect::AttachStatModifier {

@@ -8,6 +8,7 @@ use crate::{
     ResolutionWork, Ruleset, SimulationCheckpoint, SimulationError, SimulationStatus, TraceEntry,
     TurnSchedule,
     death::{DefeatedHeroes, PendingDeaths},
+    enchantment::assert_enchantment_invariants,
     entity::{GameEntityIndex, NextGameEntityId, PlayOrderCounter},
     native_effect::{NativeEffectFactory, NativeEffectRegistry},
     resolver::{assert_resolution_invariants, configure_resolution},
@@ -279,13 +280,14 @@ impl Simulation {
         })
     }
 
-    /// Validates zone, resolution, and logical entity-index invariants.
+    /// Validates zone, enchantment, resolution, and logical entity-index invariants.
     ///
     /// # Errors
     ///
     /// Returns [`SimulationError::Invariant`] describing the first violated invariant.
     pub fn assert_invariants(&self) -> Result<(), SimulationError> {
         assert_zone_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
+        assert_enchantment_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
         player::assert_player_role_invariants(self.app.world())
             .map_err(SimulationError::Invariant)?;
         assert_resolution_invariants(self.app.world()).map_err(SimulationError::Invariant)?;

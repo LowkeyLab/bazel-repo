@@ -380,7 +380,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
         EnchantmentDuration::Permanent,
     )
     .unwrap();
-    let enchantment = world
+    let permanent_enchantment = world
         .iter_entities()
         .find_map(|entity| {
             entity
@@ -389,12 +389,33 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
                 .flatten()
         })
         .unwrap();
+    attach_stat_modifier(
+        world,
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 0,
+            health: 0,
+            silence_removable: true,
+        },
+        EnchantmentDuration::EndOfTurn(PlayerId::One),
+    )
+    .unwrap();
+    let temporary_enchantment = world
+        .iter_entities()
+        .find_map(|entity| {
+            (entity.contains::<StatModifier>()
+                && entity.get::<GameEntityId>().copied() != Some(permanent_enchantment))
+            .then(|| entity.get::<GameEntityId>().copied())
+            .flatten()
+        })
+        .unwrap();
     let target_entity = game_entity(world, target).unwrap();
     world.entity_mut(target_entity).insert((
         Armor(4),
         PendingDestroy,
         Abilities(vec!["Battlecry".to_string()]),
-        Enchantments(vec![enchantment]),
+        Enchantments(vec![permanent_enchantment]),
         AttackAuraCache(vec![AuraApplication {
             provider: target,
             definition_index: 0,
@@ -422,18 +443,35 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             turn_of_death: 1,
         },
     ));
-    let enchantment_entity = game_entity(world, enchantment).unwrap();
+    let enchantment_entity = game_entity(world, temporary_enchantment).unwrap();
     world.entity_mut(enchantment_entity).insert((
         KeywordModifier {
             keyword: Keyword::Taunt,
             granted: true,
             silence_removable: true,
         },
-        EnchantmentDuration::EndOfTurn(PlayerId::One),
         SilenceRemovable,
     ));
 
     let checkpoint = original.checkpoint().unwrap();
+    assert_that!(
+        checkpoint
+            .entities
+            .iter()
+            .find(|entity| entity.id == permanent_enchantment)
+            .unwrap()
+            .enchantment_duration,
+        eq(Some(EnchantmentDuration::Permanent))
+    );
+    assert_that!(
+        checkpoint
+            .entities
+            .iter()
+            .find(|entity| entity.id == temporary_enchantment)
+            .unwrap()
+            .enchantment_duration,
+        eq(Some(EnchantmentDuration::EndOfTurn(PlayerId::One)))
+    );
     let mut restored = simulation();
     restored.restore(checkpoint.clone()).unwrap();
 
@@ -463,7 +501,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
         restored.app.world().get::<OtherAuraCache>(restored_target),
         some(anything())
     );
-    let restored_enchantment = game_entity(restored.app.world(), enchantment).unwrap();
+    let restored_enchantment = game_entity(restored.app.world(), temporary_enchantment).unwrap();
     assert_that!(
         restored
             .app
@@ -486,6 +524,47 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
             .world()
             .get::<EnchantmentDuration>(restored_enchantment),
         eq(Some(&EnchantmentDuration::EndOfTurn(PlayerId::One)))
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_enchantments_without_durations_and_schema_version_five() {
+    let mut simulation = simulation();
+    let target = hand_card(&mut simulation, PlayerId::One);
+    attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: true,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+
+    let mut missing_duration = simulation.checkpoint().unwrap();
+    missing_duration
+        .entities
+        .iter_mut()
+        .find(|entity| entity.kind == Some(EntityKind::Enchantment))
+        .unwrap()
+        .enchantment_duration = None;
+    assert_that!(
+        Simulation::from_checkpoint(missing_duration).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("enchantment duration")
+        ))),
+    );
+
+    let mut old_schema = simulation.checkpoint().unwrap();
+    old_schema.schema_version = 5;
+    assert_that!(
+        Simulation::from_checkpoint(old_schema).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("unsupported checkpoint schema version 5")
+        ))),
     );
 }
 

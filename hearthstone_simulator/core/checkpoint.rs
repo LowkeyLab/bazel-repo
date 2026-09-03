@@ -9,7 +9,7 @@ use crate::{
     TriggerDefinition, TurnSchedule, Zone,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 5;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 6;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
@@ -51,7 +51,7 @@ pub struct GameEntityCheckpoint {
     pub stat_modifier: Option<StatModifier>,
     pub keyword_modifier: Option<KeywordModifier>,
     pub cost_modifier: Option<CostModifier>,
-    pub temporary_duration: Option<EnchantmentDuration>,
+    pub enchantment_duration: Option<EnchantmentDuration>,
     pub health_aura_cache: Option<HealthAuraCache>,
     pub attack_aura_cache: Option<AttackAuraCache>,
     pub other_aura_cache: Option<OtherAuraCache>,
