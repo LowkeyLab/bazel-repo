@@ -59,15 +59,13 @@ fn play_zone_enchantments_do_not_consume_board_capacity() {
     .unwrap();
 
     assert_that!(simulation.snapshot().players[0].board.len(), eq(7));
-    assert_that!(
-        simulation
-            .snapshot()
-            .objects
-            .iter()
-            .filter(|object| { object.controller == PlayerId::One && object.zone == Zone::Play })
-            .count(),
-        gt(7),
-    );
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<KeywordModifier>().is_some())
+        .unwrap();
+    assert_that!(enchantment.get::<Zone>(), eq(Some(&Zone::Play)),);
 }
 
 #[googletest::test]
