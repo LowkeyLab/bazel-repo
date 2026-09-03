@@ -1,6 +1,6 @@
 module github.com/lowkeylab/bazel-repo
 
-go 1.25.5
+go 1.26.0
 
 tool (
 	github.com/go-delve/delve/cmd/dlv
@@ -178,7 +178,7 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	go.starlark.net v0.0.0-20231101134539-556fd59b42f6 // indirect
 	golang.org/x/arch v0.28.0 // indirect
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.39.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
