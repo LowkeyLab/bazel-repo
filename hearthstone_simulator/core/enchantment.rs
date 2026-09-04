@@ -28,7 +28,8 @@ impl CostModifier {
 }
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub enum TemporaryDuration {
+pub enum EnchantmentDuration {
+    Permanent,
     EndOfTurn(PlayerId),
     EndOfTurnSeries(PlayerId),
 }

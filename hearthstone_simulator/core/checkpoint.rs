@@ -3,13 +3,13 @@ use std::collections::BTreeSet;
 use crate::{
     Abilities, Armor, AttackAuraCache, AttackState, AuraDefinition, BaseKeywords, BaseStats,
     CanonicalTrace, ContinuousEffectDefinition, CostModifier, CurrentStats, Damage, DeathRecord,
-    Effect, Enchantments, EntityKind, GameEntityId, GameState, HealthAuraCache, HeroMetadata,
-    HeroPowerState, KeywordModifier, Keywords, OtherAuraCache, Player, PlayerId, ResolutionWork,
-    RngSnapshot, Ruleset, SimulationError, StatModifier, TemporaryDuration, TriggerDefinition,
-    TurnSchedule, Zone,
+    Effect, EnchantmentDuration, Enchantments, EntityKind, GameEntityId, GameState,
+    HealthAuraCache, HeroMetadata, HeroPowerState, KeywordModifier, Keywords, OtherAuraCache,
+    Player, PlayerId, ResolutionWork, RngSnapshot, Ruleset, SimulationError, StatModifier,
+    TriggerDefinition, TurnSchedule, Zone,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 5;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 6;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
@@ -51,7 +51,7 @@ pub struct GameEntityCheckpoint {
     pub stat_modifier: Option<StatModifier>,
     pub keyword_modifier: Option<KeywordModifier>,
     pub cost_modifier: Option<CostModifier>,
-    pub temporary_duration: Option<TemporaryDuration>,
+    pub enchantment_duration: Option<EnchantmentDuration>,
     pub health_aura_cache: Option<HealthAuraCache>,
     pub attack_aura_cache: Option<AttackAuraCache>,
     pub other_aura_cache: Option<OtherAuraCache>,

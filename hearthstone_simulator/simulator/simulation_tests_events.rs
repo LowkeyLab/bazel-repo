@@ -1,6 +1,599 @@
 use googletest::prelude::*;
 
 use super::{test_support::*, *};
+use crate::{
+    AttachedTo, ConditionTiming, EnchantmentDuration, SourceEligibilityPolicy, TimedCondition,
+    TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+};
+
+fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> TriggerDefinition {
+    TriggerDefinition {
+        event: EventKind::TurnEnded,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventControllerIs(event_player),
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: effects,
+    }
+}
+
+fn play_card(
+    simulation: &mut Simulation,
+    player: PlayerId,
+    card: GameEntityId,
+    target: Option<GameEntityId>,
+) {
+    simulation
+        .apply(GameAction::PlayCard {
+            player,
+            card,
+            target,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+}
+
+fn attached_enchantment(simulation: &Simulation, host: GameEntityId) -> GameEntityId {
+    let host = game_entity(simulation.app.world(), host).unwrap();
+    simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<AttachedTo>().map(|attached| attached.0) == Some(host))
+        .and_then(|entity| entity.get::<GameEntityId>())
+        .copied()
+        .unwrap()
+}
+
+#[googletest::test]
+fn enchantment_triggers_share_play_order_with_ordinary_sources() {
+    let ordinary = Card::minion("Ordinary source", 0, 1, 2).with_triggers(vec![turn_end_trigger(
+        PlayerSelector::Controller,
+        Vec::new(),
+    )]);
+    let grant =
+        Card::spell("Grant trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![turn_end_trigger(PlayerSelector::Controller, Vec::new())],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![ordinary, Card::minion("Host", 0, 1, 2), grant],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let ordinary_source = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, ordinary_source, None);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, host, None);
+    let grant = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, grant, Some(host));
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<EnchantmentDuration>().is_some())
+        .and_then(|entity| entity.get::<GameEntityId>())
+        .copied()
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+
+    let resolved = simulation
+        .trace()
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::TriggerResolved { source, .. } => Some(*source),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(resolved, eq(&vec![ordinary_source, enchantment]));
+}
+
+#[googletest::test]
+fn enchantment_controller_determines_trigger_group_not_host_controller() {
+    let player_two_source =
+        Card::minion("Player Two source", 0, 1, 2).with_triggers(vec![turn_end_trigger(
+            PlayerSelector::Controller,
+            Vec::new(),
+        )]);
+    let mut simulation = Simulation::with_seed_and_dominant_player(
+        [
+            PlayerConfig::new("Jaina", Vec::new()),
+            PlayerConfig::new(
+                "Rexxar",
+                vec![player_two_source, Card::minion("Player Two host", 0, 1, 2)],
+            ),
+        ],
+        0,
+        PlayerId::One,
+    );
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    let player_two_source = hand_card(&mut simulation, PlayerId::Two);
+    play_card(&mut simulation, PlayerId::Two, player_two_source, None);
+    let host = hand_card(&mut simulation, PlayerId::Two);
+    play_card(&mut simulation, PlayerId::Two, host, None);
+    let mut trigger = turn_end_trigger(PlayerSelector::Opponent, Vec::new());
+    trigger.conditions.push(TimedCondition {
+        timing: ConditionTiming::QueueTime,
+        condition: TriggerCondition::EventControllerIs(PlayerSelector::Player(PlayerId::Two)),
+    });
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachTriggerEnchantment {
+            targets: Selector::Entity(host),
+            triggers: vec![trigger],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        },
+    )
+    .unwrap();
+    let player_one_enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<EnchantmentDuration>().is_some())
+        .and_then(|entity| entity.get::<GameEntityId>())
+        .copied()
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+
+    let cross_controller_resolved = simulation
+        .trace()
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::TriggerResolved { source, .. } => Some(*source),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(
+        cross_controller_resolved,
+        eq(&vec![player_one_enchantment, player_two_source]),
+    );
+}
+
+#[googletest::test]
+fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue() {
+    let suppressor = Card::minion("Suppressor", 0, 1, 2).with_triggers(vec![TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: Card::minion("Transformed host", 0, 2, 2),
+        }],
+    }]);
+    let attached_trigger = TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsAttachedEntity,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let grant =
+        Card::spell("Grant observer", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![attached_trigger],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+    let bolt = Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
+        targets: Selector::DeclaredTarget,
+        amount: ValueExpression::Constant(1),
+    }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![suppressor, Card::minion("Host", 0, 1, 4), grant, bolt],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let suppressor = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, suppressor, None);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, host, None);
+    let grant = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, grant, Some(host));
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<EnchantmentDuration>().is_some())
+        .and_then(|entity| entity.get::<GameEntityId>())
+        .copied()
+        .unwrap();
+    let bolt = hand_card(&mut simulation, PlayerId::One);
+
+    play_card(&mut simulation, PlayerId::One, bolt, Some(host));
+
+    let snapshot = simulation.snapshot();
+    assert_that!(
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id == host)
+            .unwrap()
+            .name,
+        eq("Transformed host"),
+    );
+    assert_that!(
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id == enchantment)
+            .unwrap()
+            .zone,
+        eq(Zone::RemovedFromGame),
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::TriggerSnapshot { candidates, .. }
+                if candidates.iter().any(|candidate| candidate.source == enchantment)
+        )),
+        is_true(),
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::TriggerAborted { source, .. } if *source == enchantment
+        )),
+        is_true(),
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::TriggerResolved { source, .. } if *source == enchantment
+        )),
+        is_false(),
+    );
+}
+
+#[googletest::test]
+fn silence_removes_only_trigger_enchantments_marked_removable() {
+    let grant = |name, silence_removable| {
+        Card::spell(name, 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![turn_end_trigger(PlayerSelector::Controller, Vec::new())],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable,
+        }])
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Removable host", 0, 1, 2),
+                Card::minion("Retained host", 0, 1, 2),
+                grant("Removable trigger", true),
+                grant("Retained trigger", false),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let removable_host = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, removable_host, None);
+    let retained_host = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, retained_host, None);
+    let removable_grant = hand_card(&mut simulation, PlayerId::One);
+    play_card(
+        &mut simulation,
+        PlayerId::One,
+        removable_grant,
+        Some(removable_host),
+    );
+    let removable = attached_enchantment(&simulation, removable_host);
+    let retained_grant = hand_card(&mut simulation, PlayerId::One);
+    play_card(
+        &mut simulation,
+        PlayerId::One,
+        retained_grant,
+        Some(retained_host),
+    );
+    let retained = attached_enchantment(&simulation, retained_host);
+    for host in [removable_host, retained_host] {
+        execute_effect(
+            simulation.app.world_mut(),
+            &EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: None,
+                origin: EffectOrigin::Other,
+            },
+            &Effect::Silence {
+                targets: Selector::Entity(host),
+            },
+        )
+        .unwrap();
+    }
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|object| object.id == removable)
+            .unwrap()
+            .zone,
+        eq(Zone::RemovedFromGame),
+    );
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|object| object.id == retained)
+            .unwrap()
+            .zone,
+        eq(Zone::Play),
+    );
+    let retained_entity = game_entity(simulation.app.world(), retained).unwrap();
+    let retained_host_entity = game_entity(simulation.app.world(), retained_host).unwrap();
+    assert_that!(
+        simulation.app.world().get::<AttachedTo>(retained_entity),
+        eq(Some(&AttachedTo(retained_host_entity))),
+    );
+    let turn_ended_event = simulation
+        .trace()
+        .iter()
+        .rev()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::TurnEnded,
+                ..
+            } => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let candidates = simulation
+        .trace()
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::TriggerSnapshot { event, candidates } if *event == turn_ended_event => {
+                Some(candidates)
+            }
+            _ => None,
+        })
+        .unwrap();
+    assert_that!(
+        candidates
+            .iter()
+            .any(|candidate| candidate.source == retained),
+        is_true(),
+    );
+    assert_that!(
+        candidates
+            .iter()
+            .any(|candidate| candidate.source == removable),
+        is_false(),
+    );
+}
+
+#[googletest::test]
+fn attached_trigger_uses_host_and_event_controller_context() {
+    let trigger = TriggerDefinition {
+        event: EventKind::TurnEnded,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventControllerIs(PlayerSelector::Controller),
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::DealDamage {
+            targets: Selector::AttachedEntity,
+            amount: ValueExpression::Constant(1),
+        }],
+    };
+    let grant =
+        Card::spell("Grant trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![trigger],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Host", 0, 1, 4), grant]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: host,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let grant = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: grant,
+            target: Some(host),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|object| object.id == host)
+            .unwrap()
+            .damage,
+        eq(1)
+    );
+
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::Two,
+        })
+        .unwrap();
+    assert_that!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|object| object.id == host)
+            .unwrap()
+            .damage,
+        eq(1)
+    );
+}
+
+#[googletest::test]
+fn attached_trigger_can_require_the_event_to_target_its_host() {
+    let trigger = TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![
+            TimedCondition {
+                timing: ConditionTiming::QueueTime,
+                condition: TriggerCondition::EventTargetsAttachedEntity,
+            },
+            TimedCondition {
+                timing: ConditionTiming::QueueTime,
+                condition: TriggerCondition::MinimumEntityCount {
+                    selector: Selector::AttachedEntity,
+                    count: 1,
+                },
+            },
+        ],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let grant =
+        Card::spell("Grant observer", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+            targets: Selector::DeclaredTarget,
+            triggers: vec![trigger],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        }]);
+    let bolt = || {
+        Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(1),
+        }])
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Host", 0, 1, 4),
+                Card::minion("Other", 0, 1, 4),
+                grant,
+                bolt(),
+                bolt(),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    let other = {
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: host,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        let other = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card: other,
+                target: None,
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+        other
+    };
+    for target in [host, other, host] {
+        let card = hand_card(&mut simulation, PlayerId::One);
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(target),
+                board_index: None,
+                choice: None,
+            })
+            .unwrap();
+    }
+
+    assert_that!(
+        player(simulation.app.world(), PlayerId::One)
+            .unwrap()
+            .1
+            .temporary_resources,
+        eq(1)
+    );
+}
 
 #[googletest::test]
 fn lethal_hero_state_is_irreversible_before_simultaneous_deathrattle_healing() {

@@ -4,14 +4,33 @@ pub(crate) use hearthstone_simulator_core::{AttachedTo, StatModifier};
 
 use crate::{
     AttachedEnchantments, AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, CostModifier,
-    CurrentStats, Damage, GameEntityId, HealthAuraCache, KeywordModifier, Keywords, PlayOrder,
-    Silenced, entity::game_entity,
+    CurrentStats, Damage, EnchantmentDuration, EntityKind, GameEntityId, HealthAuraCache,
+    KeywordModifier, Keywords, PlayOrder, Silenced, Zone, entity::game_entity,
 };
 
 use super::simulation::card_runtime::CardRuntime;
 
 #[cfg(test)]
 use crate::Keyword;
+
+pub(crate) fn assert_enchantment_invariants(world: &World) -> Result<(), String> {
+    for entity in world
+        .iter_entities()
+        .filter(|entity| entity.get::<EntityKind>() == Some(&EntityKind::Enchantment))
+    {
+        let id = entity
+            .get::<GameEntityId>()
+            .copied()
+            .ok_or_else(|| "enchantment lacks a logical ID".to_string())?;
+        if entity.get::<EnchantmentDuration>().is_none() {
+            return Err(format!("enchantment {id:?} lacks enchantment duration"));
+        }
+        if entity.get::<AttachedTo>().is_some() && entity.get::<Zone>() != Some(&Zone::Play) {
+            return Err(format!("attached enchantment {id:?} is not in Play"));
+        }
+    }
+    Ok(())
+}
 
 pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {

@@ -1,7 +1,7 @@
 use crate::{
-    Card, ContinuousEffectDefinition, CostModifier, ExtraTurnTiming, GameEntityId, HeroClass,
-    KeywordModifier, NativeEffectId, PlayerId, StatModifier, TemporaryDuration, Zone,
-    ZoneMovementKind,
+    Card, ContinuousEffectDefinition, CostModifier, EnchantmentDuration, ExtraTurnTiming,
+    GameEntityId, HeroClass, KeywordModifier, NativeEffectId, PlayerId, StatModifier,
+    TriggerDefinition, Zone, ZoneMovementKind,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -78,25 +78,28 @@ pub enum Effect {
     AttachStatModifier {
         targets: Selector,
         modifier: StatModifier,
-    },
-    AttachTemporaryStatModifier {
-        targets: Selector,
-        modifier: StatModifier,
-        duration: TemporaryDuration,
+        duration: EnchantmentDuration,
     },
     AttachKeywordModifier {
         targets: Selector,
         modifier: KeywordModifier,
-        duration: Option<TemporaryDuration>,
+        duration: EnchantmentDuration,
     },
     AttachCostModifier {
         targets: Selector,
         modifier: CostModifier,
-        duration: Option<TemporaryDuration>,
+        duration: EnchantmentDuration,
     },
     AttachContinuousEffect {
         targets: Selector,
         effect: ContinuousEffectDefinition,
+        silence_removable: bool,
+        duration: EnchantmentDuration,
+    },
+    AttachTriggerEnchantment {
+        targets: Selector,
+        triggers: Vec<TriggerDefinition>,
+        duration: EnchantmentDuration,
         silence_removable: bool,
     },
     Silence {
@@ -118,6 +121,7 @@ pub enum Effect {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Selector {
     Source,
+    AttachedEntity,
     DeclaredTarget,
     Entity(GameEntityId),
     FriendlyMinions,

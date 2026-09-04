@@ -4,10 +4,10 @@ use bevy::prelude::*;
 
 use crate::{
     AttachedTo, AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp,
-    CurrentStats, DamageRequest, EffectContext, EntityKind, EventContext, EventKind, GameAction,
-    GameEntityId, GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan, PlayerId,
-    ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers, ScheduledTurnKind,
-    SequenceStep, SimulationStatus, TemporaryDuration, TraceEntry, TurnSchedule, Zone,
+    CurrentStats, DamageRequest, EffectContext, EnchantmentDuration, EntityKind, EventContext,
+    EventKind, GameAction, GameEntityId, GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan,
+    PlayerId, ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers,
+    ScheduledTurnKind, SequenceStep, SimulationStatus, TraceEntry, TurnSchedule, Zone,
     ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::game_entity,
@@ -591,10 +591,15 @@ fn expire_temporary_effects(world: &mut World, ending_player: PlayerId, next_pla
     let expiring = world
         .iter_entities()
         .filter_map(|entity| {
-            let duration = *entity.get::<TemporaryDuration>()?;
+            let attached_to = entity.get::<AttachedTo>()?.0;
+            if entity.get::<Zone>() != Some(&Zone::Play) {
+                return None;
+            }
+            let duration = *entity.get::<EnchantmentDuration>()?;
             let expires = match duration {
-                TemporaryDuration::EndOfTurn(player) => player == ending_player,
-                TemporaryDuration::EndOfTurnSeries(player) => {
+                EnchantmentDuration::Permanent => false,
+                EnchantmentDuration::EndOfTurn(player) => player == ending_player,
+                EnchantmentDuration::EndOfTurnSeries(player) => {
                     player == ending_player && next_player != ending_player
                 }
             };
@@ -604,13 +609,13 @@ fn expire_temporary_effects(world: &mut World, ending_player: PlayerId, next_pla
             Some((
                 *entity.get::<GameEntityId>()?,
                 entity.get::<Controller>()?.0,
-                entity.get::<AttachedTo>().map(|attached| attached.0),
+                attached_to,
                 entity.id(),
             ))
         })
         .collect::<Vec<_>>();
     for (id, controller, attached_to, entity) in expiring {
-        let target = attached_to.and_then(|target| world.get::<GameEntityId>(target).copied());
+        let target = world.get::<GameEntityId>(attached_to).copied();
         world.entity_mut(entity).remove::<AttachedTo>();
         let _ = move_entity_with_request(
             world,

@@ -25,6 +25,8 @@ pub enum SimulationError {
     NotPlayable(GameEntityId),
     #[error("invalid hero replacement: {0}")]
     InvalidHeroReplacement(String),
+    #[error("invalid trigger enchantment: {0}")]
+    InvalidTriggerEnchantment(String),
     #[error("player {player:?} needs {required} mana but only has {available}")]
     NotEnoughMana {
         player: PlayerId,

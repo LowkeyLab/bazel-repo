@@ -2,8 +2,9 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttackState, AuraDefinition, AuraModifier, AuraTarget, HeroClass, HeroClassPolicy,
-    HeroHealthPolicy, HeroPowerState, HeroReplacement, OtherAuraCache, OtherAuraModifier,
+    AttackState, AuraDefinition, AuraModifier, AuraTarget, EnchantmentDuration, HeroClass,
+    HeroClassPolicy, HeroHealthPolicy, HeroPowerState, HeroReplacement, OtherAuraCache,
+    OtherAuraModifier,
 };
 
 fn replacement(
@@ -77,6 +78,7 @@ fn hero_replacement_preserves_combat_state_and_refreshes_the_power() {
             health: 2,
             silence_removable: true,
         },
+        EnchantmentDuration::Permanent,
     )
     .unwrap();
     let weapon = spawn_card(
@@ -182,7 +184,7 @@ fn hero_power_replacement_recalculates_cost_after_detaching_modifiers() {
                 value: -1,
                 silence_removable: false,
             },
-            duration: None,
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();

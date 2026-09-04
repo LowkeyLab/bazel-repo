@@ -3,8 +3,8 @@ use bevy::prelude::{Entity, World};
 pub(crate) use hearthstone_simulator_core::ConditionTiming;
 
 use crate::{
-    Controller, DominantPlayer, EntityKind, EventContext, EventId, EventKind, GameEntityId,
-    PlayOrder, PlayerId, PlayerSelector, RuntimeTriggers, Selector, Silenced,
+    AttachedTo, Controller, DominantPlayer, EntityKind, EventContext, EventId, EventKind,
+    GameEntityId, PlayOrder, PlayerId, PlayerSelector, RuntimeTriggers, Selector, Silenced,
     SourceEligibilityPolicy, TriggerCandidate, TriggerCondition, TriggerOrderKey, TriggerSeed,
     Zone, entity::game_entity, zone::ZoneIndex,
 };
@@ -177,6 +177,18 @@ fn evaluate_condition(
         TriggerCondition::EventTargetsSelf => {
             event.is_some_and(|event| event.targets.contains(&source_id))
         }
+        TriggerCondition::EventTargetsAttachedEntity => source
+            .and_then(|source| world.get::<AttachedTo>(source))
+            .and_then(|attached| world.get::<GameEntityId>(attached.0))
+            .is_some_and(|attached| event.is_some_and(|event| event.targets.contains(attached))),
+        TriggerCondition::EventControllerIs(player) => event.is_some_and(|event| {
+            let expected = match player {
+                PlayerSelector::Controller => current_controller,
+                PlayerSelector::Opponent => current_controller.opponent(),
+                PlayerSelector::Player(player) => *player,
+            };
+            event.controller == expected
+        }),
         TriggerCondition::ControllerIs(player) => current_controller == *player,
         TriggerCondition::MinimumEntityCount { selector, count } => {
             selector_count(world, source_id, current_controller, event, selector) >= *count
@@ -193,6 +205,12 @@ fn selector_count(
 ) -> usize {
     match selector {
         Selector::Source => usize::from(game_entity(world, source).is_some()),
+        Selector::AttachedEntity => usize::from(
+            game_entity(world, source)
+                .and_then(|source| world.get::<AttachedTo>(source))
+                .and_then(|attached| world.get::<GameEntityId>(attached.0))
+                .is_some(),
+        ),
         Selector::DeclaredTarget => usize::from(
             event
                 .and_then(|event| event.targets.first())
@@ -344,6 +362,60 @@ mod tests {
         let seeds = collect_trigger_seeds(&world, &event);
         let candidates = collect_trigger_candidates(&world, EventId(1), &event, &seeds);
         assert_that!(candidates[0].controller, eq(PlayerId::One));
+
+        world.entity_mut(source).insert(Controller(PlayerId::Two));
+
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &candidates[0],
+                &event,
+                ConditionTiming::ResolutionTime
+            ),
+            is_true()
+        );
+    }
+
+    #[googletest::test]
+    fn resolution_time_event_controller_condition_uses_the_live_source_controller() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.init_resource::<DominantPlayer>();
+        let mut trigger = definition();
+        trigger.conditions.push(TimedCondition {
+            timing: ConditionTiming::ResolutionTime,
+            condition: TriggerCondition::EventControllerIs(PlayerSelector::Controller),
+        });
+        let source = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                Controller(PlayerId::One),
+                Zone::Play,
+                RuntimeTriggers(vec![trigger]),
+            ))
+            .id();
+        let event = EventContext {
+            kind: EventKind::Damage,
+            source: None,
+            targets: Vec::new(),
+            controller: PlayerId::Two,
+            proposed_value: None,
+            actual_value: Some(1),
+            simultaneous_ordinal: 0,
+        };
+        let seeds = collect_trigger_seeds(&world, &event);
+        let candidates = collect_trigger_candidates(&world, EventId(1), &event, &seeds);
+
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &candidates[0],
+                &event,
+                ConditionTiming::ResolutionTime
+            ),
+            is_false()
+        );
 
         world.entity_mut(source).insert(Controller(PlayerId::Two));
 

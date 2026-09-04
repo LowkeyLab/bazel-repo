@@ -7,8 +7,8 @@ pub(crate) use hearthstone_simulator_core::{
 use crate::{
     Armor, AttachedTo, AttackAuraCache, AttackState, BaseKeywords, BaseStats, Controller,
     CurrentStats, Damage, DefinitionId, EntityKind, GameEntityId, HealthAuraCache,
-    KeepEnchantments, Keywords, OtherAuraCache, PendingDestroy, PlayerId, Ruleset, Silenced,
-    TemporaryDuration, Zone, ZonePosition,
+    KeepEnchantments, Keywords, OtherAuraCache, PendingDestroy, PlayerId, Ruleset, Silenced, Zone,
+    ZonePosition,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_play_order, game_entity},
 };
@@ -417,12 +417,6 @@ fn move_to_graveyard_after_failed_move(
 }
 
 fn apply_movement_state_policy(world: &mut World, request: ZoneMoveRequest, source: Zone) {
-    if request.kind == ZoneMovementKind::DetachEnchantment
-        && let Some(entity) = game_entity(world, request.entity)
-    {
-        world.entity_mut(entity).remove::<TemporaryDuration>();
-    }
-
     if request.destination == Zone::Play && source != Zone::Play {
         let order = allocate_play_order(world);
         if let Some(entity) = game_entity(world, request.entity) {

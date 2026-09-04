@@ -1,6 +1,6 @@
 use bevy::prelude::Component;
 
-use crate::{Effect, EventId, EventKind, GameEntityId, PlayerId, Selector, Zone};
+use crate::{Effect, EventId, EventKind, GameEntityId, PlayerId, PlayerSelector, Selector, Zone};
 
 #[derive(
     Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
@@ -19,6 +19,8 @@ pub enum TriggerCondition {
     EventValueAtLeast(i32),
     EventSourceIsSelf,
     EventTargetsSelf,
+    EventTargetsAttachedEntity,
+    EventControllerIs(PlayerSelector),
     ControllerIs(PlayerId),
     MinimumEntityCount { selector: Selector, count: usize },
 }

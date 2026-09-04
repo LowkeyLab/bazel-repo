@@ -6,20 +6,23 @@ use crate::{
     Abilities, Armor, AttackAuraCache, AttackState, BaseKeywords, BaseStats,
     CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, CardRuntimeCheckpoint, Controller, CostModifier,
     CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
-    DisplayName, DominantPlayer, Enchantments, EntityKind, GameEntityCheckpoint, GameEntityId,
-    GameObject, GameState, HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments,
-    KeywordModifier, Keywords, OtherAuraCache, PlayOrder, Player, PlayerId, ResolutionWork,
-    Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, SilenceRemovable, Silenced,
-    SimulationCheckpoint, StatModifier, TemporaryDuration, TurnSchedule, Zone,
+    DisplayName, DominantPlayer, EnchantmentDuration, Enchantments, EntityKind,
+    GameEntityCheckpoint, GameEntityId, GameObject, GameState, HealthAuraCache, HeroMetadata,
+    HeroPowerState, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache, PlayOrder, Player,
+    PlayerId, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
+    SilenceRemovable, Silenced, SimulationCheckpoint, StatModifier, TurnSchedule, Zone,
     death::{DefeatedHeroes, PendingDeaths},
-    enchantment::AttachedTo,
+    enchantment::{AttachedTo, assert_enchantment_invariants},
     entity::{NextGameEntityId, PlayOrderCounter, game_entity},
     zone::{assert_zone_invariants, insert_into_zone},
 };
 
 use super::{
-    card_runtime::CardRuntime, effect_executor::validate_effect_program, error::SimulationError,
-    player::assert_player_role_invariants, snapshot::assert_game_entity_index,
+    card_runtime::CardRuntime,
+    effect_executor::{validate_effect_program, validate_trigger_enchantment},
+    error::SimulationError,
+    player::assert_player_role_invariants,
+    snapshot::assert_game_entity_index,
 };
 
 pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, SimulationError> {
@@ -86,7 +89,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                 stat_modifier: entity.get::<StatModifier>().copied(),
                 keyword_modifier: entity.get::<KeywordModifier>().copied(),
                 cost_modifier: entity.get::<CostModifier>().copied(),
-                temporary_duration: entity.get::<TemporaryDuration>().copied(),
+                enchantment_duration: entity.get::<EnchantmentDuration>().copied(),
                 health_aura_cache: entity.get::<HealthAuraCache>().cloned(),
                 attack_aura_cache: entity.get::<AttackAuraCache>().cloned(),
                 other_aura_cache: entity.get::<OtherAuraCache>().cloned(),
@@ -184,6 +187,7 @@ pub(super) fn restore_checkpoint(
     }
 
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
+    assert_enchantment_invariants(world).map_err(SimulationError::Invariant)?;
     assert_player_role_invariants(world).map_err(SimulationError::Invariant)?;
     crate::resolver::assert_resolution_invariants(world).map_err(SimulationError::Invariant)?;
     assert_game_entity_index(world).map_err(SimulationError::Invariant)
@@ -280,7 +284,7 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
     if let Some(value) = object.cost_modifier {
         entity.insert(value);
     }
-    if let Some(value) = object.temporary_duration {
+    if let Some(value) = object.enchantment_duration {
         entity.insert(value);
     }
     if let Some(value) = &object.health_aura_cache {
@@ -298,6 +302,18 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
 }
 
 fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
+    for entity in world.iter_entities().filter(|entity| {
+        entity.get::<EntityKind>() == Some(&EntityKind::Enchantment)
+            && entity.contains::<RuntimeTriggers>()
+    }) {
+        validate_trigger_enchantment(
+            world,
+            &entity
+                .get::<RuntimeTriggers>()
+                .expect("filtered trigger enchantment has runtime triggers")
+                .0,
+        )?;
+    }
     // Dormant card programs remain legal without registrations: normal action validation rejects
     // them before mutation. Only already-retained resolution work must be executable immediately.
     let resolution = world.resource::<ResolutionWork>();
@@ -563,6 +579,21 @@ fn validate_checkpoint_entity(
     entity: &GameEntityCheckpoint,
     ids: &BTreeSet<GameEntityId>,
 ) -> Result<(), SimulationError> {
+    if entity.kind == Some(EntityKind::Enchantment) && entity.enchantment_duration.is_none() {
+        return Err(SimulationError::Checkpoint(format!(
+            "enchantment {:?} lacks enchantment duration",
+            entity.id
+        )));
+    }
+    if entity.kind == Some(EntityKind::Enchantment)
+        && entity.attached_to.is_some()
+        && entity.zone != Some(Zone::Play)
+    {
+        return Err(SimulationError::Checkpoint(format!(
+            "attached enchantment {:?} is not in Play",
+            entity.id
+        )));
+    }
     if entity.zone.is_some() && (entity.controller.is_none() || entity.zone_position.is_none()) {
         return Err(SimulationError::Checkpoint(format!(
             "zoned entity {:?} lacks a controller or position",

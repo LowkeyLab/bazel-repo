@@ -3,12 +3,12 @@ use bevy::prelude::*;
 use crate::{
     Armor, AttachedTo, AttackState, BaseKeywords, BaseStats, CanonicalTrace, Card, Controller,
     CostModifier, CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, Effect,
-    EffectContext, EntityKind, EventId, EventKind, EventValueOperation, GameEntityId,
-    HealingRequest, HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState,
+    EffectContext, EnchantmentDuration, EntityKind, EventId, EventKind, EventValueOperation,
+    GameEntityId, HealingRequest, HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState,
     HeroReplacement, KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector,
     ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    Selector, SilenceRemovable, Silenced, StatModifier, TraceEntry, ValueExpression, Zone,
-    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier, TraceEntry,
+    ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
@@ -269,23 +269,13 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
-        Effect::AttachStatModifier { targets, modifier } => {
-            for target in select_entities(world, context, targets) {
-                attach_stat_modifier(world, context.controller, target, *modifier)?;
-            }
-            Ok(())
-        }
-        Effect::AttachTemporaryStatModifier {
+        Effect::AttachStatModifier {
             targets,
             modifier,
             duration,
         } => {
             for target in select_entities(world, context, targets) {
-                let enchantment =
-                    attach_stat_modifier(world, context.controller, target, *modifier)?;
-                let entity = game_entity(world, enchantment)
-                    .expect("new temporary enchantment remains indexed");
-                world.entity_mut(entity).insert(*duration);
+                attach_stat_modifier(world, context.controller, target, *modifier, *duration)?;
             }
             Ok(())
         }
@@ -313,6 +303,7 @@ pub(super) fn execute_effect_operation(
             targets,
             effect,
             silence_removable,
+            duration,
         } => {
             for target in select_entities(world, context, targets) {
                 attach_continuous_effect(
@@ -320,8 +311,32 @@ pub(super) fn execute_effect_operation(
                     context.controller,
                     target,
                     *effect,
+                    *duration,
                     *silence_removable,
                 )?;
+            }
+            Ok(())
+        }
+        Effect::AttachTriggerEnchantment {
+            targets,
+            triggers,
+            duration,
+            silence_removable,
+        } => {
+            validate_trigger_enchantment(world, triggers)?;
+            for target in select_entities(world, context, targets) {
+                let (_, entity) = spawn_attached_enchantment(
+                    world,
+                    context.controller,
+                    target,
+                    "synthetic:trigger_enchantment",
+                    "Trigger enchantment",
+                    *duration,
+                    *silence_removable,
+                )?;
+                world
+                    .entity_mut(entity)
+                    .insert(RuntimeTriggers(triggers.clone()));
             }
             Ok(())
         }
@@ -407,8 +422,41 @@ pub(super) fn validate_effect_program(
             Effect::ReplaceHero { replacement, .. } => {
                 validate_hero_replacement(world, replacement)?;
             }
+            Effect::AttachTriggerEnchantment { triggers, .. } => {
+                validate_trigger_enchantment(world, triggers)?;
+            }
             _ => {}
         }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_trigger_enchantment(
+    world: &World,
+    triggers: &[hearthstone_simulator_core::TriggerDefinition],
+) -> Result<(), SimulationError> {
+    if triggers.is_empty() {
+        return Err(SimulationError::InvalidTriggerEnchantment(
+            "at least one trigger is required".to_string(),
+        ));
+    }
+    for trigger in triggers {
+        if trigger.event == EventKind::Death {
+            return Err(SimulationError::InvalidTriggerEnchantment(
+                "added Deathrattles are not supported".to_string(),
+            ));
+        }
+        if trigger.eligible_zones.as_slice() != [Zone::Play] {
+            return Err(SimulationError::InvalidTriggerEnchantment(
+                "eligible zones must be exactly [Play]".to_string(),
+            ));
+        }
+        if trigger.source_eligibility != SourceEligibilityPolicy::MustRemainInEligibleZone {
+            return Err(SimulationError::InvalidTriggerEnchantment(
+                "source must remain in Play".to_string(),
+            ));
+        }
+        validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
     Ok(())
 }
@@ -674,23 +722,18 @@ pub(super) fn attach_stat_modifier(
     controller: PlayerId,
     target: GameEntityId,
     modifier: StatModifier,
+    duration: EnchantmentDuration,
 ) -> Result<GameEntityId, SimulationError> {
-    let target_entity =
-        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let id = allocate_game_id(world);
-    let order = allocate_play_order(world);
-    world.spawn((
-        id,
-        DefinitionId("synthetic:stat_modifier".to_string()),
-        EntityKind::Enchantment,
-        Controller(controller),
-        DisplayName("Stat modifier".to_string()),
-        order,
-        modifier,
-        AttachedTo(target_entity),
-    ));
-    insert_into_zone(world, id, controller, Zone::SetAside, None)
-        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
+    let (id, entity) = spawn_attached_enchantment(
+        world,
+        controller,
+        target,
+        "synthetic:stat_modifier",
+        "Stat modifier",
+        duration,
+        modifier.silence_removable,
+    )?;
+    world.entity_mut(entity).insert(modifier);
     recalculate_stats(world, target);
     Ok(id)
 }
@@ -700,32 +743,18 @@ pub(super) fn attach_keyword_modifier(
     controller: PlayerId,
     target: GameEntityId,
     modifier: KeywordModifier,
-    duration: Option<crate::TemporaryDuration>,
+    duration: EnchantmentDuration,
 ) -> Result<GameEntityId, SimulationError> {
-    let target_entity =
-        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let id = allocate_game_id(world);
-    let order = allocate_play_order(world);
-    let entity = world
-        .spawn((
-            id,
-            DefinitionId("synthetic:keyword_modifier".to_string()),
-            EntityKind::Enchantment,
-            Controller(controller),
-            DisplayName("Keyword modifier".to_string()),
-            order,
-            modifier,
-            AttachedTo(target_entity),
-        ))
-        .id();
-    if modifier.silence_removable {
-        world.entity_mut(entity).insert(SilenceRemovable);
-    }
-    if let Some(duration) = duration {
-        world.entity_mut(entity).insert(duration);
-    }
-    insert_into_zone(world, id, controller, Zone::SetAside, None)
-        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
+    let (id, entity) = spawn_attached_enchantment(
+        world,
+        controller,
+        target,
+        "synthetic:keyword_modifier",
+        "Keyword modifier",
+        duration,
+        modifier.silence_removable,
+    )?;
+    world.entity_mut(entity).insert(modifier);
     recalculate_keywords(world, target);
     Ok(id)
 }
@@ -735,32 +764,18 @@ pub(super) fn attach_cost_modifier(
     controller: PlayerId,
     target: GameEntityId,
     modifier: CostModifier,
-    duration: Option<crate::TemporaryDuration>,
+    duration: EnchantmentDuration,
 ) -> Result<GameEntityId, SimulationError> {
-    let target_entity =
-        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let id = allocate_game_id(world);
-    let order = allocate_play_order(world);
-    let entity = world
-        .spawn((
-            id,
-            DefinitionId("synthetic:cost_modifier".to_string()),
-            EntityKind::Enchantment,
-            Controller(controller),
-            DisplayName("Cost modifier".to_string()),
-            order,
-            modifier,
-            AttachedTo(target_entity),
-        ))
-        .id();
-    if modifier.silence_removable {
-        world.entity_mut(entity).insert(SilenceRemovable);
-    }
-    if let Some(duration) = duration {
-        world.entity_mut(entity).insert(duration);
-    }
-    insert_into_zone(world, id, controller, Zone::SetAside, None)
-        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
+    let (id, entity) = spawn_attached_enchantment(
+        world,
+        controller,
+        target,
+        "synthetic:cost_modifier",
+        "Cost modifier",
+        duration,
+        modifier.silence_removable,
+    )?;
+    world.entity_mut(entity).insert(modifier);
     recalculate_cost(world, target);
     Ok(id)
 }
@@ -770,8 +785,33 @@ pub(super) fn attach_continuous_effect(
     controller: PlayerId,
     target: GameEntityId,
     effect: crate::ContinuousEffectDefinition,
+    duration: EnchantmentDuration,
     silence_removable: bool,
 ) -> Result<(), SimulationError> {
+    let (_, entity) = spawn_attached_enchantment(
+        world,
+        controller,
+        target,
+        "synthetic:continuous_modifier",
+        "Continuous modifier",
+        duration,
+        silence_removable,
+    )?;
+    world
+        .entity_mut(entity)
+        .insert(RuntimeContinuousEffects(vec![effect]));
+    Ok(())
+}
+
+fn spawn_attached_enchantment(
+    world: &mut World,
+    controller: PlayerId,
+    target: GameEntityId,
+    definition_id: &str,
+    display_name: &str,
+    duration: EnchantmentDuration,
+    silence_removable: bool,
+) -> Result<(GameEntityId, Entity), SimulationError> {
     let target_entity =
         game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
     let id = allocate_game_id(world);
@@ -779,21 +819,21 @@ pub(super) fn attach_continuous_effect(
     let entity = world
         .spawn((
             id,
-            DefinitionId("synthetic:continuous_modifier".to_string()),
+            DefinitionId(definition_id.to_string()),
             EntityKind::Enchantment,
             Controller(controller),
-            DisplayName("Continuous modifier".to_string()),
+            DisplayName(display_name.to_string()),
             order,
-            RuntimeContinuousEffects(vec![effect]),
+            duration,
             AttachedTo(target_entity),
         ))
         .id();
     if silence_removable {
         world.entity_mut(entity).insert(SilenceRemovable);
     }
-    insert_into_zone(world, id, controller, Zone::SetAside, None)
-        .expect("a newly indexed enchantment must fit in the unbounded SetAside zone");
-    Ok(())
+    insert_into_zone(world, id, controller, Zone::Play, None)
+        .expect("an attached enchantment must fit in the unbounded Play zone");
+    Ok((id, entity))
 }
 
 pub(super) fn silence_entity(
@@ -949,6 +989,14 @@ pub(super) fn select_entities(
 ) -> Vec<GameEntityId> {
     let mut selected = match selector {
         Selector::Source => context.source.into_iter().collect(),
+        Selector::AttachedEntity => context
+            .source
+            .and_then(|source| game_entity(world, source))
+            .and_then(|source| world.get::<AttachedTo>(source))
+            .and_then(|attached| world.get::<GameEntityId>(attached.0))
+            .copied()
+            .into_iter()
+            .collect(),
         Selector::DeclaredTarget => context.declared_target.into_iter().collect(),
         Selector::Entity(entity) => vec![*entity],
         Selector::InZone { player, zone } => world
