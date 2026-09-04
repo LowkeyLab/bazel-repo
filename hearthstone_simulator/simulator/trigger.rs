@@ -377,6 +377,60 @@ mod tests {
     }
 
     #[googletest::test]
+    fn resolution_time_event_controller_condition_uses_the_live_source_controller() {
+        let mut world = World::new();
+        world.init_resource::<GameEntityIndex>();
+        world.init_resource::<DominantPlayer>();
+        let mut trigger = definition();
+        trigger.conditions.push(TimedCondition {
+            timing: ConditionTiming::ResolutionTime,
+            condition: TriggerCondition::EventControllerIs(PlayerSelector::Controller),
+        });
+        let source = world
+            .spawn((
+                GameObject,
+                GameEntityId(1),
+                Controller(PlayerId::One),
+                Zone::Play,
+                RuntimeTriggers(vec![trigger]),
+            ))
+            .id();
+        let event = EventContext {
+            kind: EventKind::Damage,
+            source: None,
+            targets: Vec::new(),
+            controller: PlayerId::Two,
+            proposed_value: None,
+            actual_value: Some(1),
+            simultaneous_ordinal: 0,
+        };
+        let seeds = collect_trigger_seeds(&world, &event);
+        let candidates = collect_trigger_candidates(&world, EventId(1), &event, &seeds);
+
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &candidates[0],
+                &event,
+                ConditionTiming::ResolutionTime
+            ),
+            is_false()
+        );
+
+        world.entity_mut(source).insert(Controller(PlayerId::Two));
+
+        assert_that!(
+            trigger_is_eligible(
+                &world,
+                &candidates[0],
+                &event,
+                ConditionTiming::ResolutionTime
+            ),
+            is_true()
+        );
+    }
+
+    #[googletest::test]
     fn conditions_selectors_source_policies_and_zone_buckets_cover_the_domain() {
         let mut world = World::new();
         world.init_resource::<GameEntityIndex>();

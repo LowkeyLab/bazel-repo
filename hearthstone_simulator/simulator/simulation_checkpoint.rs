@@ -18,8 +18,11 @@ use crate::{
 };
 
 use super::{
-    card_runtime::CardRuntime, effect_executor::validate_effect_program, error::SimulationError,
-    player::assert_player_role_invariants, snapshot::assert_game_entity_index,
+    card_runtime::CardRuntime,
+    effect_executor::{validate_effect_program, validate_trigger_enchantment},
+    error::SimulationError,
+    player::assert_player_role_invariants,
+    snapshot::assert_game_entity_index,
 };
 
 pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, SimulationError> {
@@ -299,6 +302,18 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
 }
 
 fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
+    for entity in world.iter_entities().filter(|entity| {
+        entity.get::<EntityKind>() == Some(&EntityKind::Enchantment)
+            && entity.contains::<RuntimeTriggers>()
+    }) {
+        validate_trigger_enchantment(
+            world,
+            &entity
+                .get::<RuntimeTriggers>()
+                .expect("filtered trigger enchantment has runtime triggers")
+                .0,
+        )?;
+    }
     // Dormant card programs remain legal without registrations: normal action validation rejects
     // them before mutation. Only already-retained resolution work must be executable immediately.
     let resolution = world.resource::<ResolutionWork>();

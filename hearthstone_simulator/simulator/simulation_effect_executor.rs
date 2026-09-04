@@ -431,7 +431,7 @@ pub(super) fn validate_effect_program(
     Ok(())
 }
 
-fn validate_trigger_enchantment(
+pub(super) fn validate_trigger_enchantment(
     world: &World,
     triggers: &[hearthstone_simulator_core::TriggerDefinition],
 ) -> Result<(), SimulationError> {

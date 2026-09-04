@@ -528,6 +528,235 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
 }
 
 #[googletest::test]
+fn schema_six_json_roundtrip_preserves_trigger_enchantment_payloads() {
+    let trigger = crate::TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Permanent host", 0, 1, 1),
+                Card::minion("Timed host", 0, 1, 1),
+                Card::minion("Removed host", 0, 1, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let hosts = simulation.snapshot().players[0].hand.clone();
+    let [permanent_host, timed_host, removed_host] = hosts.as_slice() else {
+        panic!("fixture should have exactly three host cards");
+    };
+    let (permanent_host, timed_host, removed_host) = (*permanent_host, *timed_host, *removed_host);
+
+    let mut attach = |host, controller, duration| {
+        execute_effect(
+            simulation.app.world_mut(),
+            &EffectContext {
+                source: None,
+                controller,
+                declared_target: None,
+                origin: EffectOrigin::Other,
+            },
+            &Effect::AttachTriggerEnchantment {
+                targets: Selector::Entity(host),
+                triggers: vec![trigger.clone()],
+                duration,
+                silence_removable: true,
+            },
+        )
+        .unwrap();
+        let host_entity = game_entity(simulation.app.world(), host).unwrap();
+        simulation
+            .app
+            .world()
+            .iter_entities()
+            .find(|entity| {
+                entity.get::<crate::AttachedTo>().map(|attached| attached.0) == Some(host_entity)
+                    && entity.contains::<RuntimeTriggers>()
+            })
+            .and_then(|entity| entity.get::<GameEntityId>())
+            .copied()
+            .unwrap()
+    };
+    let permanent = attach(
+        permanent_host,
+        PlayerId::One,
+        EnchantmentDuration::Permanent,
+    );
+    let timed = attach(
+        timed_host,
+        PlayerId::Two,
+        EnchantmentDuration::EndOfTurn(PlayerId::Two),
+    );
+    let removed = attach(
+        removed_host,
+        PlayerId::One,
+        EnchantmentDuration::EndOfTurnSeries(PlayerId::One),
+    );
+    silence_entity(simulation.app.world_mut(), removed_host).unwrap();
+
+    let checkpoint = simulation.checkpoint().unwrap();
+    assert_that!(checkpoint.schema_version, eq(6));
+    for (id, controller, zone, duration, attached_to) in [
+        (
+            permanent,
+            PlayerId::One,
+            Zone::Play,
+            EnchantmentDuration::Permanent,
+            Some(permanent_host),
+        ),
+        (
+            timed,
+            PlayerId::Two,
+            Zone::Play,
+            EnchantmentDuration::EndOfTurn(PlayerId::Two),
+            Some(timed_host),
+        ),
+        (
+            removed,
+            PlayerId::One,
+            Zone::RemovedFromGame,
+            EnchantmentDuration::EndOfTurnSeries(PlayerId::One),
+            None,
+        ),
+    ] {
+        let entity = checkpoint
+            .entities
+            .iter()
+            .find(|entity| entity.id == id)
+            .unwrap();
+        assert_that!(entity.runtime_triggers, eq(&Some(vec![trigger.clone()])));
+        assert_that!(entity.enchantment_duration, eq(Some(duration)));
+        assert_that!(entity.controller, eq(Some(controller)));
+        assert_that!(entity.zone, eq(Some(zone)));
+        assert_that!(entity.play_order.is_some(), is_true());
+        assert_that!(entity.attached_to, eq(attached_to));
+    }
+
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+    assert_that!(decoded, eq(&checkpoint));
+    let restored = Simulation::from_checkpoint(decoded).unwrap();
+    assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+}
+
+#[googletest::test]
+fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantments() {
+    let ordinary_death_trigger = crate::TriggerDefinition {
+        event: EventKind::Death,
+        eligible_zones: vec![Zone::Graveyard],
+        conditions: Vec::new(),
+        source_eligibility: crate::SourceEligibilityPolicy::RememberedSource,
+        priority: 0,
+        wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+        effect_program: Vec::new(),
+    };
+    let valid_trigger = crate::TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: Vec::new(),
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Ordinary Death trigger", 0, 1, 1)
+                    .with_triggers(vec![ordinary_death_trigger]),
+                Card::minion("Enchantment host", 0, 1, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let _ordinary = hand_card(&mut simulation, PlayerId::One);
+    let host = hand_card(&mut simulation, PlayerId::One);
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachTriggerEnchantment {
+            targets: Selector::Entity(host),
+            triggers: vec![valid_trigger.clone()],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        },
+    )
+    .unwrap();
+    let base = simulation.checkpoint().unwrap();
+    Simulation::from_checkpoint(base.clone()).unwrap();
+
+    let mut empty = base.clone();
+    empty
+        .entities
+        .iter_mut()
+        .find(|entity| entity.kind == Some(EntityKind::Enchantment))
+        .unwrap()
+        .runtime_triggers = Some(Vec::new());
+
+    let mut death = valid_trigger.clone();
+    death.event = EventKind::Death;
+    let mut death_checkpoint = base.clone();
+    death_checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.kind == Some(EntityKind::Enchantment))
+        .unwrap()
+        .runtime_triggers = Some(vec![death]);
+
+    let mut wrong_zone = valid_trigger.clone();
+    wrong_zone.eligible_zones = vec![Zone::Hand];
+    let mut wrong_zone_checkpoint = base.clone();
+    wrong_zone_checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.kind == Some(EntityKind::Enchantment))
+        .unwrap()
+        .runtime_triggers = Some(vec![wrong_zone]);
+
+    let mut remembered = valid_trigger;
+    remembered.source_eligibility = crate::SourceEligibilityPolicy::RememberedSource;
+    let mut remembered_checkpoint = base;
+    remembered_checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.kind == Some(EntityKind::Enchantment))
+        .unwrap()
+        .runtime_triggers = Some(vec![remembered]);
+
+    for checkpoint in [
+        empty,
+        death_checkpoint,
+        wrong_zone_checkpoint,
+        remembered_checkpoint,
+    ] {
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(
+                SimulationError::InvalidTriggerEnchantment(_)
+            )),
+        );
+    }
+}
+
+#[googletest::test]
 fn checkpoints_reject_enchantments_without_durations_and_schema_version_five() {
     let mut simulation = simulation();
     let target = hand_card(&mut simulation, PlayerId::One);
