@@ -2,8 +2,9 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttackState, CurrentStats, EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy,
-    HeroReplacement, KeepEnchantments, KeywordModifier, PhaseBoundaryPlan, ZoneMoveOutcome,
+    AttachedTo, AttackState, ContinuousEffectDefinition, ContinuousModifier, CurrentStats,
+    EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy, HeroReplacement, KeepEnchantments,
+    KeywordModifier, PhaseBoundaryPlan, PlayerAudience, RuntimeContinuousEffects, ZoneMoveOutcome,
     ZoneMoveRequest, ZoneMovementKind,
 };
 
@@ -399,6 +400,88 @@ fn keep_enchantments_preserves_attached_modifiers_during_backward_movement() {
             .filter(|object| object.kind == EntityKind::Enchantment)
             .all(|object| object.zone == Zone::Play),
         is_true()
+    );
+}
+
+#[googletest::test]
+fn kept_continuous_effect_is_inactive_while_its_host_is_off_board() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Persistent", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let persistent = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: persistent,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let persistent_entity = game_entity(simulation.app.world(), persistent).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(persistent_entity)
+        .insert(KeepEnchantments);
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachContinuousEffect {
+            targets: Selector::Entity(persistent),
+            effect: ContinuousEffectDefinition {
+                recipients: PlayerAudience::Controller,
+                modifier: ContinuousModifier::SpellDamage(2),
+            },
+            silence_removable: true,
+            duration: EnchantmentDuration::Permanent,
+        },
+    )
+    .unwrap();
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| {
+            entity.get::<AttachedTo>().map(|attached| attached.0) == Some(persistent_entity)
+                && entity.get::<RuntimeContinuousEffects>().is_some()
+        })
+        .unwrap()
+        .id();
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(2)
+    );
+
+    crate::zone::move_entity_with_request(
+        simulation.app.world_mut(),
+        ZoneMoveRequest {
+            entity: persistent,
+            destination_controller: PlayerId::One,
+            destination: Zone::Hand,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+    .unwrap();
+
+    assert_that!(
+        simulation.app.world().get::<AttachedTo>(enchantment),
+        eq(Some(&AttachedTo(persistent_entity)))
+    );
+    assert_that!(
+        simulation.app.world().get::<Zone>(enchantment),
+        eq(Some(&Zone::Play))
+    );
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(0)
     );
 }
 
