@@ -7,7 +7,7 @@
     "com.google.errorprone:error_prone_annotations": 950460708,
     "com.google.guava:guava": -2079284723,
     "com.google.j2objc:j2objc-annotations": 2003271689,
-    "com.h2database:h2": 867138720,
+    "com.h2database:h2": 377222208,
     "com.jayway.jsonpath:json-path": -630573646,
     "io.ktor:ktor-client-content-negotiation-jvm": -1725104702,
     "io.ktor:ktor-client-websockets-jvm": 1336926361,
@@ -69,9 +69,9 @@
     "com.google.j2objc:j2objc-annotations": -1008747351,
     "com.google.j2objc:j2objc-annotations:jar:javadoc": -1682815856,
     "com.google.j2objc:j2objc-annotations:jar:sources": -1518668002,
-    "com.h2database:h2": 1660949213,
-    "com.h2database:h2:jar:javadoc": 768703835,
-    "com.h2database:h2:jar:sources": 446387355,
+    "com.h2database:h2": -552414482,
+    "com.h2database:h2:jar:javadoc": 1577612505,
+    "com.h2database:h2:jar:sources": 1071831572,
     "com.jayway.jsonpath:json-path": 936586710,
     "com.jayway.jsonpath:json-path:jar:javadoc": 169505908,
     "com.jayway.jsonpath:json-path:jar:sources": -2145126200,
@@ -500,11 +500,11 @@
     },
     "com.h2database:h2": {
       "shasums": {
-        "jar": "29b70e427cc1c40cdc376283adbb0cc62853073797bb5fe5761f81fe73d57ce0",
-        "javadoc": "ba0248012a91a0cb7bbbfbf00488384cd1e8d09526411fad11f0d87aeecbd01e",
-        "sources": "a853be74b3f6d63438c53d19e2c368f158ee622499422ba586d1f8bc17b843e2"
+        "jar": "82a80a2ac06901b03cdb233c663d21c4f49c884bf6d0cf85022729e8db9ab86f",
+        "javadoc": "9e6d7904255ceab3eaef24f18bca3b06eb3e22c13f77589a61350b9809672efe",
+        "sources": "6c2c426f446a2493213f42f628f5ecdf180685659322e5b4f72a92ba18d5f273"
       },
-      "version": "2.4.240"
+      "version": "2.5.250"
     },
     "com.jayway.jsonpath:json-path": {
       "shasums": {
