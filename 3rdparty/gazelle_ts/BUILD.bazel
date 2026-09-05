@@ -1,1 +1,4 @@
-exports_files(["unique_rust_toolchain.patch"])
+exports_files([
+    "gazelle_0.54.patch",
+    "unique_rust_toolchain.patch",
+])
