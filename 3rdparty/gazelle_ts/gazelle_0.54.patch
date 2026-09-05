@@ -1,0 +1,10 @@
+diff --git a/ts/BUILD.bazel b/ts/BUILD.bazel
+--- a/ts/BUILD.bazel
++++ b/ts/BUILD.bazel
+@@ -111,5 +111,5 @@ gazelle_generation_test(
+     name = "gazelle_generation_test",
+     gazelle_binary = ":gazelle_test_binary",
+-    gazelle_timeout_seconds = 60,
++    timeout = "short",
+     test_data = glob(["testdata/**"]),
+ )
