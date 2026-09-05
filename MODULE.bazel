@@ -89,7 +89,7 @@ bazel_dep(name = "toolchains_buildbuddy", version = "0.0.4")
 # See .bazelrc
 bazel_dep(name = "rules_python", version = "2.3.3")
 bazel_dep(name = "platforms", version = "1.1.0")
-bazel_dep(name = "gazelle", version = "0.53.0")
+bazel_dep(name = "gazelle", version = "0.54.0")
 
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
 bazel_dep(name = "gazelle_ts", dev_dependency = True)
