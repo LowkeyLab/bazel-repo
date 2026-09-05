@@ -122,7 +122,7 @@ require (
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/gertd/go-pluralize v0.2.1 // indirect
 	github.com/gin-contrib/cors v1.7.8
-	github.com/gin-contrib/slog v1.2.1
+	github.com/gin-contrib/slog v1.2.2
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-delve/delve v1.27.1 // indirect
