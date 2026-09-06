@@ -6,6 +6,12 @@ settings:
 
 catalogs:
   default:
+    '@angular-devkit/architect':
+      specifier: ^0.2201.0
+      version: 0.2201.7
+    '@angular/build':
+      specifier: ^22.0.0
+      version: 22.1.7
     '@angular/cli':
       specifier: 22.1.7
       version: 22.1.7
@@ -114,9 +120,6 @@ catalogs:
     crypto-js:
       specifier: ^4.2.0
       version: 4.2.0
-    daisyui:
-      specifier: ^5.5.5
-      version: 5.7.25
     eslint:
       specifier: ^10.0.0
       version: 10.9.1
@@ -229,7 +232,7 @@ importers:
         version: 8.69.0(eslint@10.9.1(jiti@2.7.0))(typescript@6.0.3)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.25
+        version: 5.7.27
       eslint:
         specifier: 'catalog:'
         version: 10.9.1(jiti@2.7.0)
@@ -374,7 +377,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.25
+        version: 5.7.27
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1
@@ -3474,8 +3477,8 @@ packages:
     resolution: {integrity: sha512-0LrrStPOdJj+SPCCrGhzryycLjwcgUSHBtxNA8aIDxf0GLsRh1cKYhB00Gd1lDOS4yGH69+SNn13+TWbVHETFQ==}
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0, npm: '>=7.0.0'}
 
-  daisyui@5.7.25:
-    resolution: {integrity: sha512-lE5kR8FjHxUHiCb3/PAPuaNkv0MSm6B8GWd5x/l7SLDsH58IxYCiPG8wrcRgdZCI5q8jxpeA2Utx6O6X/kpLnw==}
+  daisyui@5.7.27:
+    resolution: {integrity: sha512-Je10yYK7UFJYyLSQrIxhFmpwX+86gXdNTnfNkA1jlev7j9oz3QrqioEQ6/0JYOvYPs5NYH4aaJ+X35/N80G/xg==}
 
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
@@ -9022,7 +9025,7 @@ snapshots:
     dependencies:
       css-tree: 2.2.1
 
-  daisyui@5.7.25: {}
+  daisyui@5.7.27: {}
 
   data-uri-to-buffer@4.0.1: {}
 
