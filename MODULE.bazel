@@ -15,7 +15,7 @@ bazel_dep(name = "aspect_rules_esbuild", version = "0.27.0")
 bazel_dep(name = "aspect_rules_js", version = "3.4.1")
 bazel_dep(name = "aspect_rules_swc", version = "2.7.6")
 bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
-bazel_dep(name = "aws-lc", version = "5.1.0.bcr.2")
+bazel_dep(name = "aws-lc", version = "5.1.0.bcr.3")
 bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2")
 
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
