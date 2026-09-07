@@ -142,6 +142,9 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
+        Effect::DrawThen { .. } => Err(SimulationError::Invariant(
+            "draw continuations are not executable yet".to_owned(),
+        )),
         Effect::Move {
             targets,
             player,
@@ -346,7 +349,7 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
-        Effect::Transform { targets, card } => {
+        Effect::Transform { targets, card, .. } => {
             for target in select_entities(world, context, targets) {
                 transform_entity(world, target, card.clone())?;
             }
@@ -356,6 +359,7 @@ pub(super) fn execute_effect_operation(
             targets,
             player,
             zone,
+            ..
         } => {
             let controller = resolve_player(context.controller, *player);
             for target in select_entities(world, context, targets) {
@@ -989,6 +993,7 @@ pub(super) fn select_entities(
 ) -> Vec<GameEntityId> {
     let mut selected = match selector {
         Selector::Source => context.source.into_iter().collect(),
+        Selector::DrawnCard => context.drawn_card.into_iter().collect(),
         Selector::AttachedEntity => context
             .source
             .and_then(|source| game_entity(world, source))
@@ -1046,6 +1051,11 @@ pub(super) fn select_entities(
     selected
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "preserve the existing target-count conversion in this contract-only slice"
+)]
 pub(super) fn evaluate_value(
     world: &World,
     context: &EffectContext,
@@ -1060,6 +1070,11 @@ pub(super) fn evaluate_value(
             .and_then(|entity| world.get::<CurrentStats>(entity))
             .map_or(0, |stats| stats.attack),
         ValueExpression::TargetCount => target_count as i32,
+        ValueExpression::DrawnCardCost => context
+            .drawn_card
+            .and_then(|card| game_entity(world, card))
+            .and_then(|entity| world.get::<CardRuntime>(entity))
+            .map_or(0, |runtime| runtime.cost),
     }
 }
 

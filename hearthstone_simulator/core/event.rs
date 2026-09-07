@@ -8,7 +8,10 @@ use crate::{GameEntityId, PlayerId};
 pub enum EventKind {
     SequenceStarted,
     CardPlayed,
+    CardDrawn,
     Summoned,
+    AfterPlayAndSummon,
+    AfterPlay,
     ProposedDamage,
     Damage,
     ProposedHealing,

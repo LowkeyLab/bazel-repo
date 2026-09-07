@@ -45,6 +45,7 @@ fn play_zone_enchantments_do_not_consume_board_capacity() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachKeywordModifier {
@@ -235,6 +236,7 @@ fn backward_movement_restores_cost_after_detaching_modifiers() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -431,6 +433,7 @@ fn kept_continuous_effect_is_inactive_while_its_host_is_off_board() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachContinuousEffect {
@@ -538,6 +541,7 @@ fn force_play_into_a_full_board_is_prevented_without_moving_the_entity() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::Move {
@@ -823,6 +827,7 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -832,6 +837,7 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
             targets: Selector::Entity(GameEntityId(u64::MAX)),
             player: PlayerSelector::Controller,
             zone: Zone::Hand,
+            board_index: None,
         },
     )
     .unwrap();
@@ -850,6 +856,7 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
             targets: Selector::Entity(source),
             player: PlayerSelector::Controller,
             zone: Zone::Hand,
+            board_index: None,
         },
     )
     .unwrap();
@@ -868,6 +875,7 @@ fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -891,6 +899,7 @@ fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
             targets: Selector::Entity(source),
             player: PlayerSelector::Controller,
             zone: Zone::Hand,
+            board_index: None,
         },
     )
     .unwrap();

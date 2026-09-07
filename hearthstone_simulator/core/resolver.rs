@@ -1,11 +1,12 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use bevy::prelude::Resource;
 use thiserror::Error;
 
 use crate::{
-    AuraRefreshPlan, ChoiceId, Effect, EffectContext, EventContext, EventId, EventSlotId,
-    GameEntityId, PlayerId, ResolutionId, ScheduledTurnKind, TriggerCandidate,
+    AuraRefreshPlan, Card, ChoiceId, CopyStatePolicy, DrawContinuationPolicy, DrawResultSlotId,
+    Effect, EffectContext, EventContext, EventId, EventSlotId, GameEntityId, PlayerId,
+    ResolutionId, ScheduledTurnKind, TransformKind, TriggerCandidate, Zone,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -59,6 +60,34 @@ pub struct HealingRequest {
     pub source: Option<GameEntityId>,
     pub target: GameEntityId,
     pub proposed: i32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DrawRequest {
+    pub player: PlayerId,
+    pub source: Option<GameEntityId>,
+    pub result: DrawResultSlotId,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum DrawOutcome {
+    Drawn(GameEntityId),
+    Burned(GameEntityId),
+    Fatigue { amount: i32 },
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct DrawResultSlot {
+    pub outcome: Option<DrawOutcome>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CopyRequest {
+    pub source: GameEntityId,
+    pub controller: PlayerId,
+    pub destination: Zone,
+    pub board_index: Option<usize>,
+    pub policy: CopyStatePolicy,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -123,6 +152,21 @@ pub enum ResolutionOp {
         actual_event: EventSlotId,
         ordinal: u32,
     },
+    ProcessDraw(DrawRequest),
+    FinishDraw(DrawResultSlotId),
+    ContinueDraw {
+        result: DrawResultSlotId,
+        context: EffectContext,
+        effects: Vec<Effect>,
+        policy: DrawContinuationPolicy,
+    },
+    TransformEntity {
+        target: GameEntityId,
+        source: Option<GameEntityId>,
+        card: Card,
+        kind: TransformKind,
+    },
+    CopyEntity(CopyRequest),
     RequestChoice(ChoiceRequest),
 }
 
@@ -147,6 +191,11 @@ impl ResolutionOp {
             Self::ProcessHealingBatch(_) => "ProcessHealingBatch",
             Self::ProcessHealing { .. } => "ProcessHealing",
             Self::ApplyHealing { .. } => "ApplyHealing",
+            Self::ProcessDraw(_) => "ProcessDraw",
+            Self::FinishDraw(_) => "FinishDraw",
+            Self::ContinueDraw { .. } => "ContinueDraw",
+            Self::TransformEntity { .. } => "TransformEntity",
+            Self::CopyEntity(_) => "CopyEntity",
             Self::RequestChoice(_) => "RequestChoice",
         }
     }
@@ -177,8 +226,11 @@ pub struct ResolutionWork {
     pub next_resolution_id: u64,
     pub next_event_id: u64,
     pub next_event_slot_id: u64,
+    pub next_draw_result_slot_id: u64,
     pub events: BTreeMap<EventId, PreparedEvent>,
     pub event_slots: BTreeMap<EventSlotId, PreparedEventSlot>,
+    pub draw_result_slots: BTreeMap<DrawResultSlotId, DrawResultSlot>,
+    pub pending_played_self_transforms: BTreeSet<GameEntityId>,
     pub pending_choice: Option<PendingChoice>,
     pub sequence_active: bool,
 }
@@ -197,4 +249,83 @@ pub enum ResolutionError {
     NoPendingChoice,
     #[error("choice option {0:?} is invalid")]
     InvalidChoice(ChoiceId),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        Card, CopyRequest, CopyStatePolicy, DrawContinuationPolicy, DrawOutcome, DrawRequest,
+        DrawResultSlot, DrawResultSlotId, EffectOrigin, TransformKind, Zone,
+    };
+
+    #[test]
+    fn milestone_seven_operations_have_stable_kind_names() {
+        let request = DrawRequest {
+            player: PlayerId::One,
+            source: Some(GameEntityId(7)),
+            result: DrawResultSlotId(3),
+        };
+        assert_eq!(ResolutionOp::ProcessDraw(request).kind(), "ProcessDraw");
+        assert_eq!(
+            ResolutionOp::FinishDraw(DrawResultSlotId(3)).kind(),
+            "FinishDraw"
+        );
+        assert_eq!(
+            ResolutionOp::ContinueDraw {
+                result: DrawResultSlotId(3),
+                context: EffectContext {
+                    source: Some(GameEntityId(7)),
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Spell,
+                },
+                effects: Vec::new(),
+                policy: DrawContinuationPolicy::RequireCard,
+            }
+            .kind(),
+            "ContinueDraw"
+        );
+        assert_eq!(
+            ResolutionOp::TransformEntity {
+                target: GameEntityId(11),
+                source: Some(GameEntityId(7)),
+                card: Card::minion("Sheep", 1, 1, 1),
+                kind: TransformKind::Spell,
+            }
+            .kind(),
+            "TransformEntity"
+        );
+        assert_eq!(
+            ResolutionOp::CopyEntity(CopyRequest {
+                source: GameEntityId(11),
+                controller: PlayerId::One,
+                destination: Zone::Hand,
+                board_index: None,
+                policy: CopyStatePolicy::CurrentForm,
+            })
+            .kind(),
+            "CopyEntity"
+        );
+    }
+
+    #[test]
+    fn resolution_work_round_trips_empty_and_filled_draw_slots() {
+        let mut work = ResolutionWork::default();
+        work.next_draw_result_slot_id = 2;
+        work.draw_result_slots
+            .insert(DrawResultSlotId(0), DrawResultSlot::default());
+        work.draw_result_slots.insert(
+            DrawResultSlotId(1),
+            DrawResultSlot {
+                outcome: Some(DrawOutcome::Drawn(GameEntityId(17))),
+            },
+        );
+
+        let json = serde_json::to_string(&work).unwrap();
+        let restored = serde_json::from_str::<ResolutionWork>(&json).unwrap();
+
+        assert_eq!(restored, work);
+    }
 }

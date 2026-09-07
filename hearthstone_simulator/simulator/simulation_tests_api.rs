@@ -126,6 +126,7 @@ fn choice_suspension_retains_lower_stack_work_and_resumes_selected_branch_first(
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     let choice = ChoiceId(7);
@@ -566,6 +567,7 @@ fn schema_six_json_roundtrip_preserves_trigger_enchantment_payloads() {
                 source: None,
                 controller,
                 declared_target: None,
+                drawn_card: None,
                 origin: EffectOrigin::Other,
             },
             &Effect::AttachTriggerEnchantment {
@@ -690,6 +692,7 @@ fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantm
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachTriggerEnchantment {
@@ -1019,6 +1022,7 @@ fn checkpoints_reject_cost_modifiers_without_play_order() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachCostModifier {
@@ -1062,6 +1066,7 @@ fn checkpoints_reject_stale_play_order_counters() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachCostModifier {
@@ -1258,6 +1263,7 @@ fn pending_choice_programs_are_validated_during_restoration() {
                         source: None,
                         controller: PlayerId::One,
                         declared_target: None,
+                        drawn_card: None,
                         origin: EffectOrigin::Other,
                     },
                     effect: Effect::Native(missing.clone()),
@@ -1342,6 +1348,7 @@ fn retained_event_and_operation_programs_are_validated_during_restoration() {
                     source: Some(source),
                     controller: PlayerId::One,
                     declared_target: Some(source),
+                    drawn_card: None,
                     origin: EffectOrigin::Other,
                 },
                 effect: Effect::GainResource {

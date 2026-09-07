@@ -132,6 +132,13 @@ fn execute_resolution_op(
             actual_event,
             ordinal,
         } => apply_prepared_healing(world, request, proposed_event, actual_event, ordinal),
+        ResolutionOp::ProcessDraw(_)
+        | ResolutionOp::FinishDraw(_)
+        | ResolutionOp::ContinueDraw { .. }
+        | ResolutionOp::TransformEntity { .. }
+        | ResolutionOp::CopyEntity(_) => Err(SimulationError::Invariant(
+            "milestone 7 operations are not executable yet".to_owned(),
+        )),
         ResolutionOp::RequestChoice(request) => {
             request_choice(world, request);
             Ok(())
@@ -253,6 +260,7 @@ fn attempt_trigger(
         source: game_entity(world, candidate.source).map(|_| candidate.source),
         controller: candidate.controller,
         declared_target: event.targets.first().copied(),
+        drawn_card: None,
         origin: crate::EffectOrigin::Other,
     };
     push_resolution_op(

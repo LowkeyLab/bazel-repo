@@ -4,7 +4,8 @@ use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttachedTo, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Controller,
     DefinitionId, EnchantmentDuration, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
-    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind,
+    TimedCondition, TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    ZoneMovementKind,
 };
 
 #[derive(Resource)]
@@ -59,6 +60,7 @@ fn trigger_enchantment_records_attachment_context() {
         source: None,
         controller: PlayerId::Two,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -117,6 +119,7 @@ fn trigger_enchantment_attachment_reports_a_missing_explicit_target() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -238,6 +241,7 @@ fn effect_dispatch_reports_stale_targets_and_native_systems() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     assert_that!(
@@ -322,6 +326,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         source: Some(friendly),
         controller: PlayerId::One,
         declared_target: Some(enemy),
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -452,11 +457,13 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
             Effect::Transform {
                 targets: Selector::DeclaredTarget,
                 card: Card::minion("Sheep", 1, 1, 1),
+                kind: TransformKind::Spell,
             },
             Effect::Copy {
                 targets: Selector::DeclaredTarget,
                 player: PlayerSelector::Controller,
                 zone: Zone::Hand,
+                board_index: None,
             },
         ])],
     )
@@ -574,6 +581,7 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -662,6 +670,7 @@ fn native_handlers_flush_commands_and_return_nested_effect_plans() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     assert_that!(
@@ -682,6 +691,7 @@ fn native_returned_event_modifiers_are_validated_before_execution() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -793,6 +803,7 @@ fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
         source: None,
         controller: PlayerId::One,
         declared_target: Some(target),
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -1041,6 +1052,7 @@ fn silence_removes_a_temporary_cost_modifier_completely() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -1110,6 +1122,7 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(

@@ -3,7 +3,7 @@ use googletest::prelude::*;
 use super::{test_support::*, *};
 use crate::{
     AttachedTo, ConditionTiming, EnchantmentDuration, SourceEligibilityPolicy, TimedCondition,
-    TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
 };
 
 fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> TriggerDefinition {
@@ -140,6 +140,7 @@ fn enchantment_controller_determines_trigger_group_not_host_controller() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachTriggerEnchantment {
@@ -191,6 +192,7 @@ fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue(
         effect_program: vec![Effect::Transform {
             targets: Selector::DeclaredTarget,
             card: Card::minion("Transformed host", 0, 2, 2),
+            kind: TransformKind::NonSpell,
         }],
     }]);
     let attached_trigger = TriggerDefinition {
@@ -337,6 +339,7 @@ fn silence_removes_only_trigger_enchantments_marked_removable() {
                 source: None,
                 controller: PlayerId::One,
                 declared_target: None,
+                drawn_card: None,
                 origin: EffectOrigin::Other,
             },
             &Effect::Silence {

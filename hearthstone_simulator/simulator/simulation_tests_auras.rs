@@ -330,6 +330,7 @@ fn hero_power_uses_only_its_dedicated_other_aura_modifier() {
             source: None,
             controller: PlayerId::One,
             declared_target: Some(target),
+            drawn_card: None,
             origin: EffectOrigin::HeroPower,
         },
         &Effect::DealDamage {
@@ -568,6 +569,7 @@ fn play_to_play_copy_preserves_silence_without_received_aura_cache() {
         targets: Selector::DeclaredTarget,
         player: PlayerSelector::Controller,
         zone: Zone::Play,
+        board_index: None,
     }]);
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider, silence, copy]),

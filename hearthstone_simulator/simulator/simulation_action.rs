@@ -431,6 +431,7 @@ fn play_card(
         source: Some(card_id),
         controller: player_id,
         declared_target,
+        drawn_card: None,
         origin: if kind == EntityKind::Spell {
             crate::EffectOrigin::Spell
         } else {
