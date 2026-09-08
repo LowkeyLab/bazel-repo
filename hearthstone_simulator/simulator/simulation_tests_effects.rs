@@ -3,9 +3,9 @@ use googletest::prelude::*;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttachedTo, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Controller,
-    DefinitionId, DrawOutcome, EnchantmentDuration, PlayerAudience, SilenceRemovable,
-    SourceEligibilityPolicy, TimedCondition, TransformKind, TriggerCondition, TriggerDefinition,
-    WoundedTargetPolicy, ZoneMovementKind,
+    DefinitionId, DrawContinuationPolicy, DrawOutcome, EnchantmentDuration, PlayerAudience,
+    SilenceRemovable, SourceEligibilityPolicy, TimedCondition, TransformKind, TriggerCondition,
+    TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind,
 };
 
 #[derive(Resource)]
@@ -619,6 +619,144 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
             .is_empty(),
         is_true()
     );
+}
+
+#[googletest::test]
+fn draw_continuation_reads_cost_after_draw_triggers() {
+    let cost_trigger = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Hand],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::AttachCostModifier {
+            targets: Selector::Source,
+            modifier: CostModifier {
+                operation: CostOperation::Set,
+                value: 4,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::Permanent,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck(
+            "Jaina",
+            vec![Card::spell("Reactive draw", 1).with_triggers(vec![cost_trigger])],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let drawn = simulation.snapshot().players[0].deck[0];
+    let target = hero(&mut simulation, PlayerId::Two);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: Some(target),
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![
+                Effect::DealDamage {
+                    targets: Selector::DeclaredTarget,
+                    amount: ValueExpression::DrawnCardCost,
+                },
+                Effect::Move {
+                    targets: Selector::DrawnCard,
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Graveyard,
+                    kind: ZoneMovementKind::Normal,
+                },
+            ],
+            policy: DrawContinuationPolicy::RequireCard,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    let target = game_entity(world, target).unwrap();
+    assert_that!(world.get::<Damage>(target), eq(Some(&Damage(4))));
+    assert_that!(
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Graveyard),
+        eq(&[drawn])
+    );
+}
+
+#[googletest::test]
+fn draw_continuation_policies_cover_burn_and_fatigue() {
+    for (has_card, policy, expected_resources) in [
+        (true, DrawContinuationPolicy::RequireCard, 0),
+        (true, DrawContinuationPolicy::RunWithoutCard, 1),
+        (false, DrawContinuationPolicy::RequireCard, 0),
+        (false, DrawContinuationPolicy::RunWithoutCard, 1),
+    ] {
+        let deck = has_card
+            .then(|| Card::spell("Burned", 3))
+            .into_iter()
+            .collect();
+        let mut simulation = Simulation::new([
+            PlayerConfig::with_deck("Jaina", deck),
+            PlayerConfig::new("Rexxar", vec![Card::spell("Stale binding", 5)]),
+        ]);
+        if has_card {
+            simulation
+                .app
+                .world_mut()
+                .resource_mut::<Ruleset>()
+                .hand_limit = 0;
+        }
+        let stale = simulation.snapshot().players[1].hand[0];
+        let target = hero(&mut simulation, PlayerId::Two);
+        let world = simulation.app.world_mut();
+        begin_sequence(world).unwrap();
+        execute_effect(
+            world,
+            &EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: Some(target),
+                drawn_card: Some(stale),
+                origin: EffectOrigin::Other,
+            },
+            &Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![
+                    Effect::DealDamage {
+                        targets: Selector::DeclaredTarget,
+                        amount: ValueExpression::DrawnCardCost,
+                    },
+                    Effect::GainResource {
+                        player: PlayerSelector::Controller,
+                        amount: 1,
+                        temporary: true,
+                    },
+                ],
+                policy,
+            },
+        )
+        .unwrap();
+        drive_resolution(world).unwrap();
+        finish_sequence(world);
+
+        assert_that!(
+            player(world, PlayerId::One).unwrap().1.temporary_resources,
+            eq(expected_resources)
+        );
+        let target = game_entity(world, target).unwrap();
+        assert_that!(world.get::<Damage>(target), eq(Some(&Damage(0))));
+    }
 }
 
 #[googletest::test]

@@ -2,8 +2,9 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AttachedTo, ConditionTiming, EnchantmentDuration, SourceEligibilityPolicy, TimedCondition,
-    TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    AttachedTo, ConditionTiming, DrawContinuationPolicy, EnchantmentDuration,
+    SourceEligibilityPolicy, TimedCondition, TransformKind, TriggerCondition, TriggerDefinition,
+    WoundedTargetPolicy,
 };
 
 fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> TriggerDefinition {
@@ -148,6 +149,74 @@ fn draw_moves_the_card_before_play_and_hand_triggers_resolve() {
     assert_that!(
         trace.iter().position(|entry| matches!(entry, TraceEntry::ZoneMoved { entity, to: Zone::Hand, .. } if *entity == first)).unwrap(),
         lt(trace.iter().position(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::CardDrawn, targets, .. } if targets == &[first])).unwrap())
+    );
+}
+
+#[googletest::test]
+fn nested_draw_preserves_the_outer_continuation_binding() {
+    let nested_draw = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Hand],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck(
+            "Jaina",
+            vec![
+                Card::spell("Outer", 3).with_triggers(vec![nested_draw]),
+                Card::spell("Inner", 7),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let deck = simulation.snapshot().players[0].deck.clone();
+    let [outer, inner] = deck.as_slice() else {
+        panic!("fixture should have exactly two deck cards");
+    };
+    let (outer, inner) = (*outer, *inner);
+    let target = hero(&mut simulation, PlayerId::Two);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: Some(target),
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::DrawnCardCost,
+            }],
+            policy: DrawContinuationPolicy::RequireCard,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        simulation.snapshot().players[0].hand,
+        eq(&vec![outer, inner])
+    );
+    let target = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation.app.world().get::<Damage>(target),
+        eq(Some(&Damage(3)))
     );
 }
 

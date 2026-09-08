@@ -141,9 +141,31 @@ pub(super) fn execute_effect_operation(
             push_resolution_ops(world, operations);
             Ok(())
         }
-        Effect::DrawThen { .. } => Err(SimulationError::Invariant(
-            "draw continuations are not executable yet".to_owned(),
-        )),
+        Effect::DrawThen {
+            player,
+            effects,
+            policy,
+        } => {
+            let player = resolve_player(context.controller, *player);
+            let result = allocate_draw_result_slot(world);
+            push_resolution_ops(
+                world,
+                [
+                    ResolutionOp::ProcessDraw(DrawRequest {
+                        player,
+                        source: context.source,
+                        result,
+                    }),
+                    ResolutionOp::ContinueDraw {
+                        result,
+                        context: context.clone(),
+                        effects: effects.clone(),
+                        policy: *policy,
+                    },
+                ],
+            );
+            Ok(())
+        }
         Effect::Move {
             targets,
             player,

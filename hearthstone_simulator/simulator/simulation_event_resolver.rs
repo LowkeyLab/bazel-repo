@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
 use crate::{
-    CanonicalTrace, ChoiceRequest, CurrentResolutionOp, DeathRecord, EffectContext, EventContext,
-    EventId, EventKind, GameState, PendingChoice, PhaseBoundaryPlan, PreparedEvent, ResolutionOp,
-    ResolutionWork, ResolvePhaseBoundary, SimulationStatus, TraceEntry,
+    CanonicalTrace, ChoiceRequest, CurrentResolutionOp, DeathRecord, DrawContinuationPolicy,
+    DrawOutcome, EffectContext, EventContext, EventId, EventKind, GameState, PendingChoice,
+    PhaseBoundaryPlan, PreparedEvent, ResolutionOp, ResolutionWork, ResolvePhaseBoundary,
+    SimulationStatus, TraceEntry,
     death::take_pending_deaths,
     entity::game_entity,
     resolver::{push_resolution_op, push_resolution_ops},
@@ -137,11 +138,30 @@ fn execute_resolution_op(
             crate::resolver::take_draw_result(world, result)?;
             Ok(())
         }
-        ResolutionOp::ContinueDraw { .. }
-        | ResolutionOp::TransformEntity { .. }
-        | ResolutionOp::CopyEntity(_) => Err(SimulationError::Invariant(
-            "milestone 7 operations are not executable yet".to_owned(),
-        )),
+        ResolutionOp::ContinueDraw {
+            result,
+            mut context,
+            effects,
+            policy,
+        } => {
+            let outcome = crate::resolver::take_draw_result(world, result)?;
+            match outcome {
+                DrawOutcome::Drawn(card) => {
+                    context.drawn_card = Some(card);
+                    push_effects(world, &context, &effects, None);
+                }
+                DrawOutcome::Burned(_) | DrawOutcome::Fatigue { .. } => {
+                    if policy == DrawContinuationPolicy::RunWithoutCard {
+                        context.drawn_card = None;
+                        push_effects(world, &context, &effects, None);
+                    }
+                }
+            }
+            Ok(())
+        }
+        ResolutionOp::TransformEntity { .. } | ResolutionOp::CopyEntity(_) => Err(
+            SimulationError::Invariant("milestone 7 operations are not executable yet".to_owned()),
+        ),
         ResolutionOp::RequestChoice(request) => {
             request_choice(world, request);
             Ok(())
