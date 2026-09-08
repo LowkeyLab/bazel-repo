@@ -51,6 +51,107 @@ fn attached_enchantment(simulation: &Simulation, host: GameEntityId) -> GameEnti
 }
 
 #[googletest::test]
+fn draw_moves_the_card_before_play_and_hand_triggers_resolve() {
+    let play_trigger = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: Vec::new(),
+    };
+    let hand_trigger = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Hand],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig {
+            name: "Jaina".to_owned(),
+            deck: vec![
+                Card::spell("First", 0).with_triggers(vec![hand_trigger]),
+                Card::spell("Nested", 0),
+                Card::spell("Second", 0),
+            ],
+            hand: vec![Card::minion("Play source", 0, 1, 2).with_triggers(vec![play_trigger])],
+        },
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let play_source = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, play_source, None);
+    let deck = simulation.snapshot().players[0].deck.clone();
+    let [first, nested, second] = deck.as_slice() else {
+        panic!("fixture should have exactly three deck cards");
+    };
+    let (first, nested, second) = (*first, *nested, *second);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: Some(play_source),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        simulation.snapshot().players[0].hand,
+        eq(&vec![first, nested, second])
+    );
+    let trace = simulation.trace();
+    let first_event = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::CardDrawn,
+                targets,
+                ..
+            } if targets == &[first] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let trigger_sources = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::TriggerSnapshot { event, candidates } if *event == first_event => Some(
+                candidates
+                    .iter()
+                    .map(|candidate| candidate.source)
+                    .collect::<Vec<_>>(),
+            ),
+            _ => None,
+        })
+        .unwrap();
+    assert_that!(trigger_sources, eq(&vec![play_source, first]));
+    assert_that!(
+        trace.iter().position(|entry| matches!(entry, TraceEntry::ZoneMoved { entity, to: Zone::Hand, .. } if *entity == first)).unwrap(),
+        lt(trace.iter().position(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::CardDrawn, targets, .. } if targets == &[first])).unwrap())
+    );
+}
+
+#[googletest::test]
 fn enchantment_triggers_share_play_order_with_ordinary_sources() {
     let ordinary = Card::minion("Ordinary source", 0, 1, 2).with_triggers(vec![turn_end_trigger(
         PlayerSelector::Controller,

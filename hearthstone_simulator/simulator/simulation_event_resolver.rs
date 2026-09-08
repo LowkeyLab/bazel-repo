@@ -20,7 +20,7 @@ use super::{
         apply_prepared_damage, apply_prepared_healing, expand_damage_batch, expand_healing_batch,
         process_damage, process_healing,
     },
-    player::check_outcome,
+    player::{check_outcome, process_draw},
 };
 
 #[derive(Default, Resource)]
@@ -132,9 +132,12 @@ fn execute_resolution_op(
             actual_event,
             ordinal,
         } => apply_prepared_healing(world, request, proposed_event, actual_event, ordinal),
-        ResolutionOp::ProcessDraw(_)
-        | ResolutionOp::FinishDraw(_)
-        | ResolutionOp::ContinueDraw { .. }
+        ResolutionOp::ProcessDraw(request) => process_draw(world, request),
+        ResolutionOp::FinishDraw(result) => {
+            crate::resolver::take_draw_result(world, result)?;
+            Ok(())
+        }
+        ResolutionOp::ContinueDraw { .. }
         | ResolutionOp::TransformEntity { .. }
         | ResolutionOp::CopyEntity(_) => Err(SimulationError::Invariant(
             "milestone 7 operations are not executable yet".to_owned(),

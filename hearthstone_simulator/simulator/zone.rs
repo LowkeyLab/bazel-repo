@@ -183,14 +183,18 @@ pub(crate) fn move_entity_with_request(
                 request.entity,
                 source,
                 source_controller,
-                false,
+                ZoneMovementKind::Burn,
             ),
             _ => move_to_graveyard_after_failed_move(
                 world,
                 request.entity,
                 source,
                 source_controller,
-                source == Zone::Play,
+                if source == Zone::Play {
+                    ZoneMovementKind::Death
+                } else {
+                    ZoneMovementKind::Discard
+                },
             ),
         };
     }
@@ -381,7 +385,7 @@ fn move_to_graveyard_after_failed_move(
     id: GameEntityId,
     source: Zone,
     controller: PlayerId,
-    record_death: bool,
+    kind: ZoneMovementKind,
 ) -> Result<ZoneMoveOutcome, ZoneError> {
     let remembered_position = semantic_zone_position(world, id, controller, source).ok_or(
         ZoneError::MissingIndexEntry {
@@ -398,15 +402,11 @@ fn move_to_graveyard_after_failed_move(
             destination_controller: controller,
             destination: Zone::Graveyard,
             position: None,
-            kind: if record_death {
-                ZoneMovementKind::Death
-            } else {
-                ZoneMovementKind::Discard
-            },
+            kind,
         },
         source,
     );
-    if record_death {
+    if kind == ZoneMovementKind::Death {
         crate::death::record_full_zone_death(world, id, remembered_position);
     }
     Ok(ZoneMoveOutcome::FullZoneRemoval {
@@ -739,7 +739,7 @@ mod tests {
                 GameEntityId(1),
                 Zone::Play,
                 PlayerId::One,
-                true,
+                ZoneMovementKind::Death,
             ),
             err(eq(&ZoneError::MissingIndexEntry {
                 entity: GameEntityId(1),

@@ -1,16 +1,21 @@
 use bevy::prelude::*;
 
 use crate::{
-    Armor, AttackState, CanonicalTrace, Controller, CurrentStats, Damage, EntityKind, GameEntityId,
-    GameOutcome, GameState, HeroMetadata, HeroPowerState, Player, PlayerId, TraceEntry, Zone,
+    Armor, AttackState, CanonicalTrace, Controller, CurrentStats, Damage, DrawOutcome, DrawRequest,
+    EntityKind, EventContext, EventKind, GameEntityId, GameOutcome, GameState, HeroMetadata,
+    HeroPowerState, Player, PlayerId, ResolutionOp, TraceEntry, Zone,
     death::DefeatedHeroes,
     entity::game_entity,
+    resolver::{fill_draw_result_slot, push_resolution_op},
     zone::{
         ZoneIndex, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, move_entity_with_request,
     },
 };
 
-use super::{card_runtime::CardRuntime, error::SimulationError, health::apply_damage};
+use super::{
+    card_runtime::CardRuntime, error::SimulationError, event_resolver::prepare_event,
+    health::apply_damage,
+};
 
 pub(super) fn assert_player_role_invariants(world: &World) -> Result<(), String> {
     for player_id in PlayerId::ALL {
@@ -93,6 +98,7 @@ fn active_kind(world: &World, active: &[GameEntityId], kind: EntityKind) -> Vec<
         .collect()
 }
 
+#[cfg(test)]
 pub(super) fn draw_card(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
     let card = world
         .resource::<ZoneIndex>()
@@ -135,6 +141,100 @@ pub(super) fn draw_card(world: &mut World, player_id: PlayerId) -> Result<(), Si
         };
         let hero = hero_id(world, player_id).ok_or(SimulationError::PlayerNotFound(player_id))?;
         apply_damage(world, None, hero, fatigue)?;
+    }
+    Ok(())
+}
+
+pub(super) fn process_draw(world: &mut World, request: DrawRequest) -> Result<(), SimulationError> {
+    let card = world
+        .resource::<ZoneIndex>()
+        .entities(request.player, Zone::Deck)
+        .first()
+        .copied();
+    let outcome = if let Some(card) = card {
+        let movement = move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: card,
+                destination_controller: request.player,
+                destination: Zone::Hand,
+                position: None,
+                kind: ZoneMovementKind::Draw,
+            },
+        )?;
+        match movement {
+            ZoneMoveOutcome::Moved { from, .. } => {
+                world
+                    .resource_mut::<CanonicalTrace>()
+                    .entries
+                    .push(TraceEntry::ZoneMoved {
+                        entity: card,
+                        from,
+                        to: Zone::Hand,
+                    });
+                DrawOutcome::Drawn(card)
+            }
+            ZoneMoveOutcome::FullZoneRemoval { from, .. } => {
+                world
+                    .resource_mut::<CanonicalTrace>()
+                    .entries
+                    .push(TraceEntry::ZoneMoved {
+                        entity: card,
+                        from,
+                        to: Zone::Graveyard,
+                    });
+                DrawOutcome::Burned(card)
+            }
+            ZoneMoveOutcome::PreventedByFullZone => {
+                return Err(SimulationError::Invariant(
+                    "draw was unexpectedly prevented by a full hand".to_string(),
+                ));
+            }
+        }
+    } else {
+        let amount = {
+            let (_, mut player, _, _) = player_mut(world, request.player)?;
+            player.fatigue = player
+                .fatigue
+                .checked_add(1)
+                .ok_or_else(|| SimulationError::Invariant("fatigue counter overflow".to_owned()))?;
+            i32::try_from(player.fatigue)
+                .map_err(|_| SimulationError::Invariant("fatigue damage exceeds i32".to_owned()))?
+        };
+        DrawOutcome::Fatigue { amount }
+    };
+
+    fill_draw_result_slot(world, request.result, outcome)?;
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::DrawResolved {
+            player: request.player,
+            source: request.source,
+            outcome,
+        });
+    match outcome {
+        DrawOutcome::Drawn(card) => {
+            let event = prepare_event(
+                world,
+                EventContext {
+                    kind: EventKind::CardDrawn,
+                    source: request.source,
+                    targets: vec![card],
+                    controller: request.player,
+                    proposed_value: None,
+                    actual_value: None,
+                    simultaneous_ordinal: 0,
+                },
+            );
+            push_resolution_op(world, ResolutionOp::ResolveEvent(event));
+        }
+        DrawOutcome::Burned(_) => {}
+        DrawOutcome::Fatigue { amount } => {
+            let hero = hero_id(world, request.player)
+                .ok_or(SimulationError::PlayerNotFound(request.player))?;
+            apply_damage(world, None, hero, amount)?;
+        }
     }
     Ok(())
 }

@@ -2,17 +2,18 @@ use bevy::prelude::*;
 
 use crate::{
     Armor, AttachedTo, AttackState, BaseKeywords, BaseStats, CanonicalTrace, Card, Controller,
-    CostModifier, CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, Effect,
-    EffectContext, EnchantmentDuration, EntityKind, EventId, EventKind, EventValueOperation,
-    GameEntityId, HealingRequest, HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState,
-    HeroReplacement, KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector,
-    ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier, TraceEntry,
-    ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    CostModifier, CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, DrawRequest,
+    Effect, EffectContext, EnchantmentDuration, EntityKind, EventId, EventKind,
+    EventValueOperation, GameEntityId, HealingRequest, HeroClassPolicy, HeroHealthPolicy,
+    HeroMetadata, HeroPowerState, HeroReplacement, KeywordModifier, Keywords, PendingDestroy,
+    PlayerId, PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras,
+    RuntimeContinuousEffects, RuntimeTriggers, Selector, SilenceRemovable, Silenced,
+    SourceEligibilityPolicy, StatModifier, TraceEntry, ValueExpression, Zone, ZoneMoveOutcome,
+    ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
-    resolver::push_resolution_ops,
+    resolver::{allocate_draw_result_slot, push_resolution_ops},
     rng::choose_game_entity,
     zone::{
         ZoneIndex, board_is_full, insert_into_zone, move_entity, move_entity_with_request,
@@ -25,7 +26,7 @@ use super::{
     error::SimulationError,
     event_resolver::prepare_event,
     health::{SimultaneousEventOrder, apply_damage_batch, apply_healing_batch},
-    player::{draw_card, hero_id, player_mut},
+    player::{hero_id, player_mut},
 };
 
 #[cfg(test)]
@@ -122,24 +123,22 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
-        Effect::Draw { player, count } if *count > 1 => {
-            push_effects(
-                world,
-                context,
-                &(0..*count)
-                    .map(|_| Effect::Draw {
-                        player: *player,
-                        count: 1,
-                    })
-                    .collect::<Vec<_>>(),
-                event,
-            );
-            Ok(())
-        }
         Effect::Draw { player, count } => {
-            if *count == 1 {
-                draw_card(world, resolve_player(context.controller, *player))?;
+            let player = resolve_player(context.controller, *player);
+            let source = context.source;
+            let mut operations = Vec::with_capacity(*count as usize * 2);
+            for _ in 0..*count {
+                let result = allocate_draw_result_slot(world);
+                operations.extend([
+                    ResolutionOp::ProcessDraw(DrawRequest {
+                        player,
+                        source,
+                        result,
+                    }),
+                    ResolutionOp::FinishDraw(result),
+                ]);
             }
+            push_resolution_ops(world, operations);
             Ok(())
         }
         Effect::DrawThen { .. } => Err(SimulationError::Invariant(

@@ -3,9 +3,9 @@ use googletest::prelude::*;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttachedTo, AttackState, ContinuousEffectDefinition, ContinuousModifier, CurrentStats,
-    EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy, HeroReplacement, KeepEnchantments,
-    KeywordModifier, PhaseBoundaryPlan, PlayerAudience, RuntimeContinuousEffects, ZoneMoveOutcome,
-    ZoneMoveRequest, ZoneMovementKind,
+    DrawOutcome, EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy, HeroReplacement,
+    KeepEnchantments, KeywordModifier, PhaseBoundaryPlan, PlayerAudience, RuntimeContinuousEffects,
+    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -520,6 +520,66 @@ fn forward_movement_preserves_enchantments() {
             attack: 5,
             maximum_health: 1,
         }))
+    );
+}
+
+#[googletest::test]
+fn a_burn_is_not_draw_discard_or_death() {
+    let hand = (0..10)
+        .map(|index| Card::spell(format!("Filler {index}"), 0))
+        .collect::<Vec<_>>();
+    let mut simulation = Simulation::new([
+        PlayerConfig {
+            name: "Jaina".to_owned(),
+            deck: vec![Card::spell("Burned", 0)],
+            hand,
+        },
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let burned = simulation.snapshot().players[0].deck[0];
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Graveyard),
+        contains(eq(&burned))
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(entry, TraceEntry::DrawResolved { player: PlayerId::One, outcome: DrawOutcome::Burned(card), .. } if *card == burned)),
+        is_true()
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::CardDrawn, targets, .. } if targets.contains(&burned))),
+        is_false()
+    );
+    let death_cache = simulation.app.world().resource::<DeathEventCache>();
+    assert_that!(
+        death_cache
+            .records
+            .iter()
+            .any(|record| record.entity == burned),
+        is_false()
     );
 }
 

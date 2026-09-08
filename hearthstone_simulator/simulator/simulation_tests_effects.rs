@@ -3,9 +3,9 @@ use googletest::prelude::*;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttachedTo, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Controller,
-    DefinitionId, EnchantmentDuration, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
-    TimedCondition, TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
-    ZoneMovementKind,
+    DefinitionId, DrawOutcome, EnchantmentDuration, PlayerAudience, SilenceRemovable,
+    SourceEligibilityPolicy, TimedCondition, TransformKind, TriggerCondition, TriggerDefinition,
+    WoundedTargetPolicy, ZoneMovementKind,
 };
 
 #[derive(Resource)]
@@ -619,6 +619,123 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
             .is_empty(),
         is_true()
     );
+}
+
+#[googletest::test]
+fn fatigue_requests_resolve_damage_before_the_next_draw() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let hero = hero(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    let trace = simulation.trace();
+    let fatigue = trace
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| match entry {
+            TraceEntry::DrawResolved {
+                outcome: DrawOutcome::Fatigue { amount },
+                ..
+            } => Some((index, *amount)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(
+        fatigue
+            .iter()
+            .map(|(_, amount)| *amount)
+            .collect::<Vec<_>>(),
+        eq(&vec![1, 2])
+    );
+    for (request, next_request) in fatigue.iter().zip(
+        fatigue
+            .iter()
+            .skip(1)
+            .map(|(index, _)| *index)
+            .chain([trace.len()]),
+    ) {
+        let (request_index, amount) = *request;
+        let request_trace = &trace[request_index + 1..next_request];
+        assert_that!(
+            request_trace.iter().any(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::ProposedDamage, targets, proposed: Some(proposed), .. } if targets == &[hero] && proposed == &amount)),
+            is_true()
+        );
+        assert_that!(
+            request_trace.iter().any(|entry| matches!(entry, TraceEntry::Damage { target, proposed, actual, .. } if *target == hero && proposed == &amount && actual == &amount)),
+            is_true()
+        );
+        assert_that!(
+            request_trace.iter().any(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::Damage, targets, actual: Some(actual), .. } if targets == &[hero] && actual == &amount)),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
+fn explicitly_ordered_cross_player_draws_retain_controller_order() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck("Jaina", vec![Card::spell("One", 0)]),
+        PlayerConfig::with_deck("Rexxar", vec![Card::spell("Two", 0)]),
+    ]);
+    let first = simulation.snapshot().players[0].deck[0];
+    let second = simulation.snapshot().players[1].deck[0];
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::Two,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Sequence(vec![
+            Effect::Draw {
+                player: PlayerSelector::Player(PlayerId::One),
+                count: 1,
+            },
+            Effect::Draw {
+                player: PlayerSelector::Player(PlayerId::Two),
+                count: 1,
+            },
+        ]),
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    let players = simulation
+        .trace()
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::DrawResolved { player, .. } => Some(*player),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(players, eq(&vec![PlayerId::One, PlayerId::Two]));
+    assert_that!(simulation.snapshot().players[0].hand, eq(&vec![first]));
+    assert_that!(simulation.snapshot().players[1].hand, eq(&vec![second]));
 }
 
 #[googletest::test]
