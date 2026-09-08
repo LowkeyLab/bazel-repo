@@ -245,6 +245,12 @@ pub enum ResolutionError {
     MissingEvent(EventId),
     #[error("prepared event slot {0:?} does not exist")]
     MissingEventSlot(EventSlotId),
+    #[error("draw result slot {0:?} does not exist")]
+    MissingDrawResultSlot(DrawResultSlotId),
+    #[error("draw result slot {0:?} is already filled")]
+    DrawResultSlotAlreadyFilled(DrawResultSlotId),
+    #[error("draw result slot {0:?} is empty")]
+    EmptyDrawResultSlot(DrawResultSlotId),
     #[error("no player choice is pending")]
     NoPendingChoice,
     #[error("choice option {0:?} is invalid")]
