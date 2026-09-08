@@ -98,7 +98,6 @@ git_override(
     commit = "e9ca8ab704f91265abbe5cb3d7c1b539f4b5f72c",
     patch_args = ["-p1"],
     patches = [
-        "//3rdparty/gazelle_ts:gazelle_0.54.patch",
         "//3rdparty/gazelle_ts:unique_rust_toolchain.patch",
     ],
     remote = "https://github.com/hermeticbuild/gazelle_ts.git",
