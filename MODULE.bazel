@@ -95,7 +95,7 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependenc
 bazel_dep(name = "gazelle_ts", dev_dependency = True)
 git_override(
     module_name = "gazelle_ts",
-    commit = "e9ca8ab704f91265abbe5cb3d7c1b539f4b5f72c",
+    commit = "aea8e23168fcfb68f090e50de9aa73a2d05ca5b3",
     patch_args = ["-p1"],
     patches = [
         "//3rdparty/gazelle_ts:unique_rust_toolchain.patch",
