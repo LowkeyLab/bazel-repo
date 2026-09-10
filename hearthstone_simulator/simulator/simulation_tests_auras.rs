@@ -3,7 +3,8 @@ use googletest::prelude::*;
 use super::{test_support::*, *};
 use crate::{
     AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition, ContinuousModifier,
-    Controller, EnchantmentDuration, OtherAuraCache, OtherAuraModifier, PlayerAudience,
+    Controller, EnchantmentDuration, HealthAuraCache, OtherAuraCache, OtherAuraModifier,
+    PlayerAudience, TransformKind,
 };
 
 fn stat_aura(targets: AuraTarget, attack: i32, health: i32) -> AuraDefinition {
@@ -675,4 +676,75 @@ fn aura_cache_ordering_and_checkpoint_state_are_deterministic() {
     let checkpoint = simulation.checkpoint().unwrap();
     let restored = Simulation::from_checkpoint(checkpoint.clone()).unwrap();
     assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+}
+
+#[googletest::test]
+fn transformation_clears_received_auras_without_expiring_old_provider_applications() {
+    let mut simulation = simulation();
+    let provider = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Old provider", 1, 1, 2).with_aura(stat_aura(
+            AuraTarget::FriendlyMinions,
+            2,
+            3,
+        )),
+        Zone::Play,
+    )
+    .unwrap();
+    let recipient = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Recipient", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+
+    transform_entity(
+        simulation.app.world_mut(),
+        provider,
+        Card::minion("Replacement", 1, 2, 2),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let provider_entity = game_entity(simulation.app.world(), provider).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<AttackAuraCache>(provider_entity),
+        none()
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<HealthAuraCache>(provider_entity),
+        none()
+    );
+    let recipient_entity = game_entity(simulation.app.world(), recipient).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<AttackAuraCache>(recipient_entity)
+            .unwrap()
+            .0
+            .iter()
+            .any(|application| application.provider == provider),
+        is_true()
+    );
+
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<AttackAuraCache>(recipient_entity)
+            .is_none_or(|cache| cache.0.is_empty()),
+        is_true()
+    );
 }

@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     action::run_sequence_step,
-    effect_executor::{execute_effect_operation, push_effects},
+    effect_executor::{execute_effect_operation, push_effects, transform_entity},
     error::SimulationError,
     health::{
         apply_prepared_damage, apply_prepared_healing, expand_damage_batch, expand_healing_batch,
@@ -159,9 +159,15 @@ fn execute_resolution_op(
             }
             Ok(())
         }
-        ResolutionOp::TransformEntity { .. } | ResolutionOp::CopyEntity(_) => Err(
-            SimulationError::Invariant("milestone 7 operations are not executable yet".to_owned()),
-        ),
+        ResolutionOp::TransformEntity {
+            target,
+            source: _,
+            card,
+            kind,
+        } => transform_entity(world, target, card, kind),
+        ResolutionOp::CopyEntity(_) => Err(SimulationError::Invariant(
+            "milestone 7 copy operations are not executable yet".to_owned(),
+        )),
         ResolutionOp::RequestChoice(request) => {
             request_choice(world, request);
             Ok(())

@@ -2,10 +2,12 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttachedTo, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Controller,
-    DefinitionId, DrawContinuationPolicy, DrawOutcome, EnchantmentDuration, PlayerAudience,
-    SilenceRemovable, SourceEligibilityPolicy, TimedCondition, TransformKind, TriggerCondition,
-    TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind,
+    AttachedTo, AttackAuraCache, AttackState, ConditionTiming, ContinuousEffectDefinition,
+    ContinuousModifier, Controller, DefinitionId, DrawContinuationPolicy, DrawOutcome,
+    EnchantmentDuration, HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments,
+    OtherAuraCache, PlayOrder, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
+    TimedCondition, TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    ZoneMovementKind, ZonePosition,
 };
 
 #[derive(Resource)]
@@ -1264,6 +1266,7 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: Vec::new(),
         }]),
+        TransformKind::Spell,
     )
     .unwrap();
     let transformed = game_entity(simulation.app.world(), reactive).unwrap();
@@ -1398,6 +1401,7 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
         simulation.app.world_mut(),
         target,
         Card::minion("New form", 4, 2, 2),
+        TransformKind::Spell,
     )
     .unwrap();
     execute_effect(
@@ -1424,5 +1428,269 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
             .unwrap()
             .cost,
         eq(3)
+    );
+}
+
+#[googletest::test]
+fn invalid_transformation_is_atomic() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Invalid target", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let attachment = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 2,
+            health: 2,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(target_entity)
+        .remove::<DefinitionId>();
+    let before = simulation.checkpoint().unwrap();
+
+    let result = transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+
+    assert_that!(result, err(anything()));
+    assert_that!(simulation.checkpoint().unwrap(), eq(&before));
+
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(target_entity)
+        .insert(DefinitionId("synthetic:invalid_target".to_string()));
+    let attachment_entity = game_entity(simulation.app.world(), attachment).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(attachment_entity)
+        .remove::<PlayOrder>();
+    let before_invalid_attachment = simulation.checkpoint().unwrap();
+    let attachment_result = transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+    assert_that!(attachment_result, err(anything()));
+    assert_that!(
+        simulation.checkpoint().unwrap(),
+        eq(&before_invalid_attachment)
+    );
+
+    let before_missing = simulation.checkpoint().unwrap();
+    let missing_result = transform_entity(
+        simulation.app.world_mut(),
+        GameEntityId(u64::MAX),
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+    assert_that!(missing_result, err(anything()));
+    assert_that!(simulation.checkpoint().unwrap(), eq(&before_missing));
+}
+
+#[googletest::test]
+fn transformation_detaches_enchantments_in_play_order_then_entity_id() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Attachment host", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let first = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 1,
+            health: 0,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let second = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 2,
+            health: 0,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let first_entity = game_entity(simulation.app.world(), first).unwrap();
+    let second_entity = game_entity(simulation.app.world(), second).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(first_entity)
+        .insert(PlayOrder(20));
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(second_entity)
+        .insert(PlayOrder(10));
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Detached host", 1, 3, 3),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let removed = simulation
+        .app
+        .world()
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::One, Zone::RemovedFromGame);
+    let first_position = removed.iter().position(|id| *id == first).unwrap();
+    let second_position = removed.iter().position(|id| *id == second).unwrap();
+    assert_that!(second_position, lt(first_position));
+}
+
+#[googletest::test]
+fn transformation_replaces_form_state_and_preserves_stable_state() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Old form", 5, 4, 6),
+        Zone::Play,
+    )
+    .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(target_entity)
+        .insert((
+            PlayOrder(77),
+            Armor(9),
+            HeroMetadata::default(),
+            HeroPowerState::default(),
+            Abilities(vec!["old ability".to_string()]),
+            Enchantments(vec![GameEntityId(404)]),
+            PendingDestroy,
+            Silenced,
+            KeepEnchantments,
+            HealthAuraCache(vec![AuraApplication {
+                provider: GameEntityId(101),
+                definition_index: 0,
+                modifier: AuraModifier::MaximumHealth(2),
+            }]),
+            AttackAuraCache(vec![AuraApplication {
+                provider: GameEntityId(102),
+                definition_index: 0,
+                modifier: AuraModifier::Attack(3),
+            }]),
+            OtherAuraCache(vec![AuraApplication {
+                provider: GameEntityId(103),
+                definition_index: 0,
+                modifier: AuraModifier::Immune,
+            }]),
+        ));
+    let controller = *simulation
+        .app
+        .world()
+        .get::<Controller>(target_entity)
+        .unwrap();
+    let zone = *simulation.app.world().get::<Zone>(target_entity).unwrap();
+    let position = *simulation
+        .app
+        .world()
+        .get::<ZonePosition>(target_entity)
+        .unwrap();
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("New form", 2, 2, 3),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let transformed = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation.app.world().get::<GameEntityId>(transformed),
+        eq(Some(&target))
+    );
+    assert_that!(
+        simulation.app.world().get::<Controller>(transformed),
+        eq(Some(&controller))
+    );
+    assert_that!(
+        simulation.app.world().get::<Zone>(transformed),
+        eq(Some(&zone))
+    );
+    assert_that!(
+        simulation.app.world().get::<ZonePosition>(transformed),
+        eq(Some(&position))
+    );
+    assert_that!(
+        simulation.app.world().get::<PlayOrder>(transformed),
+        eq(Some(&PlayOrder(77)))
+    );
+    assert_that!(simulation.app.world().get::<Armor>(transformed), none());
+    assert_that!(
+        simulation.app.world().get::<HeroMetadata>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<HeroPowerState>(transformed),
+        none()
+    );
+    assert_that!(simulation.app.world().get::<Abilities>(transformed), none());
+    assert_that!(
+        simulation.app.world().get::<Enchantments>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<PendingDestroy>(transformed),
+        none()
+    );
+    assert_that!(simulation.app.world().get::<Silenced>(transformed), none());
+    assert_that!(
+        simulation.app.world().get::<KeepEnchantments>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<HealthAuraCache>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<AttackAuraCache>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<OtherAuraCache>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<AttackState>(transformed),
+        eq(Some(&AttackState::default()))
     );
 }

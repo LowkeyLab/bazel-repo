@@ -1,15 +1,16 @@
 use bevy::prelude::*;
 
 use crate::{
-    Armor, AttachedTo, AttackState, BaseKeywords, BaseStats, CanonicalTrace, Card, Controller,
-    CostModifier, CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, DrawRequest,
-    Effect, EffectContext, EnchantmentDuration, EntityKind, EventId, EventKind,
-    EventValueOperation, GameEntityId, HealingRequest, HeroClassPolicy, HeroHealthPolicy,
-    HeroMetadata, HeroPowerState, HeroReplacement, KeywordModifier, Keywords, PendingDestroy,
-    PlayerId, PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras,
-    RuntimeContinuousEffects, RuntimeTriggers, Selector, SilenceRemovable, Silenced,
-    SourceEligibilityPolicy, StatModifier, TraceEntry, ValueExpression, Zone, ZoneMoveOutcome,
-    ZoneMoveRequest, ZoneMovementKind,
+    Abilities, Armor, AttachedTo, AttackAuraCache, AttackState, BaseKeywords, BaseStats,
+    CanonicalTrace, Card, Controller, CostModifier, CurrentStats, Damage, DamageRequest,
+    DeathRecord, DefinitionId, DisplayName, DrawRequest, Effect, EffectContext,
+    EnchantmentDuration, Enchantments, EntityKind, EventId, EventKind, EventValueOperation,
+    GameEntityId, HealingRequest, HealthAuraCache, HeroClassPolicy, HeroHealthPolicy, HeroMetadata,
+    HeroPowerState, HeroReplacement, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache,
+    PendingDestroy, PlayOrder, Player, PlayerId, PlayerSelector, ResolutionOp, ResolutionWork,
+    Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, Selector, SilenceRemovable,
+    Silenced, SourceEligibilityPolicy, StatModifier, TraceEntry, TransformKind, ValueExpression,
+    Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, ZonePosition,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
@@ -370,10 +371,23 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
-        Effect::Transform { targets, card, .. } => {
-            for target in select_entities(world, context, targets) {
-                transform_entity(world, target, card.clone())?;
-            }
+        Effect::Transform {
+            targets,
+            card,
+            kind,
+        } => {
+            let targets = select_entities(world, context, targets);
+            push_resolution_ops(
+                world,
+                targets
+                    .into_iter()
+                    .map(|target| ResolutionOp::TransformEntity {
+                        target,
+                        source: context.source,
+                        card: card.clone(),
+                        kind: *kind,
+                    }),
+            );
             Ok(())
         }
         Effect::Copy {
@@ -913,9 +927,108 @@ pub(super) fn transform_entity(
     world: &mut World,
     target: GameEntityId,
     card: Card,
+    kind: TransformKind,
 ) -> Result<(), SimulationError> {
-    detach_all_enchantments(world, target);
     let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    validate_card_program(world, &card)?;
+    let previous_definition =
+        required_transform_component::<DefinitionId>(world, entity, target, "DefinitionId")?
+            .0
+            .clone();
+    required_transform_component::<Controller>(world, entity, target, "Controller")?;
+    required_transform_component::<Zone>(world, entity, target, "Zone")?;
+    required_transform_component::<ZonePosition>(world, entity, target, "ZonePosition")?;
+    required_transform_component::<PlayOrder>(world, entity, target, "PlayOrder")?;
+    let mut attachments = world
+        .iter_entities()
+        .filter_map(|attachment| {
+            (attachment.get::<AttachedTo>().map(|attached| attached.0) == Some(entity))
+                .then_some(attachment.id())
+        })
+        .map(|attachment| {
+            let id = required_transform_component::<GameEntityId>(
+                world,
+                attachment,
+                target,
+                "attachment GameEntityId",
+            )?;
+            let controller = required_transform_component::<Controller>(
+                world,
+                attachment,
+                target,
+                "attachment Controller",
+            )?;
+            let order = required_transform_component::<PlayOrder>(
+                world,
+                attachment,
+                target,
+                "attachment PlayOrder",
+            )?;
+            let zone =
+                required_transform_component::<Zone>(world, attachment, target, "attachment Zone")?;
+            let position = required_transform_component::<ZonePosition>(
+                world,
+                attachment,
+                target,
+                "attachment ZonePosition",
+            )?;
+            if world
+                .resource::<ZoneIndex>()
+                .entities(controller.0, *zone)
+                .get(position.0)
+                != Some(id)
+            {
+                return Err(SimulationError::InvalidTransformation(format!(
+                    "target {target:?} has an attachment with an invalid zone index entry"
+                )));
+            }
+            Ok((order.0, *id, controller.0, attachment))
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    attachments.sort_by_key(|(order, id, _, _)| (*order, *id));
+
+    for (_, id, controller, attachment) in attachments {
+        world.entity_mut(attachment).remove::<AttachedTo>();
+        move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: id,
+                destination_controller: controller,
+                destination: Zone::RemovedFromGame,
+                position: None,
+                kind: ZoneMovementKind::DetachEnchantment,
+            },
+        )
+        .expect("prevalidated transform attachment move must succeed");
+    }
+
+    let replacement_definition = card.definition_id.clone();
+    let replacement_kind = card.kind;
+    let entity = game_entity(world, target).expect("validated transform target remains indexed");
+    world.entity_mut(entity).remove::<(
+        Abilities,
+        Armor,
+        AttackAuraCache,
+        AttackState,
+        DeathRecord,
+        Enchantments,
+        HealthAuraCache,
+        HeroMetadata,
+        HeroPowerState,
+        KeepEnchantments,
+        OtherAuraCache,
+        PendingDestroy,
+        Player,
+        Silenced,
+    )>();
+    world.entity_mut(entity).remove::<(
+        AttachedTo,
+        CostModifier,
+        EnchantmentDuration,
+        KeywordModifier,
+        SilenceRemovable,
+        StatModifier,
+    )>();
     world.entity_mut(entity).insert((
         DefinitionId(card.definition_id),
         DisplayName(card.name),
@@ -929,6 +1042,7 @@ pub(super) fn transform_entity(
             maximum_health: card.health,
         },
         Damage::default(),
+        AttackState::default(),
         BaseKeywords(card.keywords.clone()),
         Keywords(card.keywords.clone()),
         CardRuntime {
@@ -940,9 +1054,37 @@ pub(super) fn transform_entity(
         RuntimeAuras(card.auras),
         RuntimeContinuousEffects(card.continuous_effects),
     ));
-    world.entity_mut(entity).remove::<PendingDestroy>();
-    world.entity_mut(entity).remove::<Silenced>();
+    if replacement_kind == EntityKind::Hero {
+        world
+            .entity_mut(entity)
+            .insert((Armor::default(), HeroMetadata::default()));
+    }
+    if replacement_kind == EntityKind::HeroPower {
+        world.entity_mut(entity).insert(HeroPowerState::default());
+    }
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EntityTransformed {
+            entity: target,
+            previous_definition,
+            replacement_definition,
+            kind,
+        });
     Ok(())
+}
+
+fn required_transform_component<'a, T: Component>(
+    world: &'a World,
+    entity: Entity,
+    target: GameEntityId,
+    name: &str,
+) -> Result<&'a T, SimulationError> {
+    world.get::<T>(entity).ok_or_else(|| {
+        SimulationError::InvalidTransformation(format!(
+            "target {target:?} lacks required {name} component"
+        ))
+    })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

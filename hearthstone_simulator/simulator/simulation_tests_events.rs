@@ -461,6 +461,90 @@ fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue(
 }
 
 #[googletest::test]
+fn transform_operation_carries_source_and_emits_only_the_transform_trace() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Transformer", 1, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Old target", 3, 3, 3),
+        Zone::Play,
+    )
+    .unwrap();
+    let context = EffectContext {
+        source: Some(source),
+        controller: PlayerId::One,
+        declared_target: Some(target),
+        drawn_card: None,
+        origin: EffectOrigin::Spell,
+    };
+    begin_sequence(simulation.app.world_mut()).unwrap();
+
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: Card::minion("New target", 2, 2, 4),
+            kind: TransformKind::Spell,
+        },
+    )
+    .unwrap();
+
+    assert_that!(
+        &simulation.app.world().resource::<ResolutionWork>().stack[0].operation,
+        matches_pattern!(ResolutionOp::TransformEntity {
+            target: eq(&target),
+            source: eq(&Some(source)),
+            card: anything(),
+            kind: eq(&TransformKind::Spell),
+        })
+    );
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+
+    let transform_entries = simulation
+        .trace()
+        .iter()
+        .filter(|entry| matches!(entry, TraceEntry::EntityTransformed { .. }))
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_that!(
+        transform_entries,
+        eq(&vec![TraceEntry::EntityTransformed {
+            entity: target,
+            previous_definition: "synthetic:old_target".to_string(),
+            replacement_definition: "synthetic:new_target".to_string(),
+            kind: TransformKind::Spell,
+        }])
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::EventCreated {
+                kind: EventKind::Death | EventKind::Summoned,
+                targets,
+                ..
+            } if targets.contains(&target)
+        )),
+        is_false()
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::EntityDied { entity } if *entity == target)),
+        is_false()
+    );
+}
+
+#[googletest::test]
 fn silence_removes_only_trigger_enchantments_marked_removable() {
     let grant = |name, silence_removable| {
         Card::spell(name, 0).with_effects(vec![Effect::AttachTriggerEnchantment {

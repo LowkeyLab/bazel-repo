@@ -86,7 +86,12 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
         err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
     );
     assert_that!(
-        transform_entity(world, GameEntityId(999), Card::minion("Missing", 0, 1, 1)),
+        transform_entity(
+            world,
+            GameEntityId(999),
+            Card::minion("Missing", 0, 1, 1),
+            crate::TransformKind::Spell,
+        ),
         err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
     );
     assert_that!(copy_card_data(world, GameEntityId(999)), none());
