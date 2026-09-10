@@ -4,13 +4,15 @@ use bevy::prelude::*;
 
 use crate::{
     Abilities, Armor, AttackAuraCache, AttackState, BaseKeywords, BaseStats,
-    CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, CardRuntimeCheckpoint, Controller, CostModifier,
-    CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId, DeterministicRng,
-    DisplayName, DominantPlayer, EnchantmentDuration, Enchantments, EntityKind,
-    GameEntityCheckpoint, GameEntityId, GameObject, GameState, HealthAuraCache, HeroMetadata,
-    HeroPowerState, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache, PlayOrder, Player,
-    PlayerId, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    SilenceRemovable, Silenced, SimulationCheckpoint, StatModifier, TurnSchedule, Zone,
+    CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, Card, CardRuntimeCheckpoint, Controller,
+    CostModifier, CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId,
+    DeterministicRng, DisplayName, DominantPlayer, DrawOutcome, DrawResultSlotId, Effect,
+    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventContext, EventId,
+    EventSlotId, GameEntityCheckpoint, GameEntityId, GameObject, GameState, HealthAuraCache,
+    HeroMetadata, HeroPowerState, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache,
+    PlayOrder, Player, PlayerId, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras,
+    RuntimeContinuousEffects, RuntimeTriggers, Selector, SequenceStep, SilenceRemovable, Silenced,
+    SimulationCheckpoint, StatModifier, TriggerCondition, TurnSchedule, Zone,
     death::{DefeatedHeroes, PendingDeaths},
     enchantment::{AttachedTo, assert_enchantment_invariants},
     entity::{NextGameEntityId, PlayOrderCounter, game_entity},
@@ -431,6 +433,16 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
             .map(|slot| slot.0)
             .max(),
     )?;
+    validate_next_counter(
+        "draw result slot",
+        checkpoint.resolution.next_draw_result_slot_id,
+        checkpoint
+            .resolution
+            .draw_result_slots
+            .keys()
+            .map(|slot| slot.0)
+            .max(),
+    )?;
     let ids = checkpoint
         .entities
         .iter()
@@ -462,6 +474,7 @@ fn validate_checkpoint(checkpoint: &SimulationCheckpoint) -> Result<(), Simulati
     for entity in &checkpoint.entities {
         validate_checkpoint_entity(entity, &ids)?;
     }
+    validate_resolution_work(&checkpoint.resolution, &ids)?;
     validate_checkpoint_costs(checkpoint)?;
     validate_checkpoint_player_roles(checkpoint)?;
     Ok(())
@@ -643,6 +656,419 @@ fn validate_checkpoint_entity(
         return Err(SimulationError::Checkpoint(format!(
             "entity {:?} references missing aura provider {:?}",
             entity.id, application.provider
+        )));
+    }
+    if let Some(runtime) = &entity.card_runtime {
+        validate_effect_references(&runtime.program, ids)?;
+    }
+    if let Some(triggers) = &entity.runtime_triggers {
+        validate_trigger_references(triggers, ids)?;
+    }
+    Ok(())
+}
+
+fn validate_resolution_work(
+    work: &ResolutionWork,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    for (slot, result) in &work.draw_result_slots {
+        validate_counter_reference("draw result slot", slot.0, work.next_draw_result_slot_id)?;
+        if let Some(DrawOutcome::Drawn(entity) | DrawOutcome::Burned(entity)) = result.outcome {
+            validate_entity_reference("draw result", entity, ids)?;
+        }
+    }
+    for entity in &work.pending_played_self_transforms {
+        validate_entity_reference("pending played-self transform", *entity, ids)?;
+    }
+    for event in work.events.values() {
+        validate_event_context_references(&event.context, ids)?;
+        for seed in event.prechecked_triggers.iter().flatten() {
+            validate_entity_reference("trigger seed source", seed.source, ids)?;
+            validate_trigger_definition_references(&seed.definition, ids)?;
+        }
+        for candidate in event.candidates.iter().flatten() {
+            validate_trigger_candidate_references(candidate, work, ids)?;
+        }
+    }
+    for slot in work.event_slots.values() {
+        if let Some(event) = slot.event {
+            validate_event_reference(event, work)?;
+        }
+    }
+    for stacked in &work.stack {
+        validate_resolution_operation_references(&stacked.operation, work, ids)?;
+    }
+    if let Some(pending) = &work.pending_choice {
+        validate_choice_references(&pending.request, work, ids)?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_lines)]
+fn validate_resolution_operation_references(
+    operation: &ResolutionOp,
+    work: &ResolutionWork,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    match operation {
+        ResolutionOp::RunSequenceStep(step) => validate_sequence_step_references(step, ids),
+        ResolutionOp::RunPhaseBoundary(_)
+        | ResolutionOp::CheckOutcome
+        | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon) => Ok(()),
+        ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::PlayedProvider(provider)) => {
+            validate_entity_reference("aura provider", *provider, ids)
+        }
+        ResolutionOp::PrepareEvent(context) => validate_event_context_references(context, ids),
+        ResolutionOp::ResolveEvent(event) | ResolutionOp::FinishEvent(event) => {
+            validate_event_reference(*event, work)
+        }
+        ResolutionOp::ResolveEventSlot(slot) => validate_event_slot_reference(*slot, work),
+        ResolutionOp::AttemptTrigger(candidate) => {
+            validate_trigger_candidate_references(candidate, work, ids)
+        }
+        ResolutionOp::FinishTrigger { attempt, source } => {
+            validate_counter_reference("resolution", attempt.0, work.next_resolution_id)?;
+            validate_entity_reference("finished trigger source", *source, ids)
+        }
+        ResolutionOp::RunEffect {
+            context,
+            effect,
+            event,
+        } => {
+            validate_effect_context_references(context, ids)?;
+            validate_effect_references(std::slice::from_ref(effect), ids)?;
+            if let Some(event) = event {
+                validate_event_reference(*event, work)?;
+            }
+            Ok(())
+        }
+        ResolutionOp::ProcessDamageBatch(requests) => {
+            for request in requests {
+                validate_damage_references(request.source, request.target, ids)?;
+            }
+            Ok(())
+        }
+        ResolutionOp::ProcessDamage {
+            request,
+            actual_event,
+            ..
+        } => {
+            validate_damage_references(request.source, request.target, ids)?;
+            validate_event_slot_reference(*actual_event, work)
+        }
+        ResolutionOp::ProcessHealing {
+            request,
+            actual_event,
+            ..
+        } => {
+            validate_damage_references(request.source, request.target, ids)?;
+            validate_event_slot_reference(*actual_event, work)
+        }
+        ResolutionOp::ApplyDamage {
+            request,
+            proposed_event,
+            actual_event,
+            ..
+        } => {
+            validate_damage_references(request.source, request.target, ids)?;
+            validate_event_reference(*proposed_event, work)?;
+            validate_event_slot_reference(*actual_event, work)
+        }
+        ResolutionOp::ApplyHealing {
+            request,
+            proposed_event,
+            actual_event,
+            ..
+        } => {
+            validate_damage_references(request.source, request.target, ids)?;
+            validate_event_reference(*proposed_event, work)?;
+            validate_event_slot_reference(*actual_event, work)
+        }
+        ResolutionOp::ProcessHealingBatch(requests) => {
+            for request in requests {
+                validate_damage_references(request.source, request.target, ids)?;
+            }
+            Ok(())
+        }
+        ResolutionOp::ProcessDraw(request) => {
+            if let Some(source) = request.source {
+                validate_entity_reference("draw source", source, ids)?;
+            }
+            validate_draw_slot_reference(request.result, work)
+        }
+        ResolutionOp::FinishDraw(result) => validate_draw_slot_reference(*result, work),
+        ResolutionOp::ContinueDraw {
+            result,
+            context,
+            effects,
+            ..
+        } => {
+            validate_draw_slot_reference(*result, work)?;
+            validate_effect_context_references(context, ids)?;
+            validate_effect_references(effects, ids)
+        }
+        ResolutionOp::TransformEntity {
+            target,
+            source,
+            card,
+            ..
+        } => {
+            validate_entity_reference("transform target", *target, ids)?;
+            if let Some(source) = source {
+                validate_entity_reference("transform source", *source, ids)?;
+            }
+            validate_card_references(card, ids)
+        }
+        ResolutionOp::CopyEntity(request) => {
+            validate_entity_reference("copy source", request.source, ids)
+        }
+        ResolutionOp::RequestChoice(request) => validate_choice_references(request, work, ids),
+    }
+}
+
+fn validate_sequence_step_references(
+    step: &SequenceStep,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    match step {
+        SequenceStep::PlayCard { card, target, .. } => {
+            validate_entity_reference("played card", *card, ids)?;
+            if let Some(target) = target {
+                validate_entity_reference("declared target", *target, ids)?;
+            }
+        }
+        SequenceStep::Attack {
+            attacker, defender, ..
+        }
+        | SequenceStep::FinishAttack {
+            attacker, defender, ..
+        } => {
+            validate_entity_reference("attacker", *attacker, ids)?;
+            validate_entity_reference("defender", *defender, ids)?;
+        }
+        SequenceStep::EndTurn { .. }
+        | SequenceStep::AdvanceTurn { .. }
+        | SequenceStep::StartTurn { .. }
+        | SequenceStep::Concede { .. } => {}
+    }
+    Ok(())
+}
+
+fn validate_choice_references(
+    request: &crate::ChoiceRequest,
+    work: &ResolutionWork,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    for option in &request.options {
+        for operation in &option.operations {
+            validate_resolution_operation_references(operation, work, ids)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_event_context_references(
+    context: &EventContext,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    if let Some(source) = context.source {
+        validate_entity_reference("event source", source, ids)?;
+    }
+    for target in &context.targets {
+        validate_entity_reference("event target", *target, ids)?;
+    }
+    Ok(())
+}
+
+fn validate_effect_context_references(
+    context: &EffectContext,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    for (name, entity) in [
+        ("effect source", context.source),
+        ("declared target", context.declared_target),
+        ("drawn card", context.drawn_card),
+    ] {
+        if let Some(entity) = entity {
+            validate_entity_reference(name, entity, ids)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_effect_references(
+    effects: &[Effect],
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    for effect in effects {
+        match effect {
+            Effect::DealDamage { targets, .. }
+            | Effect::Heal { targets, .. }
+            | Effect::Destroy { targets }
+            | Effect::Move { targets, .. }
+            | Effect::AttachStatModifier { targets, .. }
+            | Effect::AttachKeywordModifier { targets, .. }
+            | Effect::AttachCostModifier { targets, .. }
+            | Effect::AttachContinuousEffect { targets, .. }
+            | Effect::Silence { targets }
+            | Effect::Copy { targets, .. } => validate_selector_references(targets, ids)?,
+            Effect::AttachTriggerEnchantment {
+                targets, triggers, ..
+            } => {
+                validate_selector_references(targets, ids)?;
+                validate_trigger_references(triggers, ids)?;
+            }
+            Effect::Transform { targets, card, .. } => {
+                validate_selector_references(targets, ids)?;
+                validate_card_references(card, ids)?;
+            }
+            Effect::DrawThen { effects, .. } | Effect::Sequence(effects) => {
+                validate_effect_references(effects, ids)?;
+            }
+            Effect::ReplaceHero { replacement, .. } => {
+                validate_card_references(&replacement.hero, ids)?;
+                validate_card_references(&replacement.hero_power, ids)?;
+                if let Some(weapon) = &replacement.weapon {
+                    validate_card_references(weapon, ids)?;
+                }
+            }
+            Effect::Summon { card, .. } => validate_card_references(card, ids)?,
+            Effect::ModifyEventValue { .. }
+            | Effect::Draw { .. }
+            | Effect::GainResource { .. }
+            | Effect::ScheduleExtraTurns { .. }
+            | Effect::Native(_) => {}
+        }
+    }
+    Ok(())
+}
+
+fn validate_selector_references(
+    selector: &Selector,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    match selector {
+        Selector::Entity(entity) => validate_entity_reference("selector", *entity, ids),
+        Selector::Random(inner) => validate_selector_references(inner, ids),
+        Selector::Source
+        | Selector::DrawnCard
+        | Selector::AttachedEntity
+        | Selector::DeclaredTarget
+        | Selector::FriendlyMinions
+        | Selector::EnemyMinions
+        | Selector::AllMinions
+        | Selector::FriendlyCharacters
+        | Selector::EnemyCharacters
+        | Selector::AllCharacters
+        | Selector::InZone { .. } => Ok(()),
+    }
+}
+
+fn validate_trigger_references(
+    triggers: &[hearthstone_simulator_core::TriggerDefinition],
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    for trigger in triggers {
+        validate_trigger_definition_references(trigger, ids)?;
+    }
+    Ok(())
+}
+
+fn validate_trigger_definition_references(
+    trigger: &hearthstone_simulator_core::TriggerDefinition,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    for condition in &trigger.conditions {
+        if let TriggerCondition::MinimumEntityCount { selector, .. } = &condition.condition {
+            validate_selector_references(selector, ids)?;
+        }
+    }
+    validate_effect_references(&trigger.effect_program, ids)
+}
+
+fn validate_trigger_candidate_references(
+    candidate: &crate::TriggerCandidate,
+    work: &ResolutionWork,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    validate_entity_reference("trigger candidate source", candidate.source, ids)?;
+    validate_entity_reference("trigger order source", candidate.order.source, ids)?;
+    validate_event_reference(candidate.event, work)?;
+    validate_trigger_definition_references(&candidate.definition, ids)
+}
+
+fn validate_card_references(
+    card: &Card,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    validate_effect_references(&card.effects, ids)?;
+    validate_trigger_references(&card.triggers, ids)
+}
+
+fn validate_damage_references(
+    source: Option<GameEntityId>,
+    target: GameEntityId,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    if let Some(source) = source {
+        validate_entity_reference("request source", source, ids)?;
+    }
+    validate_entity_reference("request target", target, ids)
+}
+
+fn validate_event_reference(event: EventId, work: &ResolutionWork) -> Result<(), SimulationError> {
+    validate_counter_reference("event", event.0, work.next_event_id)?;
+    if !work.events.contains_key(&event) {
+        return Err(SimulationError::Checkpoint(format!(
+            "missing prepared event {event:?}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_event_slot_reference(
+    slot: EventSlotId,
+    work: &ResolutionWork,
+) -> Result<(), SimulationError> {
+    validate_counter_reference("event slot", slot.0, work.next_event_slot_id)?;
+    if !work.event_slots.contains_key(&slot) {
+        return Err(SimulationError::Checkpoint(format!(
+            "missing prepared event slot {slot:?}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_draw_slot_reference(
+    slot: DrawResultSlotId,
+    work: &ResolutionWork,
+) -> Result<(), SimulationError> {
+    validate_counter_reference("draw result slot", slot.0, work.next_draw_result_slot_id)?;
+    if !work.draw_result_slots.contains_key(&slot) {
+        return Err(SimulationError::Checkpoint(format!(
+            "missing draw result slot {slot:?}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_counter_reference(name: &str, id: u64, next: u64) -> Result<(), SimulationError> {
+    if id >= next {
+        return Err(SimulationError::Checkpoint(format!(
+            "{name} ID {id} is not below next ID {next}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_entity_reference(
+    name: &str,
+    entity: GameEntityId,
+    ids: &BTreeSet<GameEntityId>,
+) -> Result<(), SimulationError> {
+    if !ids.contains(&entity) {
+        return Err(SimulationError::Checkpoint(format!(
+            "{name} references missing logical entity {entity:?}"
         )));
     }
     Ok(())
