@@ -1,19 +1,16 @@
 ---
 title: "Mindreadr"
 description: "A cooperative word-guessing game"
-tags: ["Kotlin", "Ktor", "Angular", "TypeScript", "WebSocket", "Bazel"]
-startDate: 2025-11-19
-featured: true
-links:
-  github: "https://github.com/tacascer/bazel-repo/tree/main/mindreadr"
-  demo: "https://mindreadrfrontend-production.up.railway.app/"
+publishDate: 2025-11-19
+tags: ["kotlin", "ktor", "angular", "typescript", "websocket", "bazel"]
+draft: false
 ---
 
 ## Overview
 
 Mindreadr is a cooperative multiplayer game where two players try to arrive at the same word as each other.
 
-This is a rewrite of [guess-the-word](/projects/guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommissioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
+This is a rewrite of [Guess The Word](/blog/guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommissioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
 
 ## Features
 
@@ -90,3 +87,8 @@ Some resources that aren't just the Bazel [documentation](https://bazel.build/do
 - [Sample Angular Project With Tailwind](https://github.com/LowkeyLab/bazel-repo/tree/main/angular/projects/tailwind-sample) if you want to see how to use TailwindCSS with Angular and Bazel. Surprisingly, I couldn't find this specific example anywhere on the internet, and had to go through [many iterations](https://github.com/LowkeyLab/bazel-repo/commits/main/angular/projects/tailwind-sample) to get it working.
 - [Gazelle](https://github.com/bazel-contrib/bazel-gazelle) to generate BUILD files automatically for supported languages. In my experience, it has only worked well for Go.
 - [Buildbuddy](https://www.buildbuddy.io/) for a free remote build cache.
+
+## Links
+
+- [Source code](https://github.com/tacascer/bazel-repo/tree/main/mindreadr)
+- [Live demo](https://mindreadrfrontend-production.up.railway.app/)

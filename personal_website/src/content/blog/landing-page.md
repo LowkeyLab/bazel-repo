@@ -1,13 +1,9 @@
 ---
 title: "Personal Landing Page"
 description: "My personal website"
-tags: ["Astro", "Tailwind", "Deno", "TypeScript"]
-startDate: 2025-02-11
-endDate: 2025-04-02
-featured: true
-links:
-  github: "https://github.com/LowkeyLab/deno-monorepo/tree/main/website"
-  demo: "https://www.tacascer.com"
+publishDate: 2025-02-11
+tags: ["astro", "tailwind", "deno", "typescript"]
+draft: false
 ---
 
 ## Features
@@ -66,3 +62,8 @@ There are some growing pains. The biggest one is that documentation for all othe
 One of the biggest confusions I had was how to deploy my site. I'm utilizing Deno's [workspace](https://docs.deno.com/runtime/fundamentals/workspaces/) support, which has a section on [containerizing a workspace member](https://docs.deno.com/runtime/fundamentals/workspaces/#important-note-for-containerization). The documentation shows that to containerize a workspace member, you only need to include the root `deno.json`, the workspace member of interest, and all workspace members it depends on. However, this is not true, as `deno install` needs every workspace member to be present. I've [submitted the issue](https://github.com/denoland/deno/issues/28365) to the Deno team.
 
 Another annoyance is the need to still include a `tsconfig.json` file, even though Deno provides TypeScript out of the box. This is because Astro (and many other JS libraries) don't generate types with valid [triple slash directives](https://docs.deno.com/runtime/reference/ts_config_migration/#triple-slash-directive), so a `tsconfig` is still needed to make TypeScript language servers happy.
+
+## Links
+
+- [Source code](https://github.com/LowkeyLab/deno-monorepo/tree/main/website)
+- [Website](https://www.tacascer.com)

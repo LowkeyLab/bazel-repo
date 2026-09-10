@@ -3,6 +3,7 @@ load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@npm//:astro/package_json.bzl", "bin")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//personal_website/bzl:ts.bzl", "personal_website_ts_config")
 
 # Enable Gazelle only for the Personal Website while TypeScript remains disabled
@@ -81,6 +82,15 @@ js_run_binary(
     mnemonic = "AstroBuild",
     out_dirs = ["dist"],
     tool = ":astro",
+)
+
+sh_test(
+    name = "site_structure_test",
+    srcs = ["site_structure_test.sh"],
+    data = [
+        "Caddyfile",
+        ":build",
+    ],
 )
 
 bin.astro_binary(

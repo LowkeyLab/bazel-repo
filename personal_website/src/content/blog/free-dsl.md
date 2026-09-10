@@ -1,12 +1,9 @@
 ---
 title: "Free-DSL"
 description: "An annotation processor for creating Builders in Kotlin"
-tags: ["Kotlin"]
-startDate: 2024-08-31
-endDate: 2025-12-25
-featured: true
-links:
-  github: "https://github.com/LowkeyLab/gradle-monorepo/tree/main/free-dsl"
+publishDate: 2024-08-31
+tags: ["kotlin"]
+draft: false
 ---
 
 ## Overview
@@ -39,3 +36,7 @@ Kotlin even more.
 This project is also my first foray into writing a compiler plugin using
 the [Kotlin Symbol Processing](https://kotlinlang.org/docs/ksp-overview.html)
 API.
+
+## Links
+
+- [Source code](https://github.com/LowkeyLab/gradle-monorepo/tree/main/free-dsl)
