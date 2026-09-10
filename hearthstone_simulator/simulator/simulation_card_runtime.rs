@@ -118,8 +118,34 @@ pub(super) fn spawn_card_at(
     zone: Zone,
     board_position: Option<usize>,
 ) -> Result<GameEntityId, SimulationError> {
+    let position = validate_card_spawn(world, player_id, &card, zone, board_position)?;
+    spawn_validated_card(world, player_id, card, zone, position)
+}
+
+pub(super) fn validate_card_spawn(
+    world: &World,
+    player_id: PlayerId,
+    card: &Card,
+    zone: Zone,
+    board_position: Option<usize>,
+) -> Result<Option<usize>, SimulationError> {
     validate_generation_capacity(world, player_id, zone, card.kind, &card.definition_id)?;
-    let position = resolve_generation_position(world, player_id, zone, card.kind, board_position)?;
+    Ok(resolve_generation_position(
+        world,
+        player_id,
+        zone,
+        card.kind,
+        board_position,
+    )?)
+}
+
+fn spawn_validated_card(
+    world: &mut World,
+    player_id: PlayerId,
+    card: Card,
+    zone: Zone,
+    position: Option<usize>,
+) -> Result<GameEntityId, SimulationError> {
     let kind = card.kind;
     let base_keywords = BaseKeywords(card.keywords.clone());
     let keywords = Keywords(card.keywords.clone());

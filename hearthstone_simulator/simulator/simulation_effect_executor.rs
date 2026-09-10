@@ -12,19 +12,21 @@ use crate::{
     RuntimeTriggers, Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier,
     TraceEntry, TransformKind, ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest,
     ZoneMovementKind, ZonePosition,
-    enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
-    entity::{allocate_game_id, allocate_play_order, game_entity},
+    enchantment::{
+        recalculate_cost, recalculate_keywords, recalculate_stats, spawn_attached_enchantment,
+    },
+    entity::{allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
     resolver::{allocate_draw_result_slot, push_resolution_ops},
     rng::choose_game_entity,
     zone::{
-        ZoneError, ZoneIndex, board_is_full, insert_into_zone, move_entity,
-        move_entity_with_request, validate_board_position,
+        ZoneError, ZoneIndex, board_is_full, move_entity, move_entity_with_request,
+        validate_board_position,
     },
 };
 
 use super::{
-    card_runtime::{CardRuntime, spawn_card, spawn_card_at},
+    card_runtime::{CardRuntime, spawn_card, spawn_card_at, validate_card_spawn},
     error::SimulationError,
     event_resolver::prepare_event,
     health::{SimultaneousEventOrder, apply_damage_batch, apply_healing_batch},
@@ -877,39 +879,6 @@ pub(super) fn attach_continuous_effect(
     Ok(())
 }
 
-fn spawn_attached_enchantment(
-    world: &mut World,
-    controller: PlayerId,
-    target: GameEntityId,
-    definition_id: &str,
-    display_name: &str,
-    duration: EnchantmentDuration,
-    silence_removable: bool,
-) -> Result<(GameEntityId, Entity), SimulationError> {
-    let target_entity =
-        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let id = allocate_game_id(world);
-    let order = allocate_play_order(world);
-    let entity = world
-        .spawn((
-            id,
-            DefinitionId(definition_id.to_string()),
-            EntityKind::Enchantment,
-            Controller(controller),
-            DisplayName(display_name.to_string()),
-            order,
-            duration,
-            AttachedTo(target_entity),
-        ))
-        .id();
-    if silence_removable {
-        world.entity_mut(entity).insert(SilenceRemovable);
-    }
-    insert_into_zone(world, id, controller, Zone::Play, None)
-        .expect("an attached enchantment must fit in the unbounded Play zone");
-    Ok((id, entity))
-}
-
 pub(super) fn silence_entity(
     world: &mut World,
     target: GameEntityId,
@@ -1129,14 +1098,55 @@ fn required_transform_component<'a, T: Component>(
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CopySnapshot {
     card: Card,
+    play_state: Option<PlayCopySnapshot>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PlayCopySnapshot {
+    damage: Damage,
     silenced: bool,
+    pending_destroy: bool,
+    attachments: Vec<AttachmentCopySnapshot>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AttachmentCopySnapshot {
+    definition_id: String,
+    display_name: String,
+    duration: EnchantmentDuration,
+    silence_removable: bool,
+    stat_modifier: Option<StatModifier>,
+    keyword_modifier: Option<KeywordModifier>,
+    cost_modifier: Option<CostModifier>,
+    runtime_triggers: Option<RuntimeTriggers>,
+    runtime_continuous_effects: Option<RuntimeContinuousEffects>,
 }
 
 pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(), SimulationError> {
-    let Some(snapshot) = capture_copy_snapshot(world, request.source)? else {
+    let Some(snapshot) = capture_copy_snapshot(world, request.source, request.policy)? else {
         return Ok(());
     };
     validate_card_program(world, &snapshot.card)?;
+    for attachment in snapshot
+        .play_state
+        .iter()
+        .flat_map(|state| &state.attachments)
+    {
+        if let Some(triggers) = &attachment.runtime_triggers {
+            validate_trigger_enchantment(world, &triggers.0)?;
+        }
+    }
+    match validate_card_spawn(
+        world,
+        request.controller,
+        &snapshot.card,
+        request.destination,
+        request.board_index,
+    ) {
+        Ok(_) => {}
+        Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(()),
+        Err(error) => return Err(error),
+    }
     let copy = match spawn_card_at(
         world,
         request.controller,
@@ -1148,13 +1158,8 @@ pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(),
         Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(()),
         Err(error) => return Err(error),
     };
-    let copy_entity = game_entity(world, copy).expect("new copy remains indexed");
-    if request.policy == CopyStatePolicy::InPlayState {
-        if snapshot.silenced {
-            world.entity_mut(copy_entity).insert(Silenced);
-        }
-        let play_order = allocate_play_order(world);
-        world.entity_mut(copy_entity).insert(play_order);
+    if let Some(play_state) = snapshot.play_state {
+        restore_play_copy_state(world, copy, request.controller, play_state)?;
     }
     world
         .resource_mut::<CanonicalTrace>()
@@ -1164,12 +1169,91 @@ pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(),
             copy,
             policy: request.policy,
         });
+    if request.policy == CopyStatePolicy::InPlayState
+        && crate::resolver::resolution_is_active(world)
+    {
+        let event = prepare_event(
+            world,
+            crate::EventContext {
+                kind: EventKind::Summoned,
+                source: Some(copy),
+                targets: vec![copy],
+                controller: request.controller,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+        );
+        push_resolution_ops(
+            world,
+            [
+                ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon),
+                ResolutionOp::ResolveEvent(event),
+            ],
+        );
+    }
+    Ok(())
+}
+
+fn restore_play_copy_state(
+    world: &mut World,
+    copy: GameEntityId,
+    controller: PlayerId,
+    play_state: PlayCopySnapshot,
+) -> Result<(), SimulationError> {
+    let copy_entity = game_entity(world, copy).expect("new copy remains indexed");
+    let play_order = allocate_play_order(world);
+    world.entity_mut(copy_entity).insert((
+        play_state.damage,
+        AttackState {
+            attacks_this_turn: 0,
+            exhausted: true,
+        },
+        play_order,
+    ));
+    if play_state.silenced {
+        world.entity_mut(copy_entity).insert(Silenced);
+    }
+    if play_state.pending_destroy {
+        world.entity_mut(copy_entity).insert(PendingDestroy);
+    }
+    for attachment in play_state.attachments {
+        let (_, entity) = spawn_attached_enchantment(
+            world,
+            controller,
+            copy,
+            &attachment.definition_id,
+            &attachment.display_name,
+            attachment.duration,
+            attachment.silence_removable,
+        )?;
+        if let Some(modifier) = attachment.stat_modifier {
+            world.entity_mut(entity).insert(modifier);
+        }
+        if let Some(modifier) = attachment.keyword_modifier {
+            world.entity_mut(entity).insert(modifier);
+        }
+        if let Some(modifier) = attachment.cost_modifier {
+            world.entity_mut(entity).insert(modifier);
+        }
+        if let Some(triggers) = attachment.runtime_triggers {
+            world.entity_mut(entity).insert(triggers);
+        }
+        if let Some(effects) = attachment.runtime_continuous_effects {
+            world.entity_mut(entity).insert(effects);
+        }
+    }
+    recalculate_stats(world, copy);
+    recalculate_keywords(world, copy);
+    recalculate_cost(world, copy);
+    world.entity_mut(copy_entity).insert(play_state.damage);
     Ok(())
 }
 
 fn capture_copy_snapshot(
     world: &World,
     source: GameEntityId,
+    policy: CopyStatePolicy,
 ) -> Result<Option<CopySnapshot>, SimulationError> {
     let Some(entity) = game_entity(world, source) else {
         return Ok(None);
@@ -1179,15 +1263,124 @@ fn capture_copy_snapshot(
             "copy source {source:?} lacks required current-form components"
         ))
     })?;
-    world.get::<Zone>(entity).ok_or_else(|| {
+    let zone = world.get::<Zone>(entity).copied().ok_or_else(|| {
         SimulationError::Invariant(format!(
             "copy source {source:?} lacks required Zone component"
         ))
     })?;
-    Ok(Some(CopySnapshot {
-        card,
-        silenced: world.get::<Silenced>(entity).is_some(),
-    }))
+    let play_state = if policy == CopyStatePolicy::InPlayState {
+        if zone != Zone::Play {
+            return Err(SimulationError::Invariant(format!(
+                "in-play copy source {source:?} is not in Play"
+            )));
+        }
+        Some(capture_play_copy_snapshot(world, source, entity)?)
+    } else {
+        None
+    };
+    Ok(Some(CopySnapshot { card, play_state }))
+}
+
+fn capture_play_copy_snapshot(
+    world: &World,
+    source: GameEntityId,
+    source_entity: Entity,
+) -> Result<PlayCopySnapshot, SimulationError> {
+    let mut attachments = world
+        .iter_entities()
+        .filter(|attachment| {
+            attachment.get::<AttachedTo>().map(|attached| attached.0) == Some(source_entity)
+        })
+        .map(|attachment| {
+            let id = required_copy_attachment_component::<GameEntityId>(
+                attachment,
+                source,
+                "GameEntityId",
+            )?;
+            let order =
+                required_copy_attachment_component::<PlayOrder>(attachment, source, "PlayOrder")?;
+            let kind =
+                required_copy_attachment_component::<EntityKind>(attachment, source, "EntityKind")?;
+            let controller =
+                required_copy_attachment_component::<Controller>(attachment, source, "Controller")?;
+            let zone = required_copy_attachment_component::<Zone>(attachment, source, "Zone")?;
+            let position = required_copy_attachment_component::<ZonePosition>(
+                attachment,
+                source,
+                "ZonePosition",
+            )?;
+            if *kind != EntityKind::Enchantment
+                || *zone != Zone::Play
+                || world
+                    .resource::<ZoneIndex>()
+                    .entities(controller.0, *zone)
+                    .get(position.0)
+                    != Some(id)
+            {
+                return Err(SimulationError::Invariant(format!(
+                    "copy source {source:?} has an invalid attached enchantment"
+                )));
+            }
+            let definition = required_copy_attachment_component::<DefinitionId>(
+                attachment,
+                source,
+                "DefinitionId",
+            )?;
+            let display = required_copy_attachment_component::<DisplayName>(
+                attachment,
+                source,
+                "DisplayName",
+            )?;
+            let duration = required_copy_attachment_component::<EnchantmentDuration>(
+                attachment,
+                source,
+                "EnchantmentDuration",
+            )?;
+            Ok((
+                order.0,
+                *id,
+                AttachmentCopySnapshot {
+                    definition_id: definition.0.clone(),
+                    display_name: display.0.clone(),
+                    duration: *duration,
+                    silence_removable: attachment.contains::<SilenceRemovable>(),
+                    stat_modifier: attachment.get::<StatModifier>().copied(),
+                    keyword_modifier: attachment.get::<KeywordModifier>().copied(),
+                    cost_modifier: attachment.get::<CostModifier>().copied(),
+                    runtime_triggers: attachment.get::<RuntimeTriggers>().cloned(),
+                    runtime_continuous_effects: attachment
+                        .get::<RuntimeContinuousEffects>()
+                        .cloned(),
+                },
+            ))
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    attachments.sort_by_key(|(order, id, _)| (*order, *id));
+    Ok(PlayCopySnapshot {
+        damage: world.get::<Damage>(source_entity).copied().ok_or_else(|| {
+            SimulationError::Invariant(format!(
+                "in-play copy source {source:?} lacks required Damage component"
+            ))
+        })?,
+        silenced: world.get::<Silenced>(source_entity).is_some(),
+        pending_destroy: world.get::<PendingDestroy>(source_entity).is_some(),
+        attachments: attachments
+            .into_iter()
+            .map(|(_, _, attachment)| attachment)
+            .collect(),
+    })
+}
+
+fn required_copy_attachment_component<'a, T: Component>(
+    attachment: EntityRef<'a>,
+    source: GameEntityId,
+    name: &str,
+) -> Result<&'a T, SimulationError> {
+    attachment.get::<T>().ok_or_else(|| {
+        SimulationError::Invariant(format!(
+            "copy source {source:?} has an attachment without required {name}"
+        ))
+    })
 }
 
 pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card> {

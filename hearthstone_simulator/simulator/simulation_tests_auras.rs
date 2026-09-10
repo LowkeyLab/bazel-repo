@@ -2,9 +2,9 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition, ContinuousModifier,
-    Controller, EnchantmentDuration, HealthAuraCache, OtherAuraCache, OtherAuraModifier,
-    PlayerAudience, TransformKind,
+    AttachedTo, AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition,
+    ContinuousModifier, Controller, EnchantmentDuration, HealthAuraCache, OtherAuraCache,
+    OtherAuraModifier, PlayerAudience, TransformKind,
 };
 
 fn stat_aura(targets: AuraTarget, attack: i32, health: i32) -> AuraDefinition {
@@ -298,6 +298,60 @@ fn attached_and_opponent_facing_spell_damage_are_live() {
         .unwrap();
 
     assert_that!(simulation.snapshot().players[0].health, eq(27));
+}
+
+#[googletest::test]
+fn attached_aura_dependency_requires_enchantment_and_host_in_play() {
+    let mut simulation = simulation();
+    let host = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Aura dependency host", 0, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachContinuousEffect {
+            targets: Selector::Entity(host),
+            effect: ContinuousEffectDefinition {
+                recipients: PlayerAudience::Controller,
+                modifier: ContinuousModifier::SpellDamage(2),
+            },
+            silence_removable: false,
+            duration: EnchantmentDuration::Permanent,
+        },
+    )
+    .unwrap();
+    let attachment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.contains::<AttachedTo>())
+        .unwrap()
+        .id();
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(2)
+    );
+
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(attachment)
+        .insert(Zone::RemovedFromGame);
+
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(0)
+    );
 }
 
 #[googletest::test]

@@ -2,7 +2,7 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AttachedTo, AuraDefinition, AuraTarget, ConditionTiming, DrawContinuationPolicy,
+    AttachedTo, AuraCategory, AuraDefinition, AuraTarget, ConditionTiming, DrawContinuationPolicy,
     EnchantmentDuration, OtherAuraModifier, SourceEligibilityPolicy, TimedCondition, TransformKind,
     TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
 };
@@ -802,6 +802,138 @@ fn markerless_played_self_finish_barrier_is_a_no_op() {
                     ..
                 }
             )),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn play_copy_finishes_aura_and_summoned_work_before_later_sibling_without_played_self() {
+    let summon_trigger = TriggerDefinition {
+        event: EventKind::Summoned,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let source = Card::minion("Copied ward", 0, 1, 2)
+        .with_aura(AuraDefinition {
+            targets: AuraTarget::FriendlyCharacters,
+            attack: 0,
+            health: 0,
+            other: vec![OtherAuraModifier::Immune],
+        })
+        .with_triggers(vec![summon_trigger]);
+    let copier = Card::spell("Copy then strike", 0).with_effects(vec![Effect::Sequence(vec![
+        Effect::Copy {
+            targets: Selector::DeclaredTarget,
+            player: PlayerSelector::Opponent,
+            zone: Zone::Play,
+            board_index: None,
+        },
+        Effect::DealDamage {
+            targets: Selector::EnemyCharacters,
+            amount: ValueExpression::Constant(3),
+        },
+    ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![source, copier]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let source = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, source, None);
+    let copier = hand_card(&mut simulation, PlayerId::One);
+
+    play_card(&mut simulation, PlayerId::One, copier, Some(source));
+
+    let copy = simulation.snapshot().players[1].board[0];
+    assert_that!(simulation.snapshot().players[1].health, eq(30));
+    assert_that!(
+        player(simulation.app.world(), PlayerId::Two)
+            .unwrap()
+            .1
+            .temporary_resources,
+        eq(1)
+    );
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let trace = simulation.trace();
+    let copied = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityCopied { copy: entity, .. } if *entity == copy))
+        .unwrap();
+    let aura = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::AuraUpdated { target, category: AuraCategory::Other, .. } if *target == enemy_hero))
+        .unwrap();
+    let summoned = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::Summoned,
+                targets,
+                ..
+            } if targets == &[copy] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let resolved = trace
+        .iter()
+        .position(
+            |entry| matches!(entry, TraceEntry::TriggerResolved { source, .. } if *source == copy),
+        )
+        .unwrap();
+    let finished = trace
+        .iter()
+        .enumerate()
+        .skip(resolved + 1)
+        .find_map(|(index, entry)| {
+            matches!(entry, TraceEntry::OperationPopped { kind, .. } if kind == "FinishEvent")
+                .then_some(index)
+        })
+        .unwrap();
+    let damage = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::Damage { proposed: 3, .. }))
+        .unwrap();
+    assert_that!(copied, lt(aura));
+    assert_that!(aura, lt(resolved));
+    assert_that!(resolved, lt(finished));
+    assert_that!(finished, lt(damage));
+    assert_that!(
+        trace.iter().any(|entry| matches!(
+            entry,
+            TraceEntry::TriggerSnapshot { event, .. } if *event == summoned
+        )),
+        is_true()
+    );
+    assert_that!(
+        trace.iter().any(|entry| matches!(
+            entry,
+            TraceEntry::EntityTransformed {
+                kind: TransformKind::PlayedSelf,
+                ..
+            }
+        )),
+        is_false()
+    );
+    assert_that!(
+        trace.iter().any(|entry| matches!(
+            entry,
+            TraceEntry::EventCreated {
+                kind: EventKind::AfterPlayAndSummon | EventKind::AfterPlay,
+                targets,
+                ..
+            } if targets.contains(&copy)
+        )),
         is_false()
     );
 }
