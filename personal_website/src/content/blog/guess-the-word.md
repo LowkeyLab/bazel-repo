@@ -1,12 +1,9 @@
 ---
 title: "Guess The Word"
 description: "A real-time multiplayer word guessing game"
-tags: ["Node.js", "WebSocket", "Svelte", "Tailwind", "Postgres"]
-startDate: 2025-01-19
-endDate: 2025-02-07
-featured: false
-links:
-  github: "https://github.com/LowkeyLab/guess-the-word"
+publishDate: 2025-01-19
+tags: ["node-js", "websocket", "svelte", "tailwind", "postgres"]
+draft: false
 ---
 
 ## Overview
@@ -55,4 +52,8 @@ Originally, the plan was to store finished games and then run some kind of analy
 
 ## Notes
 
-This project has since been rewritten as [mindreadr](/projects/mindreadr).
+This project has since been rewritten as [Mindreadr](/blog/mindreadr).
+
+## Links
+
+- [Source code](https://github.com/LowkeyLab/guess-the-word)

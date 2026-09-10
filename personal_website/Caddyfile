@@ -1,5 +1,19 @@
 :80 {
 	log
 	root * /app
+
+	redir /projects /blog permanent
+	redir /projects/ /blog permanent
+	redir /projects/guess-the-word /blog/guess-the-word permanent
+	redir /projects/guess-the-word/ /blog/guess-the-word permanent
+	redir /projects/free-dsl /blog/free-dsl permanent
+	redir /projects/free-dsl/ /blog/free-dsl permanent
+	redir /projects/landing-page /blog/landing-page permanent
+	redir /projects/landing-page/ /blog/landing-page permanent
+	redir /projects/mindreadr /blog/mindreadr permanent
+	redir /projects/mindreadr/ /blog/mindreadr permanent
+	redir /projects/gradle-build-scan-server /blog/local-first-gradle-build-scan permanent
+	redir /projects/gradle-build-scan-server/ /blog/local-first-gradle-build-scan permanent
+
 	file_server
 }
