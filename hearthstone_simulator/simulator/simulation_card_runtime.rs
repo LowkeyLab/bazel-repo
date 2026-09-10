@@ -6,7 +6,7 @@ use crate::{
     HeroMetadata, HeroPowerState, Keywords, PlayOrder, Player, PlayerConfig, PlayerId,
     RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, Zone,
     entity::allocate_game_id,
-    zone::{insert_into_zone, validate_generation_capacity},
+    zone::{insert_into_zone, resolve_generation_position, validate_generation_capacity},
 };
 
 use super::error::SimulationError;
@@ -108,7 +108,18 @@ pub(super) fn spawn_card(
     card: Card,
     zone: Zone,
 ) -> Result<GameEntityId, SimulationError> {
+    spawn_card_at(world, player_id, card, zone, None)
+}
+
+pub(super) fn spawn_card_at(
+    world: &mut World,
+    player_id: PlayerId,
+    card: Card,
+    zone: Zone,
+    board_position: Option<usize>,
+) -> Result<GameEntityId, SimulationError> {
     validate_generation_capacity(world, player_id, zone, card.kind, &card.definition_id)?;
+    let position = resolve_generation_position(world, player_id, zone, card.kind, board_position)?;
     let kind = card.kind;
     let base_keywords = BaseKeywords(card.keywords.clone());
     let keywords = Keywords(card.keywords.clone());
@@ -160,7 +171,7 @@ pub(super) fn spawn_card(
             },
         ));
     }
-    if let Err(error) = insert_into_zone(world, id, player_id, zone, None) {
+    if let Err(error) = insert_into_zone(world, id, player_id, zone, position) {
         world.despawn(entity);
         return Err(error.into());
     }

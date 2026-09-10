@@ -2,28 +2,29 @@ use bevy::prelude::*;
 
 use crate::{
     Abilities, Armor, AttachedTo, AttackAuraCache, AttackState, BaseKeywords, BaseStats,
-    CanonicalTrace, Card, Controller, CostModifier, CurrentStats, Damage, DamageRequest,
-    DeathRecord, DefinitionId, DisplayName, DrawRequest, Effect, EffectContext,
-    EnchantmentDuration, Enchantments, EntityKind, EventId, EventKind, EventValueOperation,
-    GameEntityId, HealingRequest, HealthAuraCache, HeroClassPolicy, HeroHealthPolicy, HeroMetadata,
-    HeroPowerState, HeroReplacement, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache,
-    PendingDestroy, PlayOrder, Player, PlayerId, PlayerSelector, ResolutionOp, ResolutionWork,
-    Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, Selector, SilenceRemovable,
-    Silenced, SourceEligibilityPolicy, StatModifier, TraceEntry, TransformKind, ValueExpression,
-    Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, ZonePosition,
+    CanonicalTrace, Card, Controller, CopyRequest, CopyStatePolicy, CostModifier, CurrentStats,
+    Damage, DamageRequest, DeathRecord, DefinitionId, DisplayName, DrawRequest, Effect,
+    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventId, EventKind,
+    EventValueOperation, GameEntityId, HealingRequest, HealthAuraCache, HeroClassPolicy,
+    HeroHealthPolicy, HeroMetadata, HeroPowerState, HeroReplacement, KeepEnchantments,
+    KeywordModifier, Keywords, OtherAuraCache, PendingDestroy, PlayOrder, Player, PlayerId,
+    PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects,
+    RuntimeTriggers, Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier,
+    TraceEntry, TransformKind, ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest,
+    ZoneMovementKind, ZonePosition,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::{allocate_game_id, allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
     resolver::{allocate_draw_result_slot, push_resolution_ops},
     rng::choose_game_entity,
     zone::{
-        ZoneIndex, board_is_full, insert_into_zone, move_entity, move_entity_with_request,
-        validate_board_position,
+        ZoneError, ZoneIndex, board_is_full, insert_into_zone, move_entity,
+        move_entity_with_request, validate_board_position,
     },
 };
 
 use super::{
-    card_runtime::{CardRuntime, spawn_card},
+    card_runtime::{CardRuntime, spawn_card, spawn_card_at},
     error::SimulationError,
     event_resolver::prepare_event,
     health::{SimultaneousEventOrder, apply_damage_batch, apply_healing_batch},
@@ -394,12 +395,34 @@ pub(super) fn execute_effect_operation(
             targets,
             player,
             zone,
-            ..
+            board_index,
         } => {
             let controller = resolve_player(context.controller, *player);
+            let mut requests = Vec::new();
             for target in select_entities(world, context, targets) {
-                copy_entity(world, target, controller, *zone);
+                let source_zone = game_entity(world, target)
+                    .map(|entity| {
+                        world.get::<Zone>(entity).copied().ok_or_else(|| {
+                            SimulationError::Invariant(format!(
+                                "copy source {target:?} lacks required Zone component"
+                            ))
+                        })
+                    })
+                    .transpose()?;
+                let policy = if source_zone == Some(Zone::Play) && *zone == Zone::Play {
+                    CopyStatePolicy::InPlayState
+                } else {
+                    CopyStatePolicy::CurrentForm
+                };
+                requests.push(ResolutionOp::CopyEntity(CopyRequest {
+                    source: target,
+                    controller,
+                    destination: *zone,
+                    board_index: *board_index,
+                    policy,
+                }));
             }
+            push_resolution_ops(world, requests);
             Ok(())
         }
         Effect::Native(id) => {
@@ -1106,34 +1129,65 @@ fn required_transform_component<'a, T: Component>(
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CopySnapshot {
     card: Card,
-    source_zone: Zone,
     silenced: bool,
 }
 
-fn copy_entity(world: &mut World, source: GameEntityId, controller: PlayerId, destination: Zone) {
-    let Some(snapshot) = capture_copy_snapshot(world, source) else {
-        return;
+pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(), SimulationError> {
+    let Some(snapshot) = capture_copy_snapshot(world, request.source)? else {
+        return Ok(());
     };
-    let Ok(copy) = spawn_card(world, controller, snapshot.card, destination) else {
-        return;
+    validate_card_program(world, &snapshot.card)?;
+    let copy = match spawn_card_at(
+        world,
+        request.controller,
+        snapshot.card,
+        request.destination,
+        request.board_index,
+    ) {
+        Ok(copy) => copy,
+        Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(()),
+        Err(error) => return Err(error),
     };
     let copy_entity = game_entity(world, copy).expect("new copy remains indexed");
-    if snapshot.source_zone == Zone::Play && destination == Zone::Play {
+    if request.policy == CopyStatePolicy::InPlayState {
         if snapshot.silenced {
             world.entity_mut(copy_entity).insert(Silenced);
         }
         let play_order = allocate_play_order(world);
         world.entity_mut(copy_entity).insert(play_order);
     }
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EntityCopied {
+            source: request.source,
+            copy,
+            policy: request.policy,
+        });
+    Ok(())
 }
 
-fn capture_copy_snapshot(world: &World, source: GameEntityId) -> Option<CopySnapshot> {
-    let entity = game_entity(world, source)?;
-    Some(CopySnapshot {
-        card: copy_card_data(world, source)?,
-        source_zone: *world.get::<Zone>(entity)?,
+fn capture_copy_snapshot(
+    world: &World,
+    source: GameEntityId,
+) -> Result<Option<CopySnapshot>, SimulationError> {
+    let Some(entity) = game_entity(world, source) else {
+        return Ok(None);
+    };
+    let card = copy_card_data(world, source).ok_or_else(|| {
+        SimulationError::Invariant(format!(
+            "copy source {source:?} lacks required current-form components"
+        ))
+    })?;
+    world.get::<Zone>(entity).ok_or_else(|| {
+        SimulationError::Invariant(format!(
+            "copy source {source:?} lacks required Zone component"
+        ))
+    })?;
+    Ok(Some(CopySnapshot {
+        card,
         silenced: world.get::<Silenced>(entity).is_some(),
-    })
+    }))
 }
 
 pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card> {

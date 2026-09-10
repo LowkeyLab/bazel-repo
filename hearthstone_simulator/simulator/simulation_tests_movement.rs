@@ -2,10 +2,12 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttachedTo, AttackState, ContinuousEffectDefinition, ContinuousModifier, CurrentStats,
-    DrawOutcome, EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy, HeroReplacement,
-    KeepEnchantments, KeywordModifier, PhaseBoundaryPlan, PlayerAudience, RuntimeContinuousEffects,
-    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    AttachedTo, AttackAuraCache, AttackState, ContinuousEffectDefinition, ContinuousModifier,
+    Controller, CopyStatePolicy, CurrentStats, DefinitionId, DisplayName, DrawOutcome,
+    EnchantmentDuration, HealthAuraCache, HeroClassPolicy, HeroHealthPolicy, HeroReplacement,
+    KeepEnchantments, KeywordModifier, OtherAuraCache, PhaseBoundaryPlan, PlayOrder,
+    PlayerAudience, RuntimeContinuousEffects, TransformKind, ZoneMoveOutcome, ZoneMoveRequest,
+    ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -890,6 +892,12 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         drawn_card: None,
         origin: EffectOrigin::Other,
     };
+    let next = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    begin_sequence(simulation.app.world_mut()).unwrap();
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -901,6 +909,16 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         },
     )
     .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next)
+    );
 
     let source = hand_card(&mut simulation, PlayerId::One);
     let before = simulation.snapshot().players[0].hand.clone();
@@ -909,6 +927,12 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         .world_mut()
         .resource_mut::<Ruleset>()
         .hand_limit = before.len();
+    let next = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    begin_sequence(simulation.app.world_mut()).unwrap();
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -920,17 +944,34 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         },
     )
     .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
 
     assert_that!(simulation.snapshot().players[0].hand, eq(&before));
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next)
+    );
 }
 
 #[googletest::test]
-fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
+fn non_play_copy_uses_current_form_without_runtime_attachments() {
     let mut simulation = Simulation::new([
-        PlayerConfig::new("Jaina", vec![Card::minion("Discounted source", 5, 1, 1)]),
+        PlayerConfig::new("Jaina", vec![Card::minion("Original source", 1, 1, 1)]),
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     let source = hand_card(&mut simulation, PlayerId::One);
+    let existing = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Existing minion", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
     let context = EffectContext {
         source: None,
         controller: PlayerId::One,
@@ -938,6 +979,26 @@ fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
         drawn_card: None,
         origin: EffectOrigin::Other,
     };
+    begin_sequence(simulation.app.world_mut()).unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Copy {
+            targets: Selector::Entity(source),
+            player: PlayerSelector::Opponent,
+            zone: Zone::Play,
+            board_index: Some(0),
+        },
+    )
+    .unwrap();
+
+    transform_entity(
+        simulation.app.world_mut(),
+        source,
+        Card::minion("Current form", 5, 4, 6),
+        TransformKind::Spell,
+    )
+    .unwrap();
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -955,28 +1016,88 @@ fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
     execute_effect(
         simulation.app.world_mut(),
         &context,
-        &Effect::Copy {
+        &Effect::AttachStatModifier {
             targets: Selector::Entity(source),
-            player: PlayerSelector::Controller,
-            zone: Zone::Hand,
-            board_index: None,
+            modifier: StatModifier {
+                attack: 3,
+                health: 2,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::Permanent,
         },
     )
     .unwrap();
-
-    let copy = simulation
+    let source_entity = game_entity(simulation.app.world(), source).unwrap();
+    simulation
         .app
-        .world()
-        .resource::<ZoneIndex>()
-        .entities(PlayerId::One, Zone::Hand)
-        .iter()
-        .copied()
-        .find(|card| *card != source)
-        .unwrap();
-    let copy = game_entity(simulation.app.world(), copy).unwrap();
-    let runtime = simulation.app.world().get::<CardRuntime>(copy).unwrap();
+        .world_mut()
+        .entity_mut(source_entity)
+        .insert((
+            Damage(3),
+            Silenced,
+            PendingDestroy,
+            AttackAuraCache::default(),
+            HealthAuraCache::default(),
+            OtherAuraCache::default(),
+            PlayOrder(77),
+        ));
+
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+
+    let board = simulation.snapshot().players[1].board.clone();
+    assert_that!(board.len(), eq(2));
+    assert_that!(board[1], eq(existing));
+    let copy = board[0];
+    let copy_entity = game_entity(simulation.app.world(), copy).unwrap();
+    let world = simulation.app.world();
+    let runtime = world.get::<CardRuntime>(copy_entity).unwrap();
+    assert_that!(
+        world.get::<DefinitionId>(copy_entity).unwrap().0.as_str(),
+        eq("synthetic:current_form")
+    );
+    assert_that!(
+        world.get::<DisplayName>(copy_entity).unwrap().0.as_str(),
+        eq("Current form")
+    );
     assert_that!(runtime.base_cost, eq(5));
     assert_that!(runtime.cost, eq(5));
+    assert_that!(
+        world.get::<CurrentStats>(copy_entity),
+        eq(Some(&CurrentStats {
+            attack: 4,
+            maximum_health: 6
+        }))
+    );
+    assert_that!(world.get::<Silenced>(copy_entity), none());
+    assert_that!(world.get::<Damage>(copy_entity), eq(Some(&Damage(0))));
+    assert_that!(world.get::<PendingDestroy>(copy_entity), none());
+    assert_that!(world.get::<AttackAuraCache>(copy_entity), none());
+    assert_that!(world.get::<HealthAuraCache>(copy_entity), none());
+    assert_that!(world.get::<OtherAuraCache>(copy_entity), none());
+    assert_that!(
+        world.get::<Controller>(copy_entity),
+        eq(Some(&Controller(PlayerId::Two)))
+    );
+    assert_that!(
+        crate::zone::semantic_zone_position(world, copy, PlayerId::Two, Zone::Play),
+        eq(Some(0))
+    );
+    assert_that!(world.get::<PlayOrder>(copy_entity), eq(Some(&PlayOrder(0))));
+    assert_that!(
+        world.iter_entities().any(|entity| {
+            entity.get::<AttachedTo>().map(|attached| attached.0) == Some(copy_entity)
+        }),
+        is_false()
+    );
+    assert_that!(
+        world.resource::<CanonicalTrace>().entries.last(),
+        eq(Some(&TraceEntry::EntityCopied {
+            source,
+            copy,
+            policy: CopyStatePolicy::CurrentForm,
+        }))
+    );
 }
 
 #[googletest::test]
