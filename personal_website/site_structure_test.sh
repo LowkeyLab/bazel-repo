@@ -26,3 +26,10 @@ for title in \
 	[[ "${next}" != "${remaining}" ]] || fail "missing or misordered blog entry: ${title}"
 	remaining="${next}"
 done
+
+if grep -R -n -E 'href="/projects(/|"|#)' "${dist}"; then
+	fail "generated site still links to /projects"
+fi
+
+blog_link_count="$(grep -o 'href="/blog"' "${dist}/index.html" | wc -l)"
+[[ "${blog_link_count}" -eq 3 ]] || fail "home page must contain Blog links in both navbar variants and the hero"
