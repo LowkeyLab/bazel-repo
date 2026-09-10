@@ -474,7 +474,7 @@ oci_extension.pull(
 )
 oci_extension.pull(
     name = "distroless_node24",
-    digest = "sha256:7cca079bad19303c78cd874a5da79832441985a216b767196507d69b8784a698",
+    digest = "sha256:e7b49c7570331548957099e4c53d1b7255605dd20b0c56ee368077c07c1b170b",
     image = "gcr.io/distroless/nodejs24-debian13",
     platforms = [
         "linux/amd64",
