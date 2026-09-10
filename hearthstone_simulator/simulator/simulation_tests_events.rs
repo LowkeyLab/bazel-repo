@@ -2,9 +2,9 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AttachedTo, ConditionTiming, DrawContinuationPolicy, EnchantmentDuration,
-    SourceEligibilityPolicy, TimedCondition, TransformKind, TriggerCondition, TriggerDefinition,
-    WoundedTargetPolicy,
+    AttachedTo, AuraDefinition, AuraTarget, ConditionTiming, DrawContinuationPolicy,
+    EnchantmentDuration, OtherAuraModifier, SourceEligibilityPolicy, TimedCondition, TransformKind,
+    TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
 };
 
 fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> TriggerDefinition {
@@ -556,6 +556,181 @@ fn transform_operation_carries_source_and_emits_only_the_transform_trace() {
     assert_that!(
         &simulation.app.world().resource::<PendingDeaths>().0,
         eq(&pending_deaths_before)
+    );
+}
+
+#[googletest::test]
+fn spell_transform_has_no_summon_timing() {
+    let replacement = Card::minion("Spell form", 0, 2, 2).with_aura(AuraDefinition {
+        targets: AuraTarget::FriendlyCharacters,
+        attack: 0,
+        health: 0,
+        other: vec![OtherAuraModifier::Immune],
+    });
+    let spell = Card::spell("Polymorph and ping", 0).with_effects(vec![Effect::Sequence(vec![
+        Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: replacement,
+            kind: TransformKind::Spell,
+        },
+        Effect::DealDamage {
+            targets: Selector::FriendlyCharacters,
+            amount: ValueExpression::Constant(3),
+        },
+    ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), spell]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, target, None);
+    let spell = hand_card(&mut simulation, PlayerId::One);
+
+    play_card(&mut simulation, PlayerId::One, spell, Some(target));
+
+    assert_that!(simulation.snapshot().players[0].health, eq(27));
+    let transform = simulation
+        .trace()
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityTransformed { entity, .. } if *entity == target))
+        .unwrap();
+    assert_that!(
+        simulation.trace()[transform + 1..]
+            .iter()
+            .any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::Summoned
+                        | EventKind::AfterPlayAndSummon
+                        | EventKind::AfterPlay,
+                    targets,
+                    ..
+                } if targets.contains(&target)
+            )),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn played_self_transform_uses_inserted_then_original_after_play_order() {
+    let after_play = TriggerDefinition {
+        event: EventKind::AfterPlay,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: Vec::new(),
+    };
+    let after_play_and_summon = TriggerDefinition {
+        event: EventKind::AfterPlayAndSummon,
+        ..after_play.clone()
+    };
+    let replacement =
+        Card::minion("Played self form", 0, 3, 3).with_triggers(vec![after_play_and_summon]);
+    let card = Card::minion("Original form", 0, 1, 1)
+        .with_triggers(vec![after_play])
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Transform {
+                targets: Selector::Source,
+                card: replacement,
+                kind: TransformKind::PlayedSelf,
+            },
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(3),
+            },
+        ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![card]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+
+    play_card(&mut simulation, PlayerId::One, card, Some(enemy_hero));
+
+    let trace = simulation.trace();
+    let transform = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityTransformed { entity, kind: TransformKind::PlayedSelf, .. } if *entity == card))
+        .unwrap();
+    let later_battlecry = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::Damage { target, proposed: 3, .. } if *target == enemy_hero))
+        .unwrap();
+    let inserted_event = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::AfterPlayAndSummon,
+                targets,
+                ..
+            } if targets == &[card] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let original_event = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::AfterPlay,
+                targets,
+                ..
+            } if targets == &[card] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let inserted_snapshot = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::TriggerSnapshot { event, candidates } if *event == inserted_event && candidates.iter().any(|candidate| candidate.source == card)))
+        .unwrap();
+    let boundary = trace
+        .iter()
+        .enumerate()
+        .skip(inserted_snapshot + 1)
+        .find_map(|(index, entry)| {
+            matches!(entry, TraceEntry::OperationPopped { kind, .. } if kind == "RunPhaseBoundary")
+                .then_some(index)
+        })
+        .unwrap();
+    let original_snapshot = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::TriggerSnapshot { event, candidates } if *event == original_event && candidates.iter().any(|candidate| candidate.source == card)))
+        .unwrap();
+    assert_that!(transform, lt(later_battlecry));
+    assert_that!(later_battlecry, lt(inserted_snapshot));
+    assert_that!(inserted_snapshot, lt(boundary));
+    assert_that!(boundary, lt(original_snapshot));
+}
+
+#[googletest::test]
+fn played_self_transform_requires_its_finish_barrier() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Target", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    push_resolution_ops(
+        world,
+        [ResolutionOp::TransformEntity {
+            target,
+            source: Some(target),
+            card: Card::minion("Replacement", 0, 2, 2),
+            kind: TransformKind::PlayedSelf,
+        }],
+    );
+
+    assert_that!(
+        drive_resolution(world),
+        err(matches_pattern!(SimulationError::InvalidTransformation(_)))
     );
 }
 

@@ -470,6 +470,18 @@ pub(super) fn validate_effect_program(
     Ok(())
 }
 
+pub(super) fn contains_played_self_transform(effects: &[Effect]) -> bool {
+    effects.iter().any(|effect| match effect {
+        Effect::Transform {
+            targets: Selector::Source,
+            kind: TransformKind::PlayedSelf,
+            ..
+        } => true,
+        Effect::Sequence(nested) => contains_played_self_transform(nested),
+        _ => false,
+    })
+}
+
 pub(super) fn validate_trigger_enchantment(
     world: &World,
     triggers: &[hearthstone_simulator_core::TriggerDefinition],

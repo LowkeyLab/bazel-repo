@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::{
     AuraRefreshPlan, Card, ChoiceId, CopyStatePolicy, DrawContinuationPolicy, DrawResultSlotId,
     Effect, EffectContext, EventContext, EventId, EventSlotId, GameEntityId, PlayerId,
-    ResolutionId, ScheduledTurnKind, TransformKind, TriggerCandidate, Zone,
+    ResolutionId, ScheduledTurnKind, TransformKind, TriggerCandidate, TriggerSeed, Zone,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -166,6 +166,10 @@ pub enum ResolutionOp {
         card: Card,
         kind: TransformKind,
     },
+    FinishPlayedSelfTransform {
+        subject: GameEntityId,
+        original_after_play: Vec<TriggerSeed>,
+    },
     CopyEntity(CopyRequest),
     RequestChoice(ChoiceRequest),
 }
@@ -195,6 +199,7 @@ impl ResolutionOp {
             Self::FinishDraw(_) => "FinishDraw",
             Self::ContinueDraw { .. } => "ContinueDraw",
             Self::TransformEntity { .. } => "TransformEntity",
+            Self::FinishPlayedSelfTransform { .. } => "FinishPlayedSelfTransform",
             Self::CopyEntity(_) => "CopyEntity",
             Self::RequestChoice(_) => "RequestChoice",
         }
@@ -302,6 +307,14 @@ mod tests {
             }
             .kind(),
             "TransformEntity"
+        );
+        assert_eq!(
+            ResolutionOp::FinishPlayedSelfTransform {
+                subject: GameEntityId(11),
+                original_after_play: Vec::new(),
+            }
+            .kind(),
+            "FinishPlayedSelfTransform"
         );
         assert_eq!(
             ResolutionOp::CopyEntity(CopyRequest {

@@ -15,6 +15,7 @@ use crate::{
         abandon_sequence, begin_sequence, consume_budget, finish_sequence, pop_resolution_op,
         push_resolution_ops,
     },
+    trigger::collect_trigger_seeds,
     zone::{
         ZoneIndex, ZoneMoveOutcome, assert_zone_invariants, board_is_full, move_entity,
         move_entity_with_request, validate_board_position, validate_zone_position,
@@ -23,7 +24,7 @@ use crate::{
 
 use super::{
     card_runtime::CardRuntime,
-    effect_executor::validate_effect_program,
+    effect_executor::{contains_played_self_transform, validate_effect_program},
     error::SimulationError,
     event_resolver::OperationFailure,
     player::{assert_player_role_invariants, controlled_entity_in_zone, player, player_mut},
@@ -407,6 +408,8 @@ fn play_card(
         .get::<CardRuntime>(card_entity)
         .cloned()
         .ok_or(SimulationError::NotPlayable(card_id))?;
+    let finishes_played_self =
+        kind == EntityKind::Minion && contains_played_self_transform(&runtime.program);
     spend_resources(world, player_id, runtime.cost)?;
     let destination = if kind == EntityKind::Minion {
         Zone::Play
@@ -438,6 +441,20 @@ fn play_card(
             crate::EffectOrigin::Other
         },
     };
+    let original_after_play = finishes_played_self.then(|| {
+        collect_trigger_seeds(
+            world,
+            &EventContext {
+                kind: EventKind::AfterPlay,
+                source: Some(card_id),
+                targets: vec![card_id],
+                controller: player_id,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+        )
+    });
     let mut operations = vec![ResolutionOp::PrepareEvent(EventContext {
         kind: EventKind::CardPlayed,
         source: Some(card_id),
@@ -471,6 +488,12 @@ fn play_card(
                 event: None,
             }),
     );
+    if let Some(original_after_play) = original_after_play {
+        operations.push(ResolutionOp::FinishPlayedSelfTransform {
+            subject: card_id,
+            original_after_play,
+        });
+    }
     push_resolution_ops(world, operations);
     Ok(())
 }

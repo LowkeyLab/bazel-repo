@@ -748,3 +748,67 @@ fn transformation_clears_received_auras_without_expiring_old_provider_applicatio
         is_true()
     );
 }
+
+#[googletest::test]
+fn non_spell_transform_refreshes_summon_auras_without_a_summoned_event() {
+    let replacement = Card::minion("Protective form", 0, 2, 2).with_aura(other_aura(
+        AuraTarget::FriendlyCharacters,
+        OtherAuraModifier::Immune,
+    ));
+    let spell = Card::spell("Transform and strike", 0).with_effects(vec![Effect::Sequence(vec![
+        Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: replacement,
+            kind: TransformKind::NonSpell,
+        },
+        Effect::DealDamage {
+            targets: Selector::FriendlyCharacters,
+            amount: ValueExpression::Constant(3),
+        },
+    ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), spell]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let spell = hand_card(&mut simulation, PlayerId::One);
+
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: spell,
+            target: Some(target),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    assert_that!(simulation.snapshot().players[0].health, eq(30));
+    let transform = simulation
+        .trace()
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityTransformed { entity, .. } if *entity == target))
+        .unwrap();
+    assert_that!(
+        simulation.trace()[transform + 1..]
+            .iter()
+            .any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::Summoned,
+                    targets,
+                    ..
+                } if targets.contains(&target)
+            )),
+        is_false()
+    );
+}

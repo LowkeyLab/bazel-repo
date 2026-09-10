@@ -819,6 +819,17 @@ fn validate_resolution_operation_references(
             }
             validate_card_references(card, ids)
         }
+        ResolutionOp::FinishPlayedSelfTransform {
+            subject,
+            original_after_play,
+        } => {
+            validate_entity_reference("played-self transform subject", *subject, ids)?;
+            for seed in original_after_play {
+                validate_entity_reference("trigger seed source", seed.source, ids)?;
+                validate_trigger_definition_references(&seed.definition, ids)?;
+            }
+            Ok(())
+        }
         ResolutionOp::CopyEntity(request) => {
             validate_entity_reference("copy source", request.source, ids)
         }
