@@ -484,6 +484,13 @@ fn transform_operation_carries_source_and_emits_only_the_transform_trace() {
         drawn_card: None,
         origin: EffectOrigin::Spell,
     };
+    let death_cache_before = simulation
+        .app
+        .world()
+        .resource::<DeathEventCache>()
+        .records
+        .clone();
+    let pending_deaths_before = simulation.app.world().resource::<PendingDeaths>().0.clone();
     begin_sequence(simulation.app.world_mut()).unwrap();
 
     execute_effect(
@@ -541,6 +548,14 @@ fn transform_operation_carries_source_and_emits_only_the_transform_trace() {
             .iter()
             .any(|entry| matches!(entry, TraceEntry::EntityDied { entity } if *entity == target)),
         is_false()
+    );
+    assert_that!(
+        &simulation.app.world().resource::<DeathEventCache>().records,
+        eq(&death_cache_before)
+    );
+    assert_that!(
+        &simulation.app.world().resource::<PendingDeaths>().0,
+        eq(&pending_deaths_before)
     );
 }
 

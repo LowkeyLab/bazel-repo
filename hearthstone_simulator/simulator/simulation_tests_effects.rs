@@ -1508,6 +1508,82 @@ fn invalid_transformation_is_atomic() {
 }
 
 #[googletest::test]
+fn transformation_rejects_unsupported_replacement_kinds_atomically() {
+    let hero = Card::hero("Replacement hero", 30);
+    let mut player = Card::minion("Replacement player", 0, 0, 1);
+    player.kind = EntityKind::Player;
+    let mut enchantment = Card::minion("Replacement enchantment", 0, 0, 1);
+    enchantment.kind = EntityKind::Enchantment;
+
+    for replacement in [hero, player, enchantment] {
+        let mut simulation = simulation();
+        let target = spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::One,
+            Card::minion("Transform target", 1, 1, 2),
+            Zone::Play,
+        )
+        .unwrap();
+        attach_stat_modifier(
+            simulation.app.world_mut(),
+            PlayerId::One,
+            target,
+            StatModifier {
+                attack: 2,
+                health: 2,
+                silence_removable: false,
+            },
+            EnchantmentDuration::Permanent,
+        )
+        .unwrap();
+        let before = simulation.checkpoint().unwrap();
+
+        let result = transform_entity(
+            simulation.app.world_mut(),
+            target,
+            replacement,
+            TransformKind::Spell,
+        );
+
+        assert_that!(
+            result,
+            err(matches_pattern!(SimulationError::InvalidTransformation(
+                anything()
+            )))
+        );
+        assert_that!(simulation.checkpoint().unwrap(), eq(&before));
+    }
+}
+
+#[googletest::test]
+fn transformation_rejects_non_minion_targets_atomically() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::hero("Unsupported target", 30),
+        Zone::Hand,
+    )
+    .unwrap();
+    let before = simulation.checkpoint().unwrap();
+
+    let result = transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+
+    assert_that!(
+        result,
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+    assert_that!(simulation.checkpoint().unwrap(), eq(&before));
+}
+
+#[googletest::test]
 fn transformation_detaches_enchantments_in_play_order_then_entity_id() {
     let mut simulation = simulation();
     let target = spawn_card(
@@ -1570,6 +1646,57 @@ fn transformation_detaches_enchantments_in_play_order_then_entity_id() {
     let first_position = removed.iter().position(|id| *id == first).unwrap();
     let second_position = removed.iter().position(|id| *id == second).unwrap();
     assert_that!(second_position, lt(first_position));
+}
+
+#[googletest::test]
+fn transformation_uses_entity_id_to_break_equal_attachment_play_orders() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Equal-order host", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    let higher_id = GameEntityId(1_001);
+    let lower_id = GameEntityId(1_000);
+    for id in [higher_id, lower_id] {
+        simulation.app.world_mut().spawn((
+            GameObject,
+            id,
+            EntityKind::Enchantment,
+            Controller(PlayerId::One),
+            PlayOrder(10),
+            EnchantmentDuration::Permanent,
+            AttachedTo(target_entity),
+        ));
+        crate::zone::insert_into_zone(
+            simulation.app.world_mut(),
+            id,
+            PlayerId::One,
+            Zone::Play,
+            None,
+        )
+        .unwrap();
+    }
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Equal-order replacement", 1, 2, 2),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let removed = simulation
+        .app
+        .world()
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::One, Zone::RemovedFromGame);
+    let lower_position = removed.iter().position(|id| *id == lower_id).unwrap();
+    let higher_position = removed.iter().position(|id| *id == higher_id).unwrap();
+    assert_that!(lower_position, lt(higher_position));
 }
 
 #[googletest::test]

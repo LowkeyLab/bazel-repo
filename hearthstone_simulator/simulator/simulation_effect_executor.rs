@@ -930,6 +930,19 @@ pub(super) fn transform_entity(
     kind: TransformKind,
 ) -> Result<(), SimulationError> {
     let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let target_kind =
+        required_transform_component::<EntityKind>(world, entity, target, "EntityKind")?;
+    if *target_kind != EntityKind::Minion {
+        return Err(SimulationError::InvalidTransformation(format!(
+            "target {target:?} must be a Minion"
+        )));
+    }
+    if card.kind != EntityKind::Minion {
+        return Err(SimulationError::InvalidTransformation(format!(
+            "replacement must be a Minion, not {:?}",
+            card.kind
+        )));
+    }
     validate_card_program(world, &card)?;
     let previous_definition =
         required_transform_component::<DefinitionId>(world, entity, target, "DefinitionId")?
@@ -1003,7 +1016,6 @@ pub(super) fn transform_entity(
     }
 
     let replacement_definition = card.definition_id.clone();
-    let replacement_kind = card.kind;
     let entity = game_entity(world, target).expect("validated transform target remains indexed");
     world.entity_mut(entity).remove::<(
         Abilities,
@@ -1054,14 +1066,6 @@ pub(super) fn transform_entity(
         RuntimeAuras(card.auras),
         RuntimeContinuousEffects(card.continuous_effects),
     ));
-    if replacement_kind == EntityKind::Hero {
-        world
-            .entity_mut(entity)
-            .insert((Armor::default(), HeroMetadata::default()));
-    }
-    if replacement_kind == EntityKind::HeroPower {
-        world.entity_mut(entity).insert(HeroPowerState::default());
-    }
     world
         .resource_mut::<CanonicalTrace>()
         .entries
