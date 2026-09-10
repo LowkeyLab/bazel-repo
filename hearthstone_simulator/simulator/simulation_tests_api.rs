@@ -1719,6 +1719,44 @@ fn pending_choice_programs_are_validated_during_restoration() {
 }
 
 #[googletest::test]
+fn played_self_finish_barrier_programs_are_validated_during_restoration() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint.entities[0].id;
+    let missing = NativeEffectId::new("missing:played_self_finish");
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::FinishPlayedSelfTransform {
+            subject: source,
+            original_after_play: vec![crate::TriggerSeed {
+                source,
+                definition_index: 0,
+                definition: crate::TriggerDefinition {
+                    event: EventKind::AfterPlay,
+                    eligible_zones: vec![Zone::Play],
+                    conditions: Vec::new(),
+                    source_eligibility: crate::SourceEligibilityPolicy::RememberedSource,
+                    priority: 0,
+                    wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+                    effect_program: vec![Effect::Native(missing.clone())],
+                },
+                controller: PlayerId::One,
+                zone: Zone::Play,
+                play_order: 0,
+            }],
+        },
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+}
+
+#[googletest::test]
 fn retained_event_and_operation_programs_are_validated_during_restoration() {
     let simulation = simulation();
     let mut checkpoint = simulation.checkpoint().unwrap();

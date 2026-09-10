@@ -735,6 +735,78 @@ fn played_self_transform_requires_its_finish_barrier() {
 }
 
 #[googletest::test]
+fn played_self_transform_requires_source_to_equal_target() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Target", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Other source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::TransformEntity {
+                target,
+                source: Some(source),
+                card: Card::minion("Replacement", 0, 2, 2),
+                kind: TransformKind::PlayedSelf,
+            },
+            ResolutionOp::FinishPlayedSelfTransform {
+                subject: target,
+                original_after_play: Vec::new(),
+            },
+        ],
+    );
+
+    assert_that!(
+        drive_resolution(world),
+        err(matches_pattern!(SimulationError::InvalidTransformation(_)))
+    );
+}
+
+#[googletest::test]
+fn markerless_played_self_finish_barrier_is_a_no_op() {
+    let mut simulation = simulation();
+    let subject = hero(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    push_resolution_ops(
+        world,
+        [ResolutionOp::FinishPlayedSelfTransform {
+            subject,
+            original_after_play: Vec::new(),
+        }],
+    );
+
+    assert_that!(drive_resolution(world), ok(anything()));
+    assert_that!(
+        world
+            .resource::<CanonicalTrace>()
+            .entries
+            .iter()
+            .any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::AfterPlay | EventKind::AfterPlayAndSummon,
+                    ..
+                }
+            )),
+        is_false()
+    );
+}
+
+#[googletest::test]
 fn silence_removes_only_trigger_enchantments_marked_removable() {
     let grant = |name, silence_removable| {
         Card::spell(name, 0).with_effects(vec![Effect::AttachTriggerEnchantment {

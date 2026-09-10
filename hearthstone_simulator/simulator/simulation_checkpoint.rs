@@ -7,7 +7,7 @@ use crate::{
     CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, Card, CardRuntimeCheckpoint, Controller,
     CostModifier, CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId,
     DeterministicRng, DisplayName, DominantPlayer, DrawOutcome, DrawResultSlotId, Effect,
-    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventContext, EventId,
+    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventContext, EventId, EventKind,
     EventSlotId, GameEntityCheckpoint, GameEntityId, GameObject, GameState, HealthAuraCache,
     HeroMetadata, HeroPowerState, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache,
     PlayOrder, Player, PlayerId, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras,
@@ -368,6 +368,19 @@ fn validate_resolution_operation(
             &candidate.definition.effect_program,
             Some(candidate.definition.event),
         ),
+        crate::ResolutionOp::FinishPlayedSelfTransform {
+            original_after_play,
+            ..
+        } => {
+            for seed in original_after_play {
+                validate_effect_program(
+                    world,
+                    &seed.definition.effect_program,
+                    Some(EventKind::AfterPlay),
+                )?;
+            }
+            Ok(())
+        }
         crate::ResolutionOp::RequestChoice(request) => validate_choice_request(world, request),
         _ => Ok(()),
     }
