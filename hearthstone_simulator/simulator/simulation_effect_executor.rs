@@ -1123,19 +1123,9 @@ struct AttachmentCopySnapshot {
 }
 
 pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(), SimulationError> {
-    let Some(snapshot) = capture_copy_snapshot(world, request.source, request.policy)? else {
+    let Some(mut snapshot) = capture_copy_snapshot(world, &request)? else {
         return Ok(());
     };
-    validate_card_program(world, &snapshot.card)?;
-    for attachment in snapshot
-        .play_state
-        .iter()
-        .flat_map(|state| &state.attachments)
-    {
-        if let Some(triggers) = &attachment.runtime_triggers {
-            validate_trigger_enchantment(world, &triggers.0)?;
-        }
-    }
     match validate_card_spawn(
         world,
         request.controller,
@@ -1146,6 +1136,25 @@ pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(),
         Ok(_) => {}
         Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(()),
         Err(error) => return Err(error),
+    }
+    validate_card_program(world, &snapshot.card)?;
+    if request.policy == CopyStatePolicy::InPlayState {
+        let source_entity =
+            game_entity(world, request.source).expect("copy source remains indexed");
+        snapshot.play_state = Some(capture_play_copy_snapshot(
+            world,
+            request.source,
+            source_entity,
+        )?);
+    }
+    for attachment in snapshot
+        .play_state
+        .iter()
+        .flat_map(|state| &state.attachments)
+    {
+        if let Some(triggers) = &attachment.runtime_triggers {
+            validate_trigger_enchantment(world, &triggers.0)?;
+        }
     }
     let copy = match spawn_card_at(
         world,
@@ -1252,33 +1261,38 @@ fn restore_play_copy_state(
 
 fn capture_copy_snapshot(
     world: &World,
-    source: GameEntityId,
-    policy: CopyStatePolicy,
+    request: &CopyRequest,
 ) -> Result<Option<CopySnapshot>, SimulationError> {
-    let Some(entity) = game_entity(world, source) else {
+    let Some(entity) = game_entity(world, request.source) else {
         return Ok(None);
     };
-    let card = copy_card_data(world, source).ok_or_else(|| {
+    let card = copy_card_data(world, request.source).ok_or_else(|| {
         SimulationError::Invariant(format!(
-            "copy source {source:?} lacks required current-form components"
+            "copy source {:?} lacks required current-form components",
+            request.source
         ))
     })?;
     let zone = world.get::<Zone>(entity).copied().ok_or_else(|| {
         SimulationError::Invariant(format!(
-            "copy source {source:?} lacks required Zone component"
+            "copy source {:?} lacks required Zone component",
+            request.source
         ))
     })?;
-    let play_state = if policy == CopyStatePolicy::InPlayState {
-        if zone != Zone::Play {
-            return Err(SimulationError::Invariant(format!(
-                "in-play copy source {source:?} is not in Play"
-            )));
-        }
-        Some(capture_play_copy_snapshot(world, source, entity)?)
+    let expected_policy = if zone == Zone::Play && request.destination == Zone::Play {
+        CopyStatePolicy::InPlayState
     } else {
-        None
+        CopyStatePolicy::CurrentForm
     };
-    Ok(Some(CopySnapshot { card, play_state }))
+    if request.policy != expected_policy {
+        return Err(SimulationError::Invariant(format!(
+            "copy from {zone:?} to {:?} requires {expected_policy:?} policy, got {:?}",
+            request.destination, request.policy
+        )));
+    }
+    Ok(Some(CopySnapshot {
+        card,
+        play_state: None,
+    }))
 }
 
 fn capture_play_copy_snapshot(

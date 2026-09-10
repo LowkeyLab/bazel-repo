@@ -1,14 +1,15 @@
 use googletest::prelude::*;
 
+use super::effect_executor::copy_entity;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AttachedTo, AttackAuraCache, AttackState, ContinuousEffectDefinition, ContinuousModifier,
-    Controller, CopyStatePolicy, CostOperation, CurrentStats, DefinitionId, DisplayName,
-    DrawOutcome, EnchantmentDuration, HealthAuraCache, HeroClassPolicy, HeroHealthPolicy,
-    HeroReplacement, KeepEnchantments, KeywordModifier, OtherAuraCache, PhaseBoundaryPlan,
-    PlayOrder, PlayerAudience, RuntimeContinuousEffects, RuntimeTriggers, SilenceRemovable,
-    SourceEligibilityPolicy, TransformKind, TriggerDefinition, WoundedTargetPolicy,
-    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    Controller, CopyRequest, CopyStatePolicy, CostOperation, CurrentStats, DefinitionId,
+    DisplayName, DrawOutcome, EnchantmentDuration, HealthAuraCache, HeroClassPolicy,
+    HeroHealthPolicy, HeroReplacement, KeepEnchantments, KeywordModifier, OtherAuraCache,
+    PhaseBoundaryPlan, PlayOrder, PlayerAudience, RuntimeContinuousEffects, RuntimeTriggers,
+    SilenceRemovable, SourceEligibilityPolicy, TransformKind, TriggerDefinition,
+    WoundedTargetPolicy, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -1140,7 +1141,7 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
             targets: Selector::Entity(source),
             modifier: StatModifier {
                 attack: 4,
-                health: 2,
+                health: -20,
                 silence_removable: false,
             },
             duration: EnchantmentDuration::Permanent,
@@ -1304,7 +1305,7 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
         world.get::<CurrentStats>(copy_entity),
         eq(Some(&CurrentStats {
             attack: 7,
-            maximum_health: 10,
+            maximum_health: 0,
         }))
     );
     assert_that!(world.get::<CardRuntime>(copy_entity).unwrap().cost, eq(4));
@@ -1456,6 +1457,199 @@ fn invalid_play_copy_attachment_is_atomic_and_consumes_no_id() {
             .0,
         eq(next_id)
     );
+}
+
+#[googletest::test]
+fn in_play_copy_policy_rejects_non_play_destinations_directly_and_after_restore() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Play source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let request = CopyRequest {
+        source,
+        controller: PlayerId::Two,
+        destination: Zone::Hand,
+        board_index: None,
+        policy: CopyStatePolicy::InPlayState,
+    };
+    let next_id = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    let next_order = simulation
+        .app
+        .world()
+        .resource::<crate::entity::PlayOrderCounter>()
+        .0;
+    let trace = simulation.trace().to_vec();
+
+    assert_that!(
+        copy_entity(simulation.app.world_mut(), request),
+        err(matches_pattern!(SimulationError::Invariant(_)))
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next_id)
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::PlayOrderCounter>()
+            .0,
+        eq(next_order)
+    );
+    assert_that!(simulation.trace(), eq(trace.as_slice()));
+    assert_that!(simulation.snapshot().players[1].hand, is_empty());
+
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let operation_id = checkpoint.resolution.next_resolution_id;
+    checkpoint.resolution.next_resolution_id += 1;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(operation_id),
+        operation: ResolutionOp::CopyEntity(request),
+    });
+    checkpoint.resolution.remaining_budget = checkpoint.ruleset.resolution_budget;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+    let mut restored = Simulation::from_checkpoint(checkpoint).unwrap();
+
+    assert_that!(
+        drive_resolution(restored.app.world_mut()),
+        err(matches_pattern!(SimulationError::Invariant(_)))
+    );
+    assert_that!(
+        restored
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next_id)
+    );
+    assert_that!(
+        restored
+            .app
+            .world()
+            .resource::<crate::entity::PlayOrderCounter>()
+            .0,
+        eq(next_order)
+    );
+    assert_that!(
+        restored
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::EntityCopied { .. })),
+        is_false()
+    );
+    assert_that!(restored.snapshot().players[1].hand, is_empty());
+}
+
+#[googletest::test]
+fn full_copy_destination_precedes_source_program_and_attachment_validation() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Malformed source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let source_entity = game_entity(simulation.app.world(), source).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<CardRuntime>(source_entity)
+        .unwrap()
+        .program = vec![Effect::Native(NativeEffectId::new("missing:full_copy"))];
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<StatModifier>().is_some())
+        .unwrap()
+        .id();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(enchantment)
+        .remove::<DisplayName>();
+    for index in 0..7 {
+        spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::Two,
+            Card::minion(format!("Full board {index}"), 0, 1, 1),
+            Zone::Play,
+        )
+        .unwrap();
+    }
+    let before = simulation.snapshot();
+    let next_id = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    let next_order = simulation
+        .app
+        .world()
+        .resource::<crate::entity::PlayOrderCounter>()
+        .0;
+    let trace = simulation.trace().to_vec();
+
+    assert_that!(
+        copy_entity(
+            simulation.app.world_mut(),
+            CopyRequest {
+                source,
+                controller: PlayerId::Two,
+                destination: Zone::Play,
+                board_index: None,
+                policy: CopyStatePolicy::InPlayState,
+            },
+        ),
+        ok(anything())
+    );
+
+    let after = simulation.snapshot();
+    assert_that!(after.players, eq(&before.players));
+    assert_that!(after.objects, eq(&before.objects));
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next_id)
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::PlayOrderCounter>()
+            .0,
+        eq(next_order)
+    );
+    assert_that!(simulation.trace(), eq(trace.as_slice()));
 }
 
 #[googletest::test]
