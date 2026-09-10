@@ -16,10 +16,10 @@
 - Use each migrated project's `startDate` as its blog `publishDate`.
 - Normalize migrated tags to lowercase, hyphenated values.
 - Keep `local-first-gradle-build-scan` as the only Gradle Build Scan blog entry.
-- Preserve every former project URL through an exact permanent redirect; do not add a wildcard `/projects/*` redirect.
+- Preserve both slashless and trailing-slash forms of every former project URL through exact permanent redirects; do not add a wildcard `/projects/*` redirect.
 - Do not redesign the blog index, blog article page, or work section.
 - Use Bazel for all build, test, lint, formatting, and generation operations.
-- Run `bazel run //:gazelle` immediately after every source-file edit and before formatting.
+- Run `bazel run //:gazelle` immediately after each atomic source-edit operation and before formatting.
 - Run `aspect format --scope=all` before each implementation commit and before completion.
 
 ## File Structure
@@ -34,7 +34,7 @@
 - Modify `personal_website/src/components/Navbar.astro`: remove Projects navigation and its active-item variant.
 - Modify `personal_website/src/components/DevHero.astro`: replace the Projects hero link with Blog.
 - Modify `personal_website/src/layouts/Layout.astro`: remove `projects` from the active-item type.
-- Modify `personal_website/Caddyfile`: define six exact permanent redirects.
+- Modify `personal_website/Caddyfile`: define exact permanent redirects for both forms of the six former URLs.
 - Delete `personal_website/src/content/projects/*.md`: remove the obsolete project records after migration.
 - Delete `personal_website/src/pages/projects/index.astro`: remove the project listing and filter script.
 - Delete `personal_website/src/pages/projects/[project].astro`: remove project static-path generation.
@@ -145,6 +145,8 @@ sh_test(
 Run: `aspect test //personal_website:site_structure_test`
 
 Expected: FAIL with `site structure test failed: missing /blog/free-dsl`.
+
+Steps 5-8 are one atomic source-edit operation. Complete them without intervening generation, then run Gazelle immediately in Step 9.
 
 - [ ] **Step 5: Move the four unique project articles into the blog directory**
 
@@ -417,7 +419,7 @@ git commit -m "refactor(website): remove projects navigation"
 **Interfaces:**
 
 - Consumes: Caddy's `redir <matcher> <target> permanent` directive.
-- Produces: Exact permanent redirects from six former project URLs to canonical blog URLs; unknown project URLs remain unmatched.
+- Produces: Exact permanent redirects from both forms of six former project URLs to canonical blog URLs; unknown project URLs remain unmatched.
 
 - [ ] **Step 1: Extend the test with exact redirect assertions**
 
@@ -434,11 +436,20 @@ assert_redirect() {
 }
 
 assert_redirect "/projects" "/blog"
+assert_redirect "/projects/" "/blog"
 assert_redirect "/projects/guess-the-word" "/blog/guess-the-word"
+assert_redirect "/projects/guess-the-word/" "/blog/guess-the-word"
 assert_redirect "/projects/free-dsl" "/blog/free-dsl"
+assert_redirect "/projects/free-dsl/" "/blog/free-dsl"
 assert_redirect "/projects/landing-page" "/blog/landing-page"
+assert_redirect "/projects/landing-page/" "/blog/landing-page"
 assert_redirect "/projects/mindreadr" "/blog/mindreadr"
+assert_redirect "/projects/mindreadr/" "/blog/mindreadr"
 assert_redirect "/projects/gradle-build-scan-server" "/blog/local-first-gradle-build-scan"
+assert_redirect "/projects/gradle-build-scan-server/" "/blog/local-first-gradle-build-scan"
+
+project_redirect_count="$(grep -Ec '^[[:space:]]*redir[[:space:]]+/projects(/[^[:space:]]*)?[[:space:]]+' "${caddyfile}")"
+[[ "${project_redirect_count}" -eq 12 ]] || fail "expected exactly 12 approved project redirect matchers, found ${project_redirect_count}"
 
 if grep -Eq '^[[:space:]]*redir[[:space:]]+/projects/\*' "${caddyfile}"; then
   fail "wildcard project redirect would hide unknown routes"
@@ -467,11 +478,17 @@ Replace `personal_website/Caddyfile` with:
 	root * /app
 
 	redir /projects /blog permanent
+	redir /projects/ /blog permanent
 	redir /projects/guess-the-word /blog/guess-the-word permanent
+	redir /projects/guess-the-word/ /blog/guess-the-word permanent
 	redir /projects/free-dsl /blog/free-dsl permanent
+	redir /projects/free-dsl/ /blog/free-dsl permanent
 	redir /projects/landing-page /blog/landing-page permanent
+	redir /projects/landing-page/ /blog/landing-page permanent
 	redir /projects/mindreadr /blog/mindreadr permanent
+	redir /projects/mindreadr/ /blog/mindreadr permanent
 	redir /projects/gradle-build-scan-server /blog/local-first-gradle-build-scan permanent
+	redir /projects/gradle-build-scan-server/ /blog/local-first-gradle-build-scan permanent
 
 	file_server
 }
@@ -483,7 +500,7 @@ Run: `aspect format --scope=all`
 
 Run: `aspect test //personal_website:site_structure_test`
 
-Expected: Both commands PASS. The test confirms all six exact declarations and rejects a wildcard declaration.
+Expected: Both commands PASS. The test confirms exactly the 12 approved declarations and rejects a wildcard declaration.
 
 - [ ] **Step 6: Build the deployment image**
 
@@ -516,7 +533,7 @@ git commit -m "fix(website): redirect project URLs to blog"
 Run:
 
 ```bash
-rg -n 'getCollection\("projects"\)|activeItem="projects"|href="/projects|/projects/' personal_website/src
+rg -n 'getCollection\("projects"\)|activeItem="projects"|href="/projects|\]\(/projects/' personal_website/src
 ```
 
 Expected: No matches.
@@ -533,7 +550,7 @@ Expected: Both commands PASS and leave no formatting diff.
 
 Run: `aspect test //personal_website:site_structure_test //personal_website:check`
 
-Run: `aspect lint //personal_website:...`
+Run: `aspect lint //personal_website/...`
 
 Expected: All tests and lint checks PASS with zero failures.
 

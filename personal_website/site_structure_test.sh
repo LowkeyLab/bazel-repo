@@ -12,7 +12,15 @@ for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-bu
 	[[ -f "${dist}/blog/${slug}/index.html" ]] || fail "missing /blog/${slug}"
 done
 
-[[ ! -e "${dist}/projects/index.html" ]] || fail "generated obsolete /projects route"
+for route in \
+	projects \
+	projects/guess-the-word \
+	projects/free-dsl \
+	projects/landing-page \
+	projects/mindreadr \
+	projects/gradle-build-scan-server; do
+	[[ ! -e "${dist}/${route}/index.html" ]] || fail "generated obsolete /${route} route"
+done
 
 remaining="$(<"${dist}/blog/index.html")"
 for title in \
@@ -44,11 +52,20 @@ assert_redirect() {
 }
 
 assert_redirect "/projects" "/blog"
+assert_redirect "/projects/" "/blog"
 assert_redirect "/projects/guess-the-word" "/blog/guess-the-word"
+assert_redirect "/projects/guess-the-word/" "/blog/guess-the-word"
 assert_redirect "/projects/free-dsl" "/blog/free-dsl"
+assert_redirect "/projects/free-dsl/" "/blog/free-dsl"
 assert_redirect "/projects/landing-page" "/blog/landing-page"
+assert_redirect "/projects/landing-page/" "/blog/landing-page"
 assert_redirect "/projects/mindreadr" "/blog/mindreadr"
+assert_redirect "/projects/mindreadr/" "/blog/mindreadr"
 assert_redirect "/projects/gradle-build-scan-server" "/blog/local-first-gradle-build-scan"
+assert_redirect "/projects/gradle-build-scan-server/" "/blog/local-first-gradle-build-scan"
+
+project_redirect_count="$(grep -Ec '^[[:space:]]*redir[[:space:]]+/projects(/[^[:space:]]*)?[[:space:]]+' "${caddyfile}")"
+[[ "${project_redirect_count}" -eq 12 ]] || fail "expected exactly 12 approved project redirect matchers, found ${project_redirect_count}"
 
 if grep -Eq '^[[:space:]]*redir[[:space:]]+/projects/\*' "${caddyfile}"; then
 	fail "wildcard project redirect would hide unknown routes"

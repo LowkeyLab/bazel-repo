@@ -33,5 +33,5 @@ bazel run //personal_website:preview
 To lint the project files:
 
 ```bash
-aspect lint //personal_website:...
+aspect lint //personal_website/...
 ```
