@@ -25,7 +25,6 @@ done
 remaining="$(<"${dist}/blog/index.html")"
 for title in \
 	"Local-First Gradle Build Scan" \
-	"Hello World" \
 	"Mindreadr" \
 	"Personal Landing Page" \
 	"Guess The Word" \
