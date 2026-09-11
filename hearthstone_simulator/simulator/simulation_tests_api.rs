@@ -22,6 +22,60 @@ fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: Resolution
     checkpoint.game.status = SimulationStatus::Resolving;
 }
 
+fn checkpoint_hero_id(checkpoint: &SimulationCheckpoint, player: PlayerId) -> GameEntityId {
+    checkpoint
+        .entities
+        .iter()
+        .find(|entity| entity.kind == Some(EntityKind::Hero) && entity.controller == Some(player))
+        .unwrap()
+        .id
+}
+
+fn checkpoint_with_prepared_event(
+    kind: EventKind,
+    source_player: PlayerId,
+    target_player: PlayerId,
+) -> (SimulationCheckpoint, GameEntityId, GameEntityId) {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint_hero_id(&checkpoint, source_player);
+    let target = checkpoint_hero_id(&checkpoint, target_player);
+    checkpoint.resolution.next_event_id = 2;
+    checkpoint.resolution.events.insert(
+        EventId(0),
+        PreparedEvent {
+            context: EventContext {
+                kind,
+                source: Some(source),
+                targets: vec![target],
+                controller: source_player,
+                proposed_value: Some(1),
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: None,
+        },
+    );
+    checkpoint.resolution.next_event_slot_id = 2;
+    checkpoint
+        .resolution
+        .event_slots
+        .insert(EventSlotId(0), PreparedEventSlot::default());
+    (checkpoint, source, target)
+}
+
+fn assert_checkpoint_restore_error(name: &str, checkpoint: SimulationCheckpoint, expected: &str) {
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+
+    assert_eq!(
+        Simulation::from_checkpoint(decoded).map(|_| ()),
+        Err(SimulationError::Checkpoint(expected.to_string())),
+        "{name}"
+    );
+}
+
 fn checkpoint_with_retained_continuation(effect: Effect) -> SimulationCheckpoint {
     let simulation = simulation();
     let mut checkpoint = simulation.checkpoint().unwrap();
@@ -1304,6 +1358,430 @@ fn checkpoints_reject_missing_event_and_event_slot_operation_references() {
             contains_substring("missing prepared event EventId(3)")
         ))),
     );
+}
+
+#[googletest::test]
+fn retained_damage_healing_and_trigger_operations_reject_dangling_references() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let valid = checkpoint_hero_id(&base, PlayerId::One);
+    let (damage_base, damage_source, damage_target) =
+        checkpoint_with_prepared_event(EventKind::ProposedDamage, PlayerId::One, PlayerId::Two);
+    let (healing_base, healing_source, healing_target) =
+        checkpoint_with_prepared_event(EventKind::ProposedHealing, PlayerId::One, PlayerId::One);
+    let missing = GameEntityId(u64::MAX);
+    let damage = |source, target| DamageRequest {
+        source,
+        target,
+        proposed: 1,
+    };
+    let healing = |source, target| HealingRequest {
+        source,
+        target,
+        proposed: 1,
+    };
+    let cases = vec![
+        (
+            "finish trigger attempt is not below the retained resolution counter",
+            base.clone(),
+            ResolutionOp::FinishTrigger {
+                attempt: ResolutionId(1),
+                source: valid,
+            },
+            "resolution ID 1 is not below next ID 1",
+        ),
+        (
+            "finish trigger source no longer exists",
+            base.clone(),
+            ResolutionOp::FinishTrigger {
+                attempt: ResolutionId(0),
+                source: missing,
+            },
+            "finished trigger source references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+        (
+            "damage batch source no longer exists",
+            base.clone(),
+            ResolutionOp::ProcessDamageBatch(vec![damage(Some(missing), valid)]),
+            "request source references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+        (
+            "healing batch target no longer exists",
+            base,
+            ResolutionOp::ProcessHealingBatch(vec![healing(Some(valid), missing)]),
+            "request target references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+        (
+            "healing processing references an absent actual-event slot",
+            healing_base.clone(),
+            ResolutionOp::ProcessHealing {
+                request: healing(Some(healing_source), healing_target),
+                actual_event: EventSlotId(1),
+                ordinal: 0,
+            },
+            "missing prepared event slot EventSlotId(1)",
+        ),
+        (
+            "damage application references an absent proposed event",
+            damage_base.clone(),
+            ResolutionOp::ApplyDamage {
+                request: damage(Some(damage_source), damage_target),
+                proposed_event: EventId(1),
+                actual_event: EventSlotId(0),
+                ordinal: 0,
+            },
+            "missing prepared event EventId(1)",
+        ),
+        (
+            "damage application references an absent actual-event slot",
+            damage_base,
+            ResolutionOp::ApplyDamage {
+                request: damage(Some(damage_source), damage_target),
+                proposed_event: EventId(0),
+                actual_event: EventSlotId(1),
+                ordinal: 0,
+            },
+            "missing prepared event slot EventSlotId(1)",
+        ),
+        (
+            "healing application references an absent proposed event",
+            healing_base.clone(),
+            ResolutionOp::ApplyHealing {
+                request: healing(Some(healing_source), healing_target),
+                proposed_event: EventId(1),
+                actual_event: EventSlotId(0),
+                ordinal: 0,
+            },
+            "missing prepared event EventId(1)",
+        ),
+        (
+            "healing application references an absent actual-event slot",
+            healing_base,
+            ResolutionOp::ApplyHealing {
+                request: healing(Some(healing_source), healing_target),
+                proposed_event: EventId(0),
+                actual_event: EventSlotId(1),
+                ordinal: 0,
+            },
+            "missing prepared event slot EventSlotId(1)",
+        ),
+    ];
+
+    for (name, mut checkpoint, operation, expected) in cases {
+        retain_operation(&mut checkpoint, operation);
+        assert_checkpoint_restore_error(name, checkpoint, expected);
+    }
+}
+
+#[googletest::test]
+fn retained_attack_steps_reject_missing_combatants_by_role() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let attacker = checkpoint_hero_id(&base, PlayerId::One);
+    let defender = checkpoint_hero_id(&base, PlayerId::Two);
+    let missing = GameEntityId(u64::MAX);
+    let cases = [
+        (
+            "attack attacker no longer exists",
+            SequenceStep::Attack {
+                player: PlayerId::One,
+                attacker: missing,
+                defender,
+            },
+            "attacker references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+        (
+            "attack defender no longer exists",
+            SequenceStep::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: missing,
+            },
+            "defender references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+        (
+            "finish-attack attacker no longer exists",
+            SequenceStep::FinishAttack {
+                player: PlayerId::One,
+                attacker: missing,
+                defender,
+            },
+            "attacker references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+        (
+            "finish-attack defender no longer exists",
+            SequenceStep::FinishAttack {
+                player: PlayerId::One,
+                attacker,
+                defender: missing,
+            },
+            "defender references missing logical entity GameEntityId(18446744073709551615)",
+        ),
+    ];
+
+    for (name, step, expected) in cases {
+        let mut checkpoint = base.clone();
+        retain_operation(&mut checkpoint, ResolutionOp::RunSequenceStep(step));
+        assert_checkpoint_restore_error(name, checkpoint, expected);
+    }
+}
+
+#[googletest::test]
+fn retained_selector_effects_reject_missing_explicit_targets() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let missing = GameEntityId(u64::MAX);
+    let cases = vec![
+        (
+            "damage selector",
+            Effect::DealDamage {
+                targets: Selector::Entity(missing),
+                amount: ValueExpression::Constant(1),
+            },
+        ),
+        (
+            "healing selector",
+            Effect::Heal {
+                targets: Selector::Entity(missing),
+                amount: ValueExpression::Constant(1),
+            },
+        ),
+        (
+            "movement selector",
+            Effect::Move {
+                targets: Selector::Entity(missing),
+                player: PlayerSelector::Controller,
+                zone: Zone::Hand,
+                kind: crate::ZoneMovementKind::Normal,
+            },
+        ),
+        (
+            "stat-enchantment selector",
+            Effect::AttachStatModifier {
+                targets: Selector::Entity(missing),
+                modifier: StatModifier {
+                    attack: 1,
+                    health: 1,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
+            },
+        ),
+        (
+            "keyword-enchantment selector",
+            Effect::AttachKeywordModifier {
+                targets: Selector::Entity(missing),
+                modifier: KeywordModifier {
+                    keyword: Keyword::Taunt,
+                    granted: true,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
+            },
+        ),
+        (
+            "cost-enchantment selector",
+            Effect::AttachCostModifier {
+                targets: Selector::Entity(missing),
+                modifier: CostModifier {
+                    operation: CostOperation::Add,
+                    value: -1,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
+            },
+        ),
+        (
+            "continuous-enchantment selector",
+            Effect::AttachContinuousEffect {
+                targets: Selector::Entity(missing),
+                effect: crate::ContinuousEffectDefinition {
+                    recipients: crate::PlayerAudience::Controller,
+                    modifier: crate::ContinuousModifier::SpellDamage(1),
+                },
+                silence_removable: true,
+                duration: EnchantmentDuration::Permanent,
+            },
+        ),
+        (
+            "silence selector",
+            Effect::Silence {
+                targets: Selector::Entity(missing),
+            },
+        ),
+        (
+            "copy selector",
+            Effect::Copy {
+                targets: Selector::Entity(missing),
+                player: PlayerSelector::Controller,
+                zone: Zone::Hand,
+                board_index: None,
+            },
+        ),
+    ];
+
+    for (name, effect) in cases {
+        let mut checkpoint = base.clone();
+        retain_operation(
+            &mut checkpoint,
+            ResolutionOp::RunEffect {
+                context: EffectContext {
+                    source: None,
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                effect,
+                event: None,
+            },
+        );
+        assert_checkpoint_restore_error(
+            name,
+            checkpoint,
+            "selector references missing logical entity GameEntityId(18446744073709551615)",
+        );
+    }
+}
+
+#[googletest::test]
+fn retained_nested_effect_cards_and_trigger_conditions_reject_dangling_selectors() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let valid = base
+        .entities
+        .iter()
+        .find(|entity| {
+            entity.kind == Some(EntityKind::Minion)
+                && entity.controller == Some(PlayerId::One)
+                && entity.zone == Some(Zone::Hand)
+        })
+        .unwrap()
+        .id;
+    let missing = GameEntityId(u64::MAX);
+    let malformed_effect = || Effect::Destroy {
+        targets: Selector::Entity(missing),
+    };
+    let cases = vec![
+        (
+            "trigger enchantment minimum-count selector",
+            Effect::AttachTriggerEnchantment {
+                targets: Selector::Entity(valid),
+                triggers: vec![crate::TriggerDefinition {
+                    event: EventKind::Damage,
+                    eligible_zones: vec![Zone::Play],
+                    conditions: vec![crate::TimedCondition {
+                        timing: crate::ConditionTiming::QueueTime,
+                        condition: crate::TriggerCondition::MinimumEntityCount {
+                            selector: Selector::Entity(missing),
+                            count: 1,
+                        },
+                    }],
+                    source_eligibility: crate::SourceEligibilityPolicy::MustRemainInEligibleZone,
+                    priority: 0,
+                    wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
+                    effect_program: Vec::new(),
+                }],
+                duration: EnchantmentDuration::Permanent,
+                silence_removable: true,
+            },
+        ),
+        (
+            "transform replacement card program",
+            Effect::Transform {
+                targets: Selector::Entity(valid),
+                card: Card::minion("Malformed transform", 0, 1, 1)
+                    .with_effects(vec![malformed_effect()]),
+                kind: TransformKind::Spell,
+            },
+        ),
+        (
+            "nested draw-then sequence",
+            Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![Effect::Sequence(vec![malformed_effect()])],
+                policy: DrawContinuationPolicy::RequireCard,
+            },
+        ),
+        (
+            "replacement hero card program",
+            Effect::ReplaceHero {
+                player: PlayerSelector::Controller,
+                replacement: Box::new(crate::HeroReplacement {
+                    hero: Card::hero("Malformed hero", 30).with_effects(vec![malformed_effect()]),
+                    hero_power: Card::hero_power("Valid power", 2),
+                    armor_gain: 0,
+                    health: crate::HeroHealthPolicy::Preserve,
+                    class: crate::HeroClassPolicy::Keep,
+                    weapon: None,
+                }),
+            },
+        ),
+        (
+            "replacement hero-power card program",
+            Effect::ReplaceHero {
+                player: PlayerSelector::Controller,
+                replacement: Box::new(crate::HeroReplacement {
+                    hero: Card::hero("Valid hero", 30),
+                    hero_power: Card::hero_power("Malformed power", 2)
+                        .with_effects(vec![malformed_effect()]),
+                    armor_gain: 0,
+                    health: crate::HeroHealthPolicy::Preserve,
+                    class: crate::HeroClassPolicy::Keep,
+                    weapon: None,
+                }),
+            },
+        ),
+        (
+            "replacement weapon card program",
+            Effect::ReplaceHero {
+                player: PlayerSelector::Controller,
+                replacement: Box::new(crate::HeroReplacement {
+                    hero: Card::hero("Valid armed hero", 30),
+                    hero_power: Card::hero_power("Valid armed power", 2),
+                    armor_gain: 0,
+                    health: crate::HeroHealthPolicy::Preserve,
+                    class: crate::HeroClassPolicy::Keep,
+                    weapon: Some(
+                        Card::weapon("Malformed weapon", 1, 1)
+                            .with_effects(vec![malformed_effect()]),
+                    ),
+                }),
+            },
+        ),
+        (
+            "summoned card program",
+            Effect::Summon {
+                player: PlayerSelector::Controller,
+                card: Card::minion("Malformed summon", 0, 1, 1)
+                    .with_effects(vec![malformed_effect()]),
+                board_index: None,
+            },
+        ),
+    ];
+
+    for (name, effect) in cases {
+        let mut checkpoint = base.clone();
+        retain_operation(
+            &mut checkpoint,
+            ResolutionOp::RunEffect {
+                context: EffectContext {
+                    source: Some(valid),
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                effect,
+                event: None,
+            },
+        );
+        assert_checkpoint_restore_error(
+            name,
+            checkpoint,
+            "selector references missing logical entity GameEntityId(18446744073709551615)",
+        );
+    }
 }
 
 #[googletest::test]
