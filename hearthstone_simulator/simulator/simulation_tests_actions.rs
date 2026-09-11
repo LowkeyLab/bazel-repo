@@ -809,11 +809,330 @@ fn rejected_actions_leave_resolution_idle() {
 #[googletest::test]
 fn legal_actions_are_deterministic() {
     let mut simulation = simulation();
+    let before = simulation.checkpoint().unwrap();
     let first = simulation.legal_actions();
-    let second = simulation.legal_actions();
+    assert_eq!(first, simulation.legal_actions());
+    assert_eq!(simulation.checkpoint().unwrap(), before);
+    for action in &first {
+        assert_eq!(
+            super::action_validation::validate_action(simulation.app.world(), action).unwrap(),
+            *action,
+        );
+    }
+}
 
-    assert_that!(first, eq(&second));
-    assert_that!(first.len(), eq(2));
+#[googletest::test]
+fn legal_actions_offer_each_required_target_at_the_explicit_minion_position() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Targeted", 0, 1, 1)
+                    .with_targeting(TargetRequirement::Required(enemy_character)),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let enemy_minion = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let mut targets = vec![enemy_hero, enemy_minion];
+    targets.sort_unstable();
+
+    assert_eq!(
+        simulation.legal_actions(),
+        vec![
+            GameAction::EndTurn {
+                player: PlayerId::One,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(targets[0]),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(targets[1]),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::Concede {
+                player: PlayerId::One,
+            },
+        ],
+    );
+}
+
+#[googletest::test]
+fn legal_actions_contain_every_successfully_validated_small_fixture_candidate() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Targeted", 0, 1, 1)
+                    .with_targeting(TargetRequirement::Required(enemy_character)),
+                Card::spell("Spell", 0),
+                Card::weapon("Unsupported", 0, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let enemy_minion = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let friendly_hero_entity = game_entity(simulation.app.world(), friendly_hero).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<CurrentStats>(friendly_hero_entity)
+        .unwrap()
+        .attack = 1;
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(friendly_hero_entity)
+        .unwrap()
+        .exhausted = false;
+
+    let legal_actions = simulation.legal_actions();
+    let mut hand_ids = simulation.snapshot().players[0].hand.clone();
+    let stale = GameEntityId(u64::MAX);
+    hand_ids.push(stale);
+    let mut entity_ids = simulation
+        .snapshot()
+        .objects
+        .into_iter()
+        .map(|object| object.id)
+        .collect::<Vec<_>>();
+    entity_ids.push(stale);
+    let board_len = simulation.snapshot().players[0].board.len();
+
+    for card in hand_ids {
+        for target in std::iter::once(None).chain(entity_ids.iter().copied().map(Some)) {
+            for board_index in std::iter::once(None).chain((0..=board_len + 1).map(Some)) {
+                for choice in [None, Some(ChoiceId(999))] {
+                    let candidate = play_declaration(card, target, board_index, choice);
+                    if let Ok(normalized) = super::action_validation::validate_action(
+                        simulation.app.world(),
+                        &candidate,
+                    ) {
+                        assert!(
+                            legal_actions.contains(&normalized),
+                            "missing normalized play action: {normalized:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    for attacker in &entity_ids {
+        for defender in &entity_ids {
+            let candidate = GameAction::Attack {
+                player: PlayerId::One,
+                attacker: *attacker,
+                defender: *defender,
+            };
+            if let Ok(normalized) =
+                super::action_validation::validate_action(simulation.app.world(), &candidate)
+            {
+                assert!(
+                    legal_actions.contains(&normalized),
+                    "missing normalized attack action: {normalized:?}"
+                );
+            }
+        }
+    }
+    for player in PlayerId::ALL {
+        for candidate in [
+            GameAction::EndTurn { player },
+            GameAction::Concede { player },
+        ] {
+            if let Ok(normalized) =
+                super::action_validation::validate_action(simulation.app.world(), &candidate)
+            {
+                assert!(
+                    legal_actions.contains(&normalized),
+                    "missing normalized turn action: {normalized:?}"
+                );
+            }
+        }
+    }
+
+    assert!(
+        legal_actions.iter().any(
+            |action| matches!(action, GameAction::Attack { attacker, defender, .. } if *attacker == friendly_hero && *defender == enemy_minion)
+        ),
+        "fixture should exercise an executable attack"
+    );
+    for action in legal_actions {
+        simulation
+            .fork()
+            .unwrap()
+            .apply(action)
+            .expect("every enumerated action should execute on a fresh fork");
+    }
+}
+
+#[googletest::test]
+fn legal_actions_exclude_exhausted_zero_attack_full_board_and_unsupported_candidates() {
+    let mut exhausted_and_zero_attack = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let exhausted = spawn_card(
+        exhausted_and_zero_attack.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Exhausted", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let zero_attack = spawn_card(
+        exhausted_and_zero_attack.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Zero attack", 0, 0, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    spawn_card(
+        exhausted_and_zero_attack.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Defender", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let exhausted_entity = game_entity(exhausted_and_zero_attack.app.world(), exhausted).unwrap();
+    let zero_attack_entity =
+        game_entity(exhausted_and_zero_attack.app.world(), zero_attack).unwrap();
+    exhausted_and_zero_attack
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(exhausted_entity)
+        .unwrap()
+        .exhausted = true;
+    exhausted_and_zero_attack
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(zero_attack_entity)
+        .unwrap()
+        .exhausted = false;
+    assert!(
+        exhausted_and_zero_attack
+            .legal_actions()
+            .iter()
+            .all(|action| !matches!(action, GameAction::Attack { attacker, .. } if *attacker == exhausted || *attacker == zero_attack)),
+    );
+
+    let mut full_board = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Blocked", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    full_board
+        .app
+        .world_mut()
+        .resource_mut::<Ruleset>()
+        .board_limit = 0;
+    assert!(
+        full_board
+            .legal_actions()
+            .iter()
+            .all(|action| !matches!(action, GameAction::PlayCard { .. })),
+    );
+
+    let mut unsupported = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::weapon("Unsupported", 0, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    assert!(
+        unsupported
+            .legal_actions()
+            .iter()
+            .all(|action| !matches!(action, GameAction::PlayCard { .. })),
+    );
+}
+
+#[googletest::test]
+fn legal_actions_normalize_negative_cost_minion_append_to_the_final_position() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Negative", -1, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Existing", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let player_entity = player(simulation.app.world(), PlayerId::One).unwrap().0;
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<Player>(player_entity)
+        .unwrap()
+        .used_resources = 1;
+
+    let normalized = super::action_validation::validate_action(
+        simulation.app.world(),
+        &play_declaration(card, None, None, None),
+    )
+    .unwrap();
+    assert_eq!(
+        normalized,
+        play_declaration(card, None, Some(1), None),
+        "the implicit minion append is canonicalized to the final explicit position"
+    );
+    let legal_actions = simulation.legal_actions();
+    assert!(legal_actions.contains(&normalized));
+    assert!(
+        legal_actions.iter().all(
+            |action| !matches!(action, GameAction::PlayCard { card: action_card, board_index: None, .. } if *action_card == card)
+        ),
+    );
+}
+
+#[googletest::test]
+fn legal_actions_are_empty_when_the_game_is_not_awaiting_an_open_action() {
+    for status in [
+        SimulationStatus::Resolving,
+        SimulationStatus::AwaitingChoice,
+        SimulationStatus::Complete,
+    ] {
+        let mut simulation = simulation();
+        simulation
+            .app
+            .world_mut()
+            .resource_mut::<GameState>()
+            .status = status;
+        assert!(simulation.legal_actions().is_empty(), "status: {status:?}");
+    }
+
+    let mut finished = simulation();
+    finished.app.world_mut().resource_mut::<GameState>().outcome =
+        Some(GameOutcome::Winner(PlayerId::Two));
+    assert!(finished.legal_actions().is_empty());
 }
 
 #[googletest::test]
@@ -965,9 +1284,14 @@ fn legal_actions_ignore_stale_ids_and_deck_setup_spawns_cards() {
 
     assert_that!(
         simulation.legal_actions(),
-        eq(&vec![GameAction::EndTurn {
-            player: PlayerId::One
-        }])
+        eq(&vec![
+            GameAction::EndTurn {
+                player: PlayerId::One
+            },
+            GameAction::Concede {
+                player: PlayerId::One
+            },
+        ])
     );
     assert_that!(simulation.snapshot().players[0].deck.len(), eq(1));
 }

@@ -25,7 +25,7 @@ use super::{
     effect_executor::contains_played_self_transform,
     error::SimulationError,
     event_resolver::OperationFailure,
-    player::{assert_player_role_invariants, controlled_entity_in_zone, player, player_mut},
+    player::{assert_player_role_invariants, controlled_entity_in_zone, player_mut},
     snapshot::assert_game_entity_index,
 };
 
@@ -70,34 +70,91 @@ pub(super) fn submit_choice(app: &mut App, option: ChoiceId) -> Result<(), Simul
 }
 
 pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
-    if world.resource::<GameState>().status != SimulationStatus::AwaitingAction {
+    let world: &World = world;
+    let game = world.resource::<GameState>();
+    if game.status != SimulationStatus::AwaitingAction || game.outcome.is_some() {
         return Vec::new();
     }
-    let active = world.resource::<GameState>().active_player;
-    let mut actions = vec![GameAction::EndTurn { player: active }];
-    let hand = world
+    let active = game.active_player;
+    let mut actions = Vec::new();
+    let mut offer = |candidate: GameAction| {
+        if let Ok(normalized) = super::action_validation::validate_action(world, &candidate) {
+            actions.push(normalized);
+        }
+    };
+
+    offer(GameAction::EndTurn { player: active });
+
+    let mut hand = world
         .resource::<ZoneIndex>()
         .entities(active, Zone::Hand)
         .to_vec();
+    hand.sort_unstable();
+    hand.dedup();
     for card in hand {
         let Some(entity) = game_entity(world, card) else {
             continue;
         };
-        let cost = world
-            .get::<CardRuntime>(entity)
-            .map_or(0, |card| card.cost.max(0));
-        if player(world, active)
-            .is_some_and(|(_, player, _, _)| player.available_resources() >= cost)
-        {
-            actions.push(GameAction::PlayCard {
+        let (kind, targeting) = match (
+            world.get::<EntityKind>(entity),
+            world.get::<CardRuntime>(entity),
+        ) {
+            (Some(kind), Some(runtime)) => (*kind, runtime.targeting),
+            _ => continue,
+        };
+        match kind {
+            EntityKind::Minion => {
+                let board_len = crate::zone::board_entities(world, active).len();
+                for target in super::action_validation::target_options(world, active, targeting) {
+                    for board_index in 0..=board_len {
+                        offer(GameAction::PlayCard {
+                            player: active,
+                            card,
+                            target,
+                            board_index: Some(board_index),
+                            choice: None,
+                        });
+                    }
+                }
+            }
+            EntityKind::Spell => {
+                for target in super::action_validation::target_options(world, active, targeting) {
+                    offer(GameAction::PlayCard {
+                        player: active,
+                        card,
+                        target,
+                        board_index: None,
+                        choice: None,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut attackers = world
+        .resource::<ZoneIndex>()
+        .entities(active, Zone::Play)
+        .to_vec();
+    attackers.sort_unstable();
+    attackers.dedup();
+    let mut defenders = world
+        .resource::<ZoneIndex>()
+        .entities(active.opponent(), Zone::Play)
+        .to_vec();
+    defenders.sort_unstable();
+    defenders.dedup();
+    for attacker in attackers {
+        for defender in &defenders {
+            offer(GameAction::Attack {
                 player: active,
-                card,
-                target: None,
-                board_index: None,
-                choice: None,
+                attacker,
+                defender: *defender,
             });
         }
     }
+
+    offer(GameAction::Concede { player: active });
     actions
 }
 

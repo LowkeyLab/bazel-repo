@@ -40,7 +40,6 @@ pub(super) fn eligible_targets(
     targets
 }
 
-#[allow(dead_code, reason = "consumed by action enumeration in the next task")]
 pub(super) fn target_options(
     world: &World,
     player: PlayerId,
