@@ -1,12 +1,13 @@
 use googletest::prelude::*;
 
 use super::effect_executor::copy_entity;
+use super::player::process_draw;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
     DrawOutcome, DrawRequest, DrawResultSlot, DrawResultSlotId, EnchantmentDuration,
     GameEntityCheckpoint, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
-    Player, SequenceStep, SilenceRemovable, TransformKind,
+    Player, SequenceStep, SilenceRemovable, TransformKind, resolver::allocate_draw_result_slot,
 };
 
 fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: ResolutionOp) {
@@ -127,6 +128,35 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
     );
     assert_that!(copy_card_data(world, GameEntityId(999)), none());
     assert_that!(hero_id(world, PlayerId::One), eq(Some(first_hero)));
+}
+
+#[googletest::test]
+fn fatigue_above_i32_max_is_atomic() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let world = simulation.app.world_mut();
+    let player_entity = player(world, PlayerId::One).unwrap().0;
+    world.get_mut::<Player>(player_entity).unwrap().fatigue = i32::MAX as u32;
+    begin_sequence(world).unwrap();
+    let result = allocate_draw_result_slot(world);
+    let before = build_checkpoint(world).unwrap();
+
+    assert_that!(
+        process_draw(
+            world,
+            DrawRequest {
+                player: PlayerId::One,
+                source: None,
+                result,
+            },
+        ),
+        err(eq(&SimulationError::Invariant(
+            "fatigue damage exceeds i32".to_string()
+        )))
+    );
+    assert_that!(build_checkpoint(world).unwrap(), eq(&before));
 }
 
 #[googletest::test]
@@ -1888,6 +1918,7 @@ fn checkpoints_reject_semantically_invalid_retained_transform_and_copy_operation
         },
         ResolutionOp::CopyEntity(CopyRequest {
             source: target,
+            originating_source: None,
             controller: PlayerId::One,
             destination: Zone::Play,
             board_index: None,
@@ -1956,6 +1987,7 @@ fn checkpoints_reject_retained_copies_with_invalid_position_current_form_or_prog
     let base = simulation.checkpoint().unwrap();
     let request = CopyRequest {
         source,
+        originating_source: None,
         controller: PlayerId::Two,
         destination: Zone::Play,
         board_index: Some(999),
@@ -1975,6 +2007,7 @@ fn checkpoints_reject_retained_copies_with_invalid_position_current_form_or_prog
     retain_operation(
         &mut missing_current_form,
         ResolutionOp::CopyEntity(CopyRequest {
+            originating_source: None,
             board_index: None,
             ..request
         }),
@@ -1995,6 +2028,7 @@ fn checkpoints_reject_retained_copies_with_invalid_position_current_form_or_prog
     retain_operation(
         &mut invalid_program,
         ResolutionOp::CopyEntity(CopyRequest {
+            originating_source: None,
             board_index: None,
             ..request
         }),
@@ -2041,6 +2075,7 @@ fn checkpoints_reject_malformed_attachments_needed_by_retained_play_copies() {
         &mut checkpoint,
         ResolutionOp::CopyEntity(CopyRequest {
             source,
+            originating_source: None,
             controller: PlayerId::Two,
             destination: Zone::Play,
             board_index: None,
@@ -2063,6 +2098,7 @@ fn retained_copies_preserve_missing_source_no_op_semantics() {
         &mut missing_source,
         ResolutionOp::CopyEntity(CopyRequest {
             source: GameEntityId(u64::MAX),
+            originating_source: None,
             controller: PlayerId::One,
             destination: Zone::Hand,
             board_index: None,
@@ -2071,6 +2107,31 @@ fn retained_copies_preserve_missing_source_no_op_semantics() {
     );
     let restored_missing = Simulation::from_checkpoint(missing_source.clone()).unwrap();
     assert_that!(restored_missing.checkpoint().unwrap(), eq(&missing_source));
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_copy_originating_sources() {
+    let mut simulation = simulation();
+    let source = hand_card(&mut simulation, PlayerId::One);
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            originating_source: Some(GameEntityId(u64::MAX)),
+            controller: PlayerId::One,
+            destination: Zone::Hand,
+            board_index: None,
+            policy: CopyStatePolicy::CurrentForm,
+        }),
+    );
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("copy originating source")
+        )))
+    );
 }
 
 #[googletest::test]
@@ -2126,6 +2187,7 @@ fn retained_copies_preserve_full_destination_no_op_precedence() {
         &mut full_destination,
         ResolutionOp::CopyEntity(CopyRequest {
             source,
+            originating_source: None,
             controller: PlayerId::Two,
             destination: Zone::Play,
             board_index: None,
@@ -2417,6 +2479,7 @@ fn checkpoints_reject_missing_transform_references() {
         copied.app.world_mut(),
         CopyRequest {
             source,
+            originating_source: None,
             controller: PlayerId::Two,
             destination: Zone::Play,
             board_index: None,
@@ -2561,6 +2624,7 @@ fn checkpoint_fork_executes_retained_play_copy_with_cloned_enchantments_equivale
         original.app.world_mut(),
         [ResolutionOp::CopyEntity(CopyRequest {
             source,
+            originating_source: Some(source),
             controller: PlayerId::Two,
             destination: Zone::Play,
             board_index: Some(0),

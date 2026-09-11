@@ -22,8 +22,8 @@ use crate::{
 use super::{
     card_runtime::CardRuntime,
     effect_executor::{
-        validate_copy_request, validate_effect_program, validate_transform_request,
-        validate_trigger_enchantment,
+        validate_copy_request, validate_effect_program, validate_play_effect_program,
+        validate_transform_request, validate_trigger_enchantment,
     },
     error::SimulationError,
     player::assert_player_role_invariants,
@@ -355,7 +355,11 @@ fn validate_resolution_operation(
     operation: &crate::ResolutionOp,
 ) -> Result<(), SimulationError> {
     match operation {
-        crate::ResolutionOp::RunEffect { effect, event, .. } => {
+        crate::ResolutionOp::RunEffect {
+            context,
+            effect,
+            event,
+        } => {
             let event = event.and_then(|event| {
                 world
                     .resource::<ResolutionWork>()
@@ -363,7 +367,25 @@ fn validate_resolution_operation(
                     .get(&event)
                     .map(|prepared| prepared.context.kind)
             });
-            validate_effect_program(world, std::slice::from_ref(effect), event)
+            let retained_play_barrier = event.is_none()
+                && context.source.is_some_and(|source| {
+                    world
+                        .resource::<ResolutionWork>()
+                        .stack
+                        .iter()
+                        .any(|stacked| {
+                            matches!(
+                                &stacked.operation,
+                                ResolutionOp::FinishPlayedSelfTransform { subject, .. }
+                                    if *subject == source
+                            )
+                        })
+                });
+            if retained_play_barrier {
+                validate_play_effect_program(world, std::slice::from_ref(effect))
+            } else {
+                validate_effect_program(world, std::slice::from_ref(effect), event)
+            }
         }
         crate::ResolutionOp::AttemptTrigger(candidate) => validate_effect_program(
             world,
@@ -774,8 +796,7 @@ fn validate_resolution_operation_references(
         ResolutionOp::RunSequenceStep(step) => validate_sequence_step_references(step, ids),
         ResolutionOp::RunPhaseBoundary(_)
         | ResolutionOp::CheckOutcome
-        | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon)
-        | ResolutionOp::CopyEntity(_) => Ok(()),
+        | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon) => Ok(()),
         ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::PlayedProvider(provider)) => {
             validate_entity_reference("aura provider", *provider, ids)
         }
@@ -888,6 +909,12 @@ fn validate_resolution_operation_references(
             for seed in original_after_play {
                 validate_entity_reference("trigger seed source", seed.source, ids)?;
                 validate_trigger_definition_references(&seed.definition, ids)?;
+            }
+            Ok(())
+        }
+        ResolutionOp::CopyEntity(request) => {
+            if let Some(source) = request.originating_source {
+                validate_entity_reference("copy originating source", source, ids)?;
             }
             Ok(())
         }

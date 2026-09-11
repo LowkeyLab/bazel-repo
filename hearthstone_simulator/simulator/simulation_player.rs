@@ -147,12 +147,14 @@ pub(super) fn process_draw(world: &mut World, request: DrawRequest) -> Result<()
     } else {
         let amount = {
             let (_, mut player, _, _) = player_mut(world, request.player)?;
-            player.fatigue = player
+            let fatigue = player
                 .fatigue
                 .checked_add(1)
                 .ok_or_else(|| SimulationError::Invariant("fatigue counter overflow".to_owned()))?;
-            i32::try_from(player.fatigue)
-                .map_err(|_| SimulationError::Invariant("fatigue damage exceeds i32".to_owned()))?
+            let amount = i32::try_from(fatigue)
+                .map_err(|_| SimulationError::Invariant("fatigue damage exceeds i32".to_owned()))?;
+            player.fatigue = fatigue;
+            amount
         };
         DrawOutcome::Fatigue { amount }
     };

@@ -24,7 +24,9 @@ use crate::{
 
 use super::{
     card_runtime::CardRuntime,
-    effect_executor::{contains_played_self_transform, validate_effect_program},
+    effect_executor::{
+        contains_played_self_transform, validate_effect_program, validate_play_effect_program,
+    },
     error::SimulationError,
     event_resolver::OperationFailure,
     player::{assert_player_role_invariants, controlled_entity_in_zone, player, player_mut},
@@ -223,7 +225,11 @@ fn validate_play_card(
     let runtime = world
         .get::<CardRuntime>(card_entity)
         .ok_or(SimulationError::NotPlayable(card_id))?;
-    validate_effect_program(world, &runtime.program, None)?;
+    if kind == EntityKind::Minion {
+        validate_play_effect_program(world, &runtime.program)?;
+    } else {
+        validate_effect_program(world, &runtime.program, None)?;
+    }
     for trigger in &world
         .get::<RuntimeTriggers>(card_entity)
         .ok_or(SimulationError::NotPlayable(card_id))?

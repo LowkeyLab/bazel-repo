@@ -1189,6 +1189,53 @@ fn draw_then_programs_are_rejected_before_card_play_mutates_state() {
 }
 
 #[googletest::test]
+fn invalid_played_self_placements_are_rejected_before_card_play_mutates_state() {
+    let replacement = || Card::minion("Played self replacement", 0, 2, 2);
+    let played_self = |targets| Effect::Transform {
+        targets,
+        card: replacement(),
+        kind: TransformKind::PlayedSelf,
+    };
+    let trigger = self_event_trigger(EventKind::CardPlayed, vec![played_self(Selector::Source)]);
+    let cases = [
+        Card::spell("Spell placement", 1).with_effects(vec![played_self(Selector::Source)]),
+        Card::minion("Non-source placement", 1, 1, 1)
+            .with_effects(vec![played_self(Selector::DeclaredTarget)]),
+        Card::minion("Draw continuation placement", 1, 1, 1).with_effects(vec![Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![played_self(Selector::Source)],
+            policy: DrawContinuationPolicy::RunWithoutCard,
+        }]),
+        Card::minion("Trigger placement", 1, 1, 1).with_triggers(vec![trigger]),
+    ];
+
+    for card in cases {
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![card]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+        let before = simulation.snapshot();
+
+        assert_that!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            err(matches_pattern!(SimulationError::InvalidTransformation(
+                anything()
+            )))
+        );
+        assert_that!(simulation.snapshot(), eq(&before));
+        assert_that!(simulation.resolution_work().sequence_active, is_false());
+        assert_that!(simulation.resolution_work().stack, is_empty());
+    }
+}
+
+#[googletest::test]
 fn draw_then_continuations_cannot_modify_an_enclosing_event() {
     let trigger = TriggerDefinition {
         event: EventKind::ProposedDamage,

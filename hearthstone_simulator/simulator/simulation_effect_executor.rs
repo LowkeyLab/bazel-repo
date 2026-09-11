@@ -429,6 +429,7 @@ pub(super) fn execute_effect_operation(
                 };
                 requests.push(ResolutionOp::CopyEntity(CopyRequest {
                     source: target,
+                    originating_source: context.source,
                     controller,
                     destination: *zone,
                     board_index: *board_index,
@@ -477,6 +478,22 @@ pub(super) fn validate_effect_program(
     effects: &[Effect],
     event: Option<EventKind>,
 ) -> Result<(), SimulationError> {
+    validate_effect_program_with_played_self(world, effects, event, false)
+}
+
+pub(super) fn validate_play_effect_program(
+    world: &World,
+    effects: &[Effect],
+) -> Result<(), SimulationError> {
+    validate_effect_program_with_played_self(world, effects, None, true)
+}
+
+fn validate_effect_program_with_played_self(
+    world: &World,
+    effects: &[Effect],
+    event: Option<EventKind>,
+    allow_played_self: bool,
+) -> Result<(), SimulationError> {
     for effect in effects {
         match effect {
             Effect::Native(id) if !world.resource::<NativeEffectRegistry>().0.contains_key(id) => {
@@ -490,10 +507,22 @@ pub(super) fn validate_effect_program(
             {
                 return Err(SimulationError::NoModifiableEventValue);
             }
+            Effect::Transform {
+                targets,
+                kind: TransformKind::PlayedSelf,
+                ..
+            } if !allow_played_self || targets != &Selector::Source => {
+                return Err(SimulationError::InvalidTransformation(
+                    "played-self transforms require a minion play program and Source target"
+                        .to_string(),
+                ));
+            }
             Effect::DrawThen {
                 effects: nested, ..
-            } => validate_effect_program(world, nested, None)?,
-            Effect::Sequence(nested) => validate_effect_program(world, nested, event)?,
+            } => validate_effect_program_with_played_self(world, nested, None, false)?,
+            Effect::Sequence(nested) => {
+                validate_effect_program_with_played_self(world, nested, event, allow_played_self)?;
+            }
             Effect::Summon { card, .. } | Effect::Transform { card, .. } => {
                 validate_card_program(world, card)?;
             }
@@ -552,7 +581,12 @@ pub(super) fn validate_trigger_enchantment(
 }
 
 fn validate_card_program(world: &World, card: &Card) -> Result<(), SimulationError> {
-    validate_effect_program(world, &card.effects, None)?;
+    validate_effect_program_with_played_self(
+        world,
+        &card.effects,
+        None,
+        card.kind == EntityKind::Minion,
+    )?;
     for trigger in &card.triggers {
         validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
@@ -1201,7 +1235,7 @@ pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(),
             world,
             crate::EventContext {
                 kind: EventKind::Summoned,
-                source: Some(copy),
+                source: request.originating_source,
                 targets: vec![copy],
                 controller: request.controller,
                 proposed_value: None,

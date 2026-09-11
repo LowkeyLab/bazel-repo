@@ -707,6 +707,54 @@ fn played_self_transform_uses_inserted_then_original_after_play_order() {
 }
 
 #[googletest::test]
+fn played_self_transform_supported_program_placements_receive_finish_barriers() {
+    let transform = Effect::Transform {
+        targets: Selector::Source,
+        card: Card::minion("Played self replacement", 0, 2, 2),
+        kind: TransformKind::PlayedSelf,
+    };
+    let programs = [
+        vec![transform.clone()],
+        vec![Effect::Sequence(vec![transform.clone()])],
+        vec![Effect::Sequence(vec![Effect::Sequence(vec![transform])])],
+    ];
+
+    for (index, program) in programs.into_iter().enumerate() {
+        let card = Card::minion(format!("Original form {index}"), 0, 1, 1).with_effects(program);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![card]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+
+        play_card(&mut simulation, PlayerId::One, card, None);
+
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::EntityTransformed {
+                    entity,
+                    kind: TransformKind::PlayedSelf,
+                    ..
+                } if *entity == card
+            )),
+            is_true()
+        );
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::AfterPlayAndSummon,
+                    targets,
+                    ..
+                } if targets == &[card]
+            )),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
 fn played_self_transform_requires_its_finish_barrier() {
     let mut simulation = simulation();
     let target = spawn_card(
@@ -935,6 +983,94 @@ fn play_copy_finishes_aura_and_summoned_work_before_later_sibling_without_played
             } if targets.contains(&copy)
         )),
         is_false()
+    );
+}
+
+#[googletest::test]
+fn play_copy_summoned_event_uses_the_originating_effect_source() {
+    let source_sensitive_trigger = TriggerDefinition {
+        event: EventKind::Summoned,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventSourceIsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let mut simulation = simulation();
+    let origin = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Copy origin", 0, 1, 2).with_triggers(vec![source_sensitive_trigger]),
+        Zone::Play,
+    )
+    .unwrap();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Copy target", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: Some(origin),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Copy {
+            targets: Selector::Entity(target),
+            player: PlayerSelector::Controller,
+            zone: Zone::Play,
+            board_index: None,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+    let copy = world
+        .resource::<CanonicalTrace>()
+        .entries
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EntityCopied { copy, .. } => Some(*copy),
+            _ => None,
+        })
+        .unwrap();
+    let summoned_events = world
+        .resource::<CanonicalTrace>()
+        .entries
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                kind: EventKind::Summoned,
+                source,
+                targets,
+                ..
+            } => Some((*source, targets.clone())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert_that!(
+        player(world, PlayerId::One).unwrap().1.temporary_resources,
+        eq(1)
+    );
+    assert_that!(
+        summoned_events.as_slice(),
+        elements_are![eq(&(Some(origin), vec![copy]))]
     );
 }
 

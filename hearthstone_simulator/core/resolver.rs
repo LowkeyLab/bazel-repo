@@ -84,6 +84,7 @@ pub struct DrawResultSlot {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CopyRequest {
     pub source: GameEntityId,
+    pub originating_source: Option<GameEntityId>,
     pub controller: PlayerId,
     pub destination: Zone,
     pub board_index: Option<usize>,
@@ -319,6 +320,7 @@ mod tests {
         assert_eq!(
             ResolutionOp::CopyEntity(CopyRequest {
                 source: GameEntityId(11),
+                originating_source: Some(GameEntityId(7)),
                 controller: PlayerId::One,
                 destination: Zone::Hand,
                 board_index: None,
@@ -346,5 +348,21 @@ mod tests {
         let restored = serde_json::from_str::<ResolutionWork>(&json).unwrap();
 
         assert_eq!(restored, work);
+    }
+
+    #[test]
+    fn copy_request_round_trips_its_originating_source() {
+        let request = CopyRequest {
+            source: GameEntityId(11),
+            originating_source: Some(GameEntityId(7)),
+            controller: PlayerId::One,
+            destination: Zone::Play,
+            board_index: Some(0),
+            policy: CopyStatePolicy::InPlayState,
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+
+        assert_eq!(serde_json::from_str::<CopyRequest>(&json).unwrap(), request);
     }
 }

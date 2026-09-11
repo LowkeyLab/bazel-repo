@@ -1491,6 +1491,7 @@ fn in_play_copy_policy_rejects_non_play_destinations_directly_and_after_restore(
     .unwrap();
     let request = CopyRequest {
         source,
+        originating_source: None,
         controller: PlayerId::Two,
         destination: Zone::Hand,
         board_index: None,
@@ -1693,6 +1694,7 @@ fn full_copy_destination_precedes_source_program_and_attachment_validation() {
             simulation.app.world_mut(),
             CopyRequest {
                 source,
+                originating_source: None,
                 controller: PlayerId::Two,
                 destination: Zone::Play,
                 board_index: None,
