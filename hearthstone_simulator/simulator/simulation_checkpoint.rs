@@ -22,7 +22,7 @@ use crate::{
 use super::{
     card_runtime::CardRuntime,
     effect_executor::{
-        validate_copy_policy, validate_effect_program, validate_transform_replacement,
+        validate_copy_request, validate_effect_program, validate_transform_request,
         validate_trigger_enchantment,
     },
     error::SimulationError,
@@ -177,8 +177,6 @@ pub(super) fn restore_checkpoint(
         insert_into_zone(world, id, player, zone, None)?;
     }
 
-    validate_restored_programs(world)?;
-
     for object in &checkpoint.entities {
         if let Some(target) = object.attached_to {
             let entity = game_entity(world, object.id).ok_or_else(|| {
@@ -190,6 +188,7 @@ pub(super) fn restore_checkpoint(
             world.entity_mut(entity).insert(AttachedTo(target));
         }
     }
+    validate_restored_programs(world)?;
 
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
     assert_enchantment_invariants(world).map_err(SimulationError::Invariant)?;
@@ -384,20 +383,10 @@ fn validate_resolution_operation(
             }
             Ok(())
         }
-        crate::ResolutionOp::TransformEntity { card, .. } => {
-            validate_transform_replacement(world, card)
+        crate::ResolutionOp::TransformEntity { target, card, .. } => {
+            validate_transform_request(world, *target, card)
         }
-        crate::ResolutionOp::CopyEntity(request) => {
-            let source = game_entity(world, request.source)
-                .ok_or(SimulationError::EntityNotFound(request.source))?;
-            let source_zone = world.get::<Zone>(source).copied().ok_or_else(|| {
-                SimulationError::Invariant(format!(
-                    "copy source {:?} lacks required Zone component",
-                    request.source
-                ))
-            })?;
-            validate_copy_policy(source_zone, request)
-        }
+        crate::ResolutionOp::CopyEntity(request) => validate_copy_request(world, request),
         crate::ResolutionOp::RequestChoice(request) => validate_choice_request(world, request),
         _ => Ok(()),
     }
@@ -785,7 +774,8 @@ fn validate_resolution_operation_references(
         ResolutionOp::RunSequenceStep(step) => validate_sequence_step_references(step, ids),
         ResolutionOp::RunPhaseBoundary(_)
         | ResolutionOp::CheckOutcome
-        | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon) => Ok(()),
+        | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon)
+        | ResolutionOp::CopyEntity(_) => Ok(()),
         ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::PlayedProvider(provider)) => {
             validate_entity_reference("aura provider", *provider, ids)
         }
@@ -900,9 +890,6 @@ fn validate_resolution_operation_references(
                 validate_trigger_definition_references(&seed.definition, ids)?;
             }
             Ok(())
-        }
-        ResolutionOp::CopyEntity(request) => {
-            validate_entity_reference("copy source", request.source, ids)
         }
         ResolutionOp::RequestChoice(request) => validate_choice_references(request, work, ids),
     }

@@ -5,9 +5,21 @@ use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
     DrawOutcome, DrawRequest, DrawResultSlot, DrawResultSlotId, EnchantmentDuration,
-    HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache, Player, SequenceStep,
-    SilenceRemovable,
+    GameEntityCheckpoint, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
+    Player, SequenceStep, SilenceRemovable, TransformKind,
 };
+
+fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: ResolutionOp) {
+    let id = checkpoint.resolution.next_resolution_id;
+    checkpoint.resolution.next_resolution_id += 1;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(id),
+        operation,
+    });
+    checkpoint.resolution.remaining_budget = checkpoint.ruleset.resolution_budget;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+}
 
 #[googletest::test]
 fn fork_replays_to_an_equivalent_snapshot_and_trace() {
@@ -1272,13 +1284,6 @@ fn checkpoints_reject_dangling_resolution_entity_references_recursively() {
             card: Card::minion("Future Transform", 1, 1, 1),
             kind: crate::TransformKind::Spell,
         },
-        ResolutionOp::CopyEntity(CopyRequest {
-            source: missing,
-            controller: PlayerId::One,
-            destination: Zone::Hand,
-            board_index: None,
-            policy: CopyStatePolicy::CurrentForm,
-        }),
         ResolutionOp::RequestChoice(ChoiceRequest {
             id: ChoiceId(60),
             player: PlayerId::One,
@@ -1908,6 +1913,231 @@ fn checkpoints_reject_semantically_invalid_retained_transform_and_copy_operation
 }
 
 #[googletest::test]
+fn checkpoints_reject_retained_transforms_with_ineligible_targets_or_missing_components() {
+    let mut simulation = simulation();
+    let target = hand_card(&mut simulation, PlayerId::One);
+    let base = simulation.checkpoint().unwrap();
+
+    for mutate in [
+        |entity: &mut GameEntityCheckpoint| entity.kind = Some(EntityKind::Spell),
+        |entity: &mut GameEntityCheckpoint| entity.definition_id = None,
+    ] {
+        let mut checkpoint = base.clone();
+        mutate(
+            checkpoint
+                .entities
+                .iter_mut()
+                .find(|entity| entity.id == target)
+                .unwrap(),
+        );
+        retain_operation(
+            &mut checkpoint,
+            ResolutionOp::TransformEntity {
+                target,
+                source: None,
+                card: Card::minion("Valid replacement", 0, 2, 2),
+                kind: TransformKind::Spell,
+            },
+        );
+
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::InvalidTransformation(
+                anything()
+            )))
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoints_reject_retained_copies_with_invalid_position_current_form_or_program() {
+    let mut simulation = simulation();
+    let source = hand_card(&mut simulation, PlayerId::One);
+    let base = simulation.checkpoint().unwrap();
+    let request = CopyRequest {
+        source,
+        controller: PlayerId::Two,
+        destination: Zone::Play,
+        board_index: Some(999),
+        policy: CopyStatePolicy::CurrentForm,
+    };
+
+    let mut invalid_position = base.clone();
+    retain_operation(&mut invalid_position, ResolutionOp::CopyEntity(request));
+
+    let mut missing_current_form = base.clone();
+    missing_current_form
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == source)
+        .unwrap()
+        .base_stats = None;
+    retain_operation(
+        &mut missing_current_form,
+        ResolutionOp::CopyEntity(CopyRequest {
+            board_index: None,
+            ..request
+        }),
+    );
+
+    let mut invalid_program = base;
+    invalid_program
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == source)
+        .unwrap()
+        .card_runtime
+        .as_mut()
+        .unwrap()
+        .program = vec![Effect::Native(NativeEffectId::new(
+        "missing:retained_copy_program",
+    ))];
+    retain_operation(
+        &mut invalid_program,
+        ResolutionOp::CopyEntity(CopyRequest {
+            board_index: None,
+            ..request
+        }),
+    );
+
+    for checkpoint in [invalid_position, missing_current_form, invalid_program] {
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(anything())
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoints_reject_malformed_attachments_needed_by_retained_play_copies() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Attached source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let attachment = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment)
+        .unwrap()
+        .kind = Some(EntityKind::Spell);
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        }),
+    );
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Invariant(
+            contains_substring("invalid attached enchantment")
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_copies_preserve_missing_source_no_op_semantics() {
+    let mut missing_source = simulation().checkpoint().unwrap();
+    retain_operation(
+        &mut missing_source,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source: GameEntityId(u64::MAX),
+            controller: PlayerId::One,
+            destination: Zone::Hand,
+            board_index: None,
+            policy: CopyStatePolicy::CurrentForm,
+        }),
+    );
+    let restored_missing = Simulation::from_checkpoint(missing_source.clone()).unwrap();
+    assert_that!(restored_missing.checkpoint().unwrap(), eq(&missing_source));
+}
+
+#[googletest::test]
+fn retained_copies_preserve_full_destination_no_op_precedence() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Malformed full-board source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let attachment = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    for index in 0..7 {
+        spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::Two,
+            Card::minion(format!("Full board {index}"), 0, 1, 1),
+            Zone::Play,
+        )
+        .unwrap();
+    }
+    let mut full_destination = simulation.checkpoint().unwrap();
+    full_destination
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == source)
+        .unwrap()
+        .card_runtime
+        .as_mut()
+        .unwrap()
+        .program = vec![Effect::Native(NativeEffectId::new(
+        "missing:full_retained_copy",
+    ))];
+    full_destination
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment)
+        .unwrap()
+        .kind = Some(EntityKind::Spell);
+    retain_operation(
+        &mut full_destination,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        }),
+    );
+
+    let restored_full = Simulation::from_checkpoint(full_destination.clone()).unwrap();
+    assert_that!(restored_full.checkpoint().unwrap(), eq(&full_destination));
+}
+
+#[googletest::test]
 fn checkpoints_reject_orphaned_played_self_transform_markers() {
     let mut simulation = simulation();
     let subject = hand_card(&mut simulation, PlayerId::One);
@@ -2065,7 +2295,7 @@ fn spawn_and_index_helpers_report_cleanup_and_drift() {
 }
 
 #[googletest::test]
-fn checkpoints_reject_missing_transform_and_copy_references() {
+fn checkpoints_reject_missing_transform_references() {
     let original = simulation();
     let base = original.checkpoint().unwrap();
     let valid = base.entities[0].id;
@@ -2081,21 +2311,12 @@ fn checkpoints_reject_missing_transform_and_copy_references() {
     };
     let mut malformed = Vec::new();
 
-    for operation in [
-        ResolutionOp::TransformEntity {
-            target: missing,
-            source: Some(valid),
-            card: Card::minion("Retained transform", 0, 1, 1),
-            kind: crate::TransformKind::Spell,
-        },
-        ResolutionOp::CopyEntity(CopyRequest {
-            source: missing,
-            controller: PlayerId::One,
-            destination: Zone::Hand,
-            board_index: None,
-            policy: CopyStatePolicy::CurrentForm,
-        }),
-    ] {
+    for operation in [ResolutionOp::TransformEntity {
+        target: missing,
+        source: Some(valid),
+        card: Card::minion("Retained transform", 0, 1, 1),
+        kind: crate::TransformKind::Spell,
+    }] {
         let mut checkpoint = base.clone();
         checkpoint.resolution.stack.push(StackedResolutionOp {
             id: ResolutionId(0),

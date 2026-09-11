@@ -947,72 +947,9 @@ pub(super) fn transform_entity(
     card: Card,
     kind: TransformKind,
 ) -> Result<(), SimulationError> {
-    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let target_kind =
-        required_transform_component::<EntityKind>(world, entity, target, "EntityKind")?;
-    if *target_kind != EntityKind::Minion {
-        return Err(SimulationError::InvalidTransformation(format!(
-            "target {target:?} must be a Minion"
-        )));
-    }
-    validate_transform_replacement(world, &card)?;
-    let previous_definition =
-        required_transform_component::<DefinitionId>(world, entity, target, "DefinitionId")?
-            .0
-            .clone();
-    required_transform_component::<Controller>(world, entity, target, "Controller")?;
-    required_transform_component::<Zone>(world, entity, target, "Zone")?;
-    required_transform_component::<ZonePosition>(world, entity, target, "ZonePosition")?;
-    required_transform_component::<PlayOrder>(world, entity, target, "PlayOrder")?;
-    let mut attachments = world
-        .iter_entities()
-        .filter_map(|attachment| {
-            (attachment.get::<AttachedTo>().map(|attached| attached.0) == Some(entity))
-                .then_some(attachment.id())
-        })
-        .map(|attachment| {
-            let id = required_transform_component::<GameEntityId>(
-                world,
-                attachment,
-                target,
-                "attachment GameEntityId",
-            )?;
-            let controller = required_transform_component::<Controller>(
-                world,
-                attachment,
-                target,
-                "attachment Controller",
-            )?;
-            let order = required_transform_component::<PlayOrder>(
-                world,
-                attachment,
-                target,
-                "attachment PlayOrder",
-            )?;
-            let zone =
-                required_transform_component::<Zone>(world, attachment, target, "attachment Zone")?;
-            let position = required_transform_component::<ZonePosition>(
-                world,
-                attachment,
-                target,
-                "attachment ZonePosition",
-            )?;
-            if world
-                .resource::<ZoneIndex>()
-                .entities(controller.0, *zone)
-                .get(position.0)
-                != Some(id)
-            {
-                return Err(SimulationError::InvalidTransformation(format!(
-                    "target {target:?} has an attachment with an invalid zone index entry"
-                )));
-            }
-            Ok((order.0, *id, controller.0, attachment))
-        })
-        .collect::<Result<Vec<_>, SimulationError>>()?;
-    attachments.sort_by_key(|(order, id, _, _)| (*order, *id));
+    let prepared = prepare_transform(world, target, &card)?;
 
-    for (_, id, controller, attachment) in attachments {
+    for (_, id, controller, attachment) in prepared.attachments {
         world.entity_mut(attachment).remove::<AttachedTo>();
         move_entity_with_request(
             world,
@@ -1083,11 +1020,99 @@ pub(super) fn transform_entity(
         .entries
         .push(TraceEntry::EntityTransformed {
             entity: target,
-            previous_definition,
+            previous_definition: prepared.previous_definition,
             replacement_definition,
             kind,
         });
     Ok(())
+}
+
+struct PreparedTransform {
+    previous_definition: String,
+    attachments: Vec<(u64, GameEntityId, PlayerId, Entity)>,
+}
+
+pub(super) fn validate_transform_request(
+    world: &World,
+    target: GameEntityId,
+    card: &Card,
+) -> Result<(), SimulationError> {
+    prepare_transform(world, target, card).map(drop)
+}
+
+fn prepare_transform(
+    world: &World,
+    target: GameEntityId,
+    card: &Card,
+) -> Result<PreparedTransform, SimulationError> {
+    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let target_kind =
+        required_transform_component::<EntityKind>(world, entity, target, "EntityKind")?;
+    if *target_kind != EntityKind::Minion {
+        return Err(SimulationError::InvalidTransformation(format!(
+            "target {target:?} must be a Minion"
+        )));
+    }
+    validate_transform_replacement(world, card)?;
+    let previous_definition =
+        required_transform_component::<DefinitionId>(world, entity, target, "DefinitionId")?
+            .0
+            .clone();
+    required_transform_component::<Controller>(world, entity, target, "Controller")?;
+    required_transform_component::<Zone>(world, entity, target, "Zone")?;
+    required_transform_component::<ZonePosition>(world, entity, target, "ZonePosition")?;
+    required_transform_component::<PlayOrder>(world, entity, target, "PlayOrder")?;
+    let mut attachments = world
+        .iter_entities()
+        .filter_map(|attachment| {
+            (attachment.get::<AttachedTo>().map(|attached| attached.0) == Some(entity))
+                .then_some(attachment.id())
+        })
+        .map(|attachment| {
+            let id = required_transform_component::<GameEntityId>(
+                world,
+                attachment,
+                target,
+                "attachment GameEntityId",
+            )?;
+            let controller = required_transform_component::<Controller>(
+                world,
+                attachment,
+                target,
+                "attachment Controller",
+            )?;
+            let order = required_transform_component::<PlayOrder>(
+                world,
+                attachment,
+                target,
+                "attachment PlayOrder",
+            )?;
+            let zone =
+                required_transform_component::<Zone>(world, attachment, target, "attachment Zone")?;
+            let position = required_transform_component::<ZonePosition>(
+                world,
+                attachment,
+                target,
+                "attachment ZonePosition",
+            )?;
+            if world
+                .resource::<ZoneIndex>()
+                .entities(controller.0, *zone)
+                .get(position.0)
+                != Some(id)
+            {
+                return Err(SimulationError::InvalidTransformation(format!(
+                    "target {target:?} has an attachment with an invalid zone index entry"
+                )));
+            }
+            Ok((order.0, *id, controller.0, attachment))
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    attachments.sort_by_key(|(order, id, _, _)| (*order, *id));
+    Ok(PreparedTransform {
+        previous_definition,
+        attachments,
+    })
 }
 
 pub(super) fn validate_transform_replacement(
@@ -1144,39 +1169,9 @@ struct AttachmentCopySnapshot {
 }
 
 pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(), SimulationError> {
-    let Some(mut snapshot) = capture_copy_snapshot(world, &request)? else {
+    let Some(snapshot) = prepare_copy(world, &request)? else {
         return Ok(());
     };
-    match validate_card_spawn(
-        world,
-        request.controller,
-        &snapshot.card,
-        request.destination,
-        request.board_index,
-    ) {
-        Ok(_) => {}
-        Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(()),
-        Err(error) => return Err(error),
-    }
-    validate_card_program(world, &snapshot.card)?;
-    if request.policy == CopyStatePolicy::InPlayState {
-        let source_entity =
-            game_entity(world, request.source).expect("copy source remains indexed");
-        snapshot.play_state = Some(capture_play_copy_snapshot(
-            world,
-            request.source,
-            source_entity,
-        )?);
-    }
-    for attachment in snapshot
-        .play_state
-        .iter()
-        .flat_map(|state| &state.attachments)
-    {
-        if let Some(triggers) = &attachment.runtime_triggers {
-            validate_trigger_enchantment(world, &triggers.0)?;
-        }
-    }
     let copy = match spawn_card_at(
         world,
         request.controller,
@@ -1223,6 +1218,53 @@ pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(),
         );
     }
     Ok(())
+}
+
+pub(super) fn validate_copy_request(
+    world: &World,
+    request: &CopyRequest,
+) -> Result<(), SimulationError> {
+    prepare_copy(world, request).map(drop)
+}
+
+fn prepare_copy(
+    world: &World,
+    request: &CopyRequest,
+) -> Result<Option<CopySnapshot>, SimulationError> {
+    let Some(mut snapshot) = capture_copy_snapshot(world, request)? else {
+        return Ok(None);
+    };
+    match validate_card_spawn(
+        world,
+        request.controller,
+        &snapshot.card,
+        request.destination,
+        request.board_index,
+    ) {
+        Ok(_) => {}
+        Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(None),
+        Err(error) => return Err(error),
+    }
+    validate_card_program(world, &snapshot.card)?;
+    if request.policy == CopyStatePolicy::InPlayState {
+        let source_entity =
+            game_entity(world, request.source).expect("copy source remains indexed");
+        snapshot.play_state = Some(capture_play_copy_snapshot(
+            world,
+            request.source,
+            source_entity,
+        )?);
+    }
+    for attachment in snapshot
+        .play_state
+        .iter()
+        .flat_map(|state| &state.attachments)
+    {
+        if let Some(triggers) = &attachment.runtime_triggers {
+            validate_trigger_enchantment(world, &triggers.0)?;
+        }
+    }
+    Ok(Some(snapshot))
 }
 
 fn restore_play_copy_state(
