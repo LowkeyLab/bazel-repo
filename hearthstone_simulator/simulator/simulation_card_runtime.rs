@@ -4,7 +4,8 @@ use crate::{
     Armor, AttackState, BaseKeywords, BaseStats, Card, Controller, CurrentStats, Damage,
     DefinitionId, DisplayName, Effect, EntityKind, GameEntityId, GameObject, HeroClass,
     HeroMetadata, HeroPowerState, Keywords, PlayOrder, Player, PlayerConfig, PlayerId,
-    RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, Zone,
+    RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, TargetRequirement,
+    Zone,
     entity::allocate_game_id,
     zone::{insert_into_zone, resolve_generation_position, validate_generation_capacity},
 };
@@ -16,6 +17,7 @@ pub(crate) struct CardRuntime {
     pub(crate) base_cost: i32,
     pub(crate) cost: i32,
     pub(crate) program: Vec<Effect>,
+    pub(crate) targeting: TargetRequirement,
 }
 
 pub(super) fn setup_game(
@@ -178,6 +180,7 @@ fn spawn_validated_card(
                 base_cost: card.mana_cost,
                 cost: card.mana_cost,
                 program: card.effects,
+                targeting: card.targeting,
             },
             RuntimeTriggers(card.triggers),
         ))

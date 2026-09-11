@@ -6,8 +6,8 @@ use crate::{
     ContinuousModifier, Controller, DefinitionId, DrawContinuationPolicy, DrawOutcome,
     EnchantmentDuration, HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments,
     OtherAuraCache, PlayOrder, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
-    TimedCondition, TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
-    ZoneMovementKind, ZonePosition,
+    TargetAudience, TargetFilter, TargetKind, TargetRequirement, TimedCondition, TransformKind,
+    TriggerCondition, TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind, ZonePosition,
 };
 
 #[derive(Resource)]
@@ -1860,7 +1860,12 @@ fn transformation_replaces_form_state_and_preserves_stable_state() {
     let target = spawn_card(
         simulation.app.world_mut(),
         PlayerId::Two,
-        Card::minion("Old form", 5, 4, 6),
+        Card::minion("Old form", 5, 4, 6).with_targeting(TargetRequirement::Optional(
+            TargetFilter {
+                audience: TargetAudience::Friendly,
+                kind: TargetKind::Minion,
+            },
+        )),
         Zone::Play,
     )
     .unwrap();
@@ -1910,7 +1915,12 @@ fn transformation_replaces_form_state_and_preserves_stable_state() {
     transform_entity(
         simulation.app.world_mut(),
         target,
-        Card::minion("New form", 2, 2, 3),
+        Card::minion("New form", 2, 2, 3).with_targeting(TargetRequirement::Required(
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Character,
+            },
+        )),
         TransformKind::Spell,
     )
     .unwrap();
@@ -1974,5 +1984,17 @@ fn transformation_replaces_form_state_and_preserves_stable_state() {
     assert_that!(
         simulation.app.world().get::<AttackState>(transformed),
         eq(Some(&AttackState::default()))
+    );
+    assert_eq!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(transformed)
+            .unwrap()
+            .targeting,
+        TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        })
     );
 }

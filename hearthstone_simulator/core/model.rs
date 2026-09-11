@@ -3,7 +3,8 @@ use std::collections::BTreeSet;
 use crate::{
     AuraDefinition, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Effect,
     EntityKind, EventKind, Keyword, PlayerAudience, PlayerId, SourceEligibilityPolicy,
-    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, Zone,
+    TargetRequirement, TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    Zone,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -19,6 +20,7 @@ pub struct Card {
     pub triggers: Vec<TriggerDefinition>,
     pub auras: Vec<AuraDefinition>,
     pub continuous_effects: Vec<ContinuousEffectDefinition>,
+    pub targeting: TargetRequirement,
 }
 
 impl Card {
@@ -36,6 +38,7 @@ impl Card {
             triggers: Vec::new(),
             auras: Vec::new(),
             continuous_effects: Vec::new(),
+            targeting: TargetRequirement::None,
         }
     }
 
@@ -73,6 +76,7 @@ impl Card {
             triggers: Vec::new(),
             auras: Vec::new(),
             continuous_effects: Vec::new(),
+            targeting: TargetRequirement::None,
         }
     }
 
@@ -83,6 +87,12 @@ impl Card {
 
     pub fn with_triggers(mut self, triggers: Vec<TriggerDefinition>) -> Self {
         self.triggers = triggers;
+        self
+    }
+
+    #[must_use]
+    pub fn with_targeting(mut self, targeting: TargetRequirement) -> Self {
+        self.targeting = targeting;
         self
     }
 

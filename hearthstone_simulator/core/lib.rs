@@ -20,6 +20,7 @@ mod resolver;
 mod rng;
 mod ruleset;
 mod snapshot;
+mod targeting;
 mod trace;
 mod trigger;
 mod zone;
@@ -75,6 +76,7 @@ pub use ruleset::{
     MAX_SECRET_ZONE_SIZE, RULEBOOK_DATE, RULEBOOK_REVISION, Ruleset, RulesetId, STARTING_HEALTH,
 };
 pub use snapshot::{GameObjectSnapshot, GameSnapshot, PlayerSnapshot};
+pub use targeting::{TargetAudience, TargetFilter, TargetKind, TargetRequirement};
 pub use trace::{CanonicalTrace, TraceEntry};
 pub use trigger::{
     ConditionTiming, RuntimeTriggers, SourceEligibilityPolicy, TimedCondition, TriggerCandidate,

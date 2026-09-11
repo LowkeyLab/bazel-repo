@@ -7,7 +7,8 @@ use crate::{
     AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
     DrawOutcome, DrawRequest, DrawResultSlot, DrawResultSlotId, EnchantmentDuration,
     GameEntityCheckpoint, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
-    Player, SequenceStep, SilenceRemovable, TransformKind, resolver::allocate_draw_result_slot,
+    Player, SequenceStep, SilenceRemovable, TargetAudience, TargetFilter, TargetKind,
+    TargetRequirement, TransformKind, resolver::allocate_draw_result_slot,
 };
 
 fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: ResolutionOp) {
@@ -662,7 +663,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
 }
 
 #[googletest::test]
-fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
+fn schema_eight_json_roundtrip_preserves_trigger_enchantment_payloads() {
     let trigger = crate::TriggerDefinition {
         event: EventKind::Damage,
         eligible_zones: vec![Zone::Play],
@@ -742,7 +743,7 @@ fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(7));
+    assert_that!(checkpoint.schema_version, eq(8));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
@@ -784,6 +785,28 @@ fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
     assert_that!(decoded, eq(&checkpoint));
     let restored = Simulation::from_checkpoint(decoded).unwrap();
     assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+}
+
+#[googletest::test]
+fn checkpoint_roundtrip_preserves_card_targeting() {
+    let simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::spell("Bolt", 0).with_targeting(TargetRequirement::Required(TargetFilter {
+                    audience: TargetAudience::Enemy,
+                    kind: TargetKind::Character,
+                })),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let checkpoint = simulation.checkpoint().unwrap();
+    let json = checkpoint.to_json().unwrap();
+    let restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+
+    assert_eq!(restored.checkpoint().unwrap(), checkpoint);
 }
 
 #[googletest::test]
@@ -893,7 +916,7 @@ fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantm
 }
 
 #[googletest::test]
-fn checkpoints_reject_enchantments_without_durations_and_schema_version_six() {
+fn checkpoints_reject_enchantments_without_durations_and_schema_version_seven() {
     let mut simulation = simulation();
     let target = hand_card(&mut simulation, PlayerId::One);
     attach_stat_modifier(
@@ -938,11 +961,11 @@ fn checkpoints_reject_enchantments_without_durations_and_schema_version_six() {
     );
 
     let mut old_schema = simulation.checkpoint().unwrap();
-    old_schema.schema_version = 6;
+    old_schema.schema_version = 7;
     assert_that!(
         Simulation::from_checkpoint(old_schema).map(|_| ()),
         err(matches_pattern!(SimulationError::Checkpoint(
-            contains_substring("unsupported checkpoint schema version 6")
+            contains_substring("unsupported checkpoint schema version 7")
         ))),
     );
 }

@@ -82,6 +82,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                         base_cost: runtime.base_cost,
                         cost: runtime.cost,
                         program: runtime.program.clone(),
+                        targeting: runtime.targeting,
                     }),
                 runtime_triggers: entity.get::<RuntimeTriggers>().map(|value| value.0.clone()),
                 runtime_auras: entity.get::<RuntimeAuras>().map(|value| value.0.clone()),
@@ -259,6 +260,7 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
             base_cost: value.base_cost,
             cost: value.cost,
             program: value.program.clone(),
+            targeting: value.targeting,
         });
     }
     if let Some(value) = &object.runtime_triggers {

@@ -4,7 +4,7 @@ use bevy::prelude::Resource;
 
 use crate::{
     AuraDefinition, Card, ContinuousEffectDefinition, Effect, EntityKind, Keyword,
-    TriggerDefinition,
+    TargetRequirement, TriggerDefinition,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -20,6 +20,7 @@ pub struct CardDefinition {
     pub triggers: Vec<TriggerDefinition>,
     pub auras: Vec<AuraDefinition>,
     pub continuous_effects: Vec<ContinuousEffectDefinition>,
+    pub targeting: TargetRequirement,
 }
 
 impl From<Card> for CardDefinition {
@@ -36,6 +37,7 @@ impl From<Card> for CardDefinition {
             triggers: card.triggers,
             auras: card.auras,
             continuous_effects: card.continuous_effects,
+            targeting: card.targeting,
         }
     }
 }
@@ -48,7 +50,22 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
-    use crate::{Selector, ValueExpression};
+    use crate::{
+        Selector, TargetAudience, TargetFilter, TargetKind, TargetRequirement, ValueExpression,
+    };
+
+    #[googletest::test]
+    fn card_targeting_defaults_builds_serializes_and_reaches_its_definition() {
+        let targeting = TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        });
+        assert_eq!(Card::spell("Plain", 0).targeting, TargetRequirement::None);
+        let card = Card::spell("Bolt", 0).with_targeting(targeting);
+        let json = serde_json::to_string(&card).unwrap();
+        assert_eq!(serde_json::from_str::<Card>(&json).unwrap(), card);
+        assert_eq!(CardDefinition::from(card).targeting, targeting);
+    }
 
     #[googletest::test]
     fn card_definition_preserves_all_runtime_card_data() {
