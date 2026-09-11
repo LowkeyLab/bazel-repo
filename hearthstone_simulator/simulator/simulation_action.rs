@@ -6,9 +6,8 @@ use crate::{
     AttachedTo, AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp,
     CurrentStats, DamageRequest, EffectContext, EnchantmentDuration, EntityKind, EventContext,
     EventKind, GameAction, GameEntityId, GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan,
-    PlayerId, ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, RuntimeTriggers,
-    ScheduledTurnKind, SequenceStep, SimulationStatus, TraceEntry, TurnSchedule, Zone,
-    ZoneMoveRequest, ZoneMovementKind,
+    PlayerId, ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, ScheduledTurnKind, SequenceStep,
+    SimulationStatus, TraceEntry, TurnSchedule, Zone, ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::game_entity,
     resolver::{
@@ -17,16 +16,13 @@ use crate::{
     },
     trigger::collect_trigger_seeds,
     zone::{
-        ZoneIndex, ZoneMoveOutcome, assert_zone_invariants, board_is_full, move_entity,
-        move_entity_with_request, validate_board_position, validate_zone_position,
+        ZoneIndex, ZoneMoveOutcome, assert_zone_invariants, move_entity, move_entity_with_request,
     },
 };
 
 use super::{
     card_runtime::CardRuntime,
-    effect_executor::{
-        contains_played_self_transform, validate_effect_program, validate_play_effect_program,
-    },
+    effect_executor::contains_played_self_transform,
     error::SimulationError,
     event_resolver::OperationFailure,
     player::{assert_player_role_invariants, controlled_entity_in_zone, player, player_mut},
@@ -134,10 +130,10 @@ fn process_next_action(world: &mut World) {
 }
 
 fn apply_action(world: &mut World, action: &GameAction) -> Result<(), SimulationError> {
-    validate_action(world, action)?;
+    let action = super::action_validation::validate_action(world, action)?;
     world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
     begin_sequence(world)?;
-    let step = match action {
+    let step = match &action {
         GameAction::PlayCard {
             player,
             card,
@@ -176,116 +172,6 @@ fn apply_action(world: &mut World, action: &GameAction) -> Result<(), Simulation
         return Err(error);
     }
     finish_resolution_if_idle(world)
-}
-
-fn validate_action(world: &World, action: &GameAction) -> Result<(), SimulationError> {
-    let game = world.resource::<GameState>();
-    if game.outcome.is_some() {
-        return Err(SimulationError::GameOver);
-    }
-    if game.status != SimulationStatus::AwaitingAction {
-        return Err(SimulationError::NotAwaitingAction);
-    }
-    if game.active_player != action.player() {
-        return Err(SimulationError::NotPlayersTurn(action.player()));
-    }
-    match action {
-        GameAction::PlayCard {
-            player,
-            card,
-            target: _,
-            board_index,
-            ..
-        } => validate_play_card(world, *player, *card, *board_index),
-        GameAction::Attack {
-            player,
-            attacker,
-            defender,
-        } => validate_attack(world, *player, *attacker, *defender),
-        GameAction::EndTurn { .. } | GameAction::Concede { .. } => Ok(()),
-    }
-}
-
-fn validate_play_card(
-    world: &World,
-    player_id: PlayerId,
-    card_id: GameEntityId,
-    board_index: Option<usize>,
-) -> Result<(), SimulationError> {
-    let card_entity = controlled_entity_in_zone(world, player_id, card_id, Zone::Hand)?;
-    let kind = *world
-        .get::<EntityKind>(card_entity)
-        .ok_or(SimulationError::NotPlayable(card_id))?;
-    if !matches!(kind, EntityKind::Minion | EntityKind::Spell) {
-        return Err(SimulationError::NotPlayable(card_id));
-    }
-    if kind == EntityKind::Minion && board_is_full(world, player_id) {
-        return Err(SimulationError::BoardFull(player_id));
-    }
-    let runtime = world
-        .get::<CardRuntime>(card_entity)
-        .ok_or(SimulationError::NotPlayable(card_id))?;
-    if kind == EntityKind::Minion {
-        validate_play_effect_program(world, &runtime.program)?;
-    } else {
-        validate_effect_program(world, &runtime.program, None)?;
-    }
-    for trigger in &world
-        .get::<RuntimeTriggers>(card_entity)
-        .ok_or(SimulationError::NotPlayable(card_id))?
-        .0
-    {
-        validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
-    }
-    let available = player(world, player_id)
-        .ok_or(SimulationError::PlayerNotFound(player_id))?
-        .1
-        .available_resources();
-    let cost = runtime.cost.max(0);
-    if available < cost {
-        return Err(SimulationError::NotEnoughMana {
-            player: player_id,
-            required: cost,
-            available,
-        });
-    }
-    if kind == EntityKind::Minion {
-        validate_board_position(world, player_id, board_index)?;
-    } else {
-        validate_zone_position(world, player_id, Zone::Graveyard, board_index)?;
-    }
-    Ok(())
-}
-
-fn validate_attack(
-    world: &World,
-    player_id: PlayerId,
-    attacker_id: GameEntityId,
-    defender_id: GameEntityId,
-) -> Result<(), SimulationError> {
-    let attacker = controlled_entity_in_zone(world, player_id, attacker_id, Zone::Play)?;
-    let attack_state = world
-        .get::<AttackState>(attacker)
-        .copied()
-        .ok_or(SimulationError::CannotAttack(attacker_id))?;
-    if attack_state.exhausted
-        || world
-            .get::<CurrentStats>(attacker)
-            .is_none_or(|stats| stats.attack <= 0)
-    {
-        return Err(SimulationError::CannotAttack(attacker_id));
-    }
-    let defender =
-        game_entity(world, defender_id).ok_or(SimulationError::EntityNotFound(defender_id))?;
-    if world.get::<Zone>(defender) != Some(&Zone::Play)
-        || world
-            .get::<Controller>(defender)
-            .map(|controller| controller.0)
-            != Some(player_id.opponent())
-    {
-        return Err(SimulationError::InvalidDefender(defender_id));
-    }
-    Ok(())
 }
 
 pub(super) fn drive_resolution(world: &mut World) -> Result<(), SimulationError> {

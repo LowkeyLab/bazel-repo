@@ -3,8 +3,9 @@ use googletest::prelude::*;
 use super::{test_support::*, *};
 use crate::{
     AttachedTo, AuraCategory, AuraDefinition, AuraTarget, ConditionTiming, DrawContinuationPolicy,
-    EnchantmentDuration, OtherAuraModifier, SourceEligibilityPolicy, TimedCondition, TransformKind,
-    TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    EnchantmentDuration, OtherAuraModifier, SourceEligibilityPolicy, TargetAudience, TargetFilter,
+    TargetKind, TargetRequirement, TimedCondition, TransformKind, TriggerCondition,
+    TriggerDefinition, WoundedTargetPolicy,
 };
 
 fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> TriggerDefinition {
@@ -226,13 +227,17 @@ fn enchantment_triggers_share_play_order_with_ordinary_sources() {
         PlayerSelector::Controller,
         Vec::new(),
     )]);
-    let grant =
-        Card::spell("Grant trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+    let grant = Card::spell("Grant trigger", 0)
+        .with_effects(vec![Effect::AttachTriggerEnchantment {
             targets: Selector::DeclaredTarget,
             triggers: vec![turn_end_trigger(PlayerSelector::Controller, Vec::new())],
             duration: EnchantmentDuration::Permanent,
             silence_removable: true,
-        }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new(
             "Jaina",
@@ -381,17 +386,26 @@ fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue(
             temporary: true,
         }],
     };
-    let grant =
-        Card::spell("Grant observer", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+    let grant = Card::spell("Grant observer", 0)
+        .with_effects(vec![Effect::AttachTriggerEnchantment {
             targets: Selector::DeclaredTarget,
             triggers: vec![attached_trigger],
             duration: EnchantmentDuration::Permanent,
             silence_removable: true,
-        }]);
-    let bolt = Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
-        targets: Selector::DeclaredTarget,
-        amount: ValueExpression::Constant(1),
-    }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
+    let bolt = Card::spell("Bolt", 0)
+        .with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(1),
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new(
             "Jaina",
@@ -567,17 +581,22 @@ fn spell_transform_has_no_summon_timing() {
         health: 0,
         other: vec![OtherAuraModifier::Immune],
     });
-    let spell = Card::spell("Polymorph and ping", 0).with_effects(vec![Effect::Sequence(vec![
-        Effect::Transform {
-            targets: Selector::DeclaredTarget,
-            card: replacement,
-            kind: TransformKind::Spell,
-        },
-        Effect::DealDamage {
-            targets: Selector::FriendlyCharacters,
-            amount: ValueExpression::Constant(3),
-        },
-    ])]);
+    let spell = Card::spell("Polymorph and ping", 0)
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Transform {
+                targets: Selector::DeclaredTarget,
+                card: replacement,
+                kind: TransformKind::Spell,
+            },
+            Effect::DealDamage {
+                targets: Selector::FriendlyCharacters,
+                amount: ValueExpression::Constant(3),
+            },
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), spell]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -640,7 +659,11 @@ fn played_self_transform_uses_inserted_then_original_after_play_order() {
                 targets: Selector::DeclaredTarget,
                 amount: ValueExpression::Constant(3),
             },
-        ])]);
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![card]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -880,18 +903,23 @@ fn play_copy_finishes_aura_and_summoned_work_before_later_sibling_without_played
             other: vec![OtherAuraModifier::Immune],
         })
         .with_triggers(vec![summon_trigger]);
-    let copier = Card::spell("Copy then strike", 0).with_effects(vec![Effect::Sequence(vec![
-        Effect::Copy {
-            targets: Selector::DeclaredTarget,
-            player: PlayerSelector::Opponent,
-            zone: Zone::Play,
-            board_index: None,
-        },
-        Effect::DealDamage {
-            targets: Selector::EnemyCharacters,
-            amount: ValueExpression::Constant(3),
-        },
-    ])]);
+    let copier = Card::spell("Copy then strike", 0)
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Copy {
+                targets: Selector::DeclaredTarget,
+                player: PlayerSelector::Opponent,
+                zone: Zone::Play,
+                board_index: None,
+            },
+            Effect::DealDamage {
+                targets: Selector::EnemyCharacters,
+                amount: ValueExpression::Constant(3),
+            },
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![source, copier]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -1077,12 +1105,17 @@ fn play_copy_summoned_event_uses_the_originating_effect_source() {
 #[googletest::test]
 fn silence_removes_only_trigger_enchantments_marked_removable() {
     let grant = |name, silence_removable| {
-        Card::spell(name, 0).with_effects(vec![Effect::AttachTriggerEnchantment {
-            targets: Selector::DeclaredTarget,
-            triggers: vec![turn_end_trigger(PlayerSelector::Controller, Vec::new())],
-            duration: EnchantmentDuration::Permanent,
-            silence_removable,
-        }])
+        Card::spell(name, 0)
+            .with_effects(vec![Effect::AttachTriggerEnchantment {
+                targets: Selector::DeclaredTarget,
+                triggers: vec![turn_end_trigger(PlayerSelector::Controller, Vec::new())],
+                duration: EnchantmentDuration::Permanent,
+                silence_removable,
+            }])
+            .with_targeting(TargetRequirement::Required(TargetFilter {
+                audience: TargetAudience::Friendly,
+                kind: TargetKind::Minion,
+            }))
     };
     let mut simulation = Simulation::new([
         PlayerConfig::new(
@@ -1219,13 +1252,17 @@ fn attached_trigger_uses_host_and_event_controller_context() {
             amount: ValueExpression::Constant(1),
         }],
     };
-    let grant =
-        Card::spell("Grant trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+    let grant = Card::spell("Grant trigger", 0)
+        .with_effects(vec![Effect::AttachTriggerEnchantment {
             targets: Selector::DeclaredTarget,
             triggers: vec![trigger],
             duration: EnchantmentDuration::Permanent,
             silence_removable: true,
-        }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Host", 0, 1, 4), grant]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -1311,18 +1348,27 @@ fn attached_trigger_can_require_the_event_to_target_its_host() {
             temporary: true,
         }],
     };
-    let grant =
-        Card::spell("Grant observer", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+    let grant = Card::spell("Grant observer", 0)
+        .with_effects(vec![Effect::AttachTriggerEnchantment {
             targets: Selector::DeclaredTarget,
             triggers: vec![trigger],
             duration: EnchantmentDuration::Permanent,
             silence_removable: true,
-        }]);
-    let bolt = || {
-        Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(1),
         }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
+    let bolt = || {
+        Card::spell("Bolt", 0)
+            .with_effects(vec![Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            }])
+            .with_targeting(TargetRequirement::Required(TargetFilter {
+                audience: TargetAudience::Friendly,
+                kind: TargetKind::Minion,
+            }))
     };
     let mut simulation = Simulation::new([
         PlayerConfig::new(
@@ -2131,10 +2177,15 @@ fn resolution_time_conditions_abort_frozen_trigger_entries() {
             }],
         },
     ]);
-    let bolt = Card::spell("Resolution-Time Bolt", 0).with_effects(vec![Effect::DealDamage {
-        targets: Selector::DeclaredTarget,
-        amount: ValueExpression::Constant(1),
-    }]);
+    let bolt = Card::spell("Resolution-Time Bolt", 0)
+        .with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(1),
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![reactive, bolt]),
         PlayerConfig::new("Rexxar", Vec::new()),

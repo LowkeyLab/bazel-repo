@@ -4,7 +4,8 @@ use super::{test_support::*, *};
 use crate::{
     AttachedTo, AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition,
     ContinuousModifier, Controller, EnchantmentDuration, HealthAuraCache, OtherAuraCache,
-    OtherAuraModifier, PlayerAudience, TransformKind,
+    OtherAuraModifier, PlayerAudience, TargetAudience, TargetFilter, TargetKind, TargetRequirement,
+    TransformKind,
 };
 
 fn stat_aura(targets: AuraTarget, attack: i32, health: i32) -> AuraDefinition {
@@ -90,7 +91,11 @@ fn played_aura_is_active_before_the_provider_program() {
         .with_effects(vec![Effect::DealDamage {
             targets: Selector::DeclaredTarget,
             amount: ValueExpression::SourceAttack,
-        }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -129,22 +134,27 @@ fn played_aura_is_active_before_the_provider_program() {
 
 #[googletest::test]
 fn summoned_spell_damage_is_read_by_later_spell_work() {
-    let spell = Card::spell("Conjure Bolt", 0).with_effects(vec![Effect::Sequence(vec![
-        Effect::Summon {
-            player: PlayerSelector::Controller,
-            card: Card::minion("Lesser Arcane Totem", 0, 0, 2).with_spell_damage(1),
-            board_index: None,
-        },
-        Effect::Summon {
-            player: PlayerSelector::Controller,
-            card: Card::minion("Arcane Totem", 0, 0, 2).with_spell_damage(2),
-            board_index: None,
-        },
-        Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(1),
-        },
-    ])]);
+    let spell = Card::spell("Conjure Bolt", 0)
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Summon {
+                player: PlayerSelector::Controller,
+                card: Card::minion("Lesser Arcane Totem", 0, 0, 2).with_spell_damage(1),
+                board_index: None,
+            },
+            Effect::Summon {
+                player: PlayerSelector::Controller,
+                card: Card::minion("Arcane Totem", 0, 0, 2).with_spell_damage(2),
+                board_index: None,
+            },
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            },
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![spell]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -168,19 +178,24 @@ fn summoned_spell_damage_is_read_by_later_spell_work() {
 #[googletest::test]
 fn spell_damage_uses_live_silence_state_within_one_spell() {
     let provider = Card::minion("Spell Power", 0, 1, 3).with_spell_damage(2);
-    let spell = Card::spell("Fading Volley", 0).with_effects(vec![Effect::Sequence(vec![
-        Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(1),
-        },
-        Effect::Silence {
-            targets: Selector::FriendlyMinions,
-        },
-        Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(1),
-        },
-    ])]);
+    let spell = Card::spell("Fading Volley", 0)
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            },
+            Effect::Silence {
+                targets: Selector::FriendlyMinions,
+            },
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            },
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider, spell]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -214,8 +229,8 @@ fn spell_damage_uses_live_silence_state_within_one_spell() {
 #[googletest::test]
 fn attached_and_opponent_facing_spell_damage_are_live() {
     let minion = Card::minion("Chosen", 0, 1, 3);
-    let blessing =
-        Card::spell("Arcane Blessing", 0).with_effects(vec![Effect::AttachContinuousEffect {
+    let blessing = Card::spell("Arcane Blessing", 0)
+        .with_effects(vec![Effect::AttachContinuousEffect {
             targets: Selector::DeclaredTarget,
             effect: ContinuousEffectDefinition {
                 recipients: PlayerAudience::Controller,
@@ -223,11 +238,20 @@ fn attached_and_opponent_facing_spell_damage_are_live() {
             },
             silence_removable: true,
             duration: EnchantmentDuration::Permanent,
-        }]);
-    let bolt = Card::spell("Bolt", 0).with_effects(vec![Effect::DealDamage {
-        targets: Selector::DeclaredTarget,
-        amount: ValueExpression::Constant(1),
-    }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
+    let bolt = Card::spell("Bolt", 0)
+        .with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(1),
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        }));
     let moonkin = Card::minion("Moonkin", 0, 1, 3).with_opponent_spell_damage(2);
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![minion, blessing, bolt.clone(), moonkin]),
@@ -408,9 +432,14 @@ fn trigger_damage_does_not_receive_spell_damage() {
             targets: Selector::EnemyCharacters,
             amount: ValueExpression::Constant(1),
         }]);
-    let destroy = Card::spell("Dismiss", 0).with_effects(vec![Effect::Destroy {
-        targets: Selector::DeclaredTarget,
-    }]);
+    let destroy = Card::spell("Dismiss", 0)
+        .with_effects(vec![Effect::Destroy {
+            targets: Selector::DeclaredTarget,
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider, deathrattle, destroy]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -540,17 +569,22 @@ fn summoned_other_aura_refreshes_immediately() {
         AuraTarget::FriendlyCharacters,
         OtherAuraModifier::Immune,
     ));
-    let spell = Card::spell("Conjure Protection", 0).with_effects(vec![Effect::Sequence(vec![
-        Effect::Summon {
-            player: PlayerSelector::Controller,
-            card: immune,
-            board_index: None,
-        },
-        Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(3),
-        },
-    ])]);
+    let spell = Card::spell("Conjure Protection", 0)
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Summon {
+                player: PlayerSelector::Controller,
+                card: immune,
+                board_index: None,
+            },
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(3),
+            },
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Character,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![spell]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -581,9 +615,14 @@ fn other_aura_expires_before_provider_deathrattle() {
             targets: Selector::FriendlyCharacters,
             amount: ValueExpression::Constant(2),
         }]);
-    let destroy = Card::spell("Dismiss Ward", 0).with_effects(vec![Effect::Destroy {
-        targets: Selector::DeclaredTarget,
-    }]);
+    let destroy = Card::spell("Dismiss Ward", 0)
+        .with_effects(vec![Effect::Destroy {
+            targets: Selector::DeclaredTarget,
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider, destroy]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -617,15 +656,25 @@ fn play_to_play_copy_preserves_silence_without_received_aura_cache() {
     let provider = Card::minion("Silenced Provider", 0, 1, 2)
         .with_aura(stat_aura(AuraTarget::FriendlyMinions, 1, 0))
         .with_spell_damage(2);
-    let silence = Card::spell("Silence", 0).with_effects(vec![Effect::Silence {
-        targets: Selector::DeclaredTarget,
-    }]);
-    let copy = Card::spell("Copy", 0).with_effects(vec![Effect::Copy {
-        targets: Selector::DeclaredTarget,
-        player: PlayerSelector::Controller,
-        zone: Zone::Play,
-        board_index: None,
-    }]);
+    let silence = Card::spell("Silence", 0)
+        .with_effects(vec![Effect::Silence {
+            targets: Selector::DeclaredTarget,
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
+    let copy = Card::spell("Copy", 0)
+        .with_effects(vec![Effect::Copy {
+            targets: Selector::DeclaredTarget,
+            player: PlayerSelector::Controller,
+            zone: Zone::Play,
+            board_index: None,
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider, silence, copy]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -809,17 +858,22 @@ fn non_spell_transform_refreshes_summon_auras_without_a_summoned_event() {
         AuraTarget::FriendlyCharacters,
         OtherAuraModifier::Immune,
     ));
-    let spell = Card::spell("Transform and strike", 0).with_effects(vec![Effect::Sequence(vec![
-        Effect::Transform {
-            targets: Selector::DeclaredTarget,
-            card: replacement,
-            kind: TransformKind::NonSpell,
-        },
-        Effect::DealDamage {
-            targets: Selector::FriendlyCharacters,
-            amount: ValueExpression::Constant(3),
-        },
-    ])]);
+    let spell = Card::spell("Transform and strike", 0)
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Transform {
+                targets: Selector::DeclaredTarget,
+                card: replacement,
+                kind: TransformKind::NonSpell,
+            },
+            Effect::DealDamage {
+                targets: Selector::FriendlyCharacters,
+                amount: ValueExpression::Constant(3),
+            },
+        ])])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), spell]),
         PlayerConfig::new("Rexxar", Vec::new()),

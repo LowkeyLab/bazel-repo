@@ -124,25 +124,30 @@ fn invariants_reject_enchantments_without_durations_or_play_zone() {
 
 #[googletest::test]
 fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
-    let reset = Card::spell("Reset", 0).with_effects(vec![
-        Effect::AttachStatModifier {
-            targets: Selector::DeclaredTarget,
-            modifier: StatModifier {
-                attack: 3,
-                health: 2,
-                silence_removable: true,
+    let reset = Card::spell("Reset", 0)
+        .with_effects(vec![
+            Effect::AttachStatModifier {
+                targets: Selector::DeclaredTarget,
+                modifier: StatModifier {
+                    attack: 3,
+                    health: 2,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
             },
-            duration: EnchantmentDuration::Permanent,
-        },
-        Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(1),
-        },
-        Effect::Destroy {
-            targets: Selector::DeclaredTarget,
-        },
-        move_target_to_hand(),
-    ]);
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            },
+            Effect::Destroy {
+                targets: Selector::DeclaredTarget,
+            },
+            move_target_to_hand(),
+        ])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new(
             "Jaina",
@@ -159,11 +164,12 @@ fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     let traveler = hand_card(&mut simulation, PlayerId::One);
+    let declared_target = hero(&mut simulation, PlayerId::Two);
     simulation
         .apply(GameAction::PlayCard {
             player: PlayerId::One,
             card: traveler,
-            target: None,
+            target: Some(declared_target),
             board_index: None,
             choice: None,
         })
@@ -302,9 +308,14 @@ fn backward_movement_restores_cost_after_detaching_modifiers() {
 
 #[googletest::test]
 fn death_reset_restores_innate_keywords() {
-    let destroy = Card::spell("Destroy innate", 0).with_effects(vec![Effect::Destroy {
-        targets: Selector::DeclaredTarget,
-    }]);
+    let destroy = Card::spell("Destroy innate", 0)
+        .with_effects(vec![Effect::Destroy {
+            targets: Selector::DeclaredTarget,
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new(
             "Jaina",
@@ -360,7 +371,12 @@ fn keep_enchantments_preserves_attached_modifiers_during_backward_movement() {
             "Jaina",
             vec![
                 Card::minion("Persistent", 0, 1, 1),
-                Card::spell("Bounce", 0).with_effects(vec![move_target_to_hand()]),
+                Card::spell("Bounce", 0)
+                    .with_effects(vec![move_target_to_hand()])
+                    .with_targeting(TargetRequirement::Required(TargetFilter {
+                        audience: TargetAudience::Friendly,
+                        kind: TargetKind::Minion,
+                    })),
             ],
         ),
         PlayerConfig::new("Rexxar", Vec::new()),

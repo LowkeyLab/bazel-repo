@@ -32,6 +32,8 @@ use crate::{
 
 #[path = "simulation_action.rs"]
 mod action;
+#[path = "simulation_action_validation.rs"]
+mod action_validation;
 #[path = "simulation_card_runtime.rs"]
 pub(crate) mod card_runtime;
 #[path = "simulation_checkpoint.rs"]

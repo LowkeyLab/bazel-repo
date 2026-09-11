@@ -1,6 +1,7 @@
 use googletest::prelude::*;
 
 use super::{test_support::*, *};
+use crate::{TargetAudience, TargetFilter, TargetKind, TargetRequirement};
 
 #[googletest::test]
 fn area_damage_removes_deaths_together_at_the_phase_boundary() {
@@ -463,10 +464,15 @@ fn armor_loss_counts_as_actual_damage_for_traces_and_triggers() {
             }],
         },
     ]);
-    let bolt = Card::spell("Armor Bolt", 0).with_effects(vec![Effect::DealDamage {
-        targets: Selector::DeclaredTarget,
-        amount: ValueExpression::Constant(2),
-    }]);
+    let bolt = Card::spell("Armor Bolt", 0)
+        .with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(2),
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![observer, bolt]),
         PlayerConfig::new("Rexxar", Vec::new()),
