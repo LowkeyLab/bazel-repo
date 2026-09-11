@@ -475,6 +475,7 @@ fn ordered_cost_modifiers_keep_negative_values_until_payment() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     for (operation, value) in [
@@ -531,6 +532,7 @@ fn checkpoint_restores_temporary_cost_modifier_payloads() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -784,6 +786,7 @@ fn after_current_grants_are_anchored_to_the_active_player_not_the_controller() {
             source: None,
             controller: PlayerId::Two,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::ScheduleExtraTurns {

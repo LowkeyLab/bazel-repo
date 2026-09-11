@@ -41,6 +41,15 @@ pub(crate) use hearthstone_simulator_core::{
     ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, ZonePosition,
 };
 
+#[allow(
+    unused_imports,
+    reason = "these contracts are consumed by later milestone 7 implementation slices"
+)]
+pub(crate) use hearthstone_simulator_core::{
+    CopyRequest, CopyStatePolicy, DrawContinuationPolicy, DrawOutcome, DrawRequest, DrawResultSlot,
+    DrawResultSlotId, TransformKind,
+};
+
 #[cfg(test)]
 pub(crate) use hearthstone_simulator_core::{
     AuraDefinition, ChoiceOption, ConditionTiming, CostOperation, ExtraTurnTiming,

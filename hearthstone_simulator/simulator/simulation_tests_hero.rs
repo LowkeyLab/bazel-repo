@@ -175,6 +175,7 @@ fn hero_power_replacement_recalculates_cost_after_detaching_modifiers() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachCostModifier {

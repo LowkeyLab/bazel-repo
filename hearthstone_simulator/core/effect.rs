@@ -29,6 +29,25 @@ pub struct HeroReplacement {
     pub weapon: Option<Card>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum DrawContinuationPolicy {
+    RequireCard,
+    RunWithoutCard,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum TransformKind {
+    Spell,
+    NonSpell,
+    PlayedSelf,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum CopyStatePolicy {
+    CurrentForm,
+    InPlayState,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Effect {
     DealDamage {
@@ -49,6 +68,11 @@ pub enum Effect {
     Draw {
         player: PlayerSelector,
         count: u32,
+    },
+    DrawThen {
+        player: PlayerSelector,
+        effects: Vec<Effect>,
+        policy: DrawContinuationPolicy,
     },
     Move {
         targets: Selector,
@@ -108,11 +132,13 @@ pub enum Effect {
     Transform {
         targets: Selector,
         card: Card,
+        kind: TransformKind,
     },
     Copy {
         targets: Selector,
         player: PlayerSelector,
         zone: Zone,
+        board_index: Option<usize>,
     },
     Native(NativeEffectId),
     Sequence(Vec<Effect>),
@@ -121,6 +147,7 @@ pub enum Effect {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Selector {
     Source,
+    DrawnCard,
     AttachedEntity,
     DeclaredTarget,
     Entity(GameEntityId),
@@ -153,6 +180,7 @@ pub enum ValueExpression {
     Constant(i32),
     SourceAttack,
     TargetCount,
+    DrawnCardCost,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -167,5 +195,6 @@ pub struct EffectContext {
     pub source: Option<GameEntityId>,
     pub controller: PlayerId,
     pub declared_target: Option<GameEntityId>,
+    pub drawn_card: Option<GameEntityId>,
     pub origin: EffectOrigin,
 }

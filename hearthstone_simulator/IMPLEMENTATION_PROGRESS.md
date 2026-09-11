@@ -6,7 +6,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
-- Active milestone: Milestone 7 general mechanics
+- Active milestone: Milestone 8 player-action sequences
 - Verification: Gazelle, formatting, all Hearthstone targets, and the full repository build pass
 
 ## Milestones
@@ -44,7 +44,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Irreversible Hero defeat at Death Creation, global simultaneous-death ordering, per-event queue-time capture, dominant-player grouping, and same-player death-trigger mingling.
   - [x] Explicit sequence-end outcome checks after all chained Death Phases.
   - [x] Proposed damage/healing modifiers; DH1/DH2 protection, mutation, and reaction timing; and immutable simultaneous event batches.
-- [ ] **7 — General mechanics**
+- [x] **7 — General mechanics**
   - [x] Drawing, burning, fatigue, signed resources, temporary resources, and Overload counters.
   - [x] Data-driven transformation and copying primitives with stable/generated identities.
   - [x] Ruleset-driven forward/backward/death movement reset policies, full-zone outcomes, and deterministic simultaneous movement.
@@ -53,7 +53,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Reusable Hero replacement preserving Health, Armor, attack usage, weapons, class policy, and irreversible defeat timing while replacing and refreshing the in-Play Hero Power.
   - [x] Profile-owned Hand, Deck, board-row, Hero, Weapon, Hero Power, Secret, and Quest capacity policies.
   - [x] Generalized permanent, end-of-turn, and end-of-turn-series duration to first-class trigger-bearing enchantments.
-  - [ ] Finish the still-Partial draw and transformation/copy conformance rows.
+  - [x] Complete draw-result ordering/continuations and zone-specific transformation/copy conformance.
 - [ ] **8 — Player-action sequences**
   - [x] Stable-ID minion/spell play, combat, end-turn, and concede actions.
   - [x] Deterministic legal actions and captured declared targets.
@@ -132,6 +132,12 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-09-04 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.4% lines; 107/107 changed lines covered  |
 | 2026-09-04 | `aspect test //hearthstone_simulator/...`                                      | Passed 4 core and 151 simulator tests       |
 | 2026-09-04 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 99.4% lines and 87.9% functions             |
+| 2026-09-11 | `bazel run //:gazelle`                                                         | Passed; no BUILD metadata changes           |
+| 2026-09-11 | `aspect format --scope=all`                                                    | Passed repository formatting                |
+| 2026-09-11 | `aspect test //hearthstone_simulator/...`                                      | Passed 4 core and 195 simulator tests       |
+| 2026-09-11 | `aspect lint`                                                                  | Passed all repository linters; no findings  |
+| 2026-09-11 | `bazel run //tools/coverage -- //hearthstone_simulator/...`                    | 97.8% lines; 44/44 Task 10 lines covered    |
+| 2026-09-11 | `aspect build //...`                                                           | Passed all 350 repository targets           |
 
 ## Known gaps
 

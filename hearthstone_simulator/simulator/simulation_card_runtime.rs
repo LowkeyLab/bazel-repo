@@ -6,7 +6,7 @@ use crate::{
     HeroMetadata, HeroPowerState, Keywords, PlayOrder, Player, PlayerConfig, PlayerId,
     RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, Zone,
     entity::allocate_game_id,
-    zone::{insert_into_zone, validate_generation_capacity},
+    zone::{insert_into_zone, resolve_generation_position, validate_generation_capacity},
 };
 
 use super::error::SimulationError;
@@ -108,7 +108,44 @@ pub(super) fn spawn_card(
     card: Card,
     zone: Zone,
 ) -> Result<GameEntityId, SimulationError> {
+    spawn_card_at(world, player_id, card, zone, None)
+}
+
+pub(super) fn spawn_card_at(
+    world: &mut World,
+    player_id: PlayerId,
+    card: Card,
+    zone: Zone,
+    board_position: Option<usize>,
+) -> Result<GameEntityId, SimulationError> {
+    let position = validate_card_spawn(world, player_id, &card, zone, board_position)?;
+    spawn_validated_card(world, player_id, card, zone, position)
+}
+
+pub(super) fn validate_card_spawn(
+    world: &World,
+    player_id: PlayerId,
+    card: &Card,
+    zone: Zone,
+    board_position: Option<usize>,
+) -> Result<Option<usize>, SimulationError> {
     validate_generation_capacity(world, player_id, zone, card.kind, &card.definition_id)?;
+    Ok(resolve_generation_position(
+        world,
+        player_id,
+        zone,
+        card.kind,
+        board_position,
+    )?)
+}
+
+fn spawn_validated_card(
+    world: &mut World,
+    player_id: PlayerId,
+    card: Card,
+    zone: Zone,
+    position: Option<usize>,
+) -> Result<GameEntityId, SimulationError> {
     let kind = card.kind;
     let base_keywords = BaseKeywords(card.keywords.clone());
     let keywords = Keywords(card.keywords.clone());
@@ -160,7 +197,7 @@ pub(super) fn spawn_card(
             },
         ));
     }
-    if let Err(error) = insert_into_zone(world, id, player_id, zone, None) {
+    if let Err(error) = insert_into_zone(world, id, player_id, zone, position) {
         world.despawn(entity);
         return Err(error.into());
     }

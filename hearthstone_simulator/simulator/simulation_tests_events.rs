@@ -2,7 +2,8 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AttachedTo, ConditionTiming, EnchantmentDuration, SourceEligibilityPolicy, TimedCondition,
+    AttachedTo, AuraCategory, AuraDefinition, AuraTarget, ConditionTiming, DrawContinuationPolicy,
+    EnchantmentDuration, OtherAuraModifier, SourceEligibilityPolicy, TimedCondition, TransformKind,
     TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
 };
 
@@ -48,6 +49,175 @@ fn attached_enchantment(simulation: &Simulation, host: GameEntityId) -> GameEnti
         .and_then(|entity| entity.get::<GameEntityId>())
         .copied()
         .unwrap()
+}
+
+#[googletest::test]
+fn draw_moves_the_card_before_play_and_hand_triggers_resolve() {
+    let play_trigger = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: Vec::new(),
+    };
+    let hand_trigger = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Hand],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig {
+            name: "Jaina".to_owned(),
+            deck: vec![
+                Card::spell("First", 0).with_triggers(vec![hand_trigger]),
+                Card::spell("Nested", 0),
+                Card::spell("Second", 0),
+            ],
+            hand: vec![Card::minion("Play source", 0, 1, 2).with_triggers(vec![play_trigger])],
+        },
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let play_source = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, play_source, None);
+    let deck = simulation.snapshot().players[0].deck.clone();
+    let [first, nested, second] = deck.as_slice() else {
+        panic!("fixture should have exactly three deck cards");
+    };
+    let (first, nested, second) = (*first, *nested, *second);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: Some(play_source),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        simulation.snapshot().players[0].hand,
+        eq(&vec![first, nested, second])
+    );
+    let trace = simulation.trace();
+    let first_event = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::CardDrawn,
+                targets,
+                ..
+            } if targets == &[first] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let trigger_sources = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::TriggerSnapshot { event, candidates } if *event == first_event => Some(
+                candidates
+                    .iter()
+                    .map(|candidate| candidate.source)
+                    .collect::<Vec<_>>(),
+            ),
+            _ => None,
+        })
+        .unwrap();
+    assert_that!(trigger_sources, eq(&vec![play_source, first]));
+    assert_that!(
+        trace.iter().position(|entry| matches!(entry, TraceEntry::ZoneMoved { entity, to: Zone::Hand, .. } if *entity == first)).unwrap(),
+        lt(trace.iter().position(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::CardDrawn, targets, .. } if targets == &[first])).unwrap())
+    );
+}
+
+#[googletest::test]
+fn nested_draw_preserves_the_outer_continuation_binding() {
+    let nested_draw = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Hand],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck(
+            "Jaina",
+            vec![
+                Card::spell("Outer", 3).with_triggers(vec![nested_draw]),
+                Card::spell("Inner", 7),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let deck = simulation.snapshot().players[0].deck.clone();
+    let [outer, inner] = deck.as_slice() else {
+        panic!("fixture should have exactly two deck cards");
+    };
+    let (outer, inner) = (*outer, *inner);
+    let target = hero(&mut simulation, PlayerId::Two);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: Some(target),
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::DrawnCardCost,
+            }],
+            policy: DrawContinuationPolicy::RequireCard,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        simulation.snapshot().players[0].hand,
+        eq(&vec![outer, inner])
+    );
+    let target = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation.app.world().get::<Damage>(target),
+        eq(Some(&Damage(3)))
+    );
 }
 
 #[googletest::test]
@@ -140,6 +310,7 @@ fn enchantment_controller_determines_trigger_group_not_host_controller() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachTriggerEnchantment {
@@ -191,6 +362,7 @@ fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue(
         effect_program: vec![Effect::Transform {
             targets: Selector::DeclaredTarget,
             card: Card::minion("Transformed host", 0, 2, 2),
+            kind: TransformKind::NonSpell,
         }],
     }]);
     let attached_trigger = TriggerDefinition {
@@ -289,6 +461,620 @@ fn transforming_the_host_aborts_an_attached_trigger_captured_later_in_the_queue(
 }
 
 #[googletest::test]
+fn transform_operation_carries_source_and_emits_only_the_transform_trace() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Transformer", 1, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Old target", 3, 3, 3),
+        Zone::Play,
+    )
+    .unwrap();
+    let context = EffectContext {
+        source: Some(source),
+        controller: PlayerId::One,
+        declared_target: Some(target),
+        drawn_card: None,
+        origin: EffectOrigin::Spell,
+    };
+    let death_cache_before = simulation
+        .app
+        .world()
+        .resource::<DeathEventCache>()
+        .records
+        .clone();
+    let pending_deaths_before = simulation.app.world().resource::<PendingDeaths>().0.clone();
+    begin_sequence(simulation.app.world_mut()).unwrap();
+
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: Card::minion("New target", 2, 2, 4),
+            kind: TransformKind::Spell,
+        },
+    )
+    .unwrap();
+
+    assert_that!(
+        &simulation.app.world().resource::<ResolutionWork>().stack[0].operation,
+        matches_pattern!(ResolutionOp::TransformEntity {
+            target: eq(&target),
+            source: eq(&Some(source)),
+            card: anything(),
+            kind: eq(&TransformKind::Spell),
+        })
+    );
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+
+    let transform_entries = simulation
+        .trace()
+        .iter()
+        .filter(|entry| matches!(entry, TraceEntry::EntityTransformed { .. }))
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_that!(
+        transform_entries,
+        eq(&vec![TraceEntry::EntityTransformed {
+            entity: target,
+            previous_definition: "synthetic:old_target".to_string(),
+            replacement_definition: "synthetic:new_target".to_string(),
+            kind: TransformKind::Spell,
+        }])
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(
+            entry,
+            TraceEntry::EventCreated {
+                kind: EventKind::Death | EventKind::Summoned,
+                targets,
+                ..
+            } if targets.contains(&target)
+        )),
+        is_false()
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::EntityDied { entity } if *entity == target)),
+        is_false()
+    );
+    assert_that!(
+        &simulation.app.world().resource::<DeathEventCache>().records,
+        eq(&death_cache_before)
+    );
+    assert_that!(
+        &simulation.app.world().resource::<PendingDeaths>().0,
+        eq(&pending_deaths_before)
+    );
+}
+
+#[googletest::test]
+fn spell_transform_has_no_summon_timing() {
+    let replacement = Card::minion("Spell form", 0, 2, 2).with_aura(AuraDefinition {
+        targets: AuraTarget::FriendlyCharacters,
+        attack: 0,
+        health: 0,
+        other: vec![OtherAuraModifier::Immune],
+    });
+    let spell = Card::spell("Polymorph and ping", 0).with_effects(vec![Effect::Sequence(vec![
+        Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: replacement,
+            kind: TransformKind::Spell,
+        },
+        Effect::DealDamage {
+            targets: Selector::FriendlyCharacters,
+            amount: ValueExpression::Constant(3),
+        },
+    ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), spell]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, target, None);
+    let spell = hand_card(&mut simulation, PlayerId::One);
+
+    play_card(&mut simulation, PlayerId::One, spell, Some(target));
+
+    assert_that!(simulation.snapshot().players[0].health, eq(27));
+    let transform = simulation
+        .trace()
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityTransformed { entity, .. } if *entity == target))
+        .unwrap();
+    assert_that!(
+        simulation.trace()[transform + 1..]
+            .iter()
+            .any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::Summoned
+                        | EventKind::AfterPlayAndSummon
+                        | EventKind::AfterPlay,
+                    targets,
+                    ..
+                } if targets.contains(&target)
+            )),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn played_self_transform_uses_inserted_then_original_after_play_order() {
+    let after_play = TriggerDefinition {
+        event: EventKind::AfterPlay,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: Vec::new(),
+    };
+    let after_play_and_summon = TriggerDefinition {
+        event: EventKind::AfterPlayAndSummon,
+        ..after_play.clone()
+    };
+    let replacement =
+        Card::minion("Played self form", 0, 3, 3).with_triggers(vec![after_play_and_summon]);
+    let card = Card::minion("Original form", 0, 1, 1)
+        .with_triggers(vec![after_play])
+        .with_effects(vec![Effect::Sequence(vec![
+            Effect::Transform {
+                targets: Selector::Source,
+                card: replacement,
+                kind: TransformKind::PlayedSelf,
+            },
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(3),
+            },
+        ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![card]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+
+    play_card(&mut simulation, PlayerId::One, card, Some(enemy_hero));
+
+    let trace = simulation.trace();
+    let transform = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityTransformed { entity, kind: TransformKind::PlayedSelf, .. } if *entity == card))
+        .unwrap();
+    let later_battlecry = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::Damage { target, proposed: 3, .. } if *target == enemy_hero))
+        .unwrap();
+    let inserted_event = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::AfterPlayAndSummon,
+                targets,
+                ..
+            } if targets == &[card] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let original_event = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::AfterPlay,
+                targets,
+                ..
+            } if targets == &[card] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let inserted_snapshot = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::TriggerSnapshot { event, candidates } if *event == inserted_event && candidates.iter().any(|candidate| candidate.source == card)))
+        .unwrap();
+    let boundary = trace
+        .iter()
+        .enumerate()
+        .skip(inserted_snapshot + 1)
+        .find_map(|(index, entry)| {
+            matches!(entry, TraceEntry::OperationPopped { kind, .. } if kind == "RunPhaseBoundary")
+                .then_some(index)
+        })
+        .unwrap();
+    let original_snapshot = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::TriggerSnapshot { event, candidates } if *event == original_event && candidates.iter().any(|candidate| candidate.source == card)))
+        .unwrap();
+    assert_that!(transform, lt(later_battlecry));
+    assert_that!(later_battlecry, lt(inserted_snapshot));
+    assert_that!(inserted_snapshot, lt(boundary));
+    assert_that!(boundary, lt(original_snapshot));
+}
+
+#[googletest::test]
+fn played_self_transform_supported_program_placements_receive_finish_barriers() {
+    let transform = Effect::Transform {
+        targets: Selector::Source,
+        card: Card::minion("Played self replacement", 0, 2, 2),
+        kind: TransformKind::PlayedSelf,
+    };
+    let programs = [
+        vec![transform.clone()],
+        vec![Effect::Sequence(vec![transform.clone()])],
+        vec![Effect::Sequence(vec![Effect::Sequence(vec![transform])])],
+    ];
+
+    for (index, program) in programs.into_iter().enumerate() {
+        let card = Card::minion(format!("Original form {index}"), 0, 1, 1).with_effects(program);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![card]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+
+        play_card(&mut simulation, PlayerId::One, card, None);
+
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::EntityTransformed {
+                    entity,
+                    kind: TransformKind::PlayedSelf,
+                    ..
+                } if *entity == card
+            )),
+            is_true()
+        );
+        assert_that!(
+            simulation.trace().iter().any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::AfterPlayAndSummon,
+                    targets,
+                    ..
+                } if targets == &[card]
+            )),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
+fn played_self_transform_requires_its_finish_barrier() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Target", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    push_resolution_ops(
+        world,
+        [ResolutionOp::TransformEntity {
+            target,
+            source: Some(target),
+            card: Card::minion("Replacement", 0, 2, 2),
+            kind: TransformKind::PlayedSelf,
+        }],
+    );
+
+    assert_that!(
+        drive_resolution(world),
+        err(matches_pattern!(SimulationError::InvalidTransformation(_)))
+    );
+}
+
+#[googletest::test]
+fn played_self_transform_requires_source_to_equal_target() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Target", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Other source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::TransformEntity {
+                target,
+                source: Some(source),
+                card: Card::minion("Replacement", 0, 2, 2),
+                kind: TransformKind::PlayedSelf,
+            },
+            ResolutionOp::FinishPlayedSelfTransform {
+                subject: target,
+                original_after_play: Vec::new(),
+            },
+        ],
+    );
+
+    assert_that!(
+        drive_resolution(world),
+        err(matches_pattern!(SimulationError::InvalidTransformation(_)))
+    );
+}
+
+#[googletest::test]
+fn markerless_played_self_finish_barrier_is_a_no_op() {
+    let mut simulation = simulation();
+    let subject = hero(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    push_resolution_ops(
+        world,
+        [ResolutionOp::FinishPlayedSelfTransform {
+            subject,
+            original_after_play: Vec::new(),
+        }],
+    );
+
+    assert_that!(drive_resolution(world), ok(anything()));
+    assert_that!(
+        world
+            .resource::<CanonicalTrace>()
+            .entries
+            .iter()
+            .any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::AfterPlay | EventKind::AfterPlayAndSummon,
+                    ..
+                }
+            )),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn play_copy_finishes_aura_and_summoned_work_before_later_sibling_without_played_self() {
+    let summon_trigger = TriggerDefinition {
+        event: EventKind::Summoned,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let source = Card::minion("Copied ward", 0, 1, 2)
+        .with_aura(AuraDefinition {
+            targets: AuraTarget::FriendlyCharacters,
+            attack: 0,
+            health: 0,
+            other: vec![OtherAuraModifier::Immune],
+        })
+        .with_triggers(vec![summon_trigger]);
+    let copier = Card::spell("Copy then strike", 0).with_effects(vec![Effect::Sequence(vec![
+        Effect::Copy {
+            targets: Selector::DeclaredTarget,
+            player: PlayerSelector::Opponent,
+            zone: Zone::Play,
+            board_index: None,
+        },
+        Effect::DealDamage {
+            targets: Selector::EnemyCharacters,
+            amount: ValueExpression::Constant(3),
+        },
+    ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![source, copier]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let source = hand_card(&mut simulation, PlayerId::One);
+    play_card(&mut simulation, PlayerId::One, source, None);
+    let copier = hand_card(&mut simulation, PlayerId::One);
+
+    play_card(&mut simulation, PlayerId::One, copier, Some(source));
+
+    let copy = simulation.snapshot().players[1].board[0];
+    assert_that!(simulation.snapshot().players[1].health, eq(30));
+    assert_that!(
+        player(simulation.app.world(), PlayerId::Two)
+            .unwrap()
+            .1
+            .temporary_resources,
+        eq(1)
+    );
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let trace = simulation.trace();
+    let copied = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityCopied { copy: entity, .. } if *entity == copy))
+        .unwrap();
+    let aura = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::AuraUpdated { target, category: AuraCategory::Other, .. } if *target == enemy_hero))
+        .unwrap();
+    let summoned = trace
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                id,
+                kind: EventKind::Summoned,
+                targets,
+                ..
+            } if targets == &[copy] => Some(*id),
+            _ => None,
+        })
+        .unwrap();
+    let resolved = trace
+        .iter()
+        .position(
+            |entry| matches!(entry, TraceEntry::TriggerResolved { source, .. } if *source == copy),
+        )
+        .unwrap();
+    let finished = trace
+        .iter()
+        .enumerate()
+        .skip(resolved + 1)
+        .find_map(|(index, entry)| {
+            matches!(entry, TraceEntry::OperationPopped { kind, .. } if kind == "FinishEvent")
+                .then_some(index)
+        })
+        .unwrap();
+    let damage = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::Damage { proposed: 3, .. }))
+        .unwrap();
+    assert_that!(copied, lt(aura));
+    assert_that!(aura, lt(resolved));
+    assert_that!(resolved, lt(finished));
+    assert_that!(finished, lt(damage));
+    assert_that!(
+        trace.iter().any(|entry| matches!(
+            entry,
+            TraceEntry::TriggerSnapshot { event, .. } if *event == summoned
+        )),
+        is_true()
+    );
+    assert_that!(
+        trace.iter().any(|entry| matches!(
+            entry,
+            TraceEntry::EntityTransformed {
+                kind: TransformKind::PlayedSelf,
+                ..
+            }
+        )),
+        is_false()
+    );
+    assert_that!(
+        trace.iter().any(|entry| matches!(
+            entry,
+            TraceEntry::EventCreated {
+                kind: EventKind::AfterPlayAndSummon | EventKind::AfterPlay,
+                targets,
+                ..
+            } if targets.contains(&copy)
+        )),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn play_copy_summoned_event_uses_the_originating_effect_source() {
+    let source_sensitive_trigger = TriggerDefinition {
+        event: EventKind::Summoned,
+        eligible_zones: vec![Zone::Play],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventSourceIsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 1,
+            temporary: true,
+        }],
+    };
+    let mut simulation = simulation();
+    let origin = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Copy origin", 0, 1, 2).with_triggers(vec![source_sensitive_trigger]),
+        Zone::Play,
+    )
+    .unwrap();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Copy target", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: Some(origin),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Copy {
+            targets: Selector::Entity(target),
+            player: PlayerSelector::Controller,
+            zone: Zone::Play,
+            board_index: None,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+    let copy = world
+        .resource::<CanonicalTrace>()
+        .entries
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EntityCopied { copy, .. } => Some(*copy),
+            _ => None,
+        })
+        .unwrap();
+    let summoned_events = world
+        .resource::<CanonicalTrace>()
+        .entries
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::EventCreated {
+                kind: EventKind::Summoned,
+                source,
+                targets,
+                ..
+            } => Some((*source, targets.clone())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert_that!(
+        player(world, PlayerId::One).unwrap().1.temporary_resources,
+        eq(1)
+    );
+    assert_that!(
+        summoned_events.as_slice(),
+        elements_are![eq(&(Some(origin), vec![copy]))]
+    );
+}
+
+#[googletest::test]
 fn silence_removes_only_trigger_enchantments_marked_removable() {
     let grant = |name, silence_removable| {
         Card::spell(name, 0).with_effects(vec![Effect::AttachTriggerEnchantment {
@@ -337,6 +1123,7 @@ fn silence_removes_only_trigger_enchantments_marked_removable() {
                 source: None,
                 controller: PlayerId::One,
                 declared_target: None,
+                drawn_card: None,
                 origin: EffectOrigin::Other,
             },
             &Effect::Silence {

@@ -32,6 +32,7 @@ pub enum Zone {
 pub enum ZoneMovementKind {
     Normal,
     Draw,
+    Burn,
     ForcePlay,
     Death,
     Discard,

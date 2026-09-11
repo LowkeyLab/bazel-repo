@@ -3,9 +3,12 @@ use bevy::prelude::*;
 pub(crate) use hearthstone_simulator_core::{AttachedTo, StatModifier};
 
 use crate::{
-    AttachedEnchantments, AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, CostModifier,
-    CurrentStats, Damage, EnchantmentDuration, EntityKind, GameEntityId, HealthAuraCache,
-    KeywordModifier, Keywords, PlayOrder, Silenced, Zone, entity::game_entity,
+    AttachedEnchantments, AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, Controller,
+    CostModifier, CurrentStats, Damage, DefinitionId, DisplayName, EnchantmentDuration, EntityKind,
+    GameEntityId, HealthAuraCache, KeywordModifier, Keywords, PlayOrder, PlayerId,
+    SilenceRemovable, Silenced, SimulationError, Zone,
+    entity::{allocate_game_id, allocate_play_order, game_entity},
+    zone::insert_into_zone,
 };
 
 use super::simulation::card_runtime::CardRuntime;
@@ -30,6 +33,39 @@ pub(crate) fn assert_enchantment_invariants(world: &World) -> Result<(), String>
         }
     }
     Ok(())
+}
+
+pub(crate) fn spawn_attached_enchantment(
+    world: &mut World,
+    controller: PlayerId,
+    target: GameEntityId,
+    definition_id: &str,
+    display_name: &str,
+    duration: EnchantmentDuration,
+    silence_removable: bool,
+) -> Result<(GameEntityId, Entity), SimulationError> {
+    let target_entity =
+        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let id = allocate_game_id(world);
+    let order = allocate_play_order(world);
+    let entity = world
+        .spawn((
+            id,
+            DefinitionId(definition_id.to_string()),
+            EntityKind::Enchantment,
+            Controller(controller),
+            DisplayName(display_name.to_string()),
+            order,
+            duration,
+            AttachedTo(target_entity),
+        ))
+        .id();
+    if silence_removable {
+        world.entity_mut(entity).insert(SilenceRemovable);
+    }
+    insert_into_zone(world, id, controller, Zone::Play, None)
+        .expect("an attached enchantment must fit in the unbounded Play zone");
+    Ok((id, entity))
 }
 
 pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {

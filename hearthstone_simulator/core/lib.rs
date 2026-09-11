@@ -36,8 +36,9 @@ pub use checkpoint::{
 };
 pub use death::{DeathEventCache, DeathRecord, DefeatedHeroes, PendingDeaths};
 pub use effect::{
-    Effect, EffectContext, EffectOrigin, EventValueOperation, HeroClassPolicy, HeroHealthPolicy,
-    HeroReplacement, PlayerSelector, Selector, ValueExpression,
+    CopyStatePolicy, DrawContinuationPolicy, Effect, EffectContext, EffectOrigin,
+    EventValueOperation, HeroClassPolicy, HeroHealthPolicy, HeroReplacement, PlayerSelector,
+    Selector, TransformKind, ValueExpression,
 };
 pub use enchantment::{
     AttachedEnchantments, AttachedTo, CostModifier, CostOperation, EnchantmentDuration,
@@ -57,12 +58,15 @@ pub use game::{
     DominantPlayer, ExtraTurnTiming, GameOutcome, GameState, ScheduledTurn, ScheduledTurnKind,
     SimulationStatus, TurnSchedule,
 };
-pub use ids::{ChoiceId, EventId, EventSlotId, GameEntityId, PlayerId, ResolutionId};
+pub use ids::{
+    ChoiceId, DrawResultSlotId, EventId, EventSlotId, GameEntityId, PlayerId, ResolutionId,
+};
 pub use model::{Card, PlayerConfig, PlayerRef};
 pub use native_effect::NativeEffectId;
 pub use resolver::{
-    ChoiceOption, ChoiceRequest, DamageRequest, HealingRequest, PendingChoice, PhaseBoundaryPlan,
-    PreparedEvent, PreparedEventSlot, ResolutionError, ResolutionOp, ResolutionWork, SequenceStep,
+    ChoiceOption, ChoiceRequest, CopyRequest, DamageRequest, DrawOutcome, DrawRequest,
+    DrawResultSlot, HealingRequest, PendingChoice, PhaseBoundaryPlan, PreparedEvent,
+    PreparedEventSlot, ResolutionError, ResolutionOp, ResolutionWork, SequenceStep,
     StackedResolutionOp,
 };
 pub use rng::{DeterministicRng, RNG_ALGORITHM_VERSION, RngSnapshot};

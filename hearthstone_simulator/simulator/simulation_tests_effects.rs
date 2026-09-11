@@ -2,9 +2,12 @@ use googletest::prelude::*;
 
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttachedTo, ConditionTiming, ContinuousEffectDefinition, ContinuousModifier, Controller,
-    DefinitionId, EnchantmentDuration, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
-    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind,
+    AttachedTo, AttackAuraCache, AttackState, ConditionTiming, ContinuousEffectDefinition,
+    ContinuousModifier, Controller, DefinitionId, DrawContinuationPolicy, DrawOutcome,
+    EnchantmentDuration, HealthAuraCache, HeroMetadata, HeroPowerState, KeepEnchantments,
+    OtherAuraCache, PlayOrder, PlayerAudience, SilenceRemovable, SourceEligibilityPolicy,
+    TimedCondition, TransformKind, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
+    ZoneMovementKind, ZonePosition,
 };
 
 #[derive(Resource)]
@@ -59,6 +62,7 @@ fn trigger_enchantment_records_attachment_context() {
         source: None,
         controller: PlayerId::Two,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -117,6 +121,7 @@ fn trigger_enchantment_attachment_reports_a_missing_explicit_target() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -238,6 +243,7 @@ fn effect_dispatch_reports_stale_targets_and_native_systems() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     assert_that!(
@@ -322,6 +328,7 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
         source: Some(friendly),
         controller: PlayerId::One,
         declared_target: Some(enemy),
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -452,11 +459,13 @@ fn effect_dispatch_covers_selectors_values_and_stateful_primitives() {
             Effect::Transform {
                 targets: Selector::DeclaredTarget,
                 card: Card::minion("Sheep", 1, 1, 1),
+                kind: TransformKind::Spell,
             },
             Effect::Copy {
                 targets: Selector::DeclaredTarget,
                 player: PlayerSelector::Controller,
                 zone: Zone::Hand,
+                board_index: None,
             },
         ])],
     )
@@ -574,6 +583,7 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -611,6 +621,293 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
             .is_empty(),
         is_true()
     );
+}
+
+#[googletest::test]
+fn draw_expansion_rejects_counts_beyond_remaining_budget_without_allocating_slots() {
+    for count in [2, u32::MAX] {
+        let mut simulation = simulation();
+        let world = simulation.app.world_mut();
+        world.resource_mut::<Ruleset>().resolution_budget = 3;
+        begin_sequence(world).unwrap();
+        let before = world.resource::<ResolutionWork>().clone();
+
+        assert_that!(
+            execute_effect(
+                world,
+                &EffectContext {
+                    source: None,
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                &Effect::Draw {
+                    player: PlayerSelector::Controller,
+                    count,
+                },
+            ),
+            err(eq(&SimulationError::Resolution(
+                ResolutionError::BudgetExhausted { operation: None }
+            )))
+        );
+        assert_that!(world.resource::<ResolutionWork>(), eq(&before));
+    }
+}
+
+#[googletest::test]
+fn draw_continuation_reads_cost_after_draw_triggers() {
+    let cost_trigger = TriggerDefinition {
+        event: EventKind::CardDrawn,
+        eligible_zones: vec![Zone::Hand],
+        conditions: vec![TimedCondition {
+            timing: ConditionTiming::QueueTime,
+            condition: TriggerCondition::EventTargetsSelf,
+        }],
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::ExcludeMortallyWounded,
+        effect_program: vec![Effect::AttachCostModifier {
+            targets: Selector::Source,
+            modifier: CostModifier {
+                operation: CostOperation::Set,
+                value: 4,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::Permanent,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck(
+            "Jaina",
+            vec![Card::spell("Reactive draw", 1).with_triggers(vec![cost_trigger])],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let drawn = simulation.snapshot().players[0].deck[0];
+    let target = hero(&mut simulation, PlayerId::Two);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: Some(target),
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![
+                Effect::DealDamage {
+                    targets: Selector::DeclaredTarget,
+                    amount: ValueExpression::DrawnCardCost,
+                },
+                Effect::Move {
+                    targets: Selector::DrawnCard,
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Graveyard,
+                    kind: ZoneMovementKind::Normal,
+                },
+            ],
+            policy: DrawContinuationPolicy::RequireCard,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    let target = game_entity(world, target).unwrap();
+    assert_that!(world.get::<Damage>(target), eq(Some(&Damage(4))));
+    assert_that!(
+        world
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Graveyard),
+        eq(&[drawn])
+    );
+}
+
+#[googletest::test]
+fn draw_continuation_policies_cover_burn_and_fatigue() {
+    for (has_card, policy, expected_resources) in [
+        (true, DrawContinuationPolicy::RequireCard, 0),
+        (true, DrawContinuationPolicy::RunWithoutCard, 1),
+        (false, DrawContinuationPolicy::RequireCard, 0),
+        (false, DrawContinuationPolicy::RunWithoutCard, 1),
+    ] {
+        let deck = has_card
+            .then(|| Card::spell("Burned", 3))
+            .into_iter()
+            .collect();
+        let mut simulation = Simulation::new([
+            PlayerConfig::with_deck("Jaina", deck),
+            PlayerConfig::new("Rexxar", vec![Card::spell("Stale binding", 5)]),
+        ]);
+        if has_card {
+            simulation
+                .app
+                .world_mut()
+                .resource_mut::<Ruleset>()
+                .hand_limit = 0;
+        }
+        let stale = simulation.snapshot().players[1].hand[0];
+        let target = hero(&mut simulation, PlayerId::Two);
+        let world = simulation.app.world_mut();
+        begin_sequence(world).unwrap();
+        execute_effect(
+            world,
+            &EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: Some(target),
+                drawn_card: Some(stale),
+                origin: EffectOrigin::Other,
+            },
+            &Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![
+                    Effect::DealDamage {
+                        targets: Selector::DeclaredTarget,
+                        amount: ValueExpression::DrawnCardCost,
+                    },
+                    Effect::GainResource {
+                        player: PlayerSelector::Controller,
+                        amount: 1,
+                        temporary: true,
+                    },
+                ],
+                policy,
+            },
+        )
+        .unwrap();
+        drive_resolution(world).unwrap();
+        finish_sequence(world);
+
+        assert_that!(
+            player(world, PlayerId::One).unwrap().1.temporary_resources,
+            eq(expected_resources)
+        );
+        let target = game_entity(world, target).unwrap();
+        assert_that!(world.get::<Damage>(target), eq(Some(&Damage(0))));
+    }
+}
+
+#[googletest::test]
+fn fatigue_requests_resolve_damage_before_the_next_draw() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let hero = hero(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    let trace = simulation.trace();
+    let fatigue = trace
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| match entry {
+            TraceEntry::DrawResolved {
+                outcome: DrawOutcome::Fatigue { amount },
+                ..
+            } => Some((index, *amount)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(
+        fatigue
+            .iter()
+            .map(|(_, amount)| *amount)
+            .collect::<Vec<_>>(),
+        eq(&vec![1, 2])
+    );
+    for (request, next_request) in fatigue.iter().zip(
+        fatigue
+            .iter()
+            .skip(1)
+            .map(|(index, _)| *index)
+            .chain([trace.len()]),
+    ) {
+        let (request_index, amount) = *request;
+        let request_trace = &trace[request_index + 1..next_request];
+        assert_that!(
+            request_trace.iter().any(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::ProposedDamage, targets, proposed: Some(proposed), .. } if targets == &[hero] && proposed == &amount)),
+            is_true()
+        );
+        assert_that!(
+            request_trace.iter().any(|entry| matches!(entry, TraceEntry::Damage { target, proposed, actual, .. } if *target == hero && proposed == &amount && actual == &amount)),
+            is_true()
+        );
+        assert_that!(
+            request_trace.iter().any(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::Damage, targets, actual: Some(actual), .. } if targets == &[hero] && actual == &amount)),
+            is_true()
+        );
+    }
+}
+
+#[googletest::test]
+fn explicitly_ordered_cross_player_draws_retain_controller_order() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck("Jaina", vec![Card::spell("One", 0)]),
+        PlayerConfig::with_deck("Rexxar", vec![Card::spell("Two", 0)]),
+    ]);
+    let first = simulation.snapshot().players[0].deck[0];
+    let second = simulation.snapshot().players[1].deck[0];
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::Two,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Sequence(vec![
+            Effect::Draw {
+                player: PlayerSelector::Player(PlayerId::One),
+                count: 1,
+            },
+            Effect::Draw {
+                player: PlayerSelector::Player(PlayerId::Two),
+                count: 1,
+            },
+        ]),
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    let players = simulation
+        .trace()
+        .iter()
+        .filter_map(|entry| match entry {
+            TraceEntry::DrawResolved { player, .. } => Some(*player),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_that!(players, eq(&vec![PlayerId::One, PlayerId::Two]));
+    assert_that!(simulation.snapshot().players[0].hand, eq(&vec![first]));
+    assert_that!(simulation.snapshot().players[1].hand, eq(&vec![second]));
 }
 
 #[googletest::test]
@@ -662,6 +959,7 @@ fn native_handlers_flush_commands_and_return_nested_effect_plans() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     assert_that!(
@@ -682,6 +980,7 @@ fn native_returned_event_modifiers_are_validated_before_execution() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -793,6 +1092,7 @@ fn event_value_modifiers_do_not_cross_nested_event_boundaries() {
         source: None,
         controller: PlayerId::One,
         declared_target: Some(target),
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
 
@@ -851,6 +1151,129 @@ fn missing_native_effects_are_rejected_before_card_play_mutates_state() {
     assert_that!(simulation.snapshot(), eq(&before));
     let mut fork = simulation.fork().unwrap();
     assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
+}
+
+#[googletest::test]
+fn draw_then_programs_are_rejected_before_card_play_mutates_state() {
+    let missing = NativeEffectId::new("synthetic:missing_draw_continuation");
+    let card = Card::spell("Invalid Draw Continuation", 1).with_effects(vec![Effect::DrawThen {
+        player: PlayerSelector::Controller,
+        effects: vec![Effect::Native(missing.clone())],
+        policy: DrawContinuationPolicy::RequireCard,
+    }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![card]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let before = simulation.snapshot();
+
+    assert_that!(
+        simulation.apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        }),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+
+    assert_that!(simulation.snapshot(), eq(&before));
+    assert_that!(simulation.resolution_work().sequence_active, is_false());
+    assert_that!(simulation.resolution_work().stack, is_empty());
+    assert_that!(
+        simulation.trace().last(),
+        some(matches_pattern!(TraceEntry::ActionRejected { .. }))
+    );
+}
+
+#[googletest::test]
+fn invalid_played_self_placements_are_rejected_before_card_play_mutates_state() {
+    let replacement = || Card::minion("Played self replacement", 0, 2, 2);
+    let played_self = |targets| Effect::Transform {
+        targets,
+        card: replacement(),
+        kind: TransformKind::PlayedSelf,
+    };
+    let trigger = self_event_trigger(EventKind::CardPlayed, vec![played_self(Selector::Source)]);
+    let cases = [
+        Card::spell("Spell placement", 1).with_effects(vec![played_self(Selector::Source)]),
+        Card::minion("Non-source placement", 1, 1, 1)
+            .with_effects(vec![played_self(Selector::DeclaredTarget)]),
+        Card::minion("Draw continuation placement", 1, 1, 1).with_effects(vec![Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![played_self(Selector::Source)],
+            policy: DrawContinuationPolicy::RunWithoutCard,
+        }]),
+        Card::minion("Trigger placement", 1, 1, 1).with_triggers(vec![trigger]),
+    ];
+
+    for card in cases {
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("Jaina", vec![card]),
+            PlayerConfig::new("Rexxar", Vec::new()),
+        ]);
+        let card = hand_card(&mut simulation, PlayerId::One);
+        let before = simulation.snapshot();
+
+        assert_that!(
+            simulation.apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: None,
+                board_index: None,
+                choice: None,
+            }),
+            err(matches_pattern!(SimulationError::InvalidTransformation(
+                anything()
+            )))
+        );
+        assert_that!(simulation.snapshot(), eq(&before));
+        assert_that!(simulation.resolution_work().sequence_active, is_false());
+        assert_that!(simulation.resolution_work().stack, is_empty());
+    }
+}
+
+#[googletest::test]
+fn draw_then_continuations_cannot_modify_an_enclosing_event() {
+    let trigger = TriggerDefinition {
+        event: EventKind::ProposedDamage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
+        effect_program: vec![Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![Effect::ModifyEventValue {
+                operation: EventValueOperation::Add,
+                value: ValueExpression::Constant(1),
+            }],
+            policy: DrawContinuationPolicy::RunWithoutCard,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![Card::minion("Invalid delayed modifier", 1, 1, 1).with_triggers(vec![trigger])],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let before = simulation.snapshot();
+
+    assert_that!(
+        simulation.apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        }),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+    assert_that!(simulation.snapshot(), eq(&before));
 }
 
 #[googletest::test]
@@ -998,6 +1421,7 @@ fn silence_suppresses_future_triggers_but_preserves_frozen_entries() {
             wounded_target_policy: crate::WoundedTargetPolicy::ExcludeMortallyWounded,
             effect_program: Vec::new(),
         }]),
+        TransformKind::Spell,
     )
     .unwrap();
     let transformed = game_entity(simulation.app.world(), reactive).unwrap();
@@ -1041,6 +1465,7 @@ fn silence_removes_a_temporary_cost_modifier_completely() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -1110,6 +1535,7 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -1130,6 +1556,7 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
         simulation.app.world_mut(),
         target,
         Card::minion("New form", 4, 2, 2),
+        TransformKind::Spell,
     )
     .unwrap();
     execute_effect(
@@ -1156,5 +1583,396 @@ fn transformation_discards_cost_modifiers_from_the_old_form() {
             .unwrap()
             .cost,
         eq(3)
+    );
+}
+
+#[googletest::test]
+fn invalid_transformation_is_atomic() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Invalid target", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let attachment = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 2,
+            health: 2,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(target_entity)
+        .remove::<DefinitionId>();
+    let before = simulation.checkpoint().unwrap();
+
+    let result = transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+
+    assert_that!(result, err(anything()));
+    assert_that!(simulation.checkpoint().unwrap(), eq(&before));
+
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(target_entity)
+        .insert(DefinitionId("synthetic:invalid_target".to_string()));
+    let attachment_entity = game_entity(simulation.app.world(), attachment).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(attachment_entity)
+        .remove::<PlayOrder>();
+    let before_invalid_attachment = simulation.checkpoint().unwrap();
+    let attachment_result = transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+    assert_that!(attachment_result, err(anything()));
+    assert_that!(
+        simulation.checkpoint().unwrap(),
+        eq(&before_invalid_attachment)
+    );
+
+    let before_missing = simulation.checkpoint().unwrap();
+    let missing_result = transform_entity(
+        simulation.app.world_mut(),
+        GameEntityId(u64::MAX),
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+    assert_that!(missing_result, err(anything()));
+    assert_that!(simulation.checkpoint().unwrap(), eq(&before_missing));
+}
+
+#[googletest::test]
+fn transformation_rejects_unsupported_replacement_kinds_atomically() {
+    let hero = Card::hero("Replacement hero", 30);
+    let mut player = Card::minion("Replacement player", 0, 0, 1);
+    player.kind = EntityKind::Player;
+    let mut enchantment = Card::minion("Replacement enchantment", 0, 0, 1);
+    enchantment.kind = EntityKind::Enchantment;
+
+    for replacement in [hero, player, enchantment] {
+        let mut simulation = simulation();
+        let target = spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::One,
+            Card::minion("Transform target", 1, 1, 2),
+            Zone::Play,
+        )
+        .unwrap();
+        attach_stat_modifier(
+            simulation.app.world_mut(),
+            PlayerId::One,
+            target,
+            StatModifier {
+                attack: 2,
+                health: 2,
+                silence_removable: false,
+            },
+            EnchantmentDuration::Permanent,
+        )
+        .unwrap();
+        let before = simulation.checkpoint().unwrap();
+
+        let result = transform_entity(
+            simulation.app.world_mut(),
+            target,
+            replacement,
+            TransformKind::Spell,
+        );
+
+        assert_that!(
+            result,
+            err(matches_pattern!(SimulationError::InvalidTransformation(
+                anything()
+            )))
+        );
+        assert_that!(simulation.checkpoint().unwrap(), eq(&before));
+    }
+}
+
+#[googletest::test]
+fn transformation_rejects_non_minion_targets_atomically() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::hero("Unsupported target", 30),
+        Zone::Hand,
+    )
+    .unwrap();
+    let before = simulation.checkpoint().unwrap();
+
+    let result = transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Replacement", 2, 2, 3),
+        TransformKind::Spell,
+    );
+
+    assert_that!(
+        result,
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+    assert_that!(simulation.checkpoint().unwrap(), eq(&before));
+}
+
+#[googletest::test]
+fn transformation_detaches_enchantments_in_play_order_then_entity_id() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Attachment host", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let first = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 1,
+            health: 0,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let second = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        target,
+        StatModifier {
+            attack: 2,
+            health: 0,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let first_entity = game_entity(simulation.app.world(), first).unwrap();
+    let second_entity = game_entity(simulation.app.world(), second).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(first_entity)
+        .insert(PlayOrder(20));
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(second_entity)
+        .insert(PlayOrder(10));
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Detached host", 1, 3, 3),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let removed = simulation
+        .app
+        .world()
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::One, Zone::RemovedFromGame);
+    let first_position = removed.iter().position(|id| *id == first).unwrap();
+    let second_position = removed.iter().position(|id| *id == second).unwrap();
+    assert_that!(second_position, lt(first_position));
+}
+
+#[googletest::test]
+fn transformation_uses_entity_id_to_break_equal_attachment_play_orders() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Equal-order host", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    let higher_id = GameEntityId(1_001);
+    let lower_id = GameEntityId(1_000);
+    for id in [higher_id, lower_id] {
+        simulation.app.world_mut().spawn((
+            GameObject,
+            id,
+            EntityKind::Enchantment,
+            Controller(PlayerId::One),
+            PlayOrder(10),
+            EnchantmentDuration::Permanent,
+            AttachedTo(target_entity),
+        ));
+        crate::zone::insert_into_zone(
+            simulation.app.world_mut(),
+            id,
+            PlayerId::One,
+            Zone::Play,
+            None,
+        )
+        .unwrap();
+    }
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("Equal-order replacement", 1, 2, 2),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let removed = simulation
+        .app
+        .world()
+        .resource::<ZoneIndex>()
+        .entities(PlayerId::One, Zone::RemovedFromGame);
+    let lower_position = removed.iter().position(|id| *id == lower_id).unwrap();
+    let higher_position = removed.iter().position(|id| *id == higher_id).unwrap();
+    assert_that!(lower_position, lt(higher_position));
+}
+
+#[googletest::test]
+fn transformation_replaces_form_state_and_preserves_stable_state() {
+    let mut simulation = simulation();
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Old form", 5, 4, 6),
+        Zone::Play,
+    )
+    .unwrap();
+    let target_entity = game_entity(simulation.app.world(), target).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(target_entity)
+        .insert((
+            PlayOrder(77),
+            Armor(9),
+            HeroMetadata::default(),
+            HeroPowerState::default(),
+            Abilities(vec!["old ability".to_string()]),
+            Enchantments(vec![GameEntityId(404)]),
+            PendingDestroy,
+            Silenced,
+            KeepEnchantments,
+            HealthAuraCache(vec![AuraApplication {
+                provider: GameEntityId(101),
+                definition_index: 0,
+                modifier: AuraModifier::MaximumHealth(2),
+            }]),
+            AttackAuraCache(vec![AuraApplication {
+                provider: GameEntityId(102),
+                definition_index: 0,
+                modifier: AuraModifier::Attack(3),
+            }]),
+            OtherAuraCache(vec![AuraApplication {
+                provider: GameEntityId(103),
+                definition_index: 0,
+                modifier: AuraModifier::Immune,
+            }]),
+        ));
+    let controller = *simulation
+        .app
+        .world()
+        .get::<Controller>(target_entity)
+        .unwrap();
+    let zone = *simulation.app.world().get::<Zone>(target_entity).unwrap();
+    let position = *simulation
+        .app
+        .world()
+        .get::<ZonePosition>(target_entity)
+        .unwrap();
+
+    transform_entity(
+        simulation.app.world_mut(),
+        target,
+        Card::minion("New form", 2, 2, 3),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let transformed = game_entity(simulation.app.world(), target).unwrap();
+    assert_that!(
+        simulation.app.world().get::<GameEntityId>(transformed),
+        eq(Some(&target))
+    );
+    assert_that!(
+        simulation.app.world().get::<Controller>(transformed),
+        eq(Some(&controller))
+    );
+    assert_that!(
+        simulation.app.world().get::<Zone>(transformed),
+        eq(Some(&zone))
+    );
+    assert_that!(
+        simulation.app.world().get::<ZonePosition>(transformed),
+        eq(Some(&position))
+    );
+    assert_that!(
+        simulation.app.world().get::<PlayOrder>(transformed),
+        eq(Some(&PlayOrder(77)))
+    );
+    assert_that!(simulation.app.world().get::<Armor>(transformed), none());
+    assert_that!(
+        simulation.app.world().get::<HeroMetadata>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<HeroPowerState>(transformed),
+        none()
+    );
+    assert_that!(simulation.app.world().get::<Abilities>(transformed), none());
+    assert_that!(
+        simulation.app.world().get::<Enchantments>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<PendingDestroy>(transformed),
+        none()
+    );
+    assert_that!(simulation.app.world().get::<Silenced>(transformed), none());
+    assert_that!(
+        simulation.app.world().get::<KeepEnchantments>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<HealthAuraCache>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<AttackAuraCache>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<OtherAuraCache>(transformed),
+        none()
+    );
+    assert_that!(
+        simulation.app.world().get::<AttackState>(transformed),
+        eq(Some(&AttackState::default()))
     );
 }

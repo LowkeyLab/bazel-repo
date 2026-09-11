@@ -6,8 +6,8 @@ use bevy::{
 pub(crate) use hearthstone_simulator_core::ResolutionError;
 
 use crate::{
-    EventId, EventSlotId, PreparedEventSlot, ResolutionId, ResolutionOp, ResolutionWork, Ruleset,
-    StackedResolutionOp,
+    DrawOutcome, DrawResultSlot, DrawResultSlotId, EventId, EventSlotId, PreparedEventSlot,
+    ResolutionId, ResolutionOp, ResolutionWork, Ruleset, StackedResolutionOp,
     aura::{refresh_health_attack_auras, refresh_post_death_auras},
     death::create_deaths,
 };
@@ -85,6 +85,8 @@ pub(crate) fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
         || !work.stack.is_empty()
         || !work.events.is_empty()
         || !work.event_slots.is_empty()
+        || !work.draw_result_slots.is_empty()
+        || !work.pending_played_self_transforms.is_empty()
         || work.pending_choice.is_some()
     {
         return Err(ResolutionError::AlreadyResolving);
@@ -103,6 +105,8 @@ pub(crate) fn abandon_sequence(world: &mut World) {
     work.stack.clear();
     work.events.clear();
     work.event_slots.clear();
+    work.draw_result_slots.clear();
+    work.pending_played_self_transforms.clear();
     work.pending_choice = None;
     work.sequence_active = false;
     work.remaining_budget = 0;
@@ -171,6 +175,48 @@ pub(crate) fn allocate_event_slot(world: &mut World) -> EventSlotId {
     id
 }
 
+pub(crate) fn allocate_draw_result_slot(world: &mut World) -> DrawResultSlotId {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    let id = DrawResultSlotId(work.next_draw_result_slot_id);
+    work.next_draw_result_slot_id = work
+        .next_draw_result_slot_id
+        .checked_add(1)
+        .expect("draw result slot ID overflow");
+    let previous = work.draw_result_slots.insert(id, DrawResultSlot::default());
+    debug_assert!(previous.is_none());
+    id
+}
+
+pub(crate) fn fill_draw_result_slot(
+    world: &mut World,
+    slot: DrawResultSlotId,
+    outcome: DrawOutcome,
+) -> Result<(), ResolutionError> {
+    let mut work = world.resource_mut::<ResolutionWork>();
+    let result = work
+        .draw_result_slots
+        .get_mut(&slot)
+        .ok_or(ResolutionError::MissingDrawResultSlot(slot))?;
+    if result.outcome.is_some() {
+        return Err(ResolutionError::DrawResultSlotAlreadyFilled(slot));
+    }
+    result.outcome = Some(outcome);
+    Ok(())
+}
+
+pub(crate) fn take_draw_result(
+    world: &mut World,
+    slot: DrawResultSlotId,
+) -> Result<DrawOutcome, ResolutionError> {
+    world
+        .resource_mut::<ResolutionWork>()
+        .draw_result_slots
+        .remove(&slot)
+        .ok_or(ResolutionError::MissingDrawResultSlot(slot))?
+        .outcome
+        .ok_or(ResolutionError::EmptyDrawResultSlot(slot))
+}
+
 pub(crate) fn resolution_is_active(world: &World) -> bool {
     world.resource::<ResolutionWork>().sequence_active
 }
@@ -181,11 +227,11 @@ pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> 
         if !work.stack.is_empty()
             || !work.events.is_empty()
             || !work.event_slots.is_empty()
+            || !work.draw_result_slots.is_empty()
+            || !work.pending_played_self_transforms.is_empty()
             || work.pending_choice.is_some()
         {
-            return Err(
-                "idle resolution work retains operations, events, slots, or a choice".into(),
-            );
+            return Err("idle resolution work retains operations, events, event slots, draw result slots, transform timing markers, or a choice".into());
         }
     } else if world.resource::<crate::GameState>().status == crate::SimulationStatus::AwaitingChoice
         && work.pending_choice.is_none()
@@ -200,6 +246,7 @@ mod tests {
     use googletest::prelude::*;
 
     use super::*;
+    use crate::GameEntityId;
 
     fn world() -> World {
         let mut world = World::new();
@@ -258,6 +305,134 @@ mod tests {
     }
 
     #[googletest::test]
+    fn draw_result_slot_allocation_increments_counter_and_inserts_empty_slot() {
+        let mut world = world();
+
+        let first = allocate_draw_result_slot(&mut world);
+        let second = allocate_draw_result_slot(&mut world);
+
+        assert_that!(first, eq(DrawResultSlotId(0)));
+        assert_that!(second, eq(DrawResultSlotId(1)));
+        let work = world.resource::<ResolutionWork>();
+        assert_that!(work.next_draw_result_slot_id, eq(2));
+        assert_that!(work.draw_result_slots.len(), eq(2));
+        assert_that!(work.draw_result_slots[&first].outcome, none());
+        assert_that!(work.draw_result_slots[&second].outcome, none());
+    }
+
+    #[googletest::test]
+    fn draw_result_slots_fill_and_consume_exactly_once() {
+        let mut world = world();
+        let slot = allocate_draw_result_slot(&mut world);
+        fill_draw_result_slot(&mut world, slot, DrawOutcome::Drawn(GameEntityId(9))).unwrap();
+
+        assert_that!(
+            fill_draw_result_slot(&mut world, slot, DrawOutcome::Fatigue { amount: 1 }),
+            err(eq(&ResolutionError::DrawResultSlotAlreadyFilled(slot)))
+        );
+        assert_that!(
+            take_draw_result(&mut world, slot),
+            ok(eq(&DrawOutcome::Drawn(GameEntityId(9))))
+        );
+        assert_that!(
+            take_draw_result(&mut world, slot),
+            err(eq(&ResolutionError::MissingDrawResultSlot(slot)))
+        );
+    }
+
+    #[googletest::test]
+    fn draw_result_slots_reject_missing_fill_and_empty_take() {
+        let mut world = world();
+        let missing = DrawResultSlotId(42);
+        assert_that!(
+            fill_draw_result_slot(&mut world, missing, DrawOutcome::Fatigue { amount: 1 }),
+            err(eq(&ResolutionError::MissingDrawResultSlot(missing)))
+        );
+
+        let empty = allocate_draw_result_slot(&mut world);
+        assert_that!(
+            take_draw_result(&mut world, empty),
+            err(eq(&ResolutionError::EmptyDrawResultSlot(empty)))
+        );
+        assert_that!(
+            take_draw_result(&mut world, empty),
+            err(eq(&ResolutionError::MissingDrawResultSlot(empty)))
+        );
+    }
+
+    #[googletest::test]
+    fn sequence_start_rejects_draw_slots_and_transform_timing_markers() {
+        let mut world = world();
+        let slot = allocate_draw_result_slot(&mut world);
+        assert_that!(
+            begin_sequence(&mut world),
+            err(eq(&ResolutionError::AlreadyResolving))
+        );
+
+        world
+            .resource_mut::<ResolutionWork>()
+            .draw_result_slots
+            .remove(&slot);
+        world
+            .resource_mut::<ResolutionWork>()
+            .pending_played_self_transforms
+            .insert(GameEntityId(7));
+        assert_that!(
+            begin_sequence(&mut world),
+            err(eq(&ResolutionError::AlreadyResolving))
+        );
+    }
+
+    #[googletest::test]
+    fn abandon_sequence_clears_draw_slots_and_transform_timing_markers() {
+        let mut world = world();
+        let slot = allocate_draw_result_slot(&mut world);
+        fill_draw_result_slot(&mut world, slot, DrawOutcome::Fatigue { amount: 1 }).unwrap();
+        world
+            .resource_mut::<ResolutionWork>()
+            .pending_played_self_transforms
+            .insert(GameEntityId(7));
+
+        abandon_sequence(&mut world);
+
+        let work = world.resource::<ResolutionWork>();
+        assert_that!(work.draw_result_slots, is_empty());
+        assert_that!(work.pending_played_self_transforms, is_empty());
+    }
+
+    #[googletest::test]
+    fn abandon_sequence_preserves_monotonic_resolution_id_allocation() {
+        let mut world = world();
+        begin_sequence(&mut world).unwrap();
+        let abandoned = push_resolution_op(&mut world, ResolutionOp::CheckOutcome);
+
+        abandon_sequence(&mut world);
+        begin_sequence(&mut world).unwrap();
+        let next = push_resolution_op(&mut world, ResolutionOp::CheckOutcome);
+
+        assert_that!(next.0, gt(abandoned.0));
+        assert_that!(next, eq(ResolutionId(abandoned.0 + 1)));
+    }
+
+    #[googletest::test]
+    fn idle_invariants_reject_draw_slots_and_transform_timing_markers() {
+        let mut world = world();
+        let slot = allocate_draw_result_slot(&mut world);
+        let idle_error = "idle resolution work retains operations, events, event slots, draw result slots, transform timing markers, or a choice".to_string();
+        assert_that!(assert_resolution_invariants(&world), err(eq(&idle_error)));
+
+        world
+            .resource_mut::<ResolutionWork>()
+            .draw_result_slots
+            .remove(&slot);
+        world
+            .resource_mut::<ResolutionWork>()
+            .pending_played_self_transforms
+            .insert(GameEntityId(7));
+        assert_that!(assert_resolution_invariants(&world), err(eq(&idle_error)));
+    }
+
+    #[googletest::test]
     fn sequence_start_and_resolution_invariants_reject_inconsistent_work() {
         let mut world = world();
         begin_sequence(&mut world).unwrap();
@@ -271,7 +446,7 @@ mod tests {
         assert_that!(
             assert_resolution_invariants(&world),
             err(eq(
-                &"idle resolution work retains operations, events, slots, or a choice".to_string()
+                &"idle resolution work retains operations, events, event slots, draw result slots, transform timing markers, or a choice".to_string()
             ))
         );
 

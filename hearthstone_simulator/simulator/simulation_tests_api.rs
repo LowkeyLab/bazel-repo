@@ -1,10 +1,91 @@
 use googletest::prelude::*;
 
+use super::effect_executor::copy_entity;
+use super::player::process_draw;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    EnchantmentDuration, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
-    Player, SilenceRemovable,
+    AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
+    DrawOutcome, DrawRequest, DrawResultSlot, DrawResultSlotId, EnchantmentDuration,
+    GameEntityCheckpoint, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
+    Player, SequenceStep, SilenceRemovable, TransformKind, resolver::allocate_draw_result_slot,
 };
+
+fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: ResolutionOp) {
+    let id = checkpoint.resolution.next_resolution_id;
+    checkpoint.resolution.next_resolution_id += 1;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(id),
+        operation,
+    });
+    checkpoint.resolution.remaining_budget = checkpoint.ruleset.resolution_budget;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+}
+
+fn checkpoint_with_retained_continuation(effect: Effect) -> SimulationCheckpoint {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint.entities[0].id;
+    let result = DrawResultSlotId(0);
+    checkpoint.resolution.next_draw_result_slot_id = 1;
+    checkpoint
+        .resolution
+        .draw_result_slots
+        .insert(result, DrawResultSlot::default());
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::ContinueDraw {
+            result,
+            context: EffectContext {
+                source: Some(source),
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            effects: vec![effect],
+            policy: DrawContinuationPolicy::RunWithoutCard,
+        },
+    );
+    checkpoint
+}
+
+fn checkpoint_with_play_minion() -> (SimulationCheckpoint, GameEntityId) {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Retained source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    (simulation.checkpoint().unwrap(), source)
+}
+
+fn retained_played_self_effect(source: GameEntityId) -> ResolutionOp {
+    ResolutionOp::RunEffect {
+        context: EffectContext {
+            source: Some(source),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        effect: Effect::Transform {
+            targets: Selector::Source,
+            card: Card::minion("Retained replacement", 0, 2, 2),
+            kind: TransformKind::PlayedSelf,
+        },
+        event: None,
+    }
+}
+
+fn retained_played_self_finish(subject: GameEntityId) -> ResolutionOp {
+    ResolutionOp::FinishPlayedSelfTransform {
+        subject,
+        original_after_play: Vec::new(),
+    }
+}
 
 #[googletest::test]
 fn fork_replays_to_an_equivalent_snapshot_and_trace() {
@@ -34,7 +115,26 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
     ]);
     let world = simulation.app.world_mut();
     world.resource_mut::<Ruleset>().hand_limit = 0;
-    draw_card(world, PlayerId::One).unwrap();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+    world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
     assert_that!(
         world
             .resource::<ZoneIndex>()
@@ -42,7 +142,6 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
             .len(),
         eq(1)
     );
-    draw_card(world, PlayerId::One).unwrap();
     assert_that!(player(world, PlayerId::One).unwrap().1.fatigue, eq(1));
 
     let first_hero = hero_id(world, PlayerId::One).unwrap();
@@ -84,11 +183,45 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
         err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
     );
     assert_that!(
-        transform_entity(world, GameEntityId(999), Card::minion("Missing", 0, 1, 1)),
+        transform_entity(
+            world,
+            GameEntityId(999),
+            Card::minion("Missing", 0, 1, 1),
+            crate::TransformKind::Spell,
+        ),
         err(eq(&SimulationError::EntityNotFound(GameEntityId(999))))
     );
     assert_that!(copy_card_data(world, GameEntityId(999)), none());
     assert_that!(hero_id(world, PlayerId::One), eq(Some(first_hero)));
+}
+
+#[googletest::test]
+fn fatigue_above_i32_max_is_atomic() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::with_deck("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let world = simulation.app.world_mut();
+    let player_entity = player(world, PlayerId::One).unwrap().0;
+    world.get_mut::<Player>(player_entity).unwrap().fatigue = i32::MAX as u32;
+    begin_sequence(world).unwrap();
+    let result = allocate_draw_result_slot(world);
+    let before = build_checkpoint(world).unwrap();
+
+    assert_that!(
+        process_draw(
+            world,
+            DrawRequest {
+                player: PlayerId::One,
+                source: None,
+                result,
+            },
+        ),
+        err(eq(&SimulationError::Invariant(
+            "fatigue damage exceeds i32".to_string()
+        )))
+    );
+    assert_that!(build_checkpoint(world).unwrap(), eq(&before));
 }
 
 #[googletest::test]
@@ -126,6 +259,7 @@ fn choice_suspension_retains_lower_stack_work_and_resumes_selected_branch_first(
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     let choice = ChoiceId(7);
@@ -528,7 +662,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
 }
 
 #[googletest::test]
-fn schema_six_json_roundtrip_preserves_trigger_enchantment_payloads() {
+fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
     let trigger = crate::TriggerDefinition {
         event: EventKind::Damage,
         eligible_zones: vec![Zone::Play],
@@ -566,6 +700,7 @@ fn schema_six_json_roundtrip_preserves_trigger_enchantment_payloads() {
                 source: None,
                 controller,
                 declared_target: None,
+                drawn_card: None,
                 origin: EffectOrigin::Other,
             },
             &Effect::AttachTriggerEnchantment {
@@ -607,7 +742,7 @@ fn schema_six_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(6));
+    assert_that!(checkpoint.schema_version, eq(7));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
@@ -690,6 +825,7 @@ fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantm
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachTriggerEnchantment {
@@ -757,7 +893,7 @@ fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantm
 }
 
 #[googletest::test]
-fn checkpoints_reject_enchantments_without_durations_and_schema_version_five() {
+fn checkpoints_reject_enchantments_without_durations_and_schema_version_six() {
     let mut simulation = simulation();
     let target = hand_card(&mut simulation, PlayerId::One);
     attach_stat_modifier(
@@ -802,11 +938,11 @@ fn checkpoints_reject_enchantments_without_durations_and_schema_version_five() {
     );
 
     let mut old_schema = simulation.checkpoint().unwrap();
-    old_schema.schema_version = 5;
+    old_schema.schema_version = 6;
     assert_that!(
         Simulation::from_checkpoint(old_schema).map(|_| ()),
         err(matches_pattern!(SimulationError::Checkpoint(
-            contains_substring("unsupported checkpoint schema version 5")
+            contains_substring("unsupported checkpoint schema version 6")
         ))),
     );
 }
@@ -922,6 +1058,427 @@ fn checkpoints_reject_non_monotonic_resolution_counters() {
 }
 
 #[googletest::test]
+fn checkpoints_reject_stale_draw_slot_counters() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let slot = DrawResultSlotId(4);
+    checkpoint.resolution.next_draw_result_slot_id = slot.0;
+    checkpoint
+        .resolution
+        .draw_result_slots
+        .insert(slot, DrawResultSlot::default());
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+
+    assert_that!(
+        Simulation::from_checkpoint(decoded).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("next draw result slot ID 4 does not exceed highest retained ID 4")
+        ))),
+    );
+}
+
+#[googletest::test]
+fn checkpoint_roundtrip_resumes_a_suspended_pending_draw_continuation() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint.entities[0].id;
+    let slot = DrawResultSlotId(4);
+    let context = EffectContext {
+        source: Some(source),
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    let choice = ChoiceId(50);
+    let option = ChoiceId(51);
+    checkpoint.resolution.next_draw_result_slot_id = 5;
+    checkpoint
+        .resolution
+        .draw_result_slots
+        .insert(slot, DrawResultSlot::default());
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(7),
+        operation: ResolutionOp::ContinueDraw {
+            result: slot,
+            context,
+            effects: vec![Effect::GainResource {
+                player: PlayerSelector::Controller,
+                amount: 1,
+                temporary: true,
+            }],
+            policy: DrawContinuationPolicy::RequireCard,
+        },
+    });
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(8),
+        operation: ResolutionOp::ProcessDraw(DrawRequest {
+            player: PlayerId::One,
+            source: Some(source),
+            result: slot,
+        }),
+    });
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(9),
+        operation: ResolutionOp::RequestChoice(ChoiceRequest {
+            id: choice,
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: option,
+                operations: vec![ResolutionOp::CheckOutcome],
+            }],
+        }),
+    });
+    checkpoint.resolution.next_resolution_id = 10;
+    checkpoint.resolution.remaining_budget = checkpoint.ruleset.resolution_budget;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+    let mut original = Simulation::from_checkpoint(decoded).unwrap();
+    drive_resolution(original.app.world_mut()).unwrap();
+    assert_that!(original.pending_choice().unwrap().request.id, eq(choice));
+    let suspended = original.checkpoint().unwrap();
+    let json = suspended.to_json().unwrap();
+    let mut restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+
+    original.choose(option).unwrap();
+    restored.choose(option).unwrap();
+
+    assert_that!(restored.snapshot(), eq(&original.snapshot()));
+    assert_that!(restored.trace(), eq(original.trace()));
+    assert_that!(
+        restored.checkpoint().unwrap(),
+        eq(&original.checkpoint().unwrap())
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_or_non_monotonic_draw_slot_references() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let source = base.entities[0].id;
+    let slot = DrawResultSlotId(4);
+    let context = EffectContext {
+        source: Some(source),
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    let operations = [
+        ResolutionOp::ProcessDraw(DrawRequest {
+            player: PlayerId::One,
+            source: Some(source),
+            result: slot,
+        }),
+        ResolutionOp::FinishDraw(slot),
+        ResolutionOp::ContinueDraw {
+            result: slot,
+            context,
+            effects: Vec::new(),
+            policy: DrawContinuationPolicy::RequireCard,
+        },
+    ];
+
+    for operation in operations {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.next_draw_result_slot_id = 5;
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+        let json = checkpoint.to_json().unwrap();
+        let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+
+        assert_that!(
+            Simulation::from_checkpoint(decoded).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(
+                contains_substring("missing draw result slot DrawResultSlotId(4)")
+            ))),
+        );
+    }
+
+    let mut checkpoint = base;
+    checkpoint.resolution.next_draw_result_slot_id = 4;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::ProcessDraw(DrawRequest {
+            player: PlayerId::One,
+            source: Some(source),
+            result: slot,
+        }),
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("draw result slot ID 4 is not below next ID 4")
+        ))),
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_event_and_event_slot_operation_references() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let source = base.entities[0].id;
+    let context = EffectContext {
+        source: Some(source),
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    let missing_event = EventId(3);
+    let missing_slot = EventSlotId(4);
+    let operations = [
+        ResolutionOp::ResolveEvent(missing_event),
+        ResolutionOp::FinishEvent(missing_event),
+        ResolutionOp::RunEffect {
+            context,
+            effect: Effect::GainResource {
+                player: PlayerSelector::Controller,
+                amount: 1,
+                temporary: true,
+            },
+            event: Some(missing_event),
+        },
+        ResolutionOp::ResolveEventSlot(missing_slot),
+        ResolutionOp::ProcessDamage {
+            request: DamageRequest {
+                source: Some(source),
+                target: source,
+                proposed: 1,
+            },
+            actual_event: missing_slot,
+            ordinal: 0,
+        },
+    ];
+
+    for operation in operations {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.next_event_id = 5;
+        checkpoint.resolution.next_event_slot_id = 5;
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(anything()))),
+        );
+    }
+
+    let mut checkpoint = base;
+    checkpoint.resolution.next_event_id = 5;
+    checkpoint.resolution.event_slots.insert(
+        EventSlotId(0),
+        PreparedEventSlot {
+            event: Some(missing_event),
+        },
+    );
+    checkpoint.resolution.next_event_slot_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("missing prepared event EventId(3)")
+        ))),
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_dangling_resolution_entity_references_recursively() {
+    let simulation = simulation();
+    let base = simulation.checkpoint().unwrap();
+    let valid = base.entities[0].id;
+    let missing = GameEntityId(u64::MAX);
+    let context = |source, declared_target, drawn_card| EffectContext {
+        source,
+        controller: PlayerId::One,
+        declared_target,
+        drawn_card,
+        origin: EffectOrigin::Other,
+    };
+    let operations = vec![
+        ResolutionOp::RunSequenceStep(SequenceStep::PlayCard {
+            player: PlayerId::One,
+            card: missing,
+            target: None,
+            board_index: None,
+        }),
+        ResolutionOp::RefreshAuras(AuraRefreshPlan::PlayedProvider(missing)),
+        ResolutionOp::PrepareEvent(EventContext {
+            kind: EventKind::Damage,
+            source: Some(missing),
+            targets: vec![valid],
+            controller: PlayerId::One,
+            proposed_value: None,
+            actual_value: None,
+            simultaneous_ordinal: 0,
+        }),
+        ResolutionOp::RunEffect {
+            context: context(Some(missing), None, None),
+            effect: Effect::GainResource {
+                player: PlayerSelector::Controller,
+                amount: 1,
+                temporary: true,
+            },
+            event: None,
+        },
+        ResolutionOp::RunEffect {
+            context: context(Some(valid), Some(missing), None),
+            effect: Effect::GainResource {
+                player: PlayerSelector::Controller,
+                amount: 1,
+                temporary: true,
+            },
+            event: None,
+        },
+        ResolutionOp::RunEffect {
+            context: context(Some(valid), None, Some(missing)),
+            effect: Effect::GainResource {
+                player: PlayerSelector::Controller,
+                amount: 1,
+                temporary: true,
+            },
+            event: None,
+        },
+        ResolutionOp::ProcessDamageBatch(vec![DamageRequest {
+            source: Some(valid),
+            target: missing,
+            proposed: 1,
+        }]),
+        ResolutionOp::ProcessDraw(DrawRequest {
+            player: PlayerId::One,
+            source: Some(missing),
+            result: DrawResultSlotId(0),
+        }),
+        ResolutionOp::TransformEntity {
+            target: missing,
+            source: Some(valid),
+            card: Card::minion("Future Transform", 1, 1, 1),
+            kind: crate::TransformKind::Spell,
+        },
+        ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(60),
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: ChoiceId(61),
+                operations: vec![ResolutionOp::RunEffect {
+                    context: context(Some(valid), None, None),
+                    effect: Effect::Sequence(vec![Effect::Destroy {
+                        targets: Selector::Random(Box::new(Selector::Entity(missing))),
+                    }]),
+                    event: None,
+                }],
+            }],
+        }),
+    ];
+
+    for operation in operations {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.next_draw_result_slot_id = 1;
+        checkpoint
+            .resolution
+            .draw_result_slots
+            .insert(DrawResultSlotId(0), DrawResultSlot::default());
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(
+                contains_substring("missing logical entity")
+            ))),
+        );
+    }
+
+    let mut event = base.clone();
+    event.resolution.events.insert(
+        EventId(0),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: Some(valid),
+                targets: vec![missing],
+                controller: PlayerId::One,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: None,
+        },
+    );
+    event.resolution.next_event_id = 1;
+    event.resolution.sequence_active = true;
+    event.game.status = SimulationStatus::Resolving;
+
+    let mut outcome = base.clone();
+    outcome.resolution.next_draw_result_slot_id = 1;
+    outcome.resolution.draw_result_slots.insert(
+        DrawResultSlotId(0),
+        DrawResultSlot {
+            outcome: Some(DrawOutcome::Drawn(missing)),
+        },
+    );
+    outcome.resolution.sequence_active = true;
+    outcome.game.status = SimulationStatus::Resolving;
+
+    let mut transform = base.clone();
+    transform
+        .resolution
+        .pending_played_self_transforms
+        .insert(missing);
+    transform.resolution.sequence_active = true;
+    transform.game.status = SimulationStatus::Resolving;
+
+    let mut card_program = base;
+    card_program
+        .entities
+        .iter_mut()
+        .find_map(|entity| entity.card_runtime.as_mut())
+        .unwrap()
+        .program = vec![Effect::Sequence(vec![Effect::Destroy {
+        targets: Selector::Entity(missing),
+    }])];
+
+    for checkpoint in [event, outcome, transform, card_program] {
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(
+                contains_substring("missing logical entity")
+            ))),
+        );
+    }
+}
+
+#[googletest::test]
 fn checkpoints_reject_invalid_versions_rng_entities_zones_and_enchantments() {
     let simulation = simulation();
     let base = simulation.checkpoint().unwrap();
@@ -1019,6 +1576,7 @@ fn checkpoints_reject_cost_modifiers_without_play_order() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachCostModifier {
@@ -1062,6 +1620,7 @@ fn checkpoints_reject_stale_play_order_counters() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachCostModifier {
@@ -1258,6 +1817,7 @@ fn pending_choice_programs_are_validated_during_restoration() {
                         source: None,
                         controller: PlayerId::One,
                         declared_target: None,
+                        drawn_card: None,
                         origin: EffectOrigin::Other,
                     },
                     effect: Effect::Native(missing.clone()),
@@ -1274,6 +1834,565 @@ fn pending_choice_programs_are_validated_during_restoration() {
             Err(SimulationError::NativeEffectNotRegistered(id)) if id == missing
         ),
         is_true()
+    );
+}
+
+#[googletest::test]
+fn played_self_finish_barrier_programs_are_validated_during_restoration() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint.entities[0].id;
+    let missing = NativeEffectId::new("missing:played_self_finish");
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::FinishPlayedSelfTransform {
+            subject: source,
+            original_after_play: vec![crate::TriggerSeed {
+                source,
+                definition_index: 0,
+                definition: crate::TriggerDefinition {
+                    event: EventKind::AfterPlay,
+                    eligible_zones: vec![Zone::Play],
+                    conditions: Vec::new(),
+                    source_eligibility: crate::SourceEligibilityPolicy::RememberedSource,
+                    priority: 0,
+                    wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+                    effect_program: vec![Effect::Native(missing.clone())],
+                },
+                controller: PlayerId::One,
+                zone: Zone::Play,
+                play_order: 0,
+            }],
+        },
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_then_programs_are_validated_during_restoration() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let missing = NativeEffectId::new("missing:retained_draw_continuation");
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::RunEffect {
+            context: EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            effect: Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![Effect::Native(missing.clone())],
+                policy: DrawContinuationPolicy::RequireCard,
+            },
+            event: None,
+        },
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_then_continuations_do_not_inherit_enclosing_event_context() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let event = EventId(0);
+    checkpoint.resolution.events.insert(
+        event,
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::ProposedDamage,
+                source: None,
+                targets: Vec::new(),
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: None,
+        },
+    );
+    checkpoint.resolution.next_event_id = 1;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::RunEffect {
+            context: EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            effect: Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![Effect::ModifyEventValue {
+                    operation: crate::EventValueOperation::Add,
+                    value: crate::ValueExpression::Constant(1),
+                }],
+                policy: DrawContinuationPolicy::RunWithoutCard,
+            },
+            event: Some(event),
+        },
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_continuations_reject_played_self_transforms() {
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint_with_retained_continuation(Effect::Transform {
+            targets: Selector::Source,
+            card: Card::minion("Invalid delayed replacement", 0, 1, 1),
+            kind: TransformKind::PlayedSelf,
+        }))
+        .map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_continuations_reject_missing_native_effects() {
+    let missing = NativeEffectId::new("missing:retained_continuation");
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint_with_retained_continuation(Effect::Native(
+            missing.clone(),
+        )))
+        .map(|_| ()),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_continuations_reject_event_only_modifiers() {
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint_with_retained_continuation(
+            Effect::ModifyEventValue {
+                operation: crate::EventValueOperation::Add,
+                value: crate::ValueExpression::Constant(1),
+            },
+        ))
+        .map(|_| ()),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+}
+
+#[googletest::test]
+fn retained_played_self_effect_rejects_a_barrier_above_it() {
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
+    retain_operation(&mut checkpoint, retained_played_self_effect(source));
+    retain_operation(&mut checkpoint, retained_played_self_finish(source));
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn nested_retained_effect_cannot_borrow_an_outer_play_barrier() {
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
+    retain_operation(&mut checkpoint, retained_played_self_finish(source));
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(70),
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: ChoiceId(71),
+                operations: vec![retained_played_self_effect(source)],
+            }],
+        }),
+    );
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_played_self_effect_rejects_a_non_minion_source() {
+    let mut spell_simulation = simulation();
+    let spell = spawn_card(
+        spell_simulation.app.world_mut(),
+        PlayerId::One,
+        Card::spell("Non-minion source", 0),
+        Zone::Hand,
+    )
+    .unwrap();
+    let mut checkpoint = spell_simulation.checkpoint().unwrap();
+    retain_operation(&mut checkpoint, retained_played_self_finish(spell));
+    retain_operation(&mut checkpoint, retained_played_self_effect(spell));
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_played_self_effect_round_trips_with_its_later_barrier() {
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
+    retain_operation(&mut checkpoint, retained_played_self_finish(source));
+    retain_operation(&mut checkpoint, retained_played_self_effect(source));
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+    assert_that!(
+        Simulation::from_checkpoint(decoded).map(|_| ()),
+        ok(anything())
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_semantically_invalid_retained_transform_and_copy_operations() {
+    let mut simulation = simulation();
+    let target = hand_card(&mut simulation, PlayerId::One);
+    let base = simulation.checkpoint().unwrap();
+    let missing = NativeEffectId::new("missing:retained_transform");
+    let operations = [
+        ResolutionOp::TransformEntity {
+            target,
+            source: None,
+            card: Card::spell("Invalid replacement role", 0),
+            kind: crate::TransformKind::Spell,
+        },
+        ResolutionOp::TransformEntity {
+            target,
+            source: None,
+            card: Card::minion("Invalid replacement program", 0, 1, 1)
+                .with_effects(vec![Effect::Native(missing)]),
+            kind: crate::TransformKind::Spell,
+        },
+        ResolutionOp::CopyEntity(CopyRequest {
+            source: target,
+            originating_source: None,
+            controller: PlayerId::One,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        }),
+    ];
+
+    for operation in operations {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(anything())
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoints_reject_retained_transforms_with_ineligible_targets_or_missing_components() {
+    let mut simulation = simulation();
+    let target = hand_card(&mut simulation, PlayerId::One);
+    let base = simulation.checkpoint().unwrap();
+
+    for mutate in [
+        |entity: &mut GameEntityCheckpoint| entity.kind = Some(EntityKind::Spell),
+        |entity: &mut GameEntityCheckpoint| entity.definition_id = None,
+    ] {
+        let mut checkpoint = base.clone();
+        mutate(
+            checkpoint
+                .entities
+                .iter_mut()
+                .find(|entity| entity.id == target)
+                .unwrap(),
+        );
+        retain_operation(
+            &mut checkpoint,
+            ResolutionOp::TransformEntity {
+                target,
+                source: None,
+                card: Card::minion("Valid replacement", 0, 2, 2),
+                kind: TransformKind::Spell,
+            },
+        );
+
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::InvalidTransformation(
+                anything()
+            )))
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoints_reject_retained_copies_with_invalid_position_current_form_or_program() {
+    let mut simulation = simulation();
+    let source = hand_card(&mut simulation, PlayerId::One);
+    let base = simulation.checkpoint().unwrap();
+    let request = CopyRequest {
+        source,
+        originating_source: None,
+        controller: PlayerId::Two,
+        destination: Zone::Play,
+        board_index: Some(999),
+        policy: CopyStatePolicy::CurrentForm,
+    };
+
+    let mut invalid_position = base.clone();
+    retain_operation(&mut invalid_position, ResolutionOp::CopyEntity(request));
+
+    let mut missing_current_form = base.clone();
+    missing_current_form
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == source)
+        .unwrap()
+        .base_stats = None;
+    retain_operation(
+        &mut missing_current_form,
+        ResolutionOp::CopyEntity(CopyRequest {
+            originating_source: None,
+            board_index: None,
+            ..request
+        }),
+    );
+
+    let mut invalid_program = base;
+    invalid_program
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == source)
+        .unwrap()
+        .card_runtime
+        .as_mut()
+        .unwrap()
+        .program = vec![Effect::Native(NativeEffectId::new(
+        "missing:retained_copy_program",
+    ))];
+    retain_operation(
+        &mut invalid_program,
+        ResolutionOp::CopyEntity(CopyRequest {
+            originating_source: None,
+            board_index: None,
+            ..request
+        }),
+    );
+
+    for checkpoint in [invalid_position, missing_current_form, invalid_program] {
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(anything())
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoints_reject_malformed_attachments_needed_by_retained_play_copies() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Attached source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let attachment = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment)
+        .unwrap()
+        .kind = Some(EntityKind::Spell);
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            originating_source: None,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        }),
+    );
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Invariant(
+            contains_substring("invalid attached enchantment")
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_copies_preserve_missing_source_no_op_semantics() {
+    let mut missing_source = simulation().checkpoint().unwrap();
+    retain_operation(
+        &mut missing_source,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source: GameEntityId(u64::MAX),
+            originating_source: None,
+            controller: PlayerId::One,
+            destination: Zone::Hand,
+            board_index: None,
+            policy: CopyStatePolicy::CurrentForm,
+        }),
+    );
+    let restored_missing = Simulation::from_checkpoint(missing_source.clone()).unwrap();
+    assert_that!(restored_missing.checkpoint().unwrap(), eq(&missing_source));
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_copy_originating_sources() {
+    let mut simulation = simulation();
+    let source = hand_card(&mut simulation, PlayerId::One);
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            originating_source: Some(GameEntityId(u64::MAX)),
+            controller: PlayerId::One,
+            destination: Zone::Hand,
+            board_index: None,
+            policy: CopyStatePolicy::CurrentForm,
+        }),
+    );
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("copy originating source")
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_copies_preserve_full_destination_no_op_precedence() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Malformed full-board source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let attachment = attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    for index in 0..7 {
+        spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::Two,
+            Card::minion(format!("Full board {index}"), 0, 1, 1),
+            Zone::Play,
+        )
+        .unwrap();
+    }
+    let mut full_destination = simulation.checkpoint().unwrap();
+    full_destination
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == source)
+        .unwrap()
+        .card_runtime
+        .as_mut()
+        .unwrap()
+        .program = vec![Effect::Native(NativeEffectId::new(
+        "missing:full_retained_copy",
+    ))];
+    full_destination
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment)
+        .unwrap()
+        .kind = Some(EntityKind::Spell);
+    retain_operation(
+        &mut full_destination,
+        ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            originating_source: None,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        }),
+    );
+
+    let restored_full = Simulation::from_checkpoint(full_destination.clone()).unwrap();
+    assert_that!(restored_full.checkpoint().unwrap(), eq(&full_destination));
+}
+
+#[googletest::test]
+fn checkpoints_reject_orphaned_played_self_transform_markers() {
+    let mut simulation = simulation();
+    let subject = hand_card(&mut simulation, PlayerId::One);
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint
+        .resolution
+        .pending_played_self_transforms
+        .insert(subject);
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("has no retained finish barrier")
+        )))
     );
 }
 
@@ -1342,6 +2461,7 @@ fn retained_event_and_operation_programs_are_validated_during_restoration() {
                     source: Some(source),
                     controller: PlayerId::One,
                     declared_target: Some(source),
+                    drawn_card: None,
                     origin: EffectOrigin::Other,
                 },
                 effect: Effect::GainResource {
@@ -1410,5 +2530,304 @@ fn spawn_and_index_helpers_report_cleanup_and_drift() {
     assert_that!(
         assert_game_entity_index(world),
         err(eq(&"not every GameObject is indexed".to_string()))
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_transform_references() {
+    let original = simulation();
+    let base = original.checkpoint().unwrap();
+    let valid = base.entities[0].id;
+    let missing = GameEntityId(u64::MAX);
+    let definition = crate::TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: crate::SourceEligibilityPolicy::RememberedSource,
+        priority: 0,
+        wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+        effect_program: Vec::new(),
+    };
+    let mut malformed = Vec::new();
+
+    for operation in [ResolutionOp::TransformEntity {
+        target: missing,
+        source: Some(valid),
+        card: Card::minion("Retained transform", 0, 1, 1),
+        kind: crate::TransformKind::Spell,
+    }] {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+        malformed.push(checkpoint);
+    }
+
+    let mut seed = base.clone();
+    seed.resolution.events.insert(
+        EventId(0),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: Some(valid),
+                targets: vec![valid],
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: Some(1),
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: Some(vec![crate::TriggerSeed {
+                source: missing,
+                definition_index: 0,
+                definition: definition.clone(),
+                controller: PlayerId::One,
+                zone: Zone::Play,
+                play_order: 0,
+            }]),
+            candidates: None,
+        },
+    );
+    seed.resolution.next_event_id = 1;
+    seed.resolution.sequence_active = true;
+    seed.game.status = SimulationStatus::Resolving;
+    malformed.push(seed);
+
+    let mut candidate = base;
+    candidate.resolution.events.insert(
+        EventId(0),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: Some(valid),
+                targets: vec![valid],
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: Some(1),
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: Some(vec![crate::TriggerCandidate {
+                source: valid,
+                event: EventId(0),
+                definition_index: 0,
+                definition,
+                controller: PlayerId::One,
+                order: crate::TriggerOrderKey {
+                    player_bucket: 0,
+                    zone_bucket: 0,
+                    priority: 0,
+                    play_order: 0,
+                    source: missing,
+                    tie_breaker: 0,
+                },
+            }]),
+        },
+    );
+    candidate.resolution.next_event_id = 1;
+    candidate.resolution.sequence_active = true;
+    candidate.game.status = SimulationStatus::Resolving;
+    malformed.push(candidate);
+
+    let mut copied = simulation();
+    let source = spawn_card(
+        copied.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Copy source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        copied.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    copy_entity(
+        copied.app.world_mut(),
+        CopyRequest {
+            source,
+            originating_source: None,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        },
+    )
+    .unwrap();
+    let copy = copied
+        .trace()
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EntityCopied { copy, .. } => Some(copy),
+            _ => None,
+        })
+        .copied()
+        .unwrap();
+    let copied_checkpoint = copied.checkpoint().unwrap();
+    let attachment_id = copied_checkpoint
+        .entities
+        .iter()
+        .find(|entity| entity.attached_to == Some(copy))
+        .unwrap()
+        .id;
+
+    let mut missing_relationship = copied_checkpoint.clone();
+    missing_relationship
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .attached_to = None;
+    malformed.push(missing_relationship);
+
+    let mut missing_duration = copied_checkpoint.clone();
+    missing_duration
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .enchantment_duration = None;
+    malformed.push(missing_duration);
+
+    let mut missing_play_order = copied_checkpoint.clone();
+    missing_play_order
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .play_order = None;
+    malformed.push(missing_play_order);
+
+    let mut missing_identity = copied_checkpoint.clone();
+    missing_identity
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .definition_id = None;
+    malformed.push(missing_identity);
+
+    let mut missing_payload = copied_checkpoint;
+    let attachment = missing_payload
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap();
+    attachment.stat_modifier = None;
+    attachment.keyword_modifier = None;
+    attachment.cost_modifier = None;
+    attachment.runtime_triggers = None;
+    attachment.runtime_continuous_effects = None;
+    malformed.push(missing_payload);
+
+    for checkpoint in malformed {
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(anything())))
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoint_fork_executes_retained_transform_equivalently() {
+    let mut original = simulation();
+    let target = hand_card(&mut original, PlayerId::One);
+    begin_sequence(original.app.world_mut()).unwrap();
+    original.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        original.app.world_mut(),
+        [ResolutionOp::TransformEntity {
+            target,
+            source: None,
+            card: Card::minion("Checkpoint replacement", 2, 4, 5),
+            kind: crate::TransformKind::Spell,
+        }],
+    );
+    let json = original.checkpoint().unwrap().to_json().unwrap();
+    let mut restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    let mut fork = restored.fork().unwrap();
+
+    drive_resolution(restored.app.world_mut()).unwrap();
+    drive_resolution(fork.app.world_mut()).unwrap();
+    finish_sequence(restored.app.world_mut());
+    finish_sequence(fork.app.world_mut());
+    restored.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+    fork.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+
+    assert_that!(restored.snapshot(), eq(&fork.snapshot()));
+    assert_that!(restored.trace(), eq(fork.trace()));
+    assert_that!(
+        assert_resolution_invariants(restored.app.world()),
+        ok(anything())
+    );
+}
+
+#[googletest::test]
+fn checkpoint_fork_executes_retained_play_copy_with_cloned_enchantments_equivalently() {
+    let mut original = simulation();
+    let source = spawn_card(
+        original.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Checkpoint copy source", 1, 3, 4),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        original.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 2,
+            health: 1,
+            silence_removable: true,
+        },
+        EnchantmentDuration::EndOfTurn(PlayerId::One),
+    )
+    .unwrap();
+    begin_sequence(original.app.world_mut()).unwrap();
+    original.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        original.app.world_mut(),
+        [ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            originating_source: Some(source),
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: Some(0),
+            policy: CopyStatePolicy::InPlayState,
+        })],
+    );
+    let json = original.checkpoint().unwrap().to_json().unwrap();
+    let mut restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    let mut fork = restored.fork().unwrap();
+
+    drive_resolution(restored.app.world_mut()).unwrap();
+    drive_resolution(fork.app.world_mut()).unwrap();
+    finish_sequence(restored.app.world_mut());
+    finish_sequence(fork.app.world_mut());
+    restored.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+    fork.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+
+    assert_that!(restored.snapshot(), eq(&fork.snapshot()));
+    assert_that!(restored.trace(), eq(fork.trace()));
+    assert_that!(
+        restored.checkpoint().unwrap(),
+        eq(&fork.checkpoint().unwrap())
+    );
+    assert_that!(
+        assert_resolution_invariants(restored.app.world()),
+        ok(anything())
     );
 }

@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    CanonicalTrace, ChoiceRequest, CurrentResolutionOp, DeathRecord, EffectContext, EventContext,
-    EventId, EventKind, GameState, PendingChoice, PhaseBoundaryPlan, PreparedEvent, ResolutionOp,
-    ResolutionWork, ResolvePhaseBoundary, SimulationStatus, TraceEntry,
+    CanonicalTrace, ChoiceRequest, Controller, CurrentResolutionOp, DeathRecord,
+    DrawContinuationPolicy, DrawOutcome, EffectContext, EventContext, EventId, EventKind,
+    GameEntityId, GameState, PendingChoice, PhaseBoundaryPlan, PreparedEvent, ResolutionOp,
+    ResolutionWork, ResolvePhaseBoundary, SimulationStatus, TraceEntry, TransformKind, TriggerSeed,
+    Zone,
     death::take_pending_deaths,
     entity::game_entity,
     resolver::{push_resolution_op, push_resolution_ops},
@@ -14,13 +16,15 @@ use crate::{
 
 use super::{
     action::run_sequence_step,
-    effect_executor::{execute_effect_operation, push_effects},
+    effect_executor::{
+        copy_entity, copy_state_policy, execute_effect_operation, push_effects, transform_entity,
+    },
     error::SimulationError,
     health::{
         apply_prepared_damage, apply_prepared_healing, expand_damage_batch, expand_healing_batch,
         process_damage, process_healing,
     },
-    player::check_outcome,
+    player::{check_outcome, process_draw},
 };
 
 #[derive(Default, Resource)]
@@ -132,6 +136,81 @@ fn execute_resolution_op(
             actual_event,
             ordinal,
         } => apply_prepared_healing(world, request, proposed_event, actual_event, ordinal),
+        ResolutionOp::ProcessDraw(request) => process_draw(world, request),
+        ResolutionOp::FinishDraw(result) => {
+            crate::resolver::take_draw_result(world, result)?;
+            Ok(())
+        }
+        ResolutionOp::ContinueDraw {
+            result,
+            mut context,
+            effects,
+            policy,
+        } => {
+            let outcome = crate::resolver::take_draw_result(world, result)?;
+            match outcome {
+                DrawOutcome::Drawn(card) => {
+                    context.drawn_card = Some(card);
+                    push_effects(world, &context, &effects, None);
+                }
+                DrawOutcome::Burned(_) | DrawOutcome::Fatigue { .. } => {
+                    if policy == DrawContinuationPolicy::RunWithoutCard {
+                        context.drawn_card = None;
+                        push_effects(world, &context, &effects, None);
+                    }
+                }
+            }
+            Ok(())
+        }
+        ResolutionOp::TransformEntity {
+            target,
+            source,
+            card,
+            kind,
+        } => {
+            if kind == TransformKind::PlayedSelf
+                && (source != Some(target) || !played_self_finish_barrier_remains(world, target))
+            {
+                return Err(SimulationError::InvalidTransformation(format!(
+                    "played-self target {target:?} requires itself as source and a finish barrier"
+                )));
+            }
+            transform_entity(world, target, card, kind)?;
+            match kind {
+                TransformKind::Spell => {}
+                TransformKind::NonSpell => {
+                    push_resolution_op(
+                        world,
+                        ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon),
+                    );
+                }
+                TransformKind::PlayedSelf => {
+                    world
+                        .resource_mut::<ResolutionWork>()
+                        .pending_played_self_transforms
+                        .insert(target);
+                }
+            }
+            Ok(())
+        }
+        ResolutionOp::FinishPlayedSelfTransform {
+            subject,
+            original_after_play,
+        } => finish_played_self_transform(world, subject, original_after_play),
+        ResolutionOp::CopyEntity(mut request) => {
+            // Restoration validates serialized policy against checkpoint state. Nested work may
+            // legally move a source before this operation executes, so dispatch uses live state.
+            if let Some(source) = game_entity(world, request.source) {
+                let source_zone = world.get::<Zone>(source).copied().ok_or_else(|| {
+                    SimulationError::Invariant(format!(
+                        "copy source {:?} lacks required Zone component",
+                        request.source
+                    ))
+                })?;
+                request.policy = copy_state_policy(source_zone, request.destination);
+            }
+            copy_entity(world, request)
+        }
         ResolutionOp::RequestChoice(request) => {
             request_choice(world, request);
             Ok(())
@@ -141,6 +220,14 @@ fn execute_resolution_op(
 
 pub(super) fn prepare_event(world: &mut World, context: EventContext) -> EventId {
     record_event(world, context, None)
+}
+
+pub(super) fn prepare_event_with_seeds(
+    world: &mut World,
+    context: EventContext,
+    seeds: Vec<TriggerSeed>,
+) -> EventId {
+    record_event(world, context, Some(seeds))
 }
 
 fn prepare_prechecked_event(world: &mut World, context: EventContext) -> EventId {
@@ -175,6 +262,62 @@ fn record_event(
     );
     debug_assert!(previous.is_none());
     event
+}
+
+fn played_self_finish_barrier_remains(world: &World, subject: GameEntityId) -> bool {
+    world
+        .resource::<ResolutionWork>()
+        .stack
+        .iter()
+        .any(|stacked| {
+            matches!(
+                &stacked.operation,
+                ResolutionOp::FinishPlayedSelfTransform {
+                    subject: barrier_subject,
+                    ..
+                } if *barrier_subject == subject
+            )
+        })
+}
+
+fn finish_played_self_transform(
+    world: &mut World,
+    subject: GameEntityId,
+    original_after_play: Vec<TriggerSeed>,
+) -> Result<(), SimulationError> {
+    if !world
+        .resource_mut::<ResolutionWork>()
+        .pending_played_self_transforms
+        .remove(&subject)
+    {
+        return Ok(());
+    }
+    let entity = game_entity(world, subject).ok_or(SimulationError::EntityNotFound(subject))?;
+    let controller = world
+        .get::<Controller>(entity)
+        .ok_or(SimulationError::EntityNotFound(subject))?
+        .0;
+    let context = |kind| EventContext {
+        kind,
+        source: Some(subject),
+        targets: vec![subject],
+        controller,
+        proposed_value: None,
+        actual_value: None,
+        simultaneous_ordinal: 0,
+    };
+    let inserted_event = prepare_event(world, context(EventKind::AfterPlayAndSummon));
+    let original_after_play_event =
+        prepare_event_with_seeds(world, context(EventKind::AfterPlay), original_after_play);
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::ResolveEvent(inserted_event),
+            ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+            ResolutionOp::ResolveEvent(original_after_play_event),
+        ],
+    );
+    Ok(())
 }
 
 pub(super) fn take_prepared_event(
@@ -253,6 +396,7 @@ fn attempt_trigger(
         source: game_entity(world, candidate.source).map(|_| candidate.source),
         controller: candidate.controller,
         declared_target: event.targets.first().copied(),
+        drawn_card: None,
         origin: crate::EffectOrigin::Other,
     };
     push_resolution_op(

@@ -1,31 +1,36 @@
 use bevy::prelude::*;
 
 use crate::{
-    Armor, AttachedTo, AttackState, BaseKeywords, BaseStats, CanonicalTrace, Card, Controller,
-    CostModifier, CurrentStats, Damage, DamageRequest, DefinitionId, DisplayName, Effect,
-    EffectContext, EnchantmentDuration, EntityKind, EventId, EventKind, EventValueOperation,
-    GameEntityId, HealingRequest, HeroClassPolicy, HeroHealthPolicy, HeroMetadata, HeroPowerState,
-    HeroReplacement, KeywordModifier, Keywords, PendingDestroy, PlayerId, PlayerSelector,
-    ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers,
-    Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier, TraceEntry,
-    ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
-    enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
-    entity::{allocate_game_id, allocate_play_order, game_entity},
+    Abilities, Armor, AttachedTo, AttackAuraCache, AttackState, BaseKeywords, BaseStats,
+    CanonicalTrace, Card, Controller, CopyRequest, CopyStatePolicy, CostModifier, CurrentStats,
+    Damage, DamageRequest, DeathRecord, DefinitionId, DisplayName, DrawRequest, Effect,
+    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventId, EventKind,
+    EventValueOperation, GameEntityId, HealingRequest, HealthAuraCache, HeroClassPolicy,
+    HeroHealthPolicy, HeroMetadata, HeroPowerState, HeroReplacement, KeepEnchantments,
+    KeywordModifier, Keywords, OtherAuraCache, PendingDestroy, PlayOrder, Player, PlayerId,
+    PlayerSelector, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras, RuntimeContinuousEffects,
+    RuntimeTriggers, Selector, SilenceRemovable, Silenced, SourceEligibilityPolicy, StatModifier,
+    TraceEntry, TransformKind, ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest,
+    ZoneMovementKind, ZonePosition,
+    enchantment::{
+        recalculate_cost, recalculate_keywords, recalculate_stats, spawn_attached_enchantment,
+    },
+    entity::{allocate_play_order, game_entity},
     native_effect::NativeEffectRegistry,
-    resolver::push_resolution_ops,
+    resolver::{allocate_draw_result_slot, push_resolution_ops},
     rng::choose_game_entity,
     zone::{
-        ZoneIndex, board_is_full, insert_into_zone, move_entity, move_entity_with_request,
+        ZoneError, ZoneIndex, board_is_full, move_entity, move_entity_with_request,
         validate_board_position,
     },
 };
 
 use super::{
-    card_runtime::{CardRuntime, spawn_card},
+    card_runtime::{CardRuntime, spawn_card, spawn_card_at, validate_card_spawn},
     error::SimulationError,
     event_resolver::prepare_event,
     health::{SimultaneousEventOrder, apply_damage_batch, apply_healing_batch},
-    player::{draw_card, hero_id, player_mut},
+    player::{hero_id, player_mut},
 };
 
 #[cfg(test)]
@@ -122,24 +127,58 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
-        Effect::Draw { player, count } if *count > 1 => {
-            push_effects(
-                world,
-                context,
-                &(0..*count)
-                    .map(|_| Effect::Draw {
-                        player: *player,
-                        count: 1,
-                    })
-                    .collect::<Vec<_>>(),
-                event,
-            );
+        Effect::Draw { player, count } => {
+            let player = resolve_player(context.controller, *player);
+            let source = context.source;
+            let required_operations = usize::try_from(*count)
+                .ok()
+                .and_then(|count| count.checked_mul(2));
+            let remaining_budget = world.resource::<ResolutionWork>().remaining_budget;
+            let Some(required_operations) =
+                required_operations.filter(|required| *required <= remaining_budget)
+            else {
+                return Err(
+                    crate::resolver::ResolutionError::BudgetExhausted { operation: None }.into(),
+                );
+            };
+            let mut operations = Vec::with_capacity(required_operations);
+            for _ in 0..*count {
+                let result = allocate_draw_result_slot(world);
+                operations.extend([
+                    ResolutionOp::ProcessDraw(DrawRequest {
+                        player,
+                        source,
+                        result,
+                    }),
+                    ResolutionOp::FinishDraw(result),
+                ]);
+            }
+            push_resolution_ops(world, operations);
             Ok(())
         }
-        Effect::Draw { player, count } => {
-            if *count == 1 {
-                draw_card(world, resolve_player(context.controller, *player))?;
-            }
+        Effect::DrawThen {
+            player,
+            effects,
+            policy,
+        } => {
+            let player = resolve_player(context.controller, *player);
+            let result = allocate_draw_result_slot(world);
+            push_resolution_ops(
+                world,
+                [
+                    ResolutionOp::ProcessDraw(DrawRequest {
+                        player,
+                        source: context.source,
+                        result,
+                    }),
+                    ResolutionOp::ContinueDraw {
+                        result,
+                        context: context.clone(),
+                        effects: effects.clone(),
+                        policy: *policy,
+                    },
+                ],
+            );
             Ok(())
         }
         Effect::Move {
@@ -346,21 +385,58 @@ pub(super) fn execute_effect_operation(
             }
             Ok(())
         }
-        Effect::Transform { targets, card } => {
-            for target in select_entities(world, context, targets) {
-                transform_entity(world, target, card.clone())?;
-            }
+        Effect::Transform {
+            targets,
+            card,
+            kind,
+        } => {
+            let targets = select_entities(world, context, targets);
+            push_resolution_ops(
+                world,
+                targets
+                    .into_iter()
+                    .map(|target| ResolutionOp::TransformEntity {
+                        target,
+                        source: context.source,
+                        card: card.clone(),
+                        kind: *kind,
+                    }),
+            );
             Ok(())
         }
         Effect::Copy {
             targets,
             player,
             zone,
+            board_index,
         } => {
             let controller = resolve_player(context.controller, *player);
+            let mut requests = Vec::new();
             for target in select_entities(world, context, targets) {
-                copy_entity(world, target, controller, *zone);
+                let source_zone = game_entity(world, target)
+                    .map(|entity| {
+                        world.get::<Zone>(entity).copied().ok_or_else(|| {
+                            SimulationError::Invariant(format!(
+                                "copy source {target:?} lacks required Zone component"
+                            ))
+                        })
+                    })
+                    .transpose()?;
+                let policy = if source_zone == Some(Zone::Play) && *zone == Zone::Play {
+                    CopyStatePolicy::InPlayState
+                } else {
+                    CopyStatePolicy::CurrentForm
+                };
+                requests.push(ResolutionOp::CopyEntity(CopyRequest {
+                    source: target,
+                    originating_source: context.source,
+                    controller,
+                    destination: *zone,
+                    board_index: *board_index,
+                    policy,
+                }));
             }
+            push_resolution_ops(world, requests);
             Ok(())
         }
         Effect::Native(id) => {
@@ -402,6 +478,22 @@ pub(super) fn validate_effect_program(
     effects: &[Effect],
     event: Option<EventKind>,
 ) -> Result<(), SimulationError> {
+    validate_effect_program_with_played_self(world, effects, event, false)
+}
+
+pub(super) fn validate_play_effect_program(
+    world: &World,
+    effects: &[Effect],
+) -> Result<(), SimulationError> {
+    validate_effect_program_with_played_self(world, effects, None, true)
+}
+
+fn validate_effect_program_with_played_self(
+    world: &World,
+    effects: &[Effect],
+    event: Option<EventKind>,
+    allow_played_self: bool,
+) -> Result<(), SimulationError> {
     for effect in effects {
         match effect {
             Effect::Native(id) if !world.resource::<NativeEffectRegistry>().0.contains_key(id) => {
@@ -415,7 +507,22 @@ pub(super) fn validate_effect_program(
             {
                 return Err(SimulationError::NoModifiableEventValue);
             }
-            Effect::Sequence(nested) => validate_effect_program(world, nested, event)?,
+            Effect::Transform {
+                targets,
+                kind: TransformKind::PlayedSelf,
+                ..
+            } if !allow_played_self || targets != &Selector::Source => {
+                return Err(SimulationError::InvalidTransformation(
+                    "played-self transforms require a minion play program and Source target"
+                        .to_string(),
+                ));
+            }
+            Effect::DrawThen {
+                effects: nested, ..
+            } => validate_effect_program_with_played_self(world, nested, None, false)?,
+            Effect::Sequence(nested) => {
+                validate_effect_program_with_played_self(world, nested, event, allow_played_self)?;
+            }
             Effect::Summon { card, .. } | Effect::Transform { card, .. } => {
                 validate_card_program(world, card)?;
             }
@@ -429,6 +536,18 @@ pub(super) fn validate_effect_program(
         }
     }
     Ok(())
+}
+
+pub(super) fn contains_played_self_transform(effects: &[Effect]) -> bool {
+    effects.iter().any(|effect| match effect {
+        Effect::Transform {
+            targets: Selector::Source,
+            kind: TransformKind::PlayedSelf,
+            ..
+        } => true,
+        Effect::Sequence(nested) => contains_played_self_transform(nested),
+        _ => false,
+    })
 }
 
 pub(super) fn validate_trigger_enchantment(
@@ -462,7 +581,12 @@ pub(super) fn validate_trigger_enchantment(
 }
 
 fn validate_card_program(world: &World, card: &Card) -> Result<(), SimulationError> {
-    validate_effect_program(world, &card.effects, None)?;
+    validate_effect_program_with_played_self(
+        world,
+        &card.effects,
+        None,
+        card.kind == EntityKind::Minion,
+    )?;
     for trigger in &card.triggers {
         validate_effect_program(world, &trigger.effect_program, Some(trigger.event))?;
     }
@@ -803,39 +927,6 @@ pub(super) fn attach_continuous_effect(
     Ok(())
 }
 
-fn spawn_attached_enchantment(
-    world: &mut World,
-    controller: PlayerId,
-    target: GameEntityId,
-    definition_id: &str,
-    display_name: &str,
-    duration: EnchantmentDuration,
-    silence_removable: bool,
-) -> Result<(GameEntityId, Entity), SimulationError> {
-    let target_entity =
-        game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
-    let id = allocate_game_id(world);
-    let order = allocate_play_order(world);
-    let entity = world
-        .spawn((
-            id,
-            DefinitionId(definition_id.to_string()),
-            EntityKind::Enchantment,
-            Controller(controller),
-            DisplayName(display_name.to_string()),
-            order,
-            duration,
-            AttachedTo(target_entity),
-        ))
-        .id();
-    if silence_removable {
-        world.entity_mut(entity).insert(SilenceRemovable);
-    }
-    insert_into_zone(world, id, controller, Zone::Play, None)
-        .expect("an attached enchantment must fit in the unbounded Play zone");
-    Ok((id, entity))
-}
-
 pub(super) fn silence_entity(
     world: &mut World,
     target: GameEntityId,
@@ -888,9 +979,51 @@ pub(super) fn transform_entity(
     world: &mut World,
     target: GameEntityId,
     card: Card,
+    kind: TransformKind,
 ) -> Result<(), SimulationError> {
-    detach_all_enchantments(world, target);
-    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let prepared = prepare_transform(world, target, &card)?;
+
+    for (_, id, controller, attachment) in prepared.attachments {
+        world.entity_mut(attachment).remove::<AttachedTo>();
+        move_entity_with_request(
+            world,
+            ZoneMoveRequest {
+                entity: id,
+                destination_controller: controller,
+                destination: Zone::RemovedFromGame,
+                position: None,
+                kind: ZoneMovementKind::DetachEnchantment,
+            },
+        )
+        .expect("prevalidated transform attachment move must succeed");
+    }
+
+    let replacement_definition = card.definition_id.clone();
+    let entity = game_entity(world, target).expect("validated transform target remains indexed");
+    world.entity_mut(entity).remove::<(
+        Abilities,
+        Armor,
+        AttackAuraCache,
+        AttackState,
+        DeathRecord,
+        Enchantments,
+        HealthAuraCache,
+        HeroMetadata,
+        HeroPowerState,
+        KeepEnchantments,
+        OtherAuraCache,
+        PendingDestroy,
+        Player,
+        Silenced,
+    )>();
+    world.entity_mut(entity).remove::<(
+        AttachedTo,
+        CostModifier,
+        EnchantmentDuration,
+        KeywordModifier,
+        SilenceRemovable,
+        StatModifier,
+    )>();
     world.entity_mut(entity).insert((
         DefinitionId(card.definition_id),
         DisplayName(card.name),
@@ -904,6 +1037,7 @@ pub(super) fn transform_entity(
             maximum_health: card.health,
         },
         Damage::default(),
+        AttackState::default(),
         BaseKeywords(card.keywords.clone()),
         Keywords(card.keywords.clone()),
         CardRuntime {
@@ -915,41 +1049,460 @@ pub(super) fn transform_entity(
         RuntimeAuras(card.auras),
         RuntimeContinuousEffects(card.continuous_effects),
     ));
-    world.entity_mut(entity).remove::<PendingDestroy>();
-    world.entity_mut(entity).remove::<Silenced>();
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EntityTransformed {
+            entity: target,
+            previous_definition: prepared.previous_definition,
+            replacement_definition,
+            kind,
+        });
     Ok(())
+}
+
+struct PreparedTransform {
+    previous_definition: String,
+    attachments: Vec<(u64, GameEntityId, PlayerId, Entity)>,
+}
+
+pub(super) fn validate_transform_request(
+    world: &World,
+    target: GameEntityId,
+    card: &Card,
+) -> Result<(), SimulationError> {
+    prepare_transform(world, target, card).map(drop)
+}
+
+fn prepare_transform(
+    world: &World,
+    target: GameEntityId,
+    card: &Card,
+) -> Result<PreparedTransform, SimulationError> {
+    let entity = game_entity(world, target).ok_or(SimulationError::EntityNotFound(target))?;
+    let target_kind =
+        required_transform_component::<EntityKind>(world, entity, target, "EntityKind")?;
+    if *target_kind != EntityKind::Minion {
+        return Err(SimulationError::InvalidTransformation(format!(
+            "target {target:?} must be a Minion"
+        )));
+    }
+    validate_transform_replacement(world, card)?;
+    let previous_definition =
+        required_transform_component::<DefinitionId>(world, entity, target, "DefinitionId")?
+            .0
+            .clone();
+    required_transform_component::<Controller>(world, entity, target, "Controller")?;
+    required_transform_component::<Zone>(world, entity, target, "Zone")?;
+    required_transform_component::<ZonePosition>(world, entity, target, "ZonePosition")?;
+    required_transform_component::<PlayOrder>(world, entity, target, "PlayOrder")?;
+    let mut attachments = world
+        .iter_entities()
+        .filter_map(|attachment| {
+            (attachment.get::<AttachedTo>().map(|attached| attached.0) == Some(entity))
+                .then_some(attachment.id())
+        })
+        .map(|attachment| {
+            let id = required_transform_component::<GameEntityId>(
+                world,
+                attachment,
+                target,
+                "attachment GameEntityId",
+            )?;
+            let controller = required_transform_component::<Controller>(
+                world,
+                attachment,
+                target,
+                "attachment Controller",
+            )?;
+            let order = required_transform_component::<PlayOrder>(
+                world,
+                attachment,
+                target,
+                "attachment PlayOrder",
+            )?;
+            let zone =
+                required_transform_component::<Zone>(world, attachment, target, "attachment Zone")?;
+            let position = required_transform_component::<ZonePosition>(
+                world,
+                attachment,
+                target,
+                "attachment ZonePosition",
+            )?;
+            if world
+                .resource::<ZoneIndex>()
+                .entities(controller.0, *zone)
+                .get(position.0)
+                != Some(id)
+            {
+                return Err(SimulationError::InvalidTransformation(format!(
+                    "target {target:?} has an attachment with an invalid zone index entry"
+                )));
+            }
+            Ok((order.0, *id, controller.0, attachment))
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    attachments.sort_by_key(|(order, id, _, _)| (*order, *id));
+    Ok(PreparedTransform {
+        previous_definition,
+        attachments,
+    })
+}
+
+pub(super) fn validate_transform_replacement(
+    world: &World,
+    card: &Card,
+) -> Result<(), SimulationError> {
+    if card.kind != EntityKind::Minion {
+        return Err(SimulationError::InvalidTransformation(format!(
+            "replacement must be a Minion, not {:?}",
+            card.kind
+        )));
+    }
+    validate_card_program(world, card)
+}
+
+fn required_transform_component<'a, T: Component>(
+    world: &'a World,
+    entity: Entity,
+    target: GameEntityId,
+    name: &str,
+) -> Result<&'a T, SimulationError> {
+    world.get::<T>(entity).ok_or_else(|| {
+        SimulationError::InvalidTransformation(format!(
+            "target {target:?} lacks required {name} component"
+        ))
+    })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CopySnapshot {
     card: Card,
-    source_zone: Zone,
-    silenced: bool,
+    play_state: Option<PlayCopySnapshot>,
 }
 
-fn copy_entity(world: &mut World, source: GameEntityId, controller: PlayerId, destination: Zone) {
-    let Some(snapshot) = capture_copy_snapshot(world, source) else {
-        return;
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PlayCopySnapshot {
+    damage: Damage,
+    silenced: bool,
+    pending_destroy: bool,
+    attachments: Vec<AttachmentCopySnapshot>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AttachmentCopySnapshot {
+    definition_id: String,
+    display_name: String,
+    duration: EnchantmentDuration,
+    silence_removable: bool,
+    stat_modifier: Option<StatModifier>,
+    keyword_modifier: Option<KeywordModifier>,
+    cost_modifier: Option<CostModifier>,
+    runtime_triggers: Option<RuntimeTriggers>,
+    runtime_continuous_effects: Option<RuntimeContinuousEffects>,
+}
+
+pub(super) fn copy_entity(world: &mut World, request: CopyRequest) -> Result<(), SimulationError> {
+    let Some(snapshot) = prepare_copy(world, &request)? else {
+        return Ok(());
     };
-    let Ok(copy) = spawn_card(world, controller, snapshot.card, destination) else {
-        return;
+    let copy = match spawn_card_at(
+        world,
+        request.controller,
+        snapshot.card,
+        request.destination,
+        request.board_index,
+    ) {
+        Ok(copy) => copy,
+        Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(()),
+        Err(error) => return Err(error),
     };
-    let copy_entity = game_entity(world, copy).expect("new copy remains indexed");
-    if snapshot.source_zone == Zone::Play && destination == Zone::Play {
-        if snapshot.silenced {
-            world.entity_mut(copy_entity).insert(Silenced);
+    if let Some(play_state) = snapshot.play_state {
+        restore_play_copy_state(world, copy, request.controller, play_state)?;
+    }
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::EntityCopied {
+            source: request.source,
+            copy,
+            policy: request.policy,
+        });
+    if request.policy == CopyStatePolicy::InPlayState
+        && crate::resolver::resolution_is_active(world)
+    {
+        let event = prepare_event(
+            world,
+            crate::EventContext {
+                kind: EventKind::Summoned,
+                source: request.originating_source,
+                targets: vec![copy],
+                controller: request.controller,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+        );
+        push_resolution_ops(
+            world,
+            [
+                ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon),
+                ResolutionOp::ResolveEvent(event),
+            ],
+        );
+    }
+    Ok(())
+}
+
+pub(super) fn validate_copy_request(
+    world: &World,
+    request: &CopyRequest,
+) -> Result<(), SimulationError> {
+    prepare_copy(world, request).map(drop)
+}
+
+fn prepare_copy(
+    world: &World,
+    request: &CopyRequest,
+) -> Result<Option<CopySnapshot>, SimulationError> {
+    let Some(mut snapshot) = capture_copy_snapshot(world, request)? else {
+        return Ok(None);
+    };
+    match validate_card_spawn(
+        world,
+        request.controller,
+        &snapshot.card,
+        request.destination,
+        request.board_index,
+    ) {
+        Ok(_) => {}
+        Err(SimulationError::Zone(ZoneError::Full { .. })) => return Ok(None),
+        Err(error) => return Err(error),
+    }
+    validate_card_program(world, &snapshot.card)?;
+    if request.policy == CopyStatePolicy::InPlayState {
+        let source_entity =
+            game_entity(world, request.source).expect("copy source remains indexed");
+        snapshot.play_state = Some(capture_play_copy_snapshot(
+            world,
+            request.source,
+            source_entity,
+        )?);
+    }
+    for attachment in snapshot
+        .play_state
+        .iter()
+        .flat_map(|state| &state.attachments)
+    {
+        if let Some(triggers) = &attachment.runtime_triggers {
+            validate_trigger_enchantment(world, &triggers.0)?;
         }
-        let play_order = allocate_play_order(world);
-        world.entity_mut(copy_entity).insert(play_order);
+    }
+    Ok(Some(snapshot))
+}
+
+fn restore_play_copy_state(
+    world: &mut World,
+    copy: GameEntityId,
+    controller: PlayerId,
+    play_state: PlayCopySnapshot,
+) -> Result<(), SimulationError> {
+    let copy_entity = game_entity(world, copy).expect("new copy remains indexed");
+    let play_order = allocate_play_order(world);
+    world.entity_mut(copy_entity).insert((
+        play_state.damage,
+        AttackState {
+            attacks_this_turn: 0,
+            exhausted: true,
+        },
+        play_order,
+    ));
+    if play_state.silenced {
+        world.entity_mut(copy_entity).insert(Silenced);
+    }
+    if play_state.pending_destroy {
+        world.entity_mut(copy_entity).insert(PendingDestroy);
+    }
+    for attachment in play_state.attachments {
+        let (_, entity) = spawn_attached_enchantment(
+            world,
+            controller,
+            copy,
+            &attachment.definition_id,
+            &attachment.display_name,
+            attachment.duration,
+            attachment.silence_removable,
+        )?;
+        if let Some(modifier) = attachment.stat_modifier {
+            world.entity_mut(entity).insert(modifier);
+        }
+        if let Some(modifier) = attachment.keyword_modifier {
+            world.entity_mut(entity).insert(modifier);
+        }
+        if let Some(modifier) = attachment.cost_modifier {
+            world.entity_mut(entity).insert(modifier);
+        }
+        if let Some(triggers) = attachment.runtime_triggers {
+            world.entity_mut(entity).insert(triggers);
+        }
+        if let Some(effects) = attachment.runtime_continuous_effects {
+            world.entity_mut(entity).insert(effects);
+        }
+    }
+    recalculate_stats(world, copy);
+    recalculate_keywords(world, copy);
+    recalculate_cost(world, copy);
+    world.entity_mut(copy_entity).insert(play_state.damage);
+    Ok(())
+}
+
+fn capture_copy_snapshot(
+    world: &World,
+    request: &CopyRequest,
+) -> Result<Option<CopySnapshot>, SimulationError> {
+    let Some(entity) = game_entity(world, request.source) else {
+        return Ok(None);
+    };
+    let card = copy_card_data(world, request.source).ok_or_else(|| {
+        SimulationError::Invariant(format!(
+            "copy source {:?} lacks required current-form components",
+            request.source
+        ))
+    })?;
+    let zone = world.get::<Zone>(entity).copied().ok_or_else(|| {
+        SimulationError::Invariant(format!(
+            "copy source {:?} lacks required Zone component",
+            request.source
+        ))
+    })?;
+    validate_copy_policy(zone, request)?;
+    Ok(Some(CopySnapshot {
+        card,
+        play_state: None,
+    }))
+}
+
+pub(super) fn validate_copy_policy(
+    source_zone: Zone,
+    request: &CopyRequest,
+) -> Result<(), SimulationError> {
+    let expected_policy = copy_state_policy(source_zone, request.destination);
+    if request.policy != expected_policy {
+        return Err(SimulationError::Invariant(format!(
+            "copy from {source_zone:?} to {:?} requires {expected_policy:?} policy, got {:?}",
+            request.destination, request.policy
+        )));
+    }
+    Ok(())
+}
+
+pub(super) fn copy_state_policy(source_zone: Zone, destination: Zone) -> CopyStatePolicy {
+    if source_zone == Zone::Play && destination == Zone::Play {
+        CopyStatePolicy::InPlayState
+    } else {
+        CopyStatePolicy::CurrentForm
     }
 }
 
-fn capture_copy_snapshot(world: &World, source: GameEntityId) -> Option<CopySnapshot> {
-    let entity = game_entity(world, source)?;
-    Some(CopySnapshot {
-        card: copy_card_data(world, source)?,
-        source_zone: *world.get::<Zone>(entity)?,
-        silenced: world.get::<Silenced>(entity).is_some(),
+fn capture_play_copy_snapshot(
+    world: &World,
+    source: GameEntityId,
+    source_entity: Entity,
+) -> Result<PlayCopySnapshot, SimulationError> {
+    let mut attachments = world
+        .iter_entities()
+        .filter(|attachment| {
+            attachment.get::<AttachedTo>().map(|attached| attached.0) == Some(source_entity)
+        })
+        .map(|attachment| {
+            let id = required_copy_attachment_component::<GameEntityId>(
+                attachment,
+                source,
+                "GameEntityId",
+            )?;
+            let order =
+                required_copy_attachment_component::<PlayOrder>(attachment, source, "PlayOrder")?;
+            let kind =
+                required_copy_attachment_component::<EntityKind>(attachment, source, "EntityKind")?;
+            let controller =
+                required_copy_attachment_component::<Controller>(attachment, source, "Controller")?;
+            let zone = required_copy_attachment_component::<Zone>(attachment, source, "Zone")?;
+            let position = required_copy_attachment_component::<ZonePosition>(
+                attachment,
+                source,
+                "ZonePosition",
+            )?;
+            if *kind != EntityKind::Enchantment
+                || *zone != Zone::Play
+                || world
+                    .resource::<ZoneIndex>()
+                    .entities(controller.0, *zone)
+                    .get(position.0)
+                    != Some(id)
+            {
+                return Err(SimulationError::Invariant(format!(
+                    "copy source {source:?} has an invalid attached enchantment"
+                )));
+            }
+            let definition = required_copy_attachment_component::<DefinitionId>(
+                attachment,
+                source,
+                "DefinitionId",
+            )?;
+            let display = required_copy_attachment_component::<DisplayName>(
+                attachment,
+                source,
+                "DisplayName",
+            )?;
+            let duration = required_copy_attachment_component::<EnchantmentDuration>(
+                attachment,
+                source,
+                "EnchantmentDuration",
+            )?;
+            Ok((
+                order.0,
+                *id,
+                AttachmentCopySnapshot {
+                    definition_id: definition.0.clone(),
+                    display_name: display.0.clone(),
+                    duration: *duration,
+                    silence_removable: attachment.contains::<SilenceRemovable>(),
+                    stat_modifier: attachment.get::<StatModifier>().copied(),
+                    keyword_modifier: attachment.get::<KeywordModifier>().copied(),
+                    cost_modifier: attachment.get::<CostModifier>().copied(),
+                    runtime_triggers: attachment.get::<RuntimeTriggers>().cloned(),
+                    runtime_continuous_effects: attachment
+                        .get::<RuntimeContinuousEffects>()
+                        .cloned(),
+                },
+            ))
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    attachments.sort_by_key(|(order, id, _)| (*order, *id));
+    Ok(PlayCopySnapshot {
+        damage: world.get::<Damage>(source_entity).copied().ok_or_else(|| {
+            SimulationError::Invariant(format!(
+                "in-play copy source {source:?} lacks required Damage component"
+            ))
+        })?,
+        silenced: world.get::<Silenced>(source_entity).is_some(),
+        pending_destroy: world.get::<PendingDestroy>(source_entity).is_some(),
+        attachments: attachments
+            .into_iter()
+            .map(|(_, _, attachment)| attachment)
+            .collect(),
+    })
+}
+
+fn required_copy_attachment_component<'a, T: Component>(
+    attachment: EntityRef<'a>,
+    source: GameEntityId,
+    name: &str,
+) -> Result<&'a T, SimulationError> {
+    attachment.get::<T>().ok_or_else(|| {
+        SimulationError::Invariant(format!(
+            "copy source {source:?} has an attachment without required {name}"
+        ))
     })
 }
 
@@ -989,6 +1542,7 @@ pub(super) fn select_entities(
 ) -> Vec<GameEntityId> {
     let mut selected = match selector {
         Selector::Source => context.source.into_iter().collect(),
+        Selector::DrawnCard => context.drawn_card.into_iter().collect(),
         Selector::AttachedEntity => context
             .source
             .and_then(|source| game_entity(world, source))
@@ -1046,6 +1600,11 @@ pub(super) fn select_entities(
     selected
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "preserve the existing target-count conversion in this contract-only slice"
+)]
 pub(super) fn evaluate_value(
     world: &World,
     context: &EffectContext,
@@ -1060,6 +1619,11 @@ pub(super) fn evaluate_value(
             .and_then(|entity| world.get::<CurrentStats>(entity))
             .map_or(0, |stats| stats.attack),
         ValueExpression::TargetCount => target_count as i32,
+        ValueExpression::DrawnCardCost => context
+            .drawn_card
+            .and_then(|card| game_entity(world, card))
+            .and_then(|entity| world.get::<CardRuntime>(entity))
+            .map_or(0, |runtime| runtime.cost),
     }
 }
 

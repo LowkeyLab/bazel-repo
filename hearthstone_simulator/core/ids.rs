@@ -65,4 +65,9 @@ pub struct EventSlotId(pub u64);
 #[derive(
     Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
 )]
+pub struct DrawResultSlotId(pub u64);
+
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize,
+)]
 pub struct ChoiceId(pub u64);

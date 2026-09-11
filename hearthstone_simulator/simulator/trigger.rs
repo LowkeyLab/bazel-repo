@@ -205,6 +205,7 @@ fn selector_count(
 ) -> usize {
     match selector {
         Selector::Source => usize::from(game_entity(world, source).is_some()),
+        Selector::DrawnCard => 0,
         Selector::AttachedEntity => usize::from(
             game_entity(world, source)
                 .and_then(|source| world.get::<AttachedTo>(source))

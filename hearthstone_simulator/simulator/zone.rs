@@ -78,6 +78,27 @@ pub(crate) fn validate_board_position(
     Ok(())
 }
 
+pub(crate) fn resolve_generation_position(
+    world: &World,
+    player: PlayerId,
+    zone: Zone,
+    kind: EntityKind,
+    board_position: Option<usize>,
+) -> Result<Option<usize>, ZoneError> {
+    if zone != Zone::Play || !is_board_entity(kind) {
+        return Ok(None);
+    }
+    let Some(board_position) = board_position else {
+        return Ok(None);
+    };
+    validate_board_position(world, player, Some(board_position))?;
+    Ok(Some(board_position_to_zone_position(
+        world,
+        player,
+        board_position,
+    )))
+}
+
 pub(crate) fn validate_zone_position(
     world: &World,
     player: PlayerId,
@@ -183,14 +204,18 @@ pub(crate) fn move_entity_with_request(
                 request.entity,
                 source,
                 source_controller,
-                false,
+                ZoneMovementKind::Burn,
             ),
             _ => move_to_graveyard_after_failed_move(
                 world,
                 request.entity,
                 source,
                 source_controller,
-                source == Zone::Play,
+                if source == Zone::Play {
+                    ZoneMovementKind::Death
+                } else {
+                    ZoneMovementKind::Discard
+                },
             ),
         };
     }
@@ -346,34 +371,45 @@ fn resolve_destination_position(
         && let Some(board_position) = requested
     {
         validate_board_position(world, player, Some(board_position))?;
-        let entries = world.resource::<ZoneIndex>().entities(player, Zone::Play);
-        let flat_position = entries
-            .iter()
-            .enumerate()
-            .filter(|(_, id)| {
-                game_entity(world, **id)
-                    .and_then(|candidate| world.get::<EntityKind>(candidate))
-                    .is_some_and(|kind| is_board_entity(*kind))
-            })
-            .nth(board_position)
-            .map_or_else(
-                || {
-                    entries
-                        .iter()
-                        .rposition(|id| {
-                            game_entity(world, *id)
-                                .and_then(|candidate| world.get::<EntityKind>(candidate))
-                                .is_some_and(|kind| is_board_entity(*kind))
-                        })
-                        .map_or(entries.len(), |position| position + 1)
-                },
-                |(position, _)| position,
-            );
-        return Ok(Some(flat_position));
+        return Ok(Some(board_position_to_zone_position(
+            world,
+            player,
+            board_position,
+        )));
     }
     let position = requested.or(preserved_index);
     validate_zone_position(world, player, zone, position)?;
     Ok(position)
+}
+
+fn board_position_to_zone_position(
+    world: &World,
+    player: PlayerId,
+    board_position: usize,
+) -> usize {
+    let entries = world.resource::<ZoneIndex>().entities(player, Zone::Play);
+    entries
+        .iter()
+        .enumerate()
+        .filter(|(_, id)| {
+            game_entity(world, **id)
+                .and_then(|candidate| world.get::<EntityKind>(candidate))
+                .is_some_and(|kind| is_board_entity(*kind))
+        })
+        .nth(board_position)
+        .map_or_else(
+            || {
+                entries
+                    .iter()
+                    .rposition(|id| {
+                        game_entity(world, *id)
+                            .and_then(|candidate| world.get::<EntityKind>(candidate))
+                            .is_some_and(|kind| is_board_entity(*kind))
+                    })
+                    .map_or(entries.len(), |position| position + 1)
+            },
+            |(position, _)| position,
+        )
 }
 
 fn move_to_graveyard_after_failed_move(
@@ -381,7 +417,7 @@ fn move_to_graveyard_after_failed_move(
     id: GameEntityId,
     source: Zone,
     controller: PlayerId,
-    record_death: bool,
+    kind: ZoneMovementKind,
 ) -> Result<ZoneMoveOutcome, ZoneError> {
     let remembered_position = semantic_zone_position(world, id, controller, source).ok_or(
         ZoneError::MissingIndexEntry {
@@ -398,15 +434,11 @@ fn move_to_graveyard_after_failed_move(
             destination_controller: controller,
             destination: Zone::Graveyard,
             position: None,
-            kind: if record_death {
-                ZoneMovementKind::Death
-            } else {
-                ZoneMovementKind::Discard
-            },
+            kind,
         },
         source,
     );
-    if record_death {
+    if kind == ZoneMovementKind::Death {
         crate::death::record_full_zone_death(world, id, remembered_position);
     }
     Ok(ZoneMoveOutcome::FullZoneRemoval {
@@ -739,7 +771,7 @@ mod tests {
                 GameEntityId(1),
                 Zone::Play,
                 PlayerId::One,
-                true,
+                ZoneMovementKind::Death,
             ),
             err(eq(&ZoneError::MissingIndexEntry {
                 entity: GameEntityId(1),

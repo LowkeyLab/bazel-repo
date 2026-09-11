@@ -2,8 +2,9 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition, ContinuousModifier,
-    Controller, EnchantmentDuration, OtherAuraCache, OtherAuraModifier, PlayerAudience,
+    AttachedTo, AuraCategory, AuraDefinition, AuraTarget, ContinuousEffectDefinition,
+    ContinuousModifier, Controller, EnchantmentDuration, HealthAuraCache, OtherAuraCache,
+    OtherAuraModifier, PlayerAudience, TransformKind,
 };
 
 fn stat_aura(targets: AuraTarget, attack: i32, health: i32) -> AuraDefinition {
@@ -300,6 +301,60 @@ fn attached_and_opponent_facing_spell_damage_are_live() {
 }
 
 #[googletest::test]
+fn attached_aura_dependency_requires_enchantment_and_host_in_play() {
+    let mut simulation = simulation();
+    let host = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Aura dependency host", 0, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::AttachContinuousEffect {
+            targets: Selector::Entity(host),
+            effect: ContinuousEffectDefinition {
+                recipients: PlayerAudience::Controller,
+                modifier: ContinuousModifier::SpellDamage(2),
+            },
+            silence_removable: false,
+            duration: EnchantmentDuration::Permanent,
+        },
+    )
+    .unwrap();
+    let attachment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.contains::<AttachedTo>())
+        .unwrap()
+        .id();
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(2)
+    );
+
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(attachment)
+        .insert(Zone::RemovedFromGame);
+
+    assert_that!(
+        crate::aura::current_spell_damage(simulation.app.world(), PlayerId::One),
+        eq(0)
+    );
+}
+
+#[googletest::test]
 fn hero_power_uses_only_its_dedicated_other_aura_modifier() {
     let mut simulation = simulation();
     let world = simulation.app.world_mut();
@@ -330,6 +385,7 @@ fn hero_power_uses_only_its_dedicated_other_aura_modifier() {
             source: None,
             controller: PlayerId::One,
             declared_target: Some(target),
+            drawn_card: None,
             origin: EffectOrigin::HeroPower,
         },
         &Effect::DealDamage {
@@ -568,6 +624,7 @@ fn play_to_play_copy_preserves_silence_without_received_aura_cache() {
         targets: Selector::DeclaredTarget,
         player: PlayerSelector::Controller,
         zone: Zone::Play,
+        board_index: None,
     }]);
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![provider, silence, copy]),
@@ -673,4 +730,139 @@ fn aura_cache_ordering_and_checkpoint_state_are_deterministic() {
     let checkpoint = simulation.checkpoint().unwrap();
     let restored = Simulation::from_checkpoint(checkpoint.clone()).unwrap();
     assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+}
+
+#[googletest::test]
+fn transformation_clears_received_auras_without_expiring_old_provider_applications() {
+    let mut simulation = simulation();
+    let provider = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Old provider", 1, 1, 2).with_aura(stat_aura(
+            AuraTarget::FriendlyMinions,
+            2,
+            3,
+        )),
+        Zone::Play,
+    )
+    .unwrap();
+    let recipient = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Recipient", 1, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+
+    transform_entity(
+        simulation.app.world_mut(),
+        provider,
+        Card::minion("Replacement", 1, 2, 2),
+        TransformKind::Spell,
+    )
+    .unwrap();
+
+    let provider_entity = game_entity(simulation.app.world(), provider).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<AttackAuraCache>(provider_entity),
+        none()
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<HealthAuraCache>(provider_entity),
+        none()
+    );
+    let recipient_entity = game_entity(simulation.app.world(), recipient).unwrap();
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<AttackAuraCache>(recipient_entity)
+            .unwrap()
+            .0
+            .iter()
+            .any(|application| application.provider == provider),
+        is_true()
+    );
+
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .get::<AttackAuraCache>(recipient_entity)
+            .is_none_or(|cache| cache.0.is_empty()),
+        is_true()
+    );
+}
+
+#[googletest::test]
+fn non_spell_transform_refreshes_summon_auras_without_a_summoned_event() {
+    let replacement = Card::minion("Protective form", 0, 2, 2).with_aura(other_aura(
+        AuraTarget::FriendlyCharacters,
+        OtherAuraModifier::Immune,
+    ));
+    let spell = Card::spell("Transform and strike", 0).with_effects(vec![Effect::Sequence(vec![
+        Effect::Transform {
+            targets: Selector::DeclaredTarget,
+            card: replacement,
+            kind: TransformKind::NonSpell,
+        },
+        Effect::DealDamage {
+            targets: Selector::FriendlyCharacters,
+            amount: ValueExpression::Constant(3),
+        },
+    ])]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), spell]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let target = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: target,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    let spell = hand_card(&mut simulation, PlayerId::One);
+
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: spell,
+            target: Some(target),
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+
+    assert_that!(simulation.snapshot().players[0].health, eq(30));
+    let transform = simulation
+        .trace()
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityTransformed { entity, .. } if *entity == target))
+        .unwrap();
+    assert_that!(
+        simulation.trace()[transform + 1..]
+            .iter()
+            .any(|entry| matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::Summoned,
+                    targets,
+                    ..
+                } if targets.contains(&target)
+            )),
+        is_false()
+    );
 }

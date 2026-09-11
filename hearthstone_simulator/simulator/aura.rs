@@ -78,10 +78,13 @@ pub(crate) fn current_spell_damage(world: &World, player: PlayerId) -> i32 {
 }
 
 fn continuous_source_is_active(world: &World, source: Entity) -> bool {
+    if world.get::<Zone>(source) != Some(&Zone::Play) {
+        return false;
+    }
     if let Some(attached) = world.get::<AttachedTo>(source) {
         return world.get::<Zone>(attached.0) == Some(&Zone::Play);
     }
-    world.get::<Zone>(source) == Some(&Zone::Play)
+    true
 }
 
 #[must_use]

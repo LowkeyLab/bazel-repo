@@ -1,11 +1,15 @@
 use googletest::prelude::*;
 
+use super::effect_executor::copy_entity;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
-    AttachedTo, AttackState, ContinuousEffectDefinition, ContinuousModifier, CurrentStats,
-    EnchantmentDuration, HeroClassPolicy, HeroHealthPolicy, HeroReplacement, KeepEnchantments,
-    KeywordModifier, PhaseBoundaryPlan, PlayerAudience, RuntimeContinuousEffects, ZoneMoveOutcome,
-    ZoneMoveRequest, ZoneMovementKind,
+    AttachedTo, AttackAuraCache, AttackState, ContinuousEffectDefinition, ContinuousModifier,
+    Controller, CopyRequest, CopyStatePolicy, CostOperation, CurrentStats, DefinitionId,
+    DisplayName, DrawOutcome, EnchantmentDuration, HealthAuraCache, HeroClassPolicy,
+    HeroHealthPolicy, HeroReplacement, KeepEnchantments, KeywordModifier, OtherAuraCache,
+    PhaseBoundaryPlan, PlayOrder, PlayerAudience, RuntimeContinuousEffects, RuntimeTriggers,
+    SilenceRemovable, SourceEligibilityPolicy, TransformKind, TriggerDefinition,
+    WoundedTargetPolicy, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -45,6 +49,7 @@ fn play_zone_enchantments_do_not_consume_board_capacity() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachKeywordModifier {
@@ -235,6 +240,7 @@ fn backward_movement_restores_cost_after_detaching_modifiers() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
     execute_effect(
@@ -431,6 +437,7 @@ fn kept_continuous_effect_is_inactive_while_its_host_is_off_board() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::AttachContinuousEffect {
@@ -504,7 +511,27 @@ fn forward_movement_preserves_enchantments() {
         EnchantmentDuration::Permanent,
     )
     .unwrap();
-    draw_card(simulation.app.world_mut(), PlayerId::One).unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+    world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
 
     let entity = game_entity(simulation.app.world(), topdeck).unwrap();
     assert_that!(
@@ -517,6 +544,66 @@ fn forward_movement_preserves_enchantments() {
             attack: 5,
             maximum_health: 1,
         }))
+    );
+}
+
+#[googletest::test]
+fn a_burn_is_not_draw_discard_or_death() {
+    let hand = (0..10)
+        .map(|index| Card::spell(format!("Filler {index}"), 0))
+        .collect::<Vec<_>>();
+    let mut simulation = Simulation::new([
+        PlayerConfig {
+            name: "Jaina".to_owned(),
+            deck: vec![Card::spell("Burned", 0)],
+            hand,
+        },
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let burned = simulation.snapshot().players[0].deck[0];
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<ZoneIndex>()
+            .entities(PlayerId::One, Zone::Graveyard),
+        contains(eq(&burned))
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(entry, TraceEntry::DrawResolved { player: PlayerId::One, outcome: DrawOutcome::Burned(card), .. } if *card == burned)),
+        is_true()
+    );
+    assert_that!(
+        simulation.trace().iter().any(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::CardDrawn, targets, .. } if targets.contains(&burned))),
+        is_false()
+    );
+    let death_cache = simulation.app.world().resource::<DeathEventCache>();
+    assert_that!(
+        death_cache
+            .records
+            .iter()
+            .any(|record| record.entity == burned),
+        is_false()
     );
 }
 
@@ -538,6 +625,7 @@ fn force_play_into_a_full_board_is_prevented_without_moving_the_entity() {
             source: None,
             controller: PlayerId::One,
             declared_target: None,
+            drawn_card: None,
             origin: EffectOrigin::Other,
         },
         &Effect::Move {
@@ -823,8 +911,15 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
+    let next = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    begin_sequence(simulation.app.world_mut()).unwrap();
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -832,9 +927,20 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
             targets: Selector::Entity(GameEntityId(u64::MAX)),
             player: PlayerSelector::Controller,
             zone: Zone::Hand,
+            board_index: None,
         },
     )
     .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next)
+    );
 
     let source = hand_card(&mut simulation, PlayerId::One);
     let before = simulation.snapshot().players[0].hand.clone();
@@ -843,6 +949,12 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
         .world_mut()
         .resource_mut::<Ruleset>()
         .hand_limit = before.len();
+    let next = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    begin_sequence(simulation.app.world_mut()).unwrap();
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -850,26 +962,65 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
             targets: Selector::Entity(source),
             player: PlayerSelector::Controller,
             zone: Zone::Hand,
+            board_index: None,
         },
     )
     .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
 
     assert_that!(simulation.snapshot().players[0].hand, eq(&before));
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next)
+    );
 }
 
 #[googletest::test]
-fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
+fn non_play_copy_uses_current_form_without_runtime_attachments() {
     let mut simulation = Simulation::new([
-        PlayerConfig::new("Jaina", vec![Card::minion("Discounted source", 5, 1, 1)]),
+        PlayerConfig::new("Jaina", vec![Card::minion("Original source", 1, 1, 1)]),
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     let source = hand_card(&mut simulation, PlayerId::One);
+    let existing = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Existing minion", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
     let context = EffectContext {
         source: None,
         controller: PlayerId::One,
         declared_target: None,
+        drawn_card: None,
         origin: EffectOrigin::Other,
     };
+    begin_sequence(simulation.app.world_mut()).unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Copy {
+            targets: Selector::Entity(source),
+            player: PlayerSelector::Opponent,
+            zone: Zone::Play,
+            board_index: Some(0),
+        },
+    )
+    .unwrap();
+
+    transform_entity(
+        simulation.app.world_mut(),
+        source,
+        Card::minion("Current form", 5, 4, 6),
+        TransformKind::Spell,
+    )
+    .unwrap();
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -887,27 +1038,692 @@ fn hand_copy_does_not_make_a_temporary_discount_part_of_base_cost() {
     execute_effect(
         simulation.app.world_mut(),
         &context,
+        &Effect::AttachStatModifier {
+            targets: Selector::Entity(source),
+            modifier: StatModifier {
+                attack: 3,
+                health: 2,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::Permanent,
+        },
+    )
+    .unwrap();
+    let source_entity = game_entity(simulation.app.world(), source).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(source_entity)
+        .insert((
+            Damage(3),
+            Silenced,
+            PendingDestroy,
+            AttackAuraCache::default(),
+            HealthAuraCache::default(),
+            OtherAuraCache::default(),
+            PlayOrder(77),
+        ));
+
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+
+    let board = simulation.snapshot().players[1].board.clone();
+    assert_that!(board.len(), eq(2));
+    assert_that!(board[1], eq(existing));
+    let copy = board[0];
+    let copy_entity = game_entity(simulation.app.world(), copy).unwrap();
+    let world = simulation.app.world();
+    let runtime = world.get::<CardRuntime>(copy_entity).unwrap();
+    assert_that!(
+        world.get::<DefinitionId>(copy_entity).unwrap().0.as_str(),
+        eq("synthetic:current_form")
+    );
+    assert_that!(
+        world.get::<DisplayName>(copy_entity).unwrap().0.as_str(),
+        eq("Current form")
+    );
+    assert_that!(runtime.base_cost, eq(5));
+    assert_that!(runtime.cost, eq(5));
+    assert_that!(
+        world.get::<CurrentStats>(copy_entity),
+        eq(Some(&CurrentStats {
+            attack: 4,
+            maximum_health: 6
+        }))
+    );
+    assert_that!(world.get::<Silenced>(copy_entity), none());
+    assert_that!(world.get::<Damage>(copy_entity), eq(Some(&Damage(0))));
+    assert_that!(world.get::<PendingDestroy>(copy_entity), none());
+    assert_that!(world.get::<AttackAuraCache>(copy_entity), none());
+    assert_that!(world.get::<HealthAuraCache>(copy_entity), none());
+    assert_that!(world.get::<OtherAuraCache>(copy_entity), none());
+    assert_that!(
+        world.get::<Controller>(copy_entity),
+        eq(Some(&Controller(PlayerId::Two)))
+    );
+    assert_that!(
+        crate::zone::semantic_zone_position(world, copy, PlayerId::Two, Zone::Play),
+        eq(Some(0))
+    );
+    assert_that!(world.get::<PlayOrder>(copy_entity), eq(Some(&PlayOrder(0))));
+    assert_that!(
+        world.iter_entities().any(|entity| {
+            entity.get::<AttachedTo>().map(|attached| attached.0) == Some(copy_entity)
+        }),
+        is_false()
+    );
+    assert_that!(
+        world.resource::<CanonicalTrace>().entries.last(),
+        eq(Some(&TraceEntry::EntityCopied {
+            source,
+            copy,
+            policy: CopyStatePolicy::CurrentForm,
+        }))
+    );
+}
+
+#[googletest::test]
+fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Stateful source", 7, 3, 8).with_keyword(Keyword::Charge),
+        Zone::Play,
+    )
+    .unwrap();
+    let existing = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Existing destination", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let source_entity = game_entity(simulation.app.world(), source).unwrap();
+    let source_order = crate::entity::allocate_play_order(simulation.app.world_mut());
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(source_entity)
+        .insert(source_order);
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    for effect in [
+        Effect::AttachStatModifier {
+            targets: Selector::Entity(source),
+            modifier: StatModifier {
+                attack: 4,
+                health: -20,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::Permanent,
+        },
+        Effect::AttachKeywordModifier {
+            targets: Selector::Entity(source),
+            modifier: KeywordModifier {
+                keyword: Keyword::Taunt,
+                granted: true,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::Two),
+        },
+        Effect::AttachCostModifier {
+            targets: Selector::Entity(source),
+            modifier: CostModifier {
+                operation: CostOperation::Add,
+                value: -3,
+                silence_removable: false,
+            },
+            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::One),
+        },
+        Effect::AttachContinuousEffect {
+            targets: Selector::Entity(source),
+            effect: ContinuousEffectDefinition {
+                recipients: PlayerAudience::Controller,
+                modifier: ContinuousModifier::SpellDamage(2),
+            },
+            silence_removable: false,
+            duration: EnchantmentDuration::Permanent,
+        },
+        Effect::AttachTriggerEnchantment {
+            targets: Selector::Entity(source),
+            triggers: vec![TriggerDefinition {
+                event: EventKind::TurnEnded,
+                eligible_zones: vec![Zone::Play],
+                conditions: Vec::new(),
+                source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+                priority: 3,
+                wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
+                effect_program: Vec::new(),
+            }],
+            duration: EnchantmentDuration::Permanent,
+            silence_removable: true,
+        },
+    ] {
+        execute_effect(simulation.app.world_mut(), &context, &effect).unwrap();
+    }
+    let mut source_attachments = simulation
+        .app
+        .world()
+        .iter_entities()
+        .filter(|entity| {
+            entity.get::<AttachedTo>().map(|attached| attached.0) == Some(source_entity)
+        })
+        .map(|entity| {
+            (
+                *entity.get::<PlayOrder>().unwrap(),
+                *entity.get::<GameEntityId>().unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    source_attachments.sort_by_key(|(order, id)| (order.0, *id));
+    let source_attachment_ids = source_attachments
+        .iter()
+        .map(|(_, id)| *id)
+        .collect::<Vec<_>>();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(source_entity)
+        .insert((
+            Damage(3),
+            Silenced,
+            PendingDestroy,
+            AttackState {
+                attacks_this_turn: 2,
+                exhausted: false,
+            },
+            Keywords(std::collections::BTreeSet::from([
+                Keyword::Charge,
+                Keyword::DivineShield,
+                Keyword::Taunt,
+            ])),
+            AttackAuraCache(vec![AuraApplication {
+                provider: GameEntityId(900),
+                definition_index: 0,
+                modifier: AuraModifier::Attack(5),
+            }]),
+            HealthAuraCache(vec![AuraApplication {
+                provider: GameEntityId(901),
+                definition_index: 0,
+                modifier: AuraModifier::MaximumHealth(5),
+            }]),
+            OtherAuraCache(vec![AuraApplication {
+                provider: GameEntityId(902),
+                definition_index: 0,
+                modifier: AuraModifier::Immune,
+            }]),
+        ));
+    let next_id = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    let next_order = simulation
+        .app
+        .world()
+        .resource::<crate::entity::PlayOrderCounter>()
+        .0;
+
+    begin_sequence(simulation.app.world_mut()).unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
+        &Effect::Copy {
+            targets: Selector::Entity(source),
+            player: PlayerSelector::Opponent,
+            zone: Zone::Play,
+            board_index: Some(0),
+        },
+    )
+    .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    finish_sequence(simulation.app.world_mut());
+
+    let board = simulation.snapshot().players[1].board.clone();
+    assert_that!(board.len(), eq(2));
+    assert_that!(board[1], eq(existing));
+    let copy = board[0];
+    assert_that!(copy, eq(GameEntityId(next_id)));
+    let copy_entity = game_entity(simulation.app.world(), copy).unwrap();
+    let world = simulation.app.world();
+    assert_that!(
+        world.get::<Controller>(copy_entity),
+        eq(Some(&Controller(PlayerId::Two)))
+    );
+    assert_that!(
+        world.get::<PlayOrder>(copy_entity),
+        eq(Some(&PlayOrder(next_order)))
+    );
+    assert_that!(world.get::<Damage>(copy_entity), eq(Some(&Damage(3))));
+    assert_that!(world.get::<Silenced>(copy_entity), some(anything()));
+    assert_that!(world.get::<PendingDestroy>(copy_entity), some(anything()));
+    assert_that!(
+        world.get::<AttackState>(copy_entity),
+        eq(Some(&AttackState {
+            attacks_this_turn: 0,
+            exhausted: true,
+        }))
+    );
+    assert_that!(world.get::<AttackAuraCache>(copy_entity), none());
+    assert_that!(world.get::<HealthAuraCache>(copy_entity), none());
+    assert_that!(world.get::<OtherAuraCache>(copy_entity), none());
+    let expected_keywords = std::collections::BTreeSet::from([Keyword::Taunt]);
+    assert_that!(
+        world.get::<Keywords>(copy_entity).unwrap().0,
+        eq(&expected_keywords)
+    );
+    assert_that!(
+        world.get::<CurrentStats>(copy_entity),
+        eq(Some(&CurrentStats {
+            attack: 7,
+            maximum_health: 0,
+        }))
+    );
+    assert_that!(world.get::<CardRuntime>(copy_entity).unwrap().cost, eq(4));
+
+    let mut copy_attachments = world
+        .iter_entities()
+        .filter(|entity| entity.get::<AttachedTo>().map(|attached| attached.0) == Some(copy_entity))
+        .map(|entity| {
+            (
+                *entity.get::<PlayOrder>().unwrap(),
+                *entity.get::<GameEntityId>().unwrap(),
+                entity.id(),
+            )
+        })
+        .collect::<Vec<_>>();
+    copy_attachments.sort_by_key(|(order, id, _)| (order.0, *id));
+    assert_that!(copy_attachments.len(), eq(5));
+    let expected_attachment_ids = (next_id + 1..=next_id + 5)
+        .map(GameEntityId)
+        .collect::<Vec<_>>();
+    let copy_attachment_ids = copy_attachments
+        .iter()
+        .map(|(_, id, _)| *id)
+        .collect::<Vec<_>>();
+    assert_that!(copy_attachment_ids, eq(&expected_attachment_ids));
+    assert_that!(copy_attachment_ids == source_attachment_ids, is_false());
+    let copied_entities = copy_attachments
+        .iter()
+        .map(|(_, _, entity)| *entity)
+        .collect::<Vec<_>>();
+    assert_that!(
+        world.get::<StatModifier>(copied_entities[0]),
+        some(anything())
+    );
+    assert_that!(
+        world.get::<KeywordModifier>(copied_entities[1]),
+        some(anything())
+    );
+    assert_that!(
+        world.get::<CostModifier>(copied_entities[2]),
+        some(anything())
+    );
+    assert_that!(
+        world.get::<RuntimeContinuousEffects>(copied_entities[3]),
+        some(anything())
+    );
+    assert_that!(
+        world.get::<RuntimeTriggers>(copied_entities[4]),
+        some(anything())
+    );
+    assert_that!(
+        world.get::<SilenceRemovable>(copied_entities[4]),
+        some(anything())
+    );
+    assert_that!(
+        crate::aura::current_spell_damage(world, PlayerId::Two),
+        eq(2)
+    );
+
+    let checkpoint = simulation.checkpoint().unwrap();
+    let copied_attachment_ids = copy_attachment_ids;
+    assert_that!(
+        checkpoint
+            .entities
+            .iter()
+            .filter(|entity| entity.attached_to == Some(copy))
+            .map(|entity| entity.id)
+            .collect::<Vec<_>>(),
+        eq(&copied_attachment_ids)
+    );
+    let json = checkpoint.to_json().unwrap();
+    let restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+}
+
+#[googletest::test]
+fn invalid_play_copy_attachment_is_atomic_and_consumes_no_id() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Malformed source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<StatModifier>().is_some())
+        .unwrap()
+        .id();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(enchantment)
+        .remove::<DisplayName>();
+    let before = simulation.snapshot();
+    let next_id = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    begin_sequence(simulation.app.world_mut()).unwrap();
+    execute_effect(
+        simulation.app.world_mut(),
+        &context,
         &Effect::Copy {
             targets: Selector::Entity(source),
             player: PlayerSelector::Controller,
-            zone: Zone::Hand,
+            zone: Zone::Play,
+            board_index: None,
         },
     )
     .unwrap();
 
-    let copy = simulation
+    assert_that!(
+        drive_resolution(simulation.app.world_mut()),
+        err(matches_pattern!(SimulationError::Invariant(_)))
+    );
+    let after = simulation.snapshot();
+    assert_that!(after.players, eq(&before.players));
+    assert_that!(after.objects, eq(&before.objects));
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next_id)
+    );
+}
+
+#[googletest::test]
+fn in_play_copy_policy_rejects_non_play_destinations_directly_and_after_restore() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Play source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let request = CopyRequest {
+        source,
+        originating_source: None,
+        controller: PlayerId::Two,
+        destination: Zone::Hand,
+        board_index: None,
+        policy: CopyStatePolicy::InPlayState,
+    };
+    let next_id = simulation
         .app
         .world()
-        .resource::<ZoneIndex>()
-        .entities(PlayerId::One, Zone::Hand)
-        .iter()
-        .copied()
-        .find(|card| *card != source)
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    let next_order = simulation
+        .app
+        .world()
+        .resource::<crate::entity::PlayOrderCounter>()
+        .0;
+    let trace = simulation.trace().to_vec();
+
+    assert_that!(
+        copy_entity(simulation.app.world_mut(), request),
+        err(matches_pattern!(SimulationError::Invariant(_)))
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next_id)
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::PlayOrderCounter>()
+            .0,
+        eq(next_order)
+    );
+    assert_that!(simulation.trace(), eq(trace.as_slice()));
+    assert_that!(simulation.snapshot().players[1].hand, is_empty());
+
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let operation_id = checkpoint.resolution.next_resolution_id;
+    checkpoint.resolution.next_resolution_id += 1;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(operation_id),
+        operation: ResolutionOp::CopyEntity(request),
+    });
+    checkpoint.resolution.remaining_budget = checkpoint.ruleset.resolution_budget;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Invariant(
+            contains_substring("requires CurrentForm policy")
+        )))
+    );
+}
+
+#[googletest::test]
+fn copy_operations_use_the_sources_current_zone_after_nested_work() {
+    let mut simulation = simulation();
+    let first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("First source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Moved source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let first_entity = game_entity(simulation.app.world(), first).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<RuntimeTriggers>(first_entity)
+        .unwrap()
+        .0
+        .push(TriggerDefinition {
+            event: EventKind::Summoned,
+            eligible_zones: vec![Zone::Play],
+            conditions: Vec::new(),
+            source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+            priority: 0,
+            wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
+            effect_program: vec![Effect::Move {
+                targets: Selector::Entity(second),
+                player: PlayerSelector::Controller,
+                zone: Zone::Hand,
+                kind: ZoneMovementKind::Normal,
+            }],
+        });
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Copy {
+            targets: Selector::FriendlyMinions,
+            player: PlayerSelector::Controller,
+            zone: Zone::Play,
+            board_index: None,
+        },
+    )
+    .unwrap();
+
+    drive_resolution(world).unwrap();
+
+    assert_that!(
+        world.get::<Zone>(game_entity(world, second).unwrap()),
+        eq(Some(&Zone::Hand))
+    );
+    assert_that!(
+        world.resource::<CanonicalTrace>().entries.iter().any(
+            |entry| matches!(entry, TraceEntry::EntityCopied {
+                source,
+                policy: CopyStatePolicy::CurrentForm,
+                ..
+            } if *source == second)
+        ),
+        is_true()
+    );
+}
+
+#[googletest::test]
+fn full_copy_destination_precedes_source_program_and_attachment_validation() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Malformed source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    let source_entity = game_entity(simulation.app.world(), source).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<CardRuntime>(source_entity)
+        .unwrap()
+        .program = vec![Effect::Native(NativeEffectId::new("missing:full_copy"))];
+    let enchantment = simulation
+        .app
+        .world()
+        .iter_entities()
+        .find(|entity| entity.get::<StatModifier>().is_some())
+        .unwrap()
+        .id();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(enchantment)
+        .remove::<DisplayName>();
+    for index in 0..7 {
+        spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::Two,
+            Card::minion(format!("Full board {index}"), 0, 1, 1),
+            Zone::Play,
+        )
         .unwrap();
-    let copy = game_entity(simulation.app.world(), copy).unwrap();
-    let runtime = simulation.app.world().get::<CardRuntime>(copy).unwrap();
-    assert_that!(runtime.base_cost, eq(5));
-    assert_that!(runtime.cost, eq(5));
+    }
+    let before = simulation.snapshot();
+    let next_id = simulation
+        .app
+        .world()
+        .resource::<crate::entity::NextGameEntityId>()
+        .0;
+    let next_order = simulation
+        .app
+        .world()
+        .resource::<crate::entity::PlayOrderCounter>()
+        .0;
+    let trace = simulation.trace().to_vec();
+
+    assert_that!(
+        copy_entity(
+            simulation.app.world_mut(),
+            CopyRequest {
+                source,
+                originating_source: None,
+                controller: PlayerId::Two,
+                destination: Zone::Play,
+                board_index: None,
+                policy: CopyStatePolicy::InPlayState,
+            },
+        ),
+        ok(anything())
+    );
+
+    let after = simulation.snapshot();
+    assert_that!(after.players, eq(&before.players));
+    assert_that!(after.objects, eq(&before.objects));
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::NextGameEntityId>()
+            .0,
+        eq(next_id)
+    );
+    assert_that!(
+        simulation
+            .app
+            .world()
+            .resource::<crate::entity::PlayOrderCounter>()
+            .0,
+        eq(next_order)
+    );
+    assert_that!(simulation.trace(), eq(trace.as_slice()));
 }
 
 #[googletest::test]
