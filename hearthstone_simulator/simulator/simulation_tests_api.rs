@@ -1776,6 +1776,158 @@ fn played_self_finish_barrier_programs_are_validated_during_restoration() {
 }
 
 #[googletest::test]
+fn retained_draw_then_programs_are_validated_during_restoration() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let missing = NativeEffectId::new("missing:retained_draw_continuation");
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::RunEffect {
+            context: EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            effect: Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![Effect::Native(missing.clone())],
+                policy: DrawContinuationPolicy::RequireCard,
+            },
+            event: None,
+        },
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_then_continuations_do_not_inherit_enclosing_event_context() {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let event = EventId(0);
+    checkpoint.resolution.events.insert(
+        event,
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::ProposedDamage,
+                source: None,
+                targets: Vec::new(),
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: None,
+        },
+    );
+    checkpoint.resolution.next_event_id = 1;
+    checkpoint.resolution.stack.push(StackedResolutionOp {
+        id: ResolutionId(0),
+        operation: ResolutionOp::RunEffect {
+            context: EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            effect: Effect::DrawThen {
+                player: PlayerSelector::Controller,
+                effects: vec![Effect::ModifyEventValue {
+                    operation: crate::EventValueOperation::Add,
+                    value: crate::ValueExpression::Constant(1),
+                }],
+                policy: DrawContinuationPolicy::RunWithoutCard,
+            },
+            event: Some(event),
+        },
+    });
+    checkpoint.resolution.next_resolution_id = 1;
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_semantically_invalid_retained_transform_and_copy_operations() {
+    let mut simulation = simulation();
+    let target = hand_card(&mut simulation, PlayerId::One);
+    let base = simulation.checkpoint().unwrap();
+    let missing = NativeEffectId::new("missing:retained_transform");
+    let operations = [
+        ResolutionOp::TransformEntity {
+            target,
+            source: None,
+            card: Card::spell("Invalid replacement role", 0),
+            kind: crate::TransformKind::Spell,
+        },
+        ResolutionOp::TransformEntity {
+            target,
+            source: None,
+            card: Card::minion("Invalid replacement program", 0, 1, 1)
+                .with_effects(vec![Effect::Native(missing)]),
+            kind: crate::TransformKind::Spell,
+        },
+        ResolutionOp::CopyEntity(CopyRequest {
+            source: target,
+            controller: PlayerId::One,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        }),
+    ];
+
+    for operation in operations {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(anything())
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoints_reject_orphaned_played_self_transform_markers() {
+    let mut simulation = simulation();
+    let subject = hand_card(&mut simulation, PlayerId::One);
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    checkpoint
+        .resolution
+        .pending_played_self_transforms
+        .insert(subject);
+    checkpoint.resolution.sequence_active = true;
+    checkpoint.game.status = SimulationStatus::Resolving;
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("has no retained finish barrier")
+        )))
+    );
+}
+
+#[googletest::test]
 fn retained_event_and_operation_programs_are_validated_during_restoration() {
     let simulation = simulation();
     let mut checkpoint = simulation.checkpoint().unwrap();

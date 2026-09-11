@@ -624,6 +624,38 @@ fn multi_draw_expands_into_ordered_single_draw_operations() {
 }
 
 #[googletest::test]
+fn draw_expansion_rejects_counts_beyond_remaining_budget_without_allocating_slots() {
+    for count in [2, u32::MAX] {
+        let mut simulation = simulation();
+        let world = simulation.app.world_mut();
+        world.resource_mut::<Ruleset>().resolution_budget = 3;
+        begin_sequence(world).unwrap();
+        let before = world.resource::<ResolutionWork>().clone();
+
+        assert_that!(
+            execute_effect(
+                world,
+                &EffectContext {
+                    source: None,
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                &Effect::Draw {
+                    player: PlayerSelector::Controller,
+                    count,
+                },
+            ),
+            err(eq(&SimulationError::Resolution(
+                ResolutionError::BudgetExhausted { operation: None }
+            )))
+        );
+        assert_that!(world.resource::<ResolutionWork>(), eq(&before));
+    }
+}
+
+#[googletest::test]
 fn draw_continuation_reads_cost_after_draw_triggers() {
     let cost_trigger = TriggerDefinition {
         event: EventKind::CardDrawn,
@@ -1119,6 +1151,82 @@ fn missing_native_effects_are_rejected_before_card_play_mutates_state() {
     assert_that!(simulation.snapshot(), eq(&before));
     let mut fork = simulation.fork().unwrap();
     assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
+}
+
+#[googletest::test]
+fn draw_then_programs_are_rejected_before_card_play_mutates_state() {
+    let missing = NativeEffectId::new("synthetic:missing_draw_continuation");
+    let card = Card::spell("Invalid Draw Continuation", 1).with_effects(vec![Effect::DrawThen {
+        player: PlayerSelector::Controller,
+        effects: vec![Effect::Native(missing.clone())],
+        policy: DrawContinuationPolicy::RequireCard,
+    }]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![card]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let before = simulation.snapshot();
+
+    assert_that!(
+        simulation.apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        }),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+
+    assert_that!(simulation.snapshot(), eq(&before));
+    assert_that!(simulation.resolution_work().sequence_active, is_false());
+    assert_that!(simulation.resolution_work().stack, is_empty());
+    assert_that!(
+        simulation.trace().last(),
+        some(matches_pattern!(TraceEntry::ActionRejected { .. }))
+    );
+}
+
+#[googletest::test]
+fn draw_then_continuations_cannot_modify_an_enclosing_event() {
+    let trigger = TriggerDefinition {
+        event: EventKind::ProposedDamage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+        priority: 0,
+        wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
+        effect_program: vec![Effect::DrawThen {
+            player: PlayerSelector::Controller,
+            effects: vec![Effect::ModifyEventValue {
+                operation: EventValueOperation::Add,
+                value: ValueExpression::Constant(1),
+            }],
+            policy: DrawContinuationPolicy::RunWithoutCard,
+        }],
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![Card::minion("Invalid delayed modifier", 1, 1, 1).with_triggers(vec![trigger])],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let before = simulation.snapshot();
+
+    assert_that!(
+        simulation.apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        }),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+    assert_that!(simulation.snapshot(), eq(&before));
 }
 
 #[googletest::test]

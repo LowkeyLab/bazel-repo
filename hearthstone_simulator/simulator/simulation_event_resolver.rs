@@ -5,6 +5,7 @@ use crate::{
     DrawContinuationPolicy, DrawOutcome, EffectContext, EventContext, EventId, EventKind,
     GameEntityId, GameState, PendingChoice, PhaseBoundaryPlan, PreparedEvent, ResolutionOp,
     ResolutionWork, ResolvePhaseBoundary, SimulationStatus, TraceEntry, TransformKind, TriggerSeed,
+    Zone,
     death::take_pending_deaths,
     entity::game_entity,
     resolver::{push_resolution_op, push_resolution_ops},
@@ -15,7 +16,9 @@ use crate::{
 
 use super::{
     action::run_sequence_step,
-    effect_executor::{copy_entity, execute_effect_operation, push_effects, transform_entity},
+    effect_executor::{
+        copy_entity, copy_state_policy, execute_effect_operation, push_effects, transform_entity,
+    },
     error::SimulationError,
     health::{
         apply_prepared_damage, apply_prepared_healing, expand_damage_batch, expand_healing_batch,
@@ -194,7 +197,20 @@ fn execute_resolution_op(
             subject,
             original_after_play,
         } => finish_played_self_transform(world, subject, original_after_play),
-        ResolutionOp::CopyEntity(request) => copy_entity(world, request),
+        ResolutionOp::CopyEntity(mut request) => {
+            // Restoration validates serialized policy against checkpoint state. Nested work may
+            // legally move a source before this operation executes, so dispatch uses live state.
+            if let Some(source) = game_entity(world, request.source) {
+                let source_zone = world.get::<Zone>(source).copied().ok_or_else(|| {
+                    SimulationError::Invariant(format!(
+                        "copy source {:?} lacks required Zone component",
+                        request.source
+                    ))
+                })?;
+                request.policy = copy_state_policy(source_zone, request.destination);
+            }
+            copy_entity(world, request)
+        }
         ResolutionOp::RequestChoice(request) => {
             request_choice(world, request);
             Ok(())

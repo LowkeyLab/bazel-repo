@@ -21,7 +21,10 @@ use crate::{
 
 use super::{
     card_runtime::CardRuntime,
-    effect_executor::{validate_effect_program, validate_trigger_enchantment},
+    effect_executor::{
+        validate_copy_policy, validate_effect_program, validate_transform_replacement,
+        validate_trigger_enchantment,
+    },
     error::SimulationError,
     player::assert_player_role_invariants,
     snapshot::assert_game_entity_index,
@@ -381,6 +384,20 @@ fn validate_resolution_operation(
             }
             Ok(())
         }
+        crate::ResolutionOp::TransformEntity { card, .. } => {
+            validate_transform_replacement(world, card)
+        }
+        crate::ResolutionOp::CopyEntity(request) => {
+            let source = game_entity(world, request.source)
+                .ok_or(SimulationError::EntityNotFound(request.source))?;
+            let source_zone = world.get::<Zone>(source).copied().ok_or_else(|| {
+                SimulationError::Invariant(format!(
+                    "copy source {:?} lacks required Zone component",
+                    request.source
+                ))
+            })?;
+            validate_copy_policy(source_zone, request)
+        }
         crate::ResolutionOp::RequestChoice(request) => validate_choice_request(world, request),
         _ => Ok(()),
     }
@@ -723,6 +740,16 @@ fn validate_resolution_work(
     }
     for entity in &work.pending_played_self_transforms {
         validate_entity_reference("pending played-self transform", *entity, ids)?;
+        if !work.stack.iter().any(|stacked| {
+            matches!(
+                &stacked.operation,
+                ResolutionOp::FinishPlayedSelfTransform { subject, .. } if subject == entity
+            )
+        }) {
+            return Err(SimulationError::Checkpoint(format!(
+                "pending played-self transform {entity:?} has no retained finish barrier"
+            )));
+        }
     }
     for event in work.events.values() {
         validate_event_context_references(&event.context, ids)?;

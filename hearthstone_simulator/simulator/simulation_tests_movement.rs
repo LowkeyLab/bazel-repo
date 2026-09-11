@@ -1541,36 +1541,88 @@ fn in_play_copy_policy_rejects_non_play_destinations_directly_and_after_restore(
     checkpoint.resolution.remaining_budget = checkpoint.ruleset.resolution_budget;
     checkpoint.resolution.sequence_active = true;
     checkpoint.game.status = SimulationStatus::Resolving;
-    let mut restored = Simulation::from_checkpoint(checkpoint).unwrap();
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::Invariant(
+            contains_substring("requires CurrentForm policy")
+        )))
+    );
+}
+
+#[googletest::test]
+fn copy_operations_use_the_sources_current_zone_after_nested_work() {
+    let mut simulation = simulation();
+    let first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("First source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Moved source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let first_entity = game_entity(simulation.app.world(), first).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<RuntimeTriggers>(first_entity)
+        .unwrap()
+        .0
+        .push(TriggerDefinition {
+            event: EventKind::Summoned,
+            eligible_zones: vec![Zone::Play],
+            conditions: Vec::new(),
+            source_eligibility: SourceEligibilityPolicy::MustRemainInEligibleZone,
+            priority: 0,
+            wounded_target_policy: WoundedTargetPolicy::IncludePendingDestroy,
+            effect_program: vec![Effect::Move {
+                targets: Selector::Entity(second),
+                player: PlayerSelector::Controller,
+                zone: Zone::Hand,
+                kind: ZoneMovementKind::Normal,
+            }],
+        });
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Copy {
+            targets: Selector::FriendlyMinions,
+            player: PlayerSelector::Controller,
+            zone: Zone::Play,
+            board_index: None,
+        },
+    )
+    .unwrap();
+
+    drive_resolution(world).unwrap();
 
     assert_that!(
-        drive_resolution(restored.app.world_mut()),
-        err(matches_pattern!(SimulationError::Invariant(_)))
+        world.get::<Zone>(game_entity(world, second).unwrap()),
+        eq(Some(&Zone::Hand))
     );
     assert_that!(
-        restored
-            .app
-            .world()
-            .resource::<crate::entity::NextGameEntityId>()
-            .0,
-        eq(next_id)
+        world.resource::<CanonicalTrace>().entries.iter().any(
+            |entry| matches!(entry, TraceEntry::EntityCopied {
+                source,
+                policy: CopyStatePolicy::CurrentForm,
+                ..
+            } if *source == second)
+        ),
+        is_true()
     );
-    assert_that!(
-        restored
-            .app
-            .world()
-            .resource::<crate::entity::PlayOrderCounter>()
-            .0,
-        eq(next_order)
-    );
-    assert_that!(
-        restored
-            .trace()
-            .iter()
-            .any(|entry| matches!(entry, TraceEntry::EntityCopied { .. })),
-        is_false()
-    );
-    assert_that!(restored.snapshot().players[1].hand, is_empty());
 }
 
 #[googletest::test]

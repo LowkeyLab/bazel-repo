@@ -130,7 +130,18 @@ pub(super) fn execute_effect_operation(
         Effect::Draw { player, count } => {
             let player = resolve_player(context.controller, *player);
             let source = context.source;
-            let mut operations = Vec::with_capacity(*count as usize * 2);
+            let required_operations = usize::try_from(*count)
+                .ok()
+                .and_then(|count| count.checked_mul(2));
+            let remaining_budget = world.resource::<ResolutionWork>().remaining_budget;
+            let Some(required_operations) =
+                required_operations.filter(|required| *required <= remaining_budget)
+            else {
+                return Err(
+                    crate::resolver::ResolutionError::BudgetExhausted { operation: None }.into(),
+                );
+            };
+            let mut operations = Vec::with_capacity(required_operations);
             for _ in 0..*count {
                 let result = allocate_draw_result_slot(world);
                 operations.extend([
@@ -479,6 +490,9 @@ pub(super) fn validate_effect_program(
             {
                 return Err(SimulationError::NoModifiableEventValue);
             }
+            Effect::DrawThen {
+                effects: nested, ..
+            } => validate_effect_program(world, nested, None)?,
             Effect::Sequence(nested) => validate_effect_program(world, nested, event)?,
             Effect::Summon { card, .. } | Effect::Transform { card, .. } => {
                 validate_card_program(world, card)?;
@@ -941,13 +955,7 @@ pub(super) fn transform_entity(
             "target {target:?} must be a Minion"
         )));
     }
-    if card.kind != EntityKind::Minion {
-        return Err(SimulationError::InvalidTransformation(format!(
-            "replacement must be a Minion, not {:?}",
-            card.kind
-        )));
-    }
-    validate_card_program(world, &card)?;
+    validate_transform_replacement(world, &card)?;
     let previous_definition =
         required_transform_component::<DefinitionId>(world, entity, target, "DefinitionId")?
             .0
@@ -1080,6 +1088,19 @@ pub(super) fn transform_entity(
             kind,
         });
     Ok(())
+}
+
+pub(super) fn validate_transform_replacement(
+    world: &World,
+    card: &Card,
+) -> Result<(), SimulationError> {
+    if card.kind != EntityKind::Minion {
+        return Err(SimulationError::InvalidTransformation(format!(
+            "replacement must be a Minion, not {:?}",
+            card.kind
+        )));
+    }
+    validate_card_program(world, card)
 }
 
 fn required_transform_component<'a, T: Component>(
@@ -1278,21 +1299,33 @@ fn capture_copy_snapshot(
             request.source
         ))
     })?;
-    let expected_policy = if zone == Zone::Play && request.destination == Zone::Play {
-        CopyStatePolicy::InPlayState
-    } else {
-        CopyStatePolicy::CurrentForm
-    };
-    if request.policy != expected_policy {
-        return Err(SimulationError::Invariant(format!(
-            "copy from {zone:?} to {:?} requires {expected_policy:?} policy, got {:?}",
-            request.destination, request.policy
-        )));
-    }
+    validate_copy_policy(zone, request)?;
     Ok(Some(CopySnapshot {
         card,
         play_state: None,
     }))
+}
+
+pub(super) fn validate_copy_policy(
+    source_zone: Zone,
+    request: &CopyRequest,
+) -> Result<(), SimulationError> {
+    let expected_policy = copy_state_policy(source_zone, request.destination);
+    if request.policy != expected_policy {
+        return Err(SimulationError::Invariant(format!(
+            "copy from {source_zone:?} to {:?} requires {expected_policy:?} policy, got {:?}",
+            request.destination, request.policy
+        )));
+    }
+    Ok(())
+}
+
+pub(super) fn copy_state_policy(source_zone: Zone, destination: Zone) -> CopyStatePolicy {
+    if source_zone == Zone::Play && destination == Zone::Play {
+        CopyStatePolicy::InPlayState
+    } else {
+        CopyStatePolicy::CurrentForm
+    }
 }
 
 fn capture_play_copy_snapshot(
