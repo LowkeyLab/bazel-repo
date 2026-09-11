@@ -98,53 +98,6 @@ fn active_kind(world: &World, active: &[GameEntityId], kind: EntityKind) -> Vec<
         .collect()
 }
 
-#[cfg(test)]
-pub(super) fn draw_card(world: &mut World, player_id: PlayerId) -> Result<(), SimulationError> {
-    let card = world
-        .resource::<ZoneIndex>()
-        .entities(player_id, Zone::Deck)
-        .first()
-        .copied();
-    if let Some(card) = card {
-        let outcome = move_entity_with_request(
-            world,
-            ZoneMoveRequest {
-                entity: card,
-                destination_controller: player_id,
-                destination: Zone::Hand,
-                position: None,
-                kind: ZoneMovementKind::Draw,
-            },
-        )?;
-        let (from, destination) = match outcome {
-            ZoneMoveOutcome::Moved { from, .. } => (from, Zone::Hand),
-            ZoneMoveOutcome::FullZoneRemoval { from, .. } => (from, Zone::Graveyard),
-            ZoneMoveOutcome::PreventedByFullZone => {
-                return Err(SimulationError::Invariant(
-                    "draw was unexpectedly prevented by a full hand".to_string(),
-                ));
-            }
-        };
-        world
-            .resource_mut::<CanonicalTrace>()
-            .entries
-            .push(TraceEntry::ZoneMoved {
-                entity: card,
-                from,
-                to: destination,
-            });
-    } else {
-        let fatigue = {
-            let (_, mut player, _, _) = player_mut(world, player_id)?;
-            player.fatigue += 1;
-            player.fatigue as i32
-        };
-        let hero = hero_id(world, player_id).ok_or(SimulationError::PlayerNotFound(player_id))?;
-        apply_damage(world, None, hero, fatigue)?;
-    }
-    Ok(())
-}
-
 pub(super) fn process_draw(world: &mut World, request: DrawRequest) -> Result<(), SimulationError> {
     let card = world
         .resource::<ZoneIndex>()

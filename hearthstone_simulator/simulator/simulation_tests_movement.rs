@@ -511,7 +511,27 @@ fn forward_movement_preserves_enchantments() {
         EnchantmentDuration::Permanent,
     )
     .unwrap();
-    draw_card(simulation.app.world_mut(), PlayerId::One).unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 1,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+    world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
 
     let entity = game_entity(simulation.app.world(), topdeck).unwrap();
     assert_that!(

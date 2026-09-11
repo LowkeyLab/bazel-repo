@@ -75,7 +75,7 @@ use health::{
     expand_damage_batch, expand_healing_batch,
 };
 #[cfg(test)]
-use player::{check_outcome, draw_card, hero_id, player};
+use player::{check_outcome, hero_id, player};
 
 pub struct HearthstoneSimulationPlugin;
 

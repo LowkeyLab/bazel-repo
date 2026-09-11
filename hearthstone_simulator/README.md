@@ -18,6 +18,13 @@ This repository is synthetic-card-first: it implements reusable mechanics and co
 
 All card-type action sequences, choice-producing card mechanics, full Deathrattle-position and added-Deathrattle policy coverage, and remaining esoteric compatibility policies are tracked in the progress document. The resolver and checkpoint API preserve and restore generic pending choices, normalized turn grants, native state, and temporary durations.
 
+## Draw, transform, and copy semantics
+
+- Draw requests select the then-current top card one at a time. A successful draw moves the card to Hand before creating `CardDrawn`; Play-zone reactions resolve before the drawn card's Hand-zone reactions, and all draw consequences finish before the next draw.
+- `DrawThen` uses a private checkpointed result slot. Its continuation runs after draw reactions and can bind the successfully drawn stable ID and read that card's current cost; burn and fatigue follow the continuation's explicit success policy.
+- Transform operations preserve stable identity and placement while replacing form-owned state and detaching enchantments. Spell transforms add no summon timing, non-spell transforms run Summon Resolution aura work without a `Summoned` event, and played-self transforms run the inserted post-transform event before the captured original After Play event.
+- Copies outside Play receive the source's current form and base cost without attachments or zone-local runtime state. Play-to-Play copies receive fresh identity, play order, controller, and position; clone eligible non-aura runtime state and enchantments with fresh deterministic IDs; reset attack usage; exclude received aura caches; then resolve ordinary summon work.
+
 ## Example
 
 ```rust

@@ -1,5 +1,6 @@
 use googletest::prelude::*;
 
+use super::effect_executor::copy_entity;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
@@ -36,7 +37,26 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
     ]);
     let world = simulation.app.world_mut();
     world.resource_mut::<Ruleset>().hand_limit = 0;
-    draw_card(world, PlayerId::One).unwrap();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    execute_effect(
+        world,
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::Draw {
+            player: PlayerSelector::Controller,
+            count: 2,
+        },
+    )
+    .unwrap();
+    drive_resolution(world).unwrap();
+    finish_sequence(world);
+    world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
     assert_that!(
         world
             .resource::<ZoneIndex>()
@@ -44,7 +64,6 @@ fn draw_burn_fatigue_outcomes_and_private_helper_errors_are_testable() {
             .len(),
         eq(1)
     );
-    draw_card(world, PlayerId::One).unwrap();
     assert_that!(player(world, PlayerId::One).unwrap().1.fatigue, eq(1));
 
     let first_hero = hero_id(world, PlayerId::One).unwrap();
@@ -1890,5 +1909,311 @@ fn spawn_and_index_helpers_report_cleanup_and_drift() {
     assert_that!(
         assert_game_entity_index(world),
         err(eq(&"not every GameObject is indexed".to_string()))
+    );
+}
+
+#[googletest::test]
+fn checkpoints_reject_missing_transform_and_copy_references() {
+    let original = simulation();
+    let base = original.checkpoint().unwrap();
+    let valid = base.entities[0].id;
+    let missing = GameEntityId(u64::MAX);
+    let definition = crate::TriggerDefinition {
+        event: EventKind::Damage,
+        eligible_zones: vec![Zone::Play],
+        conditions: Vec::new(),
+        source_eligibility: crate::SourceEligibilityPolicy::RememberedSource,
+        priority: 0,
+        wounded_target_policy: crate::WoundedTargetPolicy::IncludePendingDestroy,
+        effect_program: Vec::new(),
+    };
+    let mut malformed = Vec::new();
+
+    for operation in [
+        ResolutionOp::TransformEntity {
+            target: missing,
+            source: Some(valid),
+            card: Card::minion("Retained transform", 0, 1, 1),
+            kind: crate::TransformKind::Spell,
+        },
+        ResolutionOp::CopyEntity(CopyRequest {
+            source: missing,
+            controller: PlayerId::One,
+            destination: Zone::Hand,
+            board_index: None,
+            policy: CopyStatePolicy::CurrentForm,
+        }),
+    ] {
+        let mut checkpoint = base.clone();
+        checkpoint.resolution.stack.push(StackedResolutionOp {
+            id: ResolutionId(0),
+            operation,
+        });
+        checkpoint.resolution.next_resolution_id = 1;
+        checkpoint.resolution.sequence_active = true;
+        checkpoint.game.status = SimulationStatus::Resolving;
+        malformed.push(checkpoint);
+    }
+
+    let mut seed = base.clone();
+    seed.resolution.events.insert(
+        EventId(0),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: Some(valid),
+                targets: vec![valid],
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: Some(1),
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: Some(vec![crate::TriggerSeed {
+                source: missing,
+                definition_index: 0,
+                definition: definition.clone(),
+                controller: PlayerId::One,
+                zone: Zone::Play,
+                play_order: 0,
+            }]),
+            candidates: None,
+        },
+    );
+    seed.resolution.next_event_id = 1;
+    seed.resolution.sequence_active = true;
+    seed.game.status = SimulationStatus::Resolving;
+    malformed.push(seed);
+
+    let mut candidate = base;
+    candidate.resolution.events.insert(
+        EventId(0),
+        PreparedEvent {
+            context: EventContext {
+                kind: EventKind::Damage,
+                source: Some(valid),
+                targets: vec![valid],
+                controller: PlayerId::One,
+                proposed_value: Some(1),
+                actual_value: Some(1),
+                simultaneous_ordinal: 0,
+            },
+            prechecked_triggers: None,
+            candidates: Some(vec![crate::TriggerCandidate {
+                source: valid,
+                event: EventId(0),
+                definition_index: 0,
+                definition,
+                controller: PlayerId::One,
+                order: crate::TriggerOrderKey {
+                    player_bucket: 0,
+                    zone_bucket: 0,
+                    priority: 0,
+                    play_order: 0,
+                    source: missing,
+                    tie_breaker: 0,
+                },
+            }]),
+        },
+    );
+    candidate.resolution.next_event_id = 1;
+    candidate.resolution.sequence_active = true;
+    candidate.game.status = SimulationStatus::Resolving;
+    malformed.push(candidate);
+
+    let mut copied = simulation();
+    let source = spawn_card(
+        copied.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Copy source", 0, 2, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        copied.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 1,
+            health: 1,
+            silence_removable: false,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    copy_entity(
+        copied.app.world_mut(),
+        CopyRequest {
+            source,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: None,
+            policy: CopyStatePolicy::InPlayState,
+        },
+    )
+    .unwrap();
+    let copy = copied
+        .trace()
+        .iter()
+        .find_map(|entry| match entry {
+            TraceEntry::EntityCopied { copy, .. } => Some(copy),
+            _ => None,
+        })
+        .copied()
+        .unwrap();
+    let copied_checkpoint = copied.checkpoint().unwrap();
+    let attachment_id = copied_checkpoint
+        .entities
+        .iter()
+        .find(|entity| entity.attached_to == Some(copy))
+        .unwrap()
+        .id;
+
+    let mut missing_relationship = copied_checkpoint.clone();
+    missing_relationship
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .attached_to = None;
+    malformed.push(missing_relationship);
+
+    let mut missing_duration = copied_checkpoint.clone();
+    missing_duration
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .enchantment_duration = None;
+    malformed.push(missing_duration);
+
+    let mut missing_play_order = copied_checkpoint.clone();
+    missing_play_order
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .play_order = None;
+    malformed.push(missing_play_order);
+
+    let mut missing_identity = copied_checkpoint.clone();
+    missing_identity
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap()
+        .definition_id = None;
+    malformed.push(missing_identity);
+
+    let mut missing_payload = copied_checkpoint;
+    let attachment = missing_payload
+        .entities
+        .iter_mut()
+        .find(|entity| entity.id == attachment_id)
+        .unwrap();
+    attachment.stat_modifier = None;
+    attachment.keyword_modifier = None;
+    attachment.cost_modifier = None;
+    attachment.runtime_triggers = None;
+    attachment.runtime_continuous_effects = None;
+    malformed.push(missing_payload);
+
+    for checkpoint in malformed {
+        assert_that!(
+            Simulation::from_checkpoint(checkpoint).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(anything())))
+        );
+    }
+}
+
+#[googletest::test]
+fn checkpoint_fork_executes_retained_transform_equivalently() {
+    let mut original = simulation();
+    let target = hand_card(&mut original, PlayerId::One);
+    begin_sequence(original.app.world_mut()).unwrap();
+    original.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        original.app.world_mut(),
+        [ResolutionOp::TransformEntity {
+            target,
+            source: None,
+            card: Card::minion("Checkpoint replacement", 2, 4, 5),
+            kind: crate::TransformKind::Spell,
+        }],
+    );
+    let json = original.checkpoint().unwrap().to_json().unwrap();
+    let mut restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    let mut fork = restored.fork().unwrap();
+
+    drive_resolution(restored.app.world_mut()).unwrap();
+    drive_resolution(fork.app.world_mut()).unwrap();
+    finish_sequence(restored.app.world_mut());
+    finish_sequence(fork.app.world_mut());
+    restored.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+    fork.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+
+    assert_that!(restored.snapshot(), eq(&fork.snapshot()));
+    assert_that!(restored.trace(), eq(fork.trace()));
+    assert_that!(
+        assert_resolution_invariants(restored.app.world()),
+        ok(anything())
+    );
+}
+
+#[googletest::test]
+fn checkpoint_fork_executes_retained_play_copy_with_cloned_enchantments_equivalently() {
+    let mut original = simulation();
+    let source = spawn_card(
+        original.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Checkpoint copy source", 1, 3, 4),
+        Zone::Play,
+    )
+    .unwrap();
+    attach_stat_modifier(
+        original.app.world_mut(),
+        PlayerId::One,
+        source,
+        StatModifier {
+            attack: 2,
+            health: 1,
+            silence_removable: true,
+        },
+        EnchantmentDuration::EndOfTurn(PlayerId::One),
+    )
+    .unwrap();
+    begin_sequence(original.app.world_mut()).unwrap();
+    original.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        original.app.world_mut(),
+        [ResolutionOp::CopyEntity(CopyRequest {
+            source,
+            controller: PlayerId::Two,
+            destination: Zone::Play,
+            board_index: Some(0),
+            policy: CopyStatePolicy::InPlayState,
+        })],
+    );
+    let json = original.checkpoint().unwrap().to_json().unwrap();
+    let mut restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    let mut fork = restored.fork().unwrap();
+
+    drive_resolution(restored.app.world_mut()).unwrap();
+    drive_resolution(fork.app.world_mut()).unwrap();
+    finish_sequence(restored.app.world_mut());
+    finish_sequence(fork.app.world_mut());
+    restored.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+    fork.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
+
+    assert_that!(restored.snapshot(), eq(&fork.snapshot()));
+    assert_that!(restored.trace(), eq(fork.trace()));
+    assert_that!(
+        restored.checkpoint().unwrap(),
+        eq(&fork.checkpoint().unwrap())
+    );
+    assert_that!(
+        assert_resolution_invariants(restored.app.world()),
+        ok(anything())
     );
 }

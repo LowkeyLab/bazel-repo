@@ -187,7 +187,7 @@ fn execute_resolution_op(
                         .pending_played_self_transforms
                         .insert(target);
                 }
-            };
+            }
             Ok(())
         }
         ResolutionOp::FinishPlayedSelfTransform {

@@ -401,6 +401,20 @@ mod tests {
     }
 
     #[googletest::test]
+    fn abandon_sequence_preserves_monotonic_resolution_id_allocation() {
+        let mut world = world();
+        begin_sequence(&mut world).unwrap();
+        let abandoned = push_resolution_op(&mut world, ResolutionOp::CheckOutcome);
+
+        abandon_sequence(&mut world);
+        begin_sequence(&mut world).unwrap();
+        let next = push_resolution_op(&mut world, ResolutionOp::CheckOutcome);
+
+        assert_that!(next.0, gt(abandoned.0));
+        assert_that!(next, eq(ResolutionId(abandoned.0 + 1)));
+    }
+
+    #[googletest::test]
     fn idle_invariants_reject_draw_slots_and_transform_timing_markers() {
         let mut world = world();
         let slot = allocate_draw_result_slot(&mut world);

@@ -605,20 +605,51 @@ fn validate_checkpoint_entity(
     entity: &GameEntityCheckpoint,
     ids: &BTreeSet<GameEntityId>,
 ) -> Result<(), SimulationError> {
-    if entity.kind == Some(EntityKind::Enchantment) && entity.enchantment_duration.is_none() {
-        return Err(SimulationError::Checkpoint(format!(
-            "enchantment {:?} lacks enchantment duration",
-            entity.id
-        )));
-    }
-    if entity.kind == Some(EntityKind::Enchantment)
-        && entity.attached_to.is_some()
-        && entity.zone != Some(Zone::Play)
-    {
-        return Err(SimulationError::Checkpoint(format!(
-            "attached enchantment {:?} is not in Play",
-            entity.id
-        )));
+    if entity.kind == Some(EntityKind::Enchantment) {
+        if entity.enchantment_duration.is_none() {
+            return Err(SimulationError::Checkpoint(format!(
+                "enchantment {:?} lacks enchantment duration",
+                entity.id
+            )));
+        }
+        if entity.attached_to.is_some() && entity.zone != Some(Zone::Play) {
+            return Err(SimulationError::Checkpoint(format!(
+                "attached enchantment {:?} is not in Play",
+                entity.id
+            )));
+        }
+        if entity.zone == Some(Zone::Play) && entity.attached_to.is_none() {
+            return Err(SimulationError::Checkpoint(format!(
+                "in-Play enchantment {:?} lacks an attachment target",
+                entity.id
+            )));
+        }
+        if entity.attached_to.is_some() && entity.play_order.is_none() {
+            return Err(SimulationError::Checkpoint(format!(
+                "attached enchantment {:?} lacks play order",
+                entity.id
+            )));
+        }
+        if entity.attached_to.is_some()
+            && (entity.definition_id.is_none() || entity.display_name.is_none())
+        {
+            return Err(SimulationError::Checkpoint(format!(
+                "attached enchantment {:?} lacks required identity data",
+                entity.id
+            )));
+        }
+        if entity.attached_to.is_some()
+            && entity.stat_modifier.is_none()
+            && entity.keyword_modifier.is_none()
+            && entity.cost_modifier.is_none()
+            && entity.runtime_triggers.is_none()
+            && entity.runtime_continuous_effects.is_none()
+        {
+            return Err(SimulationError::Checkpoint(format!(
+                "attached enchantment {:?} lacks a supported payload",
+                entity.id
+            )));
+        }
     }
     if entity.zone.is_some() && (entity.controller.is_none() || entity.zone_position.is_none()) {
         return Err(SimulationError::Checkpoint(format!(
