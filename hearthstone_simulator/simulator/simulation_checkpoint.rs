@@ -321,8 +321,8 @@ fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
     // Dormant card programs remain legal without registrations: normal action validation rejects
     // them before mutation. Only already-retained resolution work must be executable immediately.
     let resolution = world.resource::<ResolutionWork>();
-    for stacked in &resolution.stack {
-        validate_resolution_operation(world, &stacked.operation)?;
+    for (stack_index, stacked) in resolution.stack.iter().enumerate() {
+        validate_resolution_operation(world, &stacked.operation, Some(stack_index))?;
     }
     if let Some(pending) = &resolution.pending_choice {
         validate_choice_request(world, &pending.request)?;
@@ -353,6 +353,7 @@ fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
 fn validate_resolution_operation(
     world: &World,
     operation: &crate::ResolutionOp,
+    stack_index: Option<usize>,
 ) -> Result<(), SimulationError> {
     match operation {
         crate::ResolutionOp::RunEffect {
@@ -368,24 +369,17 @@ fn validate_resolution_operation(
                     .map(|prepared| prepared.context.kind)
             });
             let retained_play_barrier = event.is_none()
-                && context.source.is_some_and(|source| {
-                    world
-                        .resource::<ResolutionWork>()
-                        .stack
-                        .iter()
-                        .any(|stacked| {
-                            matches!(
-                                &stacked.operation,
-                                ResolutionOp::FinishPlayedSelfTransform { subject, .. }
-                                    if *subject == source
-                            )
-                        })
-                });
+                && context
+                    .source
+                    .is_some_and(|source| retained_play_barrier_below(world, source, stack_index));
             if retained_play_barrier {
                 validate_play_effect_program(world, std::slice::from_ref(effect))
             } else {
                 validate_effect_program(world, std::slice::from_ref(effect), event)
             }
+        }
+        crate::ResolutionOp::ContinueDraw { effects, .. } => {
+            validate_effect_program(world, effects, None)
         }
         crate::ResolutionOp::AttemptTrigger(candidate) => validate_effect_program(
             world,
@@ -414,13 +408,40 @@ fn validate_resolution_operation(
     }
 }
 
+fn retained_play_barrier_below(
+    world: &World,
+    source: GameEntityId,
+    stack_index: Option<usize>,
+) -> bool {
+    let Some(stack_index) = stack_index else {
+        return false;
+    };
+    let Some(source_entity) = game_entity(world, source) else {
+        return false;
+    };
+    if world
+        .get::<EntityKind>(source_entity)
+        .is_none_or(|kind| *kind != EntityKind::Minion)
+    {
+        return false;
+    }
+    world.resource::<ResolutionWork>().stack[..stack_index]
+        .iter()
+        .any(|stacked| {
+            matches!(
+                &stacked.operation,
+                ResolutionOp::FinishPlayedSelfTransform { subject, .. } if *subject == source
+            )
+        })
+}
+
 fn validate_choice_request(
     world: &World,
     request: &crate::ChoiceRequest,
 ) -> Result<(), SimulationError> {
     for option in &request.options {
         for operation in &option.operations {
-            validate_resolution_operation(world, operation)?;
+            validate_resolution_operation(world, operation, None)?;
         }
     }
     Ok(())

@@ -22,6 +22,71 @@ fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: Resolution
     checkpoint.game.status = SimulationStatus::Resolving;
 }
 
+fn checkpoint_with_retained_continuation(effect: Effect) -> SimulationCheckpoint {
+    let simulation = simulation();
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    let source = checkpoint.entities[0].id;
+    let result = DrawResultSlotId(0);
+    checkpoint.resolution.next_draw_result_slot_id = 1;
+    checkpoint
+        .resolution
+        .draw_result_slots
+        .insert(result, DrawResultSlot::default());
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::ContinueDraw {
+            result,
+            context: EffectContext {
+                source: Some(source),
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            effects: vec![effect],
+            policy: DrawContinuationPolicy::RunWithoutCard,
+        },
+    );
+    checkpoint
+}
+
+fn checkpoint_with_play_minion() -> (SimulationCheckpoint, GameEntityId) {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Retained source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    (simulation.checkpoint().unwrap(), source)
+}
+
+fn retained_played_self_effect(source: GameEntityId) -> ResolutionOp {
+    ResolutionOp::RunEffect {
+        context: EffectContext {
+            source: Some(source),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        effect: Effect::Transform {
+            targets: Selector::Source,
+            card: Card::minion("Retained replacement", 0, 2, 2),
+            kind: TransformKind::PlayedSelf,
+        },
+        event: None,
+    }
+}
+
+fn retained_played_self_finish(subject: GameEntityId) -> ResolutionOp {
+    ResolutionOp::FinishPlayedSelfTransform {
+        subject,
+        original_after_play: Vec::new(),
+    }
+}
+
 #[googletest::test]
 fn fork_replays_to_an_equivalent_snapshot_and_trace() {
     let mut simulation = simulation();
@@ -1893,6 +1958,118 @@ fn retained_draw_then_continuations_do_not_inherit_enclosing_event_context() {
     assert_that!(
         Simulation::from_checkpoint(checkpoint).map(|_| ()),
         err(eq(&SimulationError::NoModifiableEventValue))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_continuations_reject_played_self_transforms() {
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint_with_retained_continuation(Effect::Transform {
+            targets: Selector::Source,
+            card: Card::minion("Invalid delayed replacement", 0, 1, 1),
+            kind: TransformKind::PlayedSelf,
+        }))
+        .map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_continuations_reject_missing_native_effects() {
+    let missing = NativeEffectId::new("missing:retained_continuation");
+
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint_with_retained_continuation(Effect::Native(
+            missing.clone(),
+        )))
+        .map(|_| ()),
+        err(eq(&SimulationError::NativeEffectNotRegistered(missing)))
+    );
+}
+
+#[googletest::test]
+fn retained_draw_continuations_reject_event_only_modifiers() {
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint_with_retained_continuation(
+            Effect::ModifyEventValue {
+                operation: crate::EventValueOperation::Add,
+                value: crate::ValueExpression::Constant(1),
+            },
+        ))
+        .map(|_| ()),
+        err(eq(&SimulationError::NoModifiableEventValue))
+    );
+}
+
+#[googletest::test]
+fn retained_played_self_effect_rejects_a_barrier_above_it() {
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
+    retain_operation(&mut checkpoint, retained_played_self_effect(source));
+    retain_operation(&mut checkpoint, retained_played_self_finish(source));
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn nested_retained_effect_cannot_borrow_an_outer_play_barrier() {
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
+    retain_operation(&mut checkpoint, retained_played_self_finish(source));
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(70),
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: ChoiceId(71),
+                operations: vec![retained_played_self_effect(source)],
+            }],
+        }),
+    );
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_played_self_effect_rejects_a_non_minion_source() {
+    let mut spell_simulation = simulation();
+    let spell = spawn_card(
+        spell_simulation.app.world_mut(),
+        PlayerId::One,
+        Card::spell("Non-minion source", 0),
+        Zone::Hand,
+    )
+    .unwrap();
+    let mut checkpoint = spell_simulation.checkpoint().unwrap();
+    retain_operation(&mut checkpoint, retained_played_self_finish(spell));
+    retain_operation(&mut checkpoint, retained_played_self_effect(spell));
+    assert_that!(
+        Simulation::from_checkpoint(checkpoint).map(|_| ()),
+        err(matches_pattern!(SimulationError::InvalidTransformation(
+            anything()
+        )))
+    );
+}
+
+#[googletest::test]
+fn retained_played_self_effect_round_trips_with_its_later_barrier() {
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
+    retain_operation(&mut checkpoint, retained_played_self_finish(source));
+    retain_operation(&mut checkpoint, retained_played_self_effect(source));
+    let json = checkpoint.to_json().unwrap();
+    let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+    assert_that!(
+        Simulation::from_checkpoint(decoded).map(|_| ()),
+        ok(anything())
     );
 }
 
