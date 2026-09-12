@@ -36,7 +36,7 @@ pub(crate) use hearthstone_simulator_core::{
     PreparedEventSlot, RULEBOOK_REVISION, ResolutionId, ResolutionOp, ResolutionWork, Ruleset,
     RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, ScheduledTurnKind,
     Selector, SequenceStep, SilenceRemovable, Silenced, SimulationCheckpoint, SimulationError,
-    SimulationStatus, SourceEligibilityPolicy, StackedResolutionOp, StatModifier,
+    SimulationStatus, SourceEligibilityPolicy, StackedResolutionOp, StatModifier, SubjectGuard,
     TargetRequirement, TraceEntry, TriggerCandidate, TriggerCondition, TriggerOrderKey,
     TriggerSeed, TurnSchedule, ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest,
     ZoneMovementKind, ZonePosition,

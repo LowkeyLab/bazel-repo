@@ -7,7 +7,7 @@ use crate::{
     AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
     DrawOutcome, DrawRequest, DrawResultSlot, DrawResultSlotId, EnchantmentDuration,
     GameEntityCheckpoint, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
-    Player, SequenceStep, SilenceRemovable, TargetAudience, TargetFilter, TargetKind,
+    Player, SequenceStep, SilenceRemovable, SubjectGuard, TargetAudience, TargetFilter, TargetKind,
     TargetRequirement, TransformKind, resolver::allocate_draw_result_slot,
 };
 
@@ -663,7 +663,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
 }
 
 #[googletest::test]
-fn schema_eight_json_roundtrip_preserves_trigger_enchantment_payloads() {
+fn schema_nine_json_roundtrip_preserves_trigger_enchantment_payloads() {
     let trigger = crate::TriggerDefinition {
         event: EventKind::Damage,
         eligible_zones: vec![Zone::Play],
@@ -743,7 +743,7 @@ fn schema_eight_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(8));
+    assert_that!(checkpoint.schema_version, eq(9));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
@@ -916,7 +916,7 @@ fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantm
 }
 
 #[googletest::test]
-fn checkpoints_reject_enchantments_without_durations_and_schema_version_seven() {
+fn checkpoints_reject_enchantments_without_durations_and_old_schema_versions() {
     let mut simulation = simulation();
     let target = hand_card(&mut simulation, PlayerId::One);
     attach_stat_modifier(
@@ -960,14 +960,18 @@ fn checkpoints_reject_enchantments_without_durations_and_schema_version_seven() 
         ))),
     );
 
-    let mut old_schema = simulation.checkpoint().unwrap();
-    old_schema.schema_version = 7;
-    assert_that!(
-        Simulation::from_checkpoint(old_schema).map(|_| ()),
-        err(matches_pattern!(SimulationError::Checkpoint(
-            contains_substring("unsupported checkpoint schema version 7")
-        ))),
-    );
+    for schema_version in [7, 8] {
+        let mut old_schema = simulation.checkpoint().unwrap();
+        old_schema.schema_version = schema_version;
+        assert_that!(
+            Simulation::from_checkpoint(old_schema).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(
+                contains_substring(format!(
+                    "unsupported checkpoint schema version {schema_version}"
+                ))
+            ))),
+        );
+    }
 }
 
 #[googletest::test]
@@ -2307,6 +2311,49 @@ fn retained_copies_preserve_missing_source_no_op_semantics() {
     );
     let restored_missing = Simulation::from_checkpoint(missing_source.clone()).unwrap();
     assert_that!(restored_missing.checkpoint().unwrap(), eq(&missing_source));
+}
+
+#[googletest::test]
+fn checkpoints_validate_guard_references_without_requiring_current_guard_zone() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let mut valid = simulation.checkpoint().unwrap();
+    retain_operation(
+        &mut valid,
+        ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![SubjectGuard {
+                subject: card,
+                required_zone: Zone::Play,
+            }],
+            step: SequenceStep::Concede {
+                player: PlayerId::One,
+            },
+        },
+    );
+    let json = valid.to_json().unwrap();
+    let restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    assert_that!(restored.checkpoint().unwrap(), eq(&valid));
+
+    let mut missing = valid;
+    retain_operation(
+        &mut missing,
+        ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![SubjectGuard {
+                subject: GameEntityId(u64::MAX),
+                required_zone: Zone::Hand,
+            }],
+            step: SequenceStep::Concede {
+                player: PlayerId::One,
+            },
+        },
+    );
+    assert_that!(
+        Simulation::from_checkpoint(missing).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("guard subject")
+        )))
+    );
 }
 
 #[googletest::test]

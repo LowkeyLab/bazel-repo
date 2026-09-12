@@ -817,6 +817,12 @@ fn validate_resolution_operation_references(
 ) -> Result<(), SimulationError> {
     match operation {
         ResolutionOp::RunSequenceStep(step) => validate_sequence_step_references(step, ids),
+        ResolutionOp::RunGuardedSequenceStep { guards, step } => {
+            for guard in guards {
+                validate_entity_reference("guard subject", guard.subject, ids)?;
+            }
+            validate_sequence_step_references(step, ids)
+        }
         ResolutionOp::RunPhaseBoundary(_)
         | ResolutionOp::CheckOutcome
         | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon) => Ok(()),

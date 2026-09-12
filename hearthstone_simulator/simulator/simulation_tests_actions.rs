@@ -2,7 +2,8 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AttackState, CurrentStats, Player, TargetAudience, TargetFilter, TargetKind, TargetRequirement,
+    AttackState, CurrentStats, EffectOrigin, Player, PlayerSelector, SequenceStep, SubjectGuard,
+    TargetAudience, TargetFilter, TargetKind, TargetRequirement, TransformKind, ZoneMovementKind,
 };
 
 fn card_named(simulation: &mut Simulation, name: &str) -> GameEntityId {
@@ -49,6 +50,314 @@ fn assert_rejected_action_is_atomic(
         }) if rejected_player == player
     ));
     assert_eq!(after, before);
+}
+
+#[googletest::test]
+fn guarded_sequence_step_skips_and_keeps_later_sequence_work() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    let rng = world.resource::<DeterministicRng>().state();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Play,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+            ResolutionOp::RunSequenceStep(SequenceStep::EndTurn {
+                player: PlayerId::One,
+            }),
+        ],
+    );
+
+    drive_resolution(world).unwrap();
+
+    assert_that!(world.resource::<GameState>().outcome, eq(None));
+    assert_that!(
+        world.resource::<GameState>().active_player,
+        eq(PlayerId::Two)
+    );
+    assert_that!(world.resource::<ResolutionWork>().stack, is_empty());
+    assert_that!(world.resource::<DeterministicRng>().state(), eq(rng));
+    assert_that!(
+        world
+            .resource::<CanonicalTrace>()
+            .entries
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::OperationPopped { kind, .. } if kind == "CheckOutcome")),
+        is_true(),
+    );
+    assert_that!(
+        world
+            .resource::<CanonicalTrace>()
+            .entries
+            .iter()
+            .filter(|entry| matches!(
+                entry,
+                TraceEntry::SequenceStepSkipped {
+                    step: SequenceStep::Concede { player: PlayerId::One },
+                    subject,
+                    expected_zone: Zone::Play,
+                    actual_zone: Some(Zone::Hand),
+                } if *subject == card
+            ))
+            .count(),
+        eq(1),
+    );
+}
+
+fn resolve_guarded_sequence_step(
+    simulation: &mut Simulation,
+    guards: Vec<SubjectGuard>,
+    step: SequenceStep,
+) {
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [ResolutionOp::RunGuardedSequenceStep { guards, step }],
+    );
+    drive_resolution(world).unwrap();
+}
+
+#[googletest::test]
+fn empty_guards_execute_the_sequence_step() {
+    let mut simulation = simulation();
+
+    resolve_guarded_sequence_step(
+        &mut simulation,
+        Vec::new(),
+        SequenceStep::Concede {
+            player: PlayerId::One,
+        },
+    );
+
+    assert_that!(
+        simulation.app.world().resource::<GameState>().outcome,
+        eq(Some(GameOutcome::Winner(PlayerId::Two)))
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::SequenceStepSkipped { .. })),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn missing_subject_and_first_failed_guard_skip_once() {
+    let mut missing = simulation();
+    let absent = GameEntityId(u64::MAX);
+
+    resolve_guarded_sequence_step(
+        &mut missing,
+        vec![SubjectGuard {
+            subject: absent,
+            required_zone: Zone::Play,
+        }],
+        SequenceStep::Concede {
+            player: PlayerId::One,
+        },
+    );
+
+    assert_that!(
+        missing.app.world().resource::<GameState>().outcome,
+        eq(None)
+    );
+    assert!(matches!(
+        missing.trace().last(),
+        Some(TraceEntry::SequenceStepSkipped {
+            subject,
+            expected_zone: Zone::Play,
+            actual_zone: None,
+            ..
+        }) if *subject == absent
+    ));
+
+    let mut first = simulation();
+    let card = hand_card(&mut first, PlayerId::One);
+    let second = hero(&mut first, PlayerId::Two);
+    resolve_guarded_sequence_step(
+        &mut first,
+        vec![
+            SubjectGuard {
+                subject: card,
+                required_zone: Zone::Play,
+            },
+            SubjectGuard {
+                subject: second,
+                required_zone: Zone::Hand,
+            },
+        ],
+        SequenceStep::Concede {
+            player: PlayerId::One,
+        },
+    );
+
+    assert!(matches!(
+        first.trace().last(),
+        Some(TraceEntry::SequenceStepSkipped {
+            subject,
+            actual_zone: Some(Zone::Hand),
+            ..
+        }) if *subject == card
+    ));
+}
+
+#[googletest::test]
+fn guards_evaluate_after_preceding_effects() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunEffect {
+                context: EffectContext {
+                    source: None,
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                effect: Effect::Move {
+                    targets: Selector::Entity(card),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Graveyard,
+                    kind: ZoneMovementKind::Normal,
+                },
+                event: None,
+            },
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Hand,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+        ],
+    );
+
+    drive_resolution(world).unwrap();
+
+    assert_that!(world.resource::<GameState>().outcome, eq(None));
+    assert_that!(
+        world.get::<Zone>(game_entity(world, card).unwrap()),
+        eq(Some(&Zone::Graveyard))
+    );
+    assert!(matches!(
+        world.resource::<CanonicalTrace>().entries.last(),
+        Some(TraceEntry::SequenceStepSkipped {
+            subject,
+            expected_zone: Zone::Hand,
+            actual_zone: Some(Zone::Graveyard),
+            ..
+        }) if *subject == card
+    ));
+}
+
+#[googletest::test]
+fn returned_and_transformed_subjects_pass_zone_guards() {
+    let mut returned = simulation();
+    let card = hand_card(&mut returned, PlayerId::One);
+    let world = returned.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    let move_context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunEffect {
+                context: move_context.clone(),
+                effect: Effect::Move {
+                    targets: Selector::Entity(card),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Deck,
+                    kind: ZoneMovementKind::Normal,
+                },
+                event: None,
+            },
+            ResolutionOp::RunEffect {
+                context: move_context,
+                effect: Effect::Move {
+                    targets: Selector::Entity(card),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Hand,
+                    kind: ZoneMovementKind::Normal,
+                },
+                event: None,
+            },
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Hand,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+        ],
+    );
+    drive_resolution(world).unwrap();
+    assert_that!(
+        world.resource::<GameState>().outcome,
+        eq(Some(GameOutcome::Winner(PlayerId::Two)))
+    );
+
+    let mut transformed = simulation();
+    let card = hand_card(&mut transformed, PlayerId::One);
+    let world = transformed.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::TransformEntity {
+                target: card,
+                source: None,
+                card: Card::minion("Replacement", 0, 1, 1),
+                kind: TransformKind::Spell,
+            },
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Hand,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+        ],
+    );
+    drive_resolution(world).unwrap();
+    assert_that!(
+        world.resource::<GameState>().outcome,
+        eq(Some(GameOutcome::Winner(PlayerId::Two)))
+    );
+    assert_that!(
+        world.get::<Zone>(game_entity(world, card).unwrap()),
+        eq(Some(&Zone::Hand))
+    );
 }
 
 #[googletest::test]

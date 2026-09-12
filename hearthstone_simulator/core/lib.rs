@@ -68,7 +68,7 @@ pub use resolver::{
     ChoiceOption, ChoiceRequest, CopyRequest, DamageRequest, DrawOutcome, DrawRequest,
     DrawResultSlot, HealingRequest, PendingChoice, PhaseBoundaryPlan, PreparedEvent,
     PreparedEventSlot, ResolutionError, ResolutionOp, ResolutionWork, SequenceStep,
-    StackedResolutionOp,
+    StackedResolutionOp, SubjectGuard,
 };
 pub use rng::{DeterministicRng, RNG_ALGORITHM_VERSION, RngSnapshot};
 pub use ruleset::{

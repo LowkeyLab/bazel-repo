@@ -190,35 +190,57 @@ fn apply_action(world: &mut World, action: &GameAction) -> Result<(), Simulation
     let action = super::action_validation::validate_action(world, action)?;
     world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
     begin_sequence(world)?;
-    let step = match &action {
+    let operation = match &action {
         GameAction::PlayCard {
             player,
             card,
             target,
             board_index,
             ..
-        } => SequenceStep::PlayCard {
-            player: *player,
-            card: *card,
-            target: *target,
-            board_index: *board_index,
+        } => ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![crate::SubjectGuard {
+                subject: *card,
+                required_zone: Zone::Hand,
+            }],
+            step: SequenceStep::PlayCard {
+                player: *player,
+                card: *card,
+                target: *target,
+                board_index: *board_index,
+            },
         },
         GameAction::Attack {
             player,
             attacker,
             defender,
-        } => SequenceStep::Attack {
-            player: *player,
-            attacker: *attacker,
-            defender: *defender,
+        } => ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![
+                crate::SubjectGuard {
+                    subject: *attacker,
+                    required_zone: Zone::Play,
+                },
+                crate::SubjectGuard {
+                    subject: *defender,
+                    required_zone: Zone::Play,
+                },
+            ],
+            step: SequenceStep::Attack {
+                player: *player,
+                attacker: *attacker,
+                defender: *defender,
+            },
         },
-        GameAction::EndTurn { player } => SequenceStep::EndTurn { player: *player },
-        GameAction::Concede { player } => SequenceStep::Concede { player: *player },
+        GameAction::EndTurn { player } => {
+            ResolutionOp::RunSequenceStep(SequenceStep::EndTurn { player: *player })
+        }
+        GameAction::Concede { player } => {
+            ResolutionOp::RunSequenceStep(SequenceStep::Concede { player: *player })
+        }
     };
     push_resolution_ops(
         world,
         [
-            ResolutionOp::RunSequenceStep(step),
+            operation,
             ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
             ResolutionOp::CheckOutcome,
         ],
@@ -340,6 +362,30 @@ pub(super) fn run_sequence_step(
             Ok(())
         }
     }
+}
+
+pub(super) fn run_guarded_sequence_step(
+    world: &mut World,
+    guards: &[crate::SubjectGuard],
+    step: &SequenceStep,
+) -> Result<(), SimulationError> {
+    for guard in guards {
+        let actual_zone =
+            game_entity(world, guard.subject).and_then(|entity| world.get::<Zone>(entity).copied());
+        if actual_zone != Some(guard.required_zone) {
+            world
+                .resource_mut::<CanonicalTrace>()
+                .entries
+                .push(TraceEntry::SequenceStepSkipped {
+                    step: step.clone(),
+                    subject: guard.subject,
+                    expected_zone: guard.required_zone,
+                    actual_zone,
+                });
+            return Ok(());
+        }
+    }
+    run_sequence_step(world, step)
 }
 
 fn play_card(

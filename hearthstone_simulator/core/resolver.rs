@@ -49,6 +49,12 @@ pub enum SequenceStep {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SubjectGuard {
+    pub subject: GameEntityId,
+    pub required_zone: Zone,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct DamageRequest {
     pub source: Option<GameEntityId>,
     pub target: GameEntityId,
@@ -112,6 +118,10 @@ pub struct PendingChoice {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum ResolutionOp {
     RunSequenceStep(SequenceStep),
+    RunGuardedSequenceStep {
+        guards: Vec<SubjectGuard>,
+        step: SequenceStep,
+    },
     RunPhaseBoundary(PhaseBoundaryPlan),
     RefreshAuras(AuraRefreshPlan),
     CheckOutcome,
@@ -180,6 +190,7 @@ impl ResolutionOp {
     pub fn kind(&self) -> &'static str {
         match self {
             Self::RunSequenceStep(_) => "RunSequenceStep",
+            Self::RunGuardedSequenceStep { .. } => "RunGuardedSequenceStep",
             Self::RunPhaseBoundary(_) => "RunPhaseBoundary",
             Self::RefreshAuras(_) => "RefreshAuras",
             Self::CheckOutcome => "CheckOutcome",
@@ -310,6 +321,19 @@ mod tests {
             "TransformEntity"
         );
         assert_eq!(
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: GameEntityId(11),
+                    required_zone: Zone::Play,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            }
+            .kind(),
+            "RunGuardedSequenceStep"
+        );
+        assert_eq!(
             ResolutionOp::FinishPlayedSelfTransform {
                 subject: GameEntityId(11),
                 original_after_play: Vec::new(),
@@ -364,5 +388,28 @@ mod tests {
         let json = serde_json::to_string(&request).unwrap();
 
         assert_eq!(serde_json::from_str::<CopyRequest>(&json).unwrap(), request);
+    }
+
+    #[test]
+    fn guarded_sequence_step_round_trips() {
+        let operation = ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![SubjectGuard {
+                subject: GameEntityId(11),
+                required_zone: Zone::Hand,
+            }],
+            step: SequenceStep::PlayCard {
+                player: PlayerId::One,
+                card: GameEntityId(11),
+                target: Some(GameEntityId(13)),
+                board_index: Some(0),
+            },
+        };
+
+        let json = serde_json::to_string(&operation).unwrap();
+
+        assert_eq!(
+            serde_json::from_str::<ResolutionOp>(&json).unwrap(),
+            operation
+        );
     }
 }
