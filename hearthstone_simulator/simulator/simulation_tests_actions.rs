@@ -1296,6 +1296,281 @@ fn legal_actions_offer_each_required_target_at_the_explicit_minion_position() {
 }
 
 #[googletest::test]
+fn legal_actions_use_canonical_order_and_deduplicate_scrambled_indexes() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Optional positioned", 0, 1, 1)
+                    .with_targeting(TargetRequirement::Optional(enemy_character)),
+                Card::spell("Plain spell", 0),
+                Card::minion("Plain positioned", 0, 1, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let optional_positioned = card_named(&mut simulation, "Optional positioned");
+    let plain_spell = card_named(&mut simulation, "Plain spell");
+    let plain_positioned = card_named(&mut simulation, "Plain positioned");
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let snapshot = simulation.snapshot();
+    let friendly_hero_power = snapshot.players[0].hero_power.unwrap();
+    let enemy_hero_power = snapshot.players[1].hero_power.unwrap();
+    let friendly_first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Friendly first", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let friendly_second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Friendly second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy first", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+
+    assert!(optional_positioned < plain_spell && plain_spell < plain_positioned);
+    assert!(friendly_hero < friendly_first && friendly_first < friendly_second);
+    assert!(enemy_hero < enemy_first && enemy_first < enemy_second);
+    for attacker in [friendly_hero, friendly_first, friendly_second] {
+        let entity = game_entity(simulation.app.world(), attacker).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<CurrentStats>(entity)
+            .unwrap()
+            .attack = 1;
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<AttackState>(entity)
+            .unwrap()
+            .exhausted = false;
+    }
+
+    let mut index = simulation.app.world_mut().resource_mut::<ZoneIndex>();
+    index.0.insert(
+        (PlayerId::One, Zone::Hand),
+        vec![
+            plain_positioned,
+            optional_positioned,
+            plain_spell,
+            plain_positioned,
+        ],
+    );
+    index.0.insert(
+        (PlayerId::One, Zone::Play),
+        vec![
+            friendly_second,
+            friendly_hero,
+            friendly_hero_power,
+            friendly_first,
+            friendly_hero,
+        ],
+    );
+    index.0.insert(
+        (PlayerId::Two, Zone::Play),
+        vec![
+            enemy_second,
+            enemy_hero,
+            enemy_hero_power,
+            enemy_first,
+            enemy_hero,
+        ],
+    );
+
+    assert_eq!(
+        simulation.legal_actions(),
+        vec![
+            GameAction::EndTurn {
+                player: PlayerId::One,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: None,
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: None,
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: None,
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_hero),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_hero),
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_hero),
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_first),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_first),
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_first),
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_second),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_second),
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_second),
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_spell,
+                target: None,
+                board_index: None,
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_positioned,
+                target: None,
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_positioned,
+                target: None,
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_positioned,
+                target: None,
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_hero,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_first,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_second,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_first,
+                defender: enemy_hero,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_first,
+                defender: enemy_first,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_first,
+                defender: enemy_second,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_second,
+                defender: enemy_hero,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_second,
+                defender: enemy_first,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_second,
+                defender: enemy_second,
+            },
+            GameAction::Concede {
+                player: PlayerId::One,
+            },
+        ],
+    );
+}
+
+#[googletest::test]
 fn legal_actions_contain_every_successfully_validated_small_fixture_candidate() {
     let enemy_character = TargetFilter {
         audience: TargetAudience::Enemy,
