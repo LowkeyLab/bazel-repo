@@ -18,6 +18,43 @@ This repository is synthetic-card-first: it implements reusable mechanics and co
 
 All card-type action sequences, choice-producing card mechanics, full Deathrattle-position and added-Deathrattle policy coverage, and remaining esoteric compatibility policies are tracked in the progress document. The resolver and checkpoint API preserve and restore generic pending choices, normalized turn grants, native state, and temporary durations.
 
+## Action declarations
+
+The supported player declarations are minion and spell plays, character attacks, `EndTurn`, and
+`Concede`. A card can declare one of four explicit target requirements: no target, required,
+optional, or required when matching targets exist. The current filter foundation selects friendly,
+enemy, or either-player Minions, Heroes, or Characters; it intentionally does not implement
+keyword-specific or complete card-by-card targeting legality.
+
+```rust
+use hearthstone_simulator::Simulation;
+use hearthstone_simulator_core::{
+    Card, Effect, GameAction, PlayerConfig, PlayerId, Selector, TargetAudience, TargetFilter,
+    TargetKind, TargetRequirement, ValueExpression,
+};
+
+let bolt = Card::spell("Bolt", 1)
+    .with_targeting(TargetRequirement::Required(TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    }))
+    .with_effects(vec![Effect::DealDamage {
+        targets: Selector::DeclaredTarget,
+        amount: ValueExpression::Constant(2),
+    }]);
+```
+
+Declarations are validated and normalized before resolution begins. Targeted cards retain the
+accepted target ID for their effects; resolution does not revalidate that declaration later.
+Minion plays enumerate every explicit insertion position in canonical order, while a submitted
+omitted minion position normalizes to the final append position. Spells do not accept a board
+position, and every nonempty `PlayCard.choice` is currently rejected. `legal_actions()` returns
+only canonical supported declarations, including valid character attacks, without changing game
+state or trace.
+
+Weapons, Hero cards, locations, Hero Powers, combat redirection, complete phase guards, and
+keyword-specific targeting or combat legality remain outside this action-contract foundation.
+
 ## Draw, transform, and copy semantics
 
 - Draw requests select the then-current top card one at a time. A successful draw moves the card to Hand before creating `CardDrawn`; Play-zone reactions resolve before the drawn card's Hand-zone reactions, and all draw consequences finish before the next draw.

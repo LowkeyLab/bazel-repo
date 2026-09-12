@@ -65,7 +65,7 @@ pub enum TargetRequirement {
 // pub fn with_targeting(self, targeting: TargetRequirement) -> Self
 ```
 
-- [ ] Add a core regression exercising constructor default, builder, definition conversion, and serde. Use this concrete case in `card_definition.rs` tests, importing the new types explicitly:
+- [x] Add a core regression exercising constructor default, builder, definition conversion, and serde. Use this concrete case in `card_definition.rs` tests, importing the new types explicitly:
 
 ```rust
 let targeting = TargetRequirement::Required(TargetFilter {
@@ -79,9 +79,9 @@ assert_eq!(serde_json::from_str::<Card>(&json).unwrap(), card);
 assert_eq!(CardDefinition::from(card).targeting, targeting);
 ```
 
-- [ ] Run Gazelle, then `aspect test //hearthstone_simulator/core:core_test`. Expect missing-type/field failures before implementation.
-- [ ] Implement the four types, exports, field, and builder. Constructors explicitly initialize None. The builder sets the field and returns self. Do not add serde defaults that accept old checkpoint payloads as the new schema.
-- [ ] Thread metadata through each reconstruction point using the source appropriate to that path:
+- [x] Run Gazelle, then `aspect test //hearthstone_simulator/core:core_test`. Expect missing-type/field failures before implementation.
+- [x] Implement the four types, exports, field, and builder. Constructors explicitly initialize None. The builder sets the field and returns self. Do not add serde defaults that accept old checkpoint payloads as the new schema.
+- [x] Thread metadata through each reconstruction point using the source appropriate to that path:
 
 ```rust
 // CardDefinition::from and spawn_validated_card:
@@ -98,7 +98,7 @@ targeting: value.targeting,
 
 Backward movement currently resets stats/keywords and leaves CardRuntime intact. Preserve the current form's targeting through that path; do not introduce a definition registry lookup. Include all explicit Card and CardRuntime initializers located with `rg -n 'Card \{|CardRuntime \{|CardDefinition \{' hearthstone_simulator`.
 
-- [ ] Bump checkpoint schema 7 to 8 for metadata and update version-rejection assertions. Add a runtime round trip using the existing API:
+- [x] Bump checkpoint schema 7 to 8 for metadata and update version-rejection assertions. Add a runtime round trip using the existing API:
 
 ```rust
 let simulation = Simulation::new([
@@ -118,8 +118,8 @@ let restored = Simulation::from_checkpoint(
 assert_eq!(restored.checkpoint().unwrap(), checkpoint);
 ```
 
-- [ ] Extend existing copy/transform/movement regressions: give source and replacement distinct targeting values, inspect reconstructed `copy_card_data(...).unwrap().targeting`, and assert source metadata on copies, replacement metadata after transformation, and unchanged current-form metadata after backward movement. Exercise both Play and non-Play copy destinations already covered by those fixtures.
-- [ ] Run Gazelle after edits, `aspect test //hearthstone_simulator/...`, repository formatting, and full build. Commit `feat(hearthstone): persist explicit card targeting contracts`.
+- [x] Extend existing copy/transform/movement regressions: give source and replacement distinct targeting values, inspect reconstructed `copy_card_data(...).unwrap().targeting`, and assert source metadata on copies, replacement metadata after transformation, and unchanged current-form metadata after backward movement. Exercise both Play and non-Play copy destinations already covered by those fixtures.
+- [x] Run Gazelle after edits, `aspect test //hearthstone_simulator/...`, repository formatting, and full build. Commit `feat(hearthstone): persist explicit card targeting contracts`.
 
 ## Task 2: Shared validator enforces targeting and normalizes declarations
 
@@ -158,7 +158,7 @@ match requirement {
 }
 ```
 
-- [ ] Add a regression for ignored target input before moving validation code:
+- [x] Add a regression for ignored target input before moving validation code:
 
 ```rust
 #[googletest::test]
@@ -175,10 +175,10 @@ fn untargeted_play_rejects_a_supplied_target() {
 
 Run Gazelle and the simulator test target. Expect this new assertion to fail under current behavior.
 
-- [ ] Move `validate_action`, `validate_play_card`, and `validate_attack` into the sibling module, retaining existing validation checks. Add these structured errors with thiserror messages: `MissingTarget(GameEntityId)`, `UnexpectedTarget(GameEntityId)`, `InvalidTarget { card: GameEntityId, target: GameEntityId }`, `UnsupportedActionChoice(ChoiceId)`, and `UnexpectedBoardPosition(GameEntityId)`. Reuse the existing zone error for out-of-range minion positions.
-- [ ] Match the requirement table before resolution. For a supplied target, reject None requirements as UnexpectedTarget and filter failures as InvalidTarget. For an absent target, reject Required and nonempty RequiredIfAvailable as MissingTarget. Reject nonempty choice and any spell board_index. Normalize minion None to `Some(crate::zone::board_entities(world, player).len())` only after validating the submitted position. Use `crate::zone::board_entities(world, player).len()` for board-row length in enumeration too; counting all Play entities would incorrectly include Heroes and Hero Powers.
-- [ ] Restrict both combat entities to `EntityKind::Hero | EntityKind::Minion` in addition to existing readiness/zone/controller checks. Do not add keyword checks in this task.
-- [ ] Change action submission to consume the normalized declaration before changing status:
+- [x] Move `validate_action`, `validate_play_card`, and `validate_attack` into the sibling module, retaining existing validation checks. Add these structured errors with thiserror messages: `MissingTarget(GameEntityId)`, `UnexpectedTarget(GameEntityId)`, `InvalidTarget { card: GameEntityId, target: GameEntityId }`, `UnsupportedActionChoice(ChoiceId)`, and `UnexpectedBoardPosition(GameEntityId)`. Reuse the existing zone error for out-of-range minion positions.
+- [x] Match the requirement table before resolution. For a supplied target, reject None requirements as UnexpectedTarget and filter failures as InvalidTarget. For an absent target, reject Required and nonempty RequiredIfAvailable as MissingTarget. Reject nonempty choice and any spell board_index. Normalize minion None to `Some(crate::zone::board_entities(world, player).len())` only after validating the submitted position. Use `crate::zone::board_entities(world, player).len()` for board-row length in enumeration too; counting all Play entities would incorrectly include Heroes and Hero Powers.
+- [x] Restrict both combat entities to `EntityKind::Hero | EntityKind::Minion` in addition to existing readiness/zone/controller checks. Do not add keyword checks in this task.
+- [x] Change action submission to consume the normalized declaration before changing status:
 
 ```rust
 let action = super::action_validation::validate_action(world, action)?;
@@ -187,9 +187,9 @@ let action = super::action_validation::validate_action(world, action)?;
 
 Captured target and normalized placement are copied directly to SequenceStep. Keep ActionAccepted/Rejected logging and post-acceptance error semantics unchanged.
 
-- [ ] Add table-driven cases covering four requirements with zero and multiple candidates, all audiences and kinds, missing/stale/wrong-zone targets, both players' Heroes, and non-character in-Play entities. Each case asserts the specific error or normalized action. Migrate fixtures submitting targets to explicit metadata, including any fixture intentionally supplying an otherwise unused target.
-- [ ] Add rejection atomicity checks around each invalid declaration. Compare checkpoints after removing only the newly appended ActionRejected entry from the actual checkpoint's trace; compare remaining fields exactly. Check wrong turn, busy, complete, unsupported kind/choice, mana, capacity, and positions.
-- [ ] Run Gazelle, `aspect test //hearthstone_simulator/...`, formatting, and full build. Commit `feat(hearthstone): validate and normalize action declarations`.
+- [x] Add table-driven cases covering four requirements with zero and multiple candidates, all audiences and kinds, missing/stale/wrong-zone targets, both players' Heroes, and non-character in-Play entities. Each case asserts the specific error or normalized action. Migrate fixtures submitting targets to explicit metadata, including any fixture intentionally supplying an otherwise unused target.
+- [x] Add rejection atomicity checks around each invalid declaration. Compare checkpoints after removing only the newly appended ActionRejected entry from the actual checkpoint's trace; compare remaining fields exactly. Check wrong turn, busy, complete, unsupported kind/choice, mana, capacity, and positions.
+- [x] Run Gazelle, `aspect test //hearthstone_simulator/...`, formatting, and full build. Commit `feat(hearthstone): validate and normalize action declarations`.
 
 ## Task 3: Enumerate every canonical supported action
 
@@ -199,8 +199,8 @@ Captured target and normalized placement are copied directly to SequenceStep. Ke
 
 **Produces:** Existing `legal_actions(world: &mut World) -> Vec<GameAction>` with the approved deterministic contract; no public signature change.
 
-- [ ] Add a regression with an empty friendly board and a targeted zero-cost minion. Both opposing Hero and a spawned enemy minion are eligible. Expected plays are the two target IDs in ascending order at position Some(0), surrounded by EndTurn and Concede. This currently fails because enumeration emits target=None and omits Concede.
-- [ ] Add a candidate through the shared validator using this local closure pattern:
+- [x] Add a regression with an empty friendly board and a targeted zero-cost minion. Both opposing Hero and a spawned enemy minion are eligible. Expected plays are the two target IDs in ascending order at position Some(0), surrounded by EndTurn and Concede. This currently fails because enumeration emits target=None and omits Concede.
+- [x] Add a candidate through the shared validator using this local closure pattern:
 
 ```rust
 let mut actions = Vec::new();
@@ -213,9 +213,9 @@ let mut offer = |candidate: GameAction| {
 
 Read world state through shared references while this closure exists. Return early unless AwaitingAction and outcome absent. Offer EndTurn first, then plays, then attacks, then Concede.
 
-- [ ] Sort and deduplicate hand IDs; ignore stale IDs lacking entity/runtime data. For each supported card, iterate `target_options`, then explicit minion positions `0..=board_len`; spells use None. Offer every candidate with choice=None. Never offer an additional minion append alias.
-- [ ] Sort and deduplicate the active player's and opponent's Play IDs. Generate character attacker/defender pairs, offering each through validation. Readiness remains owned by the validator. Preserve grouping order: card ID, optional target order, position; then attacker ID, defender ID.
-- [ ] Add the observational purity and soundness regression:
+- [x] Sort and deduplicate hand IDs; ignore stale IDs lacking entity/runtime data. For each supported card, iterate `target_options`, then explicit minion positions `0..=board_len`; spells use None. Offer every candidate with choice=None. Never offer an additional minion append alias.
+- [x] Sort and deduplicate the active player's and opponent's Play IDs. Generate character attacker/defender pairs, offering each through validation. Readiness remains owned by the validator. Preserve grouping order: card ID, optional target order, position; then attacker ID, defender ID.
+- [x] Add the observational purity and soundness regression:
 
 ```rust
 let before = simulation.checkpoint().unwrap();
@@ -232,9 +232,9 @@ for action in &first {
 
 In the nested test module, access `action_validation` through the parent module's path (for example `super::action_validation`); do not make it public outside the simulator.
 
-- [ ] Add an independently generated exhaustive small-fixture candidate loop. Iterate every hand ID including unsupported kinds; targets None, every known entity, and a stale ID; positions None and zero through board length plus one; choices None and Some(ChoiceId(999)). Normalize each successful validation and assert it is contained in the list. Separately enumerate all entity pairs for attacks and both players for EndTurn/Concede. This test must not call target_options to generate its oracle candidates.
-- [ ] Execute every canonical action on a fresh fork of the same well-formed fixture. Add separate fixtures for exhausted/zero-attack characters, full board, unsupported hand cards, negative costs, and each status restriction. Assert minion None normalizes to exactly the final explicit position action.
-- [ ] Run Gazelle, simulator tests, formatting, and full build. Commit `feat(hearthstone): enumerate canonical legal actions`.
+- [x] Add an independently generated exhaustive small-fixture candidate loop. Iterate every hand ID including unsupported kinds; targets None, every known entity, and a stale ID; positions None and zero through board length plus one; choices None and Some(ChoiceId(999)). Normalize each successful validation and assert it is contained in the list. Separately enumerate all entity pairs for attacks and both players for EndTurn/Concede. This test must not call target_options to generate its oracle candidates.
+- [x] Execute every canonical action on a fresh fork of the same well-formed fixture. Add separate fixtures for exhausted/zero-attack characters, full board, unsupported hand cards, negative costs, and each status restriction. Assert minion None normalizes to exactly the final explicit position action.
+- [x] Run Gazelle, simulator tests, formatting, and full build. Commit `feat(hearthstone): enumerate canonical legal actions`.
 
 ## Task 4: Guarded one-shot sequence operations
 
@@ -267,8 +267,8 @@ pub struct SubjectGuard {
 
 The trace carries a typed step, avoiding a second string-based sequence naming contract. Missing entity or missing zone records actual_zone=None.
 
-- [ ] Add a test that queues a guarded Concede step requiring a hand card to be in Play. Queue an unguarded EndTurn after it, drive resolution, and assert no concede outcome, one skip trace, and that EndTurn still runs. This synthetic use proves guard behavior independently of full card-sequence rules.
-- [ ] Run Gazelle and simulator tests; expect the new type/variant to be missing. Then implement the first-failing-guard algorithm:
+- [x] Add a test that queues a guarded Concede step requiring a hand card to be in Play. Queue an unguarded EndTurn after it, drive resolution, and assert no concede outcome, one skip trace, and that EndTurn still runs. This synthetic use proves guard behavior independently of full card-sequence rules.
+- [x] Run Gazelle and simulator tests; expect the new type/variant to be missing. Then implement the first-failing-guard algorithm:
 
 ```rust
 for guard in guards {
@@ -287,12 +287,12 @@ for guard in guards {
 run_sequence_step(world, step)
 ```
 
-- [ ] Add dispatch and `ResolutionOp::kind()` handling. The guarded operation executes or skips the step directly; it never invokes the resolution driver or leaves a partially consumed operation. Count the popped guard operation once under the existing budget mechanism.
-- [ ] Compile accepted PlayCard as guarded with card/Hand, and Attack with attacker/Play then defender/Play. Keep EndTurn and Concede unguarded. Keep the ordinary boundary and CheckOutcome outside the guarded operation. Do not wrap FinishAttack, effect programs, or played-self-transform completion.
-- [ ] Add checkpoint-reference validation for each guard subject and the nested SequenceStep using existing validators. Existing subjects in wrong zones are valid restoration input. Unknown logical IDs remain invalid checkpoint references even though runtime guard dispatch handles missing entities defensively.
-- [ ] Bump schema 8 to 9 because this independently committed task adds another serialized operation contract. Update schema tests. Both schema changes are intentional: the final implementation accepts version 9 and rejects intermediate versions 7/8.
-- [ ] Add success, empty-guards, missing subject, wrong zone, first-of-two failure, and no-RNG-change cases. Use a queued Move effect before the guarded step to prove execution-time evaluation. Exercise move-out-and-back and stable-ID transformation passing the guard. Assert siblings and CheckOutcome still run, with no orphaned resolver work.
-- [ ] Run Gazelle, Hearthstone tests, formatting, and full build. Commit `feat(hearthstone): guard deferred sequence subjects`.
+- [x] Add dispatch and `ResolutionOp::kind()` handling. The guarded operation executes or skips the step directly; it never invokes the resolution driver or leaves a partially consumed operation. Count the popped guard operation once under the existing budget mechanism.
+- [x] Compile accepted PlayCard as guarded with card/Hand, and Attack with attacker/Play then defender/Play. Keep EndTurn and Concede unguarded. Keep the ordinary boundary and CheckOutcome outside the guarded operation. Do not wrap FinishAttack, effect programs, or played-self-transform completion.
+- [x] Add checkpoint-reference validation for each guard subject and the nested SequenceStep using existing validators. Existing subjects in wrong zones are valid restoration input. Unknown logical IDs remain invalid checkpoint references even though runtime guard dispatch handles missing entities defensively.
+- [x] Bump schema 8 to 9 because this independently committed task adds another serialized operation contract. Update schema tests. Both schema changes are intentional: the final implementation accepts version 9 and rejects intermediate versions 7/8.
+- [x] Add success, empty-guards, missing subject, wrong zone, first-of-two failure, and no-RNG-change cases. Use a queued Move effect before the guarded step to prove execution-time evaluation. Exercise move-out-and-back and stable-ID transformation passing the guard. Assert siblings and CheckOutcome still run, with no orphaned resolver work.
+- [x] Run Gazelle, Hearthstone tests, formatting, and full build. Commit `feat(hearthstone): guard deferred sequence subjects`.
 
 ## Task 5: Captured targets and suspended guards survive continuation
 
@@ -302,10 +302,10 @@ run_sequence_step(world, step)
 
 **Produces:** Behavioral evidence for target capture and checkpoint-exact guarded continuation.
 
-- [ ] Build a required-enemy-character spell targeting a spawned enemy minion, with a CardPlayed trigger that changes that minion's controller before the spell's damage effect executes. The action is accepted based on initial enemy ownership; damage still refers to the same captured ID. Use `Effect::Move { targets: Selector::Entity(target), player: PlayerSelector::Player(PlayerId::One), zone: Zone::Play, kind: ZoneMovementKind::Normal }` to change the minion's control while remaining in Play. Give both players free board capacity; do not change Hero ownership. Assert damage hits that ID and no retarget event/RNG draw occurs.
-- [ ] Add a complementary invalid-before-declaration case using the same fixture: change control before apply, then expect InvalidTarget with unchanged gameplay state. Together these distinguish declaration validation from later effect resolution.
-- [ ] Construct suspended work using the existing API-test `retain_operation` helper. Put a guarded Concede requiring source/Play below RequestChoice. Give two choice options: no operations, or a Move operation sending source to Hand. Include a following ordinary boundary and CheckOutcome outside the guard. Use real allocated IDs for the subject and the existing ChoiceId allocator/counters in the fixture.
-- [ ] Round-trip the suspended checkpoint and fork it using this comparison pattern, once for each option:
+- [x] Build a required-enemy-character spell targeting a spawned enemy minion, with a CardPlayed trigger that changes that minion's controller before the spell's damage effect executes. The action is accepted based on initial enemy ownership; damage still refers to the same captured ID. Use `Effect::Move { targets: Selector::Entity(target), player: PlayerSelector::Player(PlayerId::One), zone: Zone::Play, kind: ZoneMovementKind::Normal }` to change the minion's control while remaining in Play. Give both players free board capacity; do not change Hero ownership. Assert damage hits that ID and no retarget event/RNG draw occurs.
+- [x] Add a complementary invalid-before-declaration case using the same fixture: change control before apply, then expect InvalidTarget with unchanged gameplay state. Together these distinguish declaration validation from later effect resolution.
+- [x] Construct suspended work using the existing API-test `retain_operation` helper. Put a guarded Concede requiring source/Play below RequestChoice. Give two choice options: no operations, or a Move operation sending source to Hand. Include a following ordinary boundary and CheckOutcome outside the guard. Use real allocated IDs for the subject and the existing ChoiceId allocator/counters in the fixture.
+- [x] Round-trip the suspended checkpoint and fork it using this comparison pattern, once for each option:
 
 ```rust
 let checkpoint = original.checkpoint().unwrap();
@@ -327,8 +327,16 @@ fork.assert_invariants().unwrap();
 
 `option` is the ChoiceId from the chosen option in that fixture; use a fresh original simulation for each branch.
 
-- [ ] Assert successful guard execution for the unchanged-zone branch and exactly one skip for the moved branch. Assert empty pending choice/stack/event slots at completion. Add checkpoint tampering tests: unknown guard ID fails restoration; a known wrong-zone subject restores and subsequently skips; old schema versions fail.
-- [ ] Run Gazelle after edits, Hearthstone tests, formatting, and full build. Commit `test(hearthstone): verify action continuation contracts`.
+- [x] Assert successful guard execution for the unchanged-zone branch and exactly one skip for the moved branch. Assert empty pending choice/stack/event slots at completion. Add checkpoint tampering tests: unknown guard ID fails restoration; a known wrong-zone subject restores and subsequently skips; old schema versions fail.
+- [x] Run Gazelle after edits, Hearthstone tests, formatting, and full build. Commit `test(hearthstone): verify action continuation contracts`.
+
+## Plan execution notes
+
+- The Task 5 self-event fixture uses `Selector::Source`, which is equivalent to the plan's explicit
+  target because `EventTargetsSelf` binds the trigger source to the declared minion. Exact damage-ID
+  assertions prove that the captured declaration reaches the intended entity.
+- Task 5 uses sequential manual `ChoiceId` fixture values because `ResolutionWork` has no `ChoiceId`
+  allocator. Each fixture uses fresh explicit values and asserts its chosen option.
 
 ## Task 6: Publish foundation coverage and verify the implementation
 
@@ -338,7 +346,7 @@ fork.assert_invariants().unwrap();
 
 **Produces:** Documentation accurately describing the foundation and remaining scope.
 
-- [ ] Update README's action API description with explicit targeting, canonical placement enumeration, attacks, and supported declaration restrictions. Use this example, adding the public core import matching the documentation's surrounding style:
+- [x] Update README's action API description with explicit targeting, canonical placement enumeration, attacks, and supported declaration restrictions. Use this example, adding the public core import matching the documentation's surrounding style:
 
 ```rust
 let bolt = Card::spell("Bolt", 1)
@@ -352,11 +360,11 @@ let bolt = Card::spell("Bolt", 1)
     }]);
 ```
 
-- [ ] Add checked Milestone 8 subitems for explicit action contracts, canonical enumeration, and narrow serializable subject guards. Leave weapons, Hero cards, locations, Hero Powers, combat redirection, full phase guards, and keyword-specific legality unchecked. Do not relabel the whole milestone complete.
-- [ ] Add conformance rows classified Engine policy for enumeration/normalization and guarded checkpoint mechanics. Describe targeting as the implemented filter foundation; retain explicit gaps for complete rulebook legality. Document schema 9 and rejection of older checkpoints.
-- [ ] Run `aspect format --scope=all`, `aspect test //hearthstone_simulator/...`, `aspect lint`, and `aspect build //...`. Inspect exit codes and record actual results in the progress verification log. No Gazelle run is needed for Markdown-only edits.
-- [ ] Run `git diff --check` and inspect the full diff for unrelated changes, broad exports, silent defaults, accidental target revalidation, duplicated legality checks, and changes to later-milestone semantics.
-- [ ] Commit `docs(hearthstone): record action-contract foundation coverage`. Report completed behavior, verification evidence, final checkpoint schema, and remaining Milestone 8 scope.
+- [x] Add checked Milestone 8 subitems for explicit action contracts, canonical enumeration, and narrow serializable subject guards. Leave weapons, Hero cards, locations, Hero Powers, combat redirection, full phase guards, and keyword-specific legality unchecked. Do not relabel the whole milestone complete.
+- [x] Add conformance rows classified Engine policy for enumeration/normalization and guarded checkpoint mechanics. Describe targeting as the implemented filter foundation; retain explicit gaps for complete rulebook legality. Document schema 9 and rejection of older checkpoints.
+- [x] Run `aspect format --scope=all`, `aspect test //hearthstone_simulator/...`, `aspect lint`, and `aspect build //...`. Inspect exit codes and record actual results in the progress verification log. No Gazelle run is needed for Markdown-only edits.
+- [x] Run `git diff --check` and inspect the full diff for unrelated changes, broad exports, silent defaults, accidental target revalidation, duplicated legality checks, and changes to later-milestone semantics.
+- [x] Commit `docs(hearthstone): record action-contract foundation coverage`. Report completed behavior, verification evidence, final checkpoint schema, and remaining Milestone 8 scope.
 
 ## Plan self-review coverage
 
