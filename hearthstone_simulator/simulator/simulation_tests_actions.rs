@@ -3,7 +3,8 @@ use googletest::prelude::*;
 use super::{test_support::*, *};
 use crate::{
     AttackState, CurrentStats, EffectOrigin, Player, PlayerSelector, SequenceStep, SubjectGuard,
-    TargetAudience, TargetFilter, TargetKind, TargetRequirement, TransformKind, ZoneMovementKind,
+    TargetAudience, TargetFilter, TargetKind, TargetRequirement, TransformKind, ZoneMoveRequest,
+    ZoneMovementKind,
 };
 
 fn card_named(simulation: &mut Simulation, name: &str) -> GameEntityId {
@@ -50,6 +51,115 @@ fn assert_rejected_action_is_atomic(
         }) if rejected_player == player
     ));
     assert_eq!(after, before);
+}
+
+fn captured_target_fixture() -> (Simulation, GameEntityId, GameEntityId) {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let control_change = self_event_trigger(
+        EventKind::CardPlayed,
+        vec![Effect::Move {
+            targets: Selector::Source,
+            player: PlayerSelector::Player(PlayerId::One),
+            zone: Zone::Play,
+            kind: ZoneMovementKind::Normal,
+        }],
+    );
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::spell("Captured Bolt", 0)
+                    .with_targeting(TargetRequirement::Required(enemy_character))
+                    .with_effects(vec![Effect::DealDamage {
+                        targets: Selector::DeclaredTarget,
+                        amount: ValueExpression::Constant(3),
+                    }]),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let spell = hand_card(&mut simulation, PlayerId::One);
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Captured target", 0, 1, 5).with_triggers(vec![control_change]),
+        Zone::Play,
+    )
+    .unwrap();
+
+    (simulation, spell, target)
+}
+
+#[googletest::test]
+fn declared_spell_target_remains_captured_after_card_played_changes_control() {
+    let (mut simulation, spell, target) = captured_target_fixture();
+    let rng = simulation.snapshot().rng;
+
+    simulation
+        .apply(play_declaration(spell, Some(target), None, None))
+        .unwrap();
+
+    let snapshot = simulation.snapshot();
+    let target_snapshot = snapshot
+        .objects
+        .iter()
+        .find(|object| object.id == target)
+        .unwrap();
+    assert_that!(target_snapshot.controller, eq(PlayerId::One));
+    assert_that!(target_snapshot.zone, eq(Zone::Play));
+    assert_that!(target_snapshot.damage, eq(3));
+    assert_that!(snapshot.rng, eq(rng));
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .filter(|entry| matches!(
+                entry,
+                TraceEntry::Damage {
+                    target: damaged,
+                    proposed: 3,
+                    actual: 3,
+                    ..
+                } if *damaged == target
+            ))
+            .count(),
+        eq(1),
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::RngChoice { .. })),
+        is_false(),
+    );
+}
+
+#[googletest::test]
+fn target_control_changed_before_declaration_is_rejected_atomically() {
+    let (mut simulation, spell, target) = captured_target_fixture();
+    crate::zone::move_entity_with_request(
+        simulation.app.world_mut(),
+        ZoneMoveRequest {
+            entity: target,
+            destination_controller: PlayerId::One,
+            destination: Zone::Play,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+    .unwrap();
+
+    assert_rejected_action_is_atomic(
+        &mut simulation,
+        play_declaration(spell, Some(target), None, None),
+        SimulationError::InvalidTarget {
+            card: spell,
+            target,
+        },
+    );
 }
 
 #[googletest::test]
