@@ -82,6 +82,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                         base_cost: runtime.base_cost,
                         cost: runtime.cost,
                         program: runtime.program.clone(),
+                        targeting: runtime.targeting,
                     }),
                 runtime_triggers: entity.get::<RuntimeTriggers>().map(|value| value.0.clone()),
                 runtime_auras: entity.get::<RuntimeAuras>().map(|value| value.0.clone()),
@@ -259,6 +260,7 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
             base_cost: value.base_cost,
             cost: value.cost,
             program: value.program.clone(),
+            targeting: value.targeting,
         });
     }
     if let Some(value) = &object.runtime_triggers {
@@ -815,6 +817,12 @@ fn validate_resolution_operation_references(
 ) -> Result<(), SimulationError> {
     match operation {
         ResolutionOp::RunSequenceStep(step) => validate_sequence_step_references(step, ids),
+        ResolutionOp::RunGuardedSequenceStep { guards, step } => {
+            for guard in guards {
+                validate_entity_reference("guard subject", guard.subject, ids)?;
+            }
+            validate_sequence_step_references(step, ids)
+        }
         ResolutionOp::RunPhaseBoundary(_)
         | ResolutionOp::CheckOutcome
         | ResolutionOp::RefreshAuras(crate::AuraRefreshPlan::Summon) => Ok(()),

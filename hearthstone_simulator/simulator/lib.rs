@@ -36,9 +36,10 @@ pub(crate) use hearthstone_simulator_core::{
     PreparedEventSlot, RULEBOOK_REVISION, ResolutionId, ResolutionOp, ResolutionWork, Ruleset,
     RuntimeAuras, RuntimeContinuousEffects, RuntimeTriggers, STARTING_HEALTH, ScheduledTurnKind,
     Selector, SequenceStep, SilenceRemovable, Silenced, SimulationCheckpoint, SimulationError,
-    SimulationStatus, SourceEligibilityPolicy, StackedResolutionOp, StatModifier, TraceEntry,
-    TriggerCandidate, TriggerCondition, TriggerOrderKey, TriggerSeed, TurnSchedule,
-    ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, ZonePosition,
+    SimulationStatus, SourceEligibilityPolicy, StackedResolutionOp, StatModifier, SubjectGuard,
+    TargetRequirement, TraceEntry, TriggerCandidate, TriggerCondition, TriggerOrderKey,
+    TriggerSeed, TurnSchedule, ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest,
+    ZoneMovementKind, ZonePosition,
 };
 
 #[allow(
@@ -53,8 +54,8 @@ pub(crate) use hearthstone_simulator_core::{
 #[cfg(test)]
 pub(crate) use hearthstone_simulator_core::{
     AuraDefinition, ChoiceOption, ConditionTiming, CostOperation, ExtraTurnTiming,
-    RNG_ALGORITHM_VERSION, ResolutionError, RngSnapshot, TimedCondition, TriggerDefinition,
-    WoundedTargetPolicy,
+    RNG_ALGORITHM_VERSION, ResolutionError, RngSnapshot, TargetAudience, TargetFilter, TargetKind,
+    TimedCondition, TriggerDefinition, WoundedTargetPolicy,
 };
 
 pub use resolver::{CurrentResolutionOp, PhaseBoundarySet, ResolveFrame, ResolvePhaseBoundary};

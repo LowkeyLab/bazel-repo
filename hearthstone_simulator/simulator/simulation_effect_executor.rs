@@ -1044,6 +1044,7 @@ pub(super) fn transform_entity(
             base_cost: card.mana_cost,
             cost: card.mana_cost,
             program: card.effects,
+            targeting: card.targeting,
         },
         RuntimeTriggers(card.triggers),
         RuntimeAuras(card.auras),
@@ -1532,6 +1533,7 @@ pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card
         continuous_effects: world
             .get::<RuntimeContinuousEffects>(entity)
             .map_or_else(Vec::new, |effects| effects.0.clone()),
+        targeting: runtime.targeting,
     })
 }
 

@@ -15,7 +15,7 @@ use crate::{
 };
 
 use super::{
-    action::run_sequence_step,
+    action::{run_guarded_sequence_step, run_sequence_step},
     effect_executor::{
         copy_entity, copy_state_policy, execute_effect_operation, push_effects, transform_entity,
     },
@@ -46,6 +46,9 @@ fn execute_resolution_op(
 ) -> Result<(), SimulationError> {
     match operation {
         ResolutionOp::RunSequenceStep(step) => run_sequence_step(world, &step),
+        ResolutionOp::RunGuardedSequenceStep { guards, step } => {
+            run_guarded_sequence_step(world, &guards, &step)
+        }
         ResolutionOp::RunPhaseBoundary(plan) => {
             run_phase_boundary(world, plan);
             Ok(())

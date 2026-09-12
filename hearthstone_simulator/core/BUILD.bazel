@@ -25,6 +25,7 @@ rust_library(
         "rng.rs",
         "ruleset.rs",
         "snapshot.rs",
+        "targeting.rs",
         "trace.rs",
         "trigger.rs",
         "zone.rs",

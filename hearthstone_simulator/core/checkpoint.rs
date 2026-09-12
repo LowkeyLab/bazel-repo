@@ -6,16 +6,17 @@ use crate::{
     Effect, EnchantmentDuration, Enchantments, EntityKind, GameEntityId, GameState,
     HealthAuraCache, HeroMetadata, HeroPowerState, KeywordModifier, Keywords, OtherAuraCache,
     Player, PlayerId, ResolutionWork, RngSnapshot, Ruleset, SimulationError, StatModifier,
-    TriggerDefinition, TurnSchedule, Zone,
+    TargetRequirement, TriggerDefinition, TurnSchedule, Zone,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 7;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 9;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
     pub base_cost: i32,
     pub cost: i32,
     pub program: Vec<Effect>,
+    pub targeting: TargetRequirement,
 }
 
 // Boolean fields preserve the stable, flat checkpoint schema for marker components.

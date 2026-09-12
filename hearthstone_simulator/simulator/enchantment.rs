@@ -361,6 +361,7 @@ mod tests {
                     base_cost: 5,
                     cost: 3,
                     program: Vec::new(),
+                    targeting: crate::TargetRequirement::None,
                 },
                 Silenced,
             ))

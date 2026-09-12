@@ -2,8 +2,8 @@ use bevy::prelude::Resource;
 
 use crate::{
     AuraApplication, AuraCategory, CopyStatePolicy, DrawOutcome, EventId, EventKind,
-    EventValueOperation, GameEntityId, PlayerId, ResolutionId, RulesetId, TransformKind,
-    TriggerCandidate, Zone,
+    EventValueOperation, GameEntityId, PlayerId, ResolutionId, RulesetId, SequenceStep,
+    TransformKind, TriggerCandidate, Zone,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -19,6 +19,12 @@ pub enum TraceEntry {
     OperationPopped {
         id: ResolutionId,
         kind: String,
+    },
+    SequenceStepSkipped {
+        step: SequenceStep,
+        subject: GameEntityId,
+        expected_zone: Zone,
+        actual_zone: Option<Zone>,
     },
     EventCreated {
         id: EventId,

@@ -7,7 +7,9 @@ use crate::{
     AuraRefreshPlan, CopyRequest, CopyStatePolicy, DamageRequest, DrawContinuationPolicy,
     DrawOutcome, DrawRequest, DrawResultSlot, DrawResultSlotId, EnchantmentDuration,
     GameEntityCheckpoint, HealthAuraCache, KeepEnchantments, KeywordModifier, OtherAuraCache,
-    Player, SequenceStep, SilenceRemovable, TransformKind, resolver::allocate_draw_result_slot,
+    PhaseBoundaryPlan, Player, SequenceStep, SilenceRemovable, SubjectGuard, TargetAudience,
+    TargetFilter, TargetKind, TargetRequirement, TransformKind, ZoneMovementKind,
+    resolver::allocate_draw_result_slot,
 };
 
 fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: ResolutionOp) {
@@ -138,6 +140,134 @@ fn retained_played_self_finish(subject: GameEntityId) -> ResolutionOp {
     ResolutionOp::FinishPlayedSelfTransform {
         subject,
         original_after_play: Vec::new(),
+    }
+}
+
+fn suspended_guarded_choice(move_source: bool) -> (Simulation, GameEntityId, ChoiceId) {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Suspended source", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let unchanged = ChoiceId(80);
+    let moved = ChoiceId(81);
+    let selected = if move_source { moved } else { unchanged };
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    retain_operation(&mut checkpoint, ResolutionOp::CheckOutcome);
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+    );
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![SubjectGuard {
+                subject: source,
+                required_zone: Zone::Play,
+            }],
+            step: SequenceStep::Concede {
+                player: PlayerId::One,
+            },
+        },
+    );
+    retain_operation(
+        &mut checkpoint,
+        ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(79),
+            player: PlayerId::One,
+            options: vec![
+                ChoiceOption {
+                    id: unchanged,
+                    operations: Vec::new(),
+                },
+                ChoiceOption {
+                    id: moved,
+                    operations: vec![ResolutionOp::RunEffect {
+                        context: EffectContext {
+                            source: Some(source),
+                            controller: PlayerId::One,
+                            declared_target: None,
+                            drawn_card: None,
+                            origin: EffectOrigin::Other,
+                        },
+                        effect: Effect::Move {
+                            targets: Selector::Entity(source),
+                            player: PlayerSelector::Player(PlayerId::One),
+                            zone: Zone::Hand,
+                            kind: ZoneMovementKind::Normal,
+                        },
+                        event: None,
+                    }],
+                },
+            ],
+        }),
+    );
+
+    let mut suspended = Simulation::from_checkpoint(checkpoint).unwrap();
+    drive_resolution(suspended.app.world_mut()).unwrap();
+    (suspended, source, selected)
+}
+
+#[googletest::test]
+fn suspended_guarded_choices_roundtrip_and_fork_for_each_branch() {
+    for moves_source in [false, true] {
+        let (mut original, source, option) = suspended_guarded_choice(moves_source);
+        let checkpoint = original.checkpoint().unwrap();
+        let mut restored = Simulation::from_checkpoint(
+            SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
+        )
+        .unwrap();
+        let mut fork = original.fork().unwrap();
+
+        original.choose(option).unwrap();
+        restored.choose(option).unwrap();
+        fork.choose(option).unwrap();
+
+        assert_that!(restored.snapshot(), eq(&original.snapshot()));
+        assert_that!(fork.snapshot(), eq(&original.snapshot()));
+        assert_that!(restored.trace(), eq(original.trace()));
+        assert_that!(fork.trace(), eq(original.trace()));
+        original.assert_invariants().unwrap();
+        restored.assert_invariants().unwrap();
+        fork.assert_invariants().unwrap();
+
+        for simulation in [&original, &restored, &fork] {
+            assert_that!(simulation.pending_choice(), none());
+            assert_that!(simulation.resolution_work().stack, is_empty());
+            assert_that!(simulation.resolution_work().events, is_empty());
+            assert_that!(simulation.resolution_work().event_slots, is_empty());
+        }
+
+        let skips = original
+            .trace()
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    entry,
+                    TraceEntry::SequenceStepSkipped {
+                        step: SequenceStep::Concede {
+                            player: PlayerId::One,
+                        },
+                        subject,
+                        expected_zone: Zone::Play,
+                        actual_zone: Some(Zone::Hand),
+                    } if *subject == source
+                )
+            })
+            .count();
+        if moves_source {
+            assert_that!(original.snapshot().game.outcome, eq(None));
+            assert_that!(skips, eq(1));
+        } else {
+            assert_that!(
+                original.snapshot().game.outcome,
+                eq(Some(GameOutcome::Winner(PlayerId::Two)))
+            );
+            assert_that!(skips, eq(0));
+        }
     }
 }
 
@@ -716,7 +846,7 @@ fn checkpoint_roundtrip_preserves_optional_components_and_relationships() {
 }
 
 #[googletest::test]
-fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
+fn schema_nine_json_roundtrip_preserves_trigger_enchantment_payloads() {
     let trigger = crate::TriggerDefinition {
         event: EventKind::Damage,
         eligible_zones: vec![Zone::Play],
@@ -796,7 +926,7 @@ fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(7));
+    assert_that!(checkpoint.schema_version, eq(9));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
@@ -838,6 +968,28 @@ fn schema_seven_json_roundtrip_preserves_trigger_enchantment_payloads() {
     assert_that!(decoded, eq(&checkpoint));
     let restored = Simulation::from_checkpoint(decoded).unwrap();
     assert_that!(restored.checkpoint().unwrap(), eq(&checkpoint));
+}
+
+#[googletest::test]
+fn checkpoint_roundtrip_preserves_card_targeting() {
+    let simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::spell("Bolt", 0).with_targeting(TargetRequirement::Required(TargetFilter {
+                    audience: TargetAudience::Enemy,
+                    kind: TargetKind::Character,
+                })),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let checkpoint = simulation.checkpoint().unwrap();
+    let json = checkpoint.to_json().unwrap();
+    let restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+
+    assert_eq!(restored.checkpoint().unwrap(), checkpoint);
 }
 
 #[googletest::test]
@@ -947,7 +1099,7 @@ fn checkpoints_reject_unsupported_trigger_enchantment_policies_only_for_enchantm
 }
 
 #[googletest::test]
-fn checkpoints_reject_enchantments_without_durations_and_schema_version_six() {
+fn checkpoints_reject_enchantments_without_durations_and_old_schema_versions() {
     let mut simulation = simulation();
     let target = hand_card(&mut simulation, PlayerId::One);
     attach_stat_modifier(
@@ -991,14 +1143,18 @@ fn checkpoints_reject_enchantments_without_durations_and_schema_version_six() {
         ))),
     );
 
-    let mut old_schema = simulation.checkpoint().unwrap();
-    old_schema.schema_version = 6;
-    assert_that!(
-        Simulation::from_checkpoint(old_schema).map(|_| ()),
-        err(matches_pattern!(SimulationError::Checkpoint(
-            contains_substring("unsupported checkpoint schema version 6")
-        ))),
-    );
+    for schema_version in [7, 8] {
+        let mut old_schema = simulation.checkpoint().unwrap();
+        old_schema.schema_version = schema_version;
+        assert_that!(
+            Simulation::from_checkpoint(old_schema).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(
+                contains_substring(format!(
+                    "unsupported checkpoint schema version {schema_version}"
+                ))
+            ))),
+        );
+    }
 }
 
 #[googletest::test]
@@ -2762,6 +2918,111 @@ fn retained_copies_preserve_missing_source_no_op_semantics() {
     );
     let restored_missing = Simulation::from_checkpoint(missing_source.clone()).unwrap();
     assert_that!(restored_missing.checkpoint().unwrap(), eq(&missing_source));
+}
+
+#[googletest::test]
+fn checkpoints_validate_guard_references_without_requiring_current_guard_zone() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let mut valid = simulation.checkpoint().unwrap();
+    retain_operation(
+        &mut valid,
+        ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![SubjectGuard {
+                subject: card,
+                required_zone: Zone::Play,
+            }],
+            step: SequenceStep::Concede {
+                player: PlayerId::One,
+            },
+        },
+    );
+    let json = valid.to_json().unwrap();
+    let mut restored =
+        Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+    assert_that!(restored.checkpoint().unwrap(), eq(&valid));
+    drive_resolution(restored.app.world_mut()).unwrap();
+    assert_that!(
+        restored
+            .trace()
+            .iter()
+            .filter(|entry| matches!(
+                entry,
+                TraceEntry::SequenceStepSkipped {
+                    step: SequenceStep::Concede {
+                        player: PlayerId::One,
+                    },
+                    subject,
+                    expected_zone: Zone::Play,
+                    actual_zone: Some(Zone::Hand),
+                } if *subject == card
+            ))
+            .count(),
+        eq(1),
+    );
+
+    let mut missing = valid.clone();
+    retain_operation(
+        &mut missing,
+        ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![SubjectGuard {
+                subject: GameEntityId(u64::MAX),
+                required_zone: Zone::Hand,
+            }],
+            step: SequenceStep::Concede {
+                player: PlayerId::One,
+            },
+        },
+    );
+    assert_that!(
+        Simulation::from_checkpoint(missing).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("guard subject")
+        )))
+    );
+
+    let mut nested_missing = valid.clone();
+    retain_operation(
+        &mut nested_missing,
+        ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(82),
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: ChoiceId(83),
+                operations: vec![ResolutionOp::RunGuardedSequenceStep {
+                    guards: vec![SubjectGuard {
+                        subject: card,
+                        required_zone: Zone::Hand,
+                    }],
+                    step: SequenceStep::PlayCard {
+                        player: PlayerId::One,
+                        card,
+                        target: Some(GameEntityId(u64::MAX)),
+                        board_index: None,
+                    },
+                }],
+            }],
+        }),
+    );
+    assert_that!(
+        Simulation::from_checkpoint(nested_missing).map(|_| ()),
+        err(matches_pattern!(SimulationError::Checkpoint(
+            contains_substring("declared target")
+        )))
+    );
+
+    for schema_version in [7, 8] {
+        let mut old_schema = valid.clone();
+        old_schema.schema_version = schema_version;
+        assert_that!(
+            Simulation::from_checkpoint(old_schema).map(|_| ()),
+            err(matches_pattern!(SimulationError::Checkpoint(
+                contains_substring(format!(
+                    "unsupported checkpoint schema version {schema_version}"
+                ))
+            )))
+        );
+    }
 }
 
 #[googletest::test]

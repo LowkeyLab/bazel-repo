@@ -1,7 +1,982 @@
 use googletest::prelude::*;
 
 use super::{test_support::*, *};
-use crate::Player;
+use crate::{
+    AttackState, CurrentStats, EffectOrigin, Player, PlayerSelector, SequenceStep, SubjectGuard,
+    TargetAudience, TargetFilter, TargetKind, TargetRequirement, TransformKind, ZoneMoveRequest,
+    ZoneMovementKind,
+};
+
+fn card_named(simulation: &mut Simulation, name: &str) -> GameEntityId {
+    simulation
+        .snapshot()
+        .objects
+        .into_iter()
+        .find(|object| object.name == name)
+        .unwrap()
+        .id
+}
+
+fn play_declaration(
+    card: GameEntityId,
+    target: Option<GameEntityId>,
+    board_index: Option<usize>,
+    choice: Option<ChoiceId>,
+) -> GameAction {
+    GameAction::PlayCard {
+        player: PlayerId::One,
+        card,
+        target,
+        board_index,
+        choice,
+    }
+}
+
+fn assert_rejected_action_is_atomic(
+    simulation: &mut Simulation,
+    action: GameAction,
+    expected: SimulationError,
+) {
+    let player = action.player();
+    let before = simulation.checkpoint().unwrap();
+
+    assert_eq!(simulation.apply(action), Err(expected));
+
+    let mut after = simulation.checkpoint().unwrap();
+    assert!(matches!(
+        after.trace.entries.pop(),
+        Some(TraceEntry::ActionRejected {
+            player: rejected_player,
+            ..
+        }) if rejected_player == player
+    ));
+    assert_eq!(after, before);
+}
+
+fn captured_target_fixture() -> (Simulation, GameEntityId, GameEntityId) {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let control_change = self_event_trigger(
+        EventKind::CardPlayed,
+        vec![Effect::Move {
+            targets: Selector::Source,
+            player: PlayerSelector::Player(PlayerId::One),
+            zone: Zone::Play,
+            kind: ZoneMovementKind::Normal,
+        }],
+    );
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::spell("Captured Bolt", 0)
+                    .with_targeting(TargetRequirement::Required(enemy_character))
+                    .with_effects(vec![Effect::DealDamage {
+                        targets: Selector::DeclaredTarget,
+                        amount: ValueExpression::Constant(3),
+                    }]),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let spell = hand_card(&mut simulation, PlayerId::One);
+    let target = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Captured target", 0, 1, 5).with_triggers(vec![control_change]),
+        Zone::Play,
+    )
+    .unwrap();
+
+    (simulation, spell, target)
+}
+
+#[googletest::test]
+fn declared_spell_target_remains_captured_after_card_played_changes_control() {
+    let (mut simulation, spell, target) = captured_target_fixture();
+    let rng = simulation.snapshot().rng;
+
+    simulation
+        .apply(play_declaration(spell, Some(target), None, None))
+        .unwrap();
+
+    let snapshot = simulation.snapshot();
+    let target_snapshot = snapshot
+        .objects
+        .iter()
+        .find(|object| object.id == target)
+        .unwrap();
+    assert_that!(target_snapshot.controller, eq(PlayerId::One));
+    assert_that!(target_snapshot.zone, eq(Zone::Play));
+    assert_that!(target_snapshot.damage, eq(3));
+    assert_that!(snapshot.rng, eq(rng));
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .filter(|entry| matches!(
+                entry,
+                TraceEntry::Damage {
+                    target: damaged,
+                    proposed: 3,
+                    actual: 3,
+                    ..
+                } if *damaged == target
+            ))
+            .count(),
+        eq(1),
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::RngChoice { .. })),
+        is_false(),
+    );
+}
+
+#[googletest::test]
+fn target_control_changed_before_declaration_is_rejected_atomically() {
+    let (mut simulation, spell, target) = captured_target_fixture();
+    crate::zone::move_entity_with_request(
+        simulation.app.world_mut(),
+        ZoneMoveRequest {
+            entity: target,
+            destination_controller: PlayerId::One,
+            destination: Zone::Play,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+    .unwrap();
+
+    assert_rejected_action_is_atomic(
+        &mut simulation,
+        play_declaration(spell, Some(target), None, None),
+        SimulationError::InvalidTarget {
+            card: spell,
+            target,
+        },
+    );
+}
+
+#[googletest::test]
+fn guarded_sequence_step_skips_and_keeps_later_sequence_work() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    let rng = world.resource::<DeterministicRng>().state();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Play,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+            ResolutionOp::RunSequenceStep(SequenceStep::EndTurn {
+                player: PlayerId::One,
+            }),
+        ],
+    );
+
+    drive_resolution(world).unwrap();
+
+    assert_that!(world.resource::<GameState>().outcome, eq(None));
+    assert_that!(
+        world.resource::<GameState>().active_player,
+        eq(PlayerId::Two)
+    );
+    assert_that!(world.resource::<ResolutionWork>().stack, is_empty());
+    assert_that!(world.resource::<DeterministicRng>().state(), eq(rng));
+    assert_that!(
+        world
+            .resource::<CanonicalTrace>()
+            .entries
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::OperationPopped { kind, .. } if kind == "CheckOutcome")),
+        is_true(),
+    );
+    assert_that!(
+        world
+            .resource::<CanonicalTrace>()
+            .entries
+            .iter()
+            .filter(|entry| matches!(
+                entry,
+                TraceEntry::SequenceStepSkipped {
+                    step: SequenceStep::Concede { player: PlayerId::One },
+                    subject,
+                    expected_zone: Zone::Play,
+                    actual_zone: Some(Zone::Hand),
+                } if *subject == card
+            ))
+            .count(),
+        eq(1),
+    );
+}
+
+fn resolve_guarded_sequence_step(
+    simulation: &mut Simulation,
+    guards: Vec<SubjectGuard>,
+    step: SequenceStep,
+) {
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [ResolutionOp::RunGuardedSequenceStep { guards, step }],
+    );
+    drive_resolution(world).unwrap();
+}
+
+#[googletest::test]
+fn empty_guards_execute_the_sequence_step() {
+    let mut simulation = simulation();
+
+    resolve_guarded_sequence_step(
+        &mut simulation,
+        Vec::new(),
+        SequenceStep::Concede {
+            player: PlayerId::One,
+        },
+    );
+
+    assert_that!(
+        simulation.app.world().resource::<GameState>().outcome,
+        eq(Some(GameOutcome::Winner(PlayerId::Two)))
+    );
+    assert_that!(
+        simulation
+            .trace()
+            .iter()
+            .any(|entry| matches!(entry, TraceEntry::SequenceStepSkipped { .. })),
+        is_false()
+    );
+}
+
+#[googletest::test]
+fn missing_subject_and_first_failed_guard_skip_once() {
+    let mut missing = simulation();
+    let absent = GameEntityId(u64::MAX);
+
+    resolve_guarded_sequence_step(
+        &mut missing,
+        vec![SubjectGuard {
+            subject: absent,
+            required_zone: Zone::Play,
+        }],
+        SequenceStep::Concede {
+            player: PlayerId::One,
+        },
+    );
+
+    assert_that!(
+        missing.app.world().resource::<GameState>().outcome,
+        eq(None)
+    );
+    assert!(matches!(
+        missing.trace().last(),
+        Some(TraceEntry::SequenceStepSkipped {
+            subject,
+            expected_zone: Zone::Play,
+            actual_zone: None,
+            ..
+        }) if *subject == absent
+    ));
+
+    let mut first = simulation();
+    let card = hand_card(&mut first, PlayerId::One);
+    let second = hero(&mut first, PlayerId::Two);
+    resolve_guarded_sequence_step(
+        &mut first,
+        vec![
+            SubjectGuard {
+                subject: card,
+                required_zone: Zone::Play,
+            },
+            SubjectGuard {
+                subject: second,
+                required_zone: Zone::Hand,
+            },
+        ],
+        SequenceStep::Concede {
+            player: PlayerId::One,
+        },
+    );
+
+    assert!(matches!(
+        first.trace().last(),
+        Some(TraceEntry::SequenceStepSkipped {
+            subject,
+            actual_zone: Some(Zone::Hand),
+            ..
+        }) if *subject == card
+    ));
+}
+
+#[googletest::test]
+fn guards_evaluate_after_preceding_effects() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunEffect {
+                context: EffectContext {
+                    source: None,
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                effect: Effect::Move {
+                    targets: Selector::Entity(card),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Graveyard,
+                    kind: ZoneMovementKind::Normal,
+                },
+                event: None,
+            },
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Hand,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+        ],
+    );
+
+    drive_resolution(world).unwrap();
+
+    assert_that!(world.resource::<GameState>().outcome, eq(None));
+    assert_that!(
+        world.get::<Zone>(game_entity(world, card).unwrap()),
+        eq(Some(&Zone::Graveyard))
+    );
+    assert!(matches!(
+        world.resource::<CanonicalTrace>().entries.last(),
+        Some(TraceEntry::SequenceStepSkipped {
+            subject,
+            expected_zone: Zone::Hand,
+            actual_zone: Some(Zone::Graveyard),
+            ..
+        }) if *subject == card
+    ));
+}
+
+#[googletest::test]
+fn returned_and_transformed_subjects_pass_zone_guards() {
+    let mut returned = simulation();
+    let card = hand_card(&mut returned, PlayerId::One);
+    let world = returned.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    let move_context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Other,
+    };
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::RunEffect {
+                context: move_context.clone(),
+                effect: Effect::Move {
+                    targets: Selector::Entity(card),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Deck,
+                    kind: ZoneMovementKind::Normal,
+                },
+                event: None,
+            },
+            ResolutionOp::RunEffect {
+                context: move_context,
+                effect: Effect::Move {
+                    targets: Selector::Entity(card),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Hand,
+                    kind: ZoneMovementKind::Normal,
+                },
+                event: None,
+            },
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Hand,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+        ],
+    );
+    drive_resolution(world).unwrap();
+    assert_that!(
+        world.resource::<GameState>().outcome,
+        eq(Some(GameOutcome::Winner(PlayerId::Two)))
+    );
+
+    let mut transformed = simulation();
+    let card = hand_card(&mut transformed, PlayerId::One);
+    let world = transformed.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::TransformEntity {
+                target: card,
+                source: None,
+                card: Card::minion("Replacement", 0, 1, 1),
+                kind: TransformKind::Spell,
+            },
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![SubjectGuard {
+                    subject: card,
+                    required_zone: Zone::Hand,
+                }],
+                step: SequenceStep::Concede {
+                    player: PlayerId::One,
+                },
+            },
+        ],
+    );
+    drive_resolution(world).unwrap();
+    assert_that!(
+        world.resource::<GameState>().outcome,
+        eq(Some(GameOutcome::Winner(PlayerId::Two)))
+    );
+    assert_that!(
+        world.get::<Zone>(game_entity(world, card).unwrap()),
+        eq(Some(&Zone::Hand))
+    );
+}
+
+#[googletest::test]
+fn untargeted_play_rejects_a_supplied_target() {
+    let mut simulation = simulation();
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let target = hero(&mut simulation, PlayerId::Two);
+
+    assert!(
+        simulation
+            .apply(GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(target),
+                board_index: None,
+                choice: None,
+            })
+            .is_err()
+    );
+}
+
+#[googletest::test]
+fn target_options_follow_the_requirement_truth_table() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let minion_filter = TargetFilter {
+        audience: TargetAudience::Friendly,
+        kind: TargetKind::Minion,
+    };
+
+    let empty_cases = [
+        (TargetRequirement::None, vec![None]),
+        (TargetRequirement::Required(minion_filter), Vec::new()),
+        (TargetRequirement::Optional(minion_filter), vec![None]),
+        (
+            TargetRequirement::RequiredIfAvailable(minion_filter),
+            vec![None],
+        ),
+    ];
+    for (requirement, expected) in empty_cases {
+        assert_eq!(
+            action_validation::target_options(simulation.app.world(), PlayerId::One, requirement,),
+            expected,
+        );
+    }
+
+    let first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("First", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let populated_cases = [
+        (TargetRequirement::None, vec![None]),
+        (
+            TargetRequirement::Required(minion_filter),
+            vec![Some(first), Some(second)],
+        ),
+        (
+            TargetRequirement::Optional(minion_filter),
+            vec![None, Some(first), Some(second)],
+        ),
+        (
+            TargetRequirement::RequiredIfAvailable(minion_filter),
+            vec![Some(first), Some(second)],
+        ),
+    ];
+    for (requirement, expected) in populated_cases {
+        assert_eq!(
+            action_validation::target_options(simulation.app.world(), PlayerId::One, requirement,),
+            expected,
+        );
+    }
+}
+
+#[googletest::test]
+fn eligible_targets_filter_audience_kind_zone_and_stale_entries() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let friendly_first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Friendly First", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let friendly_second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Friendly Second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy First", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy Second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let wrong_zone = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Wrong Zone", 0, 1, 1),
+        Zone::Hand,
+    )
+    .unwrap();
+    simulation
+        .app
+        .world_mut()
+        .resource_mut::<ZoneIndex>()
+        .0
+        .get_mut(&(PlayerId::One, Zone::Play))
+        .unwrap()
+        .extend([friendly_second, wrong_zone, GameEntityId(u64::MAX)]);
+
+    let cases = [
+        (
+            TargetFilter {
+                audience: TargetAudience::Friendly,
+                kind: TargetKind::Hero,
+            },
+            vec![friendly_hero],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Hero,
+            },
+            vec![enemy_hero],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Either,
+                kind: TargetKind::Hero,
+            },
+            vec![friendly_hero, enemy_hero],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Friendly,
+                kind: TargetKind::Minion,
+            },
+            vec![friendly_first, friendly_second],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Minion,
+            },
+            vec![enemy_first, enemy_second],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Either,
+                kind: TargetKind::Minion,
+            },
+            vec![friendly_first, friendly_second, enemy_first, enemy_second],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Friendly,
+                kind: TargetKind::Character,
+            },
+            vec![friendly_hero, friendly_first, friendly_second],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Character,
+            },
+            vec![enemy_hero, enemy_first, enemy_second],
+        ),
+        (
+            TargetFilter {
+                audience: TargetAudience::Either,
+                kind: TargetKind::Character,
+            },
+            vec![
+                friendly_hero,
+                enemy_hero,
+                friendly_first,
+                friendly_second,
+                enemy_first,
+                enemy_second,
+            ],
+        ),
+    ];
+    for (filter, expected) in cases {
+        assert_eq!(
+            action_validation::eligible_targets(simulation.app.world(), PlayerId::One, filter),
+            expected,
+        );
+    }
+}
+
+#[googletest::test]
+fn play_declarations_report_target_errors_and_normalize_positions() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let enemy_minion = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Minion,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::spell("Untargeted", 0),
+                Card::spell("Required", 0)
+                    .with_targeting(TargetRequirement::Required(enemy_character)),
+                Card::spell("Optional", 0)
+                    .with_targeting(TargetRequirement::Optional(enemy_character)),
+                Card::spell("Conditional", 0)
+                    .with_targeting(TargetRequirement::RequiredIfAvailable(enemy_minion)),
+                Card::minion("Positioned", 0, 1, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let untargeted = card_named(&mut simulation, "Untargeted");
+    let required = card_named(&mut simulation, "Required");
+    let optional = card_named(&mut simulation, "Optional");
+    let conditional = card_named(&mut simulation, "Conditional");
+    let positioned = card_named(&mut simulation, "Positioned");
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let stale = GameEntityId(u64::MAX);
+
+    let cases = [
+        (
+            play_declaration(untargeted, Some(enemy_hero), None, None),
+            Err(SimulationError::UnexpectedTarget(untargeted)),
+        ),
+        (
+            play_declaration(required, None, None, None),
+            Err(SimulationError::MissingTarget(required)),
+        ),
+        (
+            play_declaration(required, Some(stale), None, None),
+            Err(SimulationError::InvalidTarget {
+                card: required,
+                target: stale,
+            }),
+        ),
+        (
+            play_declaration(required, Some(required), None, None),
+            Err(SimulationError::InvalidTarget {
+                card: required,
+                target: required,
+            }),
+        ),
+        (
+            play_declaration(required, Some(friendly_hero), None, None),
+            Err(SimulationError::InvalidTarget {
+                card: required,
+                target: friendly_hero,
+            }),
+        ),
+        (
+            play_declaration(required, Some(enemy_hero), None, None),
+            Ok(play_declaration(required, Some(enemy_hero), None, None)),
+        ),
+        (
+            play_declaration(optional, None, None, None),
+            Ok(play_declaration(optional, None, None, None)),
+        ),
+        (
+            play_declaration(conditional, None, None, None),
+            Ok(play_declaration(conditional, None, None, None)),
+        ),
+        (
+            play_declaration(positioned, None, None, None),
+            Ok(play_declaration(positioned, None, Some(0), None)),
+        ),
+        (
+            play_declaration(positioned, None, Some(0), None),
+            Ok(play_declaration(positioned, None, Some(0), None)),
+        ),
+        (
+            play_declaration(optional, None, Some(0), None),
+            Err(SimulationError::UnexpectedBoardPosition(optional)),
+        ),
+        (
+            play_declaration(positioned, None, None, Some(ChoiceId(7))),
+            Err(SimulationError::UnsupportedActionChoice(ChoiceId(7))),
+        ),
+    ];
+    for (action, expected) in cases {
+        assert_eq!(
+            action_validation::validate_action(simulation.app.world(), &action),
+            expected,
+        );
+    }
+
+    let enemy = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Available Enemy", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    assert_eq!(
+        action_validation::validate_action(
+            simulation.app.world(),
+            &play_declaration(conditional, None, None, None),
+        ),
+        Err(SimulationError::MissingTarget(conditional)),
+    );
+    assert_eq!(
+        action_validation::validate_action(
+            simulation.app.world(),
+            &play_declaration(conditional, Some(enemy), None, None),
+        ),
+        Ok(play_declaration(conditional, Some(enemy), None, None)),
+    );
+
+    spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Existing", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    assert_eq!(
+        action_validation::validate_action(
+            simulation.app.world(),
+            &play_declaration(positioned, None, None, None),
+        ),
+        Ok(play_declaration(positioned, None, Some(1), None)),
+    );
+}
+
+#[googletest::test]
+fn combat_rejects_non_character_attackers_and_defenders() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let snapshot = simulation.snapshot();
+    let friendly_hero = snapshot.players[0].hero;
+    let friendly_power = snapshot.players[0].hero_power.unwrap();
+    let enemy_power = snapshot.players[1].hero_power.unwrap();
+    for id in [friendly_hero, friendly_power] {
+        let entity = game_entity(simulation.app.world(), id).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<AttackState>(entity)
+            .unwrap()
+            .exhausted = false;
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<CurrentStats>(entity)
+            .unwrap()
+            .attack = 1;
+    }
+
+    assert_eq!(
+        action_validation::validate_action(
+            simulation.app.world(),
+            &GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_power,
+                defender: enemy_power,
+            },
+        ),
+        Err(SimulationError::CannotAttack(friendly_power)),
+    );
+    assert_eq!(
+        action_validation::validate_action(
+            simulation.app.world(),
+            &GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_power,
+            },
+        ),
+        Err(SimulationError::InvalidDefender(enemy_power)),
+    );
+}
+
+#[googletest::test]
+fn invalid_declarations_only_append_their_rejection_trace() {
+    let mut wrong_turn = simulation();
+    assert_rejected_action_is_atomic(
+        &mut wrong_turn,
+        GameAction::EndTurn {
+            player: PlayerId::Two,
+        },
+        SimulationError::NotPlayersTurn(PlayerId::Two),
+    );
+
+    let mut busy = simulation();
+    busy.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    assert_rejected_action_is_atomic(
+        &mut busy,
+        GameAction::EndTurn {
+            player: PlayerId::One,
+        },
+        SimulationError::NotAwaitingAction,
+    );
+
+    let mut complete = simulation();
+    complete.app.world_mut().resource_mut::<GameState>().status = SimulationStatus::Complete;
+    complete.app.world_mut().resource_mut::<GameState>().outcome =
+        Some(GameOutcome::Winner(PlayerId::Two));
+    assert_rejected_action_is_atomic(
+        &mut complete,
+        GameAction::EndTurn {
+            player: PlayerId::One,
+        },
+        SimulationError::GameOver,
+    );
+
+    let mut unsupported = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::weapon("Weapon", 0, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let weapon = hand_card(&mut unsupported, PlayerId::One);
+    assert_rejected_action_is_atomic(
+        &mut unsupported,
+        play_declaration(weapon, None, None, None),
+        SimulationError::NotPlayable(weapon),
+    );
+
+    let mut choice = simulation();
+    let card = hand_card(&mut choice, PlayerId::One);
+    assert_rejected_action_is_atomic(
+        &mut choice,
+        play_declaration(card, None, None, Some(ChoiceId(9))),
+        SimulationError::UnsupportedActionChoice(ChoiceId(9)),
+    );
+
+    let mut mana = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::spell("Expensive", 2)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut mana, PlayerId::One);
+    assert_rejected_action_is_atomic(
+        &mut mana,
+        play_declaration(card, None, None, None),
+        SimulationError::NotEnoughMana {
+            player: PlayerId::One,
+            required: 2,
+            available: 1,
+        },
+    );
+
+    let mut capacity = simulation();
+    capacity
+        .app
+        .world_mut()
+        .resource_mut::<Ruleset>()
+        .board_limit = 0;
+    let card = hand_card(&mut capacity, PlayerId::One);
+    assert_rejected_action_is_atomic(
+        &mut capacity,
+        play_declaration(card, None, None, None),
+        SimulationError::BoardFull(PlayerId::One),
+    );
+
+    let mut minion_position = simulation();
+    let card = hand_card(&mut minion_position, PlayerId::One);
+    assert_rejected_action_is_atomic(
+        &mut minion_position,
+        play_declaration(card, None, Some(1), None),
+        SimulationError::Zone(ZoneError::InvalidPosition {
+            zone: Zone::Play,
+            position: 1,
+            length: 0,
+        }),
+    );
+
+    let mut spell_position = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::spell("Spell", 0)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut spell_position, PlayerId::One);
+    assert_rejected_action_is_atomic(
+        &mut spell_position,
+        play_declaration(card, None, Some(0), None),
+        SimulationError::UnexpectedBoardPosition(card),
+    );
+}
 
 #[googletest::test]
 fn cards_keep_identity_when_played() {
@@ -253,11 +1228,605 @@ fn rejected_actions_leave_resolution_idle() {
 #[googletest::test]
 fn legal_actions_are_deterministic() {
     let mut simulation = simulation();
+    let before = simulation.checkpoint().unwrap();
     let first = simulation.legal_actions();
-    let second = simulation.legal_actions();
+    assert_eq!(first, simulation.legal_actions());
+    assert_eq!(simulation.checkpoint().unwrap(), before);
+    for action in &first {
+        assert_eq!(
+            super::action_validation::validate_action(simulation.app.world(), action).unwrap(),
+            *action,
+        );
+    }
+}
 
-    assert_that!(first, eq(&second));
-    assert_that!(first.len(), eq(2));
+#[googletest::test]
+fn legal_actions_offer_each_required_target_at_the_explicit_minion_position() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Targeted", 0, 1, 1)
+                    .with_targeting(TargetRequirement::Required(enemy_character)),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let enemy_minion = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let mut targets = vec![enemy_hero, enemy_minion];
+    targets.sort_unstable();
+
+    assert_eq!(
+        simulation.legal_actions(),
+        vec![
+            GameAction::EndTurn {
+                player: PlayerId::One,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(targets[0]),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card,
+                target: Some(targets[1]),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::Concede {
+                player: PlayerId::One,
+            },
+        ],
+    );
+}
+
+#[googletest::test]
+fn legal_actions_use_canonical_order_and_deduplicate_scrambled_indexes() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Optional positioned", 0, 1, 1)
+                    .with_targeting(TargetRequirement::Optional(enemy_character)),
+                Card::spell("Plain spell", 0),
+                Card::minion("Plain positioned", 0, 1, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let optional_positioned = card_named(&mut simulation, "Optional positioned");
+    let plain_spell = card_named(&mut simulation, "Plain spell");
+    let plain_positioned = card_named(&mut simulation, "Plain positioned");
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    let snapshot = simulation.snapshot();
+    let friendly_hero_power = snapshot.players[0].hero_power.unwrap();
+    let enemy_hero_power = snapshot.players[1].hero_power.unwrap();
+    let friendly_first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Friendly first", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let friendly_second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Friendly second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy first", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy second", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+
+    assert!(optional_positioned < plain_spell && plain_spell < plain_positioned);
+    assert!(friendly_hero < friendly_first && friendly_first < friendly_second);
+    assert!(enemy_hero < enemy_first && enemy_first < enemy_second);
+    for attacker in [friendly_hero, friendly_first, friendly_second] {
+        let entity = game_entity(simulation.app.world(), attacker).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<CurrentStats>(entity)
+            .unwrap()
+            .attack = 1;
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<AttackState>(entity)
+            .unwrap()
+            .exhausted = false;
+    }
+
+    let mut index = simulation.app.world_mut().resource_mut::<ZoneIndex>();
+    index.0.insert(
+        (PlayerId::One, Zone::Hand),
+        vec![
+            plain_positioned,
+            optional_positioned,
+            plain_spell,
+            plain_positioned,
+        ],
+    );
+    index.0.insert(
+        (PlayerId::One, Zone::Play),
+        vec![
+            friendly_second,
+            friendly_hero,
+            friendly_hero_power,
+            friendly_first,
+            friendly_hero,
+        ],
+    );
+    index.0.insert(
+        (PlayerId::Two, Zone::Play),
+        vec![
+            enemy_second,
+            enemy_hero,
+            enemy_hero_power,
+            enemy_first,
+            enemy_hero,
+        ],
+    );
+
+    assert_eq!(
+        simulation.legal_actions(),
+        vec![
+            GameAction::EndTurn {
+                player: PlayerId::One,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: None,
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: None,
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: None,
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_hero),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_hero),
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_hero),
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_first),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_first),
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_first),
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_second),
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_second),
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: optional_positioned,
+                target: Some(enemy_second),
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_spell,
+                target: None,
+                board_index: None,
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_positioned,
+                target: None,
+                board_index: Some(0),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_positioned,
+                target: None,
+                board_index: Some(1),
+                choice: None,
+            },
+            GameAction::PlayCard {
+                player: PlayerId::One,
+                card: plain_positioned,
+                target: None,
+                board_index: Some(2),
+                choice: None,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_hero,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_first,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_hero,
+                defender: enemy_second,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_first,
+                defender: enemy_hero,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_first,
+                defender: enemy_first,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_first,
+                defender: enemy_second,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_second,
+                defender: enemy_hero,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_second,
+                defender: enemy_first,
+            },
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: friendly_second,
+                defender: enemy_second,
+            },
+            GameAction::Concede {
+                player: PlayerId::One,
+            },
+        ],
+    );
+}
+
+#[googletest::test]
+fn legal_actions_contain_every_successfully_validated_small_fixture_candidate() {
+    let enemy_character = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let mut simulation = Simulation::new([
+        PlayerConfig::new(
+            "Jaina",
+            vec![
+                Card::minion("Targeted", 0, 1, 1)
+                    .with_targeting(TargetRequirement::Required(enemy_character)),
+                Card::spell("Spell", 0),
+                Card::weapon("Unsupported", 0, 1),
+            ],
+        ),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let enemy_minion = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let friendly_hero_entity = game_entity(simulation.app.world(), friendly_hero).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<CurrentStats>(friendly_hero_entity)
+        .unwrap()
+        .attack = 1;
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(friendly_hero_entity)
+        .unwrap()
+        .exhausted = false;
+
+    let legal_actions = simulation.legal_actions();
+    let mut hand_ids = simulation.snapshot().players[0].hand.clone();
+    let stale = GameEntityId(u64::MAX);
+    hand_ids.push(stale);
+    let mut entity_ids = simulation
+        .snapshot()
+        .objects
+        .into_iter()
+        .map(|object| object.id)
+        .collect::<Vec<_>>();
+    entity_ids.push(stale);
+    let board_len = simulation.snapshot().players[0].board.len();
+
+    for card in hand_ids {
+        for target in std::iter::once(None).chain(entity_ids.iter().copied().map(Some)) {
+            for board_index in std::iter::once(None).chain((0..=board_len + 1).map(Some)) {
+                for choice in [None, Some(ChoiceId(999))] {
+                    let candidate = play_declaration(card, target, board_index, choice);
+                    if let Ok(normalized) = super::action_validation::validate_action(
+                        simulation.app.world(),
+                        &candidate,
+                    ) {
+                        assert!(
+                            legal_actions.contains(&normalized),
+                            "missing normalized play action: {normalized:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    for attacker in &entity_ids {
+        for defender in &entity_ids {
+            let candidate = GameAction::Attack {
+                player: PlayerId::One,
+                attacker: *attacker,
+                defender: *defender,
+            };
+            if let Ok(normalized) =
+                super::action_validation::validate_action(simulation.app.world(), &candidate)
+            {
+                assert!(
+                    legal_actions.contains(&normalized),
+                    "missing normalized attack action: {normalized:?}"
+                );
+            }
+        }
+    }
+    for player in PlayerId::ALL {
+        for candidate in [
+            GameAction::EndTurn { player },
+            GameAction::Concede { player },
+        ] {
+            if let Ok(normalized) =
+                super::action_validation::validate_action(simulation.app.world(), &candidate)
+            {
+                assert!(
+                    legal_actions.contains(&normalized),
+                    "missing normalized turn action: {normalized:?}"
+                );
+            }
+        }
+    }
+
+    assert!(
+        legal_actions.iter().any(
+            |action| matches!(action, GameAction::Attack { attacker, defender, .. } if *attacker == friendly_hero && *defender == enemy_minion)
+        ),
+        "fixture should exercise an executable attack"
+    );
+    for action in legal_actions {
+        simulation
+            .fork()
+            .unwrap()
+            .apply(action)
+            .expect("every enumerated action should execute on a fresh fork");
+    }
+}
+
+#[googletest::test]
+fn legal_actions_exclude_exhausted_zero_attack_full_board_and_unsupported_candidates() {
+    let mut exhausted_and_zero_attack = Simulation::new([
+        PlayerConfig::new("Jaina", Vec::new()),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let exhausted = spawn_card(
+        exhausted_and_zero_attack.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Exhausted", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let zero_attack = spawn_card(
+        exhausted_and_zero_attack.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Zero attack", 0, 0, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    spawn_card(
+        exhausted_and_zero_attack.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Defender", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let exhausted_entity = game_entity(exhausted_and_zero_attack.app.world(), exhausted).unwrap();
+    let zero_attack_entity =
+        game_entity(exhausted_and_zero_attack.app.world(), zero_attack).unwrap();
+    exhausted_and_zero_attack
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(exhausted_entity)
+        .unwrap()
+        .exhausted = true;
+    exhausted_and_zero_attack
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(zero_attack_entity)
+        .unwrap()
+        .exhausted = false;
+    assert!(
+        exhausted_and_zero_attack
+            .legal_actions()
+            .iter()
+            .all(|action| !matches!(action, GameAction::Attack { attacker, .. } if *attacker == exhausted || *attacker == zero_attack)),
+    );
+
+    let mut full_board = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Blocked", 0, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    full_board
+        .app
+        .world_mut()
+        .resource_mut::<Ruleset>()
+        .board_limit = 0;
+    assert!(
+        full_board
+            .legal_actions()
+            .iter()
+            .all(|action| !matches!(action, GameAction::PlayCard { .. })),
+    );
+
+    let mut unsupported = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::weapon("Unsupported", 0, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    assert!(
+        unsupported
+            .legal_actions()
+            .iter()
+            .all(|action| !matches!(action, GameAction::PlayCard { .. })),
+    );
+}
+
+#[googletest::test]
+fn legal_actions_normalize_negative_cost_minion_append_to_the_final_position() {
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("Jaina", vec![Card::minion("Negative", -1, 1, 1)]),
+        PlayerConfig::new("Rexxar", Vec::new()),
+    ]);
+    let card = hand_card(&mut simulation, PlayerId::One);
+    spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Existing", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let player_entity = player(simulation.app.world(), PlayerId::One).unwrap().0;
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<Player>(player_entity)
+        .unwrap()
+        .used_resources = 1;
+
+    let normalized = super::action_validation::validate_action(
+        simulation.app.world(),
+        &play_declaration(card, None, None, None),
+    )
+    .unwrap();
+    assert_eq!(
+        normalized,
+        play_declaration(card, None, Some(1), None),
+        "the implicit minion append is canonicalized to the final explicit position"
+    );
+    let legal_actions = simulation.legal_actions();
+    assert!(legal_actions.contains(&normalized));
+    assert!(
+        legal_actions.iter().all(
+            |action| !matches!(action, GameAction::PlayCard { card: action_card, board_index: None, .. } if *action_card == card)
+        ),
+    );
+}
+
+#[googletest::test]
+fn legal_actions_are_empty_when_the_game_is_not_awaiting_an_open_action() {
+    for status in [
+        SimulationStatus::Resolving,
+        SimulationStatus::AwaitingChoice,
+        SimulationStatus::Complete,
+    ] {
+        let mut simulation = simulation();
+        simulation
+            .app
+            .world_mut()
+            .resource_mut::<GameState>()
+            .status = status;
+        assert!(simulation.legal_actions().is_empty(), "status: {status:?}");
+    }
+
+    let mut finished = simulation();
+    finished.app.world_mut().resource_mut::<GameState>().outcome =
+        Some(GameOutcome::Winner(PlayerId::Two));
+    assert!(finished.legal_actions().is_empty());
 }
 
 #[googletest::test]
@@ -409,9 +1978,14 @@ fn legal_actions_ignore_stale_ids_and_deck_setup_spawns_cards() {
 
     assert_that!(
         simulation.legal_actions(),
-        eq(&vec![GameAction::EndTurn {
-            player: PlayerId::One
-        }])
+        eq(&vec![
+            GameAction::EndTurn {
+                player: PlayerId::One
+            },
+            GameAction::Concede {
+                player: PlayerId::One
+            },
+        ])
     );
     assert_that!(simulation.snapshot().players[0].deck.len(), eq(1));
 }

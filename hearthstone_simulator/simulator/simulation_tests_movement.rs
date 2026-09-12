@@ -8,8 +8,9 @@ use crate::{
     DisplayName, DrawOutcome, EnchantmentDuration, HealthAuraCache, HeroClassPolicy,
     HeroHealthPolicy, HeroReplacement, KeepEnchantments, KeywordModifier, OtherAuraCache,
     PhaseBoundaryPlan, PlayOrder, PlayerAudience, RuntimeContinuousEffects, RuntimeTriggers,
-    SilenceRemovable, SourceEligibilityPolicy, TransformKind, TriggerDefinition,
-    WoundedTargetPolicy, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    SilenceRemovable, SourceEligibilityPolicy, TargetAudience, TargetFilter, TargetKind,
+    TargetRequirement, TransformKind, TriggerDefinition, WoundedTargetPolicy, ZoneMoveOutcome,
+    ZoneMoveRequest, ZoneMovementKind,
 };
 
 fn move_target_to_hand() -> Effect {
@@ -123,41 +124,52 @@ fn invariants_reject_enchantments_without_durations_or_play_zone() {
 
 #[googletest::test]
 fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
-    let reset = Card::spell("Reset", 0).with_effects(vec![
-        Effect::AttachStatModifier {
-            targets: Selector::DeclaredTarget,
-            modifier: StatModifier {
-                attack: 3,
-                health: 2,
-                silence_removable: true,
+    let reset = Card::spell("Reset", 0)
+        .with_effects(vec![
+            Effect::AttachStatModifier {
+                targets: Selector::DeclaredTarget,
+                modifier: StatModifier {
+                    attack: 3,
+                    health: 2,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
             },
-            duration: EnchantmentDuration::Permanent,
-        },
-        Effect::DealDamage {
-            targets: Selector::DeclaredTarget,
-            amount: ValueExpression::Constant(1),
-        },
-        Effect::Destroy {
-            targets: Selector::DeclaredTarget,
-        },
-        move_target_to_hand(),
-    ]);
+            Effect::DealDamage {
+                targets: Selector::DeclaredTarget,
+                amount: ValueExpression::Constant(1),
+            },
+            Effect::Destroy {
+                targets: Selector::DeclaredTarget,
+            },
+            move_target_to_hand(),
+        ])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new(
             "Jaina",
             vec![
-                Card::minion("Traveler", 0, 2, 3).with_keyword(Keyword::Taunt),
+                Card::minion("Traveler", 0, 2, 3)
+                    .with_keyword(Keyword::Taunt)
+                    .with_targeting(TargetRequirement::RequiredIfAvailable(TargetFilter {
+                        audience: TargetAudience::Either,
+                        kind: TargetKind::Character,
+                    })),
                 reset,
             ],
         ),
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     let traveler = hand_card(&mut simulation, PlayerId::One);
+    let declared_target = hero(&mut simulation, PlayerId::Two);
     simulation
         .apply(GameAction::PlayCard {
             player: PlayerId::One,
             card: traveler,
-            target: None,
+            target: Some(declared_target),
             board_index: None,
             choice: None,
         })
@@ -212,6 +224,18 @@ fn backward_movement_resets_runtime_tags_and_detaches_enchantments() {
         .0;
     assert_that!(keywords.contains(&Keyword::Taunt), is_true());
     assert_that!(keywords.contains(&Keyword::Stealth), is_false());
+    assert_eq!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(traveler_entity)
+            .unwrap()
+            .targeting,
+        TargetRequirement::RequiredIfAvailable(TargetFilter {
+            audience: TargetAudience::Either,
+            kind: TargetKind::Character,
+        })
+    );
     let snapshot = simulation.snapshot();
     let detached = snapshot
         .objects
@@ -284,9 +308,14 @@ fn backward_movement_restores_cost_after_detaching_modifiers() {
 
 #[googletest::test]
 fn death_reset_restores_innate_keywords() {
-    let destroy = Card::spell("Destroy innate", 0).with_effects(vec![Effect::Destroy {
-        targets: Selector::DeclaredTarget,
-    }]);
+    let destroy = Card::spell("Destroy innate", 0)
+        .with_effects(vec![Effect::Destroy {
+            targets: Selector::DeclaredTarget,
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new(
             "Jaina",
@@ -342,7 +371,12 @@ fn keep_enchantments_preserves_attached_modifiers_during_backward_movement() {
             "Jaina",
             vec![
                 Card::minion("Persistent", 0, 1, 1),
-                Card::spell("Bounce", 0).with_effects(vec![move_target_to_hand()]),
+                Card::spell("Bounce", 0)
+                    .with_effects(vec![move_target_to_hand()])
+                    .with_targeting(TargetRequirement::Required(TargetFilter {
+                        audience: TargetAudience::Friendly,
+                        kind: TargetKind::Minion,
+                    })),
             ],
         ),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -983,7 +1017,15 @@ fn copying_missing_entities_or_into_full_zones_is_a_deterministic_no_op() {
 #[googletest::test]
 fn non_play_copy_uses_current_form_without_runtime_attachments() {
     let mut simulation = Simulation::new([
-        PlayerConfig::new("Jaina", vec![Card::minion("Original source", 1, 1, 1)]),
+        PlayerConfig::new(
+            "Jaina",
+            vec![Card::minion("Original source", 1, 1, 1).with_targeting(
+                TargetRequirement::Optional(TargetFilter {
+                    audience: TargetAudience::Friendly,
+                    kind: TargetKind::Minion,
+                }),
+            )],
+        ),
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     let source = hand_card(&mut simulation, PlayerId::One);
@@ -1017,10 +1059,50 @@ fn non_play_copy_uses_current_form_without_runtime_attachments() {
     transform_entity(
         simulation.app.world_mut(),
         source,
-        Card::minion("Current form", 5, 4, 6),
+        Card::minion("Current form", 5, 4, 6).with_targeting(TargetRequirement::Required(
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Character,
+            },
+        )),
         TransformKind::Spell,
     )
     .unwrap();
+    assert_eq!(
+        copy_card_data(simulation.app.world(), source)
+            .unwrap()
+            .targeting,
+        TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        })
+    );
+    copy_entity(
+        simulation.app.world_mut(),
+        CopyRequest {
+            source,
+            originating_source: None,
+            controller: PlayerId::Two,
+            destination: Zone::Hand,
+            board_index: None,
+            policy: CopyStatePolicy::CurrentForm,
+        },
+    )
+    .unwrap();
+    let hand_copy = *simulation.snapshot().players[1].hand.last().unwrap();
+    let hand_copy_entity = game_entity(simulation.app.world(), hand_copy).unwrap();
+    assert_eq!(
+        simulation
+            .app
+            .world()
+            .get::<CardRuntime>(hand_copy_entity)
+            .unwrap()
+            .targeting,
+        TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        })
+    );
     execute_effect(
         simulation.app.world_mut(),
         &context,
@@ -1074,6 +1156,13 @@ fn non_play_copy_uses_current_form_without_runtime_attachments() {
     let copy_entity = game_entity(simulation.app.world(), copy).unwrap();
     let world = simulation.app.world();
     let runtime = world.get::<CardRuntime>(copy_entity).unwrap();
+    assert_eq!(
+        runtime.targeting,
+        TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Enemy,
+            kind: TargetKind::Character,
+        })
+    );
     assert_that!(
         world.get::<DefinitionId>(copy_entity).unwrap().0.as_str(),
         eq("synthetic:current_form")
@@ -1131,7 +1220,12 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
     let source = spawn_card(
         simulation.app.world_mut(),
         PlayerId::One,
-        Card::minion("Stateful source", 7, 3, 8).with_keyword(Keyword::Charge),
+        Card::minion("Stateful source", 7, 3, 8)
+            .with_keyword(Keyword::Charge)
+            .with_targeting(TargetRequirement::RequiredIfAvailable(TargetFilter {
+                audience: TargetAudience::Either,
+                kind: TargetKind::Minion,
+            })),
         Zone::Play,
     )
     .unwrap();
@@ -1143,6 +1237,15 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
     )
     .unwrap();
     let source_entity = game_entity(simulation.app.world(), source).unwrap();
+    assert_eq!(
+        copy_card_data(simulation.app.world(), source)
+            .unwrap()
+            .targeting,
+        TargetRequirement::RequiredIfAvailable(TargetFilter {
+            audience: TargetAudience::Either,
+            kind: TargetKind::Minion,
+        })
+    );
     let source_order = crate::entity::allocate_play_order(simulation.app.world_mut());
     simulation
         .app
@@ -1329,6 +1432,13 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
         }))
     );
     assert_that!(world.get::<CardRuntime>(copy_entity).unwrap().cost, eq(4));
+    assert_eq!(
+        world.get::<CardRuntime>(copy_entity).unwrap().targeting,
+        TargetRequirement::RequiredIfAvailable(TargetFilter {
+            audience: TargetAudience::Either,
+            kind: TargetKind::Minion,
+        })
+    );
 
     let mut copy_attachments = world
         .iter_entities()

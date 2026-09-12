@@ -15,6 +15,7 @@ package(default_visibility = ["//visibility:public"])
 # gazelle:exclude simulation_tests_movement.rs
 # gazelle:exclude simulation_tests_temporal.rs
 # gazelle:exclude simulation_checkpoint.rs
+# gazelle:exclude simulation_action_validation.rs
 
 rust_library(
     name = "simulator",
@@ -28,6 +29,7 @@ rust_library(
         "rng.rs",
         "simulation.rs",
         "simulation_action.rs",  # keep
+        "simulation_action_validation.rs",  # keep
         "simulation_card_runtime.rs",  # keep
         "simulation_checkpoint.rs",  # keep
         "simulation_effect_executor.rs",  # keep

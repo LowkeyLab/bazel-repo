@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{GameEntityId, NativeEffectId, PlayerId, ResolutionError, Zone, ZoneError};
+use crate::{ChoiceId, GameEntityId, NativeEffectId, PlayerId, ResolutionError, Zone, ZoneError};
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum SimulationError {
@@ -23,6 +23,19 @@ pub enum SimulationError {
     },
     #[error("entity {0:?} is not a playable card")]
     NotPlayable(GameEntityId),
+    #[error("card {0:?} requires a target")]
+    MissingTarget(GameEntityId),
+    #[error("card {0:?} does not accept a target")]
+    UnexpectedTarget(GameEntityId),
+    #[error("entity {target:?} is not a valid target for card {card:?}")]
+    InvalidTarget {
+        card: GameEntityId,
+        target: GameEntityId,
+    },
+    #[error("action choice {0:?} is not supported")]
+    UnsupportedActionChoice(ChoiceId),
+    #[error("card {0:?} does not accept a board position")]
+    UnexpectedBoardPosition(GameEntityId),
     #[error("invalid hero replacement: {0}")]
     InvalidHeroReplacement(String),
     #[error("invalid trigger enchantment: {0}")]

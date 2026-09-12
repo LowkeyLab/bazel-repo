@@ -3,8 +3,8 @@ use googletest::prelude::*;
 use super::{card_runtime::CardRuntime, test_support::*, *};
 use crate::{
     ConditionTiming, EnchantmentDuration, ExtraTurnTiming, KeywordModifier, ScheduledTurnKind,
-    SourceEligibilityPolicy, TimedCondition, TriggerCondition, TriggerDefinition,
-    WoundedTargetPolicy,
+    SourceEligibilityPolicy, TargetAudience, TargetFilter, TargetKind, TargetRequirement,
+    TimedCondition, TriggerCondition, TriggerDefinition, WoundedTargetPolicy,
 };
 
 fn object(simulation: &mut Simulation, id: GameEntityId) -> GameObjectSnapshot {
@@ -50,8 +50,8 @@ fn turn_end_trigger(event_player: PlayerSelector, effects: Vec<Effect>) -> Trigg
 
 #[googletest::test]
 fn end_of_turn_trigger_resolves_before_its_enchantment_expires() {
-    let grant =
-        Card::spell("Brief trigger", 0).with_effects(vec![Effect::AttachTriggerEnchantment {
+    let grant = Card::spell("Brief trigger", 0)
+        .with_effects(vec![Effect::AttachTriggerEnchantment {
             targets: Selector::DeclaredTarget,
             triggers: vec![turn_end_trigger(
                 PlayerSelector::Controller,
@@ -62,7 +62,11 @@ fn end_of_turn_trigger_resolves_before_its_enchantment_expires() {
             )],
             duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
             silence_removable: true,
-        }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 4), grant]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -134,25 +138,30 @@ fn end_of_turn_trigger_resolves_before_its_enchantment_expires() {
 
 #[googletest::test]
 fn turn_series_trigger_survives_contiguous_extra_turns_until_control_changes() {
-    let setup = Card::spell("Series trigger", 0).with_effects(vec![
-        Effect::ScheduleExtraTurns {
-            player: PlayerSelector::Opponent,
-            count: 1,
-            timing: ExtraTurnTiming::DuringNextTurnSeries,
-        },
-        Effect::AttachTriggerEnchantment {
-            targets: Selector::DeclaredTarget,
-            triggers: vec![turn_end_trigger(
-                PlayerSelector::Opponent,
-                vec![Effect::DealDamage {
-                    targets: Selector::AttachedEntity,
-                    amount: ValueExpression::Constant(1),
-                }],
-            )],
-            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
-            silence_removable: true,
-        },
-    ]);
+    let setup = Card::spell("Series trigger", 0)
+        .with_effects(vec![
+            Effect::ScheduleExtraTurns {
+                player: PlayerSelector::Opponent,
+                count: 1,
+                timing: ExtraTurnTiming::DuringNextTurnSeries,
+            },
+            Effect::AttachTriggerEnchantment {
+                targets: Selector::DeclaredTarget,
+                triggers: vec![turn_end_trigger(
+                    PlayerSelector::Opponent,
+                    vec![Effect::DealDamage {
+                        targets: Selector::AttachedEntity,
+                        amount: ValueExpression::Constant(1),
+                    }],
+                )],
+                duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
+                silence_removable: true,
+            },
+        ])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 4), setup]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -202,8 +211,8 @@ fn turn_series_trigger_survives_contiguous_extra_turns_until_control_changes() {
 
 #[googletest::test]
 fn permanent_enchantment_has_explicit_duration_and_survives_turn_cleanup() {
-    let buff =
-        Card::spell("Permanent Strength", 0).with_effects(vec![Effect::AttachStatModifier {
+    let buff = Card::spell("Permanent Strength", 0)
+        .with_effects(vec![Effect::AttachStatModifier {
             targets: Selector::DeclaredTarget,
             modifier: StatModifier {
                 attack: 2,
@@ -211,7 +220,11 @@ fn permanent_enchantment_has_explicit_duration_and_survives_turn_cleanup() {
                 silence_removable: true,
             },
             duration: EnchantmentDuration::Permanent,
-        }]);
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), buff]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -344,15 +357,20 @@ fn next_series_extras_are_grouped_with_each_players_natural_turn() {
 
 #[googletest::test]
 fn end_of_turn_enchantments_expire_before_the_next_turn_starts() {
-    let buff = Card::spell("Brief Strength", 0).with_effects(vec![Effect::AttachStatModifier {
-        targets: Selector::DeclaredTarget,
-        modifier: StatModifier {
-            attack: 3,
-            health: 0,
-            silence_removable: true,
-        },
-        duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
-    }]);
+    let buff = Card::spell("Brief Strength", 0)
+        .with_effects(vec![Effect::AttachStatModifier {
+            targets: Selector::DeclaredTarget,
+            modifier: StatModifier {
+                attack: 3,
+                health: 0,
+                silence_removable: true,
+            },
+            duration: EnchantmentDuration::EndOfTurn(PlayerId::One),
+        }])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), buff]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -398,7 +416,10 @@ fn end_of_turn_enchantments_expire_before_the_next_turn_starts() {
 fn temporary_cost_modifier_changes_legality_until_the_turn_ends() {
     let discount =
         Card::spell("Brief Discount", 0).with_effects(vec![Effect::AttachCostModifier {
-            targets: Selector::DeclaredTarget,
+            targets: Selector::InZone {
+                player: PlayerSelector::Controller,
+                zone: Zone::Hand,
+            },
             modifier: CostModifier {
                 operation: CostOperation::Add,
                 value: -2,
@@ -435,7 +456,7 @@ fn temporary_cost_modifier_changes_legality_until_the_turn_ends() {
         .apply(GameAction::PlayCard {
             player: PlayerId::One,
             card: discount,
-            target: Some(expensive),
+            target: None,
             board_index: None,
             choice: None,
         })
@@ -584,22 +605,27 @@ fn checkpoint_restores_temporary_cost_modifier_payloads() {
 
 #[googletest::test]
 fn opponent_turn_series_duration_survives_contiguous_extra_turns() {
-    let setup = Card::spell("Series Fixture", 0).with_effects(vec![
-        Effect::ScheduleExtraTurns {
-            player: PlayerSelector::Opponent,
-            count: 1,
-            timing: ExtraTurnTiming::DuringNextTurnSeries,
-        },
-        Effect::AttachStatModifier {
-            targets: Selector::DeclaredTarget,
-            modifier: StatModifier {
-                attack: 2,
-                health: 0,
-                silence_removable: true,
+    let setup = Card::spell("Series Fixture", 0)
+        .with_effects(vec![
+            Effect::ScheduleExtraTurns {
+                player: PlayerSelector::Opponent,
+                count: 1,
+                timing: ExtraTurnTiming::DuringNextTurnSeries,
             },
-            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
-        },
-    ]);
+            Effect::AttachStatModifier {
+                targets: Selector::DeclaredTarget,
+                modifier: StatModifier {
+                    attack: 2,
+                    health: 0,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
+            },
+        ])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Target", 0, 1, 2), setup]),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -809,22 +835,27 @@ fn after_current_grants_are_anchored_to_the_active_player_not_the_controller() {
 
 #[googletest::test]
 fn non_stat_keyword_enchantment_expires_after_the_full_turn_series() {
-    let setup = Card::spell("Series Immune Fixture", 0).with_effects(vec![
-        Effect::ScheduleExtraTurns {
-            player: PlayerSelector::Opponent,
-            count: 1,
-            timing: ExtraTurnTiming::DuringNextTurnSeries,
-        },
-        Effect::AttachKeywordModifier {
-            targets: Selector::DeclaredTarget,
-            modifier: KeywordModifier {
-                keyword: Keyword::Immune,
-                granted: true,
-                silence_removable: true,
+    let setup = Card::spell("Series Immune Fixture", 0)
+        .with_effects(vec![
+            Effect::ScheduleExtraTurns {
+                player: PlayerSelector::Opponent,
+                count: 1,
+                timing: ExtraTurnTiming::DuringNextTurnSeries,
             },
-            duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
-        },
-    ]);
+            Effect::AttachKeywordModifier {
+                targets: Selector::DeclaredTarget,
+                modifier: KeywordModifier {
+                    keyword: Keyword::Immune,
+                    granted: true,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::EndOfTurnSeries(PlayerId::Two),
+            },
+        ])
+        .with_targeting(TargetRequirement::Required(TargetFilter {
+            audience: TargetAudience::Friendly,
+            kind: TargetKind::Minion,
+        }));
     let mut simulation = Simulation::new([
         PlayerConfig::new("Jaina", vec![Card::minion("Protected", 0, 1, 2), setup]),
         PlayerConfig::new("Rexxar", Vec::new()),
