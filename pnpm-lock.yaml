@@ -15,6 +15,27 @@ catalogs:
     '@angular/cli':
       specifier: 22.1.7
       version: 22.1.7
+    '@angular/common':
+      specifier: ^22.0.0
+      version: 22.1.6
+    '@angular/compiler':
+      specifier: ^22.0.0
+      version: 22.1.6
+    '@angular/compiler-cli':
+      specifier: ^22.0.0
+      version: 22.1.6
+    '@angular/core':
+      specifier: ^22.0.0
+      version: 22.1.6
+    '@angular/forms':
+      specifier: ^22.0.0
+      version: 22.1.6
+    '@angular/platform-browser':
+      specifier: ^22.0.0
+      version: 22.1.6
+    '@angular/router':
+      specifier: ^22.0.0
+      version: 22.1.6
     '@apollo/client':
       specifier: ^4.0.0
       version: 4.2.12
@@ -99,9 +120,6 @@ catalogs:
     crypto-js:
       specifier: ^4.2.0
       version: 4.2.0
-    daisyui:
-      specifier: ^5.5.5
-      version: 5.7.32
     eslint:
       specifier: ^10.0.0
       version: 10.10.0
@@ -214,7 +232,7 @@ importers:
         version: 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.32
+        version: 5.7.34
       eslint:
         specifier: 'catalog:'
         version: 10.10.0(jiti@2.7.0)
@@ -359,7 +377,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       daisyui:
         specifier: 'catalog:'
-        version: 5.7.32
+        version: 5.7.34
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1
@@ -3566,8 +3584,8 @@ packages:
     resolution: {integrity: sha512-0LrrStPOdJj+SPCCrGhzryycLjwcgUSHBtxNA8aIDxf0GLsRh1cKYhB00Gd1lDOS4yGH69+SNn13+TWbVHETFQ==}
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0, npm: '>=7.0.0'}
 
-  daisyui@5.7.32:
-    resolution: {integrity: sha512-8JQFneb+okHxzPimTGvRKX+5XF03GyAwGw7BaV6+6XpzW0klGuzc4rdfUpLQxIYPKEziwwlrsYfcxoltF2Rowg==}
+  daisyui@5.7.34:
+    resolution: {integrity: sha512-drdJxHnMKnXzOHuATunzvvCPwGonQEZjZXuWN8IQdE1PaOx/DRjv7pH4A1zZ4Jeyw/eAQktYYw1IzmRQKqLanw==}
 
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
@@ -9200,7 +9218,7 @@ snapshots:
     dependencies:
       css-tree: 2.2.1
 
-  daisyui@5.7.32: {}
+  daisyui@5.7.34: {}
 
   data-uri-to-buffer@4.0.1: {}
 
