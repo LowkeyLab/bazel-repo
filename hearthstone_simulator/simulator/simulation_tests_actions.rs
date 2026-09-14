@@ -2060,3 +2060,591 @@ fn combat_checks_exhaustion_and_defenders_and_applies_counter_damage() {
         .unwrap();
     assert_that!(attacker_state.damage, eq(1));
 }
+
+fn keyword_attacker(simulation: &mut Simulation, card: Card) -> GameEntityId {
+    let id = spawn_card(simulation.app.world_mut(), PlayerId::One, card, Zone::Play).unwrap();
+    let entity = game_entity(simulation.app.world(), id).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(entity)
+        .unwrap()
+        .exhausted = false;
+    id
+}
+
+fn has_stealth(simulation: &Simulation, id: GameEntityId) -> bool {
+    crate::aura::has_keyword(
+        simulation.app.world(),
+        game_entity(simulation.app.world(), id).unwrap(),
+        Keyword::Stealth,
+    )
+}
+
+fn keyword_grant(
+    simulation: &mut Simulation,
+    id: GameEntityId,
+    keyword: Keyword,
+    duration: crate::EnchantmentDuration,
+) {
+    super::effect_executor::attach_keyword_modifier(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        id,
+        crate::KeywordModifier {
+            keyword,
+            granted: true,
+            silence_removable: true,
+        },
+        duration,
+    )
+    .unwrap();
+}
+
+#[test]
+fn taunt_stealth_and_immune_attack_matrix_is_pure_and_atomic() {
+    for hidden in [None, Some(Keyword::Stealth), Some(Keyword::Immune)] {
+        let mut simulation = simulation();
+        let attacker = keyword_attacker(&mut simulation, Card::minion("Attacker", 0, 2, 5));
+        let mut card = Card::minion("Guard", 0, 1, 5).with_keyword(Keyword::Taunt);
+        if let Some(keyword) = hidden {
+            card = card.with_keyword(keyword);
+        }
+        let guard =
+            spawn_card(simulation.app.world_mut(), PlayerId::Two, card, Zone::Play).unwrap();
+        let enemy_hero = hero(&mut simulation, PlayerId::Two);
+        let face = GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender: enemy_hero,
+        };
+        let guarded = GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender: guard,
+        };
+        let before = simulation.checkpoint().unwrap();
+        let actions = simulation.legal_actions();
+        assert_eq!(actions, simulation.legal_actions());
+        assert_eq!(simulation.checkpoint().unwrap(), before);
+        assert_eq!(actions.contains(&face), hidden.is_some());
+        assert_eq!(actions.contains(&guarded), hidden.is_none());
+        for action in &actions {
+            assert!(
+                super::action_validation::validate_action(simulation.app.world(), action).is_ok()
+            );
+        }
+        if hidden.is_some() {
+            assert_rejected_action_is_atomic(
+                &mut simulation,
+                guarded,
+                SimulationError::InvalidDefender(guard),
+            );
+        } else {
+            assert_rejected_action_is_atomic(
+                &mut simulation,
+                face.clone(),
+                SimulationError::InvalidDefender(enemy_hero),
+            );
+        }
+        // A second, visible Taunt still blocks attacks past a concealed guard.
+        let visible = spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::Two,
+            Card::minion("Visible guard", 0, 1, 5).with_keyword(Keyword::Taunt),
+            Zone::Play,
+        )
+        .unwrap();
+        assert!(!simulation.legal_actions().contains(&face));
+        assert!(simulation.legal_actions().contains(&GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender: visible
+        }));
+        silence_entity(simulation.app.world_mut(), visible).unwrap();
+        silence_entity(simulation.app.world_mut(), guard).unwrap();
+        assert!(simulation.legal_actions().contains(&face));
+    }
+}
+
+#[test]
+fn keyword_targeting_applies_to_every_declaration_and_target_requirement() {
+    for kind in [EntityKind::Minion, EntityKind::Spell, EntityKind::HeroPower] {
+        for keyword in [Keyword::Stealth, Keyword::Immune] {
+            for owner in PlayerId::ALL {
+                let filter = TargetFilter {
+                    audience: TargetAudience::Either,
+                    kind: TargetKind::Minion,
+                };
+                for requirement in [
+                    TargetRequirement::None,
+                    TargetRequirement::Required(filter),
+                    TargetRequirement::Optional(filter),
+                    TargetRequirement::RequiredIfAvailable(filter),
+                ] {
+                    let mut simulation = Simulation::new([
+                        PlayerConfig::new("One", vec![]),
+                        PlayerConfig::new("Two", vec![]),
+                    ]);
+                    let target = spawn_card(
+                        simulation.app.world_mut(),
+                        owner,
+                        Card::minion("Hidden", 0, 1, 5).with_keyword(keyword),
+                        Zone::Play,
+                    )
+                    .unwrap();
+                    let card = match kind {
+                        EntityKind::Minion => spawn_card(
+                            simulation.app.world_mut(),
+                            PlayerId::One,
+                            Card::minion("Targeted minion", 0, 1, 2).with_targeting(requirement),
+                            Zone::Hand,
+                        )
+                        .unwrap(),
+                        EntityKind::Spell => spawn_card(
+                            simulation.app.world_mut(),
+                            PlayerId::One,
+                            Card::spell("Targeted spell", 0).with_targeting(requirement),
+                            Zone::Hand,
+                        )
+                        .unwrap(),
+                        EntityKind::HeroPower => {
+                            let id = simulation.snapshot().players[0].hero_power.unwrap();
+                            let entity = game_entity(simulation.app.world(), id).unwrap();
+                            let mut runtime = simulation
+                                .app
+                                .world_mut()
+                                .get_mut::<super::card_runtime::CardRuntime>(entity)
+                                .unwrap();
+                            runtime.targeting = requirement;
+                            runtime.base_cost = 0;
+                            runtime.cost = 0;
+                            id
+                        }
+                        _ => unreachable!(),
+                    };
+                    let declaration = |target| {
+                        if kind == EntityKind::HeroPower {
+                            GameAction::UseHeroPower {
+                                player: PlayerId::One,
+                                power: card,
+                                target,
+                            }
+                        } else {
+                            play_declaration(
+                                card,
+                                target,
+                                if kind == EntityKind::Minion {
+                                    Some(0)
+                                } else {
+                                    None
+                                },
+                                None,
+                            )
+                        }
+                    };
+                    let targeted = declaration(Some(target));
+                    let untargeted = declaration(None);
+                    let friendly = owner == PlayerId::One;
+                    let expected_target = friendly && requirement != TargetRequirement::None;
+                    let expected_none = matches!(
+                        requirement,
+                        TargetRequirement::None | TargetRequirement::Optional(_)
+                    ) || (!friendly
+                        && matches!(requirement, TargetRequirement::RequiredIfAvailable(_)));
+                    let before = simulation.checkpoint().unwrap();
+                    let actions = simulation.legal_actions();
+                    assert_eq!(
+                        actions.contains(&targeted),
+                        expected_target,
+                        "{kind:?} {keyword:?} {owner:?} {requirement:?}"
+                    );
+                    assert_eq!(actions.contains(&untargeted), expected_none);
+                    assert_eq!(simulation.checkpoint().unwrap(), before);
+                    for (action, expected) in
+                        [(targeted, expected_target), (untargeted, expected_none)]
+                    {
+                        let result = super::action_validation::validate_action(
+                            simulation.app.world(),
+                            &action,
+                        );
+                        assert_eq!(result.is_ok(), expected);
+                        if let Err(error) = result {
+                            assert_rejected_action_is_atomic(&mut simulation, action, error);
+                        } else {
+                            let mut fork = simulation.fork().unwrap();
+                            fork.apply(action).unwrap();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn stealth_consumption_survives_recalculation_and_allows_later_timed_grants() {
+    let mut simulation = simulation();
+    let attacker = keyword_attacker(
+        &mut simulation,
+        Card::minion("Hidden attacker", 0, 2, 5).with_keyword(Keyword::Stealth),
+    );
+    // Both innate and attached Stealth must be consumed by the attack.
+    keyword_grant(
+        &mut simulation,
+        attacker,
+        Keyword::Stealth,
+        crate::EnchantmentDuration::Permanent,
+    );
+    let defender = hero(&mut simulation, PlayerId::Two);
+    simulation
+        .apply(GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        })
+        .unwrap();
+    assert!(!has_stealth(&simulation, attacker));
+    keyword_grant(
+        &mut simulation,
+        attacker,
+        Keyword::Taunt,
+        crate::EnchantmentDuration::Permanent,
+    );
+    assert!(!has_stealth(&simulation, attacker));
+    let mut restored = Simulation::from_checkpoint(
+        SimulationCheckpoint::from_json(&simulation.checkpoint().unwrap().to_json().unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    crate::enchantment::recalculate_keywords(restored.app.world_mut(), attacker);
+    assert!(!has_stealth(&restored, attacker));
+    keyword_grant(
+        &mut simulation,
+        attacker,
+        Keyword::Stealth,
+        crate::EnchantmentDuration::EndOfTurn(PlayerId::One),
+    );
+    assert!(has_stealth(&simulation, attacker));
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+    assert!(!has_stealth(&simulation, attacker));
+    keyword_grant(
+        &mut simulation,
+        attacker,
+        Keyword::Stealth,
+        crate::EnchantmentDuration::Permanent,
+    );
+    assert!(has_stealth(&simulation, attacker));
+    silence_entity(simulation.app.world_mut(), attacker).unwrap();
+    assert!(!has_stealth(&simulation, attacker));
+    simulation.assert_invariants().unwrap();
+}
+
+#[test]
+fn consumed_stealth_follows_copy_transform_and_backward_movement_policies() {
+    let mut simulation = simulation();
+    let attacker = keyword_attacker(
+        &mut simulation,
+        Card::minion("Hidden original", 0, 2, 5).with_keyword(Keyword::Stealth),
+    );
+    let defender = hero(&mut simulation, PlayerId::Two);
+    simulation
+        .apply(GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        })
+        .unwrap();
+    for (destination, policy) in [
+        (Zone::Play, crate::CopyStatePolicy::InPlayState),
+        (Zone::Hand, crate::CopyStatePolicy::CurrentForm),
+    ] {
+        let before = simulation
+            .snapshot()
+            .objects
+            .into_iter()
+            .map(|object| object.id)
+            .collect::<Vec<_>>();
+        super::effect_executor::copy_entity(
+            simulation.app.world_mut(),
+            crate::CopyRequest {
+                source: attacker,
+                originating_source: None,
+                controller: PlayerId::One,
+                destination,
+                board_index: None,
+                policy,
+            },
+        )
+        .unwrap();
+        drive_resolution(simulation.app.world_mut()).unwrap();
+        let copy = simulation
+            .snapshot()
+            .objects
+            .into_iter()
+            .find(|object| object.name == "Hidden original" && !before.contains(&object.id))
+            .unwrap()
+            .id;
+        crate::enchantment::recalculate_keywords(simulation.app.world_mut(), copy);
+        assert_eq!(has_stealth(&simulation, copy), destination == Zone::Hand);
+    }
+    crate::zone::move_entity_with_request(
+        simulation.app.world_mut(),
+        ZoneMoveRequest {
+            entity: attacker,
+            destination_controller: PlayerId::One,
+            destination: Zone::Hand,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+    .unwrap();
+    assert!(has_stealth(&simulation, attacker));
+    simulation
+        .apply(play_declaration(attacker, None, None, None))
+        .unwrap();
+    super::action::run_sequence_step(
+        simulation.app.world_mut(),
+        &SequenceStep::BreakAttackStealth { attacker },
+    )
+    .unwrap();
+    transform_entity(
+        simulation.app.world_mut(),
+        attacker,
+        Card::minion("Fresh hidden form", 0, 1, 5).with_keyword(Keyword::Stealth),
+        TransformKind::Spell,
+    )
+    .unwrap();
+    assert!(has_stealth(&simulation, attacker));
+    simulation.assert_invariants().unwrap();
+}
+
+#[test]
+fn suspended_attack_breaks_stealth_after_reactions_before_damage_and_restores_exactly() {
+    let mut simulation = simulation();
+    simulation
+        .register_native_effect(
+            "pause_hidden_attack",
+            |In(context): In<EffectContext>, world: &mut World| {
+                let source = context.source.unwrap();
+                assert!(crate::aura::has_keyword(
+                    world,
+                    game_entity(world, source).unwrap(),
+                    Keyword::Stealth
+                ));
+                push_resolution_ops(
+                    world,
+                    [ResolutionOp::RequestChoice(ChoiceRequest {
+                        id: ChoiceId(70),
+                        player: context.controller,
+                        options: vec![ChoiceOption {
+                            id: ChoiceId(71),
+                            operations: vec![],
+                        }],
+                    })],
+                );
+                vec![]
+            },
+        )
+        .unwrap();
+    let mut trigger = self_event_trigger(
+        EventKind::Attack,
+        vec![Effect::Native("pause_hidden_attack".into())],
+    );
+    trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+    let attacker = keyword_attacker(
+        &mut simulation,
+        Card::minion("Paused attacker", 0, 2, 5)
+            .with_keyword(Keyword::Stealth)
+            .with_triggers(vec![trigger]),
+    );
+    let defender = hero(&mut simulation, PlayerId::Two);
+    simulation
+        .register_native_effect(
+            "check_visible_before_damage",
+            move |_: In<EffectContext>, world: &mut World| {
+                assert!(!crate::aura::has_keyword(
+                    world,
+                    game_entity(world, attacker).unwrap(),
+                    Keyword::Stealth
+                ));
+                vec![]
+            },
+        )
+        .unwrap();
+    let defender_entity = game_entity(simulation.app.world(), defender).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(defender_entity)
+        .insert(RuntimeTriggers(vec![self_event_trigger(
+            EventKind::ProposedDamage,
+            vec![Effect::Native("check_visible_before_damage".into())],
+        )]));
+    simulation
+        .apply(GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        })
+        .unwrap();
+    assert_eq!(
+        simulation.snapshot().game.status,
+        SimulationStatus::AwaitingChoice
+    );
+    assert!(has_stealth(&simulation, attacker));
+    let checkpoint = simulation.checkpoint().unwrap();
+    let mut invalid = checkpoint.clone();
+    let step = invalid
+        .resolution
+        .stack
+        .iter_mut()
+        .find_map(|op| match &mut op.operation {
+            ResolutionOp::RunGuardedSequenceStep {
+                step: SequenceStep::BreakAttackStealth { attacker },
+                ..
+            } => Some(attacker),
+            _ => None,
+        })
+        .unwrap();
+    *step = GameEntityId(u64::MAX);
+    assert!(simulation.restore(invalid).is_err());
+    let mut fork = simulation.fork().unwrap();
+    let mut restored = simulation.fork().unwrap();
+    restored
+        .restore(SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap())
+        .unwrap();
+    for candidate in [&mut simulation, &mut fork, &mut restored] {
+        candidate.choose(ChoiceId(71)).unwrap();
+        assert!(!has_stealth(candidate, attacker));
+        candidate.assert_invariants().unwrap();
+    }
+    assert_eq!(simulation.checkpoint().unwrap(), fork.checkpoint().unwrap());
+    assert_eq!(
+        simulation.checkpoint().unwrap(),
+        restored.checkpoint().unwrap()
+    );
+}
+
+#[test]
+fn area_and_random_effects_can_still_select_stealthed_characters() {
+    let mut simulation = simulation();
+    let hidden = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Hidden target", 0, 1, 5).with_keyword(Keyword::Stealth),
+        Zone::Play,
+    )
+    .unwrap();
+    let context = EffectContext {
+        source: None,
+        controller: PlayerId::One,
+        declared_target: None,
+        drawn_card: None,
+        origin: EffectOrigin::Spell,
+    };
+    let selected = select_entities(simulation.app.world_mut(), &context, &Selector::AllMinions);
+    assert!(selected.contains(&hidden));
+    assert_eq!(
+        select_entities(
+            simulation.app.world_mut(),
+            &context,
+            &Selector::Random(Box::new(Selector::EnemyMinions))
+        ),
+        vec![hidden]
+    );
+    apply_damage(simulation.app.world_mut(), None, hidden, 1).unwrap();
+    let victim = hero(&mut simulation, PlayerId::One);
+    apply_damage(simulation.app.world_mut(), Some(hidden), victim, 1).unwrap();
+    assert!(has_stealth(&simulation, hidden));
+}
+
+#[test]
+fn stealth_breaks_even_when_attack_damage_is_prevented() {
+    let mut simulation = simulation();
+    let attacker = keyword_attacker(
+        &mut simulation,
+        Card::minion("Hidden attacker", 0, 2, 5).with_keyword(Keyword::Stealth),
+    );
+    let defender = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Shielded", 0, 0, 5).with_keyword(Keyword::DivineShield),
+        Zone::Play,
+    )
+    .unwrap();
+    simulation
+        .apply(GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        })
+        .unwrap();
+    assert!(!has_stealth(&simulation, attacker));
+    let entity = game_entity(simulation.app.world(), defender).unwrap();
+    assert_eq!(
+        simulation.app.world().get::<Damage>(entity),
+        Some(&Damage(0))
+    );
+}
+
+#[test]
+fn aura_immune_suppresses_taunt_and_direct_targeting_until_removed() {
+    let mut simulation = simulation();
+    let attacker = keyword_attacker(&mut simulation, Card::minion("Attacker", 0, 1, 5));
+    let guard = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Guard", 0, 1, 5).with_keyword(Keyword::Taunt),
+        Zone::Play,
+    )
+    .unwrap();
+    let provider = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Immune provider", 0, 0, 5).with_aura(crate::AuraDefinition {
+            targets: crate::AuraTarget::OtherFriendlyCharacters,
+            attack: 0,
+            health: 0,
+            other: vec![crate::OtherAuraModifier::Immune],
+        }),
+        Zone::Play,
+    )
+    .unwrap();
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+    let attack_provider = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: provider,
+    };
+    assert!(simulation.legal_actions().contains(&attack_provider));
+    assert!(
+        !super::action_validation::eligible_targets(
+            simulation.app.world(),
+            PlayerId::One,
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Minion
+            }
+        )
+        .contains(&guard)
+    );
+    silence_entity(simulation.app.world_mut(), provider).unwrap();
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+    assert!(!simulation.legal_actions().contains(&attack_provider));
+    assert!(
+        super::action_validation::eligible_targets(
+            simulation.app.world(),
+            PlayerId::One,
+            TargetFilter {
+                audience: TargetAudience::Enemy,
+                kind: TargetKind::Minion
+            }
+        )
+        .contains(&guard)
+    );
+}

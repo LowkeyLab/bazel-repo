@@ -971,6 +971,9 @@ fn validate_sequence_step_references(
         SequenceStep::FinishHeroPower { power } => {
             validate_entity_reference("completed Hero Power", *power, ids)?;
         }
+        SequenceStep::BreakAttackStealth { attacker } => {
+            validate_entity_reference("Stealth attacker", *attacker, ids)?;
+        }
         SequenceStep::Attack {
             attacker, defender, ..
         }

@@ -9,7 +9,8 @@ use super::{
 };
 use crate::{
     AttackState, Controller, CurrentStats, EntityKind, GameAction, GameEntityId, GameState,
-    PlayerId, RuntimeTriggers, SimulationStatus, TargetRequirement, Zone,
+    Keyword, PlayerId, RuntimeTriggers, SimulationStatus, TargetRequirement, Zone,
+    aura::has_keyword,
     entity::game_entity,
     zone::{board_entities, board_is_full, validate_board_position},
 };
@@ -34,6 +35,10 @@ pub(super) fn eligible_targets(
                 .copied()
         })
         .filter(|candidate| target_matches(world, *candidate, &players, filter.kind))
+        .filter(|candidate| {
+            game_entity(world, *candidate)
+                .is_some_and(|entity| permits_direct_target(world, player, entity))
+        })
         .collect::<Vec<_>>();
     targets.sort_unstable();
     targets.dedup();
@@ -95,6 +100,19 @@ fn target_matches(
                     | (TargetKind::Character, EntityKind::Minion | EntityKind::Hero)
             )
         })
+}
+
+// Declaration-only restriction: random and area effect selectors must not use this.
+fn permits_direct_target(world: &World, player: PlayerId, target: Entity) -> bool {
+    world.get::<Controller>(target) == Some(&Controller(player))
+        || (!has_keyword(world, target, Keyword::Stealth)
+            && !has_keyword(world, target, Keyword::Immune))
+}
+
+fn active_taunt(world: &World, player: PlayerId, target: Entity) -> bool {
+    world.get::<EntityKind>(target) == Some(&EntityKind::Minion)
+        && has_keyword(world, target, Keyword::Taunt)
+        && permits_direct_target(world, player, target)
 }
 
 pub(super) fn validate_action(
@@ -323,6 +341,18 @@ fn validate_attack(
             .get::<EntityKind>(defender)
             .is_none_or(|kind| !matches!(kind, EntityKind::Hero | EntityKind::Minion))
     {
+        return Err(SimulationError::InvalidDefender(defender_id));
+    }
+    if !permits_direct_target(world, player_id, defender) {
+        return Err(SimulationError::InvalidDefender(defender_id));
+    }
+    let taunt_blocks = world
+        .resource::<crate::zone::ZoneIndex>()
+        .entities(player_id.opponent(), Zone::Play)
+        .iter()
+        .filter_map(|id| game_entity(world, *id))
+        .any(|entity| active_taunt(world, player_id, entity));
+    if taunt_blocks && !active_taunt(world, player_id, defender) {
         return Err(SimulationError::InvalidDefender(defender_id));
     }
     Ok(())

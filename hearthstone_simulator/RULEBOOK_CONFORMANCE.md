@@ -52,14 +52,19 @@ Behavior classifications:
 | Active Hero Power Battlefield membership and singleton role         | Current rule        | Play role/capacity invariant                       | zone/board/checkpoint tests                        | Implemented foundation                                     |
 | Hero replacement, aura timing, and irreversible defeat timing       | Current rule        | replacement reducer                                | aura/before/after Death Creation                   | Implemented vertical slice                                 |
 | Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`                             | JSON/reference-validation tests                    | Implemented foundation                                     |
-| Explicit targeting filter foundation                                | Engine policy       | `TargetRequirement`, validator                     | target requirement/atomicity tests                 | Implemented foundation; audience/kind filters only         |
+| Explicit targeting filter foundation                                | Engine policy       | `TargetRequirement`, validator                     | target requirement/atomicity tests                 | Implemented foundation; audience/kind and Stealth/Immune   |
 | Canonical supported action enumeration and normalization            | Engine policy       | `validate_action`, `legal_actions`                 | exhaustive/soundness/purity tests                  | Implemented foundation                                     |
-| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 10                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7/8/9 rejected             |
+| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 11                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7/8/9/10 rejected          |
 | Forced Death Phase timing                                           | Compatibility quirk | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Added Deathrattles and Deathrattle-position policy                  | Current rule        | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Historical retired interactions                                     | Historical          | excluded by profile                                | profile tests                                      | Planned                                                    |
 | Official card-specific exceptions                                   | Card definition     | definition/native effects                          | fixture-specific tests                             | Out of engine scope                                        |
 | Hero Power activation and original-power completion                 | Engine policy       | action validation, sequence steps, captured events | Hero activation/targeting/replacement/choice tests | Implemented synthetic foundation; pinned timing unverified |
+
+Taunt/Stealth coverage is implemented in `simulation_tests_actions.rs`: direct-target declarations,
+Taunt suppression (including aura-granted Immune), durable consumption and regranting, copy and
+movement resets, damage prevention, and checkpoint-exact suspension. Its simplified combat-step
+placement is classified as engine policy, with full phase conformance still unverified.
 
 ## Core invariants
 
@@ -79,16 +84,30 @@ Behavior classifications:
 This matrix grows alongside implementation. “Implemented” requires a focused test; merely defining a type does not satisfy a rule.
 
 The action-contract rows describe engine policy, not complete official-card rulebook legality.
-Targeting currently filters only audience and Minion/Hero/Character kind. Keyword-specific
-targeting and combat rules, combat redirection, full phase guards, and action sequences for
+Targeting filters audience, Minion/Hero/Character kind, and enemy Stealth/Immune; attacks also
+respect unsuppressed Minion Taunt. Remaining keyword combat rules, combat redirection, full phase guards, and action sequences for
 Weapons, Hero cards, and locations remain Milestone 8 work. Hero Power activation is implemented
 for the synthetic targeting contract; summon-only full-board restrictions, variable usage limits,
 and game-wide usage counters remain gaps. `OriginalPowerCompletion` updates the activating power
 even after replacement removes it from Play, and leaves the new power ready. Completion precedes
 an ordinary boundary, then captured after-use reactions, another boundary, and outcome checking.
 These completion and boundary choices are explicit engine policy, not verified pinned-rulebook
-conformance. Checkpoint schema 10 is
-the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, and 9,
+conformance. Checkpoint schema 11 is
+the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, 9, and 10,
 are rejected.
 
 For `AdvancedRulebook2026_06_26`, Hero replacement follows the dedicated “Replacing your hero” section and removes attached temporary enchantments. The contradictory sentence in the Hero-card player-action section is not generalized into the replacement reducer; full Hero-card sequencing remains a Milestone 8 gap.
+
+## Taunt and Stealth evidence
+
+Declaration restrictions and Taunt suppression follow the current [Target](https://hearthstone.wiki.gg/wiki/Target),
+[Taunt](https://hearthstone.wiki.gg/wiki/Taunt?section=4), and
+[Immune](https://hearthstone.wiki.gg/wiki/Immune) references. The
+[Stealth reference](https://hearthstone.wiki.gg/wiki/Stealth?section=3) places consumption after
+combat preparation regardless of successful damage. The pinned revision could not be retrieved.
+
+The implemented `BreakAttackStealth` step runs after the existing Attack-event reactions and before
+the prebuilt damage batch. This placement is engine policy within simplified combat, not certified
+full preparation-phase conformance. Ordered removal enchantments preserve consumption through
+recalculation and checkpoints and allow later grants. Fixtures cover declarations, Taunt suppression,
+silence, expiration, copying, transformation, movement, and suspended continuation.

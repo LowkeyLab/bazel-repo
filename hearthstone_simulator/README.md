@@ -24,7 +24,8 @@ The supported player declarations are minion and spell plays, character attacks,
 `Concede`. A card can declare one of four explicit target requirements: no target, required,
 optional, or required when matching targets exist. The current filter foundation selects friendly,
 enemy, or either-player Minions, Heroes, or Characters; it intentionally does not implement
-keyword-specific or complete card-by-card targeting legality.
+complete card-by-card targeting legality. Enemy Stealth and Immune prevent direct declarations;
+friendly targets remain eligible. Taunt restricts attacks to visible, non-Immune enemy Taunt Minions.
 
 ```rust
 use hearthstone_simulator::Simulation;
@@ -53,7 +54,27 @@ only canonical supported declarations, including valid character attacks, withou
 state or trace.
 
 Weapons, Hero cards, locations, combat redirection, complete phase guards, and
-keyword-specific targeting or combat legality remain outside this action-contract foundation.
+other keyword-specific combat legality remain outside this action-contract foundation.
+
+## Taunt and Stealth
+
+Minion, spell, and Hero Power declarations share the same direct-target restrictions. Enemy
+Stealth and Immune targets are excluded before evaluating RequiredIfAvailable; friendly targets
+remain eligible. Only attacks obey Taunt, and Stealth or Immune suppress a Minion's Taunt without
+removing the keyword. Effective Immune includes aura contributions. Area and random effect
+selectors are unchanged, and accepted declarations retain their captured targets.
+
+After Attack-event reactions, a guarded `BreakAttackStealth` step consumes the attacker's current
+Stealth before the existing damage batch. It uses a permanent ordered keyword-removal enchantment:
+recalculation cannot restore consumed grants, while a later grant can restore Stealth. Existing
+silence, transformation, backward movement, and copy policies apply to that enchantment. A subject
+that has left Play skips this step. Damage success is not required to consume Stealth.
+
+Checkpoint schema 11 persists this step and rejects earlier schemas. The boundary placement is
+an explicit engine policy within the existing simplified combat sequence; complete preparation
+phases, damage-stat refresh after attack reactions, redirection, and full combat guards remain
+unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
+revision remains unavailable for exact conformance verification.
 
 ## Hero Power activation
 
@@ -73,7 +94,7 @@ retains completion bookkeeping on its old ID, including in RemovedFromGame; the 
 ready. If the original no longer exists or is no longer a Hero Power with power state, completion
 omits that state mutation while remaining sequence work continues. This replacement policy and
 boundary placement are not certified against the inaccessible pinned rulebook revision.
-Checkpoint schema 10 preserves suspended activations and captured after-use seeds; older schemas
+Checkpoint schema 11 preserves suspended activations and captured after-use seeds; older schemas
 are rejected. Summon-only full-board restrictions, variable use limits, game-wide usage counters,
 modal choices, and targeting redirection remain gaps.
 
