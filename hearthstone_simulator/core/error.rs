@@ -23,6 +23,10 @@ pub enum SimulationError {
     },
     #[error("entity {0:?} is not a playable card")]
     NotPlayable(GameEntityId),
+    #[error("entity {0:?} is not an active Hero Power")]
+    NotActiveHeroPower(GameEntityId),
+    #[error("Hero Power {0:?} is exhausted")]
+    HeroPowerExhausted(GameEntityId),
     #[error("card {0:?} requires a target")]
     MissingTarget(GameEntityId),
     #[error("card {0:?} does not accept a target")]

@@ -154,8 +154,37 @@ pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
         }
     }
 
+    offer_hero_power_actions(world, active, &mut offer);
+
     offer(GameAction::Concede { player: active });
     actions
+}
+
+fn offer_hero_power_actions(world: &World, active: PlayerId, mut offer: impl FnMut(GameAction)) {
+    let mut powers = world
+        .resource::<ZoneIndex>()
+        .entities(active, Zone::Play)
+        .to_vec();
+    powers.sort_unstable();
+    powers.dedup();
+    for power in powers {
+        let Some(entity) = game_entity(world, power) else {
+            continue;
+        };
+        if world.get::<EntityKind>(entity) != Some(&EntityKind::HeroPower) {
+            continue;
+        }
+        let Some(runtime) = world.get::<CardRuntime>(entity) else {
+            continue;
+        };
+        for target in super::action_validation::target_options(world, active, runtime.targeting) {
+            offer(GameAction::UseHeroPower {
+                player: active,
+                power,
+                target,
+            });
+        }
+    }
 }
 
 fn process_next_action(world: &mut World) {
@@ -228,6 +257,21 @@ fn apply_action(world: &mut World, action: &GameAction) -> Result<(), Simulation
                 player: *player,
                 attacker: *attacker,
                 defender: *defender,
+            },
+        },
+        GameAction::UseHeroPower {
+            player,
+            power,
+            target,
+        } => ResolutionOp::RunGuardedSequenceStep {
+            guards: vec![crate::SubjectGuard {
+                subject: *power,
+                required_zone: Zone::Play,
+            }],
+            step: SequenceStep::UseHeroPower {
+                player: *player,
+                power: *power,
+                target: *target,
             },
         },
         GameAction::EndTurn { player } => {
@@ -346,6 +390,15 @@ pub(super) fn run_sequence_step(
             defender,
         } => {
             finish_attack(world, *player, *attacker, *defender);
+            Ok(())
+        }
+        SequenceStep::UseHeroPower {
+            player,
+            power,
+            target,
+        } => use_hero_power(world, *player, *power, *target),
+        SequenceStep::FinishHeroPower { power } => {
+            finish_hero_power(world, *power);
             Ok(())
         }
         SequenceStep::EndTurn { player } => {
@@ -491,6 +544,69 @@ fn play_card(
     }
     push_resolution_ops(world, operations);
     Ok(())
+}
+
+fn use_hero_power(
+    world: &mut World,
+    player: PlayerId,
+    power: GameEntityId,
+    target: Option<GameEntityId>,
+) -> Result<(), SimulationError> {
+    let entity = controlled_entity_in_zone(world, player, power, Zone::Play)?;
+    let runtime = world
+        .get::<CardRuntime>(entity)
+        .cloned()
+        .ok_or(SimulationError::NotActiveHeroPower(power))?;
+    let event_context = EventContext {
+        kind: EventKind::AfterHeroPower,
+        source: Some(power),
+        targets: target.into_iter().collect(),
+        controller: player,
+        proposed_value: None,
+        actual_value: None,
+        simultaneous_ordinal: 0,
+    };
+    let seeds = collect_trigger_seeds(world, &event_context);
+    let after_use = super::event_resolver::prepare_event_with_seeds(world, event_context, seeds);
+    spend_resources(world, player, runtime.cost)?;
+    let context = EffectContext {
+        source: Some(power),
+        controller: player,
+        declared_target: target,
+        drawn_card: None,
+        origin: crate::EffectOrigin::HeroPower,
+    };
+    let mut operations = runtime
+        .program
+        .into_iter()
+        .map(|effect| ResolutionOp::RunEffect {
+            context: context.clone(),
+            effect,
+            event: None,
+        })
+        .collect::<Vec<_>>();
+    operations.extend([
+        ResolutionOp::RunSequenceStep(SequenceStep::FinishHeroPower { power }),
+        ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+        ResolutionOp::ResolveEvent(after_use),
+    ]);
+    push_resolution_ops(world, operations);
+    Ok(())
+}
+
+// OriginalPowerCompletion: record the use on the original power, including after
+// replacement moves it out of Play. Never exhaust the newly installed power.
+fn finish_hero_power(world: &mut World, power: GameEntityId) {
+    let Some(entity) = game_entity(world, power) else {
+        return;
+    };
+    if world.get::<EntityKind>(entity) != Some(&EntityKind::HeroPower) {
+        return;
+    }
+    if let Some(mut state) = world.get_mut::<HeroPowerState>(entity) {
+        state.uses_this_turn = state.uses_this_turn.saturating_add(1);
+        state.exhausted = true;
+    }
 }
 
 fn attack(
