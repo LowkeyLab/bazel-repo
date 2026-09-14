@@ -41,12 +41,15 @@ describe('GameWsService', () => {
     };
 
     capturedUrl = undefined;
-    vi.spyOn(service as never, 'createSocket' as never).mockImplementation(
-      (config: { url?: string }) => {
-        capturedUrl = config?.url;
-        return fake as never;
+    vi.spyOn(
+      service as unknown as {
+        createSocket: (config: { url?: string }) => FakeSocket<ServerMessage>;
       },
-    );
+      'createSocket',
+    ).mockImplementation((config) => {
+      capturedUrl = config.url;
+      return fake;
+    });
   });
 
   it('builds a ws URL and encodes gameId', () => {
