@@ -115,6 +115,9 @@ def _ng_test_impl(name, visibility, zonejs, tailwindcss, vitest, tags, deps, src
     if vitest:
         extra_deps += [
             # keep-sorted start
+            # Vitest 5 inherits assertion chains (including .not) from Chai.
+            # Expose its types at the symlink-preserving Angular compile root.
+            "//angular:node_modules/@types/chai",
             "//angular:node_modules/@vitest/coverage-v8",
             "//angular:node_modules/jsdom",
             "//angular:node_modules/vitest",

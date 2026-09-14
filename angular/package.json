@@ -60,6 +60,7 @@
     "@tailwindcss/cli": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@types/canvas-confetti": "catalog:",
+    "@types/chai": "catalog:",
     "@types/js-yaml": "catalog:",
     "@types/node": "catalog:",
     "daisyui": "catalog:",

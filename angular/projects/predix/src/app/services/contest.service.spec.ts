@@ -34,7 +34,7 @@ describe('ContestService', () => {
   }
 
   beforeEach(() => {
-    (window as any).EventSource = MockEventSource as typeof EventSource;
+    vi.stubGlobal('EventSource', MockEventSource);
 
     TestBed.configureTestingModule({
       providers: [
@@ -51,6 +51,7 @@ describe('ContestService', () => {
 
   afterEach(() => {
     httpMock.verify();
+    vi.unstubAllGlobals();
   });
 
   describe('getContest', () => {
