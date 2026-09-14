@@ -962,6 +962,15 @@ fn validate_sequence_step_references(
                 validate_entity_reference("declared target", *target, ids)?;
             }
         }
+        SequenceStep::UseHeroPower { power, target, .. } => {
+            validate_entity_reference("activated Hero Power", *power, ids)?;
+            if let Some(target) = target {
+                validate_entity_reference("declared target", *target, ids)?;
+            }
+        }
+        SequenceStep::FinishHeroPower { power } => {
+            validate_entity_reference("completed Hero Power", *power, ids)?;
+        }
         SequenceStep::Attack {
             attacker, defender, ..
         }

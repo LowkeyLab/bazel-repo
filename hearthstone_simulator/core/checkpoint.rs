@@ -9,7 +9,7 @@ use crate::{
     TargetRequirement, TriggerDefinition, TurnSchedule, Zone,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 9;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 10;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {

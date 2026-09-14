@@ -137,6 +137,14 @@ pub(super) fn validate_action(
             validate_attack(world, *player, *attacker, *defender)?;
             Ok(action.clone())
         }
+        GameAction::UseHeroPower {
+            player,
+            power,
+            target,
+        } => {
+            validate_hero_power(world, *player, *power, *target)?;
+            Ok(action.clone())
+        }
         GameAction::EndTurn { .. } | GameAction::Concede { .. } => Ok(action.clone()),
     }
 }
@@ -201,6 +209,41 @@ fn validate_play_card(
         }
         Ok(None)
     }
+}
+
+fn validate_hero_power(
+    world: &World,
+    player_id: PlayerId,
+    power: GameEntityId,
+    target: Option<GameEntityId>,
+) -> Result<(), SimulationError> {
+    let entity = controlled_entity_in_zone(world, player_id, power, Zone::Play)?;
+    if world.get::<EntityKind>(entity) != Some(&EntityKind::HeroPower) {
+        return Err(SimulationError::NotActiveHeroPower(power));
+    }
+    let state = world
+        .get::<crate::HeroPowerState>(entity)
+        .ok_or(SimulationError::NotActiveHeroPower(power))?;
+    if state.exhausted {
+        return Err(SimulationError::HeroPowerExhausted(power));
+    }
+    let runtime = world
+        .get::<CardRuntime>(entity)
+        .ok_or(SimulationError::NotActiveHeroPower(power))?;
+    validate_effect_program(world, &runtime.program, None)?;
+    let available = player(world, player_id)
+        .ok_or(SimulationError::PlayerNotFound(player_id))?
+        .1
+        .available_resources();
+    let cost = runtime.cost.max(0);
+    if available < cost {
+        return Err(SimulationError::NotEnoughMana {
+            player: player_id,
+            required: cost,
+            available,
+        });
+    }
+    validate_target(world, player_id, power, target, runtime.targeting)
 }
 
 fn validate_target(

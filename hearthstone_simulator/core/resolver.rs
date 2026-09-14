@@ -23,6 +23,14 @@ pub enum SequenceStep {
         target: Option<GameEntityId>,
         board_index: Option<usize>,
     },
+    UseHeroPower {
+        player: PlayerId,
+        power: GameEntityId,
+        target: Option<GameEntityId>,
+    },
+    FinishHeroPower {
+        power: GameEntityId,
+    },
     Attack {
         player: PlayerId,
         attacker: GameEntityId,

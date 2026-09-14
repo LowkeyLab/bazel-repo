@@ -9,6 +9,11 @@ pub enum GameAction {
         board_index: Option<usize>,
         choice: Option<ChoiceId>,
     },
+    UseHeroPower {
+        player: PlayerId,
+        power: GameEntityId,
+        target: Option<GameEntityId>,
+    },
     Attack {
         player: PlayerId,
         attacker: GameEntityId,
@@ -27,6 +32,7 @@ impl GameAction {
     pub const fn player(&self) -> PlayerId {
         match self {
             Self::PlayCard { player, .. }
+            | Self::UseHeroPower { player, .. }
             | Self::Attack { player, .. }
             | Self::EndTurn { player }
             | Self::Concede { player } => *player,
@@ -37,6 +43,7 @@ impl GameAction {
     pub const fn label(&self) -> &'static str {
         match self {
             Self::PlayCard { .. } => "PlayCard",
+            Self::UseHeroPower { .. } => "UseHeroPower",
             Self::Attack { .. } => "Attack",
             Self::EndTurn { .. } => "EndTurn",
             Self::Concede { .. } => "Concede",
