@@ -384,6 +384,7 @@ pub(super) fn run_sequence_step(
             attack(world, *player, *attacker, *defender);
             Ok(())
         }
+        SequenceStep::BreakAttackStealth { attacker } => break_attack_stealth(world, *attacker),
         SequenceStep::FinishAttack {
             player,
             attacker,
@@ -647,6 +648,15 @@ fn attack(
                 actual_value: None,
                 simultaneous_ordinal: 0,
             }),
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![crate::SubjectGuard {
+                    subject: attacker_id,
+                    required_zone: Zone::Play,
+                }],
+                step: SequenceStep::BreakAttackStealth {
+                    attacker: attacker_id,
+                },
+            },
             ResolutionOp::ProcessDamageBatch(damage),
             ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
                 player: player_id,
@@ -655,6 +665,33 @@ fn attack(
             }),
         ],
     );
+}
+
+// Consume all grants present after attack reactions. An ordered removal survives
+// recalculation and in-Play copying, while later grants can restore Stealth.
+fn break_attack_stealth(world: &mut World, attacker: GameEntityId) -> Result<(), SimulationError> {
+    let Some(entity) = game_entity(world, attacker) else {
+        return Ok(());
+    };
+    if !crate::aura::has_keyword(world, entity, crate::Keyword::Stealth) {
+        return Ok(());
+    }
+    let controller = world
+        .get::<Controller>(entity)
+        .ok_or(SimulationError::EntityNotFound(attacker))?
+        .0;
+    super::effect_executor::attach_keyword_modifier(
+        world,
+        controller,
+        attacker,
+        crate::KeywordModifier {
+            keyword: crate::Keyword::Stealth,
+            granted: false,
+            silence_removable: true,
+        },
+        EnchantmentDuration::Permanent,
+    )?;
+    Ok(())
 }
 
 fn finish_attack(

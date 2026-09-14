@@ -7,7 +7,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Active milestone: Milestone 8 player-action sequences
-- Verification: 2026-09-14 formatting, 9 core and 258 simulator tests, and the full repository build pass. Lint reports no filtered findings; unrelated website ESLint formatter errors for missing `chalk` limit that check.
+- Verification: 2026-09-14, 9 core and 266 simulator tests and the full repository build pass after the Taunt/Stealth slice. Formatting and simulator lint are recorded below.
 
 ## Milestones
 
@@ -60,7 +60,8 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Canonical enumeration of supported actions: deterministic card/target/position/attack order, explicit minion insertion positions, and no enumeration mutation.
   - [x] Narrow serializable subject guards for deferred minion/spell plays and attacks, with first-failure skip traces and guarded checkpoint restoration.
   - [x] Hero Power activation with explicit targeting, canonical enumeration, post-effect exhaustion, captured after-use seeds, replacement completion policy, and checkpoint-exact suspended continuation.
-  - [ ] Weapon, Hero card, and location action sequences; combat redirection; full phase guards; and keyword-specific targeting or combat legality.
+  - [x] Taunt, Stealth, and Immune declaration restrictions with durable Stealth consumption and checkpointed attack continuation.
+  - [ ] Weapon, Hero card, and location action sequences; combat redirection; full phase guards; and remaining keyword-specific combat legality.
 - [ ] **9 — Esoteric compatibility**
   - [x] Durable dominant-player identity and dominant/secondary trigger grouping.
   - [ ] Named forced-death, Deathrattle-position, and wounded-target policies.
@@ -151,14 +152,25 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 | 2026-09-14 | `aspect build //...`                                                           | Passed all 351 repository targets                                                 |
 | 2026-09-14 | `aspect lint`                                                                  | No filtered findings; unrelated website ESLint formatter reported missing `chalk` |
 
+### Taunt and Stealth verification (2026-09-14)
+
+- `bazel run //:gazelle`: passed after source edits; no BUILD metadata changes.
+- `aspect test //hearthstone_simulator/...`: passed 9 core and 266 simulator tests, including eight new regression tests and a 48-case declaration matrix.
+- `aspect build //...`: passed all 351 repository targets.
+- `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
+- `aspect format --scope=all`: passed repository formatting.
+
 ## Known gaps
 
 Milestone 8 remains partial. Its current foundation covers minion/spell declarations and synthetic Hero Power activation,
-basic audience/kind targeting filters, canonical action enumeration, and narrow zone-continuity
-guards. It does not claim complete rulebook targeting or combat legality, keyword restrictions,
+audience/kind and Stealth/Immune targeting filters, Taunt attack restrictions, canonical action enumeration, and narrow zone-continuity
+guards. It does not claim complete rulebook targeting or combat legality, remaining keyword restrictions,
 combat redirection, full phase guards, or action sequences for Weapons, Hero cards, or locations. Hero Power summon-only full-board
 restrictions, variable usage limits, and game-wide usage counters remain gaps. Hero Power boundary
 placement and `OriginalPowerCompletion` are explicit engine policy pending pinned-rulebook
-verification. Checkpoints use schema 10 and reject older schemas, including schemas 7, 8, and 9.
+verification. Checkpoints use schema 11 and reject older schemas, including schemas 7, 8, 9, and 10.
+Stealth consumption runs after Attack reactions and before the existing damage batch, using a
+permanent ordered removal that survives recalculation and in-Play copying. Later grants restore
+Stealth. Exact preparation/death boundary placement and complete combat timing remain gaps.
 
 The implementation remains intentionally synthetic-card-first. Unchecked items above are not implemented and must not be inferred from the architectural types alone. Zone movement uses the profile's Deck → Hand → Play → Graveyard direction, preserves state forward, rebuilds innate stats and keywords while removing ordinary attachments backward, supports explicit keep-enchantment exceptions, and treats full-zone movement separately from generation and force play. Battlefield membership is distinct from the seven-slot board row; active Heroes, Weapons, and Hero Powers use independent profile limits. Full-zone and ordinary Death Events are globally ordered by play order while the death cache retains creation order. Extra turns use ruleset precedence rather than effect FIFO order, while temporary stat, keyword, cost, and ordinary trigger enchantments distinguish one turn from a contiguous player turn series. Cost modifiers apply Set, Add, and Multiply operations in play order, retain negative effective values until payment, preserve their payloads through checkpoints, and do not become a copied card's base cost. Ordinary trigger enchantments are implemented with host- and event-controller-aware conditions, captured-trigger abortion, and explicit silence behavior. Added Deathrattles remain a Milestone 9 policy gap. Hero replacement removes the old Hero and its attachments, preserves or explicitly replaces Health, keeps Armor and attack usage, applies weapon/class policy, replaces the in-Play Hero Power with an immediately usable entity, waits for the ordinary phase boundary before refreshing auras, and never clears a defeat already locked at Death Creation. Runtime and checkpoint validation require exactly one structurally valid active Hero and Hero Power per initialized player. The profile follows the dedicated “Replacing your hero” rule for temporary-enchantment removal; the contradictory Hero-card-sequence wording remains confined to the still-unimplemented full Hero-card action sequence. Maximum-Health recalculation preserves H1/H2; Health applications persist through the immediate Death Phase while Attack and Other applications from removed providers expire first. Played providers merge only their own applications, summons refresh all categories, and Spell Damage is queried from live in-play or attached contributions for each spell-originated damage effect. Damage and healing process each proposed event and durable mutation in event order, fill pre-positioned actual-event slots, and delay actual reactions until every simultaneous mutation completes. Damage prevention precedes predamage triggers, no-op health changes do not create actual events, and Armor loss counts as actual damage. Boundary-created death records drive self-filtered Deathrattles through chained Death Phases. Death Creation locks Hero defeat, orders deaths globally by play order, and records each Death Event plus its pre-check-eligible trigger seeds. Each Death Event evaluates queue-time conditions only when it begins resolution, and the final outcome is checked after all chained Death Phases.

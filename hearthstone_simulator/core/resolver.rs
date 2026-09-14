@@ -36,6 +36,9 @@ pub enum SequenceStep {
         attacker: GameEntityId,
         defender: GameEntityId,
     },
+    BreakAttackStealth {
+        attacker: GameEntityId,
+    },
     FinishAttack {
         player: PlayerId,
         attacker: GameEntityId,
