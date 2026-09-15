@@ -122,6 +122,17 @@ pub(super) fn validate_choice_request(
     for option in &request.options {
         for operation in &option.operations {
             match operation {
+                ResolutionOp::RunSequenceStep(crate::SequenceStep::ConsumeDurability {
+                    ..
+                })
+                | ResolutionOp::RunGuardedSequenceStep {
+                    step: crate::SequenceStep::ConsumeDurability { .. },
+                    ..
+                } => {
+                    return Err(SimulationError::Checkpoint(
+                        "choice branches cannot borrow a durability payer".into(),
+                    ));
+                }
                 ResolutionOp::RunEffect { event: Some(_), .. } => {
                     return Err(SimulationError::Invariant(
                         "choice branches cannot borrow an event context".into(),

@@ -328,6 +328,7 @@ fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
     // Dormant card programs remain legal without registrations: normal action validation rejects
     // them before mutation. Only already-retained resolution work must be executable immediately.
     let resolution = world.resource::<ResolutionWork>();
+    crate::resolver::validate_durability_payers(resolution).map_err(SimulationError::Checkpoint)?;
     for (&scope, &subject) in &resolution.play_scopes {
         crate::resolver::validate_play_scope(world, scope, subject)?;
     }

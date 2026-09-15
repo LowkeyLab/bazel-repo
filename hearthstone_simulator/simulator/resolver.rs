@@ -87,6 +87,7 @@ pub(crate) fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
         || !work.event_slots.is_empty()
         || !work.draw_result_slots.is_empty()
         || !work.play_scopes.is_empty()
+        || !work.durability_payers.is_empty()
         || !work.pending_played_self_transforms.is_empty()
         || work.pending_choice.is_some()
     {
@@ -108,6 +109,7 @@ pub(crate) fn abandon_sequence(world: &mut World) {
     work.event_slots.clear();
     work.draw_result_slots.clear();
     work.play_scopes.clear();
+    work.durability_payers.clear();
     work.pending_played_self_transforms.clear();
     work.pending_choice = None;
     work.sequence_active = false;
@@ -259,14 +261,41 @@ pub(crate) fn resolution_is_active(world: &World) -> bool {
     world.resource::<ResolutionWork>().sequence_active
 }
 
+pub(crate) fn validate_durability_payers(work: &ResolutionWork) -> Result<(), String> {
+    let mut payers = work.durability_payers.clone();
+    for stacked in &work.stack {
+        match &stacked.operation {
+            ResolutionOp::RunSequenceStep(crate::SequenceStep::ConsumeDurability {
+                player,
+                weapon,
+            }) => {
+                if payers.remove(&stacked.id) != Some((*player, *weapon)) {
+                    return Err("durability payer differs from combat preparation capture".into());
+                }
+            }
+            ResolutionOp::RunGuardedSequenceStep {
+                step: crate::SequenceStep::ConsumeDurability { .. },
+                ..
+            } => return Err("durability payer cannot have a conditional completion".into()),
+            _ => {}
+        }
+    }
+    if !payers.is_empty() {
+        return Err("durability payer has no one-shot completion".into());
+    }
+    Ok(())
+}
+
 pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> {
     let work = world.resource::<ResolutionWork>();
+    validate_durability_payers(work)?;
     if !work.sequence_active {
         if !work.stack.is_empty()
             || !work.events.is_empty()
             || !work.event_slots.is_empty()
             || !work.draw_result_slots.is_empty()
             || !work.play_scopes.is_empty()
+            || !work.durability_payers.is_empty()
             || !work.pending_played_self_transforms.is_empty()
             || work.pending_choice.is_some()
         {

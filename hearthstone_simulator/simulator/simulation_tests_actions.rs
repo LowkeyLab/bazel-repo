@@ -2888,7 +2888,7 @@ fn windfury_first_attack_checkpoint_json_and_fork_continue_identically() {
         let (mut original, attacker, action) = windfury_fixture(is_hero, true);
         original.apply(action.clone()).unwrap();
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 16);
+        assert_eq!(checkpoint.schema_version, 17);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -3549,7 +3549,7 @@ fn charge_rush_suspended_attack_keyword_loss_restores_and_finishes_exactly_once(
             keyword
         ));
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 16);
+        assert_eq!(checkpoint.schema_version, 17);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -4355,6 +4355,65 @@ fn weapon_replaced_during_damage_does_not_charge_new_weapon() {
         .entity_mut(blade)
         .insert(RuntimeTriggers(vec![trigger]));
     weapon_attack(&mut sim);
+    let checkpoint = sim.checkpoint().unwrap();
+    let replacement = sim.snapshot().players[0].weapon.unwrap();
+    assert_ne!(replacement, weapon);
+    let payment = checkpoint
+        .resolution
+        .stack
+        .iter()
+        .position(|op| {
+            matches!(
+                op.operation,
+                ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability { .. })
+            )
+        })
+        .unwrap();
+    for mutation in 0..6 {
+        let mut forged = checkpoint.clone();
+        match mutation {
+            0 => {
+                if let ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability {
+                    weapon,
+                    ..
+                }) = &mut forged.resolution.stack[payment].operation
+                {
+                    *weapon = replacement;
+                }
+            }
+            1 => {
+                if let ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability {
+                    player,
+                    ..
+                }) = &mut forged.resolution.stack[payment].operation
+                {
+                    *player = PlayerId::Two;
+                }
+            }
+            2 => {
+                forged.resolution.durability_payers.clear();
+            }
+            3 => {
+                forged.resolution.stack.remove(payment);
+            }
+            4 => {
+                let mut duplicate = forged.resolution.stack[payment].clone();
+                duplicate.id = crate::ResolutionId(forged.resolution.next_resolution_id);
+                forged.resolution.next_resolution_id += 1;
+                forged.resolution.stack.push(duplicate);
+            }
+            5 => {
+                let id = forged.resolution.stack[payment].id;
+                forged
+                    .resolution
+                    .durability_payers
+                    .insert(id, (PlayerId::One, replacement));
+            }
+            _ => unreachable!(),
+        }
+        assert!(matches!(Simulation::from_checkpoint(forged),
+            Err(SimulationError::Checkpoint(message)) if message.contains("durability payer")));
+    }
     weapon_restore_and_finish(&mut sim);
     let snapshot = sim.snapshot();
     let active = snapshot.players[0].weapon.unwrap();
@@ -4981,7 +5040,7 @@ fn combat_reaction_choices_restore_live_damage_and_cancellation_exactly() {
         );
         declare_combat(&mut simulation, attacker, defender);
         let checkpoint = simulation.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 16);
+        assert_eq!(checkpoint.schema_version, 17);
         assert_eq!(combat_damage(&mut simulation, defender), 0);
         for missing_attacker in [false, true] {
             let mut invalid = checkpoint.clone();

@@ -285,6 +285,8 @@ pub struct ResolutionWork {
     /// Keyed by the ID of the one-shot `FinishPlayedSelfTransform` operation that owns it.
     /// Operations address this table directly; they never search pending work for a barrier.
     pub play_scopes: BTreeMap<ResolutionId, GameEntityId>,
+    /// Combat-preparation capture, owned by its one-shot durability operation.
+    pub durability_payers: BTreeMap<ResolutionId, (PlayerId, GameEntityId)>,
     pub pending_played_self_transforms: BTreeSet<GameEntityId>,
     pub pending_choice: Option<PendingChoice>,
     pub sequence_active: bool,

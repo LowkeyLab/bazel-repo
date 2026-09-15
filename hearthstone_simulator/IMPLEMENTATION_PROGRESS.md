@@ -190,11 +190,11 @@ audience/kind and Stealth/Immune targeting filters, Taunt attack restrictions, W
 combat redirection, full phase guards, or action sequences for Hero cards or locations. Hero Power summon-only full-board
 restrictions, variable usage limits, and game-wide usage counters remain gaps. Hero Power boundary
 placement and `OriginalPowerCompletion` are explicit engine policy pending pinned-rulebook
-verification. Checkpoints use schema 16 and reject older schemas, including schema 15.
+verification. Checkpoints use schema 17 and reject older schemas, including schema 16.
 Charge/Rush permissions do not clear initial readiness or attack counts; accepted attacks continue
 through keyword loss under existing combat policy. Snapshot exhaustion excludes target availability.
 Transformation still resets to ready with zero attacks spent, an explicit existing policy awaiting
-separate conformance work. Schema 16 includes the Frozen thaw step and combat-damage preparation; replay equivalence with older binaries
+separate conformance work. Schema 17 includes the Frozen thaw step and combat-damage preparation; replay equivalence with older binaries
 where Charge/Rush were inactive is not guaranteed.
 Stealth consumption runs after Attack reactions and before the existing damage batch, using a
 permanent ordered removal that survives recalculation and in-Play copying. Later grants restore
@@ -257,3 +257,9 @@ The implementation remains intentionally synthetic-card-first. Unchecked items a
 - Add six regressions for forged state, movement traces, enchanted retirement, and control-changing combat.
 - `aspect test //hearthstone_simulator/...`: passed 9 core and 332 simulator tests.
 - `aspect format --scope=all`, `aspect build //...`, `aspect lint //hearthstone_simulator/...`, and `git diff --check`: passed.
+
+### Durability payer provenance (2026-09-16)
+
+- Schema 17 records the combat-preparation payer against its one-shot resolution operation. Restoration rejects substituted weapons/controllers, missing captures, orphaned captures, and duplicate payments. Choice branches cannot borrow a payment.
+- Sequence abandonment clears captured payers; valid moved/replaced weapons still restore and resume without charging a replacement.
+- Expanded the suspended replacement regression with six malformed-checkpoint cases; JSON restoration and forks retain identical continuations.

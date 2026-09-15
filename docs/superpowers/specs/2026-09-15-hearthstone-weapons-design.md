@@ -110,7 +110,7 @@ The pinned [advanced rulebook revision 913067](https://hearthstone.wiki.gg/wiki/
 
 ## Implementation notes
 
-Schema 16 stores equipment as a resource with active IDs and replacement scopes keyed by incoming
+Schema 17 stores equipment as a resource with active IDs and replacement scopes keyed by incoming
 weapon ID. Completion authority is checked against the durable operation stack during validation.
 Replacement moves the predecessor to Graveyard and records its death before the ordinary boundary;
 that boundary resolves its Death Event alongside other pending deaths. Existing transformations
@@ -138,3 +138,5 @@ leaves Play. Combat Attack and durability payment use the same live Hero/control
 Equip, replacement retirement, and failure retirement emit their zone transitions. Retirement
 uses ordinary death movement to reset runtime state and release ordinary attachments; failure
 cleanup does not schedule Death Events or other effects.
+
+Checkpoint schema 17 additionally retains each combat-preparation durability payer keyed by its one-shot resolution operation ID. Restoration requires an exact operation/capture match and rejects missing, duplicate, or orphaned payments. Sequence failure clears these captures.

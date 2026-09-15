@@ -300,6 +300,18 @@ fn resolve_to_pause(world: &mut World) -> Result<(), SimulationError> {
 pub(super) fn drive_resolution(world: &mut World) -> Result<(), SimulationError> {
     while let Some(operation) = pop_resolution_op(world) {
         consume_budget(world, operation.id)?;
+        if let ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability { player, weapon }) =
+            &operation.operation
+            && world
+                .resource_mut::<ResolutionWork>()
+                .durability_payers
+                .remove(&operation.id)
+                != Some((*player, *weapon))
+        {
+            return Err(SimulationError::Invariant(
+                "durability payer differs from combat preparation capture".into(),
+            ));
+        }
         world
             .resource_mut::<CanonicalTrace>()
             .entries
@@ -704,21 +716,28 @@ fn prepare_combat_damage(
             proposed: counter_damage,
         });
     }
-    let mut operations = vec![ResolutionOp::ProcessDamageBatch(damage)];
+    crate::resolver::push_resolution_op(
+        world,
+        ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
+            player: player_id,
+            attacker: attacker_id,
+            defender: defender_id,
+        }),
+    );
     if let Some((payer, weapon)) = crate::weapon::attack_weapon(world, attacker) {
-        operations.push(ResolutionOp::RunSequenceStep(
-            SequenceStep::ConsumeDurability {
+        let operation = crate::resolver::push_resolution_op(
+            world,
+            ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability {
                 player: payer,
                 weapon,
-            },
-        ));
+            }),
+        );
+        world
+            .resource_mut::<ResolutionWork>()
+            .durability_payers
+            .insert(operation, (payer, weapon));
     }
-    operations.push(ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
-        player: player_id,
-        attacker: attacker_id,
-        defender: defender_id,
-    }));
-    push_resolution_ops(world, operations);
+    crate::resolver::push_resolution_op(world, ResolutionOp::ProcessDamageBatch(damage));
 }
 
 // Consume all grants present after attack reactions. An ordered removal survives
