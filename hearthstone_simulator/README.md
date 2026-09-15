@@ -70,7 +70,7 @@ recalculation cannot restore consumed grants, while a later grant can restore St
 silence, transformation, backward movement, and copy policies apply to that enchantment. A subject
 that has left Play skips this step. Damage success is not required to consume Stealth.
 
-Checkpoint schema 11 persists this step and rejects earlier schemas. The boundary placement is
+Checkpoint schema 12 persists this step and rejects earlier schemas. The boundary placement is
 an explicit engine policy within the existing simplified combat sequence; complete preparation
 phases, damage-stat refresh after attack reactions, redirection, and full combat guards remain
 unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
@@ -94,7 +94,7 @@ retains completion bookkeeping on its old ID, including in RemovedFromGame; the 
 ready. If the original no longer exists or is no longer a Hero Power with power state, completion
 omits that state mutation while remaining sequence work continues. This replacement policy and
 boundary placement are not certified against the inaccessible pinned rulebook revision.
-Checkpoint schema 11 preserves suspended activations and captured after-use seeds; older schemas
+Checkpoint schema 12 preserves suspended activations and captured after-use seeds; older schemas
 are rejected. Summon-only full-board restrictions, variable use limits, game-wide usage counters,
 modal choices, and targeting redirection remain gaps.
 
@@ -173,3 +173,20 @@ bazel run //tools/coverage -- //hearthstone_simulator/...
 ```
 
 Use Bazel/Aspect for all repository operations.
+
+## Resolution contracts
+
+Operations execute once on the LIFO stack and schedule nested consequences above remaining work.
+They never inspect pending operations to recover context. Direct minion play programs use explicit
+play-scope IDs; only their direct sequences can propagate that authority. Completion consumes the
+scope, and checkpoint restoration rejects missing, mismatched, or prematurely completed scopes.
+
+Native handlers registered with `register_native_effect` now have the signature
+`Fn(&EffectContext, &World) -> Vec<Effect>`. Return changes and choices as effect data; handlers
+cannot use `&mut World`, mutable system parameters, or `Commands`. `Effect::Choose` contains a
+request ID, player selector, and `EffectChoiceOption` values with IDs and effect programs.
+Use `pending_choice()` and `choose(option_id)` to inspect and answer a suspended request.
+
+Checkpoint schema 12 includes explicit play scopes and rejects schema 11 and earlier. Existing
+saved checkpoints must be regenerated. Action and choice completion check for leftover resolution
+state; failures clear pending work without rolling back gameplay mutations already applied.

@@ -1,3 +1,4 @@
+use super::resolution_validation::{validate_choice_request, validate_resolution_operation};
 use std::collections::BTreeSet;
 
 use bevy::prelude::*;
@@ -7,7 +8,7 @@ use crate::{
     CHECKPOINT_SCHEMA_VERSION, CanonicalTrace, Card, CardRuntimeCheckpoint, Controller,
     CostModifier, CurrentStats, Damage, DeathEventCache, DeathRecord, DefinitionId,
     DeterministicRng, DisplayName, DominantPlayer, DrawOutcome, DrawResultSlotId, Effect,
-    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventContext, EventId, EventKind,
+    EffectContext, EnchantmentDuration, Enchantments, EntityKind, EventContext, EventId,
     EventSlotId, GameEntityCheckpoint, GameEntityId, GameObject, GameState, HealthAuraCache,
     HeroMetadata, HeroPowerState, KeepEnchantments, KeywordModifier, Keywords, OtherAuraCache,
     PlayOrder, Player, PlayerId, ResolutionOp, ResolutionWork, Ruleset, RuntimeAuras,
@@ -21,10 +22,7 @@ use crate::{
 
 use super::{
     card_runtime::CardRuntime,
-    effect_executor::{
-        validate_copy_request, validate_effect_program, validate_play_effect_program,
-        validate_transform_request, validate_trigger_enchantment,
-    },
+    effect_executor::{validate_effect_program, validate_trigger_enchantment},
     error::SimulationError,
     player::assert_player_role_invariants,
     snapshot::assert_game_entity_index,
@@ -323,8 +321,8 @@ fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
     // Dormant card programs remain legal without registrations: normal action validation rejects
     // them before mutation. Only already-retained resolution work must be executable immediately.
     let resolution = world.resource::<ResolutionWork>();
-    for (stack_index, stacked) in resolution.stack.iter().enumerate() {
-        validate_resolution_operation(world, &stacked.operation, Some(stack_index))?;
+    for stacked in &resolution.stack {
+        validate_resolution_operation(world, &stacked.operation)?;
     }
     if let Some(pending) = &resolution.pending_choice {
         validate_choice_request(world, &pending.request)?;
@@ -347,103 +345,6 @@ fn validate_restored_programs(world: &World) -> Result<(), SimulationError> {
                     Some(candidate.definition.event),
                 )?;
             }
-        }
-    }
-    Ok(())
-}
-
-fn validate_resolution_operation(
-    world: &World,
-    operation: &crate::ResolutionOp,
-    stack_index: Option<usize>,
-) -> Result<(), SimulationError> {
-    match operation {
-        crate::ResolutionOp::RunEffect {
-            context,
-            effect,
-            event,
-        } => {
-            let event = event.and_then(|event| {
-                world
-                    .resource::<ResolutionWork>()
-                    .events
-                    .get(&event)
-                    .map(|prepared| prepared.context.kind)
-            });
-            let retained_play_barrier = event.is_none()
-                && context
-                    .source
-                    .is_some_and(|source| retained_play_barrier_below(world, source, stack_index));
-            if retained_play_barrier {
-                validate_play_effect_program(world, std::slice::from_ref(effect))
-            } else {
-                validate_effect_program(world, std::slice::from_ref(effect), event)
-            }
-        }
-        crate::ResolutionOp::ContinueDraw { effects, .. } => {
-            validate_effect_program(world, effects, None)
-        }
-        crate::ResolutionOp::AttemptTrigger(candidate) => validate_effect_program(
-            world,
-            &candidate.definition.effect_program,
-            Some(candidate.definition.event),
-        ),
-        crate::ResolutionOp::FinishPlayedSelfTransform {
-            original_after_play,
-            ..
-        } => {
-            for seed in original_after_play {
-                validate_effect_program(
-                    world,
-                    &seed.definition.effect_program,
-                    Some(EventKind::AfterPlay),
-                )?;
-            }
-            Ok(())
-        }
-        crate::ResolutionOp::TransformEntity { target, card, .. } => {
-            validate_transform_request(world, *target, card)
-        }
-        crate::ResolutionOp::CopyEntity(request) => validate_copy_request(world, request),
-        crate::ResolutionOp::RequestChoice(request) => validate_choice_request(world, request),
-        _ => Ok(()),
-    }
-}
-
-fn retained_play_barrier_below(
-    world: &World,
-    source: GameEntityId,
-    stack_index: Option<usize>,
-) -> bool {
-    let Some(stack_index) = stack_index else {
-        return false;
-    };
-    let Some(source_entity) = game_entity(world, source) else {
-        return false;
-    };
-    if world
-        .get::<EntityKind>(source_entity)
-        .is_none_or(|kind| *kind != EntityKind::Minion)
-    {
-        return false;
-    }
-    world.resource::<ResolutionWork>().stack[..stack_index]
-        .iter()
-        .any(|stacked| {
-            matches!(
-                &stacked.operation,
-                ResolutionOp::FinishPlayedSelfTransform { subject, .. } if *subject == source
-            )
-        })
-}
-
-fn validate_choice_request(
-    world: &World,
-    request: &crate::ChoiceRequest,
-) -> Result<(), SimulationError> {
-    for option in &request.options {
-        for operation in &option.operations {
-            validate_resolution_operation(world, operation, None)?;
         }
     }
     Ok(())
@@ -774,12 +675,7 @@ fn validate_resolution_work(
     }
     for entity in &work.pending_played_self_transforms {
         validate_entity_reference("pending played-self transform", *entity, ids)?;
-        if !work.stack.iter().any(|stacked| {
-            matches!(
-                &stacked.operation,
-                ResolutionOp::FinishPlayedSelfTransform { subject, .. } if subject == entity
-            )
-        }) {
+        if !work.play_scopes.values().any(|subject| subject == entity) {
             return Err(SimulationError::Checkpoint(format!(
                 "pending played-self transform {entity:?} has no retained finish barrier"
             )));
@@ -800,8 +696,54 @@ fn validate_resolution_work(
             validate_event_reference(event, work)?;
         }
     }
-    for stacked in &work.stack {
+    let mut scopes = work.play_scopes.clone();
+    let mut subjects = BTreeSet::new();
+    for (scope, subject) in &scopes {
+        validate_counter_reference("play scope", scope.0, work.next_resolution_id)?;
+        validate_entity_reference("play scope subject", *subject, ids)?;
+        if !subjects.insert(*subject) {
+            return Err(SimulationError::Checkpoint(
+                "duplicate play scope subject".into(),
+            ));
+        }
+    }
+    // Walk execution order once. A scope must remain live until its uniquely identified
+    // completion operation; no operation infers authority from a future stack entry.
+    for stacked in work.stack.iter().rev() {
         validate_resolution_operation_references(&stacked.operation, work, ids)?;
+        match &stacked.operation {
+            ResolutionOp::RunPlayEffect { scope, context, .. } => {
+                if scopes.get(scope).copied() != context.source || context.source.is_none() {
+                    return Err(SimulationError::InvalidTransformation(
+                        "play effect references an absent or completed scope".into(),
+                    ));
+                }
+            }
+            ResolutionOp::TransformEntity {
+                play_scope: Some(scope),
+                target,
+                ..
+            } => {
+                if scopes.get(scope) != Some(target) {
+                    return Err(SimulationError::InvalidTransformation(
+                        "transformation references an absent or completed scope".into(),
+                    ));
+                }
+            }
+            ResolutionOp::FinishPlayedSelfTransform { subject, .. } => {
+                if scopes.remove(&stacked.id) != Some(*subject) {
+                    return Err(SimulationError::Checkpoint(
+                        "play completion does not own its scope".into(),
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+    if !scopes.is_empty() {
+        return Err(SimulationError::Checkpoint(
+            "play scope has no retained finish barrier".into(),
+        ));
     }
     if let Some(pending) = &work.pending_choice {
         validate_choice_references(&pending.request, work, ids)?;
@@ -840,6 +782,12 @@ fn validate_resolution_operation_references(
         ResolutionOp::FinishTrigger { attempt, source } => {
             validate_counter_reference("resolution", attempt.0, work.next_resolution_id)?;
             validate_entity_reference("finished trigger source", *source, ids)
+        }
+        ResolutionOp::RunPlayEffect {
+            context, effect, ..
+        } => {
+            validate_effect_context_references(context, ids)?;
+            validate_effect_references(std::slice::from_ref(effect), ids)
         }
         ResolutionOp::RunEffect {
             context,
@@ -1058,6 +1006,11 @@ fn validate_effect_references(
             Effect::Transform { targets, card, .. } => {
                 validate_selector_references(targets, ids)?;
                 validate_card_references(card, ids)?;
+            }
+            Effect::Choose { options, .. } => {
+                for option in options {
+                    validate_effect_references(&option.effects, ids)?;
+                }
             }
             Effect::DrawThen { effects, .. } | Effect::Sequence(effects) => {
                 validate_effect_references(effects, ids)?;

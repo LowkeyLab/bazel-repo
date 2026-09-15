@@ -49,6 +49,8 @@ mod event_resolver;
 mod health;
 #[path = "simulation_player.rs"]
 mod player;
+#[path = "simulation_resolution_validation.rs"]
+mod resolution_validation;
 #[path = "simulation_snapshot.rs"]
 mod snapshot;
 
@@ -148,21 +150,23 @@ impl Simulation {
         }
     }
 
-    pub fn register_native_effect<M>(
+    /// Registers a read-only planner. Mutations and choices must be returned as effects.
+    pub fn register_native_effect(
         &mut self,
         id: impl Into<NativeEffectId>,
-        handler: impl IntoSystem<In<EffectContext>, Vec<Effect>, M> + Clone + Send + Sync + 'static,
-    ) -> Result<(), SimulationError>
-    where
-        M: 'static,
-    {
+        handler: impl Fn(&EffectContext, &World) -> Vec<Effect> + Clone + Send + Sync + 'static,
+    ) -> Result<(), SimulationError> {
         let id = id.into();
         let world = self.app.world_mut();
         if world.resource::<NativeEffectRegistry>().0.contains_key(&id) {
             return Err(SimulationError::NativeEffectAlreadyRegistered(id));
         }
-        let factory: NativeEffectFactory =
-            std::sync::Arc::new(move |world| world.register_system(handler.clone()));
+        let factory: NativeEffectFactory = std::sync::Arc::new(move |world| {
+            let handler = handler.clone();
+            world.register_system(move |In(context): In<EffectContext>, world: &mut World| {
+                handler(&context, world)
+            })
+        });
         let system = factory(world);
         world
             .resource_mut::<NativeEffectRegistry>()

@@ -14,6 +14,7 @@ package(default_visibility = ["//visibility:public"])
 # gazelle:exclude simulation_tests_hero.rs
 # gazelle:exclude simulation_tests_movement.rs
 # gazelle:exclude simulation_tests_temporal.rs
+# gazelle:exclude simulation_resolution_validation.rs
 # gazelle:exclude simulation_checkpoint.rs
 # gazelle:exclude simulation_action_validation.rs
 
@@ -36,6 +37,7 @@ rust_library(
         "simulation_event_resolver.rs",  # keep
         "simulation_health.rs",  # keep
         "simulation_player.rs",  # keep
+        "simulation_resolution_validation.rs",  # keep
         "simulation_snapshot.rs",  # keep
         "trigger.rs",
         "zone.rs",

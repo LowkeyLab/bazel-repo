@@ -443,6 +443,7 @@ fn returned_and_transformed_subjects_pass_zone_guards() {
         world,
         [
             ResolutionOp::TransformEntity {
+                play_scope: None,
                 target: card,
                 source: None,
                 card: Card::minion("Replacement", 0, 1, 1),
@@ -2429,25 +2430,21 @@ fn suspended_attack_breaks_stealth_after_reactions_before_damage_and_restores_ex
     simulation
         .register_native_effect(
             "pause_hidden_attack",
-            |In(context): In<EffectContext>, world: &mut World| {
+            |context: &EffectContext, world: &World| {
                 let source = context.source.unwrap();
                 assert!(crate::aura::has_keyword(
                     world,
                     game_entity(world, source).unwrap(),
                     Keyword::Stealth
                 ));
-                push_resolution_ops(
-                    world,
-                    [ResolutionOp::RequestChoice(ChoiceRequest {
-                        id: ChoiceId(70),
-                        player: context.controller,
-                        options: vec![ChoiceOption {
-                            id: ChoiceId(71),
-                            operations: vec![],
-                        }],
-                    })],
-                );
-                vec![]
+                vec![Effect::Choose {
+                    id: ChoiceId(70),
+                    player: PlayerSelector::Controller,
+                    options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                        id: ChoiceId(71),
+                        effects: vec![],
+                    }],
+                }]
             },
         )
         .unwrap();
@@ -2466,7 +2463,7 @@ fn suspended_attack_breaks_stealth_after_reactions_before_damage_and_restores_ex
     simulation
         .register_native_effect(
             "check_visible_before_damage",
-            move |_: In<EffectContext>, world: &mut World| {
+            move |_: &EffectContext, world: &World| {
                 assert!(!crate::aura::has_keyword(
                     world,
                     game_entity(world, attacker).unwrap(),

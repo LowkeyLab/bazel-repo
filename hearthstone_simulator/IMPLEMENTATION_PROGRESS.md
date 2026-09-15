@@ -168,7 +168,7 @@ guards. It does not claim complete rulebook targeting or combat legality, remain
 combat redirection, full phase guards, or action sequences for Weapons, Hero cards, or locations. Hero Power summon-only full-board
 restrictions, variable usage limits, and game-wide usage counters remain gaps. Hero Power boundary
 placement and `OriginalPowerCompletion` are explicit engine policy pending pinned-rulebook
-verification. Checkpoints use schema 11 and reject older schemas, including schemas 7, 8, 9, and 10.
+verification. Checkpoints use schema 12 and reject older schemas, including schemas 7, 8, 9, and 10.
 Stealth consumption runs after Attack reactions and before the existing damage batch, using a
 permanent ordered removal that survives recalculation and in-Play copying. Later grants restore
 Stealth. Exact preparation/death boundary placement and complete combat timing remain gaps.

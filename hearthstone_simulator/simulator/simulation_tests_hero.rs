@@ -553,7 +553,7 @@ fn hero_power_pays_before_effects_exhausts_after_effects_and_refreshes_next_turn
     simulation
         .register_native_effect(
             "inspect_activation",
-            |In(context): In<EffectContext>, world: &mut World| {
+            |context: &EffectContext, world: &World| {
                 let source = game_entity(world, context.source.unwrap()).unwrap();
                 assert_eq!(
                     world.get::<HeroPowerState>(source).unwrap(),
@@ -918,23 +918,16 @@ fn lethal_hero_power_still_runs_after_use_before_outcome() {
 fn suspended_hero_power_restores_original_subject_target_and_seed_set() {
     let mut simulation = simulation();
     simulation
-        .register_native_effect(
-            "pause_activation",
-            |In(context): In<EffectContext>, world: &mut World| {
-                push_resolution_ops(
-                    world,
-                    [ResolutionOp::RequestChoice(ChoiceRequest {
-                        id: ChoiceId(40),
-                        player: context.controller,
-                        options: vec![ChoiceOption {
-                            id: ChoiceId(41),
-                            operations: vec![],
-                        }],
-                    })],
-                );
-                vec![]
-            },
-        )
+        .register_native_effect("pause_activation", |_: &EffectContext, _: &World| {
+            vec![Effect::Choose {
+                id: ChoiceId(40),
+                player: PlayerSelector::Controller,
+                options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                    id: ChoiceId(41),
+                    effects: vec![],
+                }],
+            }]
+        })
         .unwrap();
     let target = spawn_card(
         simulation.app.world_mut(),

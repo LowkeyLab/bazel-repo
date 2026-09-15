@@ -49,16 +49,30 @@ pub(super) fn push_effects(
     effects: &[Effect],
     event: Option<EventId>,
 ) {
+    push_scoped_effects(world, context, effects, event, None);
+}
+
+fn push_scoped_effects(
+    world: &mut World,
+    context: &EffectContext,
+    effects: &[Effect],
+    event: Option<EventId>,
+    play_scope: Option<crate::ResolutionId>,
+) {
     push_resolution_ops(
         world,
-        effects
-            .iter()
-            .cloned()
-            .map(|effect| ResolutionOp::RunEffect {
+        effects.iter().cloned().map(|effect| match play_scope {
+            Some(scope) => ResolutionOp::RunPlayEffect {
+                scope,
+                context: context.clone(),
+                effect,
+            },
+            None => ResolutionOp::RunEffect {
                 context: context.clone(),
                 effect,
                 event,
-            }),
+            },
+        }),
     );
 }
 
@@ -71,17 +85,71 @@ pub(super) fn execute_effect(
     execute_effect_operation(world, context, effect, None)
 }
 
-#[allow(
-    clippy::too_many_lines,
-    reason = "the exhaustive effect dispatcher keeps one-shot operation semantics in one place"
-)]
 pub(super) fn execute_effect_operation(
     world: &mut World,
     context: &EffectContext,
     effect: &Effect,
     event: Option<EventId>,
 ) -> Result<(), SimulationError> {
+    execute_scoped_effect(world, context, effect, event, None)
+}
+
+pub(super) fn execute_play_effect_operation(
+    world: &mut World,
+    scope: crate::ResolutionId,
+    context: &EffectContext,
+    effect: &Effect,
+) -> Result<(), SimulationError> {
+    let subject = context.source.ok_or_else(|| {
+        SimulationError::InvalidTransformation("play effect requires its source".into())
+    })?;
+    crate::resolver::validate_play_scope(world, scope, subject)?;
+    execute_scoped_effect(world, context, effect, None, Some(scope))
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "the exhaustive effect dispatcher keeps one-shot operation semantics in one place"
+)]
+fn execute_scoped_effect(
+    world: &mut World,
+    context: &EffectContext,
+    effect: &Effect,
+    event: Option<EventId>,
+    play_scope: Option<crate::ResolutionId>,
+) -> Result<(), SimulationError> {
     match effect {
+        Effect::Choose {
+            id,
+            player,
+            options,
+        } => {
+            validate_effect_program(world, std::slice::from_ref(effect), None)?;
+            crate::resolver::push_resolution_op(
+                world,
+                ResolutionOp::RequestChoice(crate::ChoiceRequest {
+                    id: *id,
+                    player: resolve_player(context.controller, *player),
+                    options: options
+                        .iter()
+                        .map(|option| hearthstone_simulator_core::ChoiceOption {
+                            id: option.id,
+                            operations: option
+                                .effects
+                                .iter()
+                                .cloned()
+                                .map(|effect| ResolutionOp::RunEffect {
+                                    context: context.clone(),
+                                    effect,
+                                    event: None,
+                                })
+                                .collect(),
+                        })
+                        .collect(),
+                }),
+            );
+            Ok(())
+        }
         Effect::DealDamage { targets, amount } => {
             let targets = select_entities(world, context, targets);
             let mut value = evaluate_value(world, context, *amount, targets.len());
@@ -396,6 +464,11 @@ pub(super) fn execute_effect_operation(
                 targets
                     .into_iter()
                     .map(|target| ResolutionOp::TransformEntity {
+                        play_scope: if *kind == TransformKind::PlayedSelf {
+                            play_scope
+                        } else {
+                            None
+                        },
                         target,
                         source: context.source,
                         card: card.clone(),
@@ -446,9 +519,8 @@ pub(super) fn execute_effect_operation(
                 .get(id)
                 .copied()
                 .ok_or_else(|| SimulationError::NativeEffectNotRegistered(id.clone()))?;
-            // Bevy flushes Commands queued by a registered system before returning. This is the
-            // native-handler mutation boundary documented by the design; durable rules changes
-            // should still be returned as an effect plan and resolved below.
+            // Registered adapters expose only &World to handlers. Every gameplay consequence,
+            // including choices, is returned as data and scheduled after validation.
             let plan = world
                 .run_system_with(system, context.clone())
                 .map_err(|error| SimulationError::NativeEffectFailed {
@@ -467,7 +539,7 @@ pub(super) fn execute_effect_operation(
             Ok(())
         }
         Effect::Sequence(nested) => {
-            push_effects(world, context, nested, event);
+            push_scoped_effects(world, context, nested, event, play_scope);
             Ok(())
         }
     }
@@ -516,6 +588,17 @@ fn validate_effect_program_with_played_self(
                     "played-self transforms require a minion play program and Source target"
                         .to_string(),
                 ));
+            }
+            Effect::Choose { options, .. } => {
+                let mut ids = std::collections::BTreeSet::new();
+                if options.is_empty() || options.iter().any(|option| !ids.insert(option.id)) {
+                    return Err(SimulationError::Invariant(
+                        "choice requires nonempty, unique options".into(),
+                    ));
+                }
+                for option in options {
+                    validate_effect_program_with_played_self(world, &option.effects, None, false)?;
+                }
             }
             Effect::DrawThen {
                 effects: nested, ..

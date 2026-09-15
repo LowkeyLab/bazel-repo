@@ -15,6 +15,12 @@ use crate::{
 fn retain_operation(checkpoint: &mut SimulationCheckpoint, operation: ResolutionOp) {
     let id = checkpoint.resolution.next_resolution_id;
     checkpoint.resolution.next_resolution_id += 1;
+    if let ResolutionOp::FinishPlayedSelfTransform { subject, .. } = &operation {
+        checkpoint
+            .resolution
+            .play_scopes
+            .insert(ResolutionId(id), *subject);
+    }
     checkpoint.resolution.stack.push(StackedResolutionOp {
         id: ResolutionId(id),
         operation,
@@ -119,7 +125,8 @@ fn checkpoint_with_play_minion() -> (SimulationCheckpoint, GameEntityId) {
 }
 
 fn retained_played_self_effect(source: GameEntityId) -> ResolutionOp {
-    ResolutionOp::RunEffect {
+    ResolutionOp::RunPlayEffect {
+        scope: ResolutionId(0),
         context: EffectContext {
             source: Some(source),
             controller: PlayerId::One,
@@ -132,7 +139,6 @@ fn retained_played_self_effect(source: GameEntityId) -> ResolutionOp {
             card: Card::minion("Retained replacement", 0, 2, 2),
             kind: TransformKind::PlayedSelf,
         },
-        event: None,
     }
 }
 
@@ -926,7 +932,7 @@ fn schema_nine_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(11));
+    assert_that!(checkpoint.schema_version, eq(12));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
@@ -1143,7 +1149,7 @@ fn checkpoints_reject_enchantments_without_durations_and_old_schema_versions() {
         ))),
     );
 
-    for schema_version in [7, 8, 9, 10] {
+    for schema_version in [7, 8, 9, 10, 11] {
         let mut old_schema = simulation.checkpoint().unwrap();
         old_schema.schema_version = schema_version;
         assert_that!(
@@ -2008,6 +2014,7 @@ fn checkpoints_reject_dangling_resolution_entity_references_recursively() {
             result: DrawResultSlotId(0),
         }),
         ResolutionOp::TransformEntity {
+            play_scope: None,
             target: missing,
             source: Some(valid),
             card: Card::minion("Future Transform", 1, 1, 1),
@@ -2433,7 +2440,7 @@ fn checkpoints_reject_dangling_aura_provider_references() {
 }
 
 #[googletest::test]
-fn pending_choice_programs_are_validated_during_restoration() {
+fn invalid_choice_programs_are_rejected_on_request_and_restoration() {
     let mut simulation = simulation();
     let missing = NativeEffectId::new("missing:pending_choice");
     let world = simulation.app.world_mut();
@@ -2460,15 +2467,22 @@ fn pending_choice_programs_are_validated_during_restoration() {
             }],
         })],
     );
-    drive_resolution(world).unwrap();
-
-    assert_that!(
-        matches!(
-            Simulation::from_checkpoint(simulation.checkpoint().unwrap()),
-            Err(SimulationError::NativeEffectNotRegistered(id)) if id == missing
-        ),
-        is_true()
-    );
+    let mut checkpoint = simulation.checkpoint().unwrap();
+    assert!(matches!(
+        drive_resolution(simulation.app.world_mut()),
+        Err(SimulationError::NativeEffectNotRegistered(id)) if id == missing
+    ));
+    assert!(simulation.pending_choice().is_none());
+    let ResolutionOp::RequestChoice(request) = checkpoint.resolution.stack.pop().unwrap().operation
+    else {
+        panic!("expected retained request");
+    };
+    checkpoint.resolution.pending_choice = Some(crate::PendingChoice { request });
+    checkpoint.game.status = SimulationStatus::AwaitingChoice;
+    assert!(matches!(
+        Simulation::from_checkpoint(checkpoint),
+        Err(SimulationError::NativeEffectNotRegistered(id)) if id == missing
+    ));
 }
 
 #[googletest::test]
@@ -2500,6 +2514,14 @@ fn played_self_finish_barrier_programs_are_validated_during_restoration() {
         },
     });
     checkpoint.resolution.next_resolution_id = 1;
+    if let ResolutionOp::FinishPlayedSelfTransform { subject, .. } =
+        checkpoint.resolution.stack[0].operation
+    {
+        checkpoint
+            .resolution
+            .play_scopes
+            .insert(ResolutionId(0), subject);
+    }
     checkpoint.resolution.sequence_active = true;
     checkpoint.game.status = SimulationStatus::Resolving;
 
@@ -2533,6 +2555,14 @@ fn retained_draw_then_programs_are_validated_during_restoration() {
         },
     });
     checkpoint.resolution.next_resolution_id = 1;
+    if let ResolutionOp::FinishPlayedSelfTransform { subject, .. } =
+        checkpoint.resolution.stack[0].operation
+    {
+        checkpoint
+            .resolution
+            .play_scopes
+            .insert(ResolutionId(0), subject);
+    }
     checkpoint.resolution.sequence_active = true;
     checkpoint.game.status = SimulationStatus::Resolving;
 
@@ -2715,12 +2745,14 @@ fn checkpoints_reject_semantically_invalid_retained_transform_and_copy_operation
     let missing = NativeEffectId::new("missing:retained_transform");
     let operations = [
         ResolutionOp::TransformEntity {
+            play_scope: None,
             target,
             source: None,
             card: Card::spell("Invalid replacement role", 0),
             kind: crate::TransformKind::Spell,
         },
         ResolutionOp::TransformEntity {
+            play_scope: None,
             target,
             source: None,
             card: Card::minion("Invalid replacement program", 0, 1, 1)
@@ -2775,6 +2807,7 @@ fn checkpoints_reject_retained_transforms_with_ineligible_targets_or_missing_com
         retain_operation(
             &mut checkpoint,
             ResolutionOp::TransformEntity {
+                play_scope: None,
                 target,
                 source: None,
                 card: Card::minion("Valid replacement", 0, 2, 2),
@@ -3011,7 +3044,7 @@ fn checkpoints_validate_guard_references_without_requiring_current_guard_zone() 
         )))
     );
 
-    for schema_version in [7, 8, 9, 10] {
+    for schema_version in [7, 8, 9, 10, 11] {
         let mut old_schema = valid.clone();
         old_schema.schema_version = schema_version;
         assert_that!(
@@ -3290,6 +3323,7 @@ fn checkpoints_reject_missing_transform_references() {
     let mut malformed = Vec::new();
 
     for operation in [ResolutionOp::TransformEntity {
+        play_scope: None,
         target: missing,
         source: Some(valid),
         card: Card::minion("Retained transform", 0, 1, 1),
@@ -3486,6 +3520,7 @@ fn checkpoint_fork_executes_retained_transform_equivalently() {
     push_resolution_ops(
         original.app.world_mut(),
         [ResolutionOp::TransformEntity {
+            play_scope: None,
             target,
             source: None,
             card: Card::minion("Checkpoint replacement", 2, 4, 5),
@@ -3569,4 +3604,210 @@ fn checkpoint_fork_executes_retained_play_copy_with_cloned_enchantments_equivale
         assert_resolution_invariants(restored.app.world()),
         ok(anything())
     );
+}
+
+#[test]
+fn play_scope_survives_choices_before_and_after_nested_transformation() {
+    let choose = |request, option, effects| Effect::Choose {
+        id: ChoiceId(request),
+        player: PlayerSelector::Controller,
+        options: vec![hearthstone_simulator_core::EffectChoiceOption {
+            id: ChoiceId(option),
+            effects,
+        }],
+    };
+    let nested_choice = choose(42, 43, Vec::new());
+    let card = Card::minion("Scoped play", 0, 1, 1).with_effects(vec![
+        choose(40, 41, vec![nested_choice]),
+        Effect::Sequence(vec![
+            Effect::Transform {
+                targets: Selector::Source,
+                card: Card::minion("Scoped replacement", 0, 2, 2),
+                kind: TransformKind::PlayedSelf,
+            },
+            choose(44, 45, Vec::new()),
+        ]),
+    ]);
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("One", vec![card]),
+        PlayerConfig::new("Two", Vec::new()),
+    ]);
+    let source = hand_card(&mut simulation, PlayerId::One);
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card: source,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+    for (option, transformed) in [(41, false), (43, false), (45, true)] {
+        assert_eq!(simulation.resolution_work().play_scopes.len(), 1);
+        assert_eq!(
+            simulation
+                .resolution_work()
+                .pending_played_self_transforms
+                .contains(&source),
+            transformed
+        );
+        let checkpoint = simulation.checkpoint().unwrap();
+        let json = checkpoint.to_json().unwrap();
+        let mut restored =
+            Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap()).unwrap();
+        let mut fork = simulation.fork().unwrap();
+        simulation.choose(ChoiceId(option)).unwrap();
+        restored.choose(ChoiceId(option)).unwrap();
+        fork.choose(ChoiceId(option)).unwrap();
+        assert_eq!(
+            simulation.checkpoint().unwrap(),
+            restored.checkpoint().unwrap()
+        );
+        assert_eq!(simulation.checkpoint().unwrap(), fork.checkpoint().unwrap());
+    }
+    assert!(simulation.resolution_work().play_scopes.is_empty());
+    assert!(
+        simulation
+            .resolution_work()
+            .pending_played_self_transforms
+            .is_empty()
+    );
+    simulation.assert_invariants().unwrap();
+}
+
+#[test]
+fn checkpoints_reject_missing_mismatched_and_prematurely_completed_play_scopes() {
+    let (mut valid, source) = checkpoint_with_play_minion();
+    retain_operation(&mut valid, retained_played_self_finish(source));
+    retain_operation(&mut valid, retained_played_self_effect(source));
+    Simulation::from_checkpoint(valid.clone()).unwrap();
+
+    let mut missing = valid.clone();
+    missing.resolution.play_scopes.clear();
+    let mut wrong_subject = valid.clone();
+    let hero = checkpoint_hero_id(&wrong_subject, PlayerId::One);
+    wrong_subject
+        .resolution
+        .play_scopes
+        .insert(ResolutionId(0), hero);
+    let mut early_completion = valid.clone();
+    early_completion.resolution.stack.swap(0, 1);
+    let mut missing_completion = valid;
+    missing_completion.resolution.stack.remove(0);
+    for malformed in [missing, wrong_subject, early_completion, missing_completion] {
+        assert!(Simulation::from_checkpoint(malformed).is_err());
+    }
+}
+
+#[test]
+fn unscoped_transform_cannot_borrow_a_live_play_scope() {
+    let mut simulation = simulation();
+    let source = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Scope owner", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    crate::resolver::open_play_scope(world, source, Vec::new());
+    push_resolution_ops(
+        world,
+        [ResolutionOp::TransformEntity {
+            play_scope: None,
+            target: source,
+            source: Some(source),
+            card: Card::minion("Unauthorized", 0, 9, 9),
+            kind: TransformKind::PlayedSelf,
+        }],
+    );
+    assert!(matches!(
+        drive_resolution(world),
+        Err(SimulationError::InvalidTransformation(_))
+    ));
+    assert_eq!(
+        world
+            .get::<crate::CurrentStats>(game_entity(world, source).unwrap())
+            .unwrap()
+            .attack,
+        1
+    );
+}
+
+#[test]
+fn choice_completion_reports_and_clears_leaked_resolution_state() {
+    let mut simulation = simulation();
+    let world = simulation.app.world_mut();
+    begin_sequence(world).unwrap();
+    world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+    // Deliberately omit the consumer to exercise the public completion boundary.
+    allocate_draw_result_slot(world);
+    push_resolution_ops(
+        world,
+        [ResolutionOp::RequestChoice(ChoiceRequest {
+            id: ChoiceId(90),
+            player: PlayerId::One,
+            options: vec![ChoiceOption {
+                id: ChoiceId(91),
+                operations: Vec::new(),
+            }],
+        })],
+    );
+    drive_resolution(world).unwrap();
+    assert!(matches!(
+        simulation.choose(ChoiceId(91)),
+        Err(SimulationError::Invariant(_))
+    ));
+    assert!(simulation.resolution_work().draw_result_slots.is_empty());
+    simulation.assert_invariants().unwrap();
+    simulation
+        .apply(GameAction::EndTurn {
+            player: PlayerId::One,
+        })
+        .unwrap();
+}
+
+#[test]
+fn choice_programs_cannot_inherit_play_or_event_modification_authority() {
+    for forbidden in [
+        Effect::Transform {
+            targets: Selector::Source,
+            card: Card::minion("Invalid", 0, 1, 1),
+            kind: TransformKind::PlayedSelf,
+        },
+        Effect::ModifyEventValue {
+            operation: EventValueOperation::Add,
+            value: ValueExpression::Constant(1),
+        },
+    ] {
+        let card = Card::minion("Invalid branch", 0, 1, 1).with_effects(vec![Effect::Choose {
+            id: ChoiceId(100),
+            player: PlayerSelector::Controller,
+            options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                id: ChoiceId(101),
+                effects: vec![forbidden],
+            }],
+        }]);
+        let mut simulation = Simulation::new([
+            PlayerConfig::new("One", vec![card]),
+            PlayerConfig::new("Two", Vec::new()),
+        ]);
+        let source = hand_card(&mut simulation, PlayerId::One);
+        let before = simulation.snapshot();
+        assert!(
+            simulation
+                .apply(GameAction::PlayCard {
+                    player: PlayerId::One,
+                    card: source,
+                    target: None,
+                    board_index: None,
+                    choice: None,
+                })
+                .is_err()
+        );
+        assert_eq!(simulation.snapshot(), before);
+        simulation.assert_invariants().unwrap();
+    }
 }
