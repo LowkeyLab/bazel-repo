@@ -1,5 +1,5 @@
 use crate::{
-    Card, ContinuousEffectDefinition, CostModifier, EnchantmentDuration, ExtraTurnTiming,
+    Card, ChoiceId, ContinuousEffectDefinition, CostModifier, EnchantmentDuration, ExtraTurnTiming,
     GameEntityId, HeroClass, KeywordModifier, NativeEffectId, PlayerId, StatModifier,
     TriggerDefinition, Zone, ZoneMovementKind,
 };
@@ -49,7 +49,18 @@ pub enum CopyStatePolicy {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct EffectChoiceOption {
+    pub id: ChoiceId,
+    pub effects: Vec<Effect>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Effect {
+    Choose {
+        id: ChoiceId,
+        player: PlayerSelector,
+        options: Vec<EffectChoiceOption>,
+    },
     DealDamage {
         targets: Selector,
         amount: ValueExpression,

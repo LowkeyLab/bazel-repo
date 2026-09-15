@@ -56,17 +56,7 @@ pub(super) fn submit_action(app: &mut App, action: GameAction) -> Result<(), Sim
 
 pub(super) fn submit_choice(app: &mut App, option: ChoiceId) -> Result<(), SimulationError> {
     answer_choice(app.world_mut(), option)?;
-    if let Err(error) = drive_resolution(app.world_mut()) {
-        abandon_sequence(app.world_mut());
-        let status = if app.world().resource::<GameState>().outcome.is_some() {
-            SimulationStatus::Complete
-        } else {
-            SimulationStatus::AwaitingAction
-        };
-        app.world_mut().resource_mut::<GameState>().status = status;
-        return Err(error);
-    }
-    finish_resolution_if_idle(app.world_mut())
+    resolve_to_pause(app.world_mut())
 }
 
 pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
@@ -289,12 +279,21 @@ fn apply_action(world: &mut World, action: &GameAction) -> Result<(), Simulation
             ResolutionOp::CheckOutcome,
         ],
     );
-    if let Err(error) = drive_resolution(world) {
+    resolve_to_pause(world)
+}
+
+fn resolve_to_pause(world: &mut World) -> Result<(), SimulationError> {
+    let result = drive_resolution(world).and_then(|()| finish_resolution_if_idle(world));
+    if result.is_err() {
         abandon_sequence(world);
-        world.resource_mut::<GameState>().status = SimulationStatus::AwaitingAction;
-        return Err(error);
+        world.resource_mut::<GameState>().status =
+            if world.resource::<GameState>().outcome.is_some() {
+                SimulationStatus::Complete
+            } else {
+                SimulationStatus::AwaitingAction
+            };
     }
-    finish_resolution_if_idle(world)
+    result
 }
 
 pub(super) fn drive_resolution(world: &mut World) -> Result<(), SimulationError> {
@@ -327,6 +326,7 @@ fn finish_resolution_if_idle(world: &mut World) -> Result<(), SimulationError> {
         return Ok(());
     }
     finish_sequence(world);
+    crate::resolver::assert_resolution_invariants(world).map_err(SimulationError::Invariant)?;
     world.resource_mut::<GameState>().status = if world.resource::<GameState>().outcome.is_some() {
         SimulationStatus::Complete
     } else {
@@ -527,22 +527,20 @@ fn play_card(
             crate::AuraRefreshPlan::PlayedProvider(card_id),
         ));
     }
-    operations.extend(
-        runtime
-            .program
-            .into_iter()
-            .map(|effect| ResolutionOp::RunEffect {
-                context: context.clone(),
-                effect,
-                event: None,
-            }),
-    );
-    if let Some(original_after_play) = original_after_play {
-        operations.push(ResolutionOp::FinishPlayedSelfTransform {
-            subject: card_id,
-            original_after_play,
-        });
-    }
+    let play_scope =
+        original_after_play.map(|seeds| crate::resolver::open_play_scope(world, card_id, seeds));
+    operations.extend(runtime.program.into_iter().map(|effect| match play_scope {
+        Some(scope) => ResolutionOp::RunPlayEffect {
+            scope,
+            context: context.clone(),
+            effect,
+        },
+        None => ResolutionOp::RunEffect {
+            context: context.clone(),
+            effect,
+            event: None,
+        },
+    }));
     push_resolution_ops(world, operations);
     Ok(())
 }

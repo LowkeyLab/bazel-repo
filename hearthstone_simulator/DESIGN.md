@@ -215,7 +215,7 @@ Effects request primitive operations such as damage, healing, movement, summonin
 
 A static `NativeEffectId` escape hatch may be added for effects that cannot reasonably be expressed in the common intermediate representation. Native handlers are registered by the plugin as Bevy systems, and a registry maps stable `NativeEffectId` values to typed `SystemId`s. Runtime state stores only the stable handler ID and data, never the entity-backed `SystemId`.
 
-The resolver may invoke a handler through `World::run_system_with`, allowing handlers to use typed inputs and ordinary `SystemParam`s. Native handlers should return effect plans that flow back through primitive reducers rather than mutate arbitrary gameplay state. Because `run_system_with` flushes commands queued by the handler immediately, handlers either avoid `Commands` or treat that flush as an explicit, tested mutation boundary.
+The resolver invokes registered adapters through `World::run_system_with`. The public handler contract is `Fn(&EffectContext, &World) -> Vec<Effect>`: handlers inspect immutable world state and return effect plans. They cannot receive mutable ECS system parameters or `Commands`. The adapter validates returned plans before scheduling them, including `Effect::Choose` for player decisions. Native plans do not inherit direct minion-play transformation authority.
 
 ## Bevy schedules
 
@@ -355,7 +355,7 @@ The concrete enum grows with primitive mechanics, but every variant obeys the sa
 4. It never calls the resolution driver, waits for a child, or resumes later.
 5. Once popped, that operation is never retried or re-resolved.
 
-Operations store logical game, event, choice, and slot IDs rather than raw Bevy `Entity` values. `EffectContext` carries gameplay inputs such as source, controller, and declared target; it is not execution ancestry. There is no active-frame cursor, parent relationship, execution ancestry, mutable program counter, or per-kind resume state.
+Operations store logical game, event, choice, and slot IDs rather than raw Bevy `Entity` values. `EffectContext` carries gameplay inputs such as source, controller, and declared target; it is not execution ancestry. There is no active-frame cursor, parent relationship, execution ancestry, mutable program counter, or per-kind resume state. Direct minion play programs carry a `ResolutionId` identifying an owned play scope. The scope table maps that ID to its subject; its owning `FinishPlayedSelfTransform` operation consumes the scope. This is explicit authorization and lifetime data, not a resumable frame.
 
 ### Iterative driver
 
@@ -392,7 +392,7 @@ A per-sequence operation budget prevents pathological or accidental infinite eve
 
 Sequence builders encode ordering directly by pushing granular operations in reverse. They place a `RunPhaseBoundary` operation beneath all work belonging to an outermost phase, so that the boundary becomes reachable only after the phase's nested consequences are exhausted. No runtime phase ancestry or completion callback is needed.
 
-Nested phases omit the ordinary boundary operation. Forced Death Phases compile an explicit specialized boundary plan rather than pretending to be ordinary outermost phases. Ordering barriers are ordinary one-shot operations pre-positioned below the work they follow, not resumable parent frames.
+Nested phases omit the ordinary boundary operation. Forced Death Phases compile an explicit specialized boundary plan rather than pretending to be ordinary outermost phases. Ordering barriers are ordinary one-shot operations pre-positioned below the work they follow, not resumable parent frames. Executing operations must never search pending stack entries for authorization or context. `RunPlayEffect` and played-self `TransformEntity` carry their scope ID explicitly. Only direct `Sequence` expansion preserves that scope; trigger, draw, choice, and native programs cannot borrow it. Checkpoint validation walks execution order once to verify that each scope has exactly one matching completion and no dependent operation executes after completion.
 
 ### Ordered trigger snapshots
 
@@ -448,7 +448,7 @@ Applying a positive mutation allocates an `EventId`, inserts its context-only `P
 
 ### Choices and suspension
 
-`RequestChoice` is also one-shot. When popped, it stores a serializable `PendingChoice`, changes the simulation to `AwaitingChoice`, and stops the driver while leaving lower stack items untouched. Supplying a valid answer compiles the selected branch into new operations above those pending items and restarts the driver. No operation remains half-executed, and no frame needs suspend/resume state.
+`RequestChoice` is also one-shot. When popped, it stores a serializable `PendingChoice`, changes the simulation to `AwaitingChoice`, and stops the driver while leaving lower stack items untouched. Supplying a valid answer compiles the selected branch into new operations above those pending items and restarts the driver. No operation remains half-executed, and no frame needs suspend/resume state. Card and native programs construct requests through `Effect::Choose`; each option contains an effect program. Branches retain gameplay inputs but start without event-value modification or play-scope authority. Choice options must be nonempty and have distinct IDs. Shared operation validation applies both to incoming requests and restored checkpoints.
 
 ## Events and triggers
 
@@ -865,7 +865,7 @@ Useful invariants include:
 - An operation may push work but cannot invoke resolution recursively or remain partially executed.
 - Resolution operations and prepared events never participate in game zones or order of play.
 - Stack payloads and canonical output contain logical IDs, never raw Bevy entity IDs.
-- An idle or complete simulation has no pending operations, event slots, or pending choice.
+- An idle or complete simulation has no pending operations, events, event slots, draw results, play scopes, transformation markers, or pending choice. Public action/choice completion checks this invariant. Resolution and completion failures abandon retained work and restore the input status; previously applied gameplay mutations are not rolled back.
 
 ## Development workflow
 

@@ -86,6 +86,7 @@ pub(crate) fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
         || !work.events.is_empty()
         || !work.event_slots.is_empty()
         || !work.draw_result_slots.is_empty()
+        || !work.play_scopes.is_empty()
         || !work.pending_played_self_transforms.is_empty()
         || work.pending_choice.is_some()
     {
@@ -106,6 +107,7 @@ pub(crate) fn abandon_sequence(world: &mut World) {
     work.events.clear();
     work.event_slots.clear();
     work.draw_result_slots.clear();
+    work.play_scopes.clear();
     work.pending_played_self_transforms.clear();
     work.pending_choice = None;
     work.sequence_active = false;
@@ -133,6 +135,42 @@ pub(crate) fn push_resolution_ops(
     for operation in operations.into_iter().rev() {
         push_resolution_op(world, operation);
     }
+}
+
+pub(crate) fn open_play_scope(
+    world: &mut World,
+    subject: crate::GameEntityId,
+    original_after_play: Vec<crate::TriggerSeed>,
+) -> ResolutionId {
+    let scope = push_resolution_op(
+        world,
+        ResolutionOp::FinishPlayedSelfTransform {
+            subject,
+            original_after_play,
+        },
+    );
+    world
+        .resource_mut::<ResolutionWork>()
+        .play_scopes
+        .insert(scope, subject);
+    scope
+}
+
+pub(crate) fn validate_play_scope(
+    world: &World,
+    scope: ResolutionId,
+    subject: crate::GameEntityId,
+) -> Result<(), crate::SimulationError> {
+    if world.resource::<ResolutionWork>().play_scopes.get(&scope) != Some(&subject)
+        || crate::entity::game_entity(world, subject)
+            .and_then(|entity| world.get::<crate::EntityKind>(entity))
+            != Some(&crate::EntityKind::Minion)
+    {
+        return Err(crate::SimulationError::InvalidTransformation(format!(
+            "invalid play scope {scope:?} for subject {subject:?}"
+        )));
+    }
+    Ok(())
 }
 
 pub(crate) fn pop_resolution_op(world: &mut World) -> Option<StackedResolutionOp> {
@@ -228,10 +266,11 @@ pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> 
             || !work.events.is_empty()
             || !work.event_slots.is_empty()
             || !work.draw_result_slots.is_empty()
+            || !work.play_scopes.is_empty()
             || !work.pending_played_self_transforms.is_empty()
             || work.pending_choice.is_some()
         {
-            return Err("idle resolution work retains operations, events, event slots, draw result slots, transform timing markers, or a choice".into());
+            return Err("idle resolution work retains operations, events, event slots, draw result slots, play scopes, transform timing markers, or a choice".into());
         }
     } else if world.resource::<crate::GameState>().status == crate::SimulationStatus::AwaitingChoice
         && work.pending_choice.is_none()
@@ -418,7 +457,7 @@ mod tests {
     fn idle_invariants_reject_draw_slots_and_transform_timing_markers() {
         let mut world = world();
         let slot = allocate_draw_result_slot(&mut world);
-        let idle_error = "idle resolution work retains operations, events, event slots, draw result slots, transform timing markers, or a choice".to_string();
+        let idle_error = "idle resolution work retains operations, events, event slots, draw result slots, play scopes, transform timing markers, or a choice".to_string();
         assert_that!(assert_resolution_invariants(&world), err(eq(&idle_error)));
 
         world
@@ -446,7 +485,7 @@ mod tests {
         assert_that!(
             assert_resolution_invariants(&world),
             err(eq(
-                &"idle resolution work retains operations, events, event slots, draw result slots, transform timing markers, or a choice".to_string()
+                &"idle resolution work retains operations, events, event slots, draw result slots, play scopes, transform timing markers, or a choice".to_string()
             ))
         );
 

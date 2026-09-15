@@ -37,9 +37,9 @@ pub use checkpoint::{
 };
 pub use death::{DeathEventCache, DeathRecord, DefeatedHeroes, PendingDeaths};
 pub use effect::{
-    CopyStatePolicy, DrawContinuationPolicy, Effect, EffectContext, EffectOrigin,
-    EventValueOperation, HeroClassPolicy, HeroHealthPolicy, HeroReplacement, PlayerSelector,
-    Selector, TransformKind, ValueExpression,
+    CopyStatePolicy, DrawContinuationPolicy, Effect, EffectChoiceOption, EffectContext,
+    EffectOrigin, EventValueOperation, HeroClassPolicy, HeroHealthPolicy, HeroReplacement,
+    PlayerSelector, Selector, TransformKind, ValueExpression,
 };
 pub use enchantment::{
     AttachedEnchantments, AttachedTo, CostModifier, CostOperation, EnchantmentDuration,

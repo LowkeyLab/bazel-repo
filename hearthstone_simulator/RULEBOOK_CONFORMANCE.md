@@ -54,7 +54,7 @@ Behavior classifications:
 | Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`                             | JSON/reference-validation tests                    | Implemented foundation                                     |
 | Explicit targeting filter foundation                                | Engine policy       | `TargetRequirement`, validator                     | target requirement/atomicity tests                 | Implemented foundation; audience/kind and Stealth/Immune   |
 | Canonical supported action enumeration and normalization            | Engine policy       | `validate_action`, `legal_actions`                 | exhaustive/soundness/purity tests                  | Implemented foundation                                     |
-| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 12                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7/8/9/10/11 rejected       |
+| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 13                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7/8/9/10/11/12 rejected    |
 | Forced Death Phase timing                                           | Compatibility quirk | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Added Deathrattles and Deathrattle-position policy                  | Current rule        | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Historical retired interactions                                     | Historical          | excluded by profile                                | profile tests                                      | Planned                                                    |
@@ -92,8 +92,8 @@ and game-wide usage counters remain gaps. `OriginalPowerCompletion` updates the 
 even after replacement removes it from Play, and leaves the new power ready. Completion precedes
 an ordinary boundary, then captured after-use reactions, another boundary, and outcome checking.
 These completion and boundary choices are explicit engine policy, not verified pinned-rulebook
-conformance. Checkpoint schema 12 is
-the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, 9, 10, and 11,
+conformance. Checkpoint schema 13 is
+the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, 9, 10, 11, and 12,
 are rejected.
 
 For `AdvancedRulebook2026_06_26`, Hero replacement follows the dedicated “Replacing your hero” section and removes attached temporary enchantments. The contradictory sentence in the Hero-card player-action section is not generalized into the replacement reducer; full Hero-card sequencing remains a Milestone 8 gap.

@@ -145,6 +145,13 @@ pub enum ResolutionOp {
         attempt: ResolutionId,
         source: GameEntityId,
     },
+    /// Runs the direct minion play program with an explicitly owned completion scope.
+    /// Trigger, draw, native, and choice programs cannot inherit this capability.
+    RunPlayEffect {
+        scope: ResolutionId,
+        context: EffectContext,
+        effect: Effect,
+    },
     RunEffect {
         context: EffectContext,
         effect: Effect,
@@ -183,6 +190,7 @@ pub enum ResolutionOp {
         policy: DrawContinuationPolicy,
     },
     TransformEntity {
+        play_scope: Option<ResolutionId>,
         target: GameEntityId,
         source: Option<GameEntityId>,
         card: Card,
@@ -211,6 +219,7 @@ impl ResolutionOp {
             Self::ResolveEventSlot(_) => "ResolveEventSlot",
             Self::AttemptTrigger(_) => "AttemptTrigger",
             Self::FinishTrigger { .. } => "FinishTrigger",
+            Self::RunPlayEffect { .. } => "RunPlayEffect",
             Self::RunEffect { .. } => "RunEffect",
             Self::ProcessDamageBatch(_) => "ProcessDamageBatch",
             Self::ProcessDamage { .. } => "ProcessDamage",
@@ -258,6 +267,9 @@ pub struct ResolutionWork {
     pub events: BTreeMap<EventId, PreparedEvent>,
     pub event_slots: BTreeMap<EventSlotId, PreparedEventSlot>,
     pub draw_result_slots: BTreeMap<DrawResultSlotId, DrawResultSlot>,
+    /// Keyed by the ID of the one-shot `FinishPlayedSelfTransform` operation that owns it.
+    /// Operations address this table directly; they never search pending work for a barrier.
+    pub play_scopes: BTreeMap<ResolutionId, GameEntityId>,
     pub pending_played_self_transforms: BTreeSet<GameEntityId>,
     pub pending_choice: Option<PendingChoice>,
     pub sequence_active: bool,
@@ -323,6 +335,7 @@ mod tests {
         );
         assert_eq!(
             ResolutionOp::TransformEntity {
+                play_scope: None,
                 target: GameEntityId(11),
                 source: Some(GameEntityId(7)),
                 card: Card::minion("Sheep", 1, 1, 1),

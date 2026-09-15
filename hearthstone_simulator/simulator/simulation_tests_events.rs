@@ -521,6 +521,7 @@ fn transform_operation_carries_source_and_emits_only_the_transform_trace() {
     assert_that!(
         &simulation.app.world().resource::<ResolutionWork>().stack[0].operation,
         matches_pattern!(ResolutionOp::TransformEntity {
+            play_scope: none(),
             target: eq(&target),
             source: eq(&Some(source)),
             card: anything(),
@@ -792,6 +793,7 @@ fn played_self_transform_requires_its_finish_barrier() {
     push_resolution_ops(
         world,
         [ResolutionOp::TransformEntity {
+            play_scope: None,
             target,
             source: Some(target),
             card: Card::minion("Replacement", 0, 2, 2),
@@ -828,6 +830,7 @@ fn played_self_transform_requires_source_to_equal_target() {
         world,
         [
             ResolutionOp::TransformEntity {
+                play_scope: None,
                 target,
                 source: Some(source),
                 card: Card::minion("Replacement", 0, 2, 2),
@@ -847,18 +850,18 @@ fn played_self_transform_requires_source_to_equal_target() {
 }
 
 #[googletest::test]
-fn markerless_played_self_finish_barrier_is_a_no_op() {
+fn untransformed_play_scope_finishes_without_after_play_events() {
     let mut simulation = simulation();
-    let subject = hero(&mut simulation, PlayerId::One);
+    let subject = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Untransformed", 0, 1, 1),
+        Zone::Play,
+    )
+    .unwrap();
     let world = simulation.app.world_mut();
     begin_sequence(world).unwrap();
-    push_resolution_ops(
-        world,
-        [ResolutionOp::FinishPlayedSelfTransform {
-            subject,
-            original_after_play: Vec::new(),
-        }],
-    );
+    crate::resolver::open_play_scope(world, subject, Vec::new());
 
     assert_that!(drive_resolution(world), ok(anything()));
     assert_that!(

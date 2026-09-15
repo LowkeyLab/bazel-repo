@@ -10,18 +10,14 @@ use crate::{
     TriggerCondition, TriggerDefinition, WoundedTargetPolicy, ZoneMovementKind, ZonePosition,
 };
 
-#[derive(Resource)]
-struct NativeHandlerObservation(EffectContext);
-
-fn synthetic_native_handler(In(context): In<EffectContext>, mut commands: Commands) -> Vec<Effect> {
-    commands.insert_resource(NativeHandlerObservation(context.clone()));
+fn synthetic_native_handler(_: &EffectContext, _: &World) -> Vec<Effect> {
     vec![Effect::DealDamage {
         targets: Selector::DeclaredTarget,
         amount: ValueExpression::Constant(2),
     }]
 }
 
-fn synthetic_native_modifier_handler(In(_): In<EffectContext>) -> Vec<Effect> {
+fn synthetic_native_modifier_handler(_: &EffectContext, _: &World) -> Vec<Effect> {
     vec![Effect::ModifyEventValue {
         operation: EventValueOperation::Replace,
         value: ValueExpression::Constant(0),
@@ -911,7 +907,7 @@ fn explicitly_ordered_cross_player_draws_retain_controller_order() {
 }
 
 #[googletest::test]
-fn native_handlers_flush_commands_and_return_nested_effect_plans() {
+fn native_handlers_return_nested_effect_plans_and_fork_equivalently() {
     let native_id = NativeEffectId::new("synthetic:native_damage");
     let spell = Card::spell("Native Bolt", 0)
         .with_effects(vec![Effect::Native(native_id.clone())])
@@ -948,15 +944,6 @@ fn native_handlers_flush_commands_and_return_nested_effect_plans() {
     let mut fork = simulation.fork().unwrap();
     assert_that!(simulation.snapshot(), eq(&fork.snapshot()));
     assert_that!(simulation.trace(), eq(fork.trace()));
-    assert_that!(
-        simulation
-            .app
-            .world()
-            .resource::<NativeHandlerObservation>()
-            .0
-            .declared_target,
-        eq(Some(target))
-    );
 
     let missing = NativeEffectId::new("synthetic:missing");
     let world = simulation.app.world_mut();

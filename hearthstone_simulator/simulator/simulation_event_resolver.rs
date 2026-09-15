@@ -98,6 +98,11 @@ fn execute_resolution_op(
                 });
             Ok(())
         }
+        ResolutionOp::RunPlayEffect {
+            scope,
+            context,
+            effect,
+        } => super::effect_executor::execute_play_effect_operation(world, scope, &context, &effect),
         ResolutionOp::RunEffect {
             context,
             effect,
@@ -166,17 +171,26 @@ fn execute_resolution_op(
             Ok(())
         }
         ResolutionOp::TransformEntity {
+            play_scope,
             target,
             source,
             card,
             kind,
         } => {
-            if kind == TransformKind::PlayedSelf
-                && (source != Some(target) || !played_self_finish_barrier_remains(world, target))
-            {
-                return Err(SimulationError::InvalidTransformation(format!(
-                    "played-self target {target:?} requires itself as source and a finish barrier"
-                )));
+            if kind == TransformKind::PlayedSelf {
+                let scope = play_scope
+                    .filter(|_| source == Some(target))
+                    .ok_or_else(|| {
+                        SimulationError::InvalidTransformation(
+                            "played-self transformation requires its own explicit play scope"
+                                .into(),
+                        )
+                    })?;
+                crate::resolver::validate_play_scope(world, scope, target)?;
+            } else if play_scope.is_some() {
+                return Err(SimulationError::InvalidTransformation(
+                    "ordinary transformation cannot carry a play scope".into(),
+                ));
             }
             transform_entity(world, target, card, kind)?;
             match kind {
@@ -199,7 +213,7 @@ fn execute_resolution_op(
         ResolutionOp::FinishPlayedSelfTransform {
             subject,
             original_after_play,
-        } => finish_played_self_transform(world, subject, original_after_play),
+        } => finish_played_self_transform(world, operation_id, subject, original_after_play),
         ResolutionOp::CopyEntity(mut request) => {
             // Restoration validates serialized policy against checkpoint state. Nested work may
             // legally move a source before this operation executes, so dispatch uses live state.
@@ -215,6 +229,12 @@ fn execute_resolution_op(
             copy_entity(world, request)
         }
         ResolutionOp::RequestChoice(request) => {
+            super::resolution_validation::validate_choice_request(world, &request)?;
+            if world.resource::<ResolutionWork>().pending_choice.is_some() {
+                return Err(SimulationError::Invariant(
+                    "cannot replace a pending choice".into(),
+                ));
+            }
             request_choice(world, request);
             Ok(())
         }
@@ -267,27 +287,17 @@ fn record_event(
     event
 }
 
-fn played_self_finish_barrier_remains(world: &World, subject: GameEntityId) -> bool {
-    world
-        .resource::<ResolutionWork>()
-        .stack
-        .iter()
-        .any(|stacked| {
-            matches!(
-                &stacked.operation,
-                ResolutionOp::FinishPlayedSelfTransform {
-                    subject: barrier_subject,
-                    ..
-                } if *barrier_subject == subject
-            )
-        })
-}
-
 fn finish_played_self_transform(
     world: &mut World,
+    scope: crate::ResolutionId,
     subject: GameEntityId,
     original_after_play: Vec<TriggerSeed>,
 ) -> Result<(), SimulationError> {
+    crate::resolver::validate_play_scope(world, scope, subject)?;
+    world
+        .resource_mut::<ResolutionWork>()
+        .play_scopes
+        .remove(&scope);
     if !world
         .resource_mut::<ResolutionWork>()
         .pending_played_self_transforms
