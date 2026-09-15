@@ -1994,3 +1994,287 @@ fn simultaneous_bounce_uses_play_order_and_full_zone_removal_records_death() {
     );
     assert_that!(snapshot.players[1].health, eq(29));
 }
+
+fn play_movement_card(simulation: &mut Simulation, card: GameEntityId) {
+    simulation
+        .apply(GameAction::PlayCard {
+            player: PlayerId::One,
+            card,
+            target: None,
+            board_index: None,
+            choice: None,
+        })
+        .unwrap();
+}
+
+fn play_movement_effect(simulation: &mut Simulation, effect: Effect) {
+    let spell = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::spell("Movement fixture", 0).with_effects(vec![effect]),
+        Zone::Hand,
+    )
+    .unwrap();
+    play_movement_card(simulation, spell);
+}
+
+fn charge_rush_movement_fixture(
+    keyword: Option<Keyword>,
+    innate: bool,
+) -> (Simulation, GameEntityId, GameEntityId) {
+    let mut card = Card::minion("Mobile minion", 0, 1, 30).with_keyword(Keyword::Windfury);
+    if innate && let Some(keyword) = keyword {
+        card = card.with_keyword(keyword);
+    }
+    let mut simulation = Simulation::new([
+        PlayerConfig::new("One", vec![card]),
+        PlayerConfig::new("Two", Vec::new()),
+    ]);
+    let attacker = hand_card(&mut simulation, PlayerId::One);
+    play_movement_card(&mut simulation, attacker);
+    if !innate && let Some(keyword) = keyword {
+        play_movement_effect(
+            &mut simulation,
+            Effect::AttachKeywordModifier {
+                targets: Selector::Entity(attacker),
+                modifier: KeywordModifier {
+                    keyword,
+                    granted: true,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
+            },
+        );
+    }
+    play_movement_effect(
+        &mut simulation,
+        Effect::Summon {
+            player: PlayerSelector::Opponent,
+            card: Card::minion("Training defender", 0, 0, 30),
+            board_index: None,
+        },
+    );
+    let defender = simulation.snapshot().players[1].board[0];
+    (simulation, attacker, defender)
+}
+
+fn movement_attack_state(simulation: &Simulation, attacker: GameEntityId) -> AttackState {
+    let world = simulation.app.world();
+    *world
+        .get::<AttackState>(game_entity(world, attacker).unwrap())
+        .unwrap()
+}
+
+#[test]
+fn charge_rush_play_copies_have_fresh_attack_usage_and_live_permissions() {
+    for keyword in [Keyword::Charge, Keyword::Rush] {
+        for innate in [false, true] {
+            let (mut simulation, source, defender) =
+                charge_rush_movement_fixture(Some(keyword), innate);
+            let attack = GameAction::Attack {
+                player: PlayerId::One,
+                attacker: source,
+                defender,
+            };
+            simulation.apply(attack.clone()).unwrap();
+            simulation.apply(attack.clone()).unwrap();
+            assert!(!simulation.legal_actions().contains(&attack));
+
+            play_movement_effect(
+                &mut simulation,
+                Effect::Copy {
+                    targets: Selector::Entity(source),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Play,
+                    board_index: None,
+                },
+            );
+            let copy = simulation.snapshot().players[0].board[1];
+            assert_ne!(copy, source);
+            assert_eq!(
+                movement_attack_state(&simulation, copy),
+                AttackState {
+                    attacks_this_turn: 0,
+                    readiness_blocked: true,
+                }
+            );
+            assert_eq!(
+                movement_attack_state(&simulation, source).attacks_this_turn,
+                2
+            );
+            let hero_attack = GameAction::Attack {
+                player: PlayerId::One,
+                attacker: copy,
+                defender: hero(&mut simulation, PlayerId::Two),
+            };
+            assert_eq!(
+                simulation.legal_actions().contains(&hero_attack),
+                keyword == Keyword::Charge
+            );
+            simulation
+                .apply(GameAction::Attack {
+                    player: PlayerId::One,
+                    attacker: copy,
+                    defender,
+                })
+                .unwrap();
+            assert_eq!(
+                movement_attack_state(&simulation, copy).attacks_this_turn,
+                1
+            );
+        }
+    }
+}
+
+#[test]
+fn charge_rush_bounce_and_replay_restore_innate_but_remove_attached_permissions() {
+    for keyword in [Keyword::Charge, Keyword::Rush] {
+        for innate in [false, true] {
+            let (mut simulation, attacker, defender) =
+                charge_rush_movement_fixture(Some(keyword), innate);
+            let attack = GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender,
+            };
+            simulation.apply(attack.clone()).unwrap();
+            play_movement_effect(
+                &mut simulation,
+                Effect::Move {
+                    targets: Selector::Entity(attacker),
+                    player: PlayerSelector::Controller,
+                    zone: Zone::Hand,
+                    kind: ZoneMovementKind::Normal,
+                },
+            );
+            assert!(simulation.snapshot().players[0].hand.contains(&attacker));
+            play_movement_card(&mut simulation, attacker);
+            assert_eq!(
+                movement_attack_state(&simulation, attacker),
+                AttackState {
+                    attacks_this_turn: 0,
+                    readiness_blocked: true,
+                }
+            );
+            assert_eq!(simulation.legal_actions().contains(&attack), innate);
+            let hero_attack = GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: hero(&mut simulation, PlayerId::Two),
+            };
+            assert_eq!(
+                simulation.legal_actions().contains(&hero_attack),
+                innate && keyword == Keyword::Charge
+            );
+            if innate {
+                simulation.apply(attack).unwrap();
+            } else {
+                assert_eq!(
+                    simulation.apply(attack),
+                    Err(SimulationError::CannotAttack(attacker))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn charge_rush_control_movement_blocks_readiness_without_resetting_attacks_spent() {
+    for keyword in [None, Some(Keyword::Charge), Some(Keyword::Rush)] {
+        let (mut simulation, attacker, defender) = charge_rush_movement_fixture(keyword, true);
+        for player in [PlayerId::One, PlayerId::Two] {
+            simulation.apply(GameAction::EndTurn { player }).unwrap();
+        }
+        let attack = GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        };
+        simulation.apply(attack.clone()).unwrap();
+        assert!(!movement_attack_state(&simulation, attacker).readiness_blocked);
+        for player in [PlayerSelector::Opponent, PlayerSelector::Controller] {
+            play_movement_effect(
+                &mut simulation,
+                Effect::Move {
+                    targets: Selector::Entity(attacker),
+                    player,
+                    zone: Zone::Play,
+                    kind: ZoneMovementKind::Normal,
+                },
+            );
+        }
+        assert_eq!(
+            movement_attack_state(&simulation, attacker),
+            AttackState {
+                attacks_this_turn: 1,
+                readiness_blocked: true,
+            }
+        );
+        assert_eq!(
+            simulation.legal_actions().contains(&attack),
+            keyword.is_some()
+        );
+        let hero_attack = GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender: hero(&mut simulation, PlayerId::Two),
+        };
+        assert_eq!(
+            simulation.legal_actions().contains(&hero_attack),
+            keyword == Some(Keyword::Charge)
+        );
+        if keyword.is_some() {
+            simulation.apply(attack.clone()).unwrap();
+            assert!(!simulation.legal_actions().contains(&attack));
+        }
+    }
+}
+
+#[test]
+fn charge_rush_transformation_retains_existing_ready_default_state_policy() {
+    for original in [Keyword::Charge, Keyword::Rush] {
+        for replacement in [None, Some(Keyword::Charge), Some(Keyword::Rush)] {
+            let (mut simulation, attacker, defender) =
+                charge_rush_movement_fixture(Some(original), true);
+            simulation
+                .apply(GameAction::Attack {
+                    player: PlayerId::One,
+                    attacker,
+                    defender,
+                })
+                .unwrap();
+            let mut card = Card::minion("Transformed minion", 0, 1, 30);
+            if let Some(keyword) = replacement {
+                card = card.with_keyword(keyword);
+            }
+            play_movement_effect(
+                &mut simulation,
+                Effect::Transform {
+                    targets: Selector::Entity(attacker),
+                    card,
+                    kind: TransformKind::Spell,
+                },
+            );
+            // Characterize the existing transform policy, not summoning semantics.
+            assert_eq!(
+                movement_attack_state(&simulation, attacker),
+                AttackState::default()
+            );
+            let world = simulation.app.world();
+            let entity = game_entity(world, attacker).unwrap();
+            for keyword in [Keyword::Charge, Keyword::Rush] {
+                assert_eq!(
+                    crate::aura::has_keyword(world, entity, keyword),
+                    replacement == Some(keyword)
+                );
+            }
+            let hero_attack = GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: hero(&mut simulation, PlayerId::Two),
+            };
+            assert!(simulation.legal_actions().contains(&hero_attack));
+            simulation.apply(hero_attack).unwrap();
+        }
+    }
+}

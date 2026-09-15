@@ -313,7 +313,10 @@ pub(super) fn attack_exhausted(world: &World, entity: Entity, state: AttackState
     } else {
         1
     };
-    state.readiness_blocked || state.attacks_this_turn >= allowance
+    let bypasses_readiness = world.get::<EntityKind>(entity) == Some(&EntityKind::Minion)
+        && (has_keyword(world, entity, Keyword::Charge)
+            || has_keyword(world, entity, Keyword::Rush));
+    (state.readiness_blocked && !bypasses_readiness) || state.attacks_this_turn >= allowance
 }
 
 fn validate_attack(
@@ -350,6 +353,13 @@ fn validate_attack(
         || world
             .get::<EntityKind>(defender)
             .is_none_or(|kind| !matches!(kind, EntityKind::Hero | EntityKind::Minion))
+    {
+        return Err(SimulationError::InvalidDefender(defender_id));
+    }
+    if attack_state.readiness_blocked
+        && world.get::<EntityKind>(attacker) == Some(&EntityKind::Minion)
+        && !has_keyword(world, attacker, Keyword::Charge)
+        && world.get::<EntityKind>(defender) == Some(&EntityKind::Hero)
     {
         return Err(SimulationError::InvalidDefender(defender_id));
     }
