@@ -705,12 +705,10 @@ fn prepare_combat_damage(
         });
     }
     let mut operations = vec![ResolutionOp::ProcessDamageBatch(damage)];
-    if world.get::<EntityKind>(attacker) == Some(&EntityKind::Hero)
-        && let Some(weapon) = crate::weapon::active(world, player_id)
-    {
+    if let Some((payer, weapon)) = crate::weapon::attack_weapon(world, attacker) {
         operations.push(ResolutionOp::RunSequenceStep(
             SequenceStep::ConsumeDurability {
-                player: player_id,
+                player: payer,
                 weapon,
             },
         ));

@@ -14,7 +14,7 @@ A player can play a synthetic 3-Attack, 2-durability weapon, attack with their H
 - `simulator/simulation_effect_executor.rs::replace_hero` can install weapons, but moves the old weapon directly to Graveyard without ordinary weapon death processing.
 - `simulator/death.rs` collects ordinary deaths only for Minions and Locations. Health-based mortality must not be applied to weapons with zero Health.
 - `simulator/simulation_action.rs::attack` captures damage before Attack reactions. It needs a deferred combat preparation step for live weapon Attack.
-- Checkpoint schema is currently 14. The new durable state requires a version bump.
+- Checkpoint schema is currently 15. The new durable state requires a version bump.
 
 ## Model and API
 
@@ -129,3 +129,12 @@ Scoped lint passed with no filtered findings, and `git diff --check` passed.
 The branch incorporates combat-reaction support merged in #1747. It extends the existing
 PrepareCombatDamage step with weapon Attack and durability payment, preserves preparation
 deaths/auras and cancelled-attack usage behavior, and advances checkpoints from schema 15 to 16.
+
+## Review hardening
+
+Replacement scopes must connect weapons with the same controller. Current durability is bounded
+by zero and base durability, and durability-payment steps require a typed weapon even after it
+leaves Play. Combat Attack and durability payment use the same live Hero/controller/turn query.
+Equip, replacement retirement, and failure retirement emit their zone transitions. Retirement
+uses ordinary death movement to reset runtime state and release ordinary attachments; failure
+cleanup does not schedule Death Events or other effects.

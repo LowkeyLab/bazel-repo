@@ -5125,3 +5125,244 @@ fn combat_preparation_waits_for_suspended_chained_deaths_before_cancelling() {
         restored.checkpoint().unwrap()
     );
 }
+
+#[test]
+fn weapon_checkpoint_rejects_opponent_as_replacement_predecessor() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Incoming", 0, 2, 2).with_effects(vec![weapon_pause()]),
+    ]);
+    let opponent = spawn_card(
+        sim.app.world_mut(),
+        PlayerId::Two,
+        Card::weapon("Opponent", 0, 4, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let incoming = weapon_play(&mut sim);
+    let mut forged = sim.checkpoint().unwrap();
+    Simulation::from_checkpoint(forged.clone()).unwrap();
+    forged.weapons.pending.insert(incoming, Some(opponent));
+    assert!(
+        matches!(Simulation::from_checkpoint(forged), Err(SimulationError::Checkpoint(message)) if message.contains("same controller"))
+    );
+    weapon_restore_and_finish(&mut sim);
+    assert_eq!(sim.snapshot().players[1].weapon, Some(opponent));
+}
+
+#[test]
+fn weapon_checkpoint_bounds_current_durability_and_payment_stops_at_zero() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Blade", 0, 2, 2).with_effects(vec![weapon_pause()]),
+    ]);
+    let weapon = weapon_play(&mut sim);
+    let checkpoint = sim.checkpoint().unwrap();
+    for durability in [-1, 0, 1, 2, 3] {
+        let mut candidate = checkpoint.clone();
+        candidate
+            .entities
+            .iter_mut()
+            .find(|e| e.id == weapon)
+            .unwrap()
+            .weapon_state
+            .as_mut()
+            .unwrap()
+            .durability = durability;
+        assert_eq!(
+            Simulation::from_checkpoint(candidate).is_ok(),
+            (0..=2).contains(&durability)
+        );
+    }
+    for _ in 0..3 {
+        crate::weapon::consume_durability(sim.app.world_mut(), PlayerId::One, weapon);
+    }
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == weapon)
+            .unwrap()
+            .durability,
+        Some(0)
+    );
+    weapon_restore_and_finish(&mut sim);
+}
+
+#[test]
+fn weapon_checkpoint_requires_typed_durability_payer_but_allows_retired_weapon() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 2, 2)]);
+    let weapon = weapon_play(&mut sim);
+    let minion = spawn_card(
+        sim.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Observer", 0, 0, 1),
+        Zone::Play,
+    )
+    .unwrap();
+    let mut trigger = self_event_trigger(EventKind::Damage, vec![weapon_pause()]);
+    trigger.conditions.clear();
+    let entity = game_entity(sim.app.world(), minion).unwrap();
+    sim.app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    weapon_attack(&mut sim);
+    let checkpoint = sim.checkpoint().unwrap();
+    let hero_id = hero(&mut sim, PlayerId::One);
+    for forged_id in [hero_id, minion] {
+        let mut forged = checkpoint.clone();
+        let step = forged
+            .resolution
+            .stack
+            .iter_mut()
+            .find_map(|op| match &mut op.operation {
+                ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability {
+                    weapon, ..
+                }) => Some(weapon),
+                _ => None,
+            })
+            .unwrap();
+        *step = forged_id;
+        assert!(
+            matches!(Simulation::from_checkpoint(forged), Err(SimulationError::Checkpoint(message)) if message.contains("durability payer"))
+        );
+    }
+    crate::zone::move_entity(sim.app.world_mut(), weapon, Zone::Graveyard, None).unwrap();
+    weapon_restore_and_finish(&mut sim);
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == weapon)
+            .unwrap()
+            .durability,
+        Some(2)
+    );
+}
+
+#[test]
+fn weapon_equip_and_retirement_trace_each_zone_transition_once() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Old", 0, 1, 2),
+        Card::weapon("New", 0, 2, 2),
+    ]);
+    let old = weapon_play(&mut sim);
+    let new = weapon_play(&mut sim);
+    replace_hero(
+        sim.app.world_mut(),
+        PlayerId::One,
+        &crate::HeroReplacement {
+            hero: Card::hero("Replacement", 30),
+            hero_power: Card::hero_power("Power", 2),
+            armor_gain: 0,
+            health: crate::HeroHealthPolicy::Preserve,
+            class: crate::HeroClassPolicy::Keep,
+            weapon: Some(Card::weapon("Installed", 0, 3, 2)),
+        },
+    )
+    .unwrap();
+    drive_resolution(sim.app.world_mut()).unwrap();
+    let installed = sim.snapshot().players[0].weapon.unwrap();
+    let trace = sim.checkpoint().unwrap().trace.entries;
+    for (id, from, to) in [
+        (old, Zone::Hand, Zone::Play),
+        (new, Zone::Hand, Zone::Play),
+        (old, Zone::Play, Zone::Graveyard),
+        (installed, Zone::SetAside, Zone::Play),
+        (new, Zone::Play, Zone::Graveyard),
+    ] {
+        assert_eq!(trace.iter().filter(|e| matches!(e, TraceEntry::ZoneMoved { entity, from: actual_from, to: actual_to } if *entity == id && *actual_from == from && *actual_to == to)).count(), 1);
+    }
+}
+
+#[test]
+fn weapon_retirement_resets_attachments_on_success_and_failure() {
+    for failed in [false, true] {
+        let old_card = Card::weapon("Old", 0, 1, 2).with_deathrattle(vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 7,
+            temporary: true,
+        }]);
+        let mut sim = weapon_fixture(vec![
+            old_card,
+            Card::weapon("New", 0, 2, 2).with_effects(vec![weapon_pause()]),
+        ]);
+        let old = weapon_play(&mut sim);
+        let attachment = attach_stat_modifier(
+            sim.app.world_mut(),
+            PlayerId::One,
+            old,
+            crate::StatModifier {
+                attack: 3,
+                health: 0,
+                silence_removable: true,
+            },
+            EnchantmentDuration::Permanent,
+        )
+        .unwrap();
+        weapon_play(&mut sim);
+        if failed {
+            sim.app
+                .world_mut()
+                .resource_mut::<ResolutionWork>()
+                .remaining_budget = 0;
+            assert!(sim.choose(ChoiceId(502)).is_err());
+        } else {
+            weapon_restore_and_finish(&mut sim);
+        }
+        let checkpoint = sim.checkpoint().unwrap();
+        let attachment = checkpoint
+            .entities
+            .iter()
+            .find(|e| e.id == attachment)
+            .unwrap();
+        assert_eq!(attachment.attached_to, None);
+        assert_eq!(attachment.zone, Some(Zone::RemovedFromGame));
+        assert_eq!(
+            sim.snapshot()
+                .objects
+                .iter()
+                .find(|o| o.id == old)
+                .unwrap()
+                .attack,
+            Some(1)
+        );
+        assert_eq!(
+            sim.snapshot().players[0].temporary_resources,
+            if failed { 0 } else { 7 }
+        );
+        assert_eq!(checkpoint.trace.entries.iter().filter(|e| matches!(e, TraceEntry::ZoneMoved { entity, from: Zone::Play, to: Zone::Graveyard } if *entity == old)).count(), 1);
+        sim.assert_invariants().unwrap();
+    }
+}
+
+#[test]
+fn weapon_combat_payer_follows_live_hero_controller_and_active_turn() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+    weapon_play(&mut sim);
+    let attacker = hero(&mut sim, PlayerId::One);
+    let defender = hero(&mut sim, PlayerId::Two);
+    let entity = game_entity(sim.app.world(), attacker).unwrap();
+    // Model the preparation instant after a reaction changes controller; both
+    // accepted identities continue under SurvivingCombatSubjects.
+    sim.app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(crate::Controller(PlayerId::Two));
+    assert_eq!(crate::weapon::effective_attack(sim.app.world(), entity), 0);
+    begin_sequence(sim.app.world_mut()).unwrap();
+    action::run_sequence_step(
+        sim.app.world_mut(),
+        &SequenceStep::PrepareCombatDamage {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        },
+    )
+    .unwrap();
+    let stack = &sim.app.world().resource::<ResolutionWork>().stack;
+    assert!(!stack.iter().any(|op| matches!(
+        &op.operation,
+        ResolutionOp::RunSequenceStep(SequenceStep::ConsumeDurability { .. })
+    )));
+    assert!(stack.iter().any(|op| matches!(&op.operation, ResolutionOp::ProcessDamageBatch(damage) if damage[0].proposed == 0)));
+}

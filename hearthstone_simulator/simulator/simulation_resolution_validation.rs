@@ -14,6 +14,24 @@ pub(super) fn validate_resolution_operation(
     operation: &crate::ResolutionOp,
 ) -> Result<(), SimulationError> {
     match operation {
+        ResolutionOp::RunSequenceStep(crate::SequenceStep::ConsumeDurability {
+            weapon, ..
+        })
+        | ResolutionOp::RunGuardedSequenceStep {
+            step: crate::SequenceStep::ConsumeDurability { weapon, .. },
+            ..
+        } => {
+            let valid = crate::entity::game_entity(world, *weapon).is_some_and(|entity| {
+                world.get::<crate::EntityKind>(entity) == Some(&crate::EntityKind::Weapon)
+                    && world.get::<crate::WeaponState>(entity).is_some()
+            });
+            if !valid {
+                return Err(SimulationError::Checkpoint(
+                    "durability payer must be a Weapon with WeaponState".into(),
+                ));
+            }
+            Ok(())
+        }
         crate::ResolutionOp::RunEffect { effect, event, .. } => {
             let event = event.and_then(|event| {
                 world

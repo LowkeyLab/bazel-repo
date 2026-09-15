@@ -7,7 +7,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Active milestone: Milestone 8 player-action sequences
-- Verification: 2026-09-15, 9 core and 302 simulator tests and the full repository build pass after the Frozen slice. Formatting and simulator lint pass with no findings.
+- Verification: 2026-09-15, 9 core and 332 simulator tests and the full repository build pass after the weapon review fixes. Formatting and simulator lint pass with no findings.
 
 ## Milestones
 
@@ -248,3 +248,12 @@ The implementation remains intentionally synthetic-card-first. Unchecked items a
 - `aspect build //...`: passed all 351 targets.
 - `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
 - `git diff --check`: passed.
+
+### Weapon review fixes (2026-09-15)
+
+- Reject cross-controller replacement scopes, out-of-range current durability, and non-weapon durability payers while accepting moved weapon references.
+- Share live Hero/controller/turn selection between weapon Attack and durability payment; clamp durability at zero.
+- Trace equip and retirement movements, and use death movement cleanup for both successful and failed replacement.
+- Add six regressions for forged state, movement traces, enchanted retirement, and control-changing combat.
+- `aspect test //hearthstone_simulator/...`: passed 9 core and 332 simulator tests.
+- `aspect format --scope=all`, `aspect build //...`, `aspect lint //hearthstone_simulator/...`, and `git diff --check`: passed.

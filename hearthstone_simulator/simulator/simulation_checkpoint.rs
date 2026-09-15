@@ -568,7 +568,9 @@ fn validate_checkpoint_entity(
     ids: &BTreeSet<GameEntityId>,
 ) -> Result<(), SimulationError> {
     if (entity.kind == Some(EntityKind::Weapon)) != entity.weapon_state.is_some()
-        || entity.weapon_state.is_some_and(|s| s.base_durability <= 0)
+        || entity.weapon_state.is_some_and(|s| {
+            s.base_durability <= 0 || !(0..=s.base_durability).contains(&s.durability)
+        })
     {
         return Err(SimulationError::Checkpoint("invalid weapon state".into()));
     }

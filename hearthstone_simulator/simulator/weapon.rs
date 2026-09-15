@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use crate::{
     CanonicalTrace, Card, Controller, CurrentStats, EntityKind, GameEntityId, GameState, PlayerId,
     ResolutionOp, ResolutionWork, SequenceStep, SimulationError, TraceEntry, WeaponEquipment,
-    WeaponState, Zone, ZoneMoveOutcome,
+    WeaponState, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
     entity::{allocate_play_order, game_entity},
-    zone::{ZoneIndex, move_entity},
+    zone::{ZoneIndex, move_entity, move_entity_with_request},
 };
 
 pub(crate) fn validate_card(card: &Card) -> Result<(), SimulationError> {
@@ -33,21 +33,24 @@ pub(crate) fn effective_attack(world: &World, entity: Entity) -> i32 {
     let own = world
         .get::<CurrentStats>(entity)
         .map_or(0, |stats| stats.attack);
-    if world.get::<EntityKind>(entity) != Some(&EntityKind::Hero) {
-        return own;
-    }
-    let Some(controller) = world.get::<Controller>(entity) else {
-        return own;
-    };
-    if world.resource::<GameState>().active_player != controller.0 {
-        return own;
-    }
     own.saturating_add(
-        active(world, controller.0)
-            .and_then(|id| game_entity(world, id))
+        attack_weapon(world, entity)
+            .and_then(|(_, id)| game_entity(world, id))
             .and_then(|weapon| world.get::<CurrentStats>(weapon))
             .map_or(0, |stats| stats.attack),
     )
+}
+
+// Attack contribution and durability payment share the live Hero/controller decision.
+pub(crate) fn attack_weapon(world: &World, entity: Entity) -> Option<(PlayerId, GameEntityId)> {
+    if world.get::<EntityKind>(entity) != Some(&EntityKind::Hero) {
+        return None;
+    }
+    let controller = world.get::<Controller>(entity)?.0;
+    if world.resource::<GameState>().active_player != controller {
+        return None;
+    }
+    active(world, controller).map(|weapon| (controller, weapon))
 }
 
 // Movement never promotes an older, superseded weapon back into the active slot.
@@ -90,7 +93,7 @@ pub(crate) fn begin_equip(
         .pending
         .insert(weapon, previous);
     let result = move_entity(world, weapon, Zone::Play, None);
-    if !matches!(result, Ok(ZoneMoveOutcome::Moved { .. })) {
+    let Ok(ZoneMoveOutcome::Moved { from, .. }) = result else {
         world
             .resource_mut::<WeaponEquipment>()
             .pending
@@ -98,7 +101,15 @@ pub(crate) fn begin_equip(
         return Err(SimulationError::Invariant(format!(
             "equip move failed: {result:?}"
         )));
-    }
+    };
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::ZoneMoved {
+            entity: weapon,
+            from,
+            to: Zone::Play,
+        });
     world
         .resource_mut::<WeaponEquipment>()
         .active
@@ -122,13 +133,7 @@ pub(crate) fn finish_equip(world: &mut World, weapon: GameEntityId) -> Result<()
     {
         // A superseded weapon remains an observer until replacement finishes. Moving now
         // frees the slot, while its Death Event joins the next ordinary death boundary.
-        let controller = world
-            .get::<Controller>(entity)
-            .expect("weapon controller")
-            .0;
-        let position = crate::zone::semantic_zone_position(world, previous, controller, Zone::Play)
-            .unwrap_or(0);
-        move_entity(world, previous, Zone::Graveyard, None)?;
+        let position = retire_weapon(world, previous)?;
         crate::death::record_full_zone_death(world, previous, position);
     }
     Ok(())
@@ -145,7 +150,7 @@ pub(crate) fn consume_durability(world: &mut World, player: PlayerId, weapon: Ga
         return;
     };
     let previous = state.durability;
-    state.durability = state.durability.saturating_sub(1);
+    state.durability = state.durability.saturating_sub(1).max(0);
     let current = state.durability;
     world
         .resource_mut::<CanonicalTrace>()
@@ -186,6 +191,11 @@ pub(crate) fn assert_invariants(world: &World) -> Result<(), String> {
             || world.get::<Controller>(entity).is_none()
         {
             return Err("invalid replacement scope".into());
+        }
+        if let Some(old_entity) = old.and_then(|id| game_entity(world, id))
+            && world.get::<Controller>(old_entity) != world.get::<Controller>(entity)
+        {
+            return Err("replacement weapons must share the same controller".into());
         }
         let completions = world
             .resource::<ResolutionWork>()
@@ -236,7 +246,43 @@ pub(crate) fn abandon_equips(world: &mut World) {
                 .values()
                 .any(|id| id == old)
         {
-            let _ = move_entity(world, *old, Zone::Graveyard, None);
+            let _ = retire_weapon(world, *old);
         }
     }
+}
+
+// Retirement uses the same runtime/attachment reset as ordinary death, but event
+// recording is left to the caller so failed sequences cannot schedule more effects.
+fn retire_weapon(world: &mut World, weapon: GameEntityId) -> Result<usize, SimulationError> {
+    let entity = game_entity(world, weapon).ok_or(SimulationError::EntityNotFound(weapon))?;
+    let controller = world
+        .get::<Controller>(entity)
+        .ok_or(SimulationError::EntityNotFound(weapon))?
+        .0;
+    let position =
+        crate::zone::semantic_zone_position(world, weapon, controller, Zone::Play).unwrap_or(0);
+    let outcome = move_entity_with_request(
+        world,
+        ZoneMoveRequest {
+            entity: weapon,
+            destination_controller: controller,
+            destination: Zone::Graveyard,
+            position: None,
+            kind: ZoneMovementKind::Death,
+        },
+    )?;
+    let ZoneMoveOutcome::Moved { from, .. } = outcome else {
+        return Err(SimulationError::Invariant(format!(
+            "weapon retirement failed: {outcome:?}"
+        )));
+    };
+    world
+        .resource_mut::<CanonicalTrace>()
+        .entries
+        .push(TraceEntry::ZoneMoved {
+            entity: weapon,
+            from,
+            to: Zone::Graveyard,
+        });
+    Ok(position)
 }
