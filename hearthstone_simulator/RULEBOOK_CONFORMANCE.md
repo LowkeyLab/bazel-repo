@@ -119,9 +119,34 @@ allowance of two attacks based on attacks already made that turn. The engine sup
 Heroes and Minions through innate and enchantment-granted keywords, including mid-turn gain,
 loss, regranting, and non-stacking grants. Readiness blocking remains independent; gaining
 Windfury cannot ready a newly summoned or copied Minion. Snapshot exhaustion and declaration
-validation share the same live calculation. Schema 12 preserves both readiness and attacks spent.
+validation share the same live calculation. Schema 13 preserves both readiness and attacks spent.
 
 The existing FinishAttack timing remains engine policy: usage increments before AfterAttack
 reactions, and keyword changes affect the next declaration. Exact pinned-rulebook timing remains
-unverified. This slice does not implement Charge/Rush, Frozen, Mega-Windfury, keyword auras,
-combat redirection, or full phase guards. Milestone 8 remains incomplete.
+unverified. Frozen, Mega-Windfury, keyword auras,
+combat redirection, and full phase guards remain gaps. Milestone 8 remains incomplete.
+
+## Charge and Rush evidence and scope
+
+[Blizzard's keyword introduction](https://news.blizzard.com/en-us/article/21658543/the-witchwood-s-newest-keywords)
+describes Rush as permitting immediate attacks against opposing Minions, with Hero attacks available
+on later turns. The current [Rush reference](https://hearthstone.wiki.gg/wiki/Rush), available through
+search indexing, supports Charge precedence, no Hero restriction on already-ready Minions, and no
+extra attack from granting Rush. The pinned revision remains unavailable for exact verification.
+
+The engine uses live Minion keywords to bypass initial readiness restrictions without clearing
+readiness history or attacks spent. Rush-only bypass rejects Hero defenders; Charge bypass allows
+both character kinds subject to existing targeting restrictions. Windfury still determines allowance.
+Heroes do not receive a readiness bypass. Snapshot exhaustion excludes target availability, including
+a Rush Minion with no eligible opposing Minions. No keyword-aura mechanism is introduced.
+
+Accepted attacks retain existing continuation and completion timing after Charge/Rush changes.
+That timing is explicit engine policy, not full combat conformance. Existing transformation resets
+to ready with zero attacks spent are also retained as an unverified lifecycle policy and separate
+conformance gap. Copy, bounce/replay, and control movement use existing reset policies with live
+keyword permissions. Schema 13 stores the needed state without a new permission cache or operation;
+restoration equivalence applies within the updated engine, not across older binary semantics.
+
+Coverage in `simulation_tests_actions.rs` and `simulation_tests_movement.rs` exercises declaration
+matrices, dynamic grants, Windfury, turn refresh, target restrictions, lifecycle changes, and
+choice-suspended continuation with JSON restoration and forks.

@@ -3028,3 +3028,637 @@ fn windfury_in_play_copy_is_fresh_and_readiness_blocked() {
         false,
     );
 }
+
+fn charge_rush_fixture(
+    keywords: &[Keyword],
+    granted: bool,
+    summoned: bool,
+) -> (Simulation, GameEntityId, GameAction, GameAction) {
+    let mut simulation = simulation();
+    let mut card = Card::minion("Immediate attacker", 0, 1, 20);
+    if !granted {
+        for keyword in keywords {
+            card = card.with_keyword(*keyword);
+        }
+    }
+    let attacker = if summoned {
+        execute_effect(
+            simulation.app.world_mut(),
+            &EffectContext {
+                source: None,
+                controller: PlayerId::One,
+                declared_target: None,
+                drawn_card: None,
+                origin: EffectOrigin::Other,
+            },
+            &Effect::Summon {
+                player: PlayerSelector::Controller,
+                card,
+                board_index: None,
+            },
+        )
+        .unwrap();
+        drive_resolution(simulation.app.world_mut()).unwrap();
+        card_named(&mut simulation, "Immediate attacker")
+    } else {
+        let id = spawn_card(simulation.app.world_mut(), PlayerId::One, card, Zone::Hand).unwrap();
+        simulation
+            .apply(play_declaration(id, None, None, None))
+            .unwrap();
+        id
+    };
+    if granted {
+        for keyword in keywords {
+            keyword_grant(
+                &mut simulation,
+                attacker,
+                *keyword,
+                crate::EnchantmentDuration::Permanent,
+            );
+        }
+    }
+    let defender = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Surviving defender", 0, 0, 20),
+        Zone::Play,
+    )
+    .unwrap();
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    (
+        simulation,
+        attacker,
+        GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        },
+        GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender: enemy_hero,
+        },
+    )
+}
+
+fn assert_charge_rush_actions(
+    simulation: &mut Simulation,
+    minion_attack: &GameAction,
+    hero_attack: &GameAction,
+    minion_allowed: bool,
+    hero_allowed: bool,
+) {
+    let before = simulation.checkpoint().unwrap();
+    let actions = simulation.legal_actions();
+    assert_eq!(actions, simulation.legal_actions());
+    assert_eq!(before, simulation.checkpoint().unwrap());
+    assert_eq!(actions.contains(minion_attack), minion_allowed);
+    assert_eq!(actions.contains(hero_attack), hero_allowed);
+    for action in actions
+        .iter()
+        .filter(|action| matches!(action, GameAction::Attack { .. }))
+    {
+        assert_eq!(
+            action_validation::validate_action(simulation.app.world(), action).as_ref(),
+            Ok(action)
+        );
+    }
+}
+
+fn charge_rush_modifier(keyword: Keyword, granted: bool) -> Effect {
+    Effect::AttachKeywordModifier {
+        targets: Selector::Source,
+        modifier: crate::KeywordModifier {
+            keyword,
+            granted,
+            silence_removable: true,
+        },
+        duration: crate::EnchantmentDuration::Permanent,
+    }
+}
+
+fn change_charge_rush(
+    simulation: &mut Simulation,
+    attacker: GameEntityId,
+    keyword: Keyword,
+    granted: bool,
+) {
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: Some(attacker),
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &charge_rush_modifier(keyword, granted),
+    )
+    .unwrap();
+}
+
+#[test]
+fn charge_rush_played_and_effect_summoned_keyword_matrix_is_pure_and_atomic() {
+    for keywords in [
+        vec![],
+        vec![Keyword::Rush],
+        vec![Keyword::Charge],
+        vec![Keyword::Rush, Keyword::Charge],
+    ] {
+        for granted in [false, true] {
+            for summoned in [false, true] {
+                let (mut simulation, attacker, minion, face) =
+                    charge_rush_fixture(&keywords, granted, summoned);
+                let can_attack = !keywords.is_empty();
+                let can_face = keywords.contains(&Keyword::Charge);
+                assert_eq!(
+                    windfury_attack_state(&simulation, attacker),
+                    AttackState {
+                        attacks_this_turn: 0,
+                        readiness_blocked: true
+                    }
+                );
+                assert_charge_rush_actions(&mut simulation, &minion, &face, can_attack, can_face);
+                assert_eq!(
+                    windfury_snapshot_exhausted(&mut simulation, attacker),
+                    !can_attack
+                );
+                if !can_face {
+                    let GameAction::Attack { defender, .. } = face else {
+                        unreachable!()
+                    };
+                    let error = if can_attack {
+                        SimulationError::InvalidDefender(defender)
+                    } else {
+                        SimulationError::CannotAttack(attacker)
+                    };
+                    assert_rejected_action_is_atomic(&mut simulation, face.clone(), error);
+                }
+                if can_attack {
+                    let mut face_fork = simulation.fork().unwrap();
+                    simulation.apply(minion.clone()).unwrap();
+                    assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+                    assert_eq!(
+                        windfury_attack_state(&simulation, attacker),
+                        AttackState {
+                            attacks_this_turn: 1,
+                            readiness_blocked: true
+                        }
+                    );
+                    if can_face {
+                        face_fork.apply(face).unwrap();
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn charge_rush_windfury_and_dynamic_keywords_preserve_history_and_allowance() {
+    for keyword in [Keyword::Rush, Keyword::Charge] {
+        let (mut simulation, attacker, minion, face) =
+            charge_rush_fixture(&[keyword, Keyword::Windfury], false, false);
+        for spent in 0..2 {
+            assert_charge_rush_actions(
+                &mut simulation,
+                &minion,
+                &face,
+                true,
+                keyword == Keyword::Charge,
+            );
+            simulation
+                .apply(if keyword == Keyword::Charge {
+                    face.clone()
+                } else {
+                    minion.clone()
+                })
+                .unwrap();
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                spent + 1
+            );
+        }
+        for keyword in [Keyword::Rush, Keyword::Charge, Keyword::Windfury] {
+            change_charge_rush(&mut simulation, attacker, keyword, false);
+            change_charge_rush(&mut simulation, attacker, keyword, true);
+            assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+        }
+    }
+    let (mut simulation, attacker, minion, face) =
+        charge_rush_fixture(&[Keyword::Rush, Keyword::Windfury], false, true);
+    simulation.apply(minion.clone()).unwrap();
+    let history = windfury_attack_state(&simulation, attacker);
+    for _ in 0..2 {
+        change_charge_rush(&mut simulation, attacker, Keyword::Charge, true);
+    }
+    assert_eq!(windfury_attack_state(&simulation, attacker), history);
+    assert_charge_rush_actions(&mut simulation, &minion, &face, true, true);
+    change_charge_rush(&mut simulation, attacker, Keyword::Charge, false);
+    assert_charge_rush_actions(&mut simulation, &minion, &face, true, false);
+    change_charge_rush(&mut simulation, attacker, Keyword::Charge, true);
+    change_charge_rush(&mut simulation, attacker, Keyword::Rush, false);
+    assert_charge_rush_actions(&mut simulation, &minion, &face, true, true);
+    let mut silenced = simulation.fork().unwrap();
+    silence_entity(silenced.app.world_mut(), attacker).unwrap();
+    assert_eq!(windfury_attack_state(&silenced, attacker), history);
+    assert_charge_rush_actions(&mut silenced, &minion, &face, false, false);
+    simulation.apply(face.clone()).unwrap();
+    change_charge_rush(&mut simulation, attacker, Keyword::Rush, true);
+    assert_eq!(
+        windfury_attack_state(&simulation, attacker),
+        AttackState {
+            attacks_this_turn: 2,
+            readiness_blocked: true
+        }
+    );
+    assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+}
+
+#[test]
+fn charge_rush_expiry_and_natural_or_extra_turn_refresh_keep_separate_history() {
+    for extra_turn in [false, true] {
+        let (mut simulation, attacker, minion, face) =
+            charge_rush_fixture(&[Keyword::Rush, Keyword::Windfury], false, true);
+        keyword_grant(
+            &mut simulation,
+            attacker,
+            Keyword::Charge,
+            crate::EnchantmentDuration::EndOfTurn(PlayerId::One),
+        );
+        simulation.apply(face.clone()).unwrap();
+        if extra_turn {
+            execute_effect(
+                simulation.app.world_mut(),
+                &EffectContext {
+                    source: None,
+                    controller: PlayerId::One,
+                    declared_target: None,
+                    drawn_card: None,
+                    origin: EffectOrigin::Other,
+                },
+                &Effect::ScheduleExtraTurns {
+                    player: PlayerSelector::Controller,
+                    count: 1,
+                    timing: crate::ExtraTurnTiming::AfterCurrentTurn,
+                },
+            )
+            .unwrap();
+        }
+        simulation
+            .apply(GameAction::EndTurn {
+                player: PlayerId::One,
+            })
+            .unwrap();
+        assert!(!crate::aura::has_keyword(
+            simulation.app.world(),
+            game_entity(simulation.app.world(), attacker).unwrap(),
+            Keyword::Charge
+        ));
+        if !extra_turn {
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker),
+                AttackState {
+                    attacks_this_turn: 1,
+                    readiness_blocked: true
+                }
+            );
+            simulation
+                .apply(GameAction::EndTurn {
+                    player: PlayerId::Two,
+                })
+                .unwrap();
+        }
+        assert_eq!(
+            windfury_attack_state(&simulation, attacker),
+            AttackState {
+                attacks_this_turn: 0,
+                readiness_blocked: false
+            }
+        );
+        change_charge_rush(&mut simulation, attacker, Keyword::Rush, false);
+        change_charge_rush(&mut simulation, attacker, Keyword::Rush, true);
+        assert_charge_rush_actions(&mut simulation, &minion, &face, true, true);
+        simulation.apply(face.clone()).unwrap();
+        simulation.apply(face.clone()).unwrap();
+        assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+    }
+}
+
+#[test]
+fn charge_rush_respects_target_protection_and_empty_board_snapshot_semantics() {
+    for keyword in [Keyword::Rush, Keyword::Charge] {
+        for protection in [Keyword::Stealth, Keyword::Immune] {
+            let (mut simulation, attacker, minion, face) =
+                charge_rush_fixture(&[keyword], false, false);
+            let GameAction::Attack { defender, .. } = minion else {
+                unreachable!()
+            };
+            keyword_grant(
+                &mut simulation,
+                defender,
+                protection,
+                crate::EnchantmentDuration::Permanent,
+            );
+            assert_charge_rush_actions(
+                &mut simulation,
+                &minion,
+                &face,
+                false,
+                keyword == Keyword::Charge,
+            );
+            assert!(!windfury_snapshot_exhausted(&mut simulation, attacker));
+            assert_rejected_action_is_atomic(
+                &mut simulation,
+                minion.clone(),
+                SimulationError::InvalidDefender(defender),
+            );
+            crate::zone::move_entity_with_request(
+                simulation.app.world_mut(),
+                ZoneMoveRequest {
+                    entity: defender,
+                    destination_controller: PlayerId::Two,
+                    destination: Zone::Hand,
+                    position: None,
+                    kind: ZoneMovementKind::Normal,
+                },
+            )
+            .unwrap();
+            assert!(!windfury_snapshot_exhausted(&mut simulation, attacker));
+            if keyword == Keyword::Rush {
+                assert!(!simulation.legal_actions().iter().any(|action| matches!(action, GameAction::Attack { attacker: id, .. } if *id == attacker)));
+            }
+        }
+        let (mut simulation, attacker, minion, face) = charge_rush_fixture(&[keyword], false, true);
+        let guard = spawn_card(
+            simulation.app.world_mut(),
+            PlayerId::Two,
+            Card::minion("Guard", 0, 0, 20).with_keyword(Keyword::Taunt),
+            Zone::Play,
+        )
+        .unwrap();
+        assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+        let guard_action = GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender: guard,
+        };
+        assert!(simulation.legal_actions().contains(&guard_action));
+        let entity = game_entity(simulation.app.world(), attacker).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<CurrentStats>(entity)
+            .unwrap()
+            .attack = 0;
+        assert_rejected_action_is_atomic(
+            &mut simulation,
+            guard_action,
+            SimulationError::CannotAttack(attacker),
+        );
+    }
+}
+
+#[test]
+fn charge_rush_does_not_bypass_hero_readiness_or_windfury_allowance() {
+    for keyword in [Keyword::Charge, Keyword::Rush] {
+        let (mut simulation, attacker, face) = windfury_fixture(true, true);
+        keyword_grant(
+            &mut simulation,
+            attacker,
+            keyword,
+            crate::EnchantmentDuration::Permanent,
+        );
+        let entity = game_entity(simulation.app.world(), attacker).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<AttackState>(entity)
+            .unwrap()
+            .readiness_blocked = true;
+        assert_windfury_legality(&mut simulation, attacker, &face, false);
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<AttackState>(entity)
+            .unwrap()
+            .readiness_blocked = false;
+        for _ in 0..2 {
+            simulation.apply(face.clone()).unwrap();
+        }
+        assert_windfury_legality(&mut simulation, attacker, &face, false);
+    }
+}
+
+#[test]
+fn charge_rush_attack_and_after_attack_reactions_only_change_next_declaration() {
+    for keyword in [Keyword::Charge, Keyword::Rush] {
+        for event in [EventKind::Attack, EventKind::AfterAttack] {
+            let (mut simulation, attacker, minion, face) =
+                charge_rush_fixture(&[keyword, Keyword::Windfury], false, false);
+            let mut trigger = self_event_trigger(event, vec![charge_rush_modifier(keyword, false)]);
+            trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+            let entity = game_entity(simulation.app.world(), attacker).unwrap();
+            simulation
+                .app
+                .world_mut()
+                .entity_mut(entity)
+                .insert(RuntimeTriggers(vec![trigger]));
+            simulation
+                .apply(if keyword == Keyword::Charge {
+                    face.clone()
+                } else {
+                    minion.clone()
+                })
+                .unwrap();
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker),
+                AttackState {
+                    attacks_this_turn: 1,
+                    readiness_blocked: true
+                }
+            );
+            assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+        }
+    }
+    let (mut simulation, attacker, minion, face) =
+        charge_rush_fixture(&[Keyword::Rush, Keyword::Windfury], false, true);
+    let mut trigger = self_event_trigger(
+        EventKind::AfterAttack,
+        vec![charge_rush_modifier(Keyword::Charge, true)],
+    );
+    trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+    let entity = game_entity(simulation.app.world(), attacker).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    simulation.apply(minion.clone()).unwrap();
+    assert_charge_rush_actions(&mut simulation, &minion, &face, true, true);
+    simulation.apply(face.clone()).unwrap();
+    assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+}
+
+#[test]
+fn charge_rush_suspended_attack_keyword_loss_restores_and_finishes_exactly_once() {
+    for keyword in [Keyword::Charge, Keyword::Rush] {
+        let (mut original, attacker, minion, face) =
+            charge_rush_fixture(&[keyword, Keyword::Windfury], false, true);
+        let mut trigger = self_event_trigger(
+            EventKind::Attack,
+            vec![
+                charge_rush_modifier(keyword, false),
+                Effect::Choose {
+                    id: ChoiceId(80),
+                    player: PlayerSelector::Controller,
+                    options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                        id: ChoiceId(81),
+                        effects: vec![],
+                    }],
+                },
+            ],
+        );
+        trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+        let entity = game_entity(original.app.world(), attacker).unwrap();
+        original
+            .app
+            .world_mut()
+            .entity_mut(entity)
+            .insert(RuntimeTriggers(vec![trigger]));
+        let action = if keyword == Keyword::Charge {
+            face.clone()
+        } else {
+            minion.clone()
+        };
+        let GameAction::Attack { defender, .. } = action else {
+            unreachable!()
+        };
+        original.apply(action.clone()).unwrap();
+        assert_eq!(
+            original.snapshot().game.status,
+            SimulationStatus::AwaitingChoice
+        );
+        assert_eq!(
+            windfury_attack_state(&original, attacker).attacks_this_turn,
+            0
+        );
+        assert!(!crate::aura::has_keyword(
+            original.app.world(),
+            entity,
+            keyword
+        ));
+        let checkpoint = original.checkpoint().unwrap();
+        assert_eq!(checkpoint.schema_version, 13);
+        let mut restored = Simulation::from_checkpoint(
+            SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
+        )
+        .unwrap();
+        let mut fork = original.fork().unwrap();
+        assert_eq!(original.legal_actions(), restored.legal_actions());
+        assert_eq!(original.legal_actions(), fork.legal_actions());
+        for candidate in [&mut original, &mut restored, &mut fork] {
+            candidate.choose(ChoiceId(81)).unwrap();
+            assert_eq!(
+                windfury_attack_state(candidate, attacker),
+                AttackState {
+                    attacks_this_turn: 1,
+                    readiness_blocked: true
+                }
+            );
+            assert_eq!(
+                candidate
+                    .snapshot()
+                    .objects
+                    .iter()
+                    .find(|object| object.id == defender)
+                    .unwrap()
+                    .damage,
+                1
+            );
+            assert_charge_rush_actions(candidate, &minion, &face, false, false);
+            change_charge_rush(candidate, attacker, Keyword::Charge, true);
+            assert_charge_rush_actions(candidate, &minion, &face, true, true);
+            candidate.apply(face.clone()).unwrap();
+            candidate.choose(ChoiceId(81)).unwrap();
+            assert_eq!(
+                windfury_attack_state(candidate, attacker).attacks_this_turn,
+                2
+            );
+            assert_charge_rush_actions(candidate, &minion, &face, false, false);
+            candidate.assert_invariants().unwrap();
+        }
+        assert_eq!(
+            original.checkpoint().unwrap(),
+            restored.checkpoint().unwrap()
+        );
+        assert_eq!(original.checkpoint().unwrap(), fork.checkpoint().unwrap());
+        assert_eq!(original.trace(), restored.trace());
+        assert_eq!(original.trace(), fork.trace());
+    }
+}
+
+#[test]
+fn charge_rush_does_not_bypass_ownership_turn_or_zone_restrictions() {
+    for keyword in [Keyword::Rush, Keyword::Charge] {
+        let (mut simulation, attacker, minion, face) =
+            charge_rush_fixture(&[keyword], false, false);
+        let GameAction::Attack { defender, .. } = minion else {
+            unreachable!()
+        };
+        assert_rejected_action_is_atomic(
+            &mut simulation,
+            GameAction::Attack {
+                player: PlayerId::Two,
+                attacker,
+                defender,
+            },
+            SimulationError::NotPlayersTurn(PlayerId::Two),
+        );
+        let own_hero = hero(&mut simulation, PlayerId::One);
+        assert_rejected_action_is_atomic(
+            &mut simulation,
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: own_hero,
+            },
+            SimulationError::InvalidDefender(own_hero),
+        );
+        keyword_grant(
+            &mut simulation,
+            defender,
+            keyword,
+            crate::EnchantmentDuration::Permanent,
+        );
+        assert_rejected_action_is_atomic(
+            &mut simulation,
+            GameAction::Attack {
+                player: PlayerId::One,
+                attacker: defender,
+                defender: attacker,
+            },
+            SimulationError::NotControlled { entity: defender },
+        );
+        crate::zone::move_entity_with_request(
+            simulation.app.world_mut(),
+            ZoneMoveRequest {
+                entity: attacker,
+                destination_controller: PlayerId::One,
+                destination: Zone::Hand,
+                position: None,
+                kind: ZoneMovementKind::Normal,
+            },
+        )
+        .unwrap();
+        assert_rejected_action_is_atomic(
+            &mut simulation,
+            minion.clone(),
+            SimulationError::WrongZone {
+                entity: attacker,
+                expected: Zone::Play,
+            },
+        );
+        assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+    }
+}

@@ -39,6 +39,8 @@ pub struct GameObjectSnapshot {
     pub attack: Option<i32>,
     pub maximum_health: Option<i32>,
     pub damage: i32,
+    /// Readiness/attack-allowance exhaustion, not complete attack legality.
+    /// A ready Rush Minion can still have no eligible defenders.
     pub exhausted: Option<bool>,
     pub hero_class: Option<HeroClass>,
     pub hero_power_exhausted: Option<bool>,

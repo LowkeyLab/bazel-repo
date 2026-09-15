@@ -168,7 +168,8 @@ pub struct Enchantments(pub Vec<GameEntityId>);
 )]
 pub struct AttackState {
     pub attacks_this_turn: u8,
-    /// Blocks attacks independently of the current keyword-based attack allowance.
+    /// Initial readiness restriction, independent of attacks spent.
+    /// Charge and Rush can bypass it for Minions without clearing this history.
     pub readiness_blocked: bool,
 }
 

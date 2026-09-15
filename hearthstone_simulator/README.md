@@ -93,7 +93,32 @@ Attack completion still records usage at the existing `FinishAttack` step, befor
 reactions. Changes to Windfury during reactions affect the next declaration. This preserves the
 existing simplified combat timing, whose exact pinned-rulebook conformance remains unverified.
 Checkpoint schema 13 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
-Charge, Rush, Frozen, Mega-Windfury, and full combat phase guards remain outside this slice.
+Frozen, Mega-Windfury, and full combat phase guards remain outside this slice.
+
+## Charge and Rush
+
+Minions with Charge can bypass initial readiness restrictions to attack eligible enemy Characters.
+Rush permits that bypass only against enemy Minions. Charge takes precedence when both are present;
+once initial readiness blocking expires, Rush no longer restricts Hero defenders. Taunt, Stealth,
+Immune, positive Attack, and the ordinary or Windfury attack allowance still apply. Heroes retain
+their existing readiness rules even if synthetic effects grant them Charge or Rush.
+
+Readiness history and attacks spent are preserved when either keyword is gained, removed, silenced,
+or expired. Permissions use current effective keywords. Snapshot `exhausted` reports readiness and
+attack allowance, not target availability: a fresh Rush Minion can be unexhausted with no legal
+attacks on an empty enemy board. Use `legal_actions()` for target-specific availability.
+
+An accepted attack continues if an Attack reaction removes Charge or Rush while the participants
+remain in Play; subsequent declarations use the changed permissions. This preserves existing
+combat timing as explicit engine policy, not verified conformance to the inaccessible pinned
+rulebook revision. Full preparation phases and combat guards remain gaps.
+
+Fresh Play copies reset readiness and attack counts and use their eligible copied keywords.
+Backward movement removes ordinary keyword grants while retaining native keywords for replay.
+Existing transformation behavior replaces keywords and resets to a ready, zero-attack state;
+that readiness policy remains a separate conformance gap. Checkpoint schema 13 is unchanged and
+restores keyword/readiness state and suspended attacks exactly within the updated engine; replay
+equivalence with older binaries where these keywords were inactive is not guaranteed.
 
 ## Hero Power activation
 
