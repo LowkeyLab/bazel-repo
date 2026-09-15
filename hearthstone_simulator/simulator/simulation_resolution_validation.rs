@@ -122,6 +122,15 @@ pub(super) fn validate_choice_request(
     for option in &request.options {
         for operation in &option.operations {
             match operation {
+                ResolutionOp::RunSequenceStep(crate::SequenceStep::FinishEquip { .. })
+                | ResolutionOp::RunGuardedSequenceStep {
+                    step: crate::SequenceStep::FinishEquip { .. },
+                    ..
+                } => {
+                    return Err(SimulationError::Checkpoint(
+                        "choice branches cannot borrow a weapon replacement scope".into(),
+                    ));
+                }
                 ResolutionOp::RunSequenceStep(crate::SequenceStep::ConsumeDurability {
                     ..
                 })

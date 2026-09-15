@@ -67,7 +67,10 @@ pub(crate) fn track_entry(world: &mut World, id: GameEntityId) {
     equipment
         .active
         .retain(|player, weapon| *weapon != id || (in_play && Some(*player) == controller));
-    if in_play && let Some(player) = controller {
+    if in_play
+        && !equipment.pending.values().any(|old| *old == Some(id))
+        && let Some(player) = controller
+    {
         equipment.active.entry(player).or_insert(id);
     }
 }

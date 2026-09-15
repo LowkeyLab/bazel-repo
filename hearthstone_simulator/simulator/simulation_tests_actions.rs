@@ -5425,3 +5425,118 @@ fn weapon_combat_payer_follows_live_hero_controller_and_active_turn() {
     )));
     assert!(stack.iter().any(|op| matches!(&op.operation, ResolutionOp::ProcessDamageBatch(damage) if damage[0].proposed == 0)));
 }
+
+#[test]
+fn weapon_movement_does_not_reactivate_a_pending_predecessor() {
+    for leave_and_return in [false, true] {
+        let mut sim = weapon_fixture(vec![
+            Card::weapon("Old", 0, 1, 2),
+            Card::weapon("Outer", 0, 2, 2).with_effects(vec![weapon_pause()]),
+        ]);
+        let old = weapon_play(&mut sim);
+        let outer = weapon_play(&mut sim);
+        crate::zone::move_entity(sim.app.world_mut(), outer, Zone::SetAside, None).unwrap();
+        if leave_and_return {
+            crate::zone::move_entity(sim.app.world_mut(), old, Zone::SetAside, None).unwrap();
+        }
+        crate::zone::move_entity(sim.app.world_mut(), old, Zone::Play, None).unwrap();
+        assert_eq!(sim.snapshot().players[0].weapon, None);
+        sim.assert_invariants().unwrap();
+        let restored = Simulation::from_checkpoint(sim.checkpoint().unwrap()).unwrap();
+        assert_eq!(
+            restored
+                .checkpoint()
+                .unwrap()
+                .weapons
+                .active
+                .get(&PlayerId::One),
+            None
+        );
+
+        let nested = spawn_card(
+            sim.app.world_mut(),
+            PlayerId::One,
+            Card::weapon("Nested", 0, 3, 2),
+            Zone::SetAside,
+        )
+        .unwrap();
+        crate::weapon::begin_equip(sim.app.world_mut(), PlayerId::One, nested).unwrap();
+        crate::resolver::push_resolution_op(
+            sim.app.world_mut(),
+            ResolutionOp::RunSequenceStep(SequenceStep::FinishEquip { weapon: nested }),
+        );
+        assert_eq!(
+            sim.app
+                .world()
+                .resource::<crate::WeaponEquipment>()
+                .pending
+                .get(&nested),
+            Some(&None)
+        );
+        // Completing the nested equip must leave retirement to the outer scope.
+        let completion = crate::resolver::pop_resolution_op(sim.app.world_mut()).unwrap();
+        assert!(matches!(completion.operation,
+            ResolutionOp::RunSequenceStep(SequenceStep::FinishEquip { weapon }) if weapon == nested));
+        crate::weapon::finish_equip(sim.app.world_mut(), nested).unwrap();
+        assert_eq!(
+            sim.app
+                .world()
+                .get::<Zone>(game_entity(sim.app.world(), old).unwrap()),
+            Some(&Zone::Play)
+        );
+        assert!(
+            !sim.snapshot()
+                .deaths
+                .iter()
+                .any(|death| death.entity == old)
+        );
+        weapon_restore_and_finish(&mut sim);
+        assert_eq!(sim.snapshot().players[0].weapon, Some(nested));
+        assert_eq!(
+            sim.snapshot()
+                .deaths
+                .iter()
+                .filter(|death| death.entity == old)
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn weapon_checkpoint_rejects_equip_completions_in_choice_branches() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Old", 0, 1, 2),
+        Card::weapon("New", 0, 2, 2).with_effects(vec![weapon_pause()]),
+    ]);
+    weapon_play(&mut sim);
+    let weapon = weapon_play(&mut sim);
+    let checkpoint = sim.checkpoint().unwrap();
+    for guarded in [false, true] {
+        let mut forged = checkpoint.clone();
+        let step = SequenceStep::FinishEquip { weapon };
+        let operation = if guarded {
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![crate::SubjectGuard {
+                    subject: weapon,
+                    required_zone: Zone::Play,
+                }],
+                step,
+            }
+        } else {
+            ResolutionOp::RunSequenceStep(step)
+        };
+        forged
+            .resolution
+            .pending_choice
+            .as_mut()
+            .unwrap()
+            .request
+            .options[0]
+            .operations
+            .push(operation);
+        assert!(matches!(Simulation::from_checkpoint(forged),
+            Err(SimulationError::Checkpoint(message)) if message.contains("weapon replacement scope")));
+    }
+    weapon_restore_and_finish(&mut sim);
+}
