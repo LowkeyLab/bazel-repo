@@ -406,6 +406,7 @@ pub(super) fn run_sequence_step(
             end_turn(world, *player);
             Ok(())
         }
+        SequenceStep::ThawCharacters { player } => thaw_characters(world, *player),
         SequenceStep::AdvanceTurn { ending_player } => {
             advance_turn(world, *ending_player);
             Ok(())
@@ -732,11 +733,41 @@ fn end_turn(world: &mut World, player_id: PlayerId) {
             }),
             ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
             ResolutionOp::CheckOutcome,
+            ResolutionOp::RunSequenceStep(SequenceStep::ThawCharacters { player: player_id }),
             ResolutionOp::RunSequenceStep(SequenceStep::AdvanceTurn {
                 ending_player: player_id,
             }),
         ],
     );
+}
+
+fn thaw_characters(world: &mut World, player: PlayerId) -> Result<(), SimulationError> {
+    let thawing = world
+        .resource::<ZoneIndex>()
+        .entities(player, Zone::Play)
+        .iter()
+        .copied()
+        .filter(|id| {
+            game_entity(world, *id).is_some_and(|entity| {
+                crate::aura::has_keyword(world, entity, crate::Keyword::Frozen)
+                    && super::action_validation::can_thaw(world, entity)
+            })
+        })
+        .collect::<Vec<_>>();
+    for id in thawing {
+        super::effect_executor::attach_keyword_modifier(
+            world,
+            player,
+            id,
+            crate::KeywordModifier {
+                keyword: crate::Keyword::Frozen,
+                granted: false,
+                silence_removable: true,
+            },
+            EnchantmentDuration::Permanent,
+        )?;
+    }
+    Ok(())
 }
 
 fn advance_turn(world: &mut World, ending_player: PlayerId) {

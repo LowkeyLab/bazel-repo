@@ -47,6 +47,9 @@ pub enum SequenceStep {
     EndTurn {
         player: PlayerId,
     },
+    ThawCharacters {
+        player: PlayerId,
+    },
     AdvanceTurn {
         ending_player: PlayerId,
     },
