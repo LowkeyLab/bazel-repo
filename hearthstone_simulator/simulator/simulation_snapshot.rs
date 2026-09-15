@@ -45,6 +45,7 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
                 name: player_data.name.clone(),
                 hero: hero_id,
                 hero_power,
+                weapon: crate::weapon::active(world, player_data.id),
                 hero_class: world
                     .get::<HeroMetadata>(hero)
                     .map(|metadata| metadata.class)
@@ -129,7 +130,10 @@ fn build_object_snapshots(world: &mut World) -> Vec<GameObjectSnapshot> {
                     zone_position: semantic_zone_position(world, *id, controller.0, *zone)
                         .unwrap_or(position.0),
                     play_order: order.0,
-                    attack: stats.map(|stats| stats.attack),
+                    attack: stats.map(|_| crate::weapon::effective_attack(world, entity)),
+                    durability: world
+                        .get::<crate::WeaponState>(entity)
+                        .map(|state| state.durability),
                     maximum_health: stats.map(|stats| stats.maximum_health),
                     damage: damage.map_or(0, |damage| damage.0),
                     exhausted: attack.map(|attack| attack_exhausted(world, entity, *attack)),

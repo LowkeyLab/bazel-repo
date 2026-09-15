@@ -4,9 +4,9 @@ use bevy::prelude::*;
 
 use crate::{
     AttachedTo, AttackState, CanonicalTrace, ChoiceId, Controller, CurrentResolutionOp,
-    CurrentStats, DamageRequest, EffectContext, EnchantmentDuration, EntityKind, EventContext,
-    EventKind, GameAction, GameEntityId, GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan,
-    PlayerId, ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, ScheduledTurnKind, SequenceStep,
+    DamageRequest, EffectContext, EnchantmentDuration, EntityKind, EventContext, EventKind,
+    GameAction, GameEntityId, GameOutcome, GameState, HeroPowerState, PhaseBoundaryPlan, PlayerId,
+    ResolutionOp, ResolutionWork, ResolveFrame, Ruleset, ScheduledTurnKind, SequenceStep,
     SimulationStatus, TraceEntry, TurnSchedule, Zone, ZoneMoveRequest, ZoneMovementKind,
     enchantment::{recalculate_cost, recalculate_keywords, recalculate_stats},
     entity::game_entity,
@@ -107,7 +107,7 @@ pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
                     }
                 }
             }
-            EntityKind::Spell => {
+            EntityKind::Spell | EntityKind::Weapon => {
                 for target in super::action_validation::target_options(world, active, targeting) {
                     offer(GameAction::PlayCard {
                         player: active,
@@ -285,6 +285,7 @@ fn apply_action(world: &mut World, action: &GameAction) -> Result<(), Simulation
 fn resolve_to_pause(world: &mut World) -> Result<(), SimulationError> {
     let result = drive_resolution(world).and_then(|()| finish_resolution_if_idle(world));
     if result.is_err() {
+        crate::weapon::abandon_equips(world);
         abandon_sequence(world);
         world.resource_mut::<GameState>().status =
             if world.resource::<GameState>().outcome.is_some() {
@@ -332,6 +333,7 @@ fn finish_resolution_if_idle(world: &mut World) -> Result<(), SimulationError> {
     } else {
         SimulationStatus::AwaitingAction
     };
+    crate::weapon::assert_invariants(world).map_err(SimulationError::Invariant)?;
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
     assert_player_role_invariants(world).map_err(SimulationError::Invariant)?;
     assert_game_entity_index(world).map_err(SimulationError::Invariant)
@@ -370,6 +372,19 @@ pub(super) fn run_sequence_step(
     step: &SequenceStep,
 ) -> Result<(), SimulationError> {
     match step {
+        SequenceStep::FinishEquip { weapon } => crate::weapon::finish_equip(world, *weapon),
+        SequenceStep::ConsumeDurability { player, weapon } => {
+            crate::weapon::consume_durability(world, *player, *weapon);
+            Ok(())
+        }
+        SequenceStep::PrepareCombatDamage {
+            player,
+            attacker,
+            defender,
+        } => {
+            prepare_combat_damage(world, *player, *attacker, *defender);
+            Ok(())
+        }
         SequenceStep::PlayCard {
             player,
             card,
@@ -382,14 +397,6 @@ pub(super) fn run_sequence_step(
             defender,
         } => {
             attack(world, *player, *attacker, *defender);
-            Ok(())
-        }
-        SequenceStep::PrepareCombatDamage {
-            player,
-            attacker,
-            defender,
-        } => {
-            prepare_combat_damage(world, *player, *attacker, *defender);
             Ok(())
         }
         SequenceStep::BreakAttackStealth { attacker } => break_attack_stealth(world, *attacker),
@@ -466,6 +473,9 @@ fn play_card(
         .get::<CardRuntime>(card_entity)
         .cloned()
         .ok_or(SimulationError::NotPlayable(card_id))?;
+    if kind == EntityKind::Weapon {
+        return play_weapon(world, player_id, card_id, declared_target, runtime);
+    }
     let finishes_played_self =
         kind == EntityKind::Minion && contains_played_self_transform(&runtime.program);
     spend_resources(world, player_id, runtime.cost)?;
@@ -680,12 +690,8 @@ fn prepare_combat_damage(
     }
     let attacker = game_entity(world, attacker_id).expect("validated attacker remains indexed");
     let defender = game_entity(world, defender_id).expect("validated defender remains indexed");
-    let attack_value = world
-        .get::<CurrentStats>(attacker)
-        .map_or(0, |stats| stats.attack);
-    let counter_damage = world
-        .get::<CurrentStats>(defender)
-        .map_or(0, |stats| stats.attack);
+    let attack_value = crate::weapon::effective_attack(world, attacker);
+    let counter_damage = crate::weapon::effective_attack(world, defender);
     let mut damage = vec![DamageRequest {
         source: Some(attacker_id),
         target: defender_id,
@@ -698,17 +704,23 @@ fn prepare_combat_damage(
             proposed: counter_damage,
         });
     }
-    push_resolution_ops(
-        world,
-        [
-            ResolutionOp::ProcessDamageBatch(damage),
-            ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
+    let mut operations = vec![ResolutionOp::ProcessDamageBatch(damage)];
+    if world.get::<EntityKind>(attacker) == Some(&EntityKind::Hero)
+        && let Some(weapon) = crate::weapon::active(world, player_id)
+    {
+        operations.push(ResolutionOp::RunSequenceStep(
+            SequenceStep::ConsumeDurability {
                 player: player_id,
-                attacker: attacker_id,
-                defender: defender_id,
-            }),
-        ],
-    );
+                weapon,
+            },
+        ));
+    }
+    operations.push(ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
+        player: player_id,
+        attacker: attacker_id,
+        defender: defender_id,
+    }));
+    push_resolution_ops(world, operations);
 }
 
 // Consume all grants present after attack reactions. An ordered removal survives
@@ -968,5 +980,59 @@ fn spend_resources(
             player: player_id,
             amount,
         });
+    Ok(())
+}
+
+fn play_weapon(
+    world: &mut World,
+    player: PlayerId,
+    weapon: GameEntityId,
+    target: Option<GameEntityId>,
+    runtime: CardRuntime,
+) -> Result<(), SimulationError> {
+    let event = EventContext {
+        kind: EventKind::AfterPlay,
+        source: Some(weapon),
+        targets: vec![weapon],
+        controller: player,
+        proposed_value: None,
+        actual_value: None,
+        simultaneous_ordinal: 0,
+    };
+    let seeds = collect_trigger_seeds(world, &event);
+    let after = super::event_resolver::prepare_event_with_seeds(world, event.clone(), seeds);
+    spend_resources(world, player, runtime.cost)?;
+    crate::weapon::begin_equip(world, player, weapon)?;
+    let mut operations = vec![ResolutionOp::PrepareEvent(EventContext {
+        kind: EventKind::CardPlayed,
+        targets: target.into_iter().collect(),
+        ..event.clone()
+    })];
+    operations.extend(
+        runtime
+            .program
+            .into_iter()
+            .map(|effect| ResolutionOp::RunEffect {
+                context: EffectContext {
+                    source: Some(weapon),
+                    controller: player,
+                    declared_target: target,
+                    drawn_card: None,
+                    origin: crate::EffectOrigin::Other,
+                },
+                effect,
+                event: None,
+            }),
+    );
+    operations.extend([
+        ResolutionOp::PrepareEvent(EventContext {
+            kind: EventKind::WeaponEquipped,
+            ..event
+        }),
+        ResolutionOp::RunSequenceStep(SequenceStep::FinishEquip { weapon }),
+        ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+        ResolutionOp::ResolveEvent(after),
+    ]);
+    push_resolution_ops(world, operations);
     Ok(())
 }

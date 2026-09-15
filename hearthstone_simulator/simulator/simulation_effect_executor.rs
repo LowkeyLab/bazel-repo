@@ -664,6 +664,7 @@ pub(super) fn validate_trigger_enchantment(
 }
 
 fn validate_card_program(world: &World, card: &Card) -> Result<(), SimulationError> {
+    crate::weapon::validate_card(card)?;
     validate_effect_program_with_played_self(
         world,
         &card.effects,
@@ -807,14 +808,23 @@ pub(super) fn replace_hero(
         .insert((HeroPowerState::default(), power_order));
 
     if let Some(weapon) = &replacement.weapon {
-        for old_weapon in controlled_kind(world, player, Zone::Play, EntityKind::Weapon) {
-            detach_all_enchantments(world, old_weapon);
-            move_out_of_play(world, old_weapon, player, Zone::Graveyard)?;
-        }
-        let weapon = spawn_card(world, player, weapon.clone(), Zone::Play)?;
-        let weapon_entity = game_entity(world, weapon).expect("replacement weapon remains indexed");
-        let order = allocate_play_order(world);
-        world.entity_mut(weapon_entity).insert(order);
+        let weapon = spawn_card(world, player, weapon.clone(), Zone::SetAside)?;
+        crate::weapon::begin_equip(world, player, weapon)?;
+        push_resolution_ops(
+            world,
+            [
+                ResolutionOp::PrepareEvent(crate::EventContext {
+                    kind: EventKind::WeaponEquipped,
+                    source: Some(weapon),
+                    targets: vec![weapon],
+                    controller: player,
+                    proposed_value: None,
+                    actual_value: None,
+                    simultaneous_ordinal: 0,
+                }),
+                ResolutionOp::RunSequenceStep(crate::SequenceStep::FinishEquip { weapon }),
+            ],
+        );
     }
 
     world.resource_mut::<CanonicalTrace>().entries.extend([
@@ -1267,6 +1277,7 @@ struct CopySnapshot {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PlayCopySnapshot {
+    weapon_state: Option<crate::WeaponState>,
     damage: Damage,
     silenced: bool,
     pending_destroy: bool,
@@ -1401,6 +1412,9 @@ fn restore_play_copy_state(
         },
         play_order,
     ));
+    if let Some(state) = play_state.weapon_state {
+        world.entity_mut(copy_entity).insert(state);
+    }
     if play_state.silenced {
         world.entity_mut(copy_entity).insert(Silenced);
     }
@@ -1564,6 +1578,7 @@ fn capture_play_copy_snapshot(
         .collect::<Result<Vec<_>, SimulationError>>()?;
     attachments.sort_by_key(|(order, id, _)| (*order, *id));
     Ok(PlayCopySnapshot {
+        weapon_state: world.get::<crate::WeaponState>(source_entity).copied(),
         damage: world.get::<Damage>(source_entity).copied().ok_or_else(|| {
             SimulationError::Invariant(format!(
                 "in-play copy source {source:?} lacks required Damage component"
@@ -1601,6 +1616,9 @@ pub(super) fn copy_card_data(world: &World, source: GameEntityId) -> Option<Card
         mana_cost: runtime.base_cost,
         attack: base.attack,
         health: base.health,
+        durability: world
+            .get::<crate::WeaponState>(entity)
+            .map_or(0, |s| s.base_durability),
         keywords: world
             .get::<BaseKeywords>(entity)
             .map_or_else(std::collections::BTreeSet::new, |keywords| {

@@ -52,7 +52,12 @@ pub(crate) fn create_deaths(world: &mut World) {
 
     let mut deaths = mortally_wounded
         .into_iter()
-        .filter(|(_, _, _, _, kind, _)| matches!(kind, EntityKind::Minion | EntityKind::Location))
+        .filter(|(_, _, _, _, kind, _)| {
+            matches!(
+                kind,
+                EntityKind::Minion | EntityKind::Location | EntityKind::Weapon
+            )
+        })
         .collect::<Vec<_>>();
     deaths.sort_by_key(|(play_order, id, ..)| (*play_order, *id));
     let turn = world.resource::<GameState>().turn_number;
@@ -116,7 +121,10 @@ pub(crate) fn record_full_zone_death(
     let Some(kind) = world.get::<EntityKind>(entity).copied() else {
         return;
     };
-    if !matches!(kind, EntityKind::Minion | EntityKind::Location) {
+    if !matches!(
+        kind,
+        EntityKind::Minion | EntityKind::Location | EntityKind::Weapon
+    ) {
         return;
     }
     let record = DeathRecord {
@@ -155,6 +163,12 @@ pub(crate) fn take_pending_deaths(world: &mut World) -> Vec<DeathRecord> {
 
 pub(crate) fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {
     game_entity(world, id).is_some_and(|entity| {
+        if world.get::<EntityKind>(entity) == Some(&EntityKind::Weapon) {
+            return world
+                .get::<crate::WeaponState>(entity)
+                .is_some_and(|s| s.durability <= 0)
+                || world.get::<PendingDestroy>(entity).is_some();
+        }
         world
             .get::<CurrentStats>(entity)
             .zip(world.get::<Damage>(entity))

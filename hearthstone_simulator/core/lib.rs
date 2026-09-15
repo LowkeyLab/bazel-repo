@@ -49,7 +49,7 @@ pub use entity::{
     Abilities, Armor, AttackState, BaseKeywords, BaseStats, Controller, CurrentStats, Damage,
     DefinitionId, DisplayName, Enchantments, EntityKind, GameEntityIndex, GameObject, HeroClass,
     HeroMetadata, HeroPowerState, KeepEnchantments, Keyword, Keywords, NextGameEntityId,
-    PendingDestroy, PlayOrder, PlayOrderCounter, Player, Silenced,
+    PendingDestroy, PlayOrder, PlayOrderCounter, Player, Silenced, WeaponEquipment, WeaponState,
 };
 #[doc(hidden)]
 pub use entity::{allocate_game_id, allocate_play_order, game_entity};

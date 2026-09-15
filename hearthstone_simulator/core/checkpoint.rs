@@ -9,7 +9,7 @@ use crate::{
     TargetRequirement, TriggerDefinition, TurnSchedule, Zone,
 };
 
-pub const CHECKPOINT_SCHEMA_VERSION: u32 = 15;
+pub const CHECKPOINT_SCHEMA_VERSION: u32 = 16;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardRuntimeCheckpoint {
@@ -33,6 +33,7 @@ pub struct GameEntityCheckpoint {
     pub base_keywords: Option<BaseKeywords>,
     pub current_stats: Option<CurrentStats>,
     pub damage: Option<Damage>,
+    pub weapon_state: Option<crate::WeaponState>,
     pub armor: Option<Armor>,
     pub pending_destroy: bool,
     pub keywords: Option<Keywords>,
@@ -68,6 +69,7 @@ pub struct SimulationCheckpoint {
     pub ruleset: Ruleset,
     pub game: GameState,
     pub turn_schedule: TurnSchedule,
+    pub weapons: crate::WeaponEquipment,
     pub dominant_player: PlayerId,
     pub next_game_entity_id: u64,
     pub next_play_order: u64,

@@ -909,7 +909,7 @@ fn invalid_declarations_only_append_their_rejection_trace() {
     );
 
     let mut unsupported = Simulation::new([
-        PlayerConfig::new("Jaina", vec![Card::weapon("Weapon", 0, 1)]),
+        PlayerConfig::new("Jaina", vec![Card::hero("Unsupported Hero", 30)]),
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     let weapon = hand_card(&mut unsupported, PlayerId::One);
@@ -1584,7 +1584,7 @@ fn legal_actions_contain_every_successfully_validated_small_fixture_candidate() 
                 Card::minion("Targeted", 0, 1, 1)
                     .with_targeting(TargetRequirement::Required(enemy_character)),
                 Card::spell("Spell", 0),
-                Card::weapon("Unsupported", 0, 1),
+                Card::hero("Unsupported", 30),
             ],
         ),
         PlayerConfig::new("Rexxar", Vec::new()),
@@ -1756,7 +1756,7 @@ fn legal_actions_exclude_exhausted_zero_attack_full_board_and_unsupported_candid
     );
 
     let mut unsupported = Simulation::new([
-        PlayerConfig::new("Jaina", vec![Card::weapon("Unsupported", 0, 1)]),
+        PlayerConfig::new("Jaina", vec![Card::hero("Unsupported", 30)]),
         PlayerConfig::new("Rexxar", Vec::new()),
     ]);
     assert!(
@@ -2888,7 +2888,7 @@ fn windfury_first_attack_checkpoint_json_and_fork_continue_identically() {
         let (mut original, attacker, action) = windfury_fixture(is_hero, true);
         original.apply(action.clone()).unwrap();
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 15);
+        assert_eq!(checkpoint.schema_version, 16);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -3549,7 +3549,7 @@ fn charge_rush_suspended_attack_keyword_loss_restores_and_finishes_exactly_once(
             keyword
         ));
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 15);
+        assert_eq!(checkpoint.schema_version, 16);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -4067,6 +4067,678 @@ fn frozen_thaw_observes_end_turn_deaths_and_live_readiness_keywords() {
     }
 }
 
+fn weapon_fixture(cards: Vec<Card>) -> Simulation {
+    Simulation::new([
+        PlayerConfig::new("One", cards),
+        PlayerConfig::new("Two", vec![]),
+    ])
+}
+
+fn weapon_attack(sim: &mut Simulation) {
+    let attacker = hero(sim, PlayerId::One);
+    let defender = hero(sim, PlayerId::Two);
+    sim.apply(GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender,
+    })
+    .unwrap();
+}
+
+fn weapon_play(sim: &mut Simulation) -> GameEntityId {
+    let card = hand_card(sim, PlayerId::One);
+    sim.apply(play_declaration(card, None, None, None)).unwrap();
+    card
+}
+
+fn weapon_pause() -> Effect {
+    Effect::Choose {
+        id: ChoiceId(501),
+        player: PlayerSelector::Controller,
+        options: vec![hearthstone_simulator_core::EffectChoiceOption {
+            id: ChoiceId(502),
+            effects: vec![],
+        }],
+    }
+}
+
+fn weapon_restore_and_finish(original: &mut Simulation) {
+    let checkpoint = original.checkpoint().unwrap();
+    let mut restored = Simulation::from_checkpoint(
+        SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
+    )
+    .unwrap();
+    let mut fork = original.fork().unwrap();
+    for sim in [&mut *original, &mut restored, &mut fork] {
+        sim.choose(ChoiceId(502)).unwrap();
+        sim.assert_invariants().unwrap();
+    }
+    assert_eq!(
+        original.checkpoint().unwrap(),
+        restored.checkpoint().unwrap()
+    );
+    assert_eq!(original.checkpoint().unwrap(), fork.checkpoint().unwrap());
+}
+
+fn weapon_replacement_effect() -> Effect {
+    Effect::ReplaceHero {
+        player: PlayerSelector::Controller,
+        replacement: Box::new(crate::HeroReplacement {
+            hero: Card::hero("Replacement", 30),
+            hero_power: Card::hero_power("Power", 2),
+            armor_gain: 0,
+            health: crate::HeroHealthPolicy::Preserve,
+            class: crate::HeroClassPolicy::Keep,
+            weapon: Some(Card::weapon("Replacement blade", 0, 5, 3)),
+        }),
+    }
+}
+
+#[test]
+fn weapon_two_attacks_break_and_run_deathrattle_once() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 1, 3, 2).with_deathrattle(vec![
+        Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 4,
+            temporary: true,
+        },
+    ])]);
+    let weapon = weapon_play(&mut sim);
+    assert_eq!(sim.snapshot().players[0].available_resources, 0);
+    assert_eq!(sim.snapshot().players[0].weapon, Some(weapon));
+    weapon_attack(&mut sim);
+    assert_eq!(sim.snapshot().players[1].health, 27);
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == weapon)
+            .unwrap()
+            .durability,
+        Some(1)
+    );
+    end_active_turn(&mut sim);
+    end_active_turn(&mut sim);
+    weapon_attack(&mut sim);
+    let snapshot = sim.snapshot();
+    assert_eq!(snapshot.players[1].health, 24);
+    assert_eq!(snapshot.players[0].weapon, None);
+    assert_eq!(snapshot.players[0].temporary_resources, 4);
+    assert_eq!(
+        snapshot
+            .deaths
+            .iter()
+            .filter(|d| d.entity == weapon)
+            .count(),
+        1
+    );
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|o| o.id == weapon)
+            .unwrap()
+            .zone,
+        Zone::Graveyard
+    );
+    sim.assert_invariants().unwrap();
+}
+
+#[test]
+fn weapon_replacement_preserves_attack_usage_and_does_not_use_board_slots() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("First", 0, 2, 2),
+        Card::weapon("Second", 0, 5, 3),
+    ]);
+    for _ in 0..7 {
+        spawn_card(
+            sim.app.world_mut(),
+            PlayerId::One,
+            Card::minion("Blocker", 0, 0, 1),
+            Zone::Play,
+        )
+        .unwrap();
+    }
+    let old = weapon_play(&mut sim);
+    weapon_attack(&mut sim);
+    let new = weapon_play(&mut sim);
+    assert_eq!(sim.snapshot().players[0].weapon, Some(new));
+    assert_eq!(sim.snapshot().players[0].board.len(), 7);
+    assert!(sim.snapshot().deaths.iter().any(|d| d.entity == old));
+    let attacker = hero(&mut sim, PlayerId::One);
+    assert!(
+        !sim.legal_actions()
+            .iter()
+            .any(|a| matches!(a, GameAction::Attack { attacker: id, .. } if *id == attacker))
+    );
+}
+
+#[test]
+fn weapon_attack_adds_personal_attack_and_is_inactive_off_turn() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+    weapon_play(&mut sim);
+    let hero_id = hero(&mut sim, PlayerId::One);
+    let entity = game_entity(sim.app.world(), hero_id).unwrap();
+    sim.app
+        .world_mut()
+        .get_mut::<crate::BaseStats>(entity)
+        .unwrap()
+        .attack = 2;
+    sim.app
+        .world_mut()
+        .get_mut::<CurrentStats>(entity)
+        .unwrap()
+        .attack = 2;
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == hero_id)
+            .unwrap()
+            .attack,
+        Some(5)
+    );
+    weapon_attack(&mut sim);
+    assert_eq!(sim.snapshot().players[1].health, 25);
+    end_active_turn(&mut sim);
+    // Aura boundaries recalculate base stats; set personal Attack for the off-turn query.
+    sim.app
+        .world_mut()
+        .get_mut::<crate::BaseStats>(entity)
+        .unwrap()
+        .attack = 2;
+    sim.app
+        .world_mut()
+        .get_mut::<CurrentStats>(entity)
+        .unwrap()
+        .attack = 2;
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == hero_id)
+            .unwrap()
+            .attack,
+        Some(2)
+    );
+}
+
+#[test]
+fn weapon_replacement_keeps_old_observer_through_play_effects_and_restores_scope() {
+    let old = Card::weapon("Old", 0, 1, 2).with_deathrattle(vec![Effect::GainResource {
+        player: PlayerSelector::Controller,
+        amount: 7,
+        temporary: true,
+    }]);
+    let new = Card::weapon("New", 0, 3, 2).with_effects(vec![weapon_pause()]);
+    let mut sim = weapon_fixture(vec![old, new]);
+    let old_id = weapon_play(&mut sim);
+    let new_id = weapon_play(&mut sim);
+    let snapshot = sim.snapshot();
+    assert_eq!(snapshot.players[0].weapon, Some(new_id));
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|o| o.id == old_id)
+            .unwrap()
+            .zone,
+        Zone::Play
+    );
+    assert_eq!(snapshot.players[0].temporary_resources, 0);
+    weapon_restore_and_finish(&mut sim);
+    assert_eq!(sim.snapshot().players[0].temporary_resources, 7);
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == old_id)
+            .unwrap()
+            .zone,
+        Zone::Graveyard
+    );
+}
+
+#[test]
+fn weapon_breakage_deathrattle_choice_restores_exactly() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Blade", 0, 3, 1).with_deathrattle(vec![weapon_pause()]),
+    ]);
+    weapon_play(&mut sim);
+    weapon_attack(&mut sim);
+    assert!(sim.pending_choice().is_some());
+    assert_eq!(sim.snapshot().players[0].weapon, None);
+    weapon_restore_and_finish(&mut sim);
+}
+
+#[test]
+fn weapon_damage_preparation_reads_live_attack_after_reactions() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+    let weapon = weapon_play(&mut sim);
+    let hero_id = hero(&mut sim, PlayerId::One);
+    let mut trigger = self_event_trigger(EventKind::Attack, vec![weapon_pause()]);
+    trigger.conditions.clear();
+    let entity = game_entity(sim.app.world(), hero_id).unwrap();
+    sim.app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    weapon_attack(&mut sim);
+    attach_stat_modifier(
+        sim.app.world_mut(),
+        PlayerId::One,
+        weapon,
+        crate::StatModifier {
+            attack: 3,
+            health: 0,
+            silence_removable: true,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    weapon_restore_and_finish(&mut sim);
+    assert_eq!(sim.snapshot().players[1].health, 24);
+}
+
+#[test]
+fn weapon_replaced_during_damage_does_not_charge_new_weapon() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+    let weapon = weapon_play(&mut sim);
+    let blade = game_entity(sim.app.world(), weapon).unwrap();
+    let mut trigger = self_event_trigger(
+        EventKind::Damage,
+        vec![weapon_replacement_effect(), weapon_pause()],
+    );
+    trigger.conditions.clear();
+    sim.app
+        .world_mut()
+        .entity_mut(blade)
+        .insert(RuntimeTriggers(vec![trigger]));
+    weapon_attack(&mut sim);
+    weapon_restore_and_finish(&mut sim);
+    let snapshot = sim.snapshot();
+    let active = snapshot.players[0].weapon.unwrap();
+    assert_ne!(active, weapon);
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|o| o.id == active)
+            .unwrap()
+            .durability,
+        Some(3)
+    );
+    assert_eq!(snapshot.players[1].health, 27);
+}
+
+#[test]
+fn weapon_nested_replacement_does_not_restore_superseded_weapon() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Old", 0, 1, 2),
+        Card::weapon("Outer", 0, 3, 2)
+            .with_effects(vec![weapon_replacement_effect(), weapon_pause()]),
+    ]);
+    let old = weapon_play(&mut sim);
+    let outer = weapon_play(&mut sim);
+    weapon_restore_and_finish(&mut sim);
+    let snapshot = sim.snapshot();
+    assert!(![old, outer].contains(&snapshot.players[0].weapon.unwrap()));
+    for id in [old, outer] {
+        assert_eq!(snapshot.deaths.iter().filter(|d| d.entity == id).count(), 1);
+    }
+}
+
+#[test]
+fn weapon_action_enumeration_is_pure_and_invalid_declarations_are_atomic() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 1, 3, 2)]);
+    let id = hand_card(&mut sim, PlayerId::One);
+    let before = sim.checkpoint().unwrap();
+    assert!(
+        sim.legal_actions()
+            .contains(&play_declaration(id, None, None, None))
+    );
+    assert_eq!(before, sim.checkpoint().unwrap());
+    assert_rejected_action_is_atomic(
+        &mut sim,
+        play_declaration(id, None, Some(0), None),
+        SimulationError::UnexpectedBoardPosition(id),
+    );
+    assert_rejected_action_is_atomic(
+        &mut sim,
+        play_declaration(id, None, None, Some(ChoiceId(1))),
+        SimulationError::UnsupportedActionChoice(ChoiceId(1)),
+    );
+    let entity = game_entity(sim.app.world(), id).unwrap();
+    sim.app
+        .world_mut()
+        .get_mut::<crate::WeaponState>(entity)
+        .unwrap()
+        .durability = 0;
+    assert_rejected_action_is_atomic(
+        &mut sim,
+        play_declaration(id, None, None, None),
+        SimulationError::NotPlayable(id),
+    );
+}
+
+#[test]
+fn weapon_checkpoint_rejects_missing_state_stale_active_and_orphaned_scope() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+    let id = weapon_play(&mut sim);
+    let checkpoint = sim.checkpoint().unwrap();
+    let mut missing = checkpoint.clone();
+    missing
+        .entities
+        .iter_mut()
+        .find(|o| o.id == id)
+        .unwrap()
+        .weapon_state = None;
+    assert!(Simulation::from_checkpoint(missing).is_err());
+    let mut stale = checkpoint.clone();
+    stale
+        .weapons
+        .active
+        .insert(PlayerId::One, GameEntityId(99999));
+    assert!(Simulation::from_checkpoint(stale).is_err());
+    let mut orphan = checkpoint;
+    orphan.weapons.pending.insert(id, None);
+    assert!(Simulation::from_checkpoint(orphan).is_err());
+}
+
+#[test]
+fn weapon_prevented_damage_consumes_durability_and_removed_defender_aborts() {
+    for removed in [false, true] {
+        let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+        let weapon = weapon_play(&mut sim);
+        let defender = hero(&mut sim, PlayerId::Two);
+        let target = game_entity(sim.app.world(), defender).unwrap();
+        if removed {
+            let mut trigger = self_event_trigger(
+                EventKind::Attack,
+                vec![Effect::Move {
+                    targets: Selector::Source,
+                    player: PlayerSelector::Controller,
+                    zone: Zone::SetAside,
+                    kind: ZoneMovementKind::Normal,
+                }],
+            );
+            trigger.conditions.clear();
+            // Use a Minion defender so removing it preserves the mandatory Hero invariant.
+            let minion = spawn_card(
+                sim.app.world_mut(),
+                PlayerId::Two,
+                Card::minion("Retreat", 0, 1, 2).with_triggers(vec![trigger]),
+                Zone::Play,
+            )
+            .unwrap();
+            let attacker = hero(&mut sim, PlayerId::One);
+            sim.apply(GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender: minion,
+            })
+            .unwrap();
+        } else {
+            sim.app
+                .world_mut()
+                .entity_mut(target)
+                .insert(Keywords([Keyword::DivineShield].into()));
+            weapon_attack(&mut sim);
+        }
+        assert_eq!(sim.snapshot().players[1].health, 30);
+        assert_eq!(
+            sim.snapshot()
+                .objects
+                .iter()
+                .find(|o| o.id == weapon)
+                .unwrap()
+                .durability,
+            Some(if removed { 2 } else { 1 })
+        );
+    }
+}
+
+#[test]
+fn weapon_old_observer_and_deathrattle_precede_after_play() {
+    let mut observer = self_event_trigger(
+        EventKind::WeaponEquipped,
+        vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 2,
+            temporary: true,
+        }],
+    );
+    observer.conditions.clear();
+    let old = Card::weapon("Old", 0, 1, 2)
+        .with_triggers(vec![observer])
+        .with_deathrattle(vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 3,
+            temporary: true,
+        }]);
+    let new = Card::weapon("New", 0, 2, 2);
+    let mut sim = weapon_fixture(vec![old, new]);
+    let old_id = weapon_play(&mut sim);
+    let hero_id = hero(&mut sim, PlayerId::One);
+    let entity = game_entity(sim.app.world(), hero_id).unwrap();
+    let mut after_observer = self_event_trigger(
+        EventKind::AfterPlay,
+        vec![Effect::GainResource {
+            player: PlayerSelector::Controller,
+            amount: 11,
+            temporary: true,
+        }],
+    );
+    after_observer.conditions.clear();
+    sim.app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![after_observer]));
+    let before = sim.snapshot().players[0].temporary_resources;
+    let new_id = weapon_play(&mut sim);
+    assert_eq!(sim.snapshot().players[0].temporary_resources - before, 16);
+    let trace = &sim.checkpoint().unwrap().trace.entries;
+    let death = trace
+        .iter()
+        .rposition(|entry| matches!(entry, TraceEntry::EntityDied { entity } if *entity == old_id))
+        .unwrap();
+    let after = trace.iter().rposition(|entry| matches!(entry, TraceEntry::EventCreated { kind: EventKind::AfterPlay, source: Some(id), .. } if *id == new_id)).unwrap();
+    // Prepared AfterPlay is created early, but resolves only after death processing.
+    assert!(after < death);
+    let last_trigger = trace.iter().rposition(|entry| matches!(entry, TraceEntry::TriggerResolved { source, .. } if *source == old_id)).unwrap();
+    assert!(last_trigger > death);
+    let after_trigger = trace.iter().rposition(|entry| matches!(entry, TraceEntry::TriggerResolved { source, .. } if *source == hero_id)).unwrap();
+    assert!(after_trigger > last_trigger);
+}
+
+#[test]
+fn weapon_and_minion_combat_deaths_share_play_order() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 1)]);
+    let blade = weapon_play(&mut sim);
+    let target = spawn_card(
+        sim.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Target", 0, 1, 2),
+        Zone::Play,
+    )
+    .unwrap();
+    let target_entity = game_entity(sim.app.world(), target).unwrap();
+    let order = crate::entity::allocate_play_order(sim.app.world_mut());
+    sim.app.world_mut().entity_mut(target_entity).insert(order);
+    let attacker = hero(&mut sim, PlayerId::One);
+    sim.apply(GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: target,
+    })
+    .unwrap();
+    let deaths = sim.snapshot().deaths;
+    assert_eq!(
+        deaths.iter().map(|d| d.entity).collect::<Vec<_>>(),
+        vec![blade, target]
+    );
+    let trace = sim.checkpoint().unwrap().trace.entries;
+    let after_attack = trace
+        .iter()
+        .position(|entry| {
+            matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::AfterAttack,
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    let first_death = trace
+        .iter()
+        .position(|entry| matches!(entry, TraceEntry::EntityDied { .. }))
+        .unwrap();
+    assert!(after_attack < first_death);
+}
+
+#[test]
+fn weapon_changed_before_damage_preparation_supplies_attack_and_pays_durability() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Old", 0, 1, 2),
+        Card::weapon("New", 0, 5, 3),
+    ]);
+    let old = weapon_play(&mut sim);
+    let new = hand_card(&mut sim, PlayerId::One);
+    let mut trigger = self_event_trigger(
+        EventKind::Attack,
+        vec![
+            Effect::Move {
+                targets: Selector::Entity(old),
+                player: PlayerSelector::Controller,
+                zone: Zone::Graveyard,
+                kind: ZoneMovementKind::Normal,
+            },
+            Effect::Move {
+                targets: Selector::Entity(new),
+                player: PlayerSelector::Controller,
+                zone: Zone::Play,
+                kind: ZoneMovementKind::Normal,
+            },
+            weapon_pause(),
+        ],
+    );
+    trigger.conditions.clear();
+    let attacker = hero(&mut sim, PlayerId::One);
+    let entity = game_entity(sim.app.world(), attacker).unwrap();
+    sim.app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    weapon_attack(&mut sim);
+    weapon_restore_and_finish(&mut sim);
+    let snapshot = sim.snapshot();
+    assert_eq!(snapshot.players[1].health, 25);
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|o| o.id == new)
+            .unwrap()
+            .durability,
+        Some(2)
+    );
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|o| o.id == old)
+            .unwrap()
+            .durability,
+        Some(2)
+    );
+}
+
+#[test]
+fn weapon_bounce_resets_durability_and_copy_uses_base_definition() {
+    let mut sim = weapon_fixture(vec![Card::weapon("Blade", 0, 3, 2)]);
+    let weapon = weapon_play(&mut sim);
+    weapon_attack(&mut sim);
+    assert_eq!(
+        copy_card_data(sim.app.world(), weapon).unwrap().durability,
+        2
+    );
+    crate::zone::move_entity(sim.app.world_mut(), weapon, Zone::Hand, None).unwrap();
+    assert_eq!(sim.snapshot().players[0].weapon, None);
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == weapon)
+            .unwrap()
+            .durability,
+        Some(2)
+    );
+    weapon_play(&mut sim);
+    sim.assert_invariants().unwrap();
+}
+
+#[test]
+fn weapon_failed_sequence_releases_replacement_scope_without_rollback() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Old", 0, 1, 2),
+        Card::weapon("New", 0, 2, 2).with_effects(vec![weapon_pause()]),
+    ]);
+    let old = weapon_play(&mut sim);
+    let new = weapon_play(&mut sim);
+    sim.app
+        .world_mut()
+        .resource_mut::<ResolutionWork>()
+        .remaining_budget = 0;
+    assert!(sim.choose(ChoiceId(502)).is_err());
+    assert_eq!(sim.snapshot().players[0].weapon, Some(new));
+    assert_eq!(
+        sim.snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == old)
+            .unwrap()
+            .zone,
+        Zone::Graveyard
+    );
+    assert!(sim.checkpoint().unwrap().weapons.pending.is_empty());
+    sim.assert_invariants().unwrap();
+    end_active_turn(&mut sim);
+}
+
+#[test]
+fn weapon_targeted_play_uses_declared_target_without_spell_damage() {
+    let filter = TargetFilter {
+        audience: TargetAudience::Enemy,
+        kind: TargetKind::Character,
+    };
+    let blade = Card::weapon("Battlecry blade", 0, 2, 2)
+        .with_targeting(TargetRequirement::Required(filter))
+        .with_effects(vec![Effect::DealDamage {
+            targets: Selector::DeclaredTarget,
+            amount: ValueExpression::Constant(2),
+        }]);
+    let mut sim = weapon_fixture(vec![blade]);
+    spawn_card(
+        sim.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Spell booster", 0, 0, 1).with_spell_damage(5),
+        Zone::Play,
+    )
+    .unwrap();
+    let card = hand_card(&mut sim, PlayerId::One);
+    let target = hero(&mut sim, PlayerId::Two);
+    let action = play_declaration(card, Some(target), None, None);
+    assert!(sim.legal_actions().contains(&action));
+    assert!(
+        !sim.legal_actions()
+            .contains(&play_declaration(card, None, None, None))
+    );
+    sim.apply(action).unwrap();
+    assert_eq!(sim.snapshot().players[1].health, 28);
+    assert_eq!(sim.snapshot().players[0].weapon, Some(card));
+}
+
 fn combat_reaction_fixture() -> (Simulation, GameEntityId, GameEntityId) {
     let mut simulation = simulation();
     let attacker = keyword_attacker(&mut simulation, Card::minion("Attacker", 0, 2, 10));
@@ -4309,7 +4981,7 @@ fn combat_reaction_choices_restore_live_damage_and_cancellation_exactly() {
         );
         declare_combat(&mut simulation, attacker, defender);
         let checkpoint = simulation.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 15);
+        assert_eq!(checkpoint.schema_version, 16);
         assert_eq!(combat_damage(&mut simulation, defender), 0);
         for missing_attacker in [false, true] {
             let mut invalid = checkpoint.clone();

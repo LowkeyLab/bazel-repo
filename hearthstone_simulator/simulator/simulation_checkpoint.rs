@@ -65,6 +65,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
                 base_keywords: entity.get::<BaseKeywords>().cloned(),
                 current_stats: entity.get::<CurrentStats>().copied(),
                 damage: entity.get::<Damage>().copied(),
+                weapon_state: entity.get::<crate::WeaponState>().copied(),
                 armor: entity.get::<Armor>().copied(),
                 pending_destroy: entity.contains::<crate::PendingDestroy>(),
                 keywords: entity.get::<Keywords>().cloned(),
@@ -111,6 +112,7 @@ pub(super) fn build_checkpoint(world: &World) -> Result<SimulationCheckpoint, Si
         ruleset: world.resource::<Ruleset>().clone(),
         game: world.resource::<GameState>().clone(),
         turn_schedule: world.resource::<TurnSchedule>().clone(),
+        weapons: world.resource::<crate::WeaponEquipment>().clone(),
         dominant_player: world.resource::<DominantPlayer>().0,
         next_game_entity_id: world.resource::<NextGameEntityId>().0,
         next_play_order: world.resource::<PlayOrderCounter>().0,
@@ -139,6 +141,7 @@ pub(super) fn restore_checkpoint(
     world.insert_resource(checkpoint.ruleset);
     world.insert_resource(checkpoint.game);
     world.insert_resource(checkpoint.turn_schedule);
+    world.insert_resource(checkpoint.weapons);
     world.insert_resource(DominantPlayer(checkpoint.dominant_player));
     world.insert_resource(NextGameEntityId(checkpoint.next_game_entity_id));
     world.insert_resource(PlayOrderCounter(checkpoint.next_play_order));
@@ -189,6 +192,7 @@ pub(super) fn restore_checkpoint(
     }
     validate_restored_programs(world)?;
 
+    crate::weapon::assert_invariants(world).map_err(SimulationError::Checkpoint)?;
     assert_zone_invariants(world).map_err(SimulationError::Invariant)?;
     assert_enchantment_invariants(world).map_err(SimulationError::Invariant)?;
     assert_player_role_invariants(world).map_err(SimulationError::Invariant)?;
@@ -221,6 +225,9 @@ fn restore_entity_components(world: &mut World, object: &GameEntityCheckpoint) {
         entity.insert(value.clone());
     }
     if let Some(value) = object.current_stats {
+        entity.insert(value);
+    }
+    if let Some(value) = object.weapon_state {
         entity.insert(value);
     }
     if let Some(value) = object.damage {
@@ -560,6 +567,11 @@ fn validate_checkpoint_entity(
     entity: &GameEntityCheckpoint,
     ids: &BTreeSet<GameEntityId>,
 ) -> Result<(), SimulationError> {
+    if (entity.kind == Some(EntityKind::Weapon)) != entity.weapon_state.is_some()
+        || entity.weapon_state.is_some_and(|s| s.base_durability <= 0)
+    {
+        return Err(SimulationError::Checkpoint("invalid weapon state".into()));
+    }
     if entity.kind == Some(EntityKind::Enchantment) {
         if entity.enchantment_duration.is_none() {
             return Err(SimulationError::Checkpoint(format!(
@@ -925,10 +937,13 @@ fn validate_sequence_step_references(
         SequenceStep::BreakAttackStealth { attacker } => {
             validate_entity_reference("Stealth attacker", *attacker, ids)?;
         }
-        SequenceStep::Attack {
+        SequenceStep::FinishEquip { weapon } | SequenceStep::ConsumeDurability { weapon, .. } => {
+            validate_entity_reference("weapon", *weapon, ids)?;
+        }
+        SequenceStep::PrepareCombatDamage {
             attacker, defender, ..
         }
-        | SequenceStep::PrepareCombatDamage {
+        | SequenceStep::Attack {
             attacker, defender, ..
         }
         | SequenceStep::FinishAttack {

@@ -8,8 +8,8 @@ use super::{
     player::{controlled_entity_in_zone, player},
 };
 use crate::{
-    AttackState, Controller, CurrentStats, EntityKind, GameAction, GameEntityId, GameState,
-    Keyword, PlayerId, RuntimeTriggers, SimulationStatus, TargetRequirement, Zone,
+    AttackState, Controller, EntityKind, GameAction, GameEntityId, GameState, Keyword, PlayerId,
+    RuntimeTriggers, SimulationStatus, TargetRequirement, Zone,
     aura::has_keyword,
     entity::game_entity,
     zone::{board_entities, board_is_full, validate_board_position},
@@ -179,7 +179,17 @@ fn validate_play_card(
     let kind = *world
         .get::<EntityKind>(card_entity)
         .ok_or(SimulationError::NotPlayable(card_id))?;
-    if !matches!(kind, EntityKind::Minion | EntityKind::Spell) {
+    if !matches!(
+        kind,
+        EntityKind::Minion | EntityKind::Spell | EntityKind::Weapon
+    ) {
+        return Err(SimulationError::NotPlayable(card_id));
+    }
+    if kind == EntityKind::Weapon
+        && world
+            .get::<crate::WeaponState>(card_entity)
+            .is_none_or(|s| s.base_durability <= 0 || s.durability <= 0)
+    {
         return Err(SimulationError::NotPlayable(card_id));
     }
     if kind == EntityKind::Minion && board_is_full(world, player_id) {
@@ -368,9 +378,7 @@ fn validate_attack(
         .ok_or(SimulationError::CannotAttack(attacker_id))?;
     if has_keyword(world, attacker, Keyword::Frozen)
         || attack_exhausted(world, attacker, attack_state)
-        || world
-            .get::<CurrentStats>(attacker)
-            .is_none_or(|stats| stats.attack <= 0)
+        || crate::weapon::effective_attack(world, attacker) <= 0
     {
         return Err(SimulationError::CannotAttack(attacker_id));
     }

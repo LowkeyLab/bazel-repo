@@ -816,7 +816,7 @@ fn ruleset_capacity_covers_deck_battlefield_roles_and_secret_restrictions() {
     spawn_card(
         simulation.app.world_mut(),
         PlayerId::One,
-        Card::weapon("First weapon", 0, 1),
+        Card::weapon("First weapon", 0, 1, 2),
         Zone::Play,
     )
     .unwrap();
@@ -824,7 +824,7 @@ fn ruleset_capacity_covers_deck_battlefield_roles_and_secret_restrictions() {
         spawn_card(
             simulation.app.world_mut(),
             PlayerId::One,
-            Card::weapon("Second weapon", 0, 1),
+            Card::weapon("Second weapon", 0, 1, 2),
             Zone::Play,
         ),
         err(anything())

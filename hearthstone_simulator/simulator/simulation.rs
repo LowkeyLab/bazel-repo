@@ -87,6 +87,7 @@ impl Plugin for HearthstoneSimulationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameState>()
             .init_resource::<TurnSchedule>()
+            .init_resource::<crate::WeaponEquipment>()
             .init_resource::<DominantPlayer>()
             .init_resource::<Ruleset>()
             .init_resource::<GameEntityIndex>()
@@ -296,6 +297,7 @@ impl Simulation {
     ///
     /// Returns [`SimulationError::Invariant`] describing the first violated invariant.
     pub fn assert_invariants(&self) -> Result<(), SimulationError> {
+        crate::weapon::assert_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
         assert_zone_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
         assert_enchantment_invariants(self.app.world()).map_err(SimulationError::Invariant)?;
         player::assert_player_role_invariants(self.app.world())
