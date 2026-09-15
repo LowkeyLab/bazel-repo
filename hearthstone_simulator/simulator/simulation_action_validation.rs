@@ -319,6 +319,36 @@ pub(super) fn attack_exhausted(world: &World, entity: Entity, state: AttackState
     (state.readiness_blocked && !bypasses_readiness) || state.attacks_this_turn >= allowance
 }
 
+/// Thaw eligibility deliberately ignores Frozen, Attack value, and ordinary target filters.
+/// Fresh Rush requires an enemy Minion; initial readiness and spent attacks still matter.
+pub(super) fn can_thaw(world: &World, entity: Entity) -> bool {
+    let Some(state) = world.get::<AttackState>(entity).copied() else {
+        return false;
+    };
+    if !matches!(
+        world.get::<EntityKind>(entity),
+        Some(EntityKind::Hero | EntityKind::Minion)
+    ) || attack_exhausted(world, entity, state)
+    {
+        return false;
+    }
+    if state.readiness_blocked
+        && world.get::<EntityKind>(entity) == Some(&EntityKind::Minion)
+        && !has_keyword(world, entity, Keyword::Charge)
+    {
+        let Some(controller) = world.get::<Controller>(entity) else {
+            return false;
+        };
+        return world
+            .resource::<crate::zone::ZoneIndex>()
+            .entities(controller.0.opponent(), Zone::Play)
+            .iter()
+            .filter_map(|id| game_entity(world, *id))
+            .any(|defender| world.get::<EntityKind>(defender) == Some(&EntityKind::Minion));
+    }
+    true
+}
+
 fn validate_attack(
     world: &World,
     player_id: PlayerId,
@@ -336,7 +366,8 @@ fn validate_attack(
         .get::<AttackState>(attacker)
         .copied()
         .ok_or(SimulationError::CannotAttack(attacker_id))?;
-    if attack_exhausted(world, attacker, attack_state)
+    if has_keyword(world, attacker, Keyword::Frozen)
+        || attack_exhausted(world, attacker, attack_state)
         || world
             .get::<CurrentStats>(attacker)
             .is_none_or(|stats| stats.attack <= 0)

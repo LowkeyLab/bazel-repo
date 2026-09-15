@@ -935,6 +935,7 @@ fn validate_sequence_step_references(
             validate_entity_reference("defender", *defender, ids)?;
         }
         SequenceStep::EndTurn { .. }
+        | SequenceStep::ThawCharacters { .. }
         | SequenceStep::AdvanceTurn { .. }
         | SequenceStep::StartTurn { .. }
         | SequenceStep::Concede { .. } => {}

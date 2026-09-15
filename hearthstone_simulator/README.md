@@ -70,7 +70,7 @@ recalculation cannot restore consumed grants, while a later grant can restore St
 silence, transformation, backward movement, and copy policies apply to that enchantment. A subject
 that has left Play skips this step. Damage success is not required to consume Stealth.
 
-Checkpoint schema 13 persists this step and rejects earlier schemas. The boundary placement is
+Checkpoint schema 14 persists this step and rejects earlier schemas. The boundary placement is
 an explicit engine policy within the existing simplified combat sequence; complete preparation
 phases, damage-stat refresh after attack reactions, redirection, and full combat guards remain
 unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
@@ -92,8 +92,8 @@ enchantment-granted Windfury are supported; no Windfury aura mechanism is introd
 Attack completion still records usage at the existing `FinishAttack` step, before AfterAttack
 reactions. Changes to Windfury during reactions affect the next declaration. This preserves the
 existing simplified combat timing, whose exact pinned-rulebook conformance remains unverified.
-Checkpoint schema 13 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
-Frozen, Mega-Windfury, and full combat phase guards remain outside this slice.
+Checkpoint schema 14 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
+Mega-Windfury and full combat phase guards remain outside this slice.
 
 ## Charge and Rush
 
@@ -116,9 +116,30 @@ rulebook revision. Full preparation phases and combat guards remain gaps.
 Fresh Play copies reset readiness and attack counts and use their eligible copied keywords.
 Backward movement removes ordinary keyword grants while retaining native keywords for replay.
 Existing transformation behavior replaces keywords and resets to a ready, zero-attack state;
-that readiness policy remains a separate conformance gap. Checkpoint schema 13 is unchanged and
+that readiness policy remains a separate conformance gap. Checkpoint schema 14
 restores keyword/readiness state and suspended attacks exactly within the updated engine; replay
 equivalence with older binaries where these keywords were inactive is not guaranteed.
+
+## Frozen
+
+Frozen Heroes and Minions cannot declare attacks, but still deal defensive combat damage and
+can use Hero Powers. Freeze does not change readiness or attacks spent; snapshot `exhausted`
+continues to describe readiness and attack allowance independently of Frozen.
+
+An explicit `ThawCharacters` step runs for the ending player after end-turn reactions, their
+ordinary death boundary, and the outcome check, before temporary enchantment expiration and
+turn advancement. It uses current readiness and the ordinary/Windfury attack allowance.
+A fresh Rush-only Minion additionally needs an enemy Minion in Play. This presence check ignores
+Stealth, Immune, Taunt, and Attack value; ready characters and Charge bypass that check. These
+edge cases and boundary placement are explicit engine policy, not certified pinned-rulebook
+conformance. Extra turns provide ordinary thaw opportunities.
+
+Thaw consumes existing Frozen grants with an ordered removal, so recalculation cannot restore
+them; later grants can freeze again. Silence, transformation, backward movement, and in-Play
+copying use existing keyword lifecycle policies. Repeated freezing does not stack skipped turns.
+An attack accepted before an Attack reaction freezes its attacker still completes under the
+existing simplified combat policy; later declarations are blocked. Checkpoint schema 14 persists
+the new thaw step and rejects earlier schemas. No new timer or freeze-history state is required.
 
 ## Hero Power activation
 
@@ -138,7 +159,7 @@ retains completion bookkeeping on its old ID, including in RemovedFromGame; the 
 ready. If the original no longer exists or is no longer a Hero Power with power state, completion
 omits that state mutation while remaining sequence work continues. This replacement policy and
 boundary placement are not certified against the inaccessible pinned rulebook revision.
-Checkpoint schema 13 preserves suspended activations and captured after-use seeds; older schemas
+Checkpoint schema 14 preserves suspended activations and captured after-use seeds; older schemas
 are rejected. Summon-only full-board restrictions, variable use limits, game-wide usage counters,
 modal choices, and targeting redirection remain gaps.
 
@@ -231,6 +252,6 @@ cannot use `&mut World`, mutable system parameters, or `Commands`. `Effect::Choo
 request ID, player selector, and `EffectChoiceOption` values with IDs and effect programs.
 Use `pending_choice()` and `choose(option_id)` to inspect and answer a suspended request.
 
-Checkpoint schema 13 includes explicit play scopes and rejects schema 12 and earlier. Existing
+Checkpoint schema 14 includes explicit play scopes and rejects schema 13 and earlier. Existing
 saved checkpoints must be regenerated. Action and choice completion check for leftover resolution
 state; failures clear pending work without rolling back gameplay mutations already applied.

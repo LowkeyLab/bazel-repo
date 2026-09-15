@@ -2888,7 +2888,7 @@ fn windfury_first_attack_checkpoint_json_and_fork_continue_identically() {
         let (mut original, attacker, action) = windfury_fixture(is_hero, true);
         original.apply(action.clone()).unwrap();
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 13);
+        assert_eq!(checkpoint.schema_version, 14);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -3549,7 +3549,7 @@ fn charge_rush_suspended_attack_keyword_loss_restores_and_finishes_exactly_once(
             keyword
         ));
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 13);
+        assert_eq!(checkpoint.schema_version, 14);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -3660,5 +3660,409 @@ fn charge_rush_does_not_bypass_ownership_turn_or_zone_restrictions() {
             },
         );
         assert_charge_rush_actions(&mut simulation, &minion, &face, false, false);
+    }
+}
+
+fn is_frozen(simulation: &Simulation, id: GameEntityId) -> bool {
+    crate::aura::has_keyword(
+        simulation.app.world(),
+        game_entity(simulation.app.world(), id).unwrap(),
+        Keyword::Frozen,
+    )
+}
+
+fn freeze(simulation: &mut Simulation, id: GameEntityId) {
+    keyword_grant(
+        simulation,
+        id,
+        Keyword::Frozen,
+        crate::EnchantmentDuration::Permanent,
+    );
+}
+
+fn end_active_turn(simulation: &mut Simulation) {
+    let player = simulation.snapshot().game.active_player;
+    simulation.apply(GameAction::EndTurn { player }).unwrap();
+}
+
+#[test]
+fn frozen_declarations_are_atomic_but_defensive_damage_and_readiness_are_preserved() {
+    for is_hero in [false, true] {
+        let (mut simulation, attacker, action) = windfury_fixture(is_hero, true);
+        let state = windfury_attack_state(&simulation, attacker);
+        freeze(&mut simulation, attacker);
+        assert!(!windfury_snapshot_exhausted(&mut simulation, attacker));
+        let before = simulation.checkpoint().unwrap();
+        assert!(!simulation.legal_actions().contains(&action));
+        assert_eq!(before, simulation.checkpoint().unwrap());
+        assert_rejected_action_is_atomic(
+            &mut simulation,
+            action,
+            SimulationError::CannotAttack(attacker),
+        );
+        assert_eq!(state, windfury_attack_state(&simulation, attacker));
+    }
+    let (mut simulation, attacker, _) = windfury_fixture(false, false);
+    end_active_turn(&mut simulation);
+    freeze(&mut simulation, attacker);
+    let enemy = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Enemy", 0, 1, 5).with_keyword(Keyword::Charge),
+        Zone::Play,
+    )
+    .unwrap();
+    simulation
+        .apply(GameAction::Attack {
+            player: PlayerId::Two,
+            attacker: enemy,
+            defender: attacker,
+        })
+        .unwrap();
+    assert_eq!(
+        simulation
+            .snapshot()
+            .objects
+            .iter()
+            .find(|o| o.id == enemy)
+            .unwrap()
+            .damage,
+        1
+    );
+    assert!(is_frozen(&simulation, attacker));
+}
+
+#[test]
+fn frozen_thaw_matrix_uses_current_attack_allowance_and_controller_turn() {
+    for is_hero in [false, true] {
+        for windfury in [false, true] {
+            for spent in 0..=2 {
+                let (mut simulation, attacker, _) = windfury_fixture(is_hero, windfury);
+                let entity = game_entity(simulation.app.world(), attacker).unwrap();
+                simulation
+                    .app
+                    .world_mut()
+                    .get_mut::<AttackState>(entity)
+                    .unwrap()
+                    .attacks_this_turn = spent;
+                freeze(&mut simulation, attacker);
+                freeze(&mut simulation, attacker);
+                end_active_turn(&mut simulation);
+                let exhausted = spent >= if windfury { 2 } else { 1 };
+                assert_eq!(is_frozen(&simulation, attacker), exhausted);
+                end_active_turn(&mut simulation);
+                assert_eq!(is_frozen(&simulation, attacker), exhausted);
+                end_active_turn(&mut simulation);
+                assert!(!is_frozen(&simulation, attacker));
+            }
+        }
+    }
+}
+
+#[test]
+fn frozen_fresh_minions_use_live_charge_rush_and_enemy_minion_presence() {
+    for keywords in [
+        vec![],
+        vec![Keyword::Charge],
+        vec![Keyword::Rush],
+        vec![Keyword::Rush, Keyword::Charge],
+    ] {
+        for enemy_present in [false, true] {
+            let (mut simulation, attacker, minion, _) = charge_rush_fixture(&keywords, false, true);
+            let GameAction::Attack { defender, .. } = minion else {
+                unreachable!()
+            };
+            if !enemy_present {
+                crate::zone::move_entity(
+                    simulation.app.world_mut(),
+                    defender,
+                    Zone::Graveyard,
+                    None,
+                )
+                .unwrap();
+            }
+            freeze(&mut simulation, attacker);
+            let entity = game_entity(simulation.app.world(), attacker).unwrap();
+            simulation
+                .app
+                .world_mut()
+                .get_mut::<CurrentStats>(entity)
+                .unwrap()
+                .attack = 0;
+            end_active_turn(&mut simulation);
+            let thaws = keywords.contains(&Keyword::Charge)
+                || (keywords.contains(&Keyword::Rush) && enemy_present);
+            assert_eq!(is_frozen(&simulation, attacker), !thaws);
+        }
+    }
+    let (mut simulation, attacker, _) = windfury_fixture(false, false);
+    let entity = game_entity(simulation.app.world(), attacker).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<AttackState>(entity)
+        .unwrap()
+        .attacks_this_turn = 1;
+    freeze(&mut simulation, attacker);
+    keyword_grant(
+        &mut simulation,
+        attacker,
+        Keyword::Windfury,
+        crate::EnchantmentDuration::EndOfTurn(PlayerId::One),
+    );
+    end_active_turn(&mut simulation);
+    assert!(!is_frozen(&simulation, attacker));
+    assert!(!crate::aura::has_keyword(
+        simulation.app.world(),
+        entity,
+        Keyword::Windfury
+    ));
+}
+
+#[test]
+fn frozen_thaw_consumes_grants_and_lifecycle_changes_remove_freeze() {
+    let (mut simulation, attacker, _) = windfury_fixture(false, false);
+    freeze(&mut simulation, attacker);
+    end_active_turn(&mut simulation);
+    crate::enchantment::recalculate_keywords(simulation.app.world_mut(), attacker);
+    assert!(!is_frozen(&simulation, attacker));
+    freeze(&mut simulation, attacker);
+    assert!(is_frozen(&simulation, attacker));
+    let mut silenced = simulation.fork().unwrap();
+    silence_entity(silenced.app.world_mut(), attacker).unwrap();
+    assert!(!is_frozen(&silenced, attacker));
+    let mut transformed = simulation.fork().unwrap();
+    transform_entity(
+        transformed.app.world_mut(),
+        attacker,
+        Card::minion("Thawed form", 0, 1, 5),
+        TransformKind::Spell,
+    )
+    .unwrap();
+    assert!(!is_frozen(&transformed, attacker));
+    let mut moved = simulation.fork().unwrap();
+    crate::zone::move_entity_with_request(
+        moved.app.world_mut(),
+        ZoneMoveRequest {
+            entity: attacker,
+            destination_controller: PlayerId::One,
+            destination: Zone::Hand,
+            position: None,
+            kind: ZoneMovementKind::Normal,
+        },
+    )
+    .unwrap();
+    assert!(!is_frozen(&moved, attacker));
+    let before = simulation
+        .snapshot()
+        .objects
+        .iter()
+        .map(|o| o.id)
+        .collect::<Vec<_>>();
+    super::effect_executor::copy_entity(
+        simulation.app.world_mut(),
+        crate::CopyRequest {
+            source: attacker,
+            originating_source: None,
+            controller: PlayerId::One,
+            destination: Zone::Play,
+            board_index: None,
+            policy: crate::CopyStatePolicy::InPlayState,
+        },
+    )
+    .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    let copy = simulation
+        .snapshot()
+        .objects
+        .iter()
+        .find(|o| o.name == "Windfury fixture" && !before.contains(&o.id))
+        .unwrap()
+        .id;
+    assert!(is_frozen(&simulation, copy));
+    assert!(windfury_attack_state(&simulation, copy).readiness_blocked);
+}
+
+#[test]
+fn frozen_suspended_end_turn_thaws_after_reactions_and_restores_exactly() {
+    let (mut original, attacker, _) = windfury_fixture(false, false);
+    let mut trigger = self_event_trigger(
+        EventKind::TurnEnded,
+        vec![
+            charge_rush_modifier(Keyword::Frozen, true),
+            Effect::Choose {
+                id: ChoiceId(90),
+                player: PlayerSelector::Controller,
+                options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                    id: ChoiceId(91),
+                    effects: vec![],
+                }],
+            },
+        ],
+    );
+    trigger.conditions.clear();
+    let entity = game_entity(original.app.world(), attacker).unwrap();
+    original
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    end_active_turn(&mut original);
+    assert!(is_frozen(&original, attacker));
+    assert!(original.pending_choice().is_some());
+    let checkpoint = original.checkpoint().unwrap();
+    assert!(checkpoint.to_json().unwrap().contains("ThawCharacters"));
+    let mut restored = Simulation::from_checkpoint(
+        SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
+    )
+    .unwrap();
+    let mut fork = original.fork().unwrap();
+    for candidate in [&mut original, &mut restored, &mut fork] {
+        candidate.choose(ChoiceId(91)).unwrap();
+        assert!(!is_frozen(candidate, attacker));
+        candidate.assert_invariants().unwrap();
+    }
+    assert_eq!(
+        original.checkpoint().unwrap(),
+        restored.checkpoint().unwrap()
+    );
+    assert_eq!(original.checkpoint().unwrap(), fork.checkpoint().unwrap());
+}
+
+#[test]
+fn frozen_during_attack_reactions_preserves_accepted_attack() {
+    let (mut original, attacker, action) = windfury_fixture(false, true);
+    let mut trigger = self_event_trigger(
+        EventKind::Attack,
+        vec![
+            charge_rush_modifier(Keyword::Frozen, true),
+            Effect::Choose {
+                id: ChoiceId(90),
+                player: PlayerSelector::Controller,
+                options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                    id: ChoiceId(91),
+                    effects: vec![],
+                }],
+            },
+        ],
+    );
+    trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+    let entity = game_entity(original.app.world(), attacker).unwrap();
+    original
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    original.apply(action.clone()).unwrap();
+    assert!(is_frozen(&original, attacker));
+    let mut fork = original.fork().unwrap();
+    for candidate in [&mut original, &mut fork] {
+        candidate.choose(ChoiceId(91)).unwrap();
+        assert_eq!(
+            windfury_attack_state(candidate, attacker).attacks_this_turn,
+            1
+        );
+        let defender = hero(candidate, PlayerId::Two);
+        assert_eq!(
+            candidate
+                .snapshot()
+                .objects
+                .iter()
+                .find(|o| o.id == defender)
+                .unwrap()
+                .damage,
+            1
+        );
+        assert!(!candidate.legal_actions().contains(&action));
+    }
+    assert_eq!(original.checkpoint().unwrap(), fork.checkpoint().unwrap());
+}
+
+#[test]
+fn frozen_extra_turn_is_a_thaw_opportunity_and_hero_power_remains_usable() {
+    let (mut simulation, attacker, action) = windfury_fixture(false, false);
+    simulation.apply(action).unwrap();
+    freeze(&mut simulation, attacker);
+    execute_effect(
+        simulation.app.world_mut(),
+        &EffectContext {
+            source: None,
+            controller: PlayerId::One,
+            declared_target: None,
+            drawn_card: None,
+            origin: EffectOrigin::Other,
+        },
+        &Effect::ScheduleExtraTurns {
+            player: PlayerSelector::Controller,
+            count: 1,
+            timing: crate::ExtraTurnTiming::AfterCurrentTurn,
+        },
+    )
+    .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    end_active_turn(&mut simulation);
+    assert_eq!(simulation.snapshot().game.active_player, PlayerId::One);
+    assert!(is_frozen(&simulation, attacker));
+    end_active_turn(&mut simulation);
+    assert!(!is_frozen(&simulation, attacker));
+
+    let mut simulation = super::test_support::simulation();
+    let hero = hero(&mut simulation, PlayerId::One);
+    freeze(&mut simulation, hero);
+    let power = simulation.snapshot().players[0].hero_power.unwrap();
+    let power_entity = game_entity(simulation.app.world(), power).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<super::card_runtime::CardRuntime>(power_entity)
+        .unwrap()
+        .cost = 0;
+    let action = GameAction::UseHeroPower {
+        player: PlayerId::One,
+        power,
+        target: None,
+    };
+    assert!(simulation.legal_actions().contains(&action));
+    simulation.apply(action).unwrap();
+    assert!(is_frozen(&simulation, hero));
+}
+
+#[test]
+fn frozen_thaw_observes_end_turn_deaths_and_live_readiness_keywords() {
+    let (mut simulation, attacker, minion, _) = charge_rush_fixture(&[Keyword::Rush], false, true);
+    let GameAction::Attack { defender, .. } = minion else {
+        unreachable!()
+    };
+    freeze(&mut simulation, attacker);
+    let mut trigger = self_event_trigger(
+        EventKind::TurnEnded,
+        vec![Effect::Destroy {
+            targets: Selector::Source,
+        }],
+    );
+    trigger.conditions.clear();
+    let entity = game_entity(simulation.app.world(), defender).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    end_active_turn(&mut simulation);
+    assert!(is_frozen(&simulation, attacker));
+    assert_eq!(
+        *simulation.app.world().get::<Zone>(entity).unwrap(),
+        Zone::Graveyard
+    );
+
+    for (initial, changed, granted, thawed) in [
+        (Keyword::Rush, Keyword::Charge, true, true),
+        (Keyword::Charge, Keyword::Charge, false, false),
+        (Keyword::Rush, Keyword::Rush, false, false),
+    ] {
+        let (mut simulation, attacker, _, _) = charge_rush_fixture(&[initial], false, true);
+        freeze(&mut simulation, attacker);
+        change_charge_rush(&mut simulation, attacker, changed, granted);
+        end_active_turn(&mut simulation);
+        assert_eq!(is_frozen(&simulation, attacker), !thawed);
     }
 }
