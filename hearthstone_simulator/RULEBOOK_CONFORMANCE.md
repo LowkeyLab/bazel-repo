@@ -54,7 +54,7 @@ Behavior classifications:
 | Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`                             | JSON/reference-validation tests                    | Implemented foundation                                     |
 | Explicit targeting filter foundation                                | Engine policy       | `TargetRequirement`, validator                     | target requirement/atomicity tests                 | Implemented foundation; audience/kind and Stealth/Immune   |
 | Canonical supported action enumeration and normalization            | Engine policy       | `validate_action`, `legal_actions`                 | exhaustive/soundness/purity tests                  | Implemented foundation                                     |
-| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 14                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7/8/9/10/11/12 rejected    |
+| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 15                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 14 and earlier rejected    |
 | Forced Death Phase timing                                           | Compatibility quirk | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Added Deathrattles and Deathrattle-position policy                  | Current rule        | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Historical retired interactions                                     | Historical          | excluded by profile                                | profile tests                                      | Planned                                                    |
@@ -92,8 +92,8 @@ and game-wide usage counters remain gaps. `OriginalPowerCompletion` updates the 
 even after replacement removes it from Play, and leaves the new power ready. Completion precedes
 an ordinary boundary, then captured after-use reactions, another boundary, and outcome checking.
 These completion and boundary choices are explicit engine policy, not verified pinned-rulebook
-conformance. Checkpoint schema 14 is
-the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, 9, 10, 11, and 12,
+conformance. Checkpoint schema 15 is
+the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, 9, 10, 11, 12, 13, and 14,
 are rejected.
 
 For `AdvancedRulebook2026_06_26`, Hero replacement follows the dedicated “Replacing your hero” section and removes attached temporary enchantments. The contradictory sentence in the Hero-card player-action section is not generalized into the replacement reducer; full Hero-card sequencing remains a Milestone 8 gap.
@@ -107,8 +107,8 @@ Declaration restrictions and Taunt suppression follow the current [Target](https
 combat preparation regardless of successful damage. The pinned revision could not be retrieved.
 
 The implemented `BreakAttackStealth` step runs after the existing Attack-event reactions and before
-the prebuilt damage batch. This placement is engine policy within simplified combat, not certified
-full preparation-phase conformance. Ordered removal enchantments preserve consumption through
+the preparation death boundary and live damage preparation. This placement is engine policy within
+simplified combat, not certified full preparation-phase conformance. Ordered removal enchantments preserve consumption through
 recalculation and checkpoints and allow later grants. Fixtures cover declarations, Taunt suppression,
 silence, expiration, copying, transformation, movement, and suspended continuation.
 
@@ -119,7 +119,7 @@ allowance of two attacks based on attacks already made that turn. The engine sup
 Heroes and Minions through innate and enchantment-granted keywords, including mid-turn gain,
 loss, regranting, and non-stacking grants. Readiness blocking remains independent; gaining
 Windfury cannot ready a newly summoned or copied Minion. Snapshot exhaustion and declaration
-validation share the same live calculation. Schema 14 preserves both readiness and attacks spent.
+validation share the same live calculation. Schema 15 preserves both readiness and attacks spent.
 
 The existing FinishAttack timing remains engine policy: usage increments before AfterAttack
 reactions, and keyword changes affect the next declaration. Exact pinned-rulebook timing remains
@@ -144,7 +144,7 @@ Accepted attacks retain existing continuation and completion timing after Charge
 That timing is explicit engine policy, not full combat conformance. Existing transformation resets
 to ready with zero attacks spent are also retained as an unverified lifecycle policy and separate
 conformance gap. Copy, bounce/replay, and control movement use existing reset policies with live
-keyword permissions. Schema 14 stores the needed state without a new permission cache or operation;
+keyword permissions. Schema 15 stores the needed state without a new permission cache or operation;
 restoration equivalence applies within the updated engine, not across older binary semantics.
 
 Coverage in `simulation_tests_actions.rs` and `simulation_tests_movement.rs` exercises declaration
@@ -164,7 +164,27 @@ Minion for fresh Rush-only subjects. Full target-filter interactions are not cer
 Immune, and Taunt do not affect this presence predicate. Accepted attacks continue through Frozen
 gained during reactions. These choices are explicit engine policy pending full combat conformance.
 
-Schema 14 adds the thaw step and rejects older checkpoints. Frozen fixtures cover atomic rejection,
+Schema 15 includes the thaw step and rejects older checkpoints. Frozen fixtures cover atomic rejection,
 unchanged exhaustion, defensive damage, own-turn thawing, fresh readiness, dynamic/temporary
 Windfury, repeated Freeze, lifecycle changes, extra turns, Hero Powers, and exact suspended
 end-turn and attack continuation. Milestone 8 remains incomplete.
+
+## Combat reaction continuation
+
+The current [advanced rulebook Combat section](https://hearthstone.wiki.gg/wiki/Advanced_rulebook?section=55)
+describes preparation reactions, inter-phase deaths, an outcome check before combat, and Attack
+aura changes affecting combat. The pinned revision remains inaccessible; this is supporting
+evidence, not exact-profile certification.
+
+`PrepareCombatDamage` executes after preparation's ordinary boundary and outcome check, using
+live Attack values for both accepted subjects. Zone guards cancel if either is no longer in Play;
+an established outcome also suppresses damage and completion. Successful combat retains the
+existing damage batch, FinishAttack usage increment, and AfterAttack timing, including zero damage.
+
+`SurvivingCombatSubjects` is explicit engine policy: cancellation spends no attack and emits no
+AfterAttack regardless of death-chain depth. Transformation and control changes preserve accepted
+subjects while they remain in Play. Declaration keywords are not revalidated. The boundary guard
+does not record a transient departure followed by a return to Play. Current reference material
+reports exceptional interrupted-attack usage behavior depending on death-chain depth; that remains
+unimplemented. Distinct ProposedAttack events, redirection, and sequence-start AfterAttack seed
+capture also remain gaps. Schema 15 preserves the new step and validates both subject references.

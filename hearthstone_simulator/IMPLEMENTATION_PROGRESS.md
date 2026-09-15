@@ -7,7 +7,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Active milestone: Milestone 8 player-action sequences
-- Verification: 2026-09-15, 9 core and 302 simulator tests and the full repository build pass after the Frozen slice. Formatting and simulator lint pass with no findings.
+- Verification: 2026-09-15, 9 core and 309 simulator tests and the full repository build pass after the combat reaction slice. Formatting and simulator lint pass with no findings.
 
 ## Milestones
 
@@ -64,6 +64,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Windfury attack allowance derived from current keywords, independent readiness blocking, shared snapshot/validation exhaustion, and checkpointed attacks spent.
   - [x] Charge/Rush Minion readiness bypass with live keywords, Charge precedence, Rush Hero-defender restrictions, preserved attacks spent, and checkpoint-exact accepted attack continuation.
   - [x] Frozen declaration blocking and explicit end-turn thawing using live readiness/attack allowance, fresh Rush Minion presence, ordered consumption, and checkpointed continuation.
+  - [x] Combat reaction continuation with live damage values after preparation deaths/auras, outcome gating, surviving-subject guards, and checkpoint-exact choices.
   - [ ] Weapon, Hero card, and location action sequences; combat redirection; full phase guards; and remaining keyword-specific combat legality.
 - [ ] **9 — Esoteric compatibility**
   - [x] Durable dominant-player identity and dominant/secondary trigger grouping.
@@ -189,11 +190,11 @@ guards. It does not claim complete rulebook targeting or combat legality, remain
 combat redirection, full phase guards, or action sequences for Weapons, Hero cards, or locations. Hero Power summon-only full-board
 restrictions, variable usage limits, and game-wide usage counters remain gaps. Hero Power boundary
 placement and `OriginalPowerCompletion` are explicit engine policy pending pinned-rulebook
-verification. Checkpoints use schema 14 and reject older schemas, including schemas 7, 8, 9, 10, 11, 12, and 13.
+verification. Checkpoints use schema 15 and reject older schemas, including schemas 7, 8, 9, 10, 11, 12, 13, and 14.
 Charge/Rush permissions do not clear initial readiness or attack counts; accepted attacks continue
 through keyword loss under existing combat policy. Snapshot exhaustion excludes target availability.
 Transformation still resets to ready with zero attacks spent, an explicit existing policy awaiting
-separate conformance work. Schema 14 adds the Frozen thaw step; replay equivalence with older binaries
+separate conformance work. Schema 15 includes the Frozen thaw step and combat-damage preparation; replay equivalence with older binaries
 where Charge/Rush were inactive is not guaranteed.
 Stealth consumption runs after Attack reactions and before the existing damage batch, using a
 permanent ordered removal that survives recalculation and in-Play copying. Later grants restore
@@ -207,10 +208,28 @@ The implementation remains intentionally synthetic-card-first. Unchecked items a
 - Thaw follows end-turn reactions and boundaries, before temporary expiration and advancement.
 - Current allowance/readiness determines eligibility; fresh Rush additionally needs any enemy Minion.
 - Target-filter interactions and accepted-attack continuation are explicit engine policy.
-- Checkpoint schema 14 persists the thaw step and rejects earlier schemas.
+- Checkpoint schema 14 introduced the thaw step and rejected earlier schemas.
 - `bazel run //:gazelle`: passed after source edits and formatting; no BUILD changes.
 - `aspect format --scope=all`: passed.
 - `aspect test //hearthstone_simulator/...`: passed 9 core and 302 simulator tests, including eight new Frozen regressions.
+- `aspect build //...`: passed all 351 targets.
+- `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
+- `git diff --check`: passed.
+
+### Combat reaction handling (2026-09-15)
+
+- `PrepareCombatDamage` follows Attack reactions, Stealth consumption, preparation deaths/auras,
+  and outcome checking; both damage values use current stats.
+- Removed/dead subjects cancel damage, usage, and AfterAttack. Surviving stable IDs continue
+  through transformation/control changes under `SurvivingCombatSubjects` engine policy.
+- Schema 15 stores the new continuation and rejects schema 14 and earlier.
+- Exact pinned-rulebook timing, transient leave-and-return history, depth-dependent cancellation
+  usage, redirection, distinct ProposedAttack events, and captured AfterAttack eligibility remain gaps.
+- `bazel run //:gazelle`: passed after source edits and formatting; no BUILD changes.
+- `aspect format --scope=all`: passed.
+- `aspect test //hearthstone_simulator/...`: passed 9 core and 309 simulator tests, including seven
+  new tests covering live values, cancellation, transformation/control changes, outcome gating,
+  aura expiration, and checkpoint-exact choices during reactions and chained deaths.
 - `aspect build //...`: passed all 351 targets.
 - `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
 - `git diff --check`: passed.

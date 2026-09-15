@@ -928,6 +928,9 @@ fn validate_sequence_step_references(
         SequenceStep::Attack {
             attacker, defender, ..
         }
+        | SequenceStep::PrepareCombatDamage {
+            attacker, defender, ..
+        }
         | SequenceStep::FinishAttack {
             attacker, defender, ..
         } => {
