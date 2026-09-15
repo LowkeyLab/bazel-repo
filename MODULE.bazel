@@ -32,7 +32,7 @@ bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "rules_distroless", version = "0.9.4")
 bazel_dep(name = "rules_pkg", version = "1.3.0")
 bazel_dep(name = "rules_rs")
-bazel_dep(name = "llvm", version = "0.8.19")
+bazel_dep(name = "llvm", version = "0.8.20")
 
 # Rust 1.96 emits LLVM raw profile version 10, but LLVM 23 expects version 11.
 # Keep the coverage tools on LLVM 22 until the Rust toolchains use LLVM 23.
