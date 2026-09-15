@@ -926,7 +926,7 @@ fn schema_nine_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(11));
+    assert_that!(checkpoint.schema_version, eq(12));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
@@ -1143,7 +1143,7 @@ fn checkpoints_reject_enchantments_without_durations_and_old_schema_versions() {
         ))),
     );
 
-    for schema_version in [7, 8, 9, 10] {
+    for schema_version in [7, 8, 9, 10, 11] {
         let mut old_schema = simulation.checkpoint().unwrap();
         old_schema.schema_version = schema_version;
         assert_that!(
@@ -3011,7 +3011,7 @@ fn checkpoints_validate_guard_references_without_requiring_current_guard_zone() 
         )))
     );
 
-    for schema_version in [7, 8, 9, 10] {
+    for schema_version in [7, 8, 9, 10, 11] {
         let mut old_schema = valid.clone();
         old_schema.schema_version = schema_version;
         assert_that!(

@@ -478,7 +478,7 @@ fn apply_movement_state_policy(world: &mut World, request: ZoneMoveRequest, sour
         && let Some(entity) = game_entity(world, request.entity)
         && let Some(mut attack) = world.get_mut::<AttackState>(entity)
     {
-        attack.exhausted = true;
+        attack.readiness_blocked = true;
     }
 }
 
@@ -561,7 +561,7 @@ fn reset_runtime_state(world: &mut World, id: GameEntityId) {
     if has_attack_state {
         world.entity_mut(entity).insert(AttackState {
             attacks_this_turn: 0,
-            exhausted: true,
+            readiness_blocked: true,
         });
     }
     if has_armor {

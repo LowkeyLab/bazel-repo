@@ -172,7 +172,7 @@ fn spawn_validated_card(
             Damage::default(),
             AttackState {
                 attacks_this_turn: 0,
-                exhausted: true,
+                readiness_blocked: true,
             },
             base_keywords,
             keywords,

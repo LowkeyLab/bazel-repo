@@ -841,7 +841,7 @@ fn combat_rejects_non_character_attackers_and_defenders() {
             .world_mut()
             .get_mut::<AttackState>(entity)
             .unwrap()
-            .exhausted = false;
+            .readiness_blocked = false;
         simulation
             .app
             .world_mut()
@@ -1366,7 +1366,7 @@ fn legal_actions_use_canonical_order_and_deduplicate_scrambled_indexes() {
             .world_mut()
             .get_mut::<AttackState>(entity)
             .unwrap()
-            .exhausted = false;
+            .readiness_blocked = false;
     }
 
     let mut index = simulation.app.world_mut().resource_mut::<ZoneIndex>();
@@ -1608,7 +1608,7 @@ fn legal_actions_contain_every_successfully_validated_small_fixture_candidate() 
         .world_mut()
         .get_mut::<AttackState>(friendly_hero_entity)
         .unwrap()
-        .exhausted = false;
+        .readiness_blocked = false;
 
     let legal_actions = simulation.legal_actions();
     let mut hand_ids = simulation.snapshot().players[0].hand.clone();
@@ -1724,13 +1724,13 @@ fn legal_actions_exclude_exhausted_zero_attack_full_board_and_unsupported_candid
         .world_mut()
         .get_mut::<AttackState>(exhausted_entity)
         .unwrap()
-        .exhausted = true;
+        .readiness_blocked = true;
     exhausted_and_zero_attack
         .app
         .world_mut()
         .get_mut::<AttackState>(zero_attack_entity)
         .unwrap()
-        .exhausted = false;
+        .readiness_blocked = false;
     assert!(
         exhausted_and_zero_attack
             .legal_actions()
@@ -2069,7 +2069,7 @@ fn keyword_attacker(simulation: &mut Simulation, card: Card) -> GameEntityId {
         .world_mut()
         .get_mut::<AttackState>(entity)
         .unwrap()
-        .exhausted = false;
+        .readiness_blocked = false;
     id
 }
 
@@ -2459,6 +2459,7 @@ fn suspended_attack_breaks_stealth_after_reactions_before_damage_and_restores_ex
     let attacker = keyword_attacker(
         &mut simulation,
         Card::minion("Paused attacker", 0, 2, 5)
+            .with_keyword(Keyword::Windfury)
             .with_keyword(Keyword::Stealth)
             .with_triggers(vec![trigger]),
     );
@@ -2497,6 +2498,10 @@ fn suspended_attack_breaks_stealth_after_reactions_before_damage_and_restores_ex
         SimulationStatus::AwaitingChoice
     );
     assert!(has_stealth(&simulation, attacker));
+    assert_eq!(
+        windfury_attack_state(&simulation, attacker).attacks_this_turn,
+        0
+    );
     let checkpoint = simulation.checkpoint().unwrap();
     let mut invalid = checkpoint.clone();
     let step = invalid
@@ -2521,6 +2526,11 @@ fn suspended_attack_breaks_stealth_after_reactions_before_damage_and_restores_ex
     for candidate in [&mut simulation, &mut fork, &mut restored] {
         candidate.choose(ChoiceId(71)).unwrap();
         assert!(!has_stealth(candidate, attacker));
+        assert_eq!(
+            windfury_attack_state(candidate, attacker).attacks_this_turn,
+            1
+        );
+        assert!(!windfury_snapshot_exhausted(candidate, attacker));
         candidate.assert_invariants().unwrap();
     }
     assert_eq!(simulation.checkpoint().unwrap(), fork.checkpoint().unwrap());
@@ -2646,5 +2656,378 @@ fn aura_immune_suppresses_taunt_and_direct_targeting_until_removed() {
             }
         )
         .contains(&guard)
+    );
+}
+
+fn windfury_attack_state(simulation: &Simulation, attacker: GameEntityId) -> AttackState {
+    *simulation
+        .app
+        .world()
+        .get::<AttackState>(game_entity(simulation.app.world(), attacker).unwrap())
+        .unwrap()
+}
+
+fn windfury_snapshot_exhausted(simulation: &mut Simulation, attacker: GameEntityId) -> bool {
+    simulation
+        .snapshot()
+        .objects
+        .iter()
+        .find(|object| object.id == attacker)
+        .unwrap()
+        .exhausted
+        .unwrap()
+}
+
+fn windfury_fixture(is_hero: bool, windfury: bool) -> (Simulation, GameEntityId, GameAction) {
+    let mut simulation = simulation();
+    let attacker = if is_hero {
+        let id = hero(&mut simulation, PlayerId::One);
+        let entity = game_entity(simulation.app.world(), id).unwrap();
+        simulation
+            .app
+            .world_mut()
+            .get_mut::<CurrentStats>(entity)
+            .unwrap()
+            .attack = 1;
+        if windfury {
+            keyword_grant(
+                &mut simulation,
+                id,
+                Keyword::Windfury,
+                crate::EnchantmentDuration::Permanent,
+            );
+        }
+        id
+    } else {
+        let mut card = Card::minion("Windfury fixture", 0, 1, 20);
+        if windfury {
+            card = card.with_keyword(Keyword::Windfury);
+        }
+        keyword_attacker(&mut simulation, card)
+    };
+    let defender = hero(&mut simulation, PlayerId::Two);
+    (
+        simulation,
+        attacker,
+        GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        },
+    )
+}
+
+fn assert_windfury_legality(
+    simulation: &mut Simulation,
+    attacker: GameEntityId,
+    action: &GameAction,
+    allowed: bool,
+) {
+    let before = simulation.checkpoint().unwrap();
+    let actions = simulation.legal_actions();
+    assert_eq!(actions, simulation.legal_actions());
+    assert_eq!(before, simulation.checkpoint().unwrap());
+    assert_eq!(actions.contains(action), allowed);
+    for attack in actions
+        .iter()
+        .filter(|candidate| matches!(candidate, GameAction::Attack { .. }))
+    {
+        assert_eq!(
+            action_validation::validate_action(simulation.app.world(), attack).as_ref(),
+            Ok(attack)
+        );
+    }
+    assert_eq!(windfury_snapshot_exhausted(simulation, attacker), !allowed);
+    if !allowed {
+        assert_rejected_action_is_atomic(
+            simulation,
+            action.clone(),
+            SimulationError::CannotAttack(attacker),
+        );
+    }
+}
+
+#[test]
+fn windfury_and_ordinary_heroes_and_minions_have_bounded_attack_allowances() {
+    for is_hero in [false, true] {
+        for windfury in [false, true] {
+            let (mut simulation, attacker, action) = windfury_fixture(is_hero, windfury);
+            let allowance = if windfury { 2 } else { 1 };
+            for spent in 0..allowance {
+                assert_eq!(
+                    windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                    spent
+                );
+                assert_windfury_legality(&mut simulation, attacker, &action, true);
+                simulation.apply(action.clone()).unwrap();
+            }
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                allowance
+            );
+            assert!(!windfury_attack_state(&simulation, attacker).readiness_blocked);
+            assert_windfury_legality(&mut simulation, attacker, &action, false);
+        }
+    }
+}
+
+#[test]
+fn windfury_gains_removals_silence_and_duplicate_grants_preserve_spent_attacks() {
+    for is_hero in [false, true] {
+        for innate in [false, true] {
+            let (mut simulation, attacker, action) = windfury_fixture(is_hero, innate);
+            simulation.apply(action.clone()).unwrap();
+            for _ in 0..2 {
+                keyword_grant(
+                    &mut simulation,
+                    attacker,
+                    Keyword::Windfury,
+                    crate::EnchantmentDuration::Permanent,
+                );
+            }
+            assert_windfury_legality(&mut simulation, attacker, &action, true);
+            super::effect_executor::attach_keyword_modifier(
+                simulation.app.world_mut(),
+                PlayerId::One,
+                attacker,
+                crate::KeywordModifier {
+                    keyword: Keyword::Windfury,
+                    granted: false,
+                    silence_removable: true,
+                },
+                crate::EnchantmentDuration::Permanent,
+            )
+            .unwrap();
+            assert_windfury_legality(&mut simulation, attacker, &action, false);
+            keyword_grant(
+                &mut simulation,
+                attacker,
+                Keyword::Windfury,
+                crate::EnchantmentDuration::Permanent,
+            );
+            assert_windfury_legality(&mut simulation, attacker, &action, true);
+            let mut silenced = simulation.fork().unwrap();
+            silence_entity(silenced.app.world_mut(), attacker).unwrap();
+            assert_eq!(
+                windfury_attack_state(&silenced, attacker).attacks_this_turn,
+                1
+            );
+            assert_windfury_legality(&mut silenced, attacker, &action, false);
+            simulation.apply(action.clone()).unwrap();
+            super::effect_executor::attach_keyword_modifier(
+                simulation.app.world_mut(),
+                PlayerId::One,
+                attacker,
+                crate::KeywordModifier {
+                    keyword: Keyword::Windfury,
+                    granted: false,
+                    silence_removable: true,
+                },
+                crate::EnchantmentDuration::Permanent,
+            )
+            .unwrap();
+            assert_windfury_legality(&mut simulation, attacker, &action, false);
+            keyword_grant(
+                &mut simulation,
+                attacker,
+                Keyword::Windfury,
+                crate::EnchantmentDuration::Permanent,
+            );
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                2
+            );
+            assert_windfury_legality(&mut simulation, attacker, &action, false);
+        }
+    }
+}
+
+#[test]
+fn windfury_reactions_change_next_declaration_without_changing_attack_completion() {
+    for event in [EventKind::Attack, EventKind::AfterAttack] {
+        for granted in [false, true] {
+            let mut simulation = simulation();
+            let mut trigger = self_event_trigger(
+                event,
+                vec![Effect::AttachKeywordModifier {
+                    targets: Selector::Source,
+                    modifier: crate::KeywordModifier {
+                        keyword: Keyword::Windfury,
+                        granted,
+                        silence_removable: true,
+                    },
+                    duration: crate::EnchantmentDuration::Permanent,
+                }],
+            );
+            trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+            let mut card = Card::minion("Reactive Windfury", 0, 1, 20).with_triggers(vec![trigger]);
+            if !granted {
+                card = card.with_keyword(Keyword::Windfury);
+            }
+            let attacker = keyword_attacker(&mut simulation, card);
+            let defender = hero(&mut simulation, PlayerId::Two);
+            let action = GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender,
+            };
+            simulation.apply(action.clone()).unwrap();
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                1
+            );
+            assert_windfury_legality(&mut simulation, attacker, &action, granted);
+            if granted {
+                simulation.apply(action.clone()).unwrap();
+                assert_windfury_legality(&mut simulation, attacker, &action, false);
+            }
+        }
+    }
+}
+
+#[test]
+fn windfury_first_attack_checkpoint_json_and_fork_continue_identically() {
+    for is_hero in [false, true] {
+        let (mut original, attacker, action) = windfury_fixture(is_hero, true);
+        original.apply(action.clone()).unwrap();
+        let checkpoint = original.checkpoint().unwrap();
+        assert_eq!(checkpoint.schema_version, 12);
+        let mut restored = Simulation::from_checkpoint(
+            SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
+        )
+        .unwrap();
+        let mut fork = original.fork().unwrap();
+        for simulation in [&mut original, &mut restored, &mut fork] {
+            assert_windfury_legality(simulation, attacker, &action, true);
+            simulation.apply(action.clone()).unwrap();
+            assert_windfury_legality(simulation, attacker, &action, false);
+        }
+        assert_eq!(
+            original.checkpoint().unwrap(),
+            restored.checkpoint().unwrap()
+        );
+        assert_eq!(original.checkpoint().unwrap(), fork.checkpoint().unwrap());
+        assert_eq!(original.trace(), restored.trace());
+        assert_eq!(original.trace(), fork.trace());
+    }
+}
+
+#[test]
+fn windfury_readiness_blocks_summons_and_spent_characters_until_natural_or_extra_turn() {
+    for extra_turn in [false, true] {
+        for spent in [0, 1] {
+            let mut simulation = simulation();
+            let attacker = spawn_card(
+                simulation.app.world_mut(),
+                PlayerId::One,
+                Card::minion("New Windfury", 0, 1, 20).with_keyword(Keyword::Windfury),
+                Zone::Play,
+            )
+            .unwrap();
+            let entity = game_entity(simulation.app.world(), attacker).unwrap();
+            simulation
+                .app
+                .world_mut()
+                .get_mut::<AttackState>(entity)
+                .unwrap()
+                .attacks_this_turn = spent;
+            let defender = hero(&mut simulation, PlayerId::Two);
+            let action = GameAction::Attack {
+                player: PlayerId::One,
+                attacker,
+                defender,
+            };
+            assert_windfury_legality(&mut simulation, attacker, &action, false);
+            if extra_turn {
+                execute_effect(
+                    simulation.app.world_mut(),
+                    &EffectContext {
+                        source: None,
+                        controller: PlayerId::One,
+                        declared_target: None,
+                        drawn_card: None,
+                        origin: EffectOrigin::Other,
+                    },
+                    &Effect::ScheduleExtraTurns {
+                        player: PlayerSelector::Controller,
+                        count: 1,
+                        timing: crate::ExtraTurnTiming::AfterCurrentTurn,
+                    },
+                )
+                .unwrap();
+            }
+            simulation
+                .apply(GameAction::EndTurn {
+                    player: PlayerId::One,
+                })
+                .unwrap();
+            if !extra_turn {
+                simulation
+                    .apply(GameAction::EndTurn {
+                        player: PlayerId::Two,
+                    })
+                    .unwrap();
+            }
+            assert_eq!(simulation.snapshot().game.active_player, PlayerId::One);
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker),
+                AttackState {
+                    attacks_this_turn: 0,
+                    readiness_blocked: false
+                }
+            );
+            for _ in 0..2 {
+                simulation.apply(action.clone()).unwrap();
+            }
+            assert_windfury_legality(&mut simulation, attacker, &action, false);
+        }
+    }
+}
+
+#[test]
+fn windfury_in_play_copy_is_fresh_and_readiness_blocked() {
+    let (mut simulation, attacker, action) = windfury_fixture(false, true);
+    simulation.apply(action).unwrap();
+    let before = simulation.snapshot().players[0].board.clone();
+    super::effect_executor::copy_entity(
+        simulation.app.world_mut(),
+        crate::CopyRequest {
+            source: attacker,
+            originating_source: None,
+            controller: PlayerId::One,
+            destination: Zone::Play,
+            board_index: None,
+            policy: crate::CopyStatePolicy::InPlayState,
+        },
+    )
+    .unwrap();
+    drive_resolution(simulation.app.world_mut()).unwrap();
+    let copy = *simulation.snapshot().players[0]
+        .board
+        .iter()
+        .find(|id| !before.contains(id))
+        .unwrap();
+    assert_eq!(
+        windfury_attack_state(&simulation, copy),
+        AttackState {
+            attacks_this_turn: 0,
+            readiness_blocked: true
+        }
+    );
+    assert!(crate::aura::has_keyword(
+        simulation.app.world(),
+        game_entity(simulation.app.world(), copy).unwrap(),
+        Keyword::Windfury
+    ));
+    let defender = hero(&mut simulation, PlayerId::Two);
+    assert_windfury_legality(
+        &mut simulation,
+        copy,
+        &GameAction::Attack {
+            player: PlayerId::One,
+            attacker: copy,
+            defender,
+        },
+        false,
     );
 }
