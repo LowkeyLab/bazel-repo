@@ -384,6 +384,14 @@ pub(super) fn run_sequence_step(
             attack(world, *player, *attacker, *defender);
             Ok(())
         }
+        SequenceStep::PrepareCombatDamage {
+            player,
+            attacker,
+            defender,
+        } => {
+            prepare_combat_damage(world, *player, *attacker, *defender);
+            Ok(())
+        }
         SequenceStep::BreakAttackStealth { attacker } => break_attack_stealth(world, *attacker),
         SequenceStep::FinishAttack {
             player,
@@ -615,6 +623,61 @@ fn attack(
     attacker_id: GameEntityId,
     defender_id: GameEntityId,
 ) {
+    push_resolution_ops(
+        world,
+        [
+            ResolutionOp::PrepareEvent(EventContext {
+                kind: EventKind::Attack,
+                source: Some(attacker_id),
+                targets: vec![defender_id],
+                controller: player_id,
+                proposed_value: None,
+                actual_value: None,
+                simultaneous_ordinal: 0,
+            }),
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![crate::SubjectGuard {
+                    subject: attacker_id,
+                    required_zone: Zone::Play,
+                }],
+                step: SequenceStep::BreakAttackStealth {
+                    attacker: attacker_id,
+                },
+            },
+            ResolutionOp::RunPhaseBoundary(PhaseBoundaryPlan::Ordinary),
+            ResolutionOp::CheckOutcome,
+            ResolutionOp::RunGuardedSequenceStep {
+                guards: vec![
+                    crate::SubjectGuard {
+                        subject: attacker_id,
+                        required_zone: Zone::Play,
+                    },
+                    crate::SubjectGuard {
+                        subject: defender_id,
+                        required_zone: Zone::Play,
+                    },
+                ],
+                step: SequenceStep::PrepareCombatDamage {
+                    player: player_id,
+                    attacker: attacker_id,
+                    defender: defender_id,
+                },
+            },
+        ],
+    );
+}
+
+// Combat continuation uses the accepted identities, not declaration-time targeting or
+// readiness rules. The preparation boundary has resolved deaths and refreshed auras.
+fn prepare_combat_damage(
+    world: &mut World,
+    player_id: PlayerId,
+    attacker_id: GameEntityId,
+    defender_id: GameEntityId,
+) {
+    if world.resource::<GameState>().outcome.is_some() {
+        return;
+    }
     let attacker = game_entity(world, attacker_id).expect("validated attacker remains indexed");
     let defender = game_entity(world, defender_id).expect("validated defender remains indexed");
     let attack_value = world
@@ -638,24 +701,6 @@ fn attack(
     push_resolution_ops(
         world,
         [
-            ResolutionOp::PrepareEvent(EventContext {
-                kind: EventKind::Attack,
-                source: Some(attacker_id),
-                targets: vec![defender_id],
-                controller: player_id,
-                proposed_value: None,
-                actual_value: None,
-                simultaneous_ordinal: 0,
-            }),
-            ResolutionOp::RunGuardedSequenceStep {
-                guards: vec![crate::SubjectGuard {
-                    subject: attacker_id,
-                    required_zone: Zone::Play,
-                }],
-                step: SequenceStep::BreakAttackStealth {
-                    attacker: attacker_id,
-                },
-            },
             ResolutionOp::ProcessDamageBatch(damage),
             ResolutionOp::RunSequenceStep(SequenceStep::FinishAttack {
                 player: player_id,

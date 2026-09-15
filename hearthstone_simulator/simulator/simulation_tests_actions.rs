@@ -2,9 +2,9 @@ use googletest::prelude::*;
 
 use super::{test_support::*, *};
 use crate::{
-    AttackState, CurrentStats, EffectOrigin, Player, PlayerSelector, SequenceStep, SubjectGuard,
-    TargetAudience, TargetFilter, TargetKind, TargetRequirement, TransformKind, ZoneMoveRequest,
-    ZoneMovementKind,
+    AttackState, CurrentStats, EffectOrigin, EnchantmentDuration, Player, PlayerSelector,
+    SequenceStep, SubjectGuard, TargetAudience, TargetFilter, TargetKind, TargetRequirement,
+    TransformKind, ZoneMoveRequest, ZoneMovementKind,
 };
 
 fn card_named(simulation: &mut Simulation, name: &str) -> GameEntityId {
@@ -2888,7 +2888,7 @@ fn windfury_first_attack_checkpoint_json_and_fork_continue_identically() {
         let (mut original, attacker, action) = windfury_fixture(is_hero, true);
         original.apply(action.clone()).unwrap();
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 14);
+        assert_eq!(checkpoint.schema_version, 15);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -3549,7 +3549,7 @@ fn charge_rush_suspended_attack_keyword_loss_restores_and_finishes_exactly_once(
             keyword
         ));
         let checkpoint = original.checkpoint().unwrap();
-        assert_eq!(checkpoint.schema_version, 14);
+        assert_eq!(checkpoint.schema_version, 15);
         let mut restored = Simulation::from_checkpoint(
             SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
         )
@@ -4065,4 +4065,391 @@ fn frozen_thaw_observes_end_turn_deaths_and_live_readiness_keywords() {
         end_active_turn(&mut simulation);
         assert_eq!(is_frozen(&simulation, attacker), !thawed);
     }
+}
+
+fn combat_reaction_fixture() -> (Simulation, GameEntityId, GameEntityId) {
+    let mut simulation = simulation();
+    let attacker = keyword_attacker(&mut simulation, Card::minion("Attacker", 0, 2, 10));
+    let defender = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Defender", 0, 3, 10),
+        Zone::Play,
+    )
+    .unwrap();
+    (simulation, attacker, defender)
+}
+
+fn install_attack_reaction(
+    simulation: &mut Simulation,
+    attacker: GameEntityId,
+    effects: Vec<Effect>,
+) {
+    let mut trigger = self_event_trigger(EventKind::Attack, effects);
+    trigger.conditions[0].condition = crate::TriggerCondition::EventSourceIsSelf;
+    let entity = game_entity(simulation.app.world(), attacker).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+}
+
+fn declare_combat(simulation: &mut Simulation, attacker: GameEntityId, defender: GameEntityId) {
+    simulation
+        .apply(GameAction::Attack {
+            player: PlayerId::One,
+            attacker,
+            defender,
+        })
+        .unwrap();
+}
+
+fn combat_damage(simulation: &mut Simulation, id: GameEntityId) -> i32 {
+    simulation
+        .snapshot()
+        .objects
+        .iter()
+        .find(|object| object.id == id)
+        .unwrap()
+        .damage
+}
+
+fn after_attack_count(simulation: &Simulation) -> usize {
+    simulation
+        .app
+        .world()
+        .resource::<CanonicalTrace>()
+        .entries
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry,
+                TraceEntry::EventCreated {
+                    kind: EventKind::AfterAttack,
+                    ..
+                }
+            )
+        })
+        .count()
+}
+
+#[test]
+fn combat_reactions_refresh_both_damage_values_including_zero_attack() {
+    for attack_bonus in [4, -2] {
+        let (mut simulation, attacker, defender) = combat_reaction_fixture();
+        let effects = [(attacker, attack_bonus), (defender, 2)]
+            .into_iter()
+            .map(|(id, attack)| Effect::AttachStatModifier {
+                targets: Selector::Entity(id),
+                modifier: crate::StatModifier {
+                    attack,
+                    health: 0,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
+            })
+            .collect();
+        install_attack_reaction(&mut simulation, attacker, effects);
+        declare_combat(&mut simulation, attacker, defender);
+        assert_eq!(combat_damage(&mut simulation, defender), 2 + attack_bonus);
+        assert_eq!(combat_damage(&mut simulation, attacker), 5);
+        assert_eq!(
+            windfury_attack_state(&simulation, attacker).attacks_this_turn,
+            1
+        );
+        assert_eq!(after_attack_count(&simulation), 1);
+        simulation.assert_invariants().unwrap();
+    }
+}
+
+#[test]
+fn combat_reactions_cancel_after_removal_destroy_or_lethal_damage() {
+    for remove_attacker in [false, true] {
+        for method in 0..3 {
+            let (mut simulation, attacker, defender) = combat_reaction_fixture();
+            let target = if remove_attacker { attacker } else { defender };
+            let effect = match method {
+                0 => Effect::Move {
+                    targets: Selector::Entity(target),
+                    player: PlayerSelector::Player(if remove_attacker {
+                        PlayerId::One
+                    } else {
+                        PlayerId::Two
+                    }),
+                    zone: Zone::Hand,
+                    kind: ZoneMovementKind::Normal,
+                },
+                1 => Effect::Destroy {
+                    targets: Selector::Entity(target),
+                },
+                _ => Effect::DealDamage {
+                    targets: Selector::Entity(target),
+                    amount: ValueExpression::Constant(10),
+                },
+            };
+            install_attack_reaction(&mut simulation, attacker, vec![effect]);
+            declare_combat(&mut simulation, attacker, defender);
+            let survivor = if remove_attacker { defender } else { attacker };
+            assert_eq!(combat_damage(&mut simulation, survivor), 0);
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                0
+            );
+            assert_eq!(after_attack_count(&simulation), 0);
+            assert!(simulation.app.world().resource::<CanonicalTrace>().entries.iter().any(|entry| matches!(entry,
+                TraceEntry::SequenceStepSkipped { step: SequenceStep::PrepareCombatDamage { .. }, subject, .. } if *subject == target
+            )));
+            simulation.assert_invariants().unwrap();
+        }
+    }
+}
+
+#[test]
+fn combat_reactions_continue_with_transformed_or_newly_controlled_participants() {
+    for change_attacker in [false, true] {
+        for transform in [false, true] {
+            let (mut simulation, attacker, defender) = combat_reaction_fixture();
+            let target = if change_attacker { attacker } else { defender };
+            let effect = if transform {
+                Effect::Transform {
+                    targets: Selector::Entity(target),
+                    card: Card::minion("New form", 0, 4, 10),
+                    kind: TransformKind::NonSpell,
+                }
+            } else {
+                Effect::Move {
+                    targets: Selector::Entity(target),
+                    player: PlayerSelector::Player(if change_attacker {
+                        PlayerId::Two
+                    } else {
+                        PlayerId::One
+                    }),
+                    zone: Zone::Play,
+                    kind: ZoneMovementKind::Normal,
+                }
+            };
+            install_attack_reaction(&mut simulation, attacker, vec![effect]);
+            declare_combat(&mut simulation, attacker, defender);
+            assert_eq!(
+                combat_damage(&mut simulation, defender),
+                if transform && change_attacker { 4 } else { 2 }
+            );
+            assert_eq!(
+                combat_damage(&mut simulation, attacker),
+                if transform && !change_attacker { 4 } else { 3 }
+            );
+            assert_eq!(
+                windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                1
+            );
+            assert_eq!(after_attack_count(&simulation), 1);
+            simulation.assert_invariants().unwrap();
+        }
+    }
+}
+
+#[test]
+fn combat_preparation_hero_defeat_prevents_damage_and_after_attack() {
+    let (mut simulation, attacker, _) = combat_reaction_fixture();
+    let friendly_hero = hero(&mut simulation, PlayerId::One);
+    let enemy_hero = hero(&mut simulation, PlayerId::Two);
+    install_attack_reaction(
+        &mut simulation,
+        attacker,
+        vec![Effect::DealDamage {
+            targets: Selector::Entity(friendly_hero),
+            amount: ValueExpression::Constant(30),
+        }],
+    );
+    declare_combat(&mut simulation, attacker, enemy_hero);
+    assert_eq!(
+        simulation.snapshot().game.outcome,
+        Some(crate::GameOutcome::Winner(PlayerId::Two))
+    );
+    assert_eq!(combat_damage(&mut simulation, enemy_hero), 0);
+    assert_eq!(
+        windfury_attack_state(&simulation, attacker).attacks_this_turn,
+        0
+    );
+    assert_eq!(after_attack_count(&simulation), 0);
+    simulation.assert_invariants().unwrap();
+}
+
+#[test]
+fn combat_reaction_choices_restore_live_damage_and_cancellation_exactly() {
+    for cancel in [false, true] {
+        let (mut simulation, attacker, defender) = combat_reaction_fixture();
+        let effect = if cancel {
+            Effect::Destroy {
+                targets: Selector::Entity(defender),
+            }
+        } else {
+            Effect::AttachStatModifier {
+                targets: Selector::Entity(attacker),
+                modifier: crate::StatModifier {
+                    attack: 4,
+                    health: 0,
+                    silence_removable: true,
+                },
+                duration: EnchantmentDuration::Permanent,
+            }
+        };
+        install_attack_reaction(
+            &mut simulation,
+            attacker,
+            vec![Effect::Choose {
+                id: ChoiceId(500),
+                player: PlayerSelector::Controller,
+                options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                    id: ChoiceId(501),
+                    effects: vec![effect],
+                }],
+            }],
+        );
+        declare_combat(&mut simulation, attacker, defender);
+        let checkpoint = simulation.checkpoint().unwrap();
+        assert_eq!(checkpoint.schema_version, 15);
+        assert_eq!(combat_damage(&mut simulation, defender), 0);
+        for missing_attacker in [false, true] {
+            let mut invalid = checkpoint.clone();
+            for operation in &mut invalid.resolution.stack {
+                if let ResolutionOp::RunGuardedSequenceStep {
+                    step:
+                        SequenceStep::PrepareCombatDamage {
+                            attacker, defender, ..
+                        },
+                    ..
+                } = &mut operation.operation
+                {
+                    if missing_attacker {
+                        *attacker = GameEntityId(u64::MAX);
+                    } else {
+                        *defender = GameEntityId(u64::MAX);
+                    }
+                }
+            }
+            assert!(simulation.restore(invalid).is_err());
+        }
+        let mut old = checkpoint.clone();
+        old.schema_version = 14;
+        assert!(simulation.restore(old).is_err());
+        let mut fork = simulation.fork().unwrap();
+        let mut restored = simulation.fork().unwrap();
+        restored
+            .restore(SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap())
+            .unwrap();
+        for candidate in [&mut simulation, &mut fork, &mut restored] {
+            candidate.choose(ChoiceId(501)).unwrap();
+            assert_eq!(
+                windfury_attack_state(candidate, attacker).attacks_this_turn,
+                u8::from(!cancel)
+            );
+            assert_eq!(after_attack_count(candidate), usize::from(!cancel));
+            if !cancel {
+                assert_eq!(combat_damage(candidate, defender), 6);
+            }
+            candidate.assert_invariants().unwrap();
+        }
+        assert_eq!(simulation.checkpoint().unwrap(), fork.checkpoint().unwrap());
+        assert_eq!(
+            simulation.checkpoint().unwrap(),
+            restored.checkpoint().unwrap()
+        );
+    }
+}
+
+#[test]
+fn combat_preparation_expires_attack_auras_from_dead_providers() {
+    let (mut simulation, attacker, defender) = combat_reaction_fixture();
+    let provider = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::One,
+        Card::minion("Attack provider", 0, 0, 1).with_aura(crate::AuraDefinition {
+            targets: crate::AuraTarget::OtherFriendlyMinions,
+            attack: 5,
+            health: 0,
+            other: vec![],
+        }),
+        Zone::Play,
+    )
+    .unwrap();
+    crate::aura::refresh_all_auras(simulation.app.world_mut());
+    install_attack_reaction(
+        &mut simulation,
+        attacker,
+        vec![Effect::Destroy {
+            targets: Selector::Entity(provider),
+        }],
+    );
+    declare_combat(&mut simulation, attacker, defender);
+    assert_eq!(combat_damage(&mut simulation, defender), 2);
+    assert_eq!(combat_damage(&mut simulation, attacker), 3);
+    assert_eq!(after_attack_count(&simulation), 1);
+    simulation.assert_invariants().unwrap();
+}
+
+#[test]
+fn combat_preparation_waits_for_suspended_chained_deaths_before_cancelling() {
+    let (mut simulation, attacker, defender) = combat_reaction_fixture();
+    let second = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("Second death", 0, 0, 1).with_deathrattle(vec![Effect::Choose {
+            id: ChoiceId(600),
+            player: PlayerSelector::Controller,
+            options: vec![hearthstone_simulator_core::EffectChoiceOption {
+                id: ChoiceId(601),
+                effects: vec![Effect::Destroy {
+                    targets: Selector::Entity(defender),
+                }],
+            }],
+        }]),
+        Zone::Play,
+    )
+    .unwrap();
+    let first = spawn_card(
+        simulation.app.world_mut(),
+        PlayerId::Two,
+        Card::minion("First death", 0, 0, 1).with_deathrattle(vec![Effect::Destroy {
+            targets: Selector::Entity(second),
+        }]),
+        Zone::Play,
+    )
+    .unwrap();
+    install_attack_reaction(
+        &mut simulation,
+        attacker,
+        vec![Effect::Destroy {
+            targets: Selector::Entity(first),
+        }],
+    );
+    declare_combat(&mut simulation, attacker, defender);
+    assert_eq!(
+        simulation.snapshot().game.status,
+        SimulationStatus::AwaitingChoice
+    );
+    assert_eq!(combat_damage(&mut simulation, defender), 0);
+    let checkpoint = simulation.checkpoint().unwrap();
+    let mut fork = simulation.fork().unwrap();
+    let mut restored = Simulation::from_checkpoint(
+        SimulationCheckpoint::from_json(&checkpoint.to_json().unwrap()).unwrap(),
+    )
+    .unwrap();
+    for candidate in [&mut simulation, &mut fork, &mut restored] {
+        candidate.choose(ChoiceId(601)).unwrap();
+        assert_eq!(combat_damage(candidate, attacker), 0);
+        assert_eq!(
+            windfury_attack_state(candidate, attacker).attacks_this_turn,
+            0
+        );
+        assert_eq!(after_attack_count(candidate), 0);
+        assert_eq!(candidate.snapshot().deaths.len(), 3);
+        candidate.assert_invariants().unwrap();
+    }
+    assert_eq!(simulation.checkpoint().unwrap(), fork.checkpoint().unwrap());
+    assert_eq!(
+        simulation.checkpoint().unwrap(),
+        restored.checkpoint().unwrap()
+    );
 }

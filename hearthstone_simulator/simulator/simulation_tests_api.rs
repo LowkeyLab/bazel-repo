@@ -932,7 +932,7 @@ fn schema_nine_json_roundtrip_preserves_trigger_enchantment_payloads() {
     silence_entity(simulation.app.world_mut(), removed_host).unwrap();
 
     let checkpoint = simulation.checkpoint().unwrap();
-    assert_that!(checkpoint.schema_version, eq(14));
+    assert_that!(checkpoint.schema_version, eq(15));
     for (id, controller, zone, duration, attached_to) in [
         (
             permanent,
