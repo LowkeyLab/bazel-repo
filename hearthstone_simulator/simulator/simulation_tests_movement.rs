@@ -710,7 +710,7 @@ fn same_zone_movement_bypasses_capacity_and_reapplies_exhaustion() {
         .world_mut()
         .get_mut::<AttackState>(entity)
         .unwrap()
-        .exhausted = false;
+        .readiness_blocked = false;
 
     let outcome =
         crate::zone::move_entity(simulation.app.world_mut(), restless, Zone::Play, None).unwrap();
@@ -722,7 +722,7 @@ fn same_zone_movement_bypasses_capacity_and_reapplies_exhaustion() {
             .world()
             .get::<AttackState>(entity)
             .unwrap()
-            .exhausted,
+            .readiness_blocked,
         is_true()
     );
 }
@@ -1342,7 +1342,7 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
             PendingDestroy,
             AttackState {
                 attacks_this_turn: 2,
-                exhausted: false,
+                readiness_blocked: false,
             },
             Keywords(std::collections::BTreeSet::from([
                 Keyword::Charge,
@@ -1413,7 +1413,7 @@ fn play_copy_clones_non_aura_state_and_eligible_enchantments() {
         world.get::<AttackState>(copy_entity),
         eq(Some(&AttackState {
             attacks_this_turn: 0,
-            exhausted: true,
+            readiness_blocked: true,
         }))
     );
     assert_that!(world.get::<AttackAuraCache>(copy_entity), none());

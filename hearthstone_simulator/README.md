@@ -70,11 +70,30 @@ recalculation cannot restore consumed grants, while a later grant can restore St
 silence, transformation, backward movement, and copy policies apply to that enchantment. A subject
 that has left Play skips this step. Damage success is not required to consume Stealth.
 
-Checkpoint schema 11 persists this step and rejects earlier schemas. The boundary placement is
+Checkpoint schema 12 persists this step and rejects earlier schemas. The boundary placement is
 an explicit engine policy within the existing simplified combat sequence; complete preparation
 phases, damage-stat refresh after attack reactions, redirection, and full combat guards remain
 unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
 revision remains unavailable for exact conformance verification.
+
+## Windfury
+
+Heroes and Minions use their current Windfury keyword to determine an allowance of two attacks
+per turn instead of one. Attacks already spent remain recorded when the keyword is gained,
+removed, or regained; multiple grants do not stack. A character that has attacked once can gain
+Windfury and attack once more, but gaining it after two attacks grants no further attack.
+Windfury does not bypass the readiness block on newly summoned or copied Minions.
+
+Attack readiness is stored separately from attacks spent. Validation and snapshot `exhausted`
+values derive exhaustion from both readiness and the current allowance; `legal_actions()` uses
+the same validation. Turn-start refresh clears readiness blocking and attacks spent. Innate and
+enchantment-granted Windfury are supported; no Windfury aura mechanism is introduced.
+
+Attack completion still records usage at the existing `FinishAttack` step, before AfterAttack
+reactions. Changes to Windfury during reactions affect the next declaration. This preserves the
+existing simplified combat timing, whose exact pinned-rulebook conformance remains unverified.
+Checkpoint schema 12 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
+Charge, Rush, Frozen, Mega-Windfury, and full combat phase guards remain outside this slice.
 
 ## Hero Power activation
 
@@ -94,7 +113,7 @@ retains completion bookkeeping on its old ID, including in RemovedFromGame; the 
 ready. If the original no longer exists or is no longer a Hero Power with power state, completion
 omits that state mutation while remaining sequence work continues. This replacement policy and
 boundary placement are not certified against the inaccessible pinned rulebook revision.
-Checkpoint schema 11 preserves suspended activations and captured after-use seeds; older schemas
+Checkpoint schema 12 preserves suspended activations and captured after-use seeds; older schemas
 are rejected. Summon-only full-board restrictions, variable use limits, game-wide usage counters,
 modal choices, and targeting redirection remain gaps.
 

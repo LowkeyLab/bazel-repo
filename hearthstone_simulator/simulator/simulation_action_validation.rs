@@ -306,6 +306,16 @@ fn validate_supplied_target(
     }
 }
 
+/// Exhaustion excludes other declaration restrictions, such as Attack and targeting.
+pub(super) fn attack_exhausted(world: &World, entity: Entity, state: AttackState) -> bool {
+    let allowance = if has_keyword(world, entity, Keyword::Windfury) {
+        2
+    } else {
+        1
+    };
+    state.readiness_blocked || state.attacks_this_turn >= allowance
+}
+
 fn validate_attack(
     world: &World,
     player_id: PlayerId,
@@ -323,7 +333,7 @@ fn validate_attack(
         .get::<AttackState>(attacker)
         .copied()
         .ok_or(SimulationError::CannotAttack(attacker_id))?;
-    if attack_state.exhausted
+    if attack_exhausted(world, attacker, attack_state)
         || world
             .get::<CurrentStats>(attacker)
             .is_none_or(|stats| stats.attack <= 0)

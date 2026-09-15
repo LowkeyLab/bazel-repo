@@ -7,7 +7,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Active milestone: Milestone 8 player-action sequences
-- Verification: 2026-09-14, 9 core and 266 simulator tests and the full repository build pass after the Taunt/Stealth slice. Formatting and simulator lint are recorded below.
+- Verification: 2026-09-15, 9 core and 273 simulator tests and the full repository build pass after the Windfury slice. Formatting and simulator lint pass with no findings.
 
 ## Milestones
 
@@ -61,6 +61,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Narrow serializable subject guards for deferred minion/spell plays and attacks, with first-failure skip traces and guarded checkpoint restoration.
   - [x] Hero Power activation with explicit targeting, canonical enumeration, post-effect exhaustion, captured after-use seeds, replacement completion policy, and checkpoint-exact suspended continuation.
   - [x] Taunt, Stealth, and Immune declaration restrictions with durable Stealth consumption and checkpointed attack continuation.
+  - [x] Windfury attack allowance derived from current keywords, independent readiness blocking, shared snapshot/validation exhaustion, and checkpointed attacks spent.
   - [ ] Weapon, Hero card, and location action sequences; combat redirection; full phase guards; and remaining keyword-specific combat legality.
 - [ ] **9 — Esoteric compatibility**
   - [x] Durable dominant-player identity and dominant/secondary trigger grouping.
@@ -160,15 +161,24 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
 - `aspect format --scope=all`: passed repository formatting.
 
+### Windfury verification (2026-09-15)
+
+- `bazel run //:gazelle`: passed after source edits; no BUILD metadata changes.
+- `aspect format --scope=all`: passed.
+- `aspect test //hearthstone_simulator/...`: passed 9 core and 273 simulator tests, including seven new Windfury tests and extended suspended-attack coverage.
+- `aspect build //...`: passed all 351 targets.
+- `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings after cleanup.
+- Architecture and coverage review: approved; `git diff --check` passed.
+
 ## Known gaps
 
 Milestone 8 remains partial. Its current foundation covers minion/spell declarations and synthetic Hero Power activation,
-audience/kind and Stealth/Immune targeting filters, Taunt attack restrictions, canonical action enumeration, and narrow zone-continuity
+audience/kind and Stealth/Immune targeting filters, Taunt attack restrictions, Windfury attack allowance, canonical action enumeration, and narrow zone-continuity
 guards. It does not claim complete rulebook targeting or combat legality, remaining keyword restrictions,
 combat redirection, full phase guards, or action sequences for Weapons, Hero cards, or locations. Hero Power summon-only full-board
 restrictions, variable usage limits, and game-wide usage counters remain gaps. Hero Power boundary
 placement and `OriginalPowerCompletion` are explicit engine policy pending pinned-rulebook
-verification. Checkpoints use schema 11 and reject older schemas, including schemas 7, 8, 9, and 10.
+verification. Checkpoints use schema 12 and reject older schemas, including schemas 7, 8, 9, 10, and 11.
 Stealth consumption runs after Attack reactions and before the existing damage batch, using a
 permanent ordered removal that survives recalculation and in-Play copying. Later grants restore
 Stealth. Exact preparation/death boundary placement and complete combat timing remain gaps.
