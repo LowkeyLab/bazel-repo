@@ -9,7 +9,7 @@ use crate::{
     zone::{ZoneIndex, board_entities, semantic_zone_position},
 };
 
-use super::player::player;
+use super::{action_validation::attack_exhausted, player::player};
 
 pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
     let ruleset = world.resource::<Ruleset>().id;
@@ -67,7 +67,25 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
         .collect::<Vec<_>>();
     players.sort_by_key(|player| player.id);
 
+    let objects = build_object_snapshots(world);
+
+    let rng = world.resource::<DeterministicRng>().state();
+    GameSnapshot {
+        ruleset,
+        game,
+        turn_schedule: world.resource::<TurnSchedule>().clone(),
+        dominant_player: world.resource::<DominantPlayer>().0,
+        players,
+        objects,
+        deaths: world.resource::<DeathEventCache>().records.clone(),
+        rng,
+        resolution: world.resource::<ResolutionWork>().clone(),
+    }
+}
+
+fn build_object_snapshots(world: &mut World) -> Vec<GameObjectSnapshot> {
     let mut object_query = world.query::<(
+        Entity,
         &GameEntityId,
         &DefinitionId,
         &DisplayName,
@@ -86,6 +104,7 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
         .iter(world)
         .map(
             |(
+                entity,
                 id,
                 definition,
                 name,
@@ -113,7 +132,7 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
                     attack: stats.map(|stats| stats.attack),
                     maximum_health: stats.map(|stats| stats.maximum_health),
                     damage: damage.map_or(0, |damage| damage.0),
-                    exhausted: attack.map(|attack| attack.exhausted),
+                    exhausted: attack.map(|attack| attack_exhausted(world, entity, *attack)),
                     hero_class: hero.map(|hero| hero.class),
                     hero_power_exhausted: hero_power.map(|power| power.exhausted),
                 }
@@ -121,19 +140,7 @@ pub(super) fn build_snapshot(world: &mut World) -> GameSnapshot {
         )
         .collect::<Vec<_>>();
     objects.sort_by_key(|object| object.id);
-
-    let rng = world.resource::<DeterministicRng>().state();
-    GameSnapshot {
-        ruleset,
-        game,
-        turn_schedule: world.resource::<TurnSchedule>().clone(),
-        dominant_player: world.resource::<DominantPlayer>().0,
-        players,
-        objects,
-        deaths: world.resource::<DeathEventCache>().records.clone(),
-        rng,
-        resolution: world.resource::<ResolutionWork>().clone(),
-    }
+    objects
 }
 
 pub(super) fn assert_game_entity_index(world: &World) -> Result<(), String> {

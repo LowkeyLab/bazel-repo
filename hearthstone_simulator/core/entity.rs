@@ -168,7 +168,8 @@ pub struct Enchantments(pub Vec<GameEntityId>);
 )]
 pub struct AttackState {
     pub attacks_this_turn: u8,
-    pub exhausted: bool,
+    /// Blocks attacks independently of the current keyword-based attack allowance.
+    pub readiness_blocked: bool,
 }
 
 #[derive(Component, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

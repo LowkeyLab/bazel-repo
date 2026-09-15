@@ -56,7 +56,7 @@ fn hero_replacement_preserves_combat_state_and_refreshes_the_power() {
         Armor(3),
         AttackState {
             attacks_this_turn: 1,
-            exhausted: true,
+            readiness_blocked: true,
         },
         Keywords(std::collections::BTreeSet::from([Keyword::Frozen])),
     ));
@@ -1216,4 +1216,70 @@ fn retained_hero_power_entry_validates_references_and_skips_a_replaced_subject()
         TraceEntry::SequenceStepSkipped { subject, .. } if *subject == old_power)));
     restored.choose(ChoiceId(51)).unwrap();
     restored.assert_invariants().unwrap();
+}
+
+#[test]
+fn windfury_hero_replacement_preserves_spent_attacks_and_readiness_with_live_allowance() {
+    for windfury in [false, true] {
+        for readiness_blocked in [false, true] {
+            for attacks_this_turn in [1, 2] {
+                let mut simulation = simulation();
+                let old = hero(&mut simulation, PlayerId::One);
+                let old_entity = game_entity(simulation.app.world(), old).unwrap();
+                let state = AttackState {
+                    attacks_this_turn,
+                    readiness_blocked,
+                };
+                simulation
+                    .app
+                    .world_mut()
+                    .entity_mut(old_entity)
+                    .insert(state);
+                let mut replacement =
+                    replacement(HeroHealthPolicy::Preserve, HeroClassPolicy::Keep, None);
+                if windfury {
+                    replacement.hero = replacement.hero.with_keyword(Keyword::Windfury);
+                }
+                replace_hero(simulation.app.world_mut(), PlayerId::One, &replacement).unwrap();
+                let current = hero(&mut simulation, PlayerId::One);
+                let entity = game_entity(simulation.app.world(), current).unwrap();
+                assert_eq!(
+                    simulation.app.world().get::<AttackState>(entity),
+                    Some(&state)
+                );
+                simulation
+                    .app
+                    .world_mut()
+                    .get_mut::<crate::CurrentStats>(entity)
+                    .unwrap()
+                    .attack = 1;
+                let defender = hero(&mut simulation, PlayerId::Two);
+                let action = GameAction::Attack {
+                    player: PlayerId::One,
+                    attacker: current,
+                    defender,
+                };
+                let allowed = windfury && attacks_this_turn == 1 && !readiness_blocked;
+                assert_eq!(simulation.legal_actions().contains(&action), allowed);
+                assert_eq!(
+                    simulation
+                        .snapshot()
+                        .objects
+                        .iter()
+                        .find(|object| object.id == current)
+                        .unwrap()
+                        .exhausted,
+                    Some(!allowed)
+                );
+                if allowed {
+                    simulation.apply(action).unwrap();
+                } else {
+                    assert_eq!(
+                        simulation.apply(action),
+                        Err(SimulationError::CannotAttack(current))
+                    );
+                }
+            }
+        }
+    }
 }

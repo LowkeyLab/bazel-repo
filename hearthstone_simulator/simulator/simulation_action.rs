@@ -702,7 +702,6 @@ fn finish_attack(
         && let Some(mut state) = world.get_mut::<AttackState>(attacker)
     {
         state.attacks_this_turn += 1;
-        state.exhausted = true;
     }
     push_resolution_ops(
         world,
@@ -834,7 +833,7 @@ fn start_turn(
         if let Some(entity) = game_entity(world, id) {
             if let Some(mut state) = world.get_mut::<AttackState>(entity) {
                 state.attacks_this_turn = 0;
-                state.exhausted = false;
+                state.readiness_blocked = false;
             }
             if let Some(mut state) = world.get_mut::<HeroPowerState>(entity) {
                 state.uses_this_turn = 0;

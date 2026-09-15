@@ -1397,7 +1397,7 @@ fn restore_play_copy_state(
         play_state.damage,
         AttackState {
             attacks_this_turn: 0,
-            exhausted: true,
+            readiness_blocked: true,
         },
         play_order,
     ));
