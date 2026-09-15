@@ -2487,9 +2487,7 @@ fn invalid_choice_programs_are_rejected_on_request_and_restoration() {
 
 #[googletest::test]
 fn played_self_finish_barrier_programs_are_validated_during_restoration() {
-    let simulation = simulation();
-    let mut checkpoint = simulation.checkpoint().unwrap();
-    let source = checkpoint.entities[0].id;
+    let (mut checkpoint, source) = checkpoint_with_play_minion();
     let missing = NativeEffectId::new("missing:played_self_finish");
     checkpoint.resolution.stack.push(StackedResolutionOp {
         id: ResolutionId(0),
@@ -2555,14 +2553,6 @@ fn retained_draw_then_programs_are_validated_during_restoration() {
         },
     });
     checkpoint.resolution.next_resolution_id = 1;
-    if let ResolutionOp::FinishPlayedSelfTransform { subject, .. } =
-        checkpoint.resolution.stack[0].operation
-    {
-        checkpoint
-            .resolution
-            .play_scopes
-            .insert(ResolutionId(0), subject);
-    }
     checkpoint.resolution.sequence_active = true;
     checkpoint.game.status = SimulationStatus::Resolving;
 
@@ -3809,5 +3799,213 @@ fn choice_programs_cannot_inherit_play_or_event_modification_authority() {
         );
         assert_eq!(simulation.snapshot(), before);
         simulation.assert_invariants().unwrap();
+    }
+}
+
+#[test]
+fn choice_branches_reject_captured_event_context_on_request_and_restore() {
+    for kind in [EventKind::ProposedDamage, EventKind::ProposedHealing] {
+        for nested in [false, true] {
+            let (mut base, source, target) =
+                checkpoint_with_prepared_event(kind, PlayerId::One, PlayerId::Two);
+            retain_operation(&mut base, ResolutionOp::FinishEvent(EventId(0)));
+            retain_operation(&mut base, ResolutionOp::ResolveEventSlot(EventSlotId(0)));
+            let mut request = ChoiceRequest {
+                id: ChoiceId(110),
+                player: PlayerId::One,
+                options: vec![ChoiceOption {
+                    id: ChoiceId(111),
+                    operations: vec![ResolutionOp::RunEffect {
+                        context: EffectContext {
+                            source: Some(source),
+                            controller: PlayerId::One,
+                            declared_target: Some(target),
+                            drawn_card: None,
+                            origin: EffectOrigin::Other,
+                        },
+                        effect: Effect::ModifyEventValue {
+                            operation: EventValueOperation::Add,
+                            value: ValueExpression::Constant(99),
+                        },
+                        event: Some(EventId(0)),
+                    }],
+                }],
+            };
+            if nested {
+                request = ChoiceRequest {
+                    id: ChoiceId(112),
+                    player: PlayerId::One,
+                    options: vec![ChoiceOption {
+                        id: ChoiceId(113),
+                        operations: vec![ResolutionOp::RequestChoice(request)],
+                    }],
+                };
+            }
+            let expected =
+                SimulationError::Invariant("choice branches cannot borrow an event context".into());
+            let mut live = Simulation::from_checkpoint(base.clone()).unwrap();
+            push_resolution_ops(
+                live.app.world_mut(),
+                [ResolutionOp::RequestChoice(request.clone())],
+            );
+            assert_eq!(
+                drive_resolution(live.app.world_mut()),
+                Err(expected.clone())
+            );
+            assert!(live.resolution_work().pending_choice.is_none());
+            assert_eq!(
+                live.resolution_work().events[&EventId(0)]
+                    .context
+                    .proposed_value,
+                Some(1)
+            );
+
+            let mut queued = base.clone();
+            retain_operation(&mut queued, ResolutionOp::RequestChoice(request.clone()));
+            let mut pending = base;
+            pending.resolution.pending_choice = Some(crate::PendingChoice { request });
+            pending.game.status = SimulationStatus::AwaitingChoice;
+            for checkpoint in [queued, pending] {
+                let json = checkpoint.to_json().unwrap();
+                let decoded = SimulationCheckpoint::from_json(&json).unwrap();
+                assert_eq!(
+                    Simulation::from_checkpoint(decoded).map(|_| ()),
+                    Err(expected.clone())
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn completion_only_play_scopes_validate_their_subjects() {
+    let (base, minion) = checkpoint_with_play_minion();
+    let hero = checkpoint_hero_id(&base, PlayerId::One);
+    for subject in [minion, hero] {
+        let mut checkpoint = base.clone();
+        retain_operation(&mut checkpoint, retained_played_self_finish(subject));
+        let json = checkpoint.to_json().unwrap();
+        let restored = Simulation::from_checkpoint(SimulationCheckpoint::from_json(&json).unwrap());
+        if subject == hero {
+            assert!(matches!(
+                restored,
+                Err(SimulationError::InvalidTransformation(_))
+            ));
+        } else {
+            let mut restored = restored.unwrap();
+            drive_resolution(restored.app.world_mut()).unwrap();
+            assert!(restored.resolution_work().play_scopes.is_empty());
+            finish_sequence(restored.app.world_mut());
+            restored.app.world_mut().resource_mut::<GameState>().status =
+                SimulationStatus::AwaitingAction;
+            restored.assert_invariants().unwrap();
+        }
+    }
+}
+
+#[test]
+fn retained_transform_scope_contracts_agree_with_runtime_validation() {
+    let (mut base, source) = checkpoint_with_play_minion();
+    retain_operation(&mut base, retained_played_self_finish(source));
+    for (scope, kind, origin, valid) in [
+        (
+            Some(ResolutionId(0)),
+            TransformKind::PlayedSelf,
+            Some(source),
+            true,
+        ),
+        (
+            Some(ResolutionId(0)),
+            TransformKind::PlayedSelf,
+            None,
+            false,
+        ),
+        (None, TransformKind::PlayedSelf, Some(source), false),
+        (
+            Some(ResolutionId(0)),
+            TransformKind::Spell,
+            Some(source),
+            false,
+        ),
+        (
+            Some(ResolutionId(999)),
+            TransformKind::PlayedSelf,
+            Some(source),
+            false,
+        ),
+    ] {
+        let operation = ResolutionOp::TransformEntity {
+            play_scope: scope,
+            target: source,
+            source: origin,
+            card: Card::minion("Scoped replacement", 0, 3, 3),
+            kind,
+        };
+        let mut checkpoint = base.clone();
+        retain_operation(&mut checkpoint, operation.clone());
+        let restored = Simulation::from_checkpoint(checkpoint);
+        let mut live = Simulation::from_checkpoint(base.clone()).unwrap();
+        push_resolution_ops(live.app.world_mut(), [operation]);
+        let result = drive_resolution(live.app.world_mut());
+        if valid {
+            let mut restored = restored.unwrap();
+            drive_resolution(restored.app.world_mut()).unwrap();
+            result.unwrap();
+            assert_eq!(live.snapshot(), restored.snapshot());
+            assert_eq!(live.trace(), restored.trace());
+            assert!(live.resolution_work().play_scopes.is_empty());
+        } else {
+            assert!(matches!(
+                restored,
+                Err(SimulationError::InvalidTransformation(_))
+            ));
+            assert!(matches!(
+                result,
+                Err(SimulationError::InvalidTransformation(_))
+            ));
+        }
+    }
+}
+
+#[test]
+fn choices_reject_empty_and_duplicate_options_before_suspension() {
+    for ids in [Vec::new(), vec![ChoiceId(120), ChoiceId(120)]] {
+        let mut simulation = simulation();
+        let world = simulation.app.world_mut();
+        begin_sequence(world).unwrap();
+        world.resource_mut::<GameState>().status = SimulationStatus::Resolving;
+        push_resolution_ops(
+            world,
+            [ResolutionOp::RequestChoice(ChoiceRequest {
+                id: ChoiceId(119),
+                player: PlayerId::One,
+                options: ids
+                    .iter()
+                    .map(|&id| ChoiceOption {
+                        id,
+                        operations: Vec::new(),
+                    })
+                    .collect(),
+            })],
+        );
+        let expected =
+            SimulationError::Invariant("choice requires nonempty, unique options".into());
+        assert_eq!(drive_resolution(world), Err(expected.clone()));
+        assert!(world.resource::<ResolutionWork>().pending_choice.is_none());
+        let effect = Effect::Choose {
+            id: ChoiceId(119),
+            player: PlayerSelector::Controller,
+            options: ids
+                .into_iter()
+                .map(|id| hearthstone_simulator_core::EffectChoiceOption {
+                    id,
+                    effects: Vec::new(),
+                })
+                .collect(),
+        };
+        assert_eq!(
+            super::effect_executor::validate_effect_program(world, &[effect], None),
+            Err(expected)
+        );
     }
 }

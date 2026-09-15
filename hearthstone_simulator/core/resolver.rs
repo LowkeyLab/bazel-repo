@@ -267,7 +267,7 @@ pub struct ResolutionWork {
     pub events: BTreeMap<EventId, PreparedEvent>,
     pub event_slots: BTreeMap<EventSlotId, PreparedEventSlot>,
     pub draw_result_slots: BTreeMap<DrawResultSlotId, DrawResultSlot>,
-    /// Keyed by the ID of the one-shot FinishPlayedSelfTransform operation that owns it.
+    /// Keyed by the ID of the one-shot `FinishPlayedSelfTransform` operation that owns it.
     /// Operations address this table directly; they never search pending work for a barrier.
     pub play_scopes: BTreeMap<ResolutionId, GameEntityId>,
     pub pending_played_self_transforms: BTreeSet<GameEntityId>,

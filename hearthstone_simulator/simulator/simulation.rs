@@ -151,6 +151,10 @@ impl Simulation {
     }
 
     /// Registers a read-only planner. Mutations and choices must be returned as effects.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SimulationError::NativeEffectAlreadyRegistered`] if the ID is already registered.
     pub fn register_native_effect(
         &mut self,
         id: impl Into<NativeEffectId>,
