@@ -273,3 +273,15 @@ mod tests {
         assert_that!(game_entity(&world, GameEntityId(7)), none());
     }
 }
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct WeaponState {
+    pub base_durability: i32,
+    pub durability: i32,
+}
+
+#[derive(Resource, Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct WeaponEquipment {
+    pub active: BTreeMap<PlayerId, GameEntityId>,
+    pub pending: BTreeMap<GameEntityId, Option<GameEntityId>>,
+}

@@ -14,6 +14,24 @@ pub(super) fn validate_resolution_operation(
     operation: &crate::ResolutionOp,
 ) -> Result<(), SimulationError> {
     match operation {
+        ResolutionOp::RunSequenceStep(crate::SequenceStep::ConsumeDurability {
+            weapon, ..
+        })
+        | ResolutionOp::RunGuardedSequenceStep {
+            step: crate::SequenceStep::ConsumeDurability { weapon, .. },
+            ..
+        } => {
+            let valid = crate::entity::game_entity(world, *weapon).is_some_and(|entity| {
+                world.get::<crate::EntityKind>(entity) == Some(&crate::EntityKind::Weapon)
+                    && world.get::<crate::WeaponState>(entity).is_some()
+            });
+            if !valid {
+                return Err(SimulationError::Checkpoint(
+                    "durability payer must be a Weapon with WeaponState".into(),
+                ));
+            }
+            Ok(())
+        }
         crate::ResolutionOp::RunEffect { effect, event, .. } => {
             let event = event.and_then(|event| {
                 world
@@ -104,6 +122,26 @@ pub(super) fn validate_choice_request(
     for option in &request.options {
         for operation in &option.operations {
             match operation {
+                ResolutionOp::RunSequenceStep(crate::SequenceStep::FinishEquip { .. })
+                | ResolutionOp::RunGuardedSequenceStep {
+                    step: crate::SequenceStep::FinishEquip { .. },
+                    ..
+                } => {
+                    return Err(SimulationError::Checkpoint(
+                        "choice branches cannot borrow a weapon replacement scope".into(),
+                    ));
+                }
+                ResolutionOp::RunSequenceStep(crate::SequenceStep::ConsumeDurability {
+                    ..
+                })
+                | ResolutionOp::RunGuardedSequenceStep {
+                    step: crate::SequenceStep::ConsumeDurability { .. },
+                    ..
+                } => {
+                    return Err(SimulationError::Checkpoint(
+                        "choice branches cannot borrow a durability payer".into(),
+                    ));
+                }
                 ResolutionOp::RunEffect { event: Some(_), .. } => {
                     return Err(SimulationError::Invariant(
                         "choice branches cannot borrow an event context".into(),

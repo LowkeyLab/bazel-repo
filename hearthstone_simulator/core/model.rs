@@ -15,6 +15,7 @@ pub struct Card {
     pub mana_cost: i32,
     pub attack: i32,
     pub health: i32,
+    pub durability: i32,
     pub keywords: BTreeSet<Keyword>,
     pub effects: Vec<Effect>,
     pub triggers: Vec<TriggerDefinition>,
@@ -33,6 +34,7 @@ impl Card {
             mana_cost,
             attack,
             health,
+            durability: 0,
             keywords: BTreeSet::new(),
             effects: Vec::new(),
             triggers: Vec::new(),
@@ -56,9 +58,10 @@ impl Card {
         Self::non_minion(name, EntityKind::HeroPower, mana_cost)
     }
 
-    pub fn weapon(name: impl Into<String>, mana_cost: i32, attack: i32) -> Self {
+    pub fn weapon(name: impl Into<String>, mana_cost: i32, attack: i32, durability: i32) -> Self {
         let mut card = Self::non_minion(name, EntityKind::Weapon, mana_cost);
         card.attack = attack;
+        card.durability = durability;
         card
     }
 
@@ -71,6 +74,7 @@ impl Card {
             mana_cost,
             attack: 0,
             health: 0,
+            durability: 0,
             keywords: BTreeSet::new(),
             effects: Vec::new(),
             triggers: Vec::new(),

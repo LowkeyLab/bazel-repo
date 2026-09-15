@@ -84,7 +84,7 @@ fn hero_replacement_preserves_combat_state_and_refreshes_the_power() {
     let weapon = spawn_card(
         simulation.app.world_mut(),
         PlayerId::One,
-        Card::weapon("Old Blade", 0, 3),
+        Card::weapon("Old Blade", 0, 3, 2),
         Zone::Play,
     )
     .unwrap();
@@ -214,7 +214,7 @@ fn replacement_can_override_health_and_equip_a_new_weapon() {
             current_health: 8,
         },
         HeroClassPolicy::Keep,
-        Some(Card::weapon("Doomhammer Fixture", 0, 5)),
+        Some(Card::weapon("Doomhammer Fixture", 0, 5, 2)),
     );
     let card = Card::spell("Become Ragnaros", 0).with_effects(vec![Effect::ReplaceHero {
         player: PlayerSelector::Controller,
@@ -227,7 +227,7 @@ fn replacement_can_override_health_and_equip_a_new_weapon() {
     let old_weapon = spawn_card(
         simulation.app.world_mut(),
         PlayerId::One,
-        Card::weapon("Old Weapon", 0, 2),
+        Card::weapon("Old Weapon", 0, 2, 2),
         Zone::Play,
     )
     .unwrap();

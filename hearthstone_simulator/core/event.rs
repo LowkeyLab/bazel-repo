@@ -19,6 +19,7 @@ pub enum EventKind {
     Attack,
     AfterAttack,
     AfterHeroPower,
+    WeaponEquipped,
     Death,
     TurnStarted,
     TurnEnded,

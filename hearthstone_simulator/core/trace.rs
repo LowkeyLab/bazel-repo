@@ -94,6 +94,11 @@ pub enum TraceEntry {
         proposed: i32,
         actual: i32,
     },
+    WeaponDurability {
+        weapon: GameEntityId,
+        previous: i32,
+        current: i32,
+    },
     EntityDied {
         entity: GameEntityId,
     },

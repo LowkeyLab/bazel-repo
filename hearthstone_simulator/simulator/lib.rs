@@ -10,6 +10,7 @@ mod resolver;
 mod rng;
 mod simulation;
 mod trigger;
+mod weapon;
 mod zone;
 
 mod entity {
@@ -38,8 +39,8 @@ pub(crate) use hearthstone_simulator_core::{
     Selector, SequenceStep, SilenceRemovable, Silenced, SimulationCheckpoint, SimulationError,
     SimulationStatus, SourceEligibilityPolicy, StackedResolutionOp, StatModifier, SubjectGuard,
     TargetRequirement, TraceEntry, TriggerCandidate, TriggerCondition, TriggerOrderKey,
-    TriggerSeed, TurnSchedule, ValueExpression, Zone, ZoneMoveOutcome, ZoneMoveRequest,
-    ZoneMovementKind, ZonePosition,
+    TriggerSeed, TurnSchedule, ValueExpression, WeaponEquipment, WeaponState, Zone,
+    ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind, ZonePosition,
 };
 
 #[allow(

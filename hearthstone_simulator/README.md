@@ -20,7 +20,7 @@ All card-type action sequences, choice-producing card mechanics, full Deathrattl
 
 ## Action declarations
 
-The supported player declarations are minion and spell plays, character attacks, Hero Power activations, `EndTurn`, and
+The supported player declarations are minion, spell, and weapon plays, character attacks, Hero Power activations, `EndTurn`, and
 `Concede`. A card can declare one of four explicit target requirements: no target, required,
 optional, or required when matching targets exist. The current filter foundation selects friendly,
 enemy, or either-player Minions, Heroes, or Characters; it intentionally does not implement
@@ -53,7 +53,7 @@ position, and every nonempty `PlayCard.choice` is currently rejected. `legal_act
 only canonical supported declarations, including valid character attacks, without changing game
 state or trace.
 
-Weapons, Hero cards, locations, combat redirection, complete phase guards, and
+Hero cards, locations, combat redirection, complete phase guards, and
 other keyword-specific combat legality remain outside this action-contract foundation.
 
 ## Taunt and Stealth
@@ -70,30 +70,11 @@ recalculation cannot restore consumed grants, while a later grant can restore St
 silence, transformation, backward movement, and copy policies apply to that enchantment. A subject
 that has left Play skips this step. Damage success is not required to consume Stealth.
 
-Checkpoint schema 15 persists this step and rejects earlier schemas. The boundary placement is
+Checkpoint schema 17 persists this step and rejects earlier schemas. The boundary placement is
 an explicit engine policy within the existing simplified combat sequence; complete preparation
-phases, redirection, and full combat guards remain unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
+phases, redirection and full combat guards remain
+unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
 revision remains unavailable for exact conformance verification.
-
-## Combat reactions
-
-Attacks resolve Attack-event reactions and consume Stealth, then run an ordinary death/aura
-boundary (including chained Death Phases) and check the outcome. A serializable
-`PrepareCombatDamage` step reads both participants' current Attack values only after that work.
-It schedules the simultaneous damage batch and `FinishAttack` only if both accepted stable IDs
-remain in Play and the game has no outcome. A zero-Attack participant still completes combat.
-
-Under the explicit `SurvivingCombatSubjects` engine policy, removal or death at that boundary
-cancels damage, attack usage, and AfterAttack. Surviving participants continue through transformation,
-control changes, and changes to declaration keywords; targeting/readiness is not revalidated.
-Stealth consumption remains part of preparation even if combat is subsequently cancelled.
-Once combat damage begins, existing simultaneous damage and FinishAttack timing apply.
-
-Checkpoint schema 15 persists this continuation and rejects older schemas. Forks and restored
-choices resume with live values and the same cancellation decisions. Exact pinned-rulebook
-conformance remains unverified. Transient leave-and-return history, depth-dependent interrupted
-attack usage, combat redirection, distinct ProposedAttack events, and sequence-start AfterAttack
-trigger capture remain outside this slice.
 
 ## Windfury
 
@@ -111,7 +92,7 @@ enchantment-granted Windfury are supported; no Windfury aura mechanism is introd
 Attack completion still records usage at the existing `FinishAttack` step, before AfterAttack
 reactions. Changes to Windfury during reactions affect the next declaration. This preserves the
 existing simplified combat timing, whose exact pinned-rulebook conformance remains unverified.
-Checkpoint schema 15 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
+Checkpoint schema 17 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
 Mega-Windfury and full combat phase guards remain outside this slice.
 
 ## Charge and Rush
@@ -135,7 +116,7 @@ rulebook revision. Full preparation phases and combat guards remain gaps.
 Fresh Play copies reset readiness and attack counts and use their eligible copied keywords.
 Backward movement removes ordinary keyword grants while retaining native keywords for replay.
 Existing transformation behavior replaces keywords and resets to a ready, zero-attack state;
-that readiness policy remains a separate conformance gap. Checkpoint schema 15
+that readiness policy remains a separate conformance gap. Checkpoint schema 17
 restores keyword/readiness state and suspended attacks exactly within the updated engine; replay
 equivalence with older binaries where these keywords were inactive is not guaranteed.
 
@@ -157,8 +138,38 @@ Thaw consumes existing Frozen grants with an ordered removal, so recalculation c
 them; later grants can freeze again. Silence, transformation, backward movement, and in-Play
 copying use existing keyword lifecycle policies. Repeated freezing does not stack skipped turns.
 An attack accepted before an Attack reaction freezes its attacker still completes under the
-existing simplified combat policy; later declarations are blocked. Checkpoint schema 15 persists
+existing simplified combat policy; later declarations are blocked. Checkpoint schema 17 persists
 the new thaw step and rejects earlier schemas. No new timer or freeze-history state is required.
+
+## Weapons
+
+`Card::weapon("Training Blade", 1, 3, 2)` defines cost, Attack, and durability explicitly.
+Weapons use ordinary `PlayCard` targeting and payment, without a board position or Minion slot.
+The active weapon appears as `PlayerSnapshot.weapon`; object snapshots expose current durability.
+
+Playing a replacement makes the new weapon active while the old weapon remains in Play through
+CardPlayed reactions, play effects, and WeaponEquipped reactions. Replacement then retires the
+captured old weapon, resolves deaths and Deathrattles, and runs the initially captured AfterPlay
+reactions. Nested equipping cannot reactivate an older weapon. Hero replacement uses the same
+equip lifecycle without replaying a weapon's hand-play effects.
+
+Hero Attack includes active weapon Attack on the controller's turn. Equipping preserves attacks
+already spent. After Attack reactions, combat checks participant continuity and reads live Attack;
+a completed Hero attack consumes one durability from the weapon captured at damage preparation
+if that weapon is still active. Replacement during damage reactions cannot charge the new weapon.
+Prevented damage still spends durability. AfterAttack precedes the ordinary death boundary, where
+weapon breakage and Minion deaths share play-order processing. Preparation deaths, aura refresh, and outcome checks follow the existing combat-reaction sequence.
+Participant removal skips damage, durability, attack usage, and AfterAttack. Surviving accepted
+subjects continue through control changes under the existing SurvivingCombatSubjects policy.
+
+These are explicit engine timing policies, not certified conformance to the pinned rulebook.
+Weapon-granted keywords and durability enchantments remain deferred. Existing transform operations
+remain Minion-only. Backward movement resets durability; ordinary copies use base durability and
+eligible in-Play copies preserve current durability. Schema 17 persists weapons, replacement scopes,
+and deferred combat with captured one-shot durability payers; checkpoints from schema 16 and earlier must be regenerated.
+
+On sequence failure, replacement scopes are released and superseded weapons are retired without
+running further effects. As with other failed sequences, prior gameplay mutations are not rolled back.
 
 ## Hero Power activation
 
@@ -178,7 +189,7 @@ retains completion bookkeeping on its old ID, including in RemovedFromGame; the 
 ready. If the original no longer exists or is no longer a Hero Power with power state, completion
 omits that state mutation while remaining sequence work continues. This replacement policy and
 boundary placement are not certified against the inaccessible pinned rulebook revision.
-Checkpoint schema 15 preserves suspended activations and captured after-use seeds; older schemas
+Checkpoint schema 17 preserves suspended activations and captured after-use seeds; older schemas
 are rejected. Summon-only full-board restrictions, variable use limits, game-wide usage counters,
 modal choices, and targeting redirection remain gaps.
 
@@ -271,6 +282,26 @@ cannot use `&mut World`, mutable system parameters, or `Commands`. `Effect::Choo
 request ID, player selector, and `EffectChoiceOption` values with IDs and effect programs.
 Use `pending_choice()` and `choose(option_id)` to inspect and answer a suspended request.
 
-Checkpoint schema 15 includes explicit play scopes and rejects schema 14 and earlier. Existing
+Checkpoint schema 17 includes explicit play scopes and rejects schema 16 and earlier. Existing
 saved checkpoints must be regenerated. Action and choice completion check for leftover resolution
 state; failures clear pending work without rolling back gameplay mutations already applied.
+
+## Combat reactions
+
+Attacks resolve Attack-event reactions and consume Stealth, then run an ordinary death/aura
+boundary (including chained Death Phases) and check the outcome. A serializable
+`PrepareCombatDamage` step reads both participants' current Attack values only after that work.
+It schedules the simultaneous damage batch and `FinishAttack` only if both accepted stable IDs
+remain in Play and the game has no outcome. A zero-Attack participant still completes combat.
+
+Under the explicit `SurvivingCombatSubjects` engine policy, removal or death at that boundary
+cancels damage, attack usage, and AfterAttack. Surviving participants continue through transformation,
+control changes, and changes to declaration keywords; targeting/readiness is not revalidated.
+Stealth consumption remains part of preparation even if combat is subsequently cancelled.
+Once combat damage begins, existing simultaneous damage and FinishAttack timing apply.
+
+Checkpoint schema 17 persists this continuation and rejects older schemas. Forks and restored
+choices resume with live values and the same cancellation decisions. Exact pinned-rulebook
+conformance remains unverified. Transient leave-and-return history, depth-dependent interrupted
+attack usage, combat redirection, distinct ProposedAttack events, and sequence-start AfterAttack
+trigger capture remain outside this slice.

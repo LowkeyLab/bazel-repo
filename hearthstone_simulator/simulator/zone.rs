@@ -267,6 +267,21 @@ pub(crate) fn move_entity_with_request(
 }
 
 fn destination_is_full(world: &World, entity: Entity, player: PlayerId, zone: Zone) -> bool {
+    if zone == Zone::Play
+        && world.get::<Controller>(entity) == Some(&Controller(player))
+        && world.get::<EntityKind>(entity) == Some(&EntityKind::Weapon)
+        && world.get::<GameEntityId>(entity).is_some_and(|id| {
+            world
+                .get_resource::<crate::WeaponEquipment>()
+                .is_some_and(|w| {
+                    w.pending.contains_key(id)
+                        || w.pending.values().any(|old| *old == Some(*id))
+                        || w.active.get(&player) == Some(id)
+                })
+        })
+    {
+        return false;
+    }
     let entries = world.resource::<ZoneIndex>().entities(player, zone);
     if zone_limit(world.resource::<Ruleset>(), zone).is_some_and(|limit| entries.len() >= limit) {
         return true;
@@ -457,6 +472,7 @@ fn apply_movement_state_policy(world: &mut World, request: ZoneMoveRequest, sour
     }
 
     let leaving_play = source == Zone::Play && request.destination != Zone::Play;
+    crate::weapon::track_entry(world, request.entity);
     if leaving_play {
         clear_post_death_auras(world, request.entity);
     }
@@ -500,6 +516,11 @@ fn clear_all_received_auras(world: &mut World, id: GameEntityId) {
 }
 
 fn reset_runtime_state(world: &mut World, id: GameEntityId) {
+    if let Some(entity) = game_entity(world, id)
+        && let Some(mut state) = world.get_mut::<crate::WeaponState>(entity)
+    {
+        state.durability = state.base_durability;
+    }
     let Some(entity) = game_entity(world, id) else {
         return;
     };

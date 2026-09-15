@@ -131,6 +131,7 @@ pub(super) fn validate_card_spawn(
     zone: Zone,
     board_position: Option<usize>,
 ) -> Result<Option<usize>, SimulationError> {
+    crate::weapon::validate_card(card)?;
     validate_generation_capacity(world, player_id, zone, card.kind, &card.definition_id)?;
     Ok(resolve_generation_position(
         world,
@@ -189,6 +190,12 @@ fn spawn_validated_card(
         RuntimeAuras(card.auras),
         RuntimeContinuousEffects(card.continuous_effects),
     ));
+    if kind == EntityKind::Weapon {
+        world.entity_mut(entity).insert(crate::WeaponState {
+            base_durability: card.durability,
+            durability: card.durability,
+        });
+    }
     if kind == EntityKind::HeroPower {
         world.entity_mut(entity).insert(HeroPowerState::default());
     }
@@ -204,5 +211,6 @@ fn spawn_validated_card(
         world.despawn(entity);
         return Err(error.into());
     }
+    crate::weapon::track_entry(world, id);
     Ok(id)
 }

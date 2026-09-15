@@ -7,7 +7,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Active milestone: Milestone 8 player-action sequences
-- Verification: 2026-09-15, 9 core and 309 simulator tests and the full repository build pass after the combat reaction slice. Formatting and simulator lint pass with no findings.
+- Verification: 2026-09-15, 9 core and 332 simulator tests and the full repository build pass after the weapon review fixes. Formatting and simulator lint pass with no findings.
 
 ## Milestones
 
@@ -65,7 +65,8 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Charge/Rush Minion readiness bypass with live keywords, Charge precedence, Rush Hero-defender restrictions, preserved attacks spent, and checkpoint-exact accepted attack continuation.
   - [x] Frozen declaration blocking and explicit end-turn thawing using live readiness/attack allowance, fresh Rush Minion presence, ordered consumption, and checkpointed continuation.
   - [x] Combat reaction continuation with live damage values after preparation deaths/auras, outcome gating, surviving-subject guards, and checkpoint-exact choices.
-  - [ ] Weapon, Hero card, and location action sequences; combat redirection; full phase guards; and remaining keyword-specific combat legality.
+  - [x] Ordinary weapon play, scoped replacement, Hero Attack contribution, durability, Deathrattles, and checkpoint-exact continuation. Weapon-granted keywords remain deferred.
+  - [ ] Hero card and location action sequences; combat redirection; full phase guards; and remaining keyword-specific combat legality.
 - [ ] **9 — Esoteric compatibility**
   - [x] Durable dominant-player identity and dominant/secondary trigger grouping.
   - [ ] Named forced-death, Deathrattle-position, and wounded-target policies.
@@ -185,16 +186,15 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 ## Known gaps
 
 Milestone 8 remains partial. Its current foundation covers minion/spell declarations and synthetic Hero Power activation,
-audience/kind and Stealth/Immune targeting filters, Taunt attack restrictions, Windfury attack allowance, Charge/Rush readiness and defender rules, canonical action enumeration, and narrow zone-continuity
-guards. It does not claim complete rulebook targeting or combat legality, remaining keyword restrictions,
-combat redirection, full phase guards, or action sequences for Weapons, Hero cards, or locations. Hero Power summon-only full-board
+audience/kind and Stealth/Immune targeting filters, Taunt attack restrictions, Windfury attack allowance, Charge/Rush readiness and defender rules, canonical action enumeration, and zone-continuity guards. Ordinary weapons add scoped replacement, durability, and live combat damage preparation. It does not claim complete rulebook targeting or combat legality, remaining keyword restrictions,
+combat redirection, full phase guards, or action sequences for Hero cards or locations. Hero Power summon-only full-board
 restrictions, variable usage limits, and game-wide usage counters remain gaps. Hero Power boundary
 placement and `OriginalPowerCompletion` are explicit engine policy pending pinned-rulebook
-verification. Checkpoints use schema 15 and reject older schemas, including schemas 7, 8, 9, 10, 11, 12, 13, and 14.
+verification. Checkpoints use schema 17 and reject older schemas, including schema 16.
 Charge/Rush permissions do not clear initial readiness or attack counts; accepted attacks continue
 through keyword loss under existing combat policy. Snapshot exhaustion excludes target availability.
 Transformation still resets to ready with zero attacks spent, an explicit existing policy awaiting
-separate conformance work. Schema 15 includes the Frozen thaw step and combat-damage preparation; replay equivalence with older binaries
+separate conformance work. Schema 17 includes the Frozen thaw step and combat-damage preparation; replay equivalence with older binaries
 where Charge/Rush were inactive is not guaranteed.
 Stealth consumption runs after Attack reactions and before the existing damage batch, using a
 permanent ordered removal that survives recalculation and in-Play copying. Later grants restore
@@ -216,13 +216,28 @@ The implementation remains intentionally synthetic-card-first. Unchecked items a
 - `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
 - `git diff --check`: passed.
 
+### Ordinary weapons slice (2026-09-15)
+
+- Explicit base/current durability, active weapon references, and scoped overlapping replacement.
+- Hand play and effect installation share equip/destruction primitives; play effects and captured AfterPlay reactions retain their documented sequence.
+- Hero Attack queries include the active weapon on the controller's turn; combat reads live Attack after reactions and charges the captured, still-active weapon.
+- Weapon breakage and replacement record Death Events and resolve ordinary Deathrattles; combat breakage shares global death order with Minions.
+- Schema 16 restores pending replacement and combat exactly; malformed equipment state and orphaned scopes are rejected.
+- Weapon-granted keywords, durability modifiers, and full combat rulebook conformance remain deferred.
+- `bazel run //:gazelle`: passed after source edits and formatting.
+- `aspect format --scope=all`: passed.
+- `aspect test //hearthstone_simulator/...`: passed 9 core and 326 simulator tests (17 new weapon regressions).
+- `aspect build //...`: passed all 351 targets.
+- `aspect lint //hearthstone_simulator/...`: passed with no filtered findings.
+- `git diff --check`: passed.
+
 ### Combat reaction handling (2026-09-15)
 
 - `PrepareCombatDamage` follows Attack reactions, Stealth consumption, preparation deaths/auras,
   and outcome checking; both damage values use current stats.
 - Removed/dead subjects cancel damage, usage, and AfterAttack. Surviving stable IDs continue
   through transformation/control changes under `SurvivingCombatSubjects` engine policy.
-- Schema 15 stores the new continuation and rejects schema 14 and earlier.
+- Schema 15 introduced the new continuation and rejected schema 14 and earlier.
 - Exact pinned-rulebook timing, transient leave-and-return history, depth-dependent cancellation
   usage, redirection, distinct ProposedAttack events, and captured AfterAttack eligibility remain gaps.
 - `bazel run //:gazelle`: passed after source edits and formatting; no BUILD changes.
@@ -233,3 +248,18 @@ The implementation remains intentionally synthetic-card-first. Unchecked items a
 - `aspect build //...`: passed all 351 targets.
 - `aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
 - `git diff --check`: passed.
+
+### Weapon review fixes (2026-09-15)
+
+- Reject cross-controller replacement scopes, out-of-range current durability, and non-weapon durability payers while accepting moved weapon references.
+- Share live Hero/controller/turn selection between weapon Attack and durability payment; clamp durability at zero.
+- Trace equip and retirement movements, and use death movement cleanup for both successful and failed replacement.
+- Add six regressions for forged state, movement traces, enchanted retirement, and control-changing combat.
+- `aspect test //hearthstone_simulator/...`: passed 9 core and 332 simulator tests.
+- `aspect format --scope=all`, `aspect build //...`, `aspect lint //hearthstone_simulator/...`, and `git diff --check`: passed.
+
+### Durability payer provenance (2026-09-16)
+
+- Schema 17 records the combat-preparation payer against its one-shot resolution operation. Restoration rejects substituted weapons/controllers, missing captures, orphaned captures, and duplicate payments. Choice branches cannot borrow a payment.
+- Sequence abandonment clears captured payers; valid moved/replaced weapons still restore and resume without charging a replacement.
+- Expanded the suspended replacement regression with six malformed-checkpoint cases; JSON restoration and forks retain identical continuations.
