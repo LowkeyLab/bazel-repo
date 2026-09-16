@@ -90,7 +90,7 @@ Use the [CloudEvents 1.0.2 specification](https://github.com/cloudevents/spec/bl
 | Attribute         | Bot convention                                                                                                                                                                        |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `specversion`     | Always `"1.0"`; independent of the domain payload version.                                                                                                                            |
-| `id`              | UUID v4 string allocated for each new event; preserve it through persistence, replay, and redelivery.                                                                                 |
+| `id`              | UUID v7 string allocated for each new event; preserve it through persistence, replay, and redelivery.                                                                                 |
 | `source`          | Stable absolute URI `urn:lowkeylab:prediction-bot:discord:<application_id>:guild:<guild_id>`; never a process ID or transient hostname.                                               |
 | `type`            | Versioned domain name, such as `io.lowkeylab.predictionbot.bet.placed.v1`.                                                                                                            |
 | `subject`         | `markets/<market_uuid>` for market and bet events, `members/<user_id>` for enrollment and grant events, and `economy` for guild initialization; interpreted within `source`.          |
@@ -110,7 +110,7 @@ For example, an accepted stake produces:
 ```json
 {
   "specversion": "1.0",
-  "id": "07930c60-f225-4575-b6fb-a3c1d026fe36",
+  "id": "01a0aa16-8e00-7575-b6fb-a3c1d026fe36",
   "source": "urn:lowkeylab:prediction-bot:discord:123456789012345678:guild:234567890123456789",
   "type": "io.lowkeylab.predictionbot.bet.placed.v1",
   "subject": "markets/78e82954-4c67-4e0d-8c80-8ab95a527ae5",
@@ -200,7 +200,7 @@ Domain tests cover exact grant boundaries and missed intervals, integer payouts 
 
 Integration tests use a real isolated PostgreSQL instance with migrations, following the repository's testcontainers pattern. Treat this dedicated bot database as an application-managed dependency. Tests cover persistence across service recreation, guild isolation, duplicate interactions, grant retries, simultaneous overspending attempts, betting versus resolution, concurrent settlement, transaction rollback, and cancellation conservation. Also verify atomic multi-event append, append-only runtime permissions, contiguous stream revisions under concurrent commands, fresh projection reconstruction from stored history, recovery after commit without projection publication, duplicate delivery during catch-up, rejection of corrupt or unsupported history, and isolation between simultaneous guild streams. Assert resulting public projections and command results; do not substitute an in-memory event store as evidence of PostgreSQL transaction correctness. In-memory projections are the intended production read model, not a database test substitute.
 
-CloudEvents contract tests use checked-in JSON fixtures to verify required metadata, the wire version, extension scalar types, flattened extensions, payload schema selection, stable event identities after persistence and replay, and revision/index ordering. Reject missing required fields, invalid URIs or timestamps, envelope/payload mismatches, duplicate identities, and unsupported domain schemas. Round-trip an unknown optional extension without changing the projected result. Verify that two events from one command have distinct event IDs and the same command ID, and that a redelivered command produces no new event identities. Exercise serialized events through replay and query results rather than merely testing struct field assignments.
+CloudEvents contract tests use checked-in JSON fixtures to verify required metadata, the wire version, UUID v7 event IDs, extension scalar types, flattened extensions, payload schema selection, stable event identities after persistence and replay, and revision/index ordering. Reject missing required fields, malformed or non-v7 event IDs, invalid URIs or timestamps, envelope/payload mismatches, duplicate identities, and unsupported domain schemas. Round-trip an unknown optional extension without changing the projected result. Verify that two events from one command have distinct event IDs and the same command ID, and that a redelivered command produces no new event identities. Exercise serialized events through replay and query results rather than merely testing struct field assignments.
 
 Discord is an external unmanaged boundary. Adapter tests use representative interaction inputs and capture outgoing user-visible responses, including permission rejection, DM rejection, malformed options, and mention suppression. Live Discord smoke testing is separate and requires supplied credentials; local tests must not claim to establish successful Discord deployment.
 
@@ -208,6 +208,6 @@ For each implementation increment, run a meaningful failing behavior test before
 
 ## Bazel integration and completion evidence
 
-Use the root Cargo manifest and lockfile as Bazel dependency inputs, following existing rules_rs targets. Do not use cargo directly. Run `bazel run //:gazelle` immediately after each source edit and before any manual BUILD edits or formatting.
+Use the root Cargo manifest and lockfile as Bazel dependency inputs, following existing rules_rs targets. Enable the existing `uuid` dependency's `v7` feature for event ID generation; retain features needed by other repository targets. Do not use cargo directly. Run `bazel run //:gazelle` immediately after each source edit and before any manual BUILD edits or formatting.
 
 Run focused `aspect test` targets for the domain, PostgreSQL, and adapter tests. Before completing implementation, run `aspect format --scope=all` and `aspect build //...`. Preserve unrelated work and report any unavailable tooling or infrastructure explicitly. Use conventional commits.
