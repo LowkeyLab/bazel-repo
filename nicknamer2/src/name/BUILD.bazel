@@ -53,7 +53,7 @@ rust_test(
     ],
     deps = [
         "//nicknamer2/src/migrations",
-        "//tools/test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",  # keep
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],
@@ -75,7 +75,7 @@ rust_test(
     ],
     deps = [
         "//nicknamer2/src/migrations",
-        "//tools/test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",  # keep
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",

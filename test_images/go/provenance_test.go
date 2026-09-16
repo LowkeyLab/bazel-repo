@@ -1,9 +1,10 @@
-package testutil
+package testimages
 
 import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 )
 
@@ -28,7 +30,24 @@ func TestFixtureProcess(t *testing.T) {
 	if os.Getenv("BAZEL_IMAGE_FIXTURE_CHILD") != "1" {
 		t.Skip("subprocess entry point")
 	}
-	db := SetupTestDB(t)
+	container, err := Postgres(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := container.Terminate(context.Background()); err != nil {
+			t.Errorf("terminate postgres: %v", err)
+		}
+	})
+	connStr, err := container.ConnectionString(t.Context(), "sslmode=disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
 	var result int
 	if err := db.QueryRowContext(t.Context(), "SELECT 1").Scan(&result); err != nil || result != 1 {
 		t.Fatalf("fixture database query = %d, %v", result, err)

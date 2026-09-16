@@ -2,13 +2,13 @@ load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
+# gazelle:resolve rust futures_util @crates//:futures-util-0.3.34
+# gazelle:resolve rust tokio_util @crates//:tokio-util-0.7.19
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
-# gazelle:rust_crate_name test_images
 rust_library(
     name = "test_images",
     testonly = True,
     srcs = ["lib.rs"],
-    crate_name = "test_images",
     crate_root = "lib.rs",
     visibility = ["//visibility:public"],
     deps = [
@@ -32,7 +32,7 @@ rust_binary(
     testonly = True,
     srcs = ["probe.rs"],
     crate_root = "probe.rs",
-    visibility = ["//predix/internal/testutil:__pkg__"],
+    visibility = ["//test_images/go:__pkg__"],
     deps = [
         ":test_images",
         "@crates//:testcontainers-modules",
