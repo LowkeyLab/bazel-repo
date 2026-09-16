@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-Design approved on 2026-09-16. Implementation is pending written-spec review.
+Implemented and verified on 2026-09-16.
 This Milestone 8 slice makes the active weapon's Windfury contribute to Hero attack allowance.
 Lifesteal, Poisonous, arbitrary weapon-keyword transfer, Mega-Windfury, and new combat phases remain outside this slice.
 

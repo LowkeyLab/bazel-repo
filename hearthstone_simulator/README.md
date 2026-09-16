@@ -89,6 +89,15 @@ values derive exhaustion from both readiness and the current allowance; `legal_a
 the same validation. Turn-start refresh clears readiness blocking and attacks spent. Innate and
 enchantment-granted Windfury are supported; no Windfury aura mechanism is introduced.
 
+An active weapon with Windfury contributes to its Hero's allowance of two attacks during the
+controller's turn. Attacks already spent count across weapon changes, and Hero-owned and
+weapon-owned Windfury do not stack. Current weapon keywords determine the contribution;
+replacement, breakage, and keyword removal update allowance without changing attack history.
+Validation, `legal_actions()`, snapshot exhaustion, and Frozen thawing use the same calculation.
+A zero-Attack weapon can contribute when the Hero has Attack from another source. A superseded
+weapon still in Play cannot contribute, while a zero-durability active weapon contributes until
+its existing removal boundary.
+
 Attack completion still records usage at the existing `FinishAttack` step, before AfterAttack
 reactions. Changes to Windfury during reactions affect the next declaration. This preserves the
 existing simplified combat timing, whose exact pinned-rulebook conformance remains unverified.
@@ -163,10 +172,13 @@ Participant removal skips damage, durability, attack usage, and AfterAttack. Sur
 subjects continue through control changes under the existing SurvivingCombatSubjects policy.
 
 These are explicit engine timing policies, not certified conformance to the pinned rulebook.
-Weapon-granted keywords and durability enchantments remain deferred. Existing transform operations
-remain Minion-only. Backward movement resets durability; ordinary copies use base durability and
-eligible in-Play copies preserve current durability. Schema 17 persists weapons, replacement scopes,
-and deferred combat with captured one-shot durability payers; checkpoints from schema 16 and earlier must be regenerated.
+Weapon-granted Lifesteal, Poisonous, and other weapon keyword mechanics, plus durability
+enchantments, remain deferred. Existing transform operations remain Minion-only. Backward movement
+resets durability; ordinary copies use base durability and eligible in-Play copies preserve current
+durability. Schema 17 persists weapons, replacement scopes, and deferred combat with captured
+one-shot durability payers; checkpoints from schema 16 and earlier must be regenerated. Schema 17
+is structurally unchanged for weapon Windfury, but gameplay equivalence with older binaries where
+weapon Windfury was inactive is not guaranteed.
 
 On sequence failure, replacement scopes are released and superseded weapons are retired without
 running further effects. As with other failed sequences, prior gameplay mutations are not rolled back.

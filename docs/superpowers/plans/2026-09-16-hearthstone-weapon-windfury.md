@@ -48,7 +48,7 @@ durability payment, or checkpoint version.
 `hearthstone_simulator/simulator/weapon.rs`,
 `hearthstone_simulator/simulator/simulation_action_validation.rs`.
 
-- [ ] Add the following regression beside the existing weapon tests. All helpers used here
+- [x] Add the following regression beside the existing weapon tests. All helpers used here
       already exist in that file or its imported test support.
 
 ```rust
@@ -73,7 +73,7 @@ fn weapon_windfury_allows_two_attacks_without_resetting_history() {
 }
 ```
 
-- [ ] Run Gazelle, then the focused test. Expected failure before implementation: after the
+- [x] Run Gazelle, then the focused test. Expected failure before implementation: after the
       first attack, the legal-action/exhaustion assertion fails because allowance is still one.
 
 ```bash
@@ -81,7 +81,7 @@ nix develop --command bazel run //:gazelle
 nix develop --command aspect test //hearthstone_simulator/simulator:simulator_test --test_filter=weapon_windfury
 ```
 
-- [ ] Add this narrow query to `weapon.rs`; fully qualified names avoid unnecessary import edits.
+- [x] Add this narrow query to `weapon.rs`; fully qualified names avoid unnecessary import edits.
 
 ```rust
 pub(crate) fn grants_windfury(world: &World, entity: Entity) -> bool {
@@ -93,7 +93,7 @@ pub(crate) fn grants_windfury(world: &World, entity: Entity) -> bool {
 }
 ```
 
-- [ ] Replace only the allowance initializer in `attack_exhausted` with:
+- [x] Replace only the allowance initializer in `attack_exhausted` with:
 
 ```rust
 let allowance = if has_keyword(world, entity, Keyword::Windfury)
@@ -105,14 +105,14 @@ let allowance = if has_keyword(world, entity, Keyword::Windfury)
 };
 ```
 
-- [ ] Run Gazelle immediately, then the same focused test; expect PASS. Keep existing
+- [x] Run Gazelle immediately, then the same focused test; expect PASS. Keep existing
       readiness and Minion Charge/Rush logic untouched.
 
 ## Task 2: Equipment, keyword, and turn transitions
 
 **Modify:** `hearthstone_simulator/simulator/simulation_tests_actions.rs`.
 
-- [ ] Add this replacement matrix. It proves that only current sources determine allowance,
+- [x] Add this replacement matrix. It proves that only current sources determine allowance,
       and that switching weapons neither clears attack history nor stacks Windfury.
 
 ```rust
@@ -149,7 +149,7 @@ fn weapon_windfury_replacement_preserves_spent_attacks() {
 }
 ```
 
-- [ ] Add this dynamic-grant and thaw regression. Existing `keyword_grant`, `freeze`,
+- [x] Add this dynamic-grant and thaw regression. Existing `keyword_grant`, `freeze`,
       `is_frozen`, and `end_active_turn` helpers must be reused.
 
 ```rust
@@ -173,7 +173,7 @@ fn weapon_windfury_live_grants_control_thaw_before_expiration() {
 }
 ```
 
-- [ ] Extend coverage using these concrete setup operations. Keep separate named tests for
+- [x] Extend coverage using these concrete setup operations. Keep separate named tests for
       each row of the acceptance matrix below so failures identify the transition involved.
 
 ```rust
@@ -207,7 +207,7 @@ For each row, construct the same `action` as Task 1 and call `assert_windfury_le
 boundaries. Its existing checks cover enumeration purity, validation, exhaustion, and atomic
 rejection; avoid using it during suspended resolution or while Frozen blocks a declaration.
 
-- [ ] Run Gazelle immediately after each source batch. Run the focused `weapon_windfury`
+- [x] Run Gazelle immediately after each source batch. Run the focused `weapon_windfury`
       filter after these tests, then the existing `windfury` filter to include Minion regressions.
 
 ```bash
@@ -221,7 +221,7 @@ shared timing semantics before adding production changes.
 
 **Modify:** `hearthstone_simulator/simulator/simulation_tests_actions.rs`.
 
-- [ ] Add a suspension matrix using existing `weapon_pause` and `weapon_restore_and_finish`.
+- [x] Add a suspension matrix using existing `weapon_pause` and `weapon_restore_and_finish`.
       It must observe the shared exhaustion query directly during suspension because actions
       are unavailable until the pending choice resolves.
 
@@ -251,7 +251,7 @@ fn weapon_windfury_suspended_replacement_uses_only_active_weapon() {
 }
 ```
 
-- [ ] Add the accepted-second-attack regression below. Compare explicit traces as well as
+- [x] Add the accepted-second-attack regression below. Compare explicit traces as well as
       checkpoints if the existing restore helper's checkpoint equality ever excludes trace data.
 
 ```rust
@@ -284,7 +284,7 @@ fn weapon_windfury_loss_during_second_attack_preserves_continuation() {
 }
 ```
 
-- [ ] Extend the suspended replacement matrix with nested replacement. Use the exact
+- [x] Extend the suspended replacement matrix with nested replacement. Use the exact
       production effect below as the outer weapon's program, followed by `weapon_pause()`:
 
 ```rust
@@ -298,14 +298,14 @@ its ID with `hero(&mut sim, PlayerId::One)` after replacement. The active weapon
 old nor outer; both superseded IDs must end in Graveyard exactly once. This covers original
 source removal without erroneously restoring its grant.
 
-- [ ] Run Gazelle immediately, then `--test_filter=weapon_windfury`. Expected: PASS, including
+- [x] Run Gazelle immediately, then `--test_filter=weapon_windfury`. Expected: PASS, including
       JSON restoration and fork comparisons through the existing restore helper.
 
 ## Task 4: Document and verify the slice
 
 **Modify:** the three simulator Markdown documents and approved spec listed in the file map.
 
-- [ ] Add the following behavior paragraph to README and revise the older blanket weapon-keyword
+- [x] Add the following behavior paragraph to README and revise the older blanket weapon-keyword
       deferral to say that Lifesteal, Poisonous, and other weapon keyword mechanics remain deferred:
 
 ```text
@@ -316,7 +316,7 @@ replacement and removal update allowance without changing attack history. Valida
 legal actions, snapshot exhaustion, and Frozen thawing use the same calculation.
 ```
 
-- [ ] Add this compatibility/policy text to RULEBOOK_CONFORMANCE and link the approved spec:
+- [x] Add this compatibility/policy text to RULEBOOK_CONFORMANCE and link the approved spec:
 
 ```text
 Weapon Windfury uses the existing active-weapon lifetime and controller-turn policy.
@@ -327,7 +327,7 @@ structurally compatible; replay equivalence with older binaries where weapon Win
 inactive is not guaranteed.
 ```
 
-- [ ] Mark only the weapon-Windfury slice implemented in IMPLEMENTATION_PROGRESS; keep
+- [x] Mark only the weapon-Windfury slice implemented in IMPLEMENTATION_PROGRESS; keep
       Milestone 8 incomplete. Update the spec status to implemented after verification succeeds.
       Record actual test counts and commands from the following runs rather than forecasting them.
 
@@ -339,11 +339,11 @@ nix develop --command aspect lint //hearthstone_simulator/...
 git diff --check
 ```
 
-- [ ] If formatting changes source, run Gazelle immediately afterward and inspect generated
+- [x] If formatting changes source, run Gazelle immediately afterward and inspect generated
       differences. Rerun affected checks only when edits or failures justify it.
-- [ ] Review the diff: no keyword copying, new state, schema bump, generic inheritance, or
+- [x] Review the diff: no keyword copying, new state, schema bump, generic inheritance, or
       unrelated changes. Verify every acceptance row in the spec maps to a passing test.
-- [ ] Commit only the feature files and updated docs after required checks pass:
+- [x] Commit only the feature files and updated docs after required checks pass:
 
 ```bash
 git add hearthstone_simulator/simulator/weapon.rs hearthstone_simulator/simulator/simulation_action_validation.rs hearthstone_simulator/simulator/simulation_tests_actions.rs hearthstone_simulator/README.md hearthstone_simulator/IMPLEMENTATION_PROGRESS.md hearthstone_simulator/RULEBOOK_CONFORMANCE.md docs/superpowers/specs/2026-09-16-hearthstone-weapon-windfury-design.md
