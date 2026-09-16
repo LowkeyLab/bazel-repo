@@ -1,4 +1,5 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:rust_crate_name test_images
@@ -16,4 +17,11 @@ rust_library(
         "@crates//:tokio-util-0.7.19",
         "@rules_rust//rust/runfiles",
     ],
+)
+
+rust_test(
+    name = "test_images_test",
+    size = "small",
+    crate = ":test_images",
+    deps = ["@crates//:axum"],
 )

@@ -1,4 +1,4 @@
-//! PostgreSQL fixtures whose image bytes are supplied by Bazel.
+//! `PostgreSQL` fixtures whose image bytes are supplied by Bazel.
 
 use std::{env, fs};
 
@@ -15,7 +15,11 @@ use tokio::sync::OnceCell;
 use tokio_util::io::ReaderStream;
 
 /// Load the declared image once per test process, then preserve Postgres defaults.
-/// Missing Bazel inputs or a failed import are fatal; there is no fallback image.
+///
+/// # Panics
+///
+/// Panics if Bazel image inputs are missing or invalid, Docker cannot be reached,
+/// or the archive cannot be loaded. There is no fallback image.
 pub async fn postgres() -> ContainerRequest<Postgres> {
     static IMAGE: OnceCell<String> = OnceCell::const_new();
     let image = IMAGE
@@ -42,6 +46,7 @@ pub async fn postgres() -> ContainerRequest<Postgres> {
                 ReaderStream::new(archive),
                 None,
             );
+            // Bollard converts errorDetail.message into DockerStreamError.
             while progress
                 .try_next()
                 .await
@@ -55,4 +60,80 @@ pub async fn postgres() -> ContainerRequest<Postgres> {
         .rsplit_once(':')
         .expect("Bazel image reference has a tag");
     Postgres::default().with_name(name).with_tag(tag)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use axum::{
+        Router,
+        body::{Body, to_bytes},
+        http::{Method, Request, header},
+    };
+    use futures_util::TryStreamExt;
+    use testcontainers_modules::testcontainers::bollard::{
+        API_DEFAULT_VERSION, Docker, errors::Error, models::BuildInfo,
+        query_parameters::ImportImageOptionsBuilder,
+    };
+    use tokio::net::TcpListener;
+    use tokio_util::io::ReaderStream;
+
+    // Exercise the pinned client's wire behavior, including Docker's HTTP-200
+    // error responses, without requiring a daemon or downloading an image.
+    async fn import_response(response: &'static str) -> Result<Vec<BuildInfo>, Error> {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = Router::new().fallback(move |request: Request<Body>| async move {
+            assert_eq!(request.method(), Method::POST);
+            assert!(request.uri().path().ends_with("/images/load"));
+            let body = to_bytes(request.into_body(), 1024).await.unwrap();
+            assert_eq!(body.as_ref(), b"archive bytes");
+            ([(header::CONTENT_TYPE, "application/json")], response)
+        });
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let docker =
+            Docker::connect_with_http(&format!("http://{address}"), 5, API_DEFAULT_VERSION)
+                .unwrap();
+        let result = docker
+            .import_image_stream(
+                ImportImageOptionsBuilder::default().build(),
+                ReaderStream::new(Cursor::new(b"archive bytes")),
+                None,
+            )
+            .try_collect()
+            .await;
+        server.abort();
+        result
+    }
+
+    #[tokio::test]
+    async fn loads_docker_archives_through_images_load() {
+        let messages = import_response(r#"{"stream":"Loaded image: fixture:tag\n"}"#)
+            .await
+            .unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(
+            messages[0].stream.as_deref(),
+            Some("Loaded image: fixture:tag\n")
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_daemon_error_in_http_success_response() {
+        let error = import_response(r#"{"errorDetail":{"message":"archive/tar: invalid tar header"},"error":"archive/tar: invalid tar header"}"#).await.unwrap_err();
+        assert!(
+            matches!(error, Error::DockerStreamError { error } if error == "archive/tar: invalid tar header")
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_error_detail_without_legacy_error_field() {
+        let error = import_response(r#"{"errorDetail":{"message":"no space left on device"}}"#)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::DockerStreamError { error } if error == "no space left on device")
+        );
+    }
 }
