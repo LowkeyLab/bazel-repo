@@ -4222,6 +4222,262 @@ fn weapon_windfury_allows_two_attacks_without_resetting_history() {
 }
 
 #[test]
+fn weapon_windfury_replacement_preserves_spent_attacks() {
+    for old_windfury in [false, true] {
+        for new_windfury in [false, true] {
+            for own_windfury in [false, true] {
+                let mut old = Card::weapon("Old", 0, 1, 4);
+                if old_windfury {
+                    old = old.with_keyword(Keyword::Windfury);
+                }
+                let mut new = Card::weapon("New", 0, 1, 4);
+                if new_windfury {
+                    new = new.with_keyword(Keyword::Windfury);
+                }
+                let mut simulation = weapon_fixture(vec![old, new]);
+                weapon_play(&mut simulation);
+                let attacker = hero(&mut simulation, PlayerId::One);
+                let action = GameAction::Attack {
+                    player: PlayerId::One,
+                    attacker,
+                    defender: hero(&mut simulation, PlayerId::Two),
+                };
+                if own_windfury {
+                    keyword_grant(
+                        &mut simulation,
+                        attacker,
+                        Keyword::Windfury,
+                        EnchantmentDuration::Permanent,
+                    );
+                }
+                simulation.apply(action.clone()).unwrap();
+                weapon_play(&mut simulation);
+                assert_eq!(
+                    windfury_attack_state(&simulation, attacker).attacks_this_turn,
+                    1
+                );
+                let allowed = new_windfury || own_windfury;
+                assert_windfury_legality(&mut simulation, attacker, &action, allowed);
+                if allowed {
+                    simulation.apply(action.clone()).unwrap();
+                    keyword_grant(
+                        &mut simulation,
+                        attacker,
+                        Keyword::Windfury,
+                        EnchantmentDuration::Permanent,
+                    );
+                    assert_windfury_legality(&mut simulation, attacker, &action, false);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn weapon_windfury_live_grants_control_thaw_before_expiration() {
+    for granted in [false, true] {
+        let mut simulation = weapon_fixture(vec![Card::weapon("Blade", 0, 2, 4)]);
+        let weapon = weapon_play(&mut simulation);
+        let attacker = hero(&mut simulation, PlayerId::One);
+        weapon_attack(&mut simulation);
+        if granted {
+            keyword_grant(
+                &mut simulation,
+                weapon,
+                Keyword::Windfury,
+                EnchantmentDuration::EndOfTurn(PlayerId::One),
+            );
+        }
+        freeze(&mut simulation, attacker);
+        end_active_turn(&mut simulation);
+        assert_eq!(is_frozen(&simulation, attacker), !granted);
+        assert!(!crate::aura::has_keyword(
+            simulation.app.world(),
+            game_entity(simulation.app.world(), weapon).unwrap(),
+            Keyword::Windfury
+        ));
+    }
+}
+
+fn set_personal_hero_attack(simulation: &mut Simulation, hero: GameEntityId, attack: i32) {
+    let entity = game_entity(simulation.app.world(), hero).unwrap();
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<crate::BaseStats>(entity)
+        .unwrap()
+        .attack = attack;
+    simulation
+        .app
+        .world_mut()
+        .get_mut::<CurrentStats>(entity)
+        .unwrap()
+        .attack = attack;
+}
+
+#[test]
+fn weapon_windfury_unarmed_history_and_zero_attack_weapon() {
+    let mut simulation = weapon_fixture(vec![
+        Card::weapon("Wind blade", 0, 0, 4).with_keyword(Keyword::Windfury),
+    ]);
+    let attacker = hero(&mut simulation, PlayerId::One);
+    set_personal_hero_attack(&mut simulation, attacker, 2);
+    let action = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: hero(&mut simulation, PlayerId::Two),
+    };
+    simulation.apply(action.clone()).unwrap();
+    weapon_play(&mut simulation);
+    assert_eq!(
+        windfury_attack_state(&simulation, attacker).attacks_this_turn,
+        1
+    );
+    assert_windfury_legality(&mut simulation, attacker, &action, true);
+    simulation.apply(action.clone()).unwrap();
+    assert_windfury_legality(&mut simulation, attacker, &action, false);
+}
+
+#[test]
+fn weapon_windfury_breakage_removes_only_weapon_contribution() {
+    let mut simulation = weapon_fixture(vec![
+        Card::weapon("Wind blade", 0, 1, 1).with_keyword(Keyword::Windfury),
+    ]);
+    let attacker = hero(&mut simulation, PlayerId::One);
+    set_personal_hero_attack(&mut simulation, attacker, 2);
+    weapon_play(&mut simulation);
+    let action = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: hero(&mut simulation, PlayerId::Two),
+    };
+    simulation.apply(action.clone()).unwrap();
+    assert_eq!(simulation.snapshot().players[0].weapon, None);
+    assert_windfury_legality(&mut simulation, attacker, &action, false);
+    keyword_grant(
+        &mut simulation,
+        attacker,
+        Keyword::Windfury,
+        EnchantmentDuration::Permanent,
+    );
+    assert_windfury_legality(&mut simulation, attacker, &action, true);
+}
+
+#[test]
+fn weapon_windfury_removal_and_regain_preserve_history() {
+    let mut simulation = weapon_fixture(vec![
+        Card::weapon("Wind blade", 0, 1, 4).with_keyword(Keyword::Windfury),
+    ]);
+    let weapon = weapon_play(&mut simulation);
+    let attacker = hero(&mut simulation, PlayerId::One);
+    let action = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: hero(&mut simulation, PlayerId::Two),
+    };
+    simulation.apply(action.clone()).unwrap();
+    let remove = |simulation: &mut Simulation| {
+        super::effect_executor::attach_keyword_modifier(
+            simulation.app.world_mut(),
+            PlayerId::One,
+            weapon,
+            crate::KeywordModifier {
+                keyword: Keyword::Windfury,
+                granted: false,
+                silence_removable: true,
+            },
+            EnchantmentDuration::Permanent,
+        )
+        .unwrap()
+    };
+    remove(&mut simulation);
+    assert_windfury_legality(&mut simulation, attacker, &action, false);
+    keyword_grant(
+        &mut simulation,
+        weapon,
+        Keyword::Windfury,
+        EnchantmentDuration::Permanent,
+    );
+    assert_windfury_legality(&mut simulation, attacker, &action, true);
+    simulation.apply(action.clone()).unwrap();
+    remove(&mut simulation);
+    keyword_grant(
+        &mut simulation,
+        weapon,
+        Keyword::Windfury,
+        EnchantmentDuration::Permanent,
+    );
+    assert_windfury_legality(&mut simulation, attacker, &action, false);
+}
+
+#[test]
+fn weapon_windfury_off_turn_and_refresh() {
+    let mut simulation = weapon_fixture(vec![
+        Card::weapon("Wind blade", 0, 1, 4).with_keyword(Keyword::Windfury),
+    ]);
+    weapon_play(&mut simulation);
+    let attacker = hero(&mut simulation, PlayerId::One);
+    let action = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: hero(&mut simulation, PlayerId::Two),
+    };
+    simulation.apply(action.clone()).unwrap();
+    simulation.apply(action.clone()).unwrap();
+    end_active_turn(&mut simulation);
+    assert!(!crate::weapon::grants_windfury(
+        simulation.app.world(),
+        game_entity(simulation.app.world(), attacker).unwrap()
+    ));
+    end_active_turn(&mut simulation);
+    assert_eq!(
+        windfury_attack_state(&simulation, attacker).attacks_this_turn,
+        0
+    );
+    assert_windfury_legality(&mut simulation, attacker, &action, true);
+    simulation.apply(action.clone()).unwrap();
+    assert_windfury_legality(&mut simulation, attacker, &action, true);
+}
+
+#[test]
+fn weapon_windfury_unrelated_keywords_stay_local() {
+    let mut simulation = weapon_fixture(vec![Card::weapon("Blade", 0, 1, 4)]);
+    let weapon = weapon_play(&mut simulation);
+    let attacker = hero(&mut simulation, PlayerId::One);
+    let action = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender: hero(&mut simulation, PlayerId::Two),
+    };
+    simulation.apply(action.clone()).unwrap();
+    for keyword in [
+        Keyword::Taunt,
+        Keyword::Stealth,
+        Keyword::Immune,
+        Keyword::Charge,
+        Keyword::Rush,
+        Keyword::Frozen,
+        Keyword::DivineShield,
+        Keyword::Lifesteal,
+        Keyword::Poisonous,
+    ] {
+        keyword_grant(
+            &mut simulation,
+            weapon,
+            keyword,
+            EnchantmentDuration::Permanent,
+        );
+        assert!(!crate::aura::has_keyword(
+            simulation.app.world(),
+            game_entity(simulation.app.world(), attacker).unwrap(),
+            keyword
+        ));
+    }
+    assert!(!is_frozen(&simulation, attacker));
+    assert_windfury_legality(&mut simulation, attacker, &action, false);
+}
+
+#[test]
 fn weapon_replacement_preserves_attack_usage_and_does_not_use_board_slots() {
     let mut sim = weapon_fixture(vec![
         Card::weapon("First", 0, 2, 2),
