@@ -9,15 +9,22 @@ use chrono::DateTime;
 use serenity::{
     Client,
     all::{
-        CommandDataOptionValue, CommandInteraction, CommandOptionType, Context, GatewayIntents,
-        Guild, GuildId, Interaction, Permissions, Ready,
+        ActionRowComponent, CommandDataOptionValue, CommandInteraction, CommandOptionType,
+        ComponentInteraction, ComponentInteractionDataKind, Context, GatewayIntents, Guild,
+        GuildId, Interaction, ModalInteraction, Permissions, Ready,
     },
-    builder::{CreateAllowedMentions, CreateCommand, CreateCommandOption, EditInteractionResponse},
+    builder::{
+        CreateAllowedMentions, CreateCommand, CreateCommandOption, CreateInteractionResponse,
+        CreateInteractionResponseMessage, EditInteractionResponse,
+    },
     client::EventHandler,
 };
 use thiserror::Error;
 use tokio::sync::watch;
 use uuid::Uuid;
+
+#[path = "discord_ui.rs"]
+mod ui;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Input {
@@ -41,6 +48,7 @@ pub(crate) enum InputValue {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
     Write(Command),
+    CreateForm,
     Balance,
     Leaderboard,
     List,
@@ -129,38 +137,23 @@ pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str>
                 id: market_id(input)?,
             }
         }
+        "create" if input.options.is_empty() => Action::CreateForm,
         "create" => {
             exact(input, &["question", "options", "closes_at"])?;
-            let question = text(input, "question")?.trim();
-            if question.is_empty() || question.chars().count() > 200 {
-                return Err("Question must contain 1 to 200 characters.");
-            }
-            let options: Vec<String> = text(input, "options")?
+            let options = text(input, "options")?
                 .split('|')
-                .map(str::trim)
-                .map(str::to_owned)
+                .map(|s| s.trim().to_owned())
                 .collect();
-            if !(2..=10).contains(&options.len())
-                || options
-                    .iter()
-                    .any(|s| s.is_empty() || s.chars().count() > 80)
-            {
-                return Err("Provide 2 to 10 outcomes of up to 80 characters, separated by |.");
-            }
-            let mut distinct = BTreeSet::new();
-            if options.iter().any(|s| !distinct.insert(s.to_lowercase())) {
-                return Err("Outcome labels must be distinct.");
-            }
             let closes_at = DateTime::parse_from_rfc3339(text(input, "closes_at")?.trim())
                 .map_err(|_| "Enter a valid RFC 3339 close time.")?
                 .timestamp();
-            Action::Write(Command::Create {
-                id: Uuid::now_v7().to_string(),
-                question: question.to_owned(),
+            Action::Write(create_request(
+                text(input, "question")?,
                 options,
                 closes_at,
-            })
+            )?)
         }
+
         "bet" => {
             exact(input, &["id", "outcome", "amount"])?;
             let amount = integer(input, "amount")?;
@@ -189,6 +182,33 @@ pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str>
         _ => return Err("Unknown market command."),
     };
     Ok((guild, actor, action))
+}
+fn create_request(
+    question: &str,
+    options: Vec<String>,
+    closes_at: i64,
+) -> Result<Command, &'static str> {
+    let question = question.trim();
+    if question.is_empty() || question.chars().count() > 200 {
+        return Err("Question must contain 1 to 200 characters.");
+    }
+    if !(2..=10).contains(&options.len())
+        || options
+            .iter()
+            .any(|s| s.is_empty() || s.chars().count() > 80)
+    {
+        return Err("Provide 2 to 10 outcomes of up to 80 characters each.");
+    }
+    let mut distinct = BTreeSet::new();
+    if options.iter().any(|s| !distinct.insert(s.to_lowercase())) {
+        return Err("Outcome labels must be distinct.");
+    }
+    Ok(Command::Create {
+        id: Uuid::now_v7().to_string(),
+        question: question.to_owned(),
+        options,
+        closes_at,
+    })
 }
 fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
     if command.data.name != "market" || command.data.options.len() != 1 {
@@ -253,10 +273,28 @@ fn recoverable_defer_code(code: isize) -> bool {
     code == 40_060
 }
 
-async fn content_after_defer<F, Fut>(can_continue: bool, make_content: F) -> Option<String>
+fn defer_succeeded(result: serenity::Result<()>) -> bool {
+    match result {
+        Ok(()) => true,
+        Err(serenity::Error::Http(serenity::http::HttpError::UnsuccessfulRequest(response))) => {
+            recoverable_defer_code(response.error.code)
+        }
+        Err(_) => false,
+    }
+}
+fn interaction_error(message: &str) -> CreateInteractionResponse {
+    CreateInteractionResponse::Message(
+        CreateInteractionResponseMessage::new()
+            .content(truncate(message))
+            .ephemeral(true)
+            .allowed_mentions(no_mentions()),
+    )
+}
+
+async fn content_after_defer<F, Fut, T>(can_continue: bool, make_content: F) -> Option<T>
 where
     F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = String>,
+    Fut: std::future::Future<Output = T>,
 {
     if can_continue {
         Some(make_content().await)
@@ -348,6 +386,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
             || "No market with that ID exists in this server.".to_owned(),
             |m| render_market(id, m, now),
         ),
+        Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::Write(_) => "Invalid query.".to_owned(),
     }
 }
@@ -410,14 +449,15 @@ fn market_command() -> CreateCommand {
         .add_option(
             CreateCommandOption::new(SubCommand, "create", "Create a prediction market")
                 .add_sub_option(
-                    required(Text, "question", "Question, up to 200 characters").max_length(200),
+                    CreateCommandOption::new(Text, "question", "Question, up to 200 characters")
+                        .max_length(200),
                 )
-                .add_sub_option(required(
+                .add_sub_option(CreateCommandOption::new(
                     Text,
                     "options",
                     "Outcomes separated by |, for example Yes | No",
                 ))
-                .add_sub_option(required(
+                .add_sub_option(CreateCommandOption::new(
                     Text,
                     "closes_at",
                     "RFC 3339 close time, for example 2030-01-02T03:04:05Z",
@@ -476,49 +516,135 @@ impl Handler {
             tracing::error!(guild = guild.get(), "market command registration failed");
         }
     }
+    async fn execute_request(
+        &self,
+        guild: u64,
+        actor: Actor,
+        request: &Command,
+        interaction_id: u64,
+    ) -> EditInteractionResponse {
+        let key = format!("discord:{interaction_id}");
+        match self.store.execute(guild, &key, actor, request).await {
+            Ok(message) => reply(&message),
+            Err(error) => {
+                tracing::error!(guild, "market command failed");
+                reply(&safe_error(&error))
+            }
+        }
+    }
     async fn handle(&self, ctx: &Context, command: CommandInteraction) {
-        let can_continue = match command.defer_ephemeral(&ctx.http).await {
-            Ok(()) => true,
-            Err(serenity::Error::Http(serenity::http::HttpError::UnsuccessfulRequest(
-                response,
-            ))) => recoverable_defer_code(response.error.code),
-            Err(_) => false,
-        };
-        let content = content_after_defer(can_continue, || async {
+        let can_continue = defer_succeeded(command.defer_ephemeral(&ctx.http).await);
+        let response = content_after_defer(can_continue, || async {
             match from_discord(&command).and_then(|input| parse(&input)) {
                 Ok((guild, actor, Action::Write(request))) => {
-                    let key = format!("discord:{}", command.id.get());
-                    match self.store.execute(guild, &key, actor, &request).await {
-                        Ok(message) => message,
-                        Err(error) => {
-                            tracing::error!(guild, "market command failed");
-                            safe_error(&error)
-                        }
-                    }
+                    self.execute_request(guild, actor, &request, command.id.get())
+                        .await
                 }
-                Ok((guild, actor, query)) => {
-                    if let Ok(view) = self.store.view(guild).await {
-                        render_query(&view, &query, actor, chrono::Utc::now().timestamp())
-                    } else {
-                        tracing::error!(guild, "market query failed");
-                        "The prediction economy is temporarily unavailable. Please try again."
-                            .to_owned()
+                Ok((guild, actor, query)) => match self.store.view(guild).await {
+                    Ok(view) => {
+                        ui::query(&view, &query, actor, guild, chrono::Utc::now().timestamp())
+                            .edit()
                     }
-                }
-                Err(message) => message.to_owned(),
+                    Err(error) => reply(&safe_error(&error)),
+                },
+                Err(message) => reply(message),
             }
         })
         .await;
-        let Some(content) = content else {
+        let Some(response) = response else {
             tracing::warn!("could not defer market interaction");
             return;
         };
-        if command
-            .edit_response(&ctx.http, reply(&content))
+        if command.edit_response(&ctx.http, response).await.is_err() {
+            tracing::warn!("could not deliver market interaction response");
+        }
+    }
+    async fn handle_component(&self, ctx: &Context, component: ComponentInteraction) {
+        let actor = Actor {
+            user_id: component.user.id.get(),
+            bot: component.user.bot,
+            moderator: false,
+        };
+        let guild = component.guild_id.map_or(0, GuildId::get);
+        // A modal must be the initial response: do not defer this interaction.
+        // Bound the read so a slow database can still receive an error acknowledgement.
+        let response = match &component.data.kind {
+            ComponentInteractionDataKind::StringSelect { values } => {
+                match tokio::time::timeout(Duration::from_secs(2), self.store.view(guild)).await {
+                    Ok(Ok(view)) => ui::component(
+                        guild,
+                        actor,
+                        &component.data.custom_id,
+                        values,
+                        &view,
+                        chrono::Utc::now().timestamp(),
+                    )
+                    .unwrap_or_else(interaction_error),
+                    Ok(Err(error)) => interaction_error(&safe_error(&error)),
+                    Err(_) => {
+                        interaction_error("Loading took too long. Please select the option again.")
+                    }
+                }
+            }
+            _ => interaction_error("Choose an option from the market menu."),
+        };
+        if component
+            .create_response(&ctx.http, response)
             .await
             .is_err()
         {
-            tracing::warn!("could not deliver market interaction response");
+            tracing::warn!("could not deliver market component response");
+        }
+    }
+    async fn handle_modal(&self, ctx: &Context, modal: ModalInteraction) {
+        let can_continue = defer_succeeded(modal.defer_ephemeral(&ctx.http).await);
+        let response = content_after_defer(can_continue, || async {
+            let actor = Actor {
+                user_id: modal.user.id.get(),
+                bot: modal.user.bot,
+                moderator: false,
+            };
+            let guild = modal.guild_id.map_or(0, GuildId::get);
+            let fields = modal
+                .data
+                .components
+                .iter()
+                .flat_map(|row| &row.components)
+                .map(|component| match component {
+                    ActionRowComponent::InputText(field) => Ok(InputOption {
+                        name: field.custom_id.clone(),
+                        value: InputValue::String(
+                            field.value.clone().ok_or("Missing form value.")?,
+                        ),
+                    }),
+                    _ => Err("Invalid form field."),
+                })
+                .collect::<Result<Vec<_>, _>>();
+            // Anchor durations to the submission time, including on Discord redelivery.
+            let request = fields.and_then(|fields| {
+                ui::modal_command(
+                    guild,
+                    actor,
+                    &modal.data.custom_id,
+                    fields,
+                    modal.id.created_at().unix_timestamp(),
+                )
+            });
+            match request {
+                Ok(request) => {
+                    self.execute_request(guild, actor, &request, modal.id.get())
+                        .await
+                }
+                Err(message) => reply(message),
+            }
+        })
+        .await;
+        let Some(response) = response else {
+            tracing::warn!("could not defer market modal");
+            return;
+        };
+        if modal.edit_response(&ctx.http, response).await.is_err() {
+            tracing::warn!("could not deliver market modal response");
         }
     }
 }
@@ -534,8 +660,15 @@ impl EventHandler for Handler {
         self.register(&ctx, guild.id).await;
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = interaction {
-            self.handle(&ctx, command).await;
+        match interaction {
+            Interaction::Command(command) => self.handle(&ctx, command).await,
+            Interaction::Component(component) if component.data.custom_id.starts_with("pm:") => {
+                self.handle_component(&ctx, component).await;
+            }
+            Interaction::Modal(modal) if modal.data.custom_id.starts_with("pm:") => {
+                self.handle_modal(&ctx, modal).await;
+            }
+            _ => {}
         }
     }
 }

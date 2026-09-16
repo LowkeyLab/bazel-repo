@@ -417,7 +417,11 @@ pub fn decide(
                     amount: *amount,
                     accepted_at: now,
                 }],
-                format!("Staked {amount} points."),
+                format!(
+                    "Staked {amount} points on {}. Remaining balance: {} points.",
+                    market.options[*outcome],
+                    account.balance - amount
+                ),
             )
         }
         Command::Resolve { id, outcome } => {

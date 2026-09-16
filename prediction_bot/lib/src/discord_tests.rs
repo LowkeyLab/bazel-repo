@@ -357,3 +357,315 @@ fn expected_application_id_must_match_authenticated_identity() {
     );
     assert!(verify_application_id(0, None).is_err());
 }
+
+#[test]
+fn creation_can_start_without_typing_slash_command_fields() {
+    assert!(parse(&input("create", vec![])).is_ok());
+    let registration = serde_json::to_value(super::market_command()).unwrap();
+    let create = registration["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "create")
+        .unwrap();
+    assert!(
+        create["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|option| option["required"] != true)
+    );
+}
+
+fn ui_actor() -> crate::domain::Actor {
+    crate::domain::Actor {
+        user_id: 20,
+        moderator: false,
+        bot: false,
+    }
+}
+
+fn ui_view() -> crate::store::View {
+    use crate::domain::{Account, Market, State, Status};
+    let mut state = State::default();
+    state.accounts.insert(
+        20,
+        Account {
+            balance: 100,
+            next_grant: 90_000,
+        },
+    );
+    state.markets.insert(
+        "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into(),
+        Market {
+            creator: 20,
+            question: "Who wins?".into(),
+            options: vec!["Red".into(), "Blue".into()],
+            created_at: 1_000,
+            closes_at: 10_000,
+            status: Status::Open,
+            bets: vec![],
+            total_staked: 0,
+        },
+    );
+    crate::store::View { revision: 0, state }
+}
+
+#[test]
+fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
+    let view = ui_view();
+    let picker = serde_json::to_value(
+        super::ui::query(&view, &Action::CreateForm, ui_actor(), 10, 2_000).message(),
+    )
+    .unwrap();
+    let select = &picker["components"][0]["components"][0];
+    assert_eq!(picker["flags"], 64);
+    assert_eq!(picker["allowed_mentions"]["parse"], serde_json::json!([]));
+    for (preset, expected) in [
+        ("yesno", vec!["Yes", "No"]),
+        ("result", vec!["Win", "Lose", "Draw"]),
+        ("custom", vec!["First", "Second"]),
+    ] {
+        assert!(
+            select["options"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|option| option["value"] == preset)
+        );
+        let response = super::ui::component(
+            10,
+            ui_actor(),
+            select["custom_id"].as_str().unwrap(),
+            &[preset.into()],
+            &view,
+            2_000,
+        )
+        .unwrap();
+        let modal = serde_json::to_value(response).unwrap();
+        assert_eq!(
+            modal["type"], 9,
+            "selection should open a modal immediately"
+        );
+        let mut fields = vec![text("question", "Will it happen?"), text("closes_at", "1h")];
+        if preset == "custom" {
+            fields.push(text("options", " First \nSecond "));
+        }
+        let command = super::ui::modal_command(
+            10,
+            ui_actor(),
+            modal["data"]["custom_id"].as_str().unwrap(),
+            fields,
+            2_000,
+        )
+        .unwrap();
+        let Command::Create {
+            question,
+            options,
+            closes_at,
+            ..
+        } = command
+        else {
+            panic!("expected creation");
+        };
+        assert_eq!(question, "Will it happen?");
+        assert_eq!(options, expected);
+        assert_eq!(closes_at, 5_600);
+    }
+}
+
+#[test]
+fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
+    let view = ui_view();
+    let list = serde_json::to_value(
+        super::ui::query(&view, &Action::List, ui_actor(), 10, 2_000).message(),
+    )
+    .unwrap();
+    let select = &list["components"][0]["components"][0];
+    let market_id = select["options"][0]["value"].as_str().unwrap();
+    let card = serde_json::to_value(
+        super::ui::component(
+            10,
+            ui_actor(),
+            select["custom_id"].as_str().unwrap(),
+            &[market_id.into()],
+            &view,
+            2_000,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(card["data"]["embeds"][0]["title"], "Who wins?");
+    let outcomes = &card["data"]["components"][0]["components"][0];
+    let blue = outcomes["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["label"] == "Blue")
+        .unwrap();
+    let modal = serde_json::to_value(
+        super::ui::component(
+            10,
+            ui_actor(),
+            outcomes["custom_id"].as_str().unwrap(),
+            &[blue["value"].as_str().unwrap().into()],
+            &view,
+            2_000,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(modal["type"], 9);
+    let command = super::ui::modal_command(
+        10,
+        ui_actor(),
+        modal["data"]["custom_id"].as_str().unwrap(),
+        vec![text("amount", "25")],
+        2_000,
+    )
+    .unwrap();
+    assert_eq!(
+        command,
+        Command::Bet {
+            id: market_id.into(),
+            outcome: 1,
+            amount: 25
+        }
+    );
+}
+
+#[test]
+fn forms_reject_other_members_servers_bots_and_malformed_values() {
+    let view = ui_view();
+    for (guild, actor) in [
+        (11, ui_actor()),
+        (
+            10,
+            crate::domain::Actor {
+                user_id: 21,
+                ..ui_actor()
+            },
+        ),
+        (
+            10,
+            crate::domain::Actor {
+                bot: true,
+                ..ui_actor()
+            },
+        ),
+    ] {
+        assert!(
+            super::ui::component(
+                guild,
+                actor,
+                "pm:10:20:create",
+                &["yesno".into()],
+                &view,
+                2_000
+            )
+            .is_err()
+        );
+        assert!(
+            super::ui::modal_command(
+                guild,
+                actor,
+                "pm:10:20:new:yesno",
+                vec![text("question", "Q"), text("closes_at", "1h")],
+                2_000
+            )
+            .is_err()
+        );
+    }
+    for time in [
+        "0h",
+        "-1h",
+        "999999999999999999999999d",
+        "yesterday",
+        "1970-01-01T00:00:00Z",
+    ] {
+        assert!(
+            super::ui::modal_command(
+                10,
+                ui_actor(),
+                "pm:10:20:new:yesno",
+                vec![text("question", "Q"), text("closes_at", time)],
+                2_000
+            )
+            .is_err()
+        );
+    }
+    for amount in ["0", "-1", "2.5", "NaN", "9223372036854775808"] {
+        assert!(
+            super::ui::modal_command(
+                10,
+                ui_actor(),
+                "pm:10:20:stake:78e82954-4c67-4e0d-8c80-8ab95a527ae5:1",
+                vec![text("amount", amount)],
+                2_000
+            )
+            .is_err()
+        );
+    }
+    assert!(
+        super::ui::component(
+            10,
+            ui_actor(),
+            "pm:10:20:create",
+            &["unknown".into()],
+            &view,
+            2_000
+        )
+        .is_err()
+    );
+    assert!(super::ui::component(10, ui_actor(), "pm:10:20:create", &[], &view, 2_000).is_err());
+    for options in ["Only one", "Yes\nyes", "Yes\n\nNo"] {
+        assert!(
+            super::ui::modal_command(
+                10,
+                ui_actor(),
+                "pm:10:20:new:custom",
+                vec![
+                    text("question", "Q"),
+                    text("closes_at", "1h"),
+                    text("options", options)
+                ],
+                2_000
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
+    let view = ui_view();
+    let action = Action::Show {
+        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into(),
+    };
+    let card =
+        serde_json::to_value(super::ui::query(&view, &action, ui_actor(), 10, 10_000).message())
+            .unwrap();
+    assert_eq!(card["components"], serde_json::json!([]));
+    assert!(
+        super::ui::component(
+            10,
+            ui_actor(),
+            "pm:10:20:bet:78e82954-4c67-4e0d-8c80-8ab95a527ae5",
+            &["0".into()],
+            &view,
+            10_000
+        )
+        .is_err()
+    );
+    assert!(
+        super::ui::component(
+            10,
+            ui_actor(),
+            "pm:10:20:bet:78e82954-4c67-4e0d-8c80-8ab95a527ae5",
+            &["9".into()],
+            &view,
+            2_000
+        )
+        .is_err()
+    );
+}

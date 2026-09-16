@@ -114,11 +114,20 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
         store.execute_at(1, "discord:4", player(7), &bet, 1100)
     );
     assert_ne!(a.is_ok(), b.is_ok());
-    let key = if a.is_ok() { "discord:3" } else { "discord:4" };
-    store
-        .execute_at(1, key, player(7), &bet, 1200)
+    let (key, original) = if let Ok(receipt) = a {
+        ("discord:3", receipt)
+    } else {
+        ("discord:4", b.unwrap())
+    };
+    assert!(original.contains("Yes"));
+    assert!(original.contains("80 points"));
+    assert!(original.contains("20 points"));
+    // A redelivery after the market closes must replay the original receipt.
+    let repeated = store
+        .execute_at(1, key, player(7), &bet, 2100)
         .await
         .unwrap();
+    assert_eq!(repeated, original);
     let view = store.view(1).await.unwrap();
     assert_eq!(view.state.accounts[&7].balance, 20);
     assert_eq!(view.state.markets[&market].bets.len(), 1);
