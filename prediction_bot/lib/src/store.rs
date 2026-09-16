@@ -211,6 +211,13 @@ impl Store {
         // Capture production time only after acquiring the guild lock.
         let accepted_at = time.unwrap_or_else(|| chrono::Utc::now().timestamp());
         let decision = domain::decide(&view.state, actor, command, accepted_at, self.defaults)?;
+        // A clock rollback can make a discovered grant premature. Keep its key
+        // retryable until a grant actually advances the schedule.
+        if matches!(command, Command::Grant { .. }) && decision.events.is_empty() {
+            tx.commit().await?;
+            self.publish(guild, view).await;
+            return Ok(decision.response);
+        }
         for event in &decision.events {
             validate_event_actor(event, actor.user_id)?;
             validate_event_time(event, accepted_at)?;

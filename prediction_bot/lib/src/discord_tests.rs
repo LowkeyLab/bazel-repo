@@ -475,6 +475,38 @@ fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
 }
 
 #[test]
+fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
+    for value in ["2030-01-02T03:04:05.900Z", "2030-01-02T04:04:05.900+01:00"] {
+        let (_, _, action) = parse(&input(
+            "create",
+            vec![
+                text("question", "Will it rain?"),
+                text("options", "Yes | No"),
+                text("closes_at", value),
+            ],
+        ))
+        .unwrap();
+        let Action::Write(Command::Create { closes_at, .. }) = action else {
+            panic!("expected create command");
+        };
+        assert_eq!(closes_at, 1_893_553_445);
+
+        let command = super::ui::modal_command(
+            10,
+            ui_actor(),
+            "pm:10:20:new:yesno",
+            vec![text("question", "Will it rain?"), text("closes_at", value)],
+            2_000,
+        )
+        .unwrap();
+        let Command::Create { closes_at, .. } = command else {
+            panic!("expected create command");
+        };
+        assert_eq!(closes_at, 1_893_553_445);
+    }
+}
+
+#[test]
 fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
     let view = ui_view();
     let list = serde_json::to_value(
