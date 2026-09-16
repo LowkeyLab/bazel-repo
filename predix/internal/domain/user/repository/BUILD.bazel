@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 go_library(
     name = "repository",
@@ -23,6 +24,11 @@ go_test(
         "memory_test.go",
         "postgres_test.go",
     ],
+    data = image_data("postgres_18") + image_data("ryuk"),  # keep
+    env = image_env("postgres_18") | image_env(
+        "ryuk",
+        prefix = "RYUK",
+    ),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",

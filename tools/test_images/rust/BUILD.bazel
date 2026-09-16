@@ -1,0 +1,19 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+# gazelle:resolve rust runfiles @rules_rust//rust/runfiles
+# gazelle:rust_crate_name test_images
+rust_library(
+    name = "test_images",
+    testonly = True,
+    srcs = ["lib.rs"],
+    crate_name = "test_images",
+    crate_root = "lib.rs",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:futures-util-0.3.34",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tokio-util-0.7.19",
+        "@rules_rust//rust/runfiles",
+    ],
+)

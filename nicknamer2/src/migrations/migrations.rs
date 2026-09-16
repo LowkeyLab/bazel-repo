@@ -8,11 +8,11 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use testcontainers_modules::postgres;
     use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
     async fn setup_pool() -> (sqlx::PgPool, impl std::any::Any) {
-        let container = postgres::Postgres::default()
+        let container = test_images::postgres()
+            .await
             .start()
             .await
             .expect("Failed to start PostgreSQL container");

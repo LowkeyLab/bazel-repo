@@ -1,5 +1,6 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 package(default_visibility = ["//prediction_bot:__subpackages__"])
 
@@ -61,6 +62,8 @@ rust_test(
     size = "medium",
     srcs = ["tests/store_test.rs"],
     crate_root = "tests/store_test.rs",
+    data = image_data("postgres_16"),  # keep
+    env = image_env("postgres_16"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
@@ -71,6 +74,7 @@ rust_test(
     ],
     deps = [
         ":lib",
+        "//tools/test_images/rust:test_images",  # keep
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",

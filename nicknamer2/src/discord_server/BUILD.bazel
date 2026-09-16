@@ -1,5 +1,6 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "discord_server",
@@ -33,6 +34,8 @@ rust_test(
     name = "discord_server_repo_test",
     timeout = "short",
     crate = ":discord_server_repo",
+    data = image_data("postgres_11"),  # keep
+    env = image_env("postgres_11"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
@@ -43,6 +46,7 @@ rust_test(
     ],
     deps = [
         "//nicknamer2/src/migrations",
+        "//tools/test_images/rust:test_images",  # keep
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],
@@ -64,6 +68,8 @@ rust_test(
     name = "discord_server_service_test",
     timeout = "short",
     crate = ":discord_server_service",
+    data = image_data("postgres_11"),  # keep
+    env = image_env("postgres_11"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
@@ -74,6 +80,7 @@ rust_test(
     ],
     deps = [
         "//nicknamer2/src/migrations",
+        "//tools/test_images/rust:test_images",  # keep
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",

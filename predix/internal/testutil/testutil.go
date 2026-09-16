@@ -23,10 +23,15 @@ func SetupTestDB(t *testing.T) *sql.DB {
 
 	ctx := context.Background()
 
+	image, err := prepareImages(ctx)
+	if err != nil {
+		t.Fatalf("prepare Bazel test images: %v", err)
+	}
+
 	// Start Postgres Container
 	pgContainer, err := postgres.Run(
 		ctx,
-		"postgres:18",
+		image,
 		postgres.WithDatabase("predix"),
 		postgres.WithUsername("user"),
 		postgres.WithPassword("password"),

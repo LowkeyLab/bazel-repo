@@ -80,6 +80,7 @@ js_library(
 # gazelle:exclude prediction_bot/*
 # gazelle:rust_cargo_lockfile Cargo.lock
 # gazelle:rust_crates_prefix @crates//:
+# gazelle:resolve rust test_images //tools/test_images/rust:test_images
 # gazelle:ts_enabled false
 # gazelle:ts_npm_link_pattern //:node_modules/{pkg}
 gazelle(

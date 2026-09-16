@@ -113,7 +113,8 @@ pub fn filter_variable_headers(headers: &axum::http::HeaderMap) -> BTreeMap<Stri
 async fn init_global_container() -> &'static testcontainers::ContainerAsync<postgres::Postgres> {
     GLOBAL_CONTAINER
         .get_or_init(|| async {
-            postgres::Postgres::default()
+            test_images::postgres()
+                .await
                 .start()
                 .await
                 .expect("Failed to start PostgreSQL container")

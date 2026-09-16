@@ -25,7 +25,8 @@ struct TestContext {
 }
 
 async fn setup_test_context() -> TestContext {
-    let container = postgres::Postgres::default()
+    let container = test_images::postgres()
+        .await
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
@@ -64,7 +65,8 @@ async fn setup_test_context() -> TestContext {
 }
 
 async fn setup_test_context_with_auth_denial() -> TestContext {
-    let container = postgres::Postgres::default()
+    let container = test_images::postgres()
+        .await
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
@@ -1595,7 +1597,8 @@ async fn test_static_file_serving_with_spa_fallback() {
     std::fs::write(tmp_dir.join("style.css"), "body { color: red; }")
         .expect("Failed to write style.css");
 
-    let container = postgres::Postgres::default()
+    let container = test_images::postgres()
+        .await
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
