@@ -34,6 +34,14 @@ bazel_dep(name = "rules_pkg", version = "1.3.0")
 bazel_dep(name = "rules_rs")
 bazel_dep(name = "llvm", version = "0.8.21")
 
+# LLVM 0.8.21 relies on the clang executable to locate builtin headers, but
+# rules_rs bindgen uses libclang and needs an explicit compile resource directory.
+single_version_override(
+    module_name = "llvm",
+    patch_strip = 1,
+    patches = ["//3rdparty:llvm_compile_resource_directory.patch"],
+)
+
 # rules_cc 0.2.25 removed grep-includes; rules_rust_prost 0.71.0 still
 # declares it as an unused aspect input through gazelle_rust.
 single_version_override(

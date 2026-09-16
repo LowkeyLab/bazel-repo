@@ -1,0 +1,37 @@
+--- a/toolchain/declare_toolchains.bzl
++++ b/toolchain/declare_toolchains.bzl
+@@ -1,3 +1,4 @@
++load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+ load("//platforms:common.bzl", "MSVC_TARGET_STAGE0_SUPPORTED_EXECS", "SUPPORTED_EXECS", "SUPPORTED_TARGETS")
+ load("//toolchain:merged_resource_directory.bzl", "merged_resource_directory")
+ load("//toolchain:selects.bzl", "platform_cc_tool_map", "platform_module_map", "platform_resource_dir")
+@@ -26,6 +27,17 @@
+             directory = cc_toolchain_name + "_resource_directory",
+         )
+ 
++        # Libclang consumers such as bindgen cannot infer the resource directory
++        # from the compiler executable. Use the compiler's own headers for compile
++        # actions, without depending on the merged runtime tree at stage0.
++        cc_args(
++            name = cc_toolchain_name + "_compile_resource_directory_args",
++            actions = ["@rules_cc//cc/toolchains/actions:source_compile_actions"],
++            args = ["-resource-dir={directory}"],
++            data = [platform_resource_dir(exec_os, exec_cpu)],
++            format = {"directory": platform_resource_dir(exec_os, exec_cpu)},
++        )
++
+         # Even though `tool_map` has an exec transition, Bazel doesn't properly handle
+         # binding a single `cc_toolchain` to multiple toolchains with different `exec_compatible_with`.
+         # See https://github.com/bazelbuild/rules_cc/issues/299#issuecomment-2660340534
+@@ -35,7 +47,10 @@
+             module_map = platform_module_map(exec_os, exec_cpu),
+             # Paths below describe the concrete execution filesystem. Keep
+             # target semantics in //toolchain's ordered argument composition.
+-            extra_args = [cc_toolchain_name + "_resource_directory_args"] + select({
++            extra_args = [
++                cc_toolchain_name + "_compile_resource_directory_args",
++                cc_toolchain_name + "_resource_directory_args",
++            ] + select({
+                 "@llvm//platforms/config:windows_x86_64_msvc": [
+                     "@llvm//toolchain/args/windows/msvc:normalized_default_libs_for_runtime",
+                     "@llvm//toolchain/args/windows/msvc:normalized_sdk_compile_args",
