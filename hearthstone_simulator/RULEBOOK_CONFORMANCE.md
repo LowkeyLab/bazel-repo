@@ -117,14 +117,22 @@ silence, expiration, copying, transformation, movement, and suspended continuati
 The current [Windfury reference](https://hearthstone.wiki.gg/wiki/Windfury) describes a dynamic
 allowance of two attacks based on attacks already made that turn. The engine supports this for
 Heroes and Minions through innate and enchantment-granted keywords, including mid-turn gain,
-loss, regranting, and non-stacking grants. Readiness blocking remains independent; gaining
-Windfury cannot ready a newly summoned or copied Minion. Snapshot exhaustion and declaration
-validation share the same live calculation. Schema 17 preserves both readiness and attacks spent.
+loss, regranting, and non-stacking grants. An active weapon's current Windfury also contributes
+for its Hero on the controller's turn. Attacks already spent count across equipment; readiness
+blocking remains independent, so equipping or gaining Windfury cannot ready a newly summoned or
+copied Minion. Validation, canonical legal actions, snapshot exhaustion, and Frozen thawing share
+the live calculation. Only the authoritative active weapon contributes: a superseded weapon still
+in Play does not. Schema 17 preserves readiness and attacks spent without structural change.
 
-The existing FinishAttack timing remains engine policy: usage increments before AfterAttack
-reactions, and keyword changes affect the next declaration. Exact pinned-rulebook timing remains
-unverified. Mega-Windfury, keyword auras,
-combat redirection, and full phase guards remain gaps. Milestone 8 remains incomplete.
+[The approved weapon-Windfury design](../docs/superpowers/specs/2026-09-16-hearthstone-weapon-windfury-design.md)
+defines the supported equipment scope. The existing active-weapon lifetime and controller-turn
+policy applies: a pending-destruction or zero-durability active weapon contributes until the
+existing removal boundary, temporary grants are observed by thaw before expiration, and accepted
+attacks retain existing continuation guards even if Windfury changes during reactions. These timing
+choices are engine policies, not certified pinned-rulebook conformance. Schema 17 remains
+structurally compatible, but replay equivalence with older binaries where weapon Windfury was
+inactive is not guaranteed. Mega-Windfury, keyword auras, combat redirection, and full phase guards
+remain gaps. Milestone 8 remains incomplete.
 
 ## Charge and Rush evidence and scope
 
@@ -185,7 +193,8 @@ the accepted subjects under SurvivingCombatSubjects. These decisions, including 
 selection and aborted-attack usage, are explicit engine policies pending pinned-revision verification.
 
 Schema 17 persists current/base durability, active references, replacement scopes, and combat steps.
-Weapon keywords, durability enchantments, and weapon transformations remain outside this slice.
+Weapon Windfury is supported; weapon Lifesteal, Poisonous, other weapon keyword mechanics,
+durability enchantments, and weapon transformations remain outside this slice.
 
 ## Combat reaction continuation
 

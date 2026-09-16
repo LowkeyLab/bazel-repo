@@ -7,7 +7,7 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
 - Ruleset: `AdvancedRulebook2026_06_26`
 - Reference: Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26)
 - Active milestone: Milestone 8 player-action sequences
-- Verification: 2026-09-15, 9 core and 332 simulator tests and the full repository build pass after the weapon review fixes. Formatting and simulator lint pass with no findings.
+- Verification: 2026-09-16 Windfury slice: formatting, 9 core and 345 simulator tests, full build, scoped lint, and `git diff --check` pass.
 
 ## Milestones
 
@@ -61,11 +61,11 @@ This document is the live implementation record for [`DESIGN.md`](DESIGN.md). It
   - [x] Narrow serializable subject guards for deferred minion/spell plays and attacks, with first-failure skip traces and guarded checkpoint restoration.
   - [x] Hero Power activation with explicit targeting, canonical enumeration, post-effect exhaustion, captured after-use seeds, replacement completion policy, and checkpoint-exact suspended continuation.
   - [x] Taunt, Stealth, and Immune declaration restrictions with durable Stealth consumption and checkpointed attack continuation.
-  - [x] Windfury attack allowance derived from current keywords, independent readiness blocking, shared snapshot/validation exhaustion, and checkpointed attacks spent.
+  - [x] Windfury attack allowance from live character and active controller-turn weapon keywords, with shared validation/legal-action/snapshot/Frozen-thaw calculation, preserved cross-equipment attack history, and non-stacking grants.
   - [x] Charge/Rush Minion readiness bypass with live keywords, Charge precedence, Rush Hero-defender restrictions, preserved attacks spent, and checkpoint-exact accepted attack continuation.
   - [x] Frozen declaration blocking and explicit end-turn thawing using live readiness/attack allowance, fresh Rush Minion presence, ordered consumption, and checkpointed continuation.
   - [x] Combat reaction continuation with live damage values after preparation deaths/auras, outcome gating, surviving-subject guards, and checkpoint-exact choices.
-  - [x] Ordinary weapon play, scoped replacement, Hero Attack contribution, durability, Deathrattles, and checkpoint-exact continuation. Weapon-granted keywords remain deferred.
+  - [x] Ordinary weapon play, scoped replacement, Hero Attack contribution, durability, Deathrattles, and checkpoint-exact continuation. Weapon Windfury is supported; Lifesteal, Poisonous, other weapon keyword mechanics, and durability enchantments remain deferred.
   - [ ] Hero card and location action sequences; combat redirection; full phase guards; and remaining keyword-specific combat legality.
 - [ ] **9 — Esoteric compatibility**
   - [x] Durable dominant-player identity and dominant/secondary trigger grouping.
@@ -263,3 +263,15 @@ The implementation remains intentionally synthetic-card-first. Unchecked items a
 - Schema 17 records the combat-preparation payer against its one-shot resolution operation. Restoration rejects substituted weapons/controllers, missing captures, orphaned captures, and duplicate payments. Choice branches cannot borrow a payment.
 - Sequence abandonment clears captured payers; valid moved/replaced weapons still restore and resume without charging a replacement.
 - Expanded the suspended replacement regression with six malformed-checkpoint cases; JSON restoration and forks retain identical continuations.
+
+### Weapon Windfury slice (2026-09-16)
+
+- Active controller-turn weapon Windfury shares the Hero's live two-attack allowance with personal Windfury; sources do not stack and equipment changes preserve attacks spent.
+- Validation, canonical legal actions, snapshot exhaustion, and Frozen thawing share that calculation. Only the authoritative active weapon contributes; zero-Attack weapons can contribute when another source supplies Hero Attack.
+- Superseded in-Play weapons do not contribute. Pending destruction contributes until the existing removal boundary, and accepted attacks retain their existing continuation guards.
+- Schema 17 is structurally unchanged; gameplay equivalence with older binaries where weapon Windfury was inactive is not guaranteed. Lifesteal, Poisonous, other weapon keyword mechanics, and durability enchantments remain deferred.
+- `nix develop --command aspect format --scope=all`: passed.
+- `nix develop --command aspect test //hearthstone_simulator/...`: passed 9 core and 345 simulator tests.
+- `nix develop --command aspect build //...`: passed all 351 targets.
+- `nix develop --command aspect lint //hearthstone_simulator/...`: passed Clippy and KeepSorted with no findings.
+- `git diff --check`: passed.
