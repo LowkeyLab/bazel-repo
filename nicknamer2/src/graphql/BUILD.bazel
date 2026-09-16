@@ -121,7 +121,7 @@ rust_test(
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "//nicknamer2/src/server",
-        "//tools/test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",  # keep
         "@crates//:axum",
         "@crates//:base64",
         "@crates//:chrono",

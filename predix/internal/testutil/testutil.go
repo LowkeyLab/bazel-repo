@@ -4,13 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/lowkeylab/bazel-repo/predix/internal/migrations"
-	"github.com/testcontainers/testcontainers-go"
+	testimages "github.com/lowkeylab/bazel-repo/test_images/go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // SetupTestDB starts a PostgreSQL container, applies the schema, and returns a connection pool.
@@ -23,23 +21,11 @@ func SetupTestDB(t *testing.T) *sql.DB {
 
 	ctx := context.Background()
 
-	image, err := prepareImages(ctx)
-	if err != nil {
-		t.Fatalf("prepare Bazel test images: %v", err)
-	}
-
-	// Start Postgres Container
-	pgContainer, err := postgres.Run(
+	pgContainer, err := testimages.Postgres(
 		ctx,
-		image,
 		postgres.WithDatabase("predix"),
 		postgres.WithUsername("user"),
 		postgres.WithPassword("password"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(5*time.Second),
-		),
 	)
 	if err != nil {
 		t.Fatalf("failed to start postgres container: %v", err)

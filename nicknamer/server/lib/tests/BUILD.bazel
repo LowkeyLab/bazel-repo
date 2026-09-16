@@ -37,7 +37,7 @@ COMMON_TAGS = [
 ]
 
 COMMON_DEPS = [
-    "//tools/test_images/rust:test_images",
+    "//test_images/rust:test_images",
     "//nicknamer/migration/lib",
     "//nicknamer/server/lib",
     "@crates//:anyhow",

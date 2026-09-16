@@ -1,0 +1,60 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
+
+# gazelle:go_test file
+# gazelle:resolve go github.com/bazelbuild/rules_go/go/runfiles @rules_go//go/runfiles
+
+go_library(
+    name = "go",
+    testonly = True,
+    srcs = [
+        "images.go",
+        "postgres.go",
+    ],
+    importpath = "github.com/lowkeylab/bazel-repo/test_images/go",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_testcontainers_testcontainers_go//:testcontainers-go",
+        "@com_github_testcontainers_testcontainers_go//wait",
+        "@com_github_testcontainers_testcontainers_go_modules_postgres//:postgres",
+        "@rules_go//go/runfiles",
+    ],
+)
+
+go_test(
+    name = "images_test",
+    size = "small",
+    srcs = ["images_test.go"],
+    embed = [":go"],
+    deps = ["@com_github_testcontainers_testcontainers_go//:testcontainers-go"],
+)
+
+go_test(
+    name = "provenance_test",
+    size = "medium",
+    srcs = ["provenance_test.go"],
+    data = image_data("postgres_18") + image_data("ryuk") + ["//test_images/rust:postgres_probe"],  # keep
+    embed = [":go"],
+    env = image_env("postgres_18") | image_env(
+        "ryuk",
+        prefix = "RYUK",
+    ) | image_env(
+        "postgres_18",
+        prefix = "RUST_POSTGRES",
+    ) | {
+        "RUST_POSTGRES_PROBE": "$(rlocationpath //test_images/rust:postgres_probe)",
+    },
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],  # keep
+    deps = [
+        "@com_github_jackc_pgx_v5//stdlib",
+        "@com_github_testcontainers_testcontainers_go//:testcontainers-go",
+        "@rules_go//go/runfiles",
+    ],
+)

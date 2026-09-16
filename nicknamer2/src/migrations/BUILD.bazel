@@ -30,7 +30,7 @@ rust_test(
         "requires-network",
     ],
     deps = [
-        "//tools/test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",  # keep
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],

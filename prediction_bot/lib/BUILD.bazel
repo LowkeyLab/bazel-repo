@@ -74,7 +74,7 @@ rust_test(
     ],
     deps = [
         ":lib",
-        "//tools/test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",  # keep
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
