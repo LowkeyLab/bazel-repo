@@ -31,7 +31,7 @@ async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>) {
             42,
             Policy {
                 amount: 100,
-                interval: 86400,
+                interval: 86_400,
             },
         )),
     )
@@ -146,8 +146,8 @@ async fn workers_grant_each_interval_once_and_settlement_credits_once() {
     };
     let cmd = Command::Grant { user_id: 7 };
     let (a, b) = tokio::join!(
-        store.execute_at(1, "grant:7:87400", system.clone(), &cmd, 173800),
-        store.execute_at(1, "grant:7:87400", system, &cmd, 173800)
+        store.execute_at(1, "grant:7:87400", system, &cmd, 173_800),
+        store.execute_at(1, "grant:7:87400", system, &cmd, 173_800)
     );
     a.unwrap();
     b.unwrap();
@@ -181,7 +181,7 @@ async fn workers_grant_each_interval_once_and_settlement_credits_once() {
         outcome: 0,
     };
     let (a, b) = tokio::join!(
-        store.execute_at(1, "discord:4", moderator.clone(), &settle, 2000),
+        store.execute_at(1, "discord:4", moderator, &settle, 2000),
         store.execute_at(1, "discord:5", moderator, &settle, 2000)
     );
     assert_ne!(a.is_ok(), b.is_ok());
@@ -234,7 +234,7 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         42,
         Policy {
             amount: 100,
-            interval: 86400,
+            interval: 86_400,
         },
     );
     store

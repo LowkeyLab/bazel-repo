@@ -37,6 +37,7 @@ pub struct Store {
 }
 
 impl Store {
+    #[must_use]
     pub fn new(pool: PgPool, application: u64, defaults: Policy) -> Self {
         Self {
             pool,
@@ -46,6 +47,11 @@ impl Store {
         }
     }
 
+    /// Connect with a restricted runtime role and reconstruct committed guild histories.
+    ///
+    /// # Errors
+    /// Returns an error for invalid configuration, schema or permissions, database failures,
+    /// or invalid stored history.
     pub async fn connect(
         url: &str,
         application: u64,
@@ -83,13 +89,18 @@ impl Store {
 
     /// Keep this connection alive for the gateway lifetime. Two-key locks occupy
     /// a separate namespace from the one-key guild transaction locks.
+    ///
+    /// # Errors
+    /// Returns an error if acquiring a connection fails or another gateway holds the lock.
     pub async fn gateway_guard(
         &self,
     ) -> Result<sqlx::pool::PoolConnection<sqlx::Postgres>, StoreError> {
         let mut connection = self.pool.acquire().await?;
+        // Preserve all 64 identity bits in the two signed PostgreSQL lock keys.
+        let bytes = self.application.to_be_bytes();
         let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1, $2)")
-            .bind((self.application >> 32) as i32)
-            .bind(self.application as i32)
+            .bind(i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+            .bind(i32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]))
             .fetch_one(&mut *connection)
             .await?;
         if !acquired {
@@ -101,6 +112,10 @@ impl Store {
         Ok(connection)
     }
 
+    /// Atomically append a command's events, or return its existing receipt on redelivery.
+    ///
+    /// # Errors
+    /// Returns an error for invalid commands or history, metadata errors, or database failures.
     pub async fn execute(
         &self,
         guild: u64,
@@ -112,6 +127,9 @@ impl Store {
     }
 
     /// Explicit application time boundary for deterministic tests and simulations.
+    ///
+    /// # Errors
+    /// Returns the same command, history, metadata, and database errors as [`Self::execute`].
     pub async fn execute_at(
         &self,
         guild: u64,
@@ -144,12 +162,11 @@ impl Store {
         }
         for attempt in 0..3 {
             let result = self.transact(guild, key, actor, command, now).await;
-            if let Err(StoreError::Database(sqlx::Error::Database(ref error))) = result {
-                if attempt < 2
-                    && matches!(error.code().as_deref(), Some("40001" | "40P01" | "23505"))
-                {
-                    continue;
-                }
+            if let Err(StoreError::Database(sqlx::Error::Database(ref error))) = result
+                && attempt < 2
+                && matches!(error.code().as_deref(), Some("40001" | "40P01" | "23505"))
+            {
+                continue;
             }
             return result;
         }
@@ -169,7 +186,7 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(guild as i64)
+            .bind(i64::from_ne_bytes(guild.to_ne_bytes()))
             .execute(&mut *tx)
             .await?;
         let receipt = sqlx::query("SELECT actor_id, response FROM prediction_commands WHERE guild_id=$1 AND command_key=$2")
@@ -314,22 +331,30 @@ impl Store {
 
     async fn publish(&self, guild: u64, view: View) -> Arc<View> {
         let mut views = self.views.lock().await;
-        if let Some(current) = views.get(&guild) {
-            if current.revision >= view.revision {
-                return Arc::clone(current);
-            }
+        if let Some(current) = views.get(&guild)
+            && current.revision >= view.revision
+        {
+            return Arc::clone(current);
         }
         let view = Arc::new(view);
         views.insert(guild, Arc::clone(&view));
         view
     }
 
+    /// Replay committed events and publish an immutable projection.
+    ///
+    /// # Errors
+    /// Returns an error for database failures or invalid event history and metadata.
     pub async fn view(&self, guild: u64) -> Result<Arc<View>, StoreError> {
         let mut connection = self.pool.acquire().await?;
         let view = self.load(&mut connection, guild).await?;
         Ok(self.publish(guild, view).await)
     }
 
+    /// List guilds with committed event history.
+    ///
+    /// # Errors
+    /// Returns an error if the query fails or a stored guild ID is invalid.
     pub async fn guilds(&self) -> Result<Vec<u64>, StoreError> {
         let ids: Vec<String> =
             sqlx::query_scalar("SELECT DISTINCT guild_id FROM prediction_events ORDER BY guild_id")
@@ -343,14 +368,15 @@ impl Store {
             .collect()
     }
 
+    /// Issue due grants, logging and continuing past individual guild or command failures.
+    ///
+    /// # Errors
+    /// Returns an error if guild discovery fails.
     pub async fn grant_due(&self) -> Result<(), StoreError> {
         for guild in self.guilds().await? {
-            let view = match self.view(guild).await {
-                Ok(view) => view,
-                Err(_) => {
-                    tracing::error!(guild, "cannot reconstruct grant schedule");
-                    continue;
-                }
+            let Ok(view) = self.view(guild).await else {
+                tracing::error!(guild, "cannot reconstruct grant schedule");
+                continue;
             };
             let now = chrono::Utc::now().timestamp();
             for (user, account) in &view.state.accounts {
@@ -384,8 +410,9 @@ fn validate_event_actor(event: &Event, actor: u64) -> Result<(), StoreError> {
                 Err(StoreError::History("system cannot enroll"))
             };
         }
-        Event::MemberEnrolled { user_id, .. } | Event::BetPlaced { user_id, .. } => *user_id,
-        Event::PointsGranted {
+        Event::MemberEnrolled { user_id, .. }
+        | Event::BetPlaced { user_id, .. }
+        | Event::PointsGranted {
             user_id,
             reason: GrantReason::Initial,
             ..
@@ -424,6 +451,11 @@ fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError
     Ok(())
 }
 
+/// Create the event-store schema and restricted runtime role in one transaction.
+///
+/// # Errors
+/// Returns an error if the migration lock or schema statements fail, including insufficient
+/// owner permissions to create tables or roles.
 pub async fn migrate(pool: &PgPool) -> Result<(), StoreError> {
     let mut tx = pool.begin().await?;
     sqlx::query("SELECT pg_advisory_xact_lock(173728393, 1)")

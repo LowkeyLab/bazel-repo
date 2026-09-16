@@ -18,6 +18,10 @@ mod snowflake {
         value.parse().map_err(|_| "Discord ID exceeds u64")
     }
 
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "Serde serialize_with requires a borrowed field"
+    )]
     pub fn serialize<S: Serializer>(value: &u64, serializer: S) -> Result<S::Ok, S::Error> {
         if *value == 0 {
             return Err(S::Error::custom("event Discord ID must be positive"));
@@ -33,6 +37,10 @@ mod snowflake {
     pub mod actor {
         use serde::{Deserialize, Deserializer, Serializer, de::Error};
 
+        #[expect(
+            clippy::trivially_copy_pass_by_ref,
+            reason = "Serde serialize_with requires a borrowed field"
+        )]
         pub fn serialize<S: Serializer>(value: &u64, serializer: S) -> Result<S::Ok, S::Error> {
             serializer.serialize_str(&value.to_string())
         }
@@ -198,6 +206,7 @@ pub enum Event {
 }
 
 impl Event {
+    #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
             Self::GuildEconomyInitialized { .. } => "economy.initialized",
@@ -210,6 +219,7 @@ impl Event {
         }
     }
 
+    #[must_use]
     pub fn subject(&self) -> String {
         match self {
             Self::GuildEconomyInitialized { .. } => "economy".to_owned(),
@@ -349,6 +359,10 @@ fn finish(state: &State, events: Vec<Event>, response: String) -> Result<Decisio
     Ok(Decision { events, response })
 }
 
+/// Validate a command and produce events without changing the supplied state.
+///
+/// # Errors
+/// Returns an error for invalid actors, commands, market transitions, or arithmetic overflow.
 pub fn decide(
     state: &State,
     actor: Actor,
@@ -357,109 +371,17 @@ pub fn decide(
     defaults: Policy,
 ) -> Result<Decision, DomainError> {
     match command {
-        Command::Join => {
-            if actor.bot || actor.user_id == 0 {
-                return Err(DomainError::Invalid("bots and system users cannot enroll"));
-            }
-            if state.accounts.contains_key(&actor.user_id) {
-                return finish(state, Vec::new(), "Already enrolled.".to_owned());
-            }
-            let policy = state.policy.unwrap_or(defaults);
-            positive_policy(policy)?;
-            let next_grant = checked_add(now, policy.interval)?;
-            let mut events = Vec::new();
-            if state.policy.is_none() {
-                events.push(Event::GuildEconomyInitialized {
-                    amount: policy.amount,
-                    interval: policy.interval,
-                });
-            }
-            events.push(Event::MemberEnrolled {
-                user_id: actor.user_id,
-                enrolled_at: now,
-            });
-            events.push(Event::PointsGranted {
-                user_id: actor.user_id,
-                reason: GrantReason::Initial,
-                amount: policy.amount,
-                from_due: now,
-                through_due: now,
-                next_grant,
-            });
-            finish(
-                state,
-                events,
-                format!("Enrolled with {} points.", policy.amount),
-            )
-        }
-        Command::Grant { user_id } => {
-            if actor.user_id != 0 {
-                return Err(DomainError::Invalid("grants require the system actor"));
-            }
-            let policy = state
-                .policy
-                .ok_or(DomainError::Invalid("economy not initialized"))?;
-            positive_policy(policy)?;
-            let account = state
-                .accounts
-                .get(user_id)
-                .ok_or(DomainError::Invalid("member not enrolled"))?;
-            if now < account.next_grant {
-                return finish(state, Vec::new(), "No grant due.".to_owned());
-            }
-            let count128 = (i128::from(now) - i128::from(account.next_grant))
-                / i128::from(policy.interval)
-                + 1;
-            let count = i64::try_from(count128).map_err(|_| DomainError::Overflow)?;
-            let amount = checked_mul(policy.amount, count)?;
-            let through_due =
-                checked_add(account.next_grant, checked_mul(policy.interval, count - 1)?)?;
-            let next_grant = checked_add(through_due, policy.interval)?;
-            finish(
-                state,
-                vec![Event::PointsGranted {
-                    user_id: *user_id,
-                    reason: GrantReason::Periodic,
-                    amount,
-                    from_due: account.next_grant,
-                    through_due,
-                    next_grant,
-                }],
-                format!("Granted {amount} points."),
-            )
-        }
+        Command::Join => decide_join(state, actor, now, defaults),
+
+        Command::Grant { user_id } => decide_grant(state, actor, *user_id, now),
+
         Command::Create {
             id,
             question,
             options,
             closes_at,
-        } => {
-            if actor.bot || actor.user_id == 0 {
-                return Err(DomainError::Invalid("bots cannot create markets"));
-            }
-            if !state.accounts.contains_key(&actor.user_id) {
-                return Err(DomainError::Invalid("member not enrolled"));
-            }
-            if !valid_market_id(id) || state.markets.contains_key(id) {
-                return Err(DomainError::Invalid("invalid or duplicate market ID"));
-            }
-            valid_market(question, options)?;
-            if *closes_at <= now {
-                return Err(DomainError::Invalid("market must close in the future"));
-            }
-            finish(
-                state,
-                vec![Event::MarketCreated {
-                    id: id.clone(),
-                    creator: actor.user_id,
-                    question: question.clone(),
-                    options: options.clone(),
-                    created_at: now,
-                    closes_at: *closes_at,
-                }],
-                format!("Market created: {id}"),
-            )
-        }
+        } => decide_create(state, actor, id, question, options, *closes_at, now),
+
         Command::Bet {
             id,
             outcome,
@@ -531,28 +453,7 @@ pub fn decide(
                 .to_owned(),
             )
         }
-        Command::Cancel { id } => {
-            if !actor.moderator || actor.bot || actor.user_id == 0 {
-                return Err(DomainError::Invalid("moderator required"));
-            }
-            let market = state
-                .markets
-                .get(id)
-                .ok_or(DomainError::Invalid("unknown market"))?;
-            if market.status != Status::Open {
-                return Err(DomainError::Invalid("market already terminal"));
-            }
-            finish(
-                state,
-                vec![Event::MarketCancelled {
-                    id: id.clone(),
-                    moderator: actor.user_id,
-                    cancelled_at: now,
-                    refunds: allocations(stakes(market, None)?),
-                }],
-                "Market cancelled; stakes refunded.".to_owned(),
-            )
-        }
+        Command::Cancel { id } => decide_cancel(state, actor, id, now),
     }
 }
 
@@ -622,33 +523,16 @@ fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
             from_due,
             through_due,
             next_grant,
-        } => {
-            let policy = state
-                .policy
-                .ok_or(DomainError::Invalid("economy not initialized"))?;
-            positive_policy(policy)?;
-            let account = state
-                .accounts
-                .get_mut(user_id)
-                .ok_or(DomainError::Invalid("grant to unknown member"))?;
-            if *from_due != account.next_grant || *through_due < *from_due || *amount <= 0 {
-                return Err(DomainError::Invalid("invalid grant schedule"));
-            }
-            let distance = i128::from(*through_due) - i128::from(*from_due);
-            if distance % i128::from(policy.interval) != 0 {
-                return Err(DomainError::Invalid("grant boundaries are not aligned"));
-            }
-            let count = i64::try_from(distance / i128::from(policy.interval) + 1)
-                .map_err(|_| DomainError::Overflow)?;
-            if (*reason == GrantReason::Initial && count != 1)
-                || *amount != checked_mul(policy.amount, count)?
-                || *next_grant != checked_add(*through_due, policy.interval)?
-            {
-                return Err(DomainError::Invalid("grant facts disagree with policy"));
-            }
-            account.balance = checked_add(account.balance, *amount)?;
-            account.next_grant = *next_grant;
-        }
+        } => apply_grant(
+            state,
+            *user_id,
+            *reason,
+            *amount,
+            *from_due,
+            *through_due,
+            *next_grant,
+        )?,
+
         Event::MarketCreated {
             id,
             creator,
@@ -656,66 +540,24 @@ fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
             options,
             created_at,
             closes_at,
-        } => {
-            if state.policy.is_none()
-                || !valid_market_id(id)
-                || state.markets.contains_key(id)
-                || !state.accounts.contains_key(creator)
-                || *closes_at <= *created_at
-            {
-                return Err(DomainError::Invalid("invalid market creation transition"));
-            }
-            valid_market(question, options)?;
-            state.markets.insert(
-                id.clone(),
-                Market {
-                    creator: *creator,
-                    question: question.clone(),
-                    options: options.clone(),
-                    closes_at: *closes_at,
-                    created_at: *created_at,
-                    status: Status::Open,
-                    bets: Vec::new(),
-                    total_staked: 0,
-                },
-            );
-        }
+        } => apply_market_creation(
+            state,
+            id,
+            *creator,
+            question,
+            options,
+            *created_at,
+            *closes_at,
+        )?,
+
         Event::BetPlaced {
             id,
             user_id,
             outcome,
             amount,
             accepted_at,
-        } => {
-            let market = state
-                .markets
-                .get(id)
-                .ok_or(DomainError::Invalid("unknown market"))?;
-            if market.status != Status::Open
-                || *accepted_at < market.created_at
-                || *accepted_at >= market.closes_at
-                || *outcome >= market.options.len()
-                || *amount <= 0
-            {
-                return Err(DomainError::Invalid("invalid bet transition"));
-            }
-            let next_pool = checked_add(pool(market)?, *amount)?;
-            let account = state
-                .accounts
-                .get_mut(user_id)
-                .ok_or(DomainError::Invalid("bet by unknown member"))?;
-            if account.balance < *amount {
-                return Err(DomainError::Invalid("insufficient points"));
-            }
-            account.balance -= *amount;
-            let market = state.markets.get_mut(id).unwrap();
-            market.total_staked = next_pool;
-            market.bets.push(Bet {
-                user_id: *user_id,
-                outcome: *outcome,
-                amount: *amount,
-            });
-        }
+        } => apply_bet(state, id, *user_id, *outcome, *amount, *accepted_at)?,
+
         Event::MarketResolved {
             id,
             outcome,
@@ -723,69 +565,30 @@ fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
             settled_at,
             payouts,
             refunded,
-        } => {
-            let market = state
-                .markets
-                .get(id)
-                .ok_or(DomainError::Invalid("unknown market"))?;
-            if market.status != Status::Open
-                || *outcome >= market.options.len()
-                || *settled_at < market.closes_at
-                || *resolver == 0
-            {
-                return Err(DomainError::Invalid("invalid resolution transition"));
-            }
-            let recorded = recorded_allocations(payouts, &state.accounts)?;
-            let winning_stakes = stakes(market, Some(*outcome))?;
-            if *refunded {
-                if !winning_stakes.is_empty() || recorded != stakes(market, None)? {
-                    return Err(DomainError::Invalid("invalid no-winner refunds"));
-                }
-            } else {
-                if winning_stakes.is_empty()
-                    || recorded.len() != winning_stakes.len()
-                    || winning_stakes
-                        .iter()
-                        .any(|(user, stake)| recorded.get(user).is_none_or(|amount| amount < stake))
-                {
-                    return Err(DomainError::Invalid("invalid winning allocations"));
-                }
-                let allocated = recorded
-                    .values()
-                    .try_fold(0, |total, amount| checked_add(total, *amount))?;
-                if allocated != pool(market)? {
-                    return Err(DomainError::Invalid("allocations do not conserve the pool"));
-                }
-            }
-            credit_allocations(&mut state.accounts, payouts)?;
-            state.markets.get_mut(id).unwrap().status = Status::Resolved {
-                outcome: *outcome,
-                refunded: *refunded,
-            };
-        }
+        } => apply_resolution(
+            state,
+            id,
+            *outcome,
+            *resolver,
+            *settled_at,
+            payouts,
+            *refunded,
+        )?,
+
         Event::MarketCancelled {
             id,
             moderator,
             refunds,
             ..
-        } => {
-            let market = state
-                .markets
-                .get(id)
-                .ok_or(DomainError::Invalid("unknown market"))?;
-            if market.status != Status::Open
-                || *moderator == 0
-                || recorded_allocations(refunds, &state.accounts)? != stakes(market, None)?
-            {
-                return Err(DomainError::Invalid("invalid cancellation transition"));
-            }
-            credit_allocations(&mut state.accounts, refunds)?;
-            state.markets.get_mut(id).unwrap().status = Status::Cancelled;
-        }
+        } => apply_cancellation(state, id, *moderator, refunds)?,
     }
     Ok(())
 }
 
+/// Apply one recorded event atomically to a projection.
+///
+/// # Errors
+/// Returns an error for an invalid transition or arithmetic overflow, leaving state unchanged.
 pub fn apply(state: &mut State, event: &Event) -> Result<(), DomainError> {
     let mut candidate = state.clone();
     apply_inner(&mut candidate, event)?;
@@ -793,12 +596,334 @@ pub fn apply(state: &mut State, event: &Event) -> Result<(), DomainError> {
     Ok(())
 }
 
+/// Reconstruct a projection from recorded events in stream order.
+///
+/// # Errors
+/// Returns an error if any recorded transition is invalid or arithmetic overflows.
 pub fn replay(events: &[Event]) -> Result<State, DomainError> {
     let mut candidate = State::default();
     for event in events {
         apply_inner(&mut candidate, event)?;
     }
     Ok(candidate)
+}
+
+fn decide_join(
+    state: &State,
+    actor: Actor,
+    now: i64,
+    defaults: Policy,
+) -> Result<Decision, DomainError> {
+    if actor.bot || actor.user_id == 0 {
+        return Err(DomainError::Invalid("bots and system users cannot enroll"));
+    }
+    if state.accounts.contains_key(&actor.user_id) {
+        return finish(state, Vec::new(), "Already enrolled.".to_owned());
+    }
+    let policy = state.policy.unwrap_or(defaults);
+    positive_policy(policy)?;
+    let next_grant = checked_add(now, policy.interval)?;
+    let mut events = Vec::new();
+    if state.policy.is_none() {
+        events.push(Event::GuildEconomyInitialized {
+            amount: policy.amount,
+            interval: policy.interval,
+        });
+    }
+    events.push(Event::MemberEnrolled {
+        user_id: actor.user_id,
+        enrolled_at: now,
+    });
+    events.push(Event::PointsGranted {
+        user_id: actor.user_id,
+        reason: GrantReason::Initial,
+        amount: policy.amount,
+        from_due: now,
+        through_due: now,
+        next_grant,
+    });
+    finish(
+        state,
+        events,
+        format!("Enrolled with {} points.", policy.amount),
+    )
+}
+
+fn decide_grant(
+    state: &State,
+    actor: Actor,
+    user_id: u64,
+    now: i64,
+) -> Result<Decision, DomainError> {
+    if actor.user_id != 0 {
+        return Err(DomainError::Invalid("grants require the system actor"));
+    }
+    let policy = state
+        .policy
+        .ok_or(DomainError::Invalid("economy not initialized"))?;
+    positive_policy(policy)?;
+    let account = state
+        .accounts
+        .get(&user_id)
+        .ok_or(DomainError::Invalid("member not enrolled"))?;
+    if now < account.next_grant {
+        return finish(state, Vec::new(), "No grant due.".to_owned());
+    }
+    let count128 =
+        (i128::from(now) - i128::from(account.next_grant)) / i128::from(policy.interval) + 1;
+    let count = i64::try_from(count128).map_err(|_| DomainError::Overflow)?;
+    let amount = checked_mul(policy.amount, count)?;
+    let through_due = checked_add(account.next_grant, checked_mul(policy.interval, count - 1)?)?;
+    let next_grant = checked_add(through_due, policy.interval)?;
+    finish(
+        state,
+        vec![Event::PointsGranted {
+            user_id,
+            reason: GrantReason::Periodic,
+            amount,
+            from_due: account.next_grant,
+            through_due,
+            next_grant,
+        }],
+        format!("Granted {amount} points."),
+    )
+}
+
+fn decide_cancel(state: &State, actor: Actor, id: &str, now: i64) -> Result<Decision, DomainError> {
+    if !actor.moderator || actor.bot || actor.user_id == 0 {
+        return Err(DomainError::Invalid("moderator required"));
+    }
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if market.status != Status::Open {
+        return Err(DomainError::Invalid("market already terminal"));
+    }
+    finish(
+        state,
+        vec![Event::MarketCancelled {
+            id: id.to_owned(),
+            moderator: actor.user_id,
+            cancelled_at: now,
+            refunds: allocations(stakes(market, None)?),
+        }],
+        "Market cancelled; stakes refunded.".to_owned(),
+    )
+}
+
+fn apply_grant(
+    state: &mut State,
+    user_id: u64,
+    reason: GrantReason,
+    amount: i64,
+    from_due: i64,
+    through_due: i64,
+    next_grant: i64,
+) -> Result<(), DomainError> {
+    let policy = state
+        .policy
+        .ok_or(DomainError::Invalid("economy not initialized"))?;
+    positive_policy(policy)?;
+    let account = state
+        .accounts
+        .get_mut(&user_id)
+        .ok_or(DomainError::Invalid("grant to unknown member"))?;
+    if from_due != account.next_grant || through_due < from_due || amount <= 0 {
+        return Err(DomainError::Invalid("invalid grant schedule"));
+    }
+    let distance = i128::from(through_due) - i128::from(from_due);
+    if distance % i128::from(policy.interval) != 0 {
+        return Err(DomainError::Invalid("grant boundaries are not aligned"));
+    }
+    let count = i64::try_from(distance / i128::from(policy.interval) + 1)
+        .map_err(|_| DomainError::Overflow)?;
+    if (reason == GrantReason::Initial && count != 1)
+        || amount != checked_mul(policy.amount, count)?
+        || next_grant != checked_add(through_due, policy.interval)?
+    {
+        return Err(DomainError::Invalid("grant facts disagree with policy"));
+    }
+    account.balance = checked_add(account.balance, amount)?;
+    account.next_grant = next_grant;
+    Ok(())
+}
+
+fn apply_resolution(
+    state: &mut State,
+    id: &str,
+    outcome: usize,
+    resolver: u64,
+    settled_at: i64,
+    payouts: &[Allocation],
+    refunded: bool,
+) -> Result<(), DomainError> {
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if market.status != Status::Open
+        || outcome >= market.options.len()
+        || settled_at < market.closes_at
+        || resolver == 0
+    {
+        return Err(DomainError::Invalid("invalid resolution transition"));
+    }
+    let recorded = recorded_allocations(payouts, &state.accounts)?;
+    let winning_stakes = stakes(market, Some(outcome))?;
+    if refunded {
+        if !winning_stakes.is_empty() || recorded != stakes(market, None)? {
+            return Err(DomainError::Invalid("invalid no-winner refunds"));
+        }
+    } else {
+        if winning_stakes.is_empty()
+            || recorded.len() != winning_stakes.len()
+            || winning_stakes
+                .iter()
+                .any(|(user, stake)| recorded.get(user).is_none_or(|amount| amount < stake))
+        {
+            return Err(DomainError::Invalid("invalid winning allocations"));
+        }
+        let allocated = recorded
+            .values()
+            .try_fold(0, |total, amount| checked_add(total, *amount))?;
+        if allocated != pool(market)? {
+            return Err(DomainError::Invalid("allocations do not conserve the pool"));
+        }
+    }
+    credit_allocations(&mut state.accounts, payouts)?;
+    state.markets.get_mut(id).unwrap().status = Status::Resolved { outcome, refunded };
+    Ok(())
+}
+
+fn apply_cancellation(
+    state: &mut State,
+    id: &str,
+    moderator: u64,
+    refunds: &[Allocation],
+) -> Result<(), DomainError> {
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if market.status != Status::Open
+        || moderator == 0
+        || recorded_allocations(refunds, &state.accounts)? != stakes(market, None)?
+    {
+        return Err(DomainError::Invalid("invalid cancellation transition"));
+    }
+    credit_allocations(&mut state.accounts, refunds)?;
+    state.markets.get_mut(id).unwrap().status = Status::Cancelled;
+    Ok(())
+}
+
+fn decide_create(
+    state: &State,
+    actor: Actor,
+    id: &str,
+    question: &str,
+    options: &[String],
+    closes_at: i64,
+    now: i64,
+) -> Result<Decision, DomainError> {
+    if actor.bot || actor.user_id == 0 {
+        return Err(DomainError::Invalid("bots cannot create markets"));
+    }
+    if !state.accounts.contains_key(&actor.user_id) {
+        return Err(DomainError::Invalid("member not enrolled"));
+    }
+    if !valid_market_id(id) || state.markets.contains_key(id) {
+        return Err(DomainError::Invalid("invalid or duplicate market ID"));
+    }
+    valid_market(question, options)?;
+    if closes_at <= now {
+        return Err(DomainError::Invalid("market must close in the future"));
+    }
+    finish(
+        state,
+        vec![Event::MarketCreated {
+            id: id.to_owned(),
+            creator: actor.user_id,
+            question: question.to_owned(),
+            options: options.to_vec(),
+            created_at: now,
+            closes_at,
+        }],
+        format!("Market created: {id}"),
+    )
+}
+
+fn apply_market_creation(
+    state: &mut State,
+    id: &str,
+    creator: u64,
+    question: &str,
+    options: &[String],
+    created_at: i64,
+    closes_at: i64,
+) -> Result<(), DomainError> {
+    if state.policy.is_none()
+        || !valid_market_id(id)
+        || state.markets.contains_key(id)
+        || !state.accounts.contains_key(&creator)
+        || closes_at <= created_at
+    {
+        return Err(DomainError::Invalid("invalid market creation transition"));
+    }
+    valid_market(question, options)?;
+    state.markets.insert(
+        id.to_owned(),
+        Market {
+            creator,
+            question: question.to_owned(),
+            options: options.to_vec(),
+            closes_at,
+            created_at,
+            status: Status::Open,
+            bets: Vec::new(),
+            total_staked: 0,
+        },
+    );
+    Ok(())
+}
+
+fn apply_bet(
+    state: &mut State,
+    id: &str,
+    user_id: u64,
+    outcome: usize,
+    amount: i64,
+    accepted_at: i64,
+) -> Result<(), DomainError> {
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if market.status != Status::Open
+        || accepted_at < market.created_at
+        || accepted_at >= market.closes_at
+        || outcome >= market.options.len()
+        || amount <= 0
+    {
+        return Err(DomainError::Invalid("invalid bet transition"));
+    }
+    let next_pool = checked_add(pool(market)?, amount)?;
+    let account = state
+        .accounts
+        .get_mut(&user_id)
+        .ok_or(DomainError::Invalid("bet by unknown member"))?;
+    if account.balance < amount {
+        return Err(DomainError::Invalid("insufficient points"));
+    }
+    account.balance -= amount;
+    let market = state.markets.get_mut(id).unwrap();
+    market.total_staked = next_pool;
+    market.bets.push(Bet {
+        user_id,
+        outcome,
+        amount,
+    });
+    Ok(())
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 //! Guild slash-command transport. Economic decisions remain in the domain and store.
-use std::{collections::BTreeSet, sync::Arc, time::Duration};
+use std::{collections::BTreeSet, fmt::Write as _, sync::Arc, time::Duration};
 
 use crate::{
     domain::{Actor, Command, DomainError, Market, Status},
@@ -64,7 +64,7 @@ fn text<'a>(input: &'a Input, field: &str) -> Result<&'a str, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match &o.value {
             InputValue::String(s) => Some(s.as_str()),
-            _ => None,
+            InputValue::Integer(_) => None,
         })
         .ok_or("Enter a text value.")
 }
@@ -75,7 +75,7 @@ fn integer(input: &Input, field: &str) -> Result<i64, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match o.value {
             InputValue::Integer(i) => Some(i),
-            _ => None,
+            InputValue::String(_) => None,
         })
         .ok_or("Enter a whole number.")
 }
@@ -91,7 +91,7 @@ fn outcome(input: &Input) -> Result<usize, &'static str> {
     if !(1..=10).contains(&value) {
         return Err("Choose an outcome number from 1 to 10.");
     }
-    Ok((value - 1) as usize)
+    usize::try_from(value - 1).map_err(|_| "Invalid outcome number.")
 }
 pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str> {
     let guild = input
@@ -218,7 +218,7 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
         .and_then(|member| member.permissions)
         .is_some_and(|p| p.intersects(Permissions::ADMINISTRATOR | Permissions::MANAGE_GUILD));
     Ok(Input {
-        guild_id: command.guild_id.map(|id| id.get()),
+        guild_id: command.guild_id.map(GuildId::get),
         user_id: command.user.id.get(),
         bot: command.user.bot,
         moderator,
@@ -266,6 +266,9 @@ where
 }
 
 /// Verify a configured expected ID against the authenticated Discord application.
+///
+/// # Errors
+/// Returns an error if the authenticated ID is zero or differs from the configured expectation.
 pub fn verify_application_id(observed: u64, expected: Option<u64>) -> Result<u64, &'static str> {
     if observed == 0 || expected.is_some_and(|id| id == 0 || id != observed) {
         return Err("configured application ID does not match Discord token");
@@ -307,12 +310,13 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
             }
             let mut out = "Top balances:\n".to_owned();
             for (n, (user, account)) in accounts.into_iter().take(10).enumerate() {
-                out.push_str(&format!(
-                    "{}. User ID {} — {} points\n",
+                let _ = writeln!(
+                    out,
+                    "{}. User ID {} — {} points",
                     n + 1,
                     user,
                     account.balance
-                ));
+                );
             }
             out
         }
@@ -330,20 +334,20 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
             }
             let mut out = "Newest open markets:\n".to_owned();
             for (id, m) in markets.into_iter().take(10) {
-                out.push_str(&format!(
-                    "{} — {} (closes <t:{}:f>)\n",
+                let _ = writeln!(
+                    out,
+                    "{} — {} (closes <t:{}:f>)",
                     id,
                     truncate_to(&m.question, 60),
                     m.closes_at
-                ));
+                );
             }
             out
         }
-        Action::Show { id } => state
-            .markets
-            .get(id)
-            .map(|m| render_market(id, m, now))
-            .unwrap_or_else(|| "No market with that ID exists in this server.".to_owned()),
+        Action::Show { id } => state.markets.get(id).map_or_else(
+            || "No market with that ID exists in this server.".to_owned(),
+            |m| render_market(id, m, now),
+        ),
         Action::Write(_) => "Invalid query.".to_owned(),
     }
 }
@@ -369,15 +373,16 @@ fn render_market(id: &str, market: &Market, now: i64) -> String {
             .filter(|bet| bet.outcome == n)
             .map(|bet| i128::from(bet.amount))
             .sum();
-        out.push_str(&format!(
-            "{}. {} — {} points pooled\n",
+        let _ = writeln!(
+            out,
+            "{}. {} — {} points pooled",
             n + 1,
             truncate_to(option, 80),
             total
-        ));
+        );
     }
     if let Status::Resolved { outcome, .. } = market.status {
-        out.push_str(&format!("Winning outcome: {}\n", outcome + 1));
+        let _ = writeln!(out, "Winning outcome: {}", outcome + 1);
     }
     out
 }
@@ -491,14 +496,15 @@ impl Handler {
                         }
                     }
                 }
-                Ok((guild, actor, query)) => match self.store.view(guild).await {
-                    Ok(view) => render_query(&view, &query, actor, chrono::Utc::now().timestamp()),
-                    Err(_) => {
+                Ok((guild, actor, query)) => {
+                    if let Ok(view) = self.store.view(guild).await {
+                        render_query(&view, &query, actor, chrono::Utc::now().timestamp())
+                    } else {
                         tracing::error!(guild, "market query failed");
                         "The prediction economy is temporarily unavailable. Please try again."
                             .to_owned()
                     }
-                },
+                }
                 Err(message) => message.to_owned(),
             }
         })
@@ -543,7 +549,7 @@ pub enum DiscordError {
     Signal(#[from] std::io::Error),
 }
 async fn grant_worker(store: Arc<Store>, mut shutdown: watch::Receiver<bool>) {
-    let mut timer = tokio::time::interval(Duration::from_secs(60));
+    let mut timer = tokio::time::interval(Duration::from_mins(1));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
         tokio::select! {
@@ -561,7 +567,11 @@ async fn shutdown_signal() -> Result<(), std::io::Error> {
 async fn shutdown_signal() -> Result<(), std::io::Error> {
     tokio::signal::ctrl_c().await
 }
-/// Run the gateway and worker while holding one PostgreSQL advisory lock.
+/// Run the gateway and worker while holding one `PostgreSQL` advisory lock.
+///
+/// # Errors
+/// Returns an error if the gateway lock, Discord connection, or shutdown signal cannot initialize,
+/// or if the gateway fails while running.
 pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
     let mut guard = store.gateway_guard().await?;
     guard.close_on_drop();

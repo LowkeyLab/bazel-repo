@@ -20,8 +20,8 @@ fn moderator(user_id: u64) -> Actor {
     }
 }
 
-fn execute(state: &mut State, actor: Actor, command: Command, now: i64) -> Decision {
-    let decision = decide(state, actor, &command, now, DEFAULTS).unwrap();
+fn execute(state: &mut State, actor: Actor, command: &Command, now: i64) -> Decision {
+    let decision = decide(state, actor, command, now, DEFAULTS).unwrap();
     for event in &decision.events {
         apply(state, event).unwrap();
     }
@@ -29,11 +29,11 @@ fn execute(state: &mut State, actor: Actor, command: Command, now: i64) -> Decis
 }
 
 fn market(state: &mut State, closes_at: i64) {
-    execute(state, member(1), Command::Join, 1_000);
+    execute(state, member(1), &Command::Join, 1_000);
     execute(
         state,
         member(1),
-        Command::Create {
+        &Command::Create {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             question: "Who wins?".to_owned(),
             options: vec!["Red".to_owned(), "Blue".to_owned()],
@@ -46,11 +46,11 @@ fn market(state: &mut State, closes_at: i64) {
 #[test]
 fn enrollment_grants_once_and_preserves_schedule() {
     let mut state = State::default();
-    let first = execute(&mut state, member(7), Command::Join, 1_000);
+    let first = execute(&mut state, member(7), &Command::Join, 1_000);
     assert_eq!(first.events.len(), 3);
     assert_eq!(state.accounts[&7].balance, 100);
     assert_eq!(state.accounts[&7].next_grant, 87_400);
-    let repeat = execute(&mut state, member(7), Command::Join, 2_000);
+    let repeat = execute(&mut state, member(7), &Command::Join, 2_000);
     assert!(repeat.events.is_empty());
     assert_eq!(state.accounts[&7].balance, 100);
     assert_eq!(state.accounts[&7].next_grant, 87_400);
@@ -59,13 +59,18 @@ fn enrollment_grants_once_and_preserves_schedule() {
 #[test]
 fn grants_cover_exact_due_boundaries_after_offline_intervals() {
     let mut state = State::default();
-    execute(&mut state, member(7), Command::Join, 1_000);
-    let early = execute(&mut state, member(0), Command::Grant { user_id: 7 }, 87_399);
+    execute(&mut state, member(7), &Command::Join, 1_000);
+    let early = execute(
+        &mut state,
+        member(0),
+        &Command::Grant { user_id: 7 },
+        87_399,
+    );
     assert!(early.events.is_empty());
     let due = execute(
         &mut state,
         member(0),
-        Command::Grant { user_id: 7 },
+        &Command::Grant { user_id: 7 },
         173_800,
     );
     assert_eq!(due.events.len(), 1);
@@ -78,13 +83,13 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
     let mut state = State::default();
     market(&mut state, 2_000);
     for user in [2, 3, 4] {
-        execute(&mut state, member(user), Command::Join, 1_000);
+        execute(&mut state, member(user), &Command::Join, 1_000);
     }
     for (user, outcome, amount) in [(2, 0, 1), (3, 0, 2), (4, 1, 2)] {
         execute(
             &mut state,
             member(user),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome,
                 amount,
@@ -95,7 +100,7 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
     execute(
         &mut state,
         moderator(1),
-        Command::Resolve {
+        &Command::Resolve {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
         },
@@ -117,13 +122,13 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
     let mut tied = State::default();
     market(&mut tied, 2_000);
     for user in [2, 3, 4] {
-        execute(&mut tied, member(user), Command::Join, 1_000);
+        execute(&mut tied, member(user), &Command::Join, 1_000);
     }
     for (user, outcome, amount) in [(3, 0, 1), (2, 0, 1), (4, 1, 1)] {
         execute(
             &mut tied,
             member(user),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome,
                 amount,
@@ -134,7 +139,7 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
     execute(
         &mut tied,
         moderator(1),
-        Command::Resolve {
+        &Command::Resolve {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
         },
@@ -150,11 +155,11 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
 fn no_winner_resolution_and_cancellation_refund_stakes() {
     let mut no_winner = State::default();
     market(&mut no_winner, 2_000);
-    execute(&mut no_winner, member(2), Command::Join, 1_000);
+    execute(&mut no_winner, member(2), &Command::Join, 1_000);
     execute(
         &mut no_winner,
         member(2),
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
             amount: 7,
@@ -164,7 +169,7 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
     execute(
         &mut no_winner,
         moderator(1),
-        Command::Resolve {
+        &Command::Resolve {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 1,
         },
@@ -181,11 +186,11 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
 
     let mut cancelled = State::default();
     market(&mut cancelled, 2_000);
-    execute(&mut cancelled, member(2), Command::Join, 1_000);
+    execute(&mut cancelled, member(2), &Command::Join, 1_000);
     execute(
         &mut cancelled,
         member(2),
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
             amount: 7,
@@ -195,7 +200,7 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
     execute(
         &mut cancelled,
         moderator(1),
-        Command::Cancel {
+        &Command::Cancel {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
         },
         1_700,
@@ -211,26 +216,26 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
 fn invalid_commands_and_replay_do_not_publish_partial_changes() {
     let mut state = State::default();
     market(&mut state, 2_000);
-    execute(&mut state, member(2), Command::Join, 1_000);
+    execute(&mut state, member(2), &Command::Join, 1_000);
     let before = state.clone();
     for command in [
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 2,
             amount: 1,
         },
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
             amount: -1,
         },
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
             amount: 101,
         },
     ] {
-        assert!(decide(&state, member(2), &command, 1_500, DEFAULTS).is_err());
+        assert!(decide(&state, member(2), command, 1_500, DEFAULTS).is_err());
     }
     assert!(
         decide(
@@ -316,13 +321,13 @@ fn history_replays_identically_and_uses_recorded_allocations() {
     let mut state = State::default();
     let mut history = Vec::new();
     for (actor, command, now) in [
-        (member(1), Command::Join, 1_000),
-        (member(2), Command::Join, 1_000),
-        (member(3), Command::Join, 1_000),
-        (member(4), Command::Join, 1_000),
+        (member(1), &Command::Join, 1_000),
+        (member(2), &Command::Join, 1_000),
+        (member(3), &Command::Join, 1_000),
+        (member(4), &Command::Join, 1_000),
         (
             member(1),
-            Command::Create {
+            &Command::Create {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 question: "Who wins?".to_owned(),
                 options: vec!["Red".to_owned(), "Blue".to_owned()],
@@ -332,7 +337,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         ),
         (
             member(2),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 0,
                 amount: 1,
@@ -341,7 +346,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         ),
         (
             member(3),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 0,
                 amount: 2,
@@ -350,7 +355,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         ),
         (
             member(4),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 1,
                 amount: 2,
@@ -359,7 +364,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         ),
         (
             moderator(1),
-            Command::Resolve {
+            &Command::Resolve {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 0,
             },
@@ -431,7 +436,7 @@ fn overflow_rejects_entire_decision_and_event() {
 #[test]
 fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
     let mut state = State::default();
-    execute(&mut state, member(1), Command::Join, 1_000);
+    execute(&mut state, member(1), &Command::Join, 1_000);
     let create = |question: &str, options: Vec<&str>, closes_at: i64| Command::Create {
         id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
         question: question.to_owned(),
@@ -462,7 +467,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
     execute(
         &mut state,
         member(1),
-        create("Who wins?", vec!["Red", "Blue"], 2_000),
+        &create("Who wins?", vec!["Red", "Blue"], 2_000),
         1_000,
     );
     let before = state.clone();
@@ -498,7 +503,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
     execute(
         &mut state,
         moderator(1),
-        Command::Cancel {
+        &Command::Cancel {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
         },
         2_100,
@@ -535,12 +540,12 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
 fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
     let mut state = State::default();
     market(&mut state, 2_000);
-    execute(&mut state, member(2), Command::Join, 1_000);
-    execute(&mut state, member(3), Command::Join, 1_000);
+    execute(&mut state, member(2), &Command::Join, 1_000);
+    execute(&mut state, member(3), &Command::Join, 1_000);
     execute(
         &mut state,
         member(2),
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 0,
             amount: 1,
@@ -550,7 +555,7 @@ fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
     execute(
         &mut state,
         member(3),
-        Command::Bet {
+        &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
             outcome: 1,
             amount: 1,
@@ -614,12 +619,12 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
     };
     let mut state = State::default();
     let commands = [
-        (member(1), Command::Join, 1_000),
-        (member(2), Command::Join, 1_000),
-        (member(3), Command::Join, 1_000),
+        (member(1), &Command::Join, 1_000),
+        (member(2), &Command::Join, 1_000),
+        (member(3), &Command::Join, 1_000),
         (
             member(1),
-            Command::Create {
+            &Command::Create {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 question: "Who wins?".to_owned(),
                 options: vec!["Red".to_owned(), "Blue".to_owned()],
@@ -629,7 +634,7 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
         ),
         (
             member(2),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 0,
                 amount: 1,
@@ -638,7 +643,7 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
         ),
         (
             member(3),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 1,
                 amount: 1,
@@ -647,7 +652,7 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
         ),
     ];
     for (actor, command, now) in commands {
-        let decision = decide(&state, actor, &command, now, huge).unwrap();
+        let decision = decide(&state, actor, command, now, huge).unwrap();
         for event in &decision.events {
             apply(&mut state, event).unwrap();
         }
@@ -686,11 +691,11 @@ fn private_replay_matches_sequential_public_apply() {
     let mut decided = State::default();
     let mut events = Vec::new();
     for (actor, command, now) in [
-        (member(1), Command::Join, 1_000),
-        (member(2), Command::Join, 1_000),
+        (member(1), &Command::Join, 1_000),
+        (member(2), &Command::Join, 1_000),
         (
             member(1),
-            Command::Create {
+            &Command::Create {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 question: "Who wins?".to_owned(),
                 options: vec!["Red".to_owned(), "Blue".to_owned()],
@@ -700,7 +705,7 @@ fn private_replay_matches_sequential_public_apply() {
         ),
         (
             member(2),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 0,
                 amount: 7,
@@ -709,7 +714,7 @@ fn private_replay_matches_sequential_public_apply() {
         ),
         (
             moderator(1),
-            Command::Resolve {
+            &Command::Resolve {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 1,
             },
@@ -799,13 +804,13 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
     let mut state = State::default();
     market(&mut state, 2_000);
     for user in [2, 3] {
-        execute(&mut state, member(user), Command::Join, 1_000);
+        execute(&mut state, member(user), &Command::Join, 1_000);
     }
     for (user, amount) in [(2, 7), (3, 5)] {
         execute(
             &mut state,
             member(user),
-            Command::Bet {
+            &Command::Bet {
                 id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
                 outcome: 0,
                 amount,
@@ -828,7 +833,7 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
     execute(
         &mut state,
         moderator(1),
-        Command::Cancel {
+        &Command::Cancel {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
         },
         1_700,

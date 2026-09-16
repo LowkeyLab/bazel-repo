@@ -1,4 +1,4 @@
-//! CloudEvents metadata is immutable; per-server event revision governs replay.
+//! `CloudEvents` metadata is immutable; per-server event revision governs replay.
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,10 @@ pub struct Context<'a> {
 }
 
 impl CloudEvent {
+    /// Construct an event with a fresh UUID v7 identity.
+    ///
+    /// # Errors
+    /// Returns an error for an out-of-range timestamp or invalid stream metadata.
     pub fn new(
         ctx: &Context<'_>,
         name: &str,
@@ -70,6 +74,10 @@ impl CloudEvent {
         Ok(event)
     }
 
+    /// Validate metadata against its persisted stream context and domain event.
+    ///
+    /// # Errors
+    /// Returns an error for unsupported encoding, identity, extensions, or mismatched metadata.
     pub fn validate(&self, ctx: &Context<'_>, name: &str, subject: &str) -> Result<(), EventError> {
         let id = uuid::Uuid::parse_str(&self.id).map_err(|_| EventError("invalid UUID"))?;
         let time = chrono::DateTime::parse_from_rfc3339(&self.time)
