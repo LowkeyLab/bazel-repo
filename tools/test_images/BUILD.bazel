@@ -5,18 +5,6 @@ package(default_visibility = ["//visibility:public"])
 # gazelle:ignore
 
 test_image(
-    name = "postgres_11",
-    image = "@test_postgres_11",
-    repository = "127.0.0.1/bazel-test/postgres:",
-)
-
-test_image(
-    name = "postgres_16",
-    image = "@test_postgres_16",
-    repository = "127.0.0.1/bazel-test/postgres:",
-)
-
-test_image(
     name = "postgres_18",
     image = "@test_postgres_18",
     repository = "127.0.0.1/bazel-test/postgres:",
