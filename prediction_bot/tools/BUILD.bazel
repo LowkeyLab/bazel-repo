@@ -1,3 +1,0 @@
-load(":cargo_lock.bzl", "cargo_lock")
-
-cargo_lock(name = "cargo_lock")

@@ -80,6 +80,20 @@ aspect build //... --keep_going
 bazel run @pnpm -- <args>
 ```
 
+### Update the Rust workspace lockfile
+
+After changing workspace dependencies in `Cargo.toml`, update the root `Cargo.lock` using the Bazel-managed Rust toolchain:
+
+```bash
+bazel run //tools:cargo_lock
+```
+
+This runs `cargo update --workspace` from the repository root. With Nix, you can run it directly in the development shell:
+
+```bash
+nix develop --command bazel run //tools:cargo_lock
+```
+
 ## Repo Tooling
 
 - Centralized toolchain definitions under `tools/` (Rust, Node.js/PNPM, Angular CLI wrappers, formatters, linters).
