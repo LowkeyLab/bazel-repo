@@ -847,3 +847,24 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
         300
     );
 }
+
+#[test]
+fn bet_receipt_identifies_outcome_stake_and_remaining_balance() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    let receipt = execute(
+        &mut state,
+        member(1),
+        &Command::Bet {
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into(),
+            outcome: 1,
+            amount: 25,
+        },
+        1_500,
+    )
+    .response;
+    assert!(receipt.contains("Blue"));
+    assert!(receipt.contains("25 points"));
+    assert!(receipt.contains("75 points"));
+    assert_eq!(state.accounts[&1].balance, 75);
+}
