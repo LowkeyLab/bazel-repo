@@ -141,6 +141,43 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
 }
 
 #[tokio::test]
+async fn premature_grant_can_retry_when_due_and_only_credit_once() {
+    let (_container, store) = fixture().await;
+    store
+        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let command = Command::Grant { user_id: 7 };
+    let key = "grant:7:87400";
+
+    // Discovery saw the deadline, but the clock moved back before execution.
+    store
+        .execute_at(1, key, player(0), &command, 87_399)
+        .await
+        .unwrap();
+    let early = store.view(1).await.unwrap();
+    assert_eq!(early.state.accounts[&7].balance, 100);
+    assert_eq!(early.state.accounts[&7].next_grant, 87_400);
+
+    store
+        .execute_at(1, key, player(0), &command, 87_400)
+        .await
+        .unwrap();
+    let due = store.view(1).await.unwrap();
+    assert_eq!(due.state.accounts[&7].balance, 200);
+    assert_eq!(due.state.accounts[&7].next_grant, 173_800);
+
+    // Redelivery at the next deadline must still replay the successful grant.
+    store
+        .execute_at(1, key, player(0), &command, 173_800)
+        .await
+        .unwrap();
+    let duplicate = store.view(1).await.unwrap();
+    assert_eq!(duplicate.state.accounts[&7].balance, 200);
+    assert_eq!(duplicate.state.accounts[&7].next_grant, 173_800);
+}
+
+#[tokio::test]
 async fn workers_grant_each_interval_once_and_settlement_credits_once() {
     let (_container, store) = fixture().await;
     store
