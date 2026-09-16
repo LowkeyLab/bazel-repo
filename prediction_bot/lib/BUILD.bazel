@@ -62,8 +62,8 @@ rust_test(
     size = "medium",
     srcs = ["tests/store_test.rs"],
     crate_root = "tests/store_test.rs",
-    data = image_data("postgres_16"),  # keep
-    env = image_env("postgres_16"),
+    data = image_data("postgres_18"),  # keep
+    env = image_env("postgres_18"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",

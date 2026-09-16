@@ -505,21 +505,7 @@ oci_extension.pull(
     ],
 )
 
-# Test fixtures: preserve the versions previously selected by Testcontainers.
-oci_extension.pull(
-    name = "test_postgres_11",
-    digest = "sha256:ea50b9fd617b66c9135816a4536cf6e0697d4eea7014a7194479c95f6edd5ef9",
-    image = "docker.io/library/postgres",
-    platforms = ["linux/amd64"],
-    tag = "11-alpine",
-)
-oci_extension.pull(
-    name = "test_postgres_16",
-    digest = "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
-    image = "docker.io/library/postgres",
-    platforms = ["linux/amd64"],
-    tag = "16-alpine",
-)
+# Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
 oci_extension.pull(
     name = "test_postgres_18",
     digest = "sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280",
@@ -534,7 +520,7 @@ oci_extension.pull(
     platforms = ["linux/amd64"],
     tag = "0.14.0",
 )
-use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java25", "distroless_java25_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "test_postgres_11", "test_postgres_16", "test_postgres_18", "test_ryuk")
+use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java25", "distroless_java25_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "test_postgres_18", "test_ryuk")
 
 ###########################
 # BuildBuddy Remote Execution
