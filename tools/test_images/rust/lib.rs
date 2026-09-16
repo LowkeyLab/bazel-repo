@@ -7,11 +7,12 @@ use runfiles::{Runfiles, rlocation};
 use testcontainers_modules::{
     postgres::Postgres,
     testcontainers::{
-        ContainerRequest, ImageExt, bollard::query_parameters::ImportImageOptionsBuilder,
+        ContainerRequest, ImageExt,
+        bollard::{Docker, errors::Error, query_parameters::ImportImageOptionsBuilder},
         core::client::docker_client_instance,
     },
 };
-use tokio::sync::OnceCell;
+use tokio::{io::AsyncRead, sync::OnceCell};
 use tokio_util::io::ReaderStream;
 
 /// Load the declared image once per test process, then preserve Postgres defaults.
@@ -41,18 +42,9 @@ pub async fn postgres() -> ContainerRequest<Postgres> {
             let docker = docker_client_instance()
                 .await
                 .expect("connect to test Docker daemon");
-            let mut progress = docker.import_image_stream(
-                ImportImageOptionsBuilder::default().build(),
-                ReaderStream::new(archive),
-                None,
-            );
-            // Bollard converts errorDetail.message into DockerStreamError.
-            while progress
-                .try_next()
+            import_archive(&docker, archive)
                 .await
-                .expect("import Bazel PostgreSQL image")
-                .is_some()
-            {}
+                .expect("import Bazel PostgreSQL image");
             image.trim().to_owned()
         })
         .await;
@@ -62,26 +54,38 @@ pub async fn postgres() -> ContainerRequest<Postgres> {
     Postgres::default().with_name(name).with_tag(tag)
 }
 
+async fn import_archive(
+    docker: &Docker,
+    archive: impl AsyncRead + Unpin + Send + 'static,
+) -> Result<(), Error> {
+    let mut progress = docker.import_image_stream(
+        ImportImageOptionsBuilder::default().build(),
+        ReaderStream::new(archive),
+        None,
+    );
+    // Consume the full response before the caller can cache a successful import.
+    // Bollard converts errorDetail.message into DockerStreamError.
+    while progress.try_next().await?.is_some() {}
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
 
+    use super::import_archive;
     use axum::{
         Router,
         body::{Body, to_bytes},
         http::{Method, Request, header},
     };
-    use futures_util::TryStreamExt;
     use testcontainers_modules::testcontainers::bollard::{
-        API_DEFAULT_VERSION, Docker, errors::Error, models::BuildInfo,
-        query_parameters::ImportImageOptionsBuilder,
+        API_DEFAULT_VERSION, Docker, errors::Error,
     };
     use tokio::net::TcpListener;
-    use tokio_util::io::ReaderStream;
 
-    // Exercise the pinned client's wire behavior, including Docker's HTTP-200
-    // error responses, without requiring a daemon or downloading an image.
-    async fn import_response(response: &'static str) -> Result<Vec<BuildInfo>, Error> {
+    // Exercise the production importer with controlled Docker responses.
+    async fn import_response(response: &'static str) -> Result<(), Error> {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let app = Router::new().fallback(move |request: Request<Body>| async move {
@@ -95,33 +99,21 @@ mod tests {
         let docker =
             Docker::connect_with_http(&format!("http://{address}"), 5, API_DEFAULT_VERSION)
                 .unwrap();
-        let result = docker
-            .import_image_stream(
-                ImportImageOptionsBuilder::default().build(),
-                ReaderStream::new(Cursor::new(b"archive bytes")),
-                None,
-            )
-            .try_collect()
-            .await;
+        let result = import_archive(&docker, Cursor::new(b"archive bytes")).await;
         server.abort();
         result
     }
 
     #[tokio::test]
     async fn loads_docker_archives_through_images_load() {
-        let messages = import_response(r#"{"stream":"Loaded image: fixture:tag\n"}"#)
+        import_response(r#"{"stream":"Loaded image: fixture:tag\n"}"#)
             .await
             .unwrap();
-        assert_eq!(messages.len(), 1);
-        assert_eq!(
-            messages[0].stream.as_deref(),
-            Some("Loaded image: fixture:tag\n")
-        );
     }
 
     #[tokio::test]
     async fn rejects_daemon_error_in_http_success_response() {
-        let error = import_response(r#"{"errorDetail":{"message":"archive/tar: invalid tar header"},"error":"archive/tar: invalid tar header"}"#).await.unwrap_err();
+        let error = import_response(concat!(r#"{"stream":"Loading layer"}"#, "\n", r#"{"errorDetail":{"message":"archive/tar: invalid tar header"},"error":"archive/tar: invalid tar header"}"#)).await.unwrap_err();
         assert!(
             matches!(error, Error::DockerStreamError { error } if error == "archive/tar: invalid tar header")
         );
