@@ -1,1 +1,4 @@
-exports_files(["rules_rust_prost_grep_includes.patch"])
+exports_files([
+    "llvm_compile_resource_directory.patch",
+    "rules_rust_prost_grep_includes.patch",
+])
