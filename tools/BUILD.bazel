@@ -5,6 +5,7 @@ load("@npm//angular:@graphql-codegen/cli/package_json.bzl", graphql_codegen = "b
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
 load("@npm//tools:astro/package_json.bzl", astro = "bin")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":cargo_lock.bzl", "cargo_lock")
 
 bazelrc_preset(
     name = "preset",
@@ -29,3 +30,5 @@ sh_binary(
     name = "workspace_status",
     srcs = ["workspace_status.sh"],
 )
+
+cargo_lock(name = "cargo_lock")
