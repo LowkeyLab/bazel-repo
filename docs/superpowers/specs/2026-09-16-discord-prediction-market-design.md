@@ -1,10 +1,10 @@
 # Standalone Rust Discord prediction market
 
-Status: the user approved a standalone Rust bot and the proposed economy. This document makes the implementation details explicit for the written-spec review required by Superpowers.
+Status: the user approved a standalone Rust bot and the proposed economy, then requested event-sourced storage with read-only projections. This specification incorporates that storage requirement for written-spec review.
 
 ## Purpose and scope
 
-Build a Discord bot that runs a separate play-point prediction economy in each server. Members enroll, receive points automatically at fixed intervals, create markets, and stake points against one another. Moderators settle or cancel markets. PostgreSQL stores all durable state; the bot runs independently of Predix and Nicknamer.
+Build a Discord bot that runs a separate play-point prediction economy in each server. Members enroll, receive points automatically at fixed intervals, create markets, and stake points against one another. Moderators settle or cancel markets. An append-only PostgreSQL event store holds the durable source of truth; read-only projections derive all economy state from those events; the bot runs independently of Predix and Nicknamer.
 
 The first version includes enrollment, balances, rankings, market creation and inspection, betting, settlement, cancellation, periodic grants, migrations, configuration, and deployment instructions. Points have no cash value. Trading positions, order books, real-money payments, web UI, and automatic external outcome verification are outside this version.
 
@@ -14,14 +14,16 @@ Use Rust edition 2024 and Tokio. Place the application in `prediction_bot/`, wit
 
 The library separates these responsibilities:
 
-- Domain rules: stake validation, market lifecycle, integer payout allocation, and grant eligibility. These rules take explicit inputs, including time, and do not depend on Discord or database connections.
-- Application service and PostgreSQL storage: transactional commands and queries, authorization inputs, idempotency, migrations, and durable balances.
+- Domain decisions: validate commands against replayed guild state and produce domain events. Stake validation, lifecycle transitions, payout allocation, and grant eligibility take explicit inputs, including time, and do not depend on Discord or database connections.
+- Event application: a deterministic reducer folds historical events into guild state. Applying an event never issues commands, sends notifications, consults the clock, or recalculates a historical payout.
+- Application service and PostgreSQL event store: serialize guild commands, load history, append event batches atomically, enforce idempotency, and manage event schema versions.
+- Read-only projections: publish immutable, revisioned views of accounts, balances, markets, bets, grant schedules, and rankings. Queries consume these views; neither command handlers nor queries directly edit projected state.
 - Discord adapter: guild slash commands, Discord identity and permission extraction, deferred responses, and concise user-facing messages.
 - Grant worker: finds due accounts and applies grants through the same transaction boundary as user commands.
 
 Use the existing SQLx, Tokio, serde, thiserror, anyhow, and tracing dependencies. Use Serenity for the Discord gateway and interaction transport, with the minimum required features; verify its current API and resolve its dependencies through Bazel before implementation. Do not add a second async runtime. Use thiserror for library errors and anyhow at the executable boundary.
 
-The executable starts migrations, registers guild-only commands, starts the grant worker and Discord client, and shuts down on termination. A PostgreSQL advisory lock prevents multiple active gateway processes for the same application; database correctness must still tolerate concurrent commands and worker execution.
+A migration command initializes the event-store schema using a separate owner role. Normal startup validates the schema, rebuilds projections from committed events, registers guild-only commands, starts the grant worker and Discord client, and shuts down on termination. A PostgreSQL advisory lock prevents multiple active gateway processes for the same application; database correctness must still tolerate concurrent commands and worker execution.
 
 ## Discord interface and permissions
 
@@ -41,7 +43,7 @@ Expose a `/market` command group:
 
 Commands require a guild interaction; direct messages are rejected. Guild and user IDs come from Discord interaction metadata, never user-supplied options. Enrollment is required for creation and betting. A user may place multiple bets, including on different outcomes; accepted stakes are final until settlement or cancellation.
 
-Resolution and cancellation require Discord Administrator or Manage Guild permission. Market creators receive no extra settlement permission. Resolution is allowed only at or after the stated closing time, and cancellation is allowed before or after close. Every database lookup includes the guild ID so a market ID from another server cannot expose or mutate its data.
+Resolution and cancellation require Discord Administrator or Manage Guild permission. Market creators receive no extra settlement permission. Resolution is allowed only at or after the stated closing time, and cancellation is allowed before or after close. Every event-stream and projection lookup includes the guild ID so a market ID from another server cannot expose or mutate its data.
 
 Reject bot enrollment, malformed outcome lists, empty questions, questions longer than 200 characters, outcome labels longer than 80 characters, unknown outcomes, nonpositive stakes, insufficient balances, and betting at or after close. Bound command output to Discord limits and disable allowed mentions in generated content. Defer database-backed interaction responses before processing and return errors without database internals or credentials.
 
@@ -55,7 +57,7 @@ First enrollment grants 100 points immediately and sets the next grant to enroll
 
 A worker checks due accounts once per minute. It issues all completed intervals, including intervals elapsed while the application was offline, and advances the due timestamp by the number of granted intervals. It does not reset the schedule to the worker execution time. Enrollment remains active without Discord presence tracking; departed or inactive members retain their accounts and scheduled grants. Membership synchronization is outside this version.
 
-Account row locking makes grant calculation, balance updates, and schedule advancement atomic. Multiple worker attempts cannot award the same interval twice. A failing account transaction is logged and does not stop processing other accounts.
+Grant commands rehydrate the guild stream under its transaction lock and append a PointsGranted event recording the amount, covered interval range, and resulting next-due timestamp. Replaying that event derives the balance and schedule together. Multiple worker attempts cannot award the same interval twice. A failing grant command is logged and does not stop processing other accounts.
 
 ## Market lifecycle and payouts
 
@@ -69,21 +71,67 @@ Cancellation refunds each player's total stake. If no bets selected the winning 
 
 Outside scheduled and initial grants, the sum of available balances and unsettled stakes is conserved. Tests must demonstrate this property with concrete cases, including rounding, refunds, and concurrent requests.
 
-## Persistence and transaction boundaries
+## Event-sourced persistence and transaction boundaries
 
-Use dedicated PostgreSQL tables for guild economy settings, accounts, markets, outcomes, bets, and completed interaction receipts. Discord snowflakes are stored as decimal strings rather than narrowed to signed integers. Markets use UUIDs and store their guild, creator, question, close time, state, winning outcome, and settlement reason. Outcomes have stable per-market integer IDs. Store grant schedules and lifecycle timestamps in UTC.
+### Source of truth and consistency boundary
 
-Use foreign keys, unique keys, and check constraints to enforce account identity, valid outcome references, positive stake amounts, and nonnegative balances. Scope referenced accounts and market outcomes to the same guild.
+Use one event stream per Discord guild. Enrollment, grants, all markets, stakes, and settlement in that guild share this consistency boundary. A bet affects both an account and a market, so keeping them in one stream avoids distributed transactions between separate aggregates. Commands for different guilds can execute concurrently; commands within a guild serialize. This intentionally favors correctness and simplicity for a local server economy over high write throughput within a single server.
 
-Each mutating Discord command runs in one database transaction, including its interaction receipt. A unique interaction ID prevents re-delivery from creating a second bet, market, enrollment grant, or settlement. Store the operation's response summary with the receipt so a duplicate can return the original result. Different interaction IDs remain different commands.
+PostgreSQL stores only append-only command envelopes containing ordered domain-event batches and immutable command results. There are no authoritative mutable balance, account, market, or bet tables. Each envelope records guild ID, contiguous guild revision, command idempotency key, actor identity or system origin, acceptance timestamp, response summary, and an ordered JSON event array. Each event has a type and schema version. Use unique constraints on `(guild_id, revision)` and `(guild_id, command_key)`, and validate envelopes before append.
 
-Lock the market before validating or mutating bets and settlement, then lock affected account rows in a stable user-ID order. The grant worker locks accounts without taking market locks. This order prevents settlement and a late bet from both succeeding and avoids opposite lock order between market operations. Re-check closing time after locks are acquired. Balance deduction, bet insertion, payouts, terminal state, and the receipt either commit together or roll back together.
+The runtime database role can SELECT and INSERT event envelopes, but cannot UPDATE, DELETE, or TRUNCATE them. A separate migration role owns schema changes. Never edit an old event to correct a business outcome; any future correction feature must append a new explicit compensating event. That feature is outside the first version.
 
-A lost Discord response after database commit does not undo or repeat the economic operation. Retries of the same interaction return the stored response. Log Discord delivery failures separately from transaction failures.
+Store Discord snowflakes as decimal strings, market IDs as UUIDs, per-market outcome IDs as stable integers, and timestamps in UTC. Compare snowflakes numerically for deterministic ties. Event payloads include all facts required to reconstruct state without Discord, current environment defaults, or external data.
+
+### Domain events and replay
+
+Use the following initial event vocabulary:
+
+| Event                     | Recorded facts and projected effect                                                                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GuildEconomyInitialized` | Grant amount and interval; establishes this guild's economy rules.                                                                                                                                                       |
+| `MemberEnrolled`          | User ID and enrollment timestamp; creates an account with zero balance and an initial grant due at enrollment.                                                                                                           |
+| `PointsGranted`           | User ID, initial or periodic reason, amount, covered schedule boundaries, and next-due timestamp; credits points and advances the grant schedule. Initial enrollment and its initial grant share one atomic event batch. |
+| `MarketCreated`           | Market ID, creator, question, numbered outcomes, creation time, and closing time; establishes an open market.                                                                                                            |
+| `BetPlaced`               | Bet ID, market ID, user ID, outcome ID, amount, and acceptance time; deducts available points and adds the stake to the pool.                                                                                            |
+| `MarketResolved`          | Market ID, winning outcome, resolver, settlement time, payout entries, and normal or no-winner-refund reason; credits the recorded allocations and marks the market terminal.                                            |
+| `MarketCancelled`         | Market ID, moderator, cancellation time, and refund entries; credits recorded refunds and marks the market terminal.                                                                                                     |
+
+Payout and refund entries record exact integer amounts per user. Compute them once when deciding the command, using checked arithmetic, then replay the recorded allocation without rerunning today's payout algorithm. A batch either appears in full or does not appear at all; consumers never observe enrollment without its initial grant or a terminal market without its associated payouts.
+
+Separate `decide(state, command, accepted_at)` from `apply(state, event)`. Decision functions enforce current business rules and permissions; replay applies historical facts without rechecking present-day permissions or closing times. Unknown event versions, malformed payloads, revision gaps, or impossible event transitions fail reconstruction with an explicit diagnostic; never skip history or serve an incomplete view as current. Future payload changes require versioned deserialization or explicit upcasters and replay fixtures for old versions.
+
+### Command processing and concurrency
+
+Process each command in one PostgreSQL READ COMMITTED transaction:
+
+1. Acquire a transaction-scoped advisory lock keyed deterministically by guild ID. Hash collisions may reduce concurrency but must never mix streams. Every event append, including worker grants, uses this path.
+2. Look up the command key. For an existing envelope, return its recorded result without appending more events. Discord interaction IDs are command keys; grant keys identify the account and the scheduled grant boundary observed by the worker.
+3. Read and replay the committed stream after obtaining the lock. Never validate a command using a potentially stale query projection. Capture acceptance time after the lock is acquired, then check deadlines and grant eligibility against that time.
+4. Decide the command and append its complete event batch, result, and next revision. Unique revision constraints also reject append races. An accepted no-op, such as repeated enrollment, may append a receipt envelope with an empty event array so its retry result remains stable. Rejected commands append no economic events.
+5. Commit, then publish the resulting immutable projection at that committed revision. A failed commit publishes nothing. Do not hold a database transaction open while calling Discord.
+
+A retry rehydrates and reevaluates state after any conflict; it cannot blindly append previously computed events. Limit transient retries and return a retryable failure if exhausted. Grants cover only intervals still due in replayed state, even if a second worker selected an outdated schedule boundary. This prevents duplicate grants, overspending, bets after settlement, and repeated payouts without mutating live account rows.
+
+The serialized transaction determines the accepted ordering of a bet and settlement. The time check after lock acquisition rejects a bet whose processing begins after close. The grant worker uses the same guild stream lock, so a grant and a bet cannot overwrite each other's effects.
+
+A lost Discord response after commit does not undo or repeat the economic operation. Redelivery of the same interaction returns its stored result. The bot does not resend historical Discord messages during replay. Delivery failures are logged separately from event-store failures.
+
+### Read-only projections and recovery
+
+For the first version, keep projections in memory as immutable per-guild snapshots carrying the last applied revision. Only the event reducer constructs replacement snapshots; readers receive read-only access. PostgreSQL remains the durable event store, rather than a mutable copy of the economy. No additional broker, projection database, or snapshot persistence is needed initially.
+
+Build projections by folding committed batches in ascending guild revision and events in their stored batch order. Startup discovers guild streams from the event store and fully reconstructs them before accepting commands. Closing status is a query-time derivation of recorded close time and the supplied current time; it does not mutate the projection.
+
+Query operations check the guild's committed head revision and catch the local projection up to at least that revision before answering. Apply missing batches under a per-guild projection synchronization boundary, publish a complete snapshot atomically, and never replace a higher revision with a lower one. A command publishes or catches up to its committed revision before reporting success. Concurrent later commands may naturally advance the stream again; a response identifies a consistent committed revision rather than promising to include future writes.
+
+If a process crashes after commit but before projection publication, restart or query catch-up reconstructs the missing effects from history. A projection failure after a committed command must be reported as a read-model availability problem, not a rolled-back command; its retry still finds the durable receipt. If catch-up fails, return an availability error rather than silently serving stale balances. Grant discovery may read projected due schedules, but each grant command revalidates against replayed events.
+
+Full replay for each command is an explicit first-version performance tradeoff. Introduce verified snapshots only if measured history size makes it necessary; a snapshot would remain disposable acceleration, never a second source of truth.
 
 ## Configuration and operation
 
-Require `DISCORD_TOKEN` and `DATABASE_URL` through environment variables. Optional positive integer settings `GRANT_AMOUNT` and `GRANT_INTERVAL_SECONDS` default to 100 and 86400. Fail startup on invalid settings or failed migrations. Never log the token, database URL, or interaction tokens.
+Require `DISCORD_TOKEN` and `DATABASE_URL` through environment variables. Optional positive integer settings `GRANT_AMOUNT` and `GRANT_INTERVAL_SECONDS` default to 100 and 86400. Use a separate `MIGRATION_DATABASE_URL` for the migration command; normal startup uses the restricted runtime `DATABASE_URL`, validates schema compatibility, and reconstructs projections. Fail startup on invalid settings, incompatible schema, or failed event replay. Never log the token, database URL, or interaction tokens.
 
 Document creating and installing a Discord application with slash-command access, enabling the necessary minimal gateway intents, supplying a persistent PostgreSQL database, running migrations, and starting the binary through Bazel. Include a local PostgreSQL compose example and an ignored example environment file containing placeholders only. Structured tracing reports startup, transaction failures, grant processing, and shutdown.
 
@@ -91,9 +139,9 @@ Document creating and installing a Discord application with slash-command access
 
 Test public operations and observable balances, payouts, market status, and command responses. Do not assert internal repository call sequences. Avoid sleeping to test time: provide explicit timestamps to domain rules and controllable time inputs at the service boundary.
 
-Domain tests cover exact grant boundaries and missed intervals, integer payouts and remainder ties, no-winner refunds, invalid stakes, and arithmetic overflow. Their feedback speed is unverified until measured.
+Domain tests cover exact grant boundaries and missed intervals, integer payouts and remainder ties, no-winner refunds, invalid stakes, and arithmetic overflow. Exercise command decisions followed by event application, asserting resulting public views rather than replaceable internal call sequences. Replay recorded histories into a fresh state and verify identical balances, schedules, markets, and rankings. Include versioned historical fixtures and verify that replay uses recorded payout allocations and grant settings rather than current algorithms, time, or defaults. Their feedback speed is unverified until measured.
 
-Integration tests use a real isolated PostgreSQL instance with migrations, following the repository's testcontainers pattern. Treat this dedicated bot database as an application-managed dependency. Tests cover persistence across service recreation, guild isolation, duplicate interactions, grant retries, simultaneous overspending attempts, betting versus resolution, concurrent settlement, transaction rollback, and cancellation conservation. Assert stored results through service queries; do not substitute an in-memory repository as evidence of transaction correctness.
+Integration tests use a real isolated PostgreSQL instance with migrations, following the repository's testcontainers pattern. Treat this dedicated bot database as an application-managed dependency. Tests cover persistence across service recreation, guild isolation, duplicate interactions, grant retries, simultaneous overspending attempts, betting versus resolution, concurrent settlement, transaction rollback, and cancellation conservation. Also verify atomic multi-event append, append-only runtime permissions, contiguous stream revisions under concurrent commands, fresh projection reconstruction from stored history, recovery after commit without projection publication, duplicate delivery during catch-up, rejection of corrupt or unsupported history, and isolation between simultaneous guild streams. Assert resulting public projections and command results; do not substitute an in-memory event store as evidence of PostgreSQL transaction correctness. In-memory projections are the intended production read model, not a database test substitute.
 
 Discord is an external unmanaged boundary. Adapter tests use representative interaction inputs and capture outgoing user-visible responses, including permission rejection, DM rejection, malformed options, and mention suppression. Live Discord smoke testing is separate and requires supplied credentials; local tests must not claim to establish successful Discord deployment.
 
