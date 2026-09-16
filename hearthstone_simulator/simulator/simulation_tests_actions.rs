@@ -4557,6 +4557,140 @@ fn weapon_attack_adds_personal_attack_and_is_inactive_off_turn() {
 }
 
 #[test]
+fn weapon_windfury_suspended_replacement_uses_only_active_weapon() {
+    for old_windfury in [false, true] {
+        for new_windfury in [false, true] {
+            let mut old = Card::weapon("Old", 0, 1, 4);
+            if old_windfury {
+                old = old.with_keyword(Keyword::Windfury);
+            }
+            let mut new = Card::weapon("New", 0, 1, 4).with_effects(vec![weapon_pause()]);
+            if new_windfury {
+                new = new.with_keyword(Keyword::Windfury);
+            }
+            let mut sim = weapon_fixture(vec![old, new]);
+            let old_id = weapon_play(&mut sim);
+            let hero_id = hero(&mut sim, PlayerId::One);
+            weapon_attack(&mut sim);
+            let new_id = weapon_play(&mut sim);
+
+            assert!(sim.pending_choice().is_some());
+            assert_eq!(sim.snapshot().players[0].weapon, Some(new_id));
+            assert_eq!(
+                sim.snapshot()
+                    .objects
+                    .iter()
+                    .find(|object| object.id == old_id)
+                    .unwrap()
+                    .zone,
+                Zone::Play
+            );
+            assert_eq!(
+                windfury_snapshot_exhausted(&mut sim, hero_id),
+                !new_windfury
+            );
+
+            weapon_restore_and_finish(&mut sim);
+            assert_eq!(
+                windfury_snapshot_exhausted(&mut sim, hero_id),
+                !new_windfury
+            );
+        }
+    }
+}
+
+#[test]
+fn weapon_windfury_loss_during_second_attack_preserves_continuation() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Wind blade", 0, 2, 4).with_keyword(Keyword::Windfury),
+    ]);
+    let weapon = weapon_play(&mut sim);
+    let hero_id = hero(&mut sim, PlayerId::One);
+    weapon_attack(&mut sim);
+
+    let mut trigger = self_event_trigger(EventKind::Attack, vec![weapon_pause()]);
+    trigger.conditions.clear();
+    let entity = game_entity(sim.app.world(), hero_id).unwrap();
+    sim.app
+        .world_mut()
+        .entity_mut(entity)
+        .insert(RuntimeTriggers(vec![trigger]));
+    weapon_attack(&mut sim);
+    assert!(sim.pending_choice().is_some());
+
+    super::effect_executor::attach_keyword_modifier(
+        sim.app.world_mut(),
+        PlayerId::One,
+        weapon,
+        crate::KeywordModifier {
+            keyword: Keyword::Windfury,
+            granted: false,
+            silence_removable: true,
+        },
+        EnchantmentDuration::Permanent,
+    )
+    .unwrap();
+    weapon_restore_and_finish(&mut sim);
+
+    let snapshot = sim.snapshot();
+    assert_eq!(windfury_attack_state(&sim, hero_id).attacks_this_turn, 2);
+    assert_eq!(snapshot.players[1].health, 26);
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id == weapon)
+            .unwrap()
+            .durability,
+        Some(2)
+    );
+    assert!(windfury_snapshot_exhausted(&mut sim, hero_id));
+}
+
+#[test]
+fn weapon_windfury_nested_replacement_preserves_active_continuation() {
+    let mut sim = weapon_fixture(vec![
+        Card::weapon("Old", 0, 1, 4).with_keyword(Keyword::Windfury),
+        Card::weapon("Outer", 0, 1, 4)
+            .with_keyword(Keyword::Windfury)
+            .with_effects(vec![weapon_replacement_effect(), weapon_pause()]),
+    ]);
+    let old = weapon_play(&mut sim);
+    let old_hero = hero(&mut sim, PlayerId::One);
+    weapon_attack(&mut sim);
+    let outer = weapon_play(&mut sim);
+    let current_hero = hero(&mut sim, PlayerId::One);
+
+    assert_ne!(current_hero, old_hero);
+    assert!(sim.pending_choice().is_some());
+    assert!(windfury_snapshot_exhausted(&mut sim, current_hero));
+    assert!(![old, outer].contains(&sim.snapshot().players[0].weapon.unwrap()));
+    weapon_restore_and_finish(&mut sim);
+    let snapshot = sim.snapshot();
+    assert!(windfury_snapshot_exhausted(&mut sim, current_hero));
+    assert!(![old, outer].contains(&snapshot.players[0].weapon.unwrap()));
+    for id in [old, outer] {
+        assert_eq!(
+            snapshot
+                .objects
+                .iter()
+                .find(|object| object.id == id)
+                .unwrap()
+                .zone,
+            Zone::Graveyard
+        );
+        assert_eq!(
+            snapshot
+                .deaths
+                .iter()
+                .filter(|death| death.entity == id)
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
 fn weapon_replacement_keeps_old_observer_through_play_effects_and_restores_scope() {
     let old = Card::weapon("Old", 0, 1, 2).with_deathrattle(vec![Effect::GainResource {
         player: PlayerSelector::Controller,
