@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    CanonicalTrace, Card, Controller, CurrentStats, EntityKind, GameEntityId, GameState, PlayerId,
-    ResolutionOp, ResolutionWork, SequenceStep, SimulationError, TraceEntry, WeaponEquipment,
-    WeaponState, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
+    CanonicalTrace, Card, Controller, CurrentStats, EntityKind, GameEntityId, GameState, Keyword,
+    PlayerId, ResolutionOp, ResolutionWork, SequenceStep, SimulationError, TraceEntry,
+    WeaponEquipment, WeaponState, Zone, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
     entity::{allocate_play_order, game_entity},
     zone::{ZoneIndex, move_entity, move_entity_with_request},
 };
@@ -51,6 +51,12 @@ pub(crate) fn attack_weapon(world: &World, entity: Entity) -> Option<(PlayerId, 
         return None;
     }
     active(world, controller).map(|weapon| (controller, weapon))
+}
+
+pub(crate) fn grants_windfury(world: &World, entity: Entity) -> bool {
+    attack_weapon(world, entity)
+        .and_then(|(_, weapon)| game_entity(world, weapon))
+        .is_some_and(|weapon| crate::aura::has_keyword(world, weapon, Keyword::Windfury))
 }
 
 // Movement never promotes an older, superseded weapon back into the active slot.

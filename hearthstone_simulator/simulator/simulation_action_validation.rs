@@ -318,7 +318,9 @@ fn validate_supplied_target(
 
 /// Exhaustion excludes other declaration restrictions, such as Attack and targeting.
 pub(super) fn attack_exhausted(world: &World, entity: Entity, state: AttackState) -> bool {
-    let allowance = if has_keyword(world, entity, Keyword::Windfury) {
+    let allowance = if has_keyword(world, entity, Keyword::Windfury)
+        || crate::weapon::grants_windfury(world, entity)
+    {
         2
     } else {
         1

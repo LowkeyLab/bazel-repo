@@ -4185,6 +4185,43 @@ fn weapon_two_attacks_break_and_run_deathrattle_once() {
 }
 
 #[test]
+fn weapon_windfury_allows_two_attacks_without_resetting_history() {
+    let mut simulation = weapon_fixture(vec![
+        Card::weapon("Wind blade", 0, 3, 3).with_keyword(Keyword::Windfury),
+    ]);
+    let weapon = weapon_play(&mut simulation);
+    let attacker = hero(&mut simulation, PlayerId::One);
+    let defender = hero(&mut simulation, PlayerId::Two);
+    let action = GameAction::Attack {
+        player: PlayerId::One,
+        attacker,
+        defender,
+    };
+
+    for spent in 0..2 {
+        assert_eq!(
+            windfury_attack_state(&simulation, attacker).attacks_this_turn,
+            spent
+        );
+        assert_windfury_legality(&mut simulation, attacker, &action, true);
+        simulation.apply(action.clone()).unwrap();
+    }
+
+    assert_windfury_legality(&mut simulation, attacker, &action, false);
+    let snapshot = simulation.snapshot();
+    assert_eq!(snapshot.players[1].health, 24);
+    assert_eq!(
+        snapshot
+            .objects
+            .iter()
+            .find(|object| object.id == weapon)
+            .unwrap()
+            .durability,
+        Some(1)
+    );
+}
+
+#[test]
 fn weapon_replacement_preserves_attack_usage_and_does_not_use_board_slots() {
     let mut sim = weapon_fixture(vec![
         Card::weapon("First", 0, 2, 2),
