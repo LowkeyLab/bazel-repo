@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lowkeylab:prediction-bot:schema:member-enrolled:v1",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "member_enrolled"
+    },
+    "user_id": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "enrolled_at": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    }
+  },
+  "required": ["kind", "user_id", "enrolled_at"],
+  "additionalProperties": false
+}

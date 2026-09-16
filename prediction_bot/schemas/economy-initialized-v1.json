@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lowkeylab:prediction-bot:schema:economy-initialized:v1",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "guild_economy_initialized"
+    },
+    "amount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "interval": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    }
+  },
+  "required": ["kind", "amount", "interval"],
+  "additionalProperties": false
+}

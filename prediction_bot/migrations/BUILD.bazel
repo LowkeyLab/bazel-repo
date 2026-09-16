@@ -1,0 +1,4 @@
+exports_files(
+    ["001_event_store.sql"],
+    visibility = ["//prediction_bot:__subpackages__"],
+)

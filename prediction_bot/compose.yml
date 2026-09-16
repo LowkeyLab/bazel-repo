@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: prediction_bot
+      POSTGRES_USER: prediction_owner
+      POSTGRES_PASSWORD: ${POSTGRES_OWNER_PASSWORD:?Set POSTGRES_OWNER_PASSWORD in .env}
+      POSTGRES_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?Set POSTGRES_RUNTIME_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - prediction_postgres:/var/lib/postgresql/data
+      - ./deploy/init-runtime.sh:/docker-entrypoint-initdb.d/10-init-runtime.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prediction_owner -d prediction_bot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  prediction_postgres:

@@ -1,0 +1,30 @@
+{
+  "io.lowkeylab.predictionbot.economy.initialized.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:economy-initialized:v1",
+    "file": "economy-initialized-v1.json"
+  },
+  "io.lowkeylab.predictionbot.member.enrolled.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:member-enrolled:v1",
+    "file": "member-enrolled-v1.json"
+  },
+  "io.lowkeylab.predictionbot.points.granted.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:points-granted:v1",
+    "file": "points-granted-v1.json"
+  },
+  "io.lowkeylab.predictionbot.market.created.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:market-created:v1",
+    "file": "market-created-v1.json"
+  },
+  "io.lowkeylab.predictionbot.bet.placed.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:bet-placed:v1",
+    "file": "bet-placed-v1.json"
+  },
+  "io.lowkeylab.predictionbot.market.resolved.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:market-resolved:v1",
+    "file": "market-resolved-v1.json"
+  },
+  "io.lowkeylab.predictionbot.market.cancelled.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:market-cancelled:v1",
+    "file": "market-cancelled-v1.json"
+  }
+}

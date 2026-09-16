@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lowkeylab:prediction-bot:schema:market-created:v1",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "market_created"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "creator": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "question": {
+      "type": "string"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "closes_at": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    }
+  },
+  "required": [
+    "kind",
+    "id",
+    "creator",
+    "question",
+    "options",
+    "created_at",
+    "closes_at"
+  ],
+  "additionalProperties": false
+}
