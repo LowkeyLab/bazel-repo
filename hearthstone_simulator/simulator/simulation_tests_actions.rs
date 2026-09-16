@@ -4663,10 +4663,18 @@ fn weapon_windfury_nested_replacement_preserves_active_continuation() {
 
     assert_ne!(current_hero, old_hero);
     assert!(sim.pending_choice().is_some());
+    assert_eq!(
+        windfury_attack_state(&sim, current_hero).attacks_this_turn,
+        1
+    );
     assert!(windfury_snapshot_exhausted(&mut sim, current_hero));
     assert!(![old, outer].contains(&sim.snapshot().players[0].weapon.unwrap()));
     weapon_restore_and_finish(&mut sim);
     let snapshot = sim.snapshot();
+    assert_eq!(
+        windfury_attack_state(&sim, current_hero).attacks_this_turn,
+        1
+    );
     assert!(windfury_snapshot_exhausted(&mut sim, current_hero));
     assert!(![old, outer].contains(&snapshot.players[0].weapon.unwrap()));
     for id in [old, outer] {
