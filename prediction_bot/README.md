@@ -8,7 +8,7 @@ Create a Discord application and bot in the developer portal. Install it in a se
 
 Copy `.env.example` to `.env` and replace the placeholder token and database passwords. `.env` is ignored by Git. `DISCORD_APPLICATION_ID` is an optional expected ID. Startup always asks Discord for the authenticated application ID and rejects a mismatch before opening the event store. `GRANT_AMOUNT` and `GRANT_INTERVAL_SECONDS` must be positive integers and default to 100 and 86400. The grant policy is recorded when a guild's first member joins, so changing these defaults affects only newly initialized guilds.
 
-The provided Compose file runs PostgreSQL 16 with a persistent named volume and a local-only port. Its initialization script creates a login role that inherits the migration's restricted `prediction_bot_runtime` role. The script only runs when the volume is first created. The database owner needs `CREATEROLE` for the schema migration. Use separate owner and runtime URLs:
+The provided Compose file runs PostgreSQL 18 with a persistent named volume and a local-only port. `--migrate` applies embedded SQLx migrations to create the schema, the restricted `prediction_bot_runtime` role, and the `prediction_bot_app` login with membership in that role. The database owner needs schema creation and `CREATEROLE` privileges (and permission to administer existing bot roles). Use separate owner and runtime URLs:
 
 ```bash
 docker compose --env-file prediction_bot/.env -f prediction_bot/compose.yml up -d postgres
@@ -17,7 +17,7 @@ nix develop --command bazel run //prediction_bot/bin:bin -- --migrate
 nix develop --command bazel run //prediction_bot/bin:bin
 ```
 
-The migration command uses `MIGRATION_DATABASE_URL`. Normal startup uses `DATABASE_URL`; it rejects a role with UPDATE, DELETE, or TRUNCATE rights on the event tables, validates schema version, and replays all committed guild events before connecting to the gateway. For an existing PostgreSQL server, create an owner with schema creation and `CREATEROLE`, run the migration with that owner, then create a runtime LOGIN role and grant it membership in `prediction_bot_runtime`. Never use the owner URL for normal startup.
+The migration command uses `MIGRATION_DATABASE_URL` and requires `POSTGRES_RUNTIME_PASSWORD`. The password is passed as a bound connection setting and safely quoted by PostgreSQL when creating the application login. Existing login passwords are preserved; changing this variable after creation does not rotate the password. Match the password in `DATABASE_URL` to the application login (URL-encode special characters in the URL). SQLx records applied migrations in `_sqlx_migrations`, validates their checksums, and only runs pending migrations. These migrations require a fresh database and no pre-existing bot roles; adoption of the previous setup is not supported. `prediction_schema` remains the runtime schema compatibility marker. Normal startup uses `DATABASE_URL`; it rejects a role with UPDATE, DELETE, or TRUNCATE rights on the event tables, validates schema version, and replays all committed guild events before connecting to the gateway. For an existing PostgreSQL server, create an owner with schema creation and `CREATEROLE`, set `POSTGRES_RUNTIME_PASSWORD`, and run `--migrate` with that owner; no manual bot role creation is needed. Never use the owner URL for normal startup.
 
 ## Commands
 

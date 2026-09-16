@@ -1,11 +1,14 @@
 use prediction_bot::domain::{Actor, Command, Policy};
 use prediction_bot::store::{Store, migrate};
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+
 use std::sync::Arc;
 use testcontainers_modules::{
     postgres::Postgres,
     testcontainers::{ContainerAsync, runners::AsyncRunner},
 };
+
+const RUNTIME_PASSWORD: &str = "test-runtime-'password\\with-special-characters";
 
 async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>) {
     let container = test_images::postgres().await.start().await.unwrap();
@@ -19,7 +22,7 @@ async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>) {
         .connect(&url)
         .await
         .unwrap();
-    migrate(&pool).await.unwrap();
+    migrate(&pool, RUNTIME_PASSWORD).await.unwrap();
     (
         container,
         Arc::new(Store::new(
@@ -207,22 +210,15 @@ async fn failed_append_rolls_back_all_events_and_does_not_consume_revisions() {
 #[tokio::test]
 async fn runtime_role_can_append_but_cannot_change_history() {
     let (container, owner) = fixture().await;
-    let url = format!(
-        "postgres://postgres:postgres@{}:{}/postgres",
-        container.get_host().await.unwrap(),
-        container.get_host_port_ipv4(5432).await.unwrap()
-    );
+    let options = PgConnectOptions::new()
+        .host(&container.get_host().await.unwrap().to_string())
+        .port(container.get_host_port_ipv4(5432).await.unwrap())
+        .database("postgres")
+        .username("prediction_bot_app")
+        .password(RUNTIME_PASSWORD);
     let runtime = PgPoolOptions::new()
         .max_connections(2)
-        .after_connect(|connection, _| {
-            Box::pin(async move {
-                sqlx::query("SET ROLE prediction_bot_runtime")
-                    .execute(connection)
-                    .await?;
-                Ok(())
-            })
-        })
-        .connect(&url)
+        .connect_with(options)
         .await
         .unwrap();
     let store = Store::new(
@@ -244,6 +240,8 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         "UPDATE prediction_commands SET response='changed'",
         "DELETE FROM prediction_commands",
         "TRUNCATE prediction_commands CASCADE",
+        "DELETE FROM _sqlx_migrations",
+        "CREATE ROLE unauthorized_role",
     ] {
         let err = sqlx::query(query).execute(&runtime).await.unwrap_err();
         assert_eq!(
@@ -362,4 +360,38 @@ async fn bet_racing_resolution_cannot_leave_points_in_a_terminal_pool() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn repeated_migrations_preserve_events_and_login_credentials() {
+    let (container, store) = fixture().await;
+    store
+        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let before = store.view(1).await.unwrap();
+    migrate(&store.pool, "different-password").await.unwrap();
+    let versions: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success ORDER BY version")
+            .fetch_all(&store.pool)
+            .await
+            .unwrap();
+    assert_eq!(versions, vec![1, 2]);
+    let options = PgConnectOptions::new()
+        .host(&container.get_host().await.unwrap().to_string())
+        .port(container.get_host_port_ipv4(5432).await.unwrap())
+        .database("postgres")
+        .username("prediction_bot_app")
+        .password(RUNTIME_PASSWORD);
+    let runtime = PgPoolOptions::new().connect_with(options).await.unwrap();
+    let restarted = Store::new(
+        runtime,
+        42,
+        Policy {
+            amount: 100,
+            interval: 86_400,
+        },
+    );
+    assert_eq!(restarted.view(1).await.unwrap().state, before.state);
+    assert_eq!(restarted.view(1).await.unwrap().revision, before.revision);
 }

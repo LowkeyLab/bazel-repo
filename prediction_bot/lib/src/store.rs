@@ -2,7 +2,12 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use sqlx::{PgConnection, PgPool, Row, postgres::PgPoolOptions, types::Json};
+use sqlx::{
+    PgConnection, PgPool, Row, SqlSafeStr,
+    migrate::{Migration, MigrationType, Migrator},
+    postgres::PgPoolOptions,
+    types::Json,
+};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -13,6 +18,8 @@ use crate::events::{CloudEvent, Context, EventError};
 pub enum StoreError {
     #[error("database operation failed")]
     Database(#[from] sqlx::Error),
+    #[error("database migration failed")]
+    Migration(#[from] sqlx::migrate::MigrateError),
     #[error(transparent)]
     Domain(#[from] DomainError),
     #[error(transparent)]
@@ -451,19 +458,39 @@ fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError
     Ok(())
 }
 
-/// Create the event-store schema and restricted runtime role in one transaction.
+/// Apply versioned schema and role migrations. Existing login passwords are preserved.
 ///
 /// # Errors
-/// Returns an error if the migration lock or schema statements fail, including insufficient
-/// owner permissions to create tables or roles.
-pub async fn migrate(pool: &PgPool) -> Result<(), StoreError> {
-    let mut tx = pool.begin().await?;
-    sqlx::query("SELECT pg_advisory_xact_lock(173728393, 1)")
-        .execute(&mut *tx)
+/// Returns an error for an empty password, migration failure, or insufficient owner privileges.
+pub async fn migrate(pool: &PgPool, runtime_password: &str) -> Result<(), StoreError> {
+    if runtime_password.trim().is_empty() {
+        return Err(StoreError::Configuration(
+            "runtime password must not be empty",
+        ));
+    }
+    let migrator = Migrator::with_migrations(vec![
+        Migration::new(
+            1,
+            "event store".into(),
+            MigrationType::Simple,
+            include_str!("../../migrations/001_event_store.sql").into_sql_str(),
+            false,
+        ),
+        Migration::new(
+            2,
+            "application login".into(),
+            MigrationType::Simple,
+            include_str!("../../migrations/002_application_login.sql").into_sql_str(),
+            false,
+        ),
+    ]);
+    let mut connection = pool.acquire().await?;
+    // Never return the password-bearing session (or a failed migration's lock) to the pool.
+    connection.close_on_drop();
+    sqlx::query("SELECT set_config('prediction_bot.runtime_password', $1, false)")
+        .bind(runtime_password)
+        .execute(&mut *connection)
         .await?;
-    sqlx::raw_sql(include_str!("../../migrations/001_event_store.sql"))
-        .execute(&mut *tx)
-        .await?;
-    tx.commit().await?;
+    migrator.run(&mut *connection).await?;
     Ok(())
 }
