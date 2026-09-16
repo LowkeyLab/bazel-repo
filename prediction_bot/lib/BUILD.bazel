@@ -1,0 +1,86 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//prediction_bot:__subpackages__"])
+
+# gazelle:ignore
+rust_library(
+    name = "lib",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = [
+        "//prediction_bot/migrations:001_event_store.sql",
+        "tests/fixtures/member-enrolled.json",
+    ],
+    crate_name = "prediction_bot",
+    crate_root = "src/lib.rs",
+    deps = [
+        "@crates//:chrono",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:serenity",
+        "@crates//:sqlx",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "domain_test",
+    size = "small",
+    srcs = [
+        "src/domain.rs",
+        "src/domain_tests.rs",
+    ],
+    crate_root = "src/domain.rs",
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_test(
+    name = "events_test",
+    size = "small",
+    srcs = ["src/events.rs"],
+    compile_data = ["tests/fixtures/member-enrolled.json"],
+    crate_root = "src/events.rs",
+    deps = [
+        "@crates//:chrono",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "store_test",
+    size = "medium",
+    srcs = ["tests/store_test.rs"],
+    crate_root = "tests/store_test.rs",
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":lib",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "discord_test",
+    size = "small",
+    crate = ":lib",
+)

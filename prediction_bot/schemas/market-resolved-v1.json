@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lowkeylab:prediction-bot:schema:market-resolved:v1",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "market_resolved"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "outcome": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "resolver": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "settled_at": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "payouts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,19}$"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          }
+        },
+        "required": ["user_id", "amount"],
+        "additionalProperties": false
+      }
+    },
+    "refunded": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "kind",
+    "id",
+    "outcome",
+    "resolver",
+    "settled_at",
+    "payouts",
+    "refunded"
+  ],
+  "additionalProperties": false
+}

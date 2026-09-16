@@ -77,6 +77,7 @@ js_library(
 # gazelle:exclude ktor_tutorial/*
 # gazelle:exclude mindreadr/*
 # gazelle:exclude nicknamer/*
+# gazelle:exclude prediction_bot/*
 # gazelle:rust_cargo_lockfile Cargo.lock
 # gazelle:rust_crates_prefix @crates//:
 # gazelle:ts_enabled false

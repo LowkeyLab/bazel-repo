@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lowkeylab:prediction-bot:schema:points-granted:v1",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "points_granted"
+    },
+    "user_id": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "reason": {
+      "enum": ["initial", "periodic"]
+    },
+    "amount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "from_due": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "through_due": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "next_grant": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    }
+  },
+  "required": [
+    "kind",
+    "user_id",
+    "reason",
+    "amount",
+    "from_due",
+    "through_due",
+    "next_grant"
+  ],
+  "additionalProperties": false
+}
