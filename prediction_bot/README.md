@@ -19,6 +19,32 @@ nix develop --command bazel run //prediction_bot/bin:bin
 
 The migration command uses `MIGRATION_DATABASE_URL` and requires `POSTGRES_RUNTIME_PASSWORD`. The password is passed as a bound connection setting and safely quoted by PostgreSQL when creating the application login. Existing login passwords are preserved; changing this variable after creation does not rotate the password. Match the password in `DATABASE_URL` to the application login (URL-encode special characters in the URL). SQLx records applied migrations in `_sqlx_migrations`, validates their checksums, and only runs pending migrations. These migrations require a fresh database and no pre-existing bot roles; adoption of the previous setup is not supported. `prediction_schema` remains the runtime schema compatibility marker. Normal startup uses `DATABASE_URL`; it rejects a role with UPDATE, DELETE, or TRUNCATE rights on the event tables, validates schema version, and replays all committed guild events before connecting to the gateway. For an existing PostgreSQL server, create an owner with schema creation and `CREATEROLE`, set `POSTGRES_RUNTIME_PASSWORD`, and run `--migrate` with that owner; no manual bot role creation is needed. Never use the owner URL for normal startup.
 
+## Container image
+
+The Deploy workflow publishes `ghcr.io/lowkeylab/prediction_bot:latest` after Bazel Tests succeeds on `main`. Aspect delivery discovers `//prediction_bot/bin:push_image` automatically. The image packages the bot binary and its embedded migrations on the repository's distroless C/C++ base.
+
+Build or load the image locally:
+
+```bash
+nix develop --command aspect build //prediction_bot/bin:image
+nix develop --command bazel run //prediction_bot/bin:load_image
+```
+
+The local image is tagged `local/prediction-bot:latest`. Pass the environment variables described above at runtime, using a database URL reachable from inside the container. Run migrations once with the owner credentials before starting the bot with its restricted runtime credentials:
+
+```bash
+docker run --rm --env-file prediction_bot/.env local/prediction-bot:latest --migrate
+docker run --rm --env-file prediction_bot/.env local/prediction-bot:latest
+```
+
+For the provided PostgreSQL Compose setup on Linux, add `--network=host` to each `docker run` command to reach its local-only database port. For the published image, replace `local/prediction-bot:latest` with `ghcr.io/lowkeylab/prediction_bot:latest`.
+
+To publish manually after authenticating to GHCR with package write access:
+
+```bash
+nix develop --command bazel run --compilation_mode=opt //prediction_bot/bin:push_image
+```
+
 ## Commands
 
 `/market create` takes a question, outcomes separated by `|` (for example `Yes | No`), and an RFC 3339 close time such as `2030-01-02T03:04:05Z`. Questions may be up to 200 characters; provide two to ten distinct outcomes of up to 80 characters each. `/market list` shows the ten newest open markets and their IDs. `/market show id` shows numbered outcomes and pooled points. `/market bet id outcome amount` uses the displayed **one-based** outcome number and a positive integer stake. `/market balance` and `/market leaderboard` show current points. `/market resolve id outcome` requires the market to have closed; `/market cancel id` can be used before or after close while the market is unresolved. Responses are private to the invoking member and do not ping users or roles.

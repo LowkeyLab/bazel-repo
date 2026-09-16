@@ -1,3 +1,5 @@
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 
 rust_binary(
@@ -13,4 +15,34 @@ rust_binary(
         "@crates//:tracing",
         "@crates//:tracing-subscriber",
     ],
+)
+
+pkg_tar(
+    name = "prediction_bot_layer",
+    srcs = [":bin"],
+)
+
+oci_image(
+    name = "prediction_bot_image",
+    base = "@distroless_cc",
+    entrypoint = ["/bin"],
+    tars = [":prediction_bot_layer"],
+)
+
+alias(
+    name = "image",
+    actual = ":prediction_bot_image",
+)
+
+oci_push(
+    name = "push_image",
+    image = ":prediction_bot_image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/prediction_bot",
+)
+
+oci_load(
+    name = "load_image",
+    image = ":prediction_bot_image",
+    repo_tags = ["local/prediction-bot:latest"],
 )
