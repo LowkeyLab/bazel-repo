@@ -25,14 +25,15 @@ struct TestContext {
 }
 
 async fn setup_test_context() -> TestContext {
-    let container = postgres::Postgres::default()
+    let container = test_images::postgres()
+        .await
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
 
     let host = container.get_host().await.unwrap();
     let port = container.get_host_port_ipv4(5432).await.unwrap();
-    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+    let db_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(5)
@@ -64,14 +65,15 @@ async fn setup_test_context() -> TestContext {
 }
 
 async fn setup_test_context_with_auth_denial() -> TestContext {
-    let container = postgres::Postgres::default()
+    let container = test_images::postgres()
+        .await
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
 
     let host = container.get_host().await.unwrap();
     let port = container.get_host_port_ipv4(5432).await.unwrap();
-    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+    let db_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(5)
@@ -1595,14 +1597,15 @@ async fn test_static_file_serving_with_spa_fallback() {
     std::fs::write(tmp_dir.join("style.css"), "body { color: red; }")
         .expect("Failed to write style.css");
 
-    let container = postgres::Postgres::default()
+    let container = test_images::postgres()
+        .await
         .start()
         .await
         .expect("Failed to start PostgreSQL container");
 
     let host = container.get_host().await.unwrap();
     let port = container.get_host_port_ipv4(5432).await.unwrap();
-    let db_url = format!("postgres://postgres:postgres@{}:{}/postgres", host, port);
+    let db_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(5)

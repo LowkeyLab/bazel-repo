@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 go_library(
     name = "rest",
@@ -19,7 +20,12 @@ go_test(
     name = "handlers_test",
     timeout = "short",
     srcs = ["handlers_test.go"],
+    data = image_data("postgres_18") + image_data("ryuk"),  # keep
     embed = [":rest"],
+    env = image_env("postgres_18") | image_env(
+        "ryuk",
+        prefix = "RYUK",
+    ),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
@@ -44,7 +50,12 @@ go_test(
     name = "rest_test",
     timeout = "short",
     srcs = ["handlers_test.go"],
+    data = image_data("postgres_18") + image_data("ryuk"),  # keep
     embed = [":rest"],
+    env = image_env("postgres_18") | image_env(
+        "ryuk",
+        prefix = "RYUK",
+    ),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",

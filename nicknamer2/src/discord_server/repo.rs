@@ -156,7 +156,8 @@ mod tests {
         sqlx::PgPool,
         testcontainers::ContainerAsync<postgres::Postgres>,
     ) {
-        let container = postgres::Postgres::default()
+        let container = test_images::postgres()
+            .await
             .start()
             .await
             .expect("Failed to start PostgreSQL container");

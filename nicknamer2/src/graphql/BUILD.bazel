@@ -1,5 +1,6 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "graphql_context",
@@ -99,6 +100,8 @@ rust_test(
     name = "graphql_integration_test",
     timeout = "moderate",
     srcs = ["tests.rs"],
+    data = image_data("postgres_11"),  # keep
+    env = image_env("postgres_11"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
@@ -118,6 +121,7 @@ rust_test(
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "//nicknamer2/src/server",
+        "//tools/test_images/rust:test_images",  # keep
         "@crates//:axum",
         "@crates//:base64",
         "@crates//:chrono",

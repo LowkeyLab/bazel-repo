@@ -1,4 +1,5 @@
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 package(default_visibility = ["//nicknamer"])
 
@@ -14,9 +15,9 @@ test_suite(
 
 COMMON_SRCS = glob(["common/**"])
 
-COMMON_DATA = glob(["snapshots/**/*.snap"])
+COMMON_DATA = glob(["snapshots/**/*.snap"]) + image_data("postgres_11")
 
-COMMON_ENV = {
+COMMON_ENV = image_env("postgres_11") | {
     "INSTA_UPDATE": "no",
     "INSTA_WORKSPACE_ROOT": ".",
 }
@@ -36,6 +37,7 @@ COMMON_TAGS = [
 ]
 
 COMMON_DEPS = [
+    "//tools/test_images/rust:test_images",
     "//nicknamer/migration/lib",
     "//nicknamer/server/lib",
     "@crates//:anyhow",

@@ -1,5 +1,6 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "migrations",
@@ -18,6 +19,8 @@ rust_test(
         "//nicknamer2/migrations",  # keep
     ],
     crate = ":migrations",
+    data = image_data("postgres_11"),  # keep
+    env = image_env("postgres_11"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
@@ -27,6 +30,7 @@ rust_test(
         "requires-network",
     ],
     deps = [
+        "//tools/test_images/rust:test_images",  # keep
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],

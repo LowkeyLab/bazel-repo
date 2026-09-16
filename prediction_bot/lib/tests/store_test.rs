@@ -4,15 +4,11 @@ use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use testcontainers_modules::{
     postgres::Postgres,
-    testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner},
+    testcontainers::{ContainerAsync, runners::AsyncRunner},
 };
 
 async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>) {
-    let container = Postgres::default()
-        .with_tag("16-alpine")
-        .start()
-        .await
-        .unwrap();
+    let container = test_images::postgres().await.start().await.unwrap();
     let url = format!(
         "postgres://postgres:postgres@{}:{}/postgres",
         container.get_host().await.unwrap(),
