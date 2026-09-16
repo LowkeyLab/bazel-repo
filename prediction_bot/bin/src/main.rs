@@ -66,10 +66,11 @@ async fn main() -> Result<()> {
     };
     if migrate_only {
         let url = required("MIGRATION_DATABASE_URL")?;
+        let runtime_password = required("POSTGRES_RUNTIME_PASSWORD")?;
         let pool = sqlx::PgPool::connect(&url)
             .await
             .map_err(|_| anyhow!("migration database connection failed"))?;
-        migrate(&pool).await.map_err(|_| {
+        migrate(&pool, &runtime_password).await.map_err(|_| {
             anyhow!("event-store migration failed; check owner and CREATEROLE privileges")
         })?;
         pool.close().await;
