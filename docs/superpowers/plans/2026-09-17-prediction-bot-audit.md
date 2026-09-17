@@ -239,7 +239,7 @@ assert!(events.iter().any(|event| matches!(event,
 
 **Interfaces consumed:** `logging_listener`, `Store::connect_with_audit`, existing `discord::run` using `Store::audit`.
 
-- [ ] Enable the existing dependency's JSON feature without changing its version requirement:
+- [x] Enable the existing dependency's JSON feature without changing its version requirement:
 
 ```toml
 tracing-subscriber = { version = "0.3.20", features = ["json"] }
@@ -247,7 +247,7 @@ tracing-subscriber = { version = "0.3.20", features = ["json"] }
 
 Use `nix develop --command bazel run //tools:cargo_lock` if lockfile resolution needs regeneration. Inspect generated dependency diffs and avoid unrelated version changes. Never invoke Cargo directly.
 
-- [ ] Configure the production subscriber and listener:
+- [x] Configure the production subscriber and listener:
 
 ```rust
 tracing_subscriber::fmt()
@@ -259,8 +259,8 @@ let audit = prediction_bot::audit::logging_listener();
 
 Pass a clone to `Store::connect_with_audit`. Use the same listener for migration/startup/lifecycle records, emitting safe failure categories before preserving fatal exit results. Keep pre-initialization fatal diagnostics available. No captured writer, JSON parse test, severity snapshot, or log-field assertion is permitted. Review subscriber configuration and exhaustive listener mapping directly.
 
-- [ ] Update README with the event families, shared correlation keys, best-effort inline delivery, possible latency/loss, JSON records, safe-data policy, and future metrics/tracing extension boundary. State that emitted logs do not imply configured retention or alert delivery. Document successful invocations versus new economic effects so redelivery is not mistaken for a new grant/bet.
-- [ ] Run focused verification:
+- [x] Update README with the event families, shared correlation keys, best-effort inline delivery, possible latency/loss, JSON records, safe-data policy, and future metrics/tracing extension boundary. State that emitted logs do not imply configured retention or alert delivery. Document successful invocations versus new economic effects so redelivery is not mistaken for a new grant/bet.
+- [x] Run focused verification:
 
 ```bash
 nix develop --command aspect test //prediction_bot/lib:domain_test //prediction_bot/lib:events_test //prediction_bot/lib:discord_test //prediction_bot/lib:store_test
@@ -269,9 +269,9 @@ nix develop --command aspect build //...
 git diff --check
 ```
 
-- [ ] Review every original application tracing call in `prediction_bot` against the event mapping. Verify raw error objects and payloads never enter events; verify reply, commit, retry, and shutdown behavior is preserved. Check one final command event per invocation and no worker/handler duplicates.
-- [ ] Review test quality: meaningful regression triggers, semantic rather than internal-call assertions, measured feedback time, and understandable private fixtures. Record commands/results, original-failure evidence, PostgreSQL execution evidence, and any production adapter gap. Do not label a proposed check as executed.
-- [ ] Commit `feat(prediction_bot): enable JSON audit logging` with only related code, generated dependency changes, and documentation. Report final state and remaining verification limitations.
+- [x] Review every original application tracing call in `prediction_bot` against the event mapping. Verify raw error objects and payloads never enter events; verify reply, commit, retry, and shutdown behavior is preserved. Check one final command event per invocation and no worker/handler duplicates.
+- [x] Review test quality: meaningful regression triggers, semantic rather than internal-call assertions, measured feedback time, and understandable private fixtures. Record commands/results, original-failure evidence, PostgreSQL execution evidence, and any production adapter gap. Do not label a proposed check as executed.
+- [x] Commit `feat(prediction_bot): enable JSON audit logging` with only related code, generated dependency changes, and documentation. Report final state and remaining verification limitations.
 
 ## Plan self-review
 

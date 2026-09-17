@@ -57,6 +57,16 @@ The direct shortcuts remain available: `/market create question options closes_a
 
 The grant worker checks due schedules once per minute and catches up all missed intervals. Its stream command key and guild transaction lock prevent double grants. The process holds a PostgreSQL gateway advisory lock so only one gateway process runs for an application. Stop with Ctrl-C or SIGTERM for a graceful shutdown.
 
+## Operational audit records
+
+Production logging writes newline-delimited JSON at information level and above. Typed audit events cover command and query completion, interaction acknowledgement and response delivery, grant discovery or reconstruction failures, command registration, and migration, startup, readiness, and shutdown lifecycle changes. Each record has a stable event name, outcome, operation stage, and the fields appropriate to that event family.
+
+Guild IDs and existing command or interaction identifiers correlate related records. Discord command keys use `discord:<interaction-id>`; scheduled grants use `grant:<member-id>:<schedule-boundary>`, so the selected grant boundary remains visible during retries. Interaction IDs are identifiers, not interaction tokens. A successful command record describes a successful invocation. It does not prove that invocation created a new economic effect: Discord redelivery can recover an existing command receipt, and a grant retry can find an already committed receipt without issuing points twice.
+
+Audit delivery is synchronous, inline, and best effort. Logging can add latency, and records can be lost if the process or output destination fails. The repository does not configure production log collection, retention, or alert delivery, so an emitted record alone does not establish that an operator will retain or receive it. Immutable economic events and command receipts remain the recovery record.
+
+Audit records contain allowlisted categories and status codes, not raw errors, SQL parameters, URLs, credentials, interaction tokens, market questions, outcome labels, or response content. Correlation identifiers are intended for diagnosis and should not become metric labels. Future listeners may derive metrics or traces and manage their own buffering and exporter lifecycle without changing event producers; no metrics backend, trace exporter, or durable operational audit store is configured here.
+
 ## Storage, recovery, and checks
 
 PostgreSQL stores immutable CloudEvents, one event per guild revision, plus append-only command receipts for idempotent Discord redelivery. A command that produces several events commits them atomically. Balances and markets are read-only in-memory views rebuilt by replaying events in revision order. Restarting after a crash reconstructs committed changes; a lost Discord response does not reverse a committed bet or settlement. Full replay on startup, each query, and each command favors correctness over throughput for this first version. Preserve database backups and the named volume: losing the event history loses the economy.
