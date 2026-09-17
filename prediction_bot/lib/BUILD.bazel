@@ -77,6 +77,7 @@ rust_test(
         ":lib",
         "//test_images/rust:test_images",  # keep
         "@crates//:serde_json",
+        "@crates//:serenity",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
@@ -88,4 +89,5 @@ rust_test(
     name = "discord_test",
     size = "small",
     crate = ":lib",
+    deps = ["@crates//:axum"],
 )

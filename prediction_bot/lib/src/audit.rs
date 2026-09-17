@@ -42,6 +42,10 @@ pub enum Stage {
     Migrate,
     Startup,
     Ready,
+    ShutdownRequested,
+    GatewayShutdown,
+    GrantWorkerShutdown,
+    GatewayLockRelease,
     Shutdown,
 }
 
@@ -64,6 +68,10 @@ impl Stage {
             Self::Migrate => "migrate",
             Self::Startup => "startup",
             Self::Ready => "ready",
+            Self::ShutdownRequested => "shutdown_requested",
+            Self::GatewayShutdown => "gateway_shutdown",
+            Self::GrantWorkerShutdown => "grant_worker_shutdown",
+            Self::GatewayLockRelease => "gateway_lock_release",
             Self::Shutdown => "shutdown",
         }
     }

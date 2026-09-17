@@ -701,3 +701,410 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
         .is_err()
     );
 }
+
+#[derive(Default)]
+struct AuditRecorder(std::sync::Mutex<Vec<crate::audit::AuditEvent>>);
+impl crate::audit::AuditListener for AuditRecorder {
+    fn on_event(&self, event: &crate::audit::AuditEvent) {
+        self.0.lock().unwrap().push(event.clone());
+    }
+}
+
+#[tokio::test]
+async fn component_timeout_keeps_private_retry_response_and_reports_correlated_failure() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
+    let recorder = AuditRecorder::default();
+    let result = super::read_query(
+        &recorder,
+        10,
+        123,
+        QueryKind::Component,
+        std::future::pending(),
+        Some(std::time::Duration::ZERO),
+    )
+    .await;
+    let response = super::interaction_error(&result.err().unwrap());
+    let value = serde_json::to_value(response).unwrap();
+    assert_eq!(
+        value["data"]["content"],
+        "Loading took too long. Please select the option again."
+    );
+    assert_eq!(value["data"]["flags"], 64);
+    assert!(matches!(
+        recorder.0.lock().unwrap().as_slice(),
+        [AuditEvent::QueryCompleted {
+            guild: 10,
+            interaction_id: 123,
+            query: QueryKind::Component,
+            stage: Stage::Query,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Timeout,
+                ..
+            }),
+            ..
+        }]
+    ));
+}
+
+#[tokio::test]
+async fn failed_query_keeps_safe_response_and_reports_correlated_failure() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
+    let recorder = AuditRecorder::default();
+    let read = async {
+        Err(crate::store::StoreError::Database(
+            sqlx::Error::Configuration("sentinel secret URL".into()),
+        ))
+    };
+    let error = super::read_query(&recorder, 10, 124, QueryKind::Balance, read, None)
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(super::reply(&error)).unwrap()["content"],
+        "The prediction economy is temporarily unavailable. Please try again."
+    );
+    assert!(matches!(
+        recorder.0.lock().unwrap().as_slice(),
+        [AuditEvent::QueryCompleted {
+            guild: 10,
+            interaction_id: 124,
+            query: QueryKind::Balance,
+            stage: Stage::Query,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Configuration,
+                sqlstate: None,
+                http_status: None,
+                discord_code: None
+            }),
+            ..
+        }]
+    ));
+}
+
+type HttpRequests = std::sync::Arc<std::sync::Mutex<Vec<(String, String, serde_json::Value)>>>;
+
+async fn discord_endpoint(
+    acknowledged: bool,
+    fail_edits: bool,
+) -> (
+    serenity::http::Http,
+    HttpRequests,
+    tokio::task::JoinHandle<()>,
+) {
+    use axum::{
+        Json, Router,
+        http::{Method, StatusCode, Uri},
+        response::IntoResponse,
+    };
+    let requests = HttpRequests::default();
+    let captured = requests.clone();
+    let router = Router::new().fallback(move |method: Method, uri: Uri, Json(body): Json<serde_json::Value>| {
+        let requests = captured.clone();
+        async move {
+            requests.lock().unwrap().push((method.to_string(), uri.path().to_owned(), body));
+            if method == Method::PATCH {
+                if fail_edits {
+                    (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({"code": 10015, "message": "sentinel secret provider text"}))).into_response()
+                } else {
+                    Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
+                }
+            } else if method == Method::PUT {
+                Json(serde_json::json!([])).into_response()
+            } else if acknowledged {
+                (StatusCode::BAD_REQUEST, Json(serde_json::json!({"code": 40060, "message": "sentinel secret acknowledgement text"}))).into_response()
+            } else {
+                StatusCode::NO_CONTENT.into_response()
+            }
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let http = serenity::http::HttpBuilder::new("test-token")
+        .application_id(42.into())
+        .proxy(endpoint)
+        .ratelimiter_disabled(true)
+        .build();
+    (http, requests, server)
+}
+
+fn interaction_json(id: u64, data: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "id": id.to_string(), "application_id": "42", "guild_id": "10", "channel_id": "20",
+        "token": "test-interaction-token", "version": 1, "locale": "en-US", "entitlements": [],
+        "attachment_size_limit": 1000, "data": data,
+        "user": { "id": "7", "username": "player", "discriminator": "0", "avatar": null },
+        "message": serenity::all::Message::default(),
+    })
+}
+
+async fn unavailable_handler(recorder: std::sync::Arc<AuditRecorder>) -> super::Handler {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://unused:unused@localhost/unused")
+        .unwrap();
+    pool.close().await;
+    super::Handler {
+        store: std::sync::Arc::new(crate::store::Store::new_with_audit(
+            pool,
+            42,
+            crate::domain::Policy {
+                amount: 100,
+                interval: 86400,
+            },
+            recorder,
+        )),
+    }
+}
+
+#[tokio::test]
+async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_delivery_failure() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let (http, requests, server) = discord_endpoint(true, true).await;
+    let command = serde_json::from_value(interaction_json(125, serde_json::json!({"id": "1", "name": "market", "type": 1, "options": [{"name": "balance", "type": 1, "options": []}]}))).unwrap();
+    handler.handle(&http, command).await;
+    let requests = requests.lock().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].0, "POST");
+    assert_eq!(
+        requests[0].1,
+        "/api/v10/interactions/125/test-interaction-token/callback"
+    );
+    assert_eq!(requests[0].2["type"], 5);
+    assert_eq!(requests[0].2["data"]["flags"], 64);
+    assert_eq!(requests[1].0, "PATCH");
+    assert_eq!(
+        requests[1].1,
+        "/api/v10/webhooks/42/test-interaction-token/messages/@original"
+    );
+    assert_eq!(
+        requests[1].2["content"],
+        "The prediction economy is temporarily unavailable. Please try again."
+    );
+    let events = recorder.0.lock().unwrap();
+    assert!(matches!(
+        events.as_slice(),
+        [
+            AuditEvent::InteractionCompleted {
+                interaction_id: 125,
+                stage: Stage::Acknowledge,
+                outcome: Outcome::Succeeded,
+                ..
+            },
+            AuditEvent::QueryCompleted {
+                guild: 10,
+                interaction_id: 125,
+                query: QueryKind::Balance,
+                stage: Stage::Query,
+                outcome: Outcome::Failed(Failure {
+                    category: FailureCategory::Connection,
+                    ..
+                }),
+                ..
+            },
+            AuditEvent::InteractionCompleted {
+                guild: Some(10),
+                interaction_id: 125,
+                stage: Stage::Deliver,
+                outcome: Outcome::Failed(Failure {
+                    category: FailureCategory::Discord,
+                    sqlstate: None,
+                    http_status: Some(503),
+                    discord_code: Some(10015)
+                })
+            },
+        ]
+    ));
+    server.abort();
+}
+
+#[tokio::test]
+async fn real_modal_and_component_adapters_preserve_private_validation_responses() {
+    use crate::audit::{AuditEvent, Outcome, Rejection, Stage};
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let (http, requests, server) = discord_endpoint(false, false).await;
+    let modal = serde_json::from_value(interaction_json(
+        126,
+        serde_json::json!({"custom_id": "pm:invalid", "components": []}),
+    ))
+    .unwrap();
+    handler.handle_modal(&http, modal).await;
+    let component = serde_json::from_value(interaction_json(
+        127,
+        serde_json::json!({"custom_id": "pm:invalid", "component_type": 2}),
+    ))
+    .unwrap();
+    handler.handle_component(&http, component).await;
+    let requests = requests.lock().unwrap();
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[0].2["type"], 5);
+    assert_eq!(requests[0].2["data"]["flags"], 64);
+    assert_eq!(requests[1].0, "PATCH");
+    assert_eq!(
+        requests[1].2["content"],
+        "This control belongs to another member or server. Run /market list or /market create."
+    );
+    assert_eq!(requests[2].0, "POST");
+    assert_eq!(requests[2].2["type"], 4);
+    assert_eq!(requests[2].2["data"]["flags"], 64);
+    assert_eq!(
+        requests[2].2["data"]["content"],
+        "Choose an option from the market menu."
+    );
+    let events = recorder.0.lock().unwrap();
+    for id in [126, 127] {
+        assert!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { guild: Some(10), interaction_id, stage: Stage::Validate, outcome: Outcome::Rejected(Rejection::InvalidInput) } if *interaction_id == id)));
+        assert!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { guild: Some(10), interaction_id, stage: Stage::Deliver, outcome: Outcome::Succeeded } if *interaction_id == id)));
+    }
+    server.abort();
+}
+
+#[tokio::test]
+async fn component_read_failure_delivers_initial_private_response_and_registration_is_audited() {
+    use crate::audit::{AuditEvent, Outcome, QueryKind, Stage};
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let (http, requests, server) = discord_endpoint(false, false).await;
+    let component = serde_json::from_value(interaction_json(
+        128,
+        serde_json::json!({"custom_id": "pm:bet", "component_type": 3, "values": ["anything"]}),
+    ))
+    .unwrap();
+    handler.handle_component(&http, component).await;
+    handler.register(&http, 10.into()).await;
+    let requests = requests.lock().unwrap();
+    assert_eq!(requests[0].2["type"], 4);
+    assert_eq!(requests[0].2["data"]["flags"], 64);
+    assert_eq!(
+        requests[0].2["data"]["content"],
+        "The prediction economy is temporarily unavailable. Please try again."
+    );
+    let events = recorder.0.lock().unwrap();
+    assert!(matches!(
+        events.as_slice(),
+        [
+            AuditEvent::QueryCompleted {
+                guild: 10,
+                interaction_id: 128,
+                query: QueryKind::Component,
+                outcome: Outcome::Failed(_),
+                stage: Stage::Query,
+                ..
+            },
+            AuditEvent::InteractionCompleted {
+                interaction_id: 128,
+                stage: Stage::Deliver,
+                outcome: Outcome::Succeeded,
+                ..
+            },
+            AuditEvent::RegistrationCompleted {
+                guild: 10,
+                stage: Stage::Register,
+                outcome: Outcome::Succeeded
+            },
+        ]
+    ));
+    server.abort();
+}
+
+#[tokio::test]
+async fn grant_worker_reports_discovery_failure_and_accepts_shutdown() {
+    use crate::audit::{AuditEvent, AuditListener, Failure, FailureCategory, Outcome, Stage};
+    struct StopAfterDiscovery {
+        events: std::sync::Mutex<Vec<AuditEvent>>,
+        shutdown: tokio::sync::watch::Sender<bool>,
+    }
+    impl AuditListener for StopAfterDiscovery {
+        fn on_event(&self, event: &AuditEvent) {
+            self.events.lock().unwrap().push(event.clone());
+            if matches!(event, AuditEvent::GrantFailed { .. }) {
+                self.shutdown.send(true).unwrap();
+            }
+        }
+    }
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let recorder = std::sync::Arc::new(StopAfterDiscovery {
+        events: Default::default(),
+        shutdown,
+    });
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://unused:unused@localhost/unused")
+        .unwrap();
+    pool.close().await;
+    let store = std::sync::Arc::new(crate::store::Store::new_with_audit(
+        pool,
+        42,
+        crate::domain::Policy {
+            amount: 100,
+            interval: 86400,
+        },
+        recorder.clone(),
+    ));
+    super::grant_worker(store, receiver).await;
+    assert_eq!(
+        *recorder.events.lock().unwrap(),
+        vec![AuditEvent::GrantFailed {
+            guild: None,
+            stage: Stage::Discover,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Connection,
+                sqlstate: None,
+                http_status: None,
+                discord_code: None
+            }),
+        }]
+    );
+}
+
+#[tokio::test]
+async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind};
+    let recorder = AuditRecorder::default();
+    let view = std::sync::Arc::new(crate::store::View {
+        revision: 5,
+        state: Default::default(),
+    });
+    let result = super::read_query(
+        &recorder,
+        10,
+        130,
+        QueryKind::List,
+        async { Ok(view) },
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.revision, 5);
+    let read = async {
+        Err(crate::store::StoreError::Domain(
+            crate::domain::DomainError::Invalid("corrupt state"),
+        ))
+    };
+    assert!(
+        super::read_query(&recorder, 10, 131, QueryKind::Show, read, None)
+            .await
+            .is_err()
+    );
+    assert!(matches!(
+        recorder.0.lock().unwrap().as_slice(),
+        [
+            AuditEvent::QueryCompleted {
+                interaction_id: 130,
+                outcome: Outcome::Succeeded,
+                ..
+            },
+            AuditEvent::QueryCompleted {
+                interaction_id: 131,
+                outcome: Outcome::Failed(Failure {
+                    category: FailureCategory::History,
+                    ..
+                }),
+                ..
+            },
+        ]
+    ));
+}

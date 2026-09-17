@@ -436,21 +436,21 @@ async fn grant_due_reports_corrupt_guild_reconstruction_and_continues() {
         .execute_at(2, "discord:8", player(8), &Command::Join, -86_400)
         .await
         .unwrap();
-    sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE guild_id='2' AND revision=2")
+    sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE guild_id='1' AND revision=2")
         .execute(&store.pool)
         .await
         .unwrap();
 
     store.grant_due().await.unwrap();
 
-    assert!(store.view(1).await.unwrap().state.accounts[&7].balance > 100);
+    assert!(store.view(2).await.unwrap().state.accounts[&8].balance > 100);
     assert!(matches!(
         recorder
             .0
             .lock()
             .unwrap()
             .iter()
-            .find(|event| matches!(event, AuditEvent::GrantFailed { guild: Some(2), .. })),
+            .find(|event| matches!(event, AuditEvent::GrantFailed { guild: Some(1), .. })),
         Some(AuditEvent::GrantFailed {
             outcome: Outcome::Failed(_),
             stage: Stage::Reconstruct,
@@ -657,4 +657,135 @@ async fn repeated_migrations_preserve_events_and_login_credentials() {
     );
     assert_eq!(restarted.view(1).await.unwrap().state, before.state);
     assert_eq!(restarted.view(1).await.unwrap().revision, before.revision);
+}
+
+#[derive(Default)]
+struct TestTransport {
+    reject_acknowledgement: bool,
+    edits: Mutex<Vec<serenity::builder::EditInteractionResponse>>,
+}
+
+#[serenity::async_trait]
+impl prediction_bot::discord::transport::InteractionTransport for TestTransport {
+    async fn acknowledge(&self) -> serenity::Result<()> {
+        if self.reject_acknowledgement {
+            Err(std::io::Error::other("secret transport URL").into())
+        } else {
+            Ok(())
+        }
+    }
+    async fn edit(
+        &self,
+        response: serenity::builder::EditInteractionResponse,
+    ) -> serenity::Result<()> {
+        self.edits.lock().unwrap().push(response);
+        Err(std::io::Error::other("secret interaction token").into())
+    }
+    async fn respond(
+        &self,
+        _: serenity::builder::CreateInteractionResponse,
+    ) -> serenity::Result<()> {
+        unreachable!("writes must edit their deferred response")
+    }
+}
+
+#[tokio::test]
+async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
+    use prediction_bot::audit::{Failure, FailureCategory};
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    store
+        .execute_at(1, "discord:101", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let market = uuid::Uuid::new_v4().to_string();
+    let mut command = create(&market);
+    if let Command::Create { closes_at, .. } = &mut command {
+        *closes_at = i64::MAX;
+    }
+    store
+        .execute_at(1, "discord:102", player(7), &command, 1000)
+        .await
+        .unwrap();
+    recorder.0.lock().unwrap().clear();
+    let transport = TestTransport::default();
+    let bet = Command::Bet {
+        id: market.clone(),
+        outcome: 0,
+        amount: 80,
+    };
+    for _ in 0..2 {
+        prediction_bot::discord::execute_interaction(&transport, &store, 1, player(7), &bet, 123)
+            .await;
+    }
+    let view = store.view(1).await.unwrap();
+    assert_eq!(view.state.accounts[&7].balance, 20);
+    assert_eq!(view.state.markets[&market].bets.len(), 1);
+    let receipt: String = sqlx::query_scalar(
+        "SELECT response FROM prediction_commands WHERE guild_id='1' AND command_key='discord:123'",
+    )
+    .fetch_one(&store.pool)
+    .await
+    .unwrap();
+    let edits = transport.edits.lock().unwrap();
+    assert_eq!(edits.len(), 2);
+    for edit in edits.iter() {
+        assert_eq!(serde_json::to_value(edit).unwrap()["content"], receipt);
+    }
+    let events = recorder.0.lock().unwrap();
+    assert_eq!(events.iter().filter(|event| matches!(event, AuditEvent::CommandCompleted { key: Some(key), outcome: Outcome::Succeeded, .. } if key == "discord:123")).count(), 2);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
+                AuditEvent::InteractionCompleted {
+                    guild: Some(1),
+                    interaction_id: 123,
+                    stage: Stage::Deliver,
+                    outcome: Outcome::Failed(Failure {
+                        category: FailureCategory::Transport,
+                        ..
+                    })
+                }
+            ))
+            .count(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
+    use prediction_bot::audit::{Failure, FailureCategory};
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    let transport = TestTransport {
+        reject_acknowledgement: true,
+        ..Default::default()
+    };
+    prediction_bot::discord::execute_interaction(
+        &transport,
+        &store,
+        1,
+        player(7),
+        &Command::Join,
+        124,
+    )
+    .await;
+    assert!(store.view(1).await.unwrap().state.accounts.is_empty());
+    assert!(transport.edits.lock().unwrap().is_empty());
+    assert_eq!(
+        *recorder.0.lock().unwrap(),
+        vec![AuditEvent::InteractionCompleted {
+            guild: Some(1),
+            interaction_id: 124,
+            stage: Stage::Acknowledge,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Transport,
+                sqlstate: None,
+                http_status: None,
+                discord_code: None
+            }),
+        }]
+    );
 }
