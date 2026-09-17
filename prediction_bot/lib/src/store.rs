@@ -1,6 +1,7 @@
 //! Commands append individual events atomically; queries expose immutable replayed views.
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Instant;
 
 use sqlx::{
     PgConnection, PgPool, Row, SqlSafeStr,
@@ -11,6 +12,10 @@ use sqlx::{
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+use crate::audit::{
+    AuditEvent, CommandKind, Outcome, SharedAudit, Stage, canonical_command_key, logging_listener,
+    store_outcome,
+};
 use crate::domain::{self, Actor, Command, DomainError, Event, GrantReason, Policy, State};
 use crate::events::{CloudEvent, Context, EventError};
 
@@ -41,16 +46,48 @@ pub struct Store {
     application: u64,
     defaults: Policy,
     views: Mutex<HashMap<u64, Arc<View>>>,
+    audit: SharedAudit,
+}
+
+struct TransactionSuccess {
+    response: String,
+    stage: Stage,
+}
+
+struct TransactionFailure {
+    stage: Stage,
+    error: StoreError,
+}
+
+fn at_stage<T, E: Into<StoreError>>(
+    stage: Stage,
+    result: Result<T, E>,
+) -> Result<T, TransactionFailure> {
+    result.map_err(|error| TransactionFailure {
+        stage,
+        error: error.into(),
+    })
 }
 
 impl Store {
     #[must_use]
     pub fn new(pool: PgPool, application: u64, defaults: Policy) -> Self {
+        Self::new_with_audit(pool, application, defaults, logging_listener())
+    }
+
+    #[must_use]
+    pub fn new_with_audit(
+        pool: PgPool,
+        application: u64,
+        defaults: Policy,
+        audit: SharedAudit,
+    ) -> Self {
         Self {
             pool,
             application,
             defaults,
             views: Mutex::new(HashMap::new()),
+            audit,
         }
     }
 
@@ -63,6 +100,20 @@ impl Store {
         url: &str,
         application: u64,
         defaults: Policy,
+    ) -> Result<Self, StoreError> {
+        Self::connect_with_audit(url, application, defaults, logging_listener()).await
+    }
+
+    /// Connect with an injected operational audit listener.
+    ///
+    /// # Errors
+    /// Returns the same configuration, schema, permission, database, and history errors as
+    /// [`Self::connect`].
+    pub async fn connect_with_audit(
+        url: &str,
+        application: u64,
+        defaults: Policy,
+        audit: SharedAudit,
     ) -> Result<Self, StoreError> {
         if application == 0 || defaults.amount <= 0 || defaults.interval <= 0 {
             return Err(StoreError::Configuration(
@@ -87,11 +138,15 @@ impl Store {
                 "use a restricted runtime database role",
             ));
         }
-        let store = Self::new(pool, application, defaults);
+        let store = Self::new_with_audit(pool, application, defaults, audit);
         for guild in store.guilds().await? {
             store.view(guild).await?;
         }
         Ok(store)
+    }
+
+    pub(crate) fn audit(&self) -> &SharedAudit {
+        &self.audit
     }
 
     /// Keep this connection alive for the gateway lifetime. Two-key locks occupy
@@ -157,6 +212,9 @@ impl Store {
         command: &Command,
         now: Option<i64>,
     ) -> Result<String, StoreError> {
+        let started = Instant::now();
+        let audit_key = canonical_command_key(key);
+        let command_kind = CommandKind::from(command);
         if guild == 0
             || key.is_empty()
             || key.len() > 200
@@ -165,19 +223,48 @@ impl Store {
             || key.ends_with(':')
             || (actor.user_id == 0) != key.starts_with("grant:")
         {
-            return Err(StoreError::Configuration("invalid guild or command key"));
+            let error = StoreError::Configuration("invalid guild or command key");
+            self.audit.on_event(&AuditEvent::CommandCompleted {
+                guild,
+                key: audit_key,
+                command: command_kind,
+                outcome: store_outcome(Stage::Validate, &error),
+                stage: Stage::Validate,
+                elapsed: started.elapsed(),
+            });
+            return Err(error);
         }
-        for attempt in 0..3 {
+
+        let mut attempt = 0;
+        let result = loop {
             let result = self.transact(guild, key, actor, command, now).await;
-            if let Err(StoreError::Database(sqlx::Error::Database(ref error))) = result
-                && attempt < 2
+            if let Err(TransactionFailure {
+                error: StoreError::Database(sqlx::Error::Database(error)),
+                ..
+            }) = &result
                 && matches!(error.code().as_deref(), Some("40001" | "40P01" | "23505"))
+                && attempt < 2
             {
+                attempt += 1;
                 continue;
             }
-            return result;
-        }
-        unreachable!("bounded retry returns on its last attempt")
+            break result;
+        };
+        let (stage, outcome) = match &result {
+            Ok(success) => (success.stage, Outcome::Succeeded),
+            Err(failure) => (failure.stage, store_outcome(failure.stage, &failure.error)),
+        };
+        self.audit.on_event(&AuditEvent::CommandCompleted {
+            guild,
+            key: audit_key,
+            command: command_kind,
+            outcome,
+            stage,
+            elapsed: started.elapsed(),
+        });
+        result
+            .map(|success| success.response)
+            .map_err(|failure| failure.error)
     }
 
     async fn transact(
@@ -187,44 +274,67 @@ impl Store {
         actor: Actor,
         command: &Command,
         time: Option<i64>,
-    ) -> Result<String, StoreError> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(i64::from_ne_bytes(guild.to_ne_bytes()))
-            .execute(&mut *tx)
-            .await?;
-        let receipt = sqlx::query("SELECT actor_id, response FROM prediction_commands WHERE guild_id=$1 AND command_key=$2")
-            .bind(guild.to_string()).bind(key).fetch_optional(&mut *tx).await?;
+    ) -> Result<TransactionSuccess, TransactionFailure> {
+        let mut tx = at_stage(Stage::Acquire, self.pool.begin().await)?;
+        at_stage(
+            Stage::Acquire,
+            sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+                .execute(&mut *tx)
+                .await,
+        )?;
+        at_stage(
+            Stage::Acquire,
+            sqlx::query("SELECT pg_advisory_xact_lock($1)")
+                .bind(i64::from_ne_bytes(guild.to_ne_bytes()))
+                .execute(&mut *tx)
+                .await,
+        )?;
+        let receipt = at_stage(
+            Stage::Replay,
+            sqlx::query("SELECT actor_id, response FROM prediction_commands WHERE guild_id=$1 AND command_key=$2")
+                .bind(guild.to_string()).bind(key).fetch_optional(&mut *tx).await,
+        )?;
         if let Some(receipt) = receipt {
-            if receipt.try_get::<String, _>("actor_id")? != actor.user_id.to_string() {
-                return Err(StoreError::History("command actor mismatch"));
+            if at_stage(Stage::Replay, receipt.try_get::<String, _>("actor_id"))?
+                != actor.user_id.to_string()
+            {
+                return Err(TransactionFailure {
+                    stage: Stage::Replay,
+                    error: StoreError::History("command actor mismatch"),
+                });
             }
-            let response: String = receipt.try_get("response")?;
-            tx.commit().await?;
-            self.view(guild).await?;
-            return Ok(response);
+            let response: String = at_stage(Stage::Replay, receipt.try_get("response"))?;
+            at_stage(Stage::Commit, tx.commit().await)?;
+            at_stage(Stage::Refresh, self.view(guild).await)?;
+            return Ok(TransactionSuccess {
+                response,
+                stage: Stage::Refresh,
+            });
         }
-        let mut view = self.load(&mut tx, guild).await?;
+        let mut view = at_stage(Stage::Replay, self.load(&mut tx, guild).await)?;
         // Capture production time only after acquiring the guild lock.
         let accepted_at = time.unwrap_or_else(|| chrono::Utc::now().timestamp());
-        let decision = domain::decide(&view.state, actor, command, accepted_at, self.defaults)?;
+        let decision = at_stage(
+            Stage::Decide,
+            domain::decide(&view.state, actor, command, accepted_at, self.defaults),
+        )?;
         // A clock rollback can make a discovered grant premature. Keep its key
         // retryable until a grant actually advances the schedule.
         if matches!(command, Command::Grant { .. }) && decision.events.is_empty() {
-            tx.commit().await?;
+            at_stage(Stage::Commit, tx.commit().await)?;
             self.publish(guild, view).await;
-            return Ok(decision.response);
+            return Ok(TransactionSuccess {
+                response: decision.response,
+                stage: Stage::Commit,
+            });
         }
         for event in &decision.events {
-            validate_event_actor(event, actor.user_id)?;
-            validate_event_time(event, accepted_at)?;
-            view.revision = view
-                .revision
-                .checked_add(1)
-                .ok_or(StoreError::History("revision overflow"))?;
+            at_stage(Stage::Append, validate_event_actor(event, actor.user_id))?;
+            at_stage(Stage::Append, validate_event_time(event, accepted_at))?;
+            view.revision = view.revision.checked_add(1).ok_or(TransactionFailure {
+                stage: Stage::Append,
+                error: StoreError::History("revision overflow"),
+            })?;
             let ctx = Context {
                 application: self.application,
                 guild,
@@ -232,20 +342,34 @@ impl Store {
                 command: key,
                 accepted_at,
             };
-            let data = serde_json::to_value(event)
-                .map_err(|_| StoreError::History("event cannot be serialized"))?;
-            let cloud = CloudEvent::new(&ctx, event.name(), event.subject(), data)?;
-            domain::apply(&mut view.state, event)?;
-            sqlx::query("INSERT INTO prediction_events(guild_id, revision, command_key, accepted_at, event) VALUES ($1,$2,$3,$4,$5)")
+            let data = serde_json::to_value(event).map_err(|_| TransactionFailure {
+                stage: Stage::Append,
+                error: StoreError::History("event cannot be serialized"),
+            })?;
+            let cloud = at_stage(
+                Stage::Append,
+                CloudEvent::new(&ctx, event.name(), event.subject(), data),
+            )?;
+            at_stage(Stage::Append, domain::apply(&mut view.state, event))?;
+            at_stage(
+                Stage::Append,
+                sqlx::query("INSERT INTO prediction_events(guild_id, revision, command_key, accepted_at, event) VALUES ($1,$2,$3,$4,$5)")
                 .bind(guild.to_string()).bind(view.revision).bind(key).bind(accepted_at).bind(Json(cloud))
-                .execute(&mut *tx).await?;
+                .execute(&mut *tx).await,
+            )?;
         }
-        sqlx::query("INSERT INTO prediction_commands(guild_id,command_key,actor_id,accepted_at,response,last_revision) VALUES ($1,$2,$3,$4,$5,$6)")
+        at_stage(
+            Stage::Append,
+            sqlx::query("INSERT INTO prediction_commands(guild_id,command_key,actor_id,accepted_at,response,last_revision) VALUES ($1,$2,$3,$4,$5,$6)")
             .bind(guild.to_string()).bind(key).bind(actor.user_id.to_string()).bind(accepted_at)
-            .bind(&decision.response).bind(view.revision).execute(&mut *tx).await?;
-        tx.commit().await?;
+            .bind(&decision.response).bind(view.revision).execute(&mut *tx).await,
+        )?;
+        at_stage(Stage::Commit, tx.commit().await)?;
         self.publish(guild, view).await;
-        Ok(decision.response)
+        Ok(TransactionSuccess {
+            response: decision.response,
+            stage: Stage::Commit,
+        })
     }
 
     async fn load(&self, connection: &mut PgConnection, guild: u64) -> Result<View, StoreError> {
@@ -388,9 +512,16 @@ impl Store {
     /// Returns an error if guild discovery fails.
     pub async fn grant_due(&self) -> Result<(), StoreError> {
         for guild in self.guilds().await? {
-            let Ok(view) = self.view(guild).await else {
-                tracing::error!(guild, "cannot reconstruct grant schedule");
-                continue;
+            let view = match self.view(guild).await {
+                Ok(view) => view,
+                Err(error) => {
+                    self.audit.on_event(&AuditEvent::GrantFailed {
+                        guild: Some(guild),
+                        outcome: store_outcome(Stage::Reconstruct, &error),
+                        stage: Stage::Reconstruct,
+                    });
+                    continue;
+                }
             };
             let now = chrono::Utc::now().timestamp();
             for (user, account) in &view.state.accounts {
@@ -401,13 +532,9 @@ impl Store {
                         moderator: false,
                         bot: false,
                     };
-                    if self
+                    let _ = self
                         .execute(guild, &key, actor, &Command::Grant { user_id: *user })
-                        .await
-                        .is_err()
-                    {
-                        tracing::error!(guild, user, "periodic grant failed");
-                    }
+                        .await;
                 }
             }
         }
