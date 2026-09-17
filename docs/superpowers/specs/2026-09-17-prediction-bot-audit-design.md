@@ -1,7 +1,7 @@
 # Prediction bot operational audit events
 
 Date: 2026-09-17
-Status: Design approved in conversation; written specification awaiting review.
+Status: Approved, including JSON logging and behavior-focused tests without diagnostic-output assertions.
 
 ## Purpose and scope
 
