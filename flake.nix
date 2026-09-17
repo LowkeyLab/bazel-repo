@@ -88,6 +88,7 @@
               pkgs.nodejs_24
               pkgs.cargo
               pkgs.lcov
+              pkgs.railway
             ] ++ [
               aspect
             ];
