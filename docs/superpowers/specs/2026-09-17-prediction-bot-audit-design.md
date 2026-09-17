@@ -42,7 +42,7 @@ Command keys already distinguish Discord requests from grant attempts. Grant key
 
 A command completion describes an invocation, not a count of newly committed economic effects. Redelivery may return an existing receipt successfully. Future economic metrics must not interpret successful invocation counts as new bets or grants.
 
-Durations use monotonic elapsed time and are descriptive diagnostics. They do not alter domain timestamps or scheduling. Tests assert meaningful fields and nonnegative duration behavior without sleeps or exact elapsed-time assertions. Logging supplies event timestamps.
+Durations use monotonic elapsed time and are descriptive diagnostics. They do not alter domain timestamps or scheduling. Tests assert meaningful event outcomes and correlation without sleeps or assertions on diagnostic timing values. Logging supplies event timestamps.
 
 ## Placement and failure semantics
 
@@ -74,20 +74,20 @@ The repository establishes local and container execution but not production coll
 
 The immediate testability obstacles are inline tracing calls, Discord I/O coupled to orchestration, and failures whose causes disappear before reporting. The smallest useful seams are the approved listener injection and a narrow acknowledgement/delivery adapter used by the actual handlers. Keep economic decisions, retry logic, and storage real. Do not introduce a repository interface solely to mock PostgreSQL.
 
-A test-local recording listener observes the public event contract. Assertions compare event meaning, correlation, and outcomes, not private helper calls or constructor order. Duplicate final outcomes are a contract defect, so relevant tests may assert their absence. Keep recorders and fake Discord adapters in test support.
+A test-local recording listener observes the public event contract. Assertions compare event meaning, correlation, and outcomes, not private helper calls or constructor order. Duplicate final outcomes are a contract defect, so relevant tests may assert their absence. Keep recorders and fake Discord adapters in test support. Rendered diagnostic logs are not an externally consumed behavior contract. Do not add tests that capture or parse JSON log output, assert rendered severity or field layout, or snapshot log lines. JSON formatting remains a production configuration requirement verified by inspecting the subscriber setup.
 
 Use the existing isolated PostgreSQL fixtures for storage integration checks. Treat PostgreSQL as the application's managed persistence boundary for these tests; no additional external database consumer contract is established by this work. Discord is an external boundary: a controlled adapter can simulate response failure without calling the live service. Such tests do not establish live Discord compatibility.
 
 Required checks:
 
-1. Insufficient balance produces an expected rejection event and preserves balances; the logging listener does not render it at ERROR.
+1. Insufficient balance produces an expected rejection event rather than an operational failure event and preserves balances.
 2. A forced append failure produces a categorized operational event and leaves no partial economic changes.
 3. A failed query/replay and a component read timeout produce correlated failure events while preserving safe private responses. Corrupt history is not classified as user rejection.
 4. A committed bet followed by Discord delivery failure produces separate correlated command-success and delivery-failure events; balance and receipt remain committed, and redelivery cannot charge twice.
 5. A rejected acknowledgement prevents mutation; the existing already-acknowledged case still permits receipt recovery.
 6. Grant discovery, reconstruction, and execution failures retain safe categories and relevant schedule keys. Failure for one account does not suppress an otherwise valid account's grant.
-7. Capture output from the real logging listener using the production JSON formatter. Parse each nonempty line as a JSON object and assert required event names, levels, and correlation fields with their intended JSON types. Assert that sentinel secrets carried by representative raw input errors are absent. Do not compare whole rendered lines, timestamps, or JSON key order.
-8. A focused composition check exercises the same construction path used in production with the real logging listener and a captured writer. Verify observable output rather than constructor calls. Exercise the actual Discord transport adapter with a controlled endpoint where the existing client permits it; report any untested adapter or live-provider boundary explicitly.
+7. Representative raw errors containing sentinel secrets produce only the allowlisted typed failure information at the listener boundary. Assert the resulting audit event, without rendering logs.
+8. Exercise the normal application construction path with an injected recording listener and assert application outcomes and typed audit events. Inspect production wiring to verify that it installs the structured logging listener and JSON subscriber; do not add captured-writer tests. Exercise the actual Discord transport adapter with a controlled endpoint where the existing client permits it; report any untested adapter or live-provider boundary explicitly.
 
 Capture existing behavior before changing the relevant paths. Demonstrate the reviewed regressions failing before their fixes when the current seams permit it; if a minimal seam must first be introduced, state that limitation. No test claiming to exercise production behavior may bypass the new production wiring.
 
@@ -95,4 +95,4 @@ Tests should protect semantic outcomes, tolerate internal refactoring, and use d
 
 ## Acceptance
 
-The four audit findings are covered by typed, safely classified, correlated events through the direct listener. The production executable installs the structured logging listener and emits newline-delimited JSON records. Existing economic transactions, receipt recovery, retry policy, private user responses, and grant scheduling remain correct. Tests verify both the event contract and real logging composition. No durable operational event store, metrics backend, tracing exporter, or unrelated refactor is introduced.
+The four audit findings are covered by typed, safely classified, correlated events through the direct listener. The production executable installs the structured logging listener and emits newline-delimited JSON records. Existing economic transactions, receipt recovery, retry policy, private user responses, and grant scheduling remain correct. Tests verify the typed event contract and application behavior through the production composition seam. Code review verifies the production logging listener and JSON subscriber configuration; rendered diagnostic output is not a test contract. No durable operational event store, metrics backend, tracing exporter, or unrelated refactor is introduced.
