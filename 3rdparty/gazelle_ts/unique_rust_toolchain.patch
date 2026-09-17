@@ -9,6 +9,6 @@ index b27c1f8..38a759c 100644
 @@ -43 +44 @@ toolchains.toolchain(
 -use_repo(toolchains, "default_rust_toolchains")
 +use_repo(toolchains, "gazelle_ts_rust_toolchains")
-@@ -45 +46 @@ use_repo(toolchains, "default_rust_toolchains")
--register_toolchains("@default_rust_toolchains//:all")
+@@ -46 +47 @@ use_repo(toolchains, "default_rust_toolchains")
+-register_toolchains("@default_rust_toolchains//...")
 +register_toolchains("@gazelle_ts_rust_toolchains//...")
