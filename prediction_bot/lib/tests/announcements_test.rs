@@ -987,3 +987,481 @@ async fn delivery_retry_deadline_uses_completion_time_and_saturates_attempts() {
             .unwrap();
     assert_eq!(retry, (i64::MAX, 1307));
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn worker_shutdown_acknowledges_in_flight_send_without_discovering_backlog() {
+    use prediction_bot::announcements::start_announcement_worker;
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    store
+        .execute_at(
+            10,
+            "discord:later",
+            admin(),
+            &create(CONCURRENT_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let worker = start_announcement_worker(
+        store.clone(),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+        receiver,
+    );
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    shutdown.send(true).unwrap();
+    barrier.release();
+    tokio::time::timeout(std::time::Duration::from_secs(5), worker)
+        .await
+        .expect("worker must stop despite due backlog")
+        .unwrap();
+    let states: Vec<String> =
+        sqlx::query_scalar("SELECT state FROM prediction_announcement_outbox ORDER BY revision")
+            .fetch_all(&owner)
+            .await
+            .unwrap();
+    assert_eq!(states, vec!["delivered", "pending"]);
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+
+    server.reset().await;
+    let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let worker = start_announcement_worker(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+        receiver,
+    );
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    shutdown.send(true).unwrap();
+    barrier.release();
+    tokio::time::timeout(std::time::Duration::from_secs(5), worker)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn worker_restart_retries_failed_send_from_its_persisted_deadline() {
+    use prediction_bot::announcements::start_announcement_worker;
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    let barrier = support::ResponseBarrier::mount(
+        &server,
+        ResponseTemplate::new(503)
+            .set_body_json(json!({"code":0,"message":"sentinel private provider body"})),
+    )
+    .await;
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let worker = start_announcement_worker(
+        store.clone(),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+        receiver,
+    );
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    shutdown.send(true).unwrap();
+    barrier.release();
+    tokio::time::timeout(std::time::Duration::from_secs(5), worker)
+        .await
+        .unwrap()
+        .unwrap();
+    let retry: (i64, i64, String) =
+        sqlx::query_as("SELECT attempts,next_attempt_at,state FROM prediction_announcement_outbox")
+            .fetch_one(&owner)
+            .await
+            .unwrap();
+    assert_eq!(retry, (1, 1005, "pending".into()));
+    server.reset().await;
+    let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let worker = start_announcement_worker(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(1005),
+        receiver,
+    );
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    drop(shutdown);
+    barrier.release();
+    tokio::time::timeout(std::time::Duration::from_secs(5), worker)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+}
+
+#[tokio::test]
+async fn worker_does_not_discover_when_shutdown_is_already_set_or_closed() {
+    use prediction_bot::announcements::start_announcement_worker;
+    let (_container, store, _owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    for closed in [false, true] {
+        let (shutdown, receiver) = tokio::sync::watch::channel(!closed);
+        if closed {
+            drop(shutdown);
+        }
+        let worker = start_announcement_worker(
+            store.clone(),
+            Arc::new(discord_http(&server)),
+            clock(1000),
+            receiver,
+        );
+        tokio::time::timeout(std::time::Duration::from_secs(2), worker)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    assert!(server.received_requests().await.unwrap().is_empty());
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        1
+    );
+}
+
+#[derive(Default)]
+struct WorkerAudit {
+    events: std::sync::Mutex<Vec<prediction_bot::audit::AuditEvent>>,
+    changed: tokio::sync::Notify,
+}
+impl prediction_bot::audit::AuditListener for WorkerAudit {
+    fn on_event(&self, event: &prediction_bot::audit::AuditEvent) {
+        self.events.lock().unwrap().push(event.clone());
+        self.changed.notify_one();
+    }
+}
+impl WorkerAudit {
+    async fn wait_for(&self, predicate: impl Fn(&prediction_bot::audit::AuditEvent) -> bool) {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let changed = self.changed.notified();
+                if self.events.lock().unwrap().iter().any(&predicate) {
+                    return;
+                }
+                changed.await;
+            }
+        })
+        .await
+        .expect("expected worker audit event");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn worker_reports_discovery_failure_then_recovers_on_the_next_poll() {
+    use prediction_bot::{
+        announcements::start_announcement_worker,
+        audit::{AuditEvent, Failure, FailureCategory, Outcome, Stage},
+        store::Store,
+    };
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let audit = Arc::new(WorkerAudit::default());
+    let store = Arc::new(Store::new_with_audit(
+        store.pool.clone(),
+        42,
+        Policy {
+            amount: 100,
+            interval: 86400,
+        },
+        audit.clone(),
+    ));
+    sqlx::query("REVOKE SELECT ON prediction_announcement_outbox FROM prediction_bot_runtime")
+        .execute(&owner)
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let worker = start_announcement_worker(
+        store.clone(),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+        receiver,
+    );
+    audit.wait_for(|event| matches!(event, AuditEvent::AnnouncementWorkerFailed { stage: Stage::Discover, outcome: Outcome::Failed(Failure { category: FailureCategory::Database, sqlstate: Some(code), .. }) } if code == "42501")).await;
+    sqlx::query("GRANT SELECT ON prediction_announcement_outbox TO prediction_bot_runtime")
+        .execute(&owner)
+        .await
+        .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    shutdown.send(true).unwrap();
+    barrier.release();
+    tokio::time::timeout(std::time::Duration::from_secs(5), worker)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+    assert!(audit.events.lock().unwrap().iter().any(|event| matches!(
+        event,
+        AuditEvent::AnnouncementAttemptCompleted {
+            guild: 10,
+            revision: 4,
+            channel_id: 20,
+            stage: Stage::Deliver,
+            outcome: Outcome::Succeeded,
+            ..
+        }
+    )));
+}
+
+#[tokio::test]
+async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_failure() {
+    use prediction_bot::{
+        announcements::start_announcement_worker,
+        audit::{AnnouncementDecision, AuditEvent, FailureCategory, Outcome, Stage},
+        store::Store,
+    };
+    for rejected in [false, true] {
+        let (_container, store, owner) = fixture().await;
+        queued(&store, 10, 20).await;
+        let audit = Arc::new(WorkerAudit::default());
+        let store = Arc::new(Store::new_with_audit(
+            store.pool.clone(),
+            42,
+            Policy {
+                amount: 100,
+                interval: 86400,
+            },
+            audit.clone(),
+        ));
+        if !rejected {
+            sqlx::query("ALTER TABLE prediction_announcement_outbox ADD CONSTRAINT reject_ack CHECK (state <> 'delivered')").execute(&owner).await.unwrap();
+        }
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v10/channels/20/messages"))
+            .respond_with(if rejected {
+                ResponseTemplate::new(403).set_body_json(
+                    json!({"code":50013,"message":"sentinel private body and token"}),
+                )
+            } else {
+                delivered()
+            })
+            .mount(&server)
+            .await;
+        let (shutdown, receiver) = tokio::sync::watch::channel(false);
+        let worker = start_announcement_worker(
+            store.clone(),
+            Arc::new(discord_http(&server)),
+            clock(1000),
+            receiver,
+        );
+        audit
+            .wait_for(|event| matches!(event, AuditEvent::AnnouncementAttemptCompleted { .. }))
+            .await;
+        shutdown.send(true).unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(5), worker)
+            .await
+            .unwrap()
+            .unwrap();
+        let events = audit.events.lock().unwrap();
+        assert!(events.iter().any(|event| match event {
+            AuditEvent::AnnouncementAttemptCompleted {
+                guild: 10,
+                revision: 4,
+                channel_id: 20,
+                decision,
+                outcome: Outcome::Failed(failure),
+                stage,
+                ..
+            } => {
+                if rejected {
+                    *decision == AnnouncementDecision::Pause
+                        && *stage == Stage::Deliver
+                        && failure.http_status == Some(403)
+                        && failure.discord_code == Some(50013)
+                } else {
+                    *decision == AnnouncementDecision::Delivered
+                        && *stage == Stage::Commit
+                        && failure.category == FailureCategory::Constraint
+                        && failure.sqlstate.as_deref() == Some("23514")
+                }
+            }
+            _ => false,
+        }));
+        assert!(!format!("{events:?}").contains("sentinel"));
+        drop(events);
+        assert_eq!(
+            store
+                .announcement_status(10, admin())
+                .await
+                .unwrap()
+                .pending,
+            1
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn application_startup_delivers_announcements_under_the_gateway_guard() {
+    let (_container, store, _owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    let mut user = serenity::all::CurrentUser::default();
+    user.id = 42.into();
+    Mock::given(method("GET"))
+        .and(path("/api/v10/users/@me"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(user))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/gateway/bot"))
+        .respond_with(
+            ResponseTemplate::new(403)
+                .set_body_json(json!({"code":50001,"message":"private gateway failure"}))
+                .set_delay(std::time::Duration::from_secs(2)),
+        )
+        .mount(&server)
+        .await;
+    let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
+    let running = tokio::spawn(prediction_bot::discord::run_with_http(
+        store.clone(),
+        discord_http(&server),
+    ));
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        store.gateway_guard().await,
+        Err(StoreError::Configuration(_))
+    ));
+    barrier.release();
+    let result = tokio::time::timeout(std::time::Duration::from_secs(5), running)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        result,
+        Err(prediction_bot::discord::DiscordError::Gateway)
+    ));
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+    store.gateway_guard().await.unwrap().close().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
+    use prediction_bot::{
+        announcements::start_announcement_worker,
+        audit::{AuditEvent, Failure, FailureCategory, Stage},
+        store::Store,
+    };
+    let (_container, store, _owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let audit = Arc::new(WorkerAudit::default());
+    let store = Arc::new(Store::new_with_audit(
+        store.pool.clone(),
+        42,
+        Policy {
+            amount: 100,
+            interval: 86400,
+        },
+        audit.clone(),
+    ));
+    let server = MockServer::start().await;
+    let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let worker = start_announcement_worker(
+        store.clone(),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+        receiver,
+    );
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    shutdown.send(true).unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(17), worker)
+        .await
+        .expect("worker must abort stalled request within grace")
+        .unwrap();
+    barrier.release();
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        1
+    );
+    assert!(audit.events.lock().unwrap().iter().any(|event| matches!(
+        event,
+        AuditEvent::Lifecycle {
+            stage: Stage::AnnouncementWorkerShutdown,
+            outcome: prediction_bot::audit::Outcome::Failed(Failure {
+                category: FailureCategory::Timeout,
+                ..
+            }),
+            ..
+        }
+    )));
+}

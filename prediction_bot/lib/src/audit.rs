@@ -45,6 +45,8 @@ pub enum Stage {
     ShutdownRequested,
     GatewayShutdown,
     GrantWorkerShutdown,
+    AnnouncementWorker,
+    AnnouncementWorkerShutdown,
     GatewayLockRelease,
     Shutdown,
 }
@@ -71,6 +73,8 @@ impl Stage {
             Self::ShutdownRequested => "shutdown_requested",
             Self::GatewayShutdown => "gateway_shutdown",
             Self::GrantWorkerShutdown => "grant_worker_shutdown",
+            Self::AnnouncementWorker => "announcement_worker",
+            Self::AnnouncementWorkerShutdown => "announcement_worker_shutdown",
             Self::GatewayLockRelease => "gateway_lock_release",
             Self::Shutdown => "shutdown",
         }
@@ -121,7 +125,7 @@ pub struct Failure {
 }
 
 impl Failure {
-    const fn category(category: FailureCategory) -> Self {
+    pub(crate) const fn category(category: FailureCategory) -> Self {
         Self {
             category,
             sqlstate: None,
@@ -235,8 +239,40 @@ impl LifecycleKind {
     }
 }
 
+/// The selected handling decision; a concurrent configuration change can supersede it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnnouncementDecision {
+    NotSent,
+    Delivered,
+    Retry,
+    Pause,
+}
+impl AnnouncementDecision {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotSent => "not_sent",
+            Self::Delivered => "delivered",
+            Self::Retry => "retry",
+            Self::Pause => "pause",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AuditEvent {
+    AnnouncementAttemptCompleted {
+        guild: u64,
+        revision: i64,
+        channel_id: u64,
+        configuration_version: i64,
+        decision: AnnouncementDecision,
+        outcome: Outcome,
+        stage: Stage,
+    },
+    AnnouncementWorkerFailed {
+        outcome: Outcome,
+        stage: Stage,
+    },
     CommandCompleted {
         guild: u64,
         key: Option<String>,

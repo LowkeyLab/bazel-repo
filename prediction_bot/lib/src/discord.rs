@@ -1109,6 +1109,16 @@ async fn shutdown_signal() -> Result<(), std::io::Error> {
 /// Returns an error if the gateway lock, Discord connection, or shutdown signal cannot initialize,
 /// or if the gateway fails while running.
 pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
+    run_with_http(store, Http::new(&token)).await
+}
+
+/// Run with a configured Serenity HTTP client through the same guarded startup path.
+/// The caller must authenticate the application identity before opening the store,
+/// as the normal binary startup does.
+///
+/// # Errors
+/// Returns the same startup, gateway, and shutdown errors as [`run`].
+pub async fn run_with_http(store: Arc<Store>, http: Http) -> Result<(), DiscordError> {
     let application_id = Some(store.application_id());
     let mut guard = match store.gateway_guard().await {
         Ok(guard) => guard,
@@ -1124,7 +1134,7 @@ pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
         }
     };
     guard.close_on_drop();
-    let result = run_gateway(Arc::clone(&store), token).await;
+    let result = run_gateway(Arc::clone(&store), http).await;
     if let Err(error) = guard.close().await {
         lifecycle(
             store.audit().as_ref(),
@@ -1150,11 +1160,10 @@ fn lifecycle(
         outcome,
     });
 }
-async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
+async fn run_gateway(store: Arc<Store>, http: Http) -> Result<(), DiscordError> {
     let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
     let client = async {
-        let http = Http::new(&token);
         let bot_user_id = http.get_current_user().await?.id.get();
         ClientBuilder::new_with_http(
             http,
@@ -1182,13 +1191,32 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
     };
     run_gateway_client(store, client).await
 }
-async fn run_gateway_client(store: Arc<Store>, mut client: Client) -> Result<(), DiscordError> {
+async fn run_gateway_client(store: Arc<Store>, client: Client) -> Result<(), DiscordError> {
+    run_gateway_client_with_clock(store, client, Arc::new(|| chrono::Utc::now().timestamp())).await
+}
+
+async fn run_gateway_client_with_clock(
+    store: Arc<Store>,
+    mut client: Client,
+    clock: crate::announcements::Clock,
+) -> Result<(), DiscordError> {
+    use crate::announcements::worker::{SHUTDOWN_GRACE, start_announcement_worker_with_deadline};
     let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
     let shards = Arc::clone(&client.shard_manager);
     let (sender, receiver) = watch::channel(false);
-    let mut worker = tokio::spawn(grant_worker(store, receiver));
+    let deadline = Arc::new(std::sync::OnceLock::new());
+    let mut grants = tokio::spawn(grant_worker(Arc::clone(&store), receiver.clone()));
+    let mut announcements = start_announcement_worker_with_deadline(
+        store,
+        Arc::clone(&client.http),
+        clock,
+        receiver,
+        Arc::clone(&deadline),
+    );
     let mut gateway = Box::pin(client.start_autosharded());
+    let mut announcements_finished = false;
+    let mut await_gateway = false;
     let (result, outcome) = tokio::select! {
         result = &mut gateway => {
             let outcome = match &result {
@@ -1197,34 +1225,76 @@ async fn run_gateway_client(store: Arc<Store>, mut client: Client) -> Result<(),
             };
             (result.map_err(|_| DiscordError::Gateway), outcome)
         },
+        _ = &mut announcements => {
+            announcements_finished = true;
+            let outcome = category_failure(FailureCategory::Unknown);
+            lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::AnnouncementWorker, outcome.clone());
+            (Err(DiscordError::Gateway), outcome)
+        },
         result = shutdown_signal() => {
             match result {
                 Ok(()) => {
+                    await_gateway = true;
                     lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::ShutdownRequested, Outcome::Succeeded);
-                    shards.shutdown_all().await;
-                    if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::GatewayShutdown, category_failure(FailureCategory::Timeout)); }
                     (Ok(()), Outcome::Succeeded)
                 }
                 Err(error) => (Err(DiscordError::Signal(error)), category_failure(FailureCategory::Transport)),
             }
         }
     };
+    // Publish one deadline before signaling either worker. Gateway, grant, and
+    // announcement drains run concurrently; none receives a second grace period.
+    let deadline = *deadline.get_or_init(|| tokio::time::Instant::now() + SHUTDOWN_GRACE);
     let _ = sender.send(true);
-    shards.shutdown_all().await;
-    if tokio::time::timeout(Duration::from_secs(15), &mut worker)
+    let close_gateway = async {
+        if tokio::time::timeout_at(deadline, async {
+            shards.shutdown_all().await;
+            if await_gateway {
+                let _ = (&mut gateway).await;
+            }
+        })
         .await
         .is_err()
-    {
-        lifecycle(
-            audit.as_ref(),
-            LifecycleKind::Shutdown,
-            application_id,
-            Stage::GrantWorkerShutdown,
-            category_failure(FailureCategory::Timeout),
-        );
-        worker.abort();
-        let _ = worker.await;
-    }
+        {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Shutdown,
+                application_id,
+                Stage::GatewayShutdown,
+                category_failure(FailureCategory::Timeout),
+            );
+        }
+    };
+    let close_grants = async {
+        if tokio::time::timeout_at(deadline, &mut grants)
+            .await
+            .is_err()
+        {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Shutdown,
+                application_id,
+                Stage::GrantWorkerShutdown,
+                category_failure(FailureCategory::Timeout),
+            );
+            grants.abort();
+            let _ = grants.await;
+        }
+    };
+    let close_announcements = async {
+        // The worker uses the shared deadline, then aborts and awaits its own
+        // children. Await it here so their database writes cannot outlive the lock.
+        if !announcements_finished && announcements.await.is_err() {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Shutdown,
+                application_id,
+                Stage::AnnouncementWorkerShutdown,
+                category_failure(FailureCategory::Unknown),
+            );
+        }
+    };
+    tokio::join!(close_gateway, close_grants, close_announcements);
     lifecycle(
         audit.as_ref(),
         LifecycleKind::Shutdown,

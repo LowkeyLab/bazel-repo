@@ -1974,3 +1974,46 @@ async fn status_and_disable_handlers_use_private_deferred_store_paths() {
         );
     }
 }
+
+#[tokio::test]
+async fn gateway_supervises_announcement_worker_panic_and_returns_failure() {
+    use crate::audit::{AuditEvent, LifecycleKind, Outcome, Stage};
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/gateway/bot"))
+        .respond_with(
+            ResponseTemplate::new(403)
+                .set_body_json(serde_json::json!({"code":50001,"message":"private gateway error"}))
+                .set_delay(std::time::Duration::from_secs(10)),
+        )
+        .mount(&server)
+        .await;
+    let client = serenity::client::ClientBuilder::new_with_http(
+        discord_http(&server),
+        serenity::all::GatewayIntents::GUILDS,
+    )
+    .await
+    .unwrap();
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        super::run_gateway_client_with_clock(
+            handler.store,
+            client,
+            std::sync::Arc::new(|| panic!("worker clock panic")),
+        ),
+    )
+    .await
+    .expect("a dead worker must stop the gateway");
+    assert!(matches!(result, Err(super::DiscordError::Gateway)));
+    assert!(recorder.0.lock().unwrap().iter().any(|event| matches!(
+        event,
+        AuditEvent::Lifecycle {
+            kind: LifecycleKind::Shutdown,
+            stage: Stage::AnnouncementWorker,
+            outcome: Outcome::Failed(_),
+            ..
+        }
+    )));
+}
