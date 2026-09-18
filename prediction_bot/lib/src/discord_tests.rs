@@ -1150,3 +1150,56 @@ async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() 
         ]
     ));
 }
+
+#[tokio::test]
+async fn gateway_http_failure_retains_safe_details_after_shutdown() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, LifecycleKind, Outcome, Stage};
+    use axum::{Json, Router, http::StatusCode};
+
+    let router = Router::new().fallback(|| async {
+        (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"code": 50001, "message": "sentinel private gateway error"})),
+        )
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let http = serenity::http::HttpBuilder::new("test-token")
+        .application_id(42.into())
+        .proxy(endpoint)
+        .ratelimiter_disabled(true)
+        .build();
+    let client =
+        serenity::client::ClientBuilder::new_with_http(http, serenity::all::GatewayIntents::GUILDS)
+            .await
+            .unwrap();
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+
+    let result = super::run_gateway_client(handler.store, client).await;
+
+    server.abort();
+    assert!(matches!(result, Err(super::DiscordError::Gateway)));
+    let events = recorder.0.lock().unwrap();
+    let lifecycle_events: Vec<_> = events
+        .iter()
+        .filter(|event| matches!(event, AuditEvent::Lifecycle { .. }))
+        .collect();
+    assert_eq!(
+        lifecycle_events,
+        vec![&AuditEvent::Lifecycle {
+            kind: LifecycleKind::Shutdown,
+            application_id: Some(42),
+            stage: Stage::Shutdown,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Discord,
+                sqlstate: None,
+                http_status: Some(403),
+                discord_code: Some(50001),
+            }),
+        }]
+    );
+}

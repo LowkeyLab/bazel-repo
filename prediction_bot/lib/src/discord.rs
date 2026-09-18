@@ -955,7 +955,7 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
             store: Arc::clone(&store),
         })
         .await;
-    let mut client = match client {
+    let client = match client {
         Ok(client) => client,
         Err(error) => {
             lifecycle(
@@ -968,21 +968,32 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
             return Err(DiscordError::Gateway);
         }
     };
+    run_gateway_client(store, client).await
+}
+async fn run_gateway_client(store: Arc<Store>, mut client: Client) -> Result<(), DiscordError> {
+    let application_id = Some(store.application_id());
+    let audit = Arc::clone(store.audit());
     let shards = Arc::clone(&client.shard_manager);
     let (sender, receiver) = watch::channel(false);
     let mut worker = tokio::spawn(grant_worker(store, receiver));
     let mut gateway = Box::pin(client.start_autosharded());
-    let result = tokio::select! {
-        result = &mut gateway => result.map_err(|_| DiscordError::Gateway),
+    let (result, outcome) = tokio::select! {
+        result = &mut gateway => {
+            let outcome = match &result {
+                Ok(()) => Outcome::Succeeded,
+                Err(error) => Outcome::Failed(discord_failure(error)),
+            };
+            (result.map_err(|_| DiscordError::Gateway), outcome)
+        },
         result = shutdown_signal() => {
             match result {
                 Ok(()) => {
                     lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::ShutdownRequested, Outcome::Succeeded);
                     shards.shutdown_all().await;
                     if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::GatewayShutdown, category_failure(FailureCategory::Timeout)); }
-                    Ok(())
+                    (Ok(()), Outcome::Succeeded)
                 }
-                Err(error) => Err(DiscordError::Signal(error)),
+                Err(error) => (Err(DiscordError::Signal(error)), category_failure(FailureCategory::Transport)),
             }
         }
     };
@@ -1007,11 +1018,7 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
         LifecycleKind::Shutdown,
         application_id,
         Stage::Shutdown,
-        match &result {
-            Ok(()) => Outcome::Succeeded,
-            Err(DiscordError::Store(error)) => store_outcome(Stage::Shutdown, error),
-            Err(_) => category_failure(FailureCategory::Transport),
-        },
+        outcome,
     );
     result
 }
