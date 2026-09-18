@@ -1,5 +1,9 @@
 use super::{Action, Input, InputOption, InputValue, parse};
 use crate::domain::Command;
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{method, path},
+};
 
 fn input(subcommand: &str, options: Vec<InputOption>) -> Input {
     Input {
@@ -862,59 +866,12 @@ async fn failed_query_keeps_safe_response_and_reports_correlated_failure() {
     ));
 }
 
-type HttpRequests = std::sync::Arc<std::sync::Mutex<Vec<(String, String, serde_json::Value)>>>;
-
-async fn discord_endpoint(
-    acknowledged: bool,
-    fail_delivery: bool,
-) -> (
-    serenity::http::Http,
-    HttpRequests,
-    tokio::task::JoinHandle<()>,
-) {
-    use axum::{
-        Json, Router,
-        http::{Method, StatusCode, Uri},
-        response::IntoResponse,
-    };
-    let requests = HttpRequests::default();
-    let captured = requests.clone();
-    let router = Router::new().fallback(move |method: Method, uri: Uri, Json(body): Json<serde_json::Value>| {
-        let requests = captured.clone();
-        async move {
-            requests.lock().unwrap().push((method.to_string(), uri.path().to_owned(), body));
-            if method == Method::POST && uri.path().starts_with("/api/v10/channels/") {
-                if fail_delivery {
-                    (StatusCode::FORBIDDEN, Json(serde_json::json!({"code": 50013, "message": "sentinel secret provider text"}))).into_response()
-                } else {
-                    Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
-                }
-            } else if method == Method::PATCH {
-                if fail_delivery {
-                    (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({"code": 10015, "message": "sentinel secret provider text"}))).into_response()
-                } else {
-                    Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
-                }
-            } else if method == Method::PUT {
-                Json(serde_json::json!([])).into_response()
-            } else if acknowledged {
-                (StatusCode::BAD_REQUEST, Json(serde_json::json!({"code": 40060, "message": "sentinel secret acknowledgement text"}))).into_response()
-            } else {
-                StatusCode::NO_CONTENT.into_response()
-            }
-        }
-    });
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = format!("http://{}", listener.local_addr().unwrap());
-    let server = tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    let http = serenity::http::HttpBuilder::new("test-token")
+fn discord_http(server: &MockServer) -> serenity::http::Http {
+    serenity::http::HttpBuilder::new("test-token")
         .application_id(42.into())
-        .proxy(endpoint)
+        .proxy(server.uri())
         .ratelimiter_disabled(true)
-        .build();
-    (http, requests, server)
+        .build()
 }
 
 fn interaction_json(id: u64, data: serde_json::Value) -> serde_json::Value {
@@ -951,25 +908,52 @@ async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_del
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
     let recorder = std::sync::Arc::new(AuditRecorder::default());
     let handler = unavailable_handler(recorder.clone()).await;
-    let (http, requests, server) = discord_endpoint(true, true).await;
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v10/interactions/125/test-interaction-token/callback",
+        ))
+        .respond_with(ResponseTemplate::new(400).set_body_json(
+            serde_json::json!({"code": 40060, "message": "sentinel secret acknowledgement text"}),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v10/webhooks/42/test-interaction-token/messages/@original",
+        ))
+        .respond_with(ResponseTemplate::new(503).set_body_json(
+            serde_json::json!({"code": 10015, "message": "sentinel secret provider text"}),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
     let command = serde_json::from_value(interaction_json(125, serde_json::json!({"id": "1", "name": "market", "type": 1, "options": [{"name": "balance", "type": 1, "options": []}]}))).unwrap();
     handler.handle(&http, command).await;
-    let requests = requests.lock().unwrap();
+    let requests = server.received_requests().await.unwrap();
     assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0].0, "POST");
+    assert_eq!(requests[0].method.as_str(), "POST");
     assert_eq!(
-        requests[0].1,
+        requests[0].url.path(),
         "/api/v10/interactions/125/test-interaction-token/callback"
     );
-    assert_eq!(requests[0].2["type"], 5);
-    assert_eq!(requests[0].2["data"]["flags"], 64);
-    assert_eq!(requests[1].0, "PATCH");
     assert_eq!(
-        requests[1].1,
+        requests[0].body_json::<serde_json::Value>().unwrap()["type"],
+        5
+    );
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
+        64
+    );
+    assert_eq!(requests[1].method.as_str(), "PATCH");
+    assert_eq!(
+        requests[1].url.path(),
         "/api/v10/webhooks/42/test-interaction-token/messages/@original"
     );
     assert_eq!(
-        requests[1].2["content"],
+        requests[1].body_json::<serde_json::Value>().unwrap()["content"],
         "The prediction economy is temporarily unavailable. Please try again."
     );
     let events = recorder.0.lock().unwrap();
@@ -1006,7 +990,6 @@ async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_del
             },
         ]
     ));
-    server.abort();
 }
 
 #[tokio::test]
@@ -1014,7 +997,32 @@ async fn real_modal_and_component_adapters_preserve_private_validation_responses
     use crate::audit::{AuditEvent, Outcome, Rejection, Stage};
     let recorder = std::sync::Arc::new(AuditRecorder::default());
     let handler = unavailable_handler(recorder.clone()).await;
-    let (http, requests, server) = discord_endpoint(false, false).await;
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v10/interactions/126/test-interaction-token/callback",
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v10/webhooks/42/test-interaction-token/messages/@original",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v10/interactions/127/test-interaction-token/callback",
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
     let modal = serde_json::from_value(interaction_json(
         126,
         serde_json::json!({"custom_id": "pm:invalid", "components": []}),
@@ -1027,20 +1035,32 @@ async fn real_modal_and_component_adapters_preserve_private_validation_responses
     ))
     .unwrap();
     handler.handle_component(&http, component).await;
-    let requests = requests.lock().unwrap();
+    let requests = server.received_requests().await.unwrap();
     assert_eq!(requests.len(), 3);
-    assert_eq!(requests[0].2["type"], 5);
-    assert_eq!(requests[0].2["data"]["flags"], 64);
-    assert_eq!(requests[1].0, "PATCH");
     assert_eq!(
-        requests[1].2["content"],
+        requests[0].body_json::<serde_json::Value>().unwrap()["type"],
+        5
+    );
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
+        64
+    );
+    assert_eq!(requests[1].method.as_str(), "PATCH");
+    assert_eq!(
+        requests[1].body_json::<serde_json::Value>().unwrap()["content"],
         "This control belongs to another member or server. Run /market list or /market create."
     );
-    assert_eq!(requests[2].0, "POST");
-    assert_eq!(requests[2].2["type"], 4);
-    assert_eq!(requests[2].2["data"]["flags"], 64);
+    assert_eq!(requests[2].method.as_str(), "POST");
     assert_eq!(
-        requests[2].2["data"]["content"],
+        requests[2].body_json::<serde_json::Value>().unwrap()["type"],
+        4
+    );
+    assert_eq!(
+        requests[2].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
+        64
+    );
+    assert_eq!(
+        requests[2].body_json::<serde_json::Value>().unwrap()["data"]["content"],
         "Choose an option from the market menu."
     );
     let events = recorder.0.lock().unwrap();
@@ -1048,7 +1068,6 @@ async fn real_modal_and_component_adapters_preserve_private_validation_responses
         assert!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { guild: Some(10), interaction_id, stage: Stage::Validate, outcome: Outcome::Rejected(Rejection::InvalidInput) } if *interaction_id == id)));
         assert!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { guild: Some(10), interaction_id, stage: Stage::Deliver, outcome: Outcome::Succeeded } if *interaction_id == id)));
     }
-    server.abort();
 }
 
 #[tokio::test]
@@ -1056,7 +1075,22 @@ async fn component_read_failure_delivers_initial_private_response_and_registrati
     use crate::audit::{AuditEvent, Outcome, QueryKind, Stage};
     let recorder = std::sync::Arc::new(AuditRecorder::default());
     let handler = unavailable_handler(recorder.clone()).await;
-    let (http, requests, server) = discord_endpoint(false, false).await;
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v10/interactions/128/test-interaction-token/callback",
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/api/v10/applications/42/guilds/10/commands"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+        .expect(1)
+        .mount(&server)
+        .await;
     let component = serde_json::from_value(interaction_json(
         128,
         serde_json::json!({"custom_id": "pm:bet", "component_type": 3, "values": ["anything"]}),
@@ -1064,11 +1098,17 @@ async fn component_read_failure_delivers_initial_private_response_and_registrati
     .unwrap();
     handler.handle_component(&http, component).await;
     handler.register(&http, 10.into()).await;
-    let requests = requests.lock().unwrap();
-    assert_eq!(requests[0].2["type"], 4);
-    assert_eq!(requests[0].2["data"]["flags"], 64);
+    let requests = server.received_requests().await.unwrap();
     assert_eq!(
-        requests[0].2["data"]["content"],
+        requests[0].body_json::<serde_json::Value>().unwrap()["type"],
+        4
+    );
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
+        64
+    );
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["data"]["content"],
         "The prediction economy is temporarily unavailable. Please try again."
     );
     let events = recorder.0.lock().unwrap();
@@ -1096,7 +1136,6 @@ async fn component_read_failure_delivers_initial_private_response_and_registrati
             },
         ]
     ));
-    server.abort();
 }
 
 #[tokio::test]
@@ -1242,24 +1281,17 @@ async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() 
 #[tokio::test]
 async fn gateway_http_failure_retains_safe_details_after_shutdown() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, LifecycleKind, Outcome, Stage};
-    use axum::{Json, Router, http::StatusCode};
 
-    let router = Router::new().fallback(|| async {
-        (
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"code": 50001, "message": "sentinel private gateway error"})),
-        )
-    });
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = format!("http://{}", listener.local_addr().unwrap());
-    let server = tokio::spawn(async move {
-        axum::serve(listener, router).await.unwrap();
-    });
-    let http = serenity::http::HttpBuilder::new("test-token")
-        .application_id(42.into())
-        .proxy(endpoint)
-        .ratelimiter_disabled(true)
-        .build();
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("GET"))
+        .and(path("/api/v10/gateway/bot"))
+        .respond_with(ResponseTemplate::new(403).set_body_json(
+            serde_json::json!({"code": 50001, "message": "sentinel private gateway error"}),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
     let client =
         serenity::client::ClientBuilder::new_with_http(http, serenity::all::GatewayIntents::GUILDS)
             .await
@@ -1269,7 +1301,6 @@ async fn gateway_http_failure_retains_safe_details_after_shutdown() {
 
     let result = super::run_gateway_client(handler.store, client).await;
 
-    server.abort();
     assert!(matches!(result, Err(super::DiscordError::Gateway)));
     let events = recorder.0.lock().unwrap();
     let lifecycle_events: Vec<_> = events
@@ -1298,27 +1329,44 @@ async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
     for failed in [false, true] {
         let recorder = std::sync::Arc::new(AuditRecorder::default());
         let handler = unavailable_handler(recorder.clone()).await;
-        let (http, requests, server) = discord_endpoint(false, failed).await;
+        let server = MockServer::start().await;
+        let http = discord_http(&server);
+        let response = if failed {
+            ResponseTemplate::new(403).set_body_json(
+                serde_json::json!({"code": 50013, "message": "sentinel secret provider text"}),
+            )
+        } else {
+            ResponseTemplate::new(200).set_body_json(serenity::all::Message::default())
+        };
+        Mock::given(method("POST"))
+            .and(path("/api/v10/channels/20/messages"))
+            .respond_with(response)
+            .expect(1)
+            .mount(&server)
+            .await;
         let mut message = mentioned_message();
         message.id = 123.into();
         message.channel_id = 20.into();
         handler.handle_message(&http, &message).await;
-        let requests = requests.lock().unwrap();
+        let requests = server.received_requests().await.unwrap();
         assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].0, "POST");
-        assert_eq!(requests[0].1, "/api/v10/channels/20/messages");
+        assert_eq!(requests[0].method.as_str(), "POST");
+        assert_eq!(requests[0].url.path(), "/api/v10/channels/20/messages");
         assert!(
-            requests[0].2["content"]
+            requests[0].body_json::<serde_json::Value>().unwrap()["content"]
                 .as_str()
                 .unwrap()
                 .contains("/market help")
         );
         assert_eq!(
-            requests[0].2["allowed_mentions"]["parse"],
+            requests[0].body_json::<serde_json::Value>().unwrap()["allowed_mentions"]["parse"],
             serde_json::json!([])
         );
-        assert_eq!(requests[0].2["allowed_mentions"]["replied_user"], false);
-        server.abort();
+        assert_eq!(
+            requests[0].body_json::<serde_json::Value>().unwrap()["allowed_mentions"]["replied_user"],
+            false
+        );
+
         let outcome = if failed {
             Outcome::Failed(Failure {
                 category: FailureCategory::Discord,
@@ -1346,7 +1394,8 @@ async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
 async fn ignored_messages_neither_send_nor_emit_audit_events() {
     let recorder = std::sync::Arc::new(AuditRecorder::default());
     let handler = unavailable_handler(recorder.clone()).await;
-    let (http, requests, server) = discord_endpoint(false, false).await;
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
     let mut ordinary = mentioned_message();
     ordinary.mentions.clear();
     let mut other = mentioned_message();
@@ -1360,7 +1409,7 @@ async fn ignored_messages_neither_send_nor_emit_audit_events() {
     for message in [ordinary, other, bot, private] {
         handler.handle_message(&http, &message).await;
     }
-    server.abort();
-    assert!(requests.lock().unwrap().is_empty());
+
+    assert!(server.received_requests().await.unwrap().is_empty());
     assert!(recorder.0.lock().unwrap().is_empty());
 }
