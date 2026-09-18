@@ -7,17 +7,17 @@ use crate::{
 };
 use chrono::DateTime;
 use serenity::{
-    Client,
     all::{
         ActionRowComponent, CommandDataOptionValue, CommandInteraction, CommandOptionType,
         ComponentInteraction, ComponentInteractionDataKind, Context, GatewayIntents, Guild,
-        GuildId, Interaction, ModalInteraction, Permissions, Ready,
+        GuildId, Interaction, Message, ModalInteraction, Permissions, Ready,
     },
     builder::{
         CreateAllowedMentions, CreateCommand, CreateCommandOption, CreateInteractionResponse,
-        CreateInteractionResponseMessage, EditInteractionResponse,
+        CreateInteractionResponseMessage, CreateMessage, EditInteractionResponse,
     },
-    client::EventHandler,
+    client::{ClientBuilder, EventHandler},
+    http::Http,
 };
 use thiserror::Error;
 use tokio::sync::watch;
@@ -49,6 +49,7 @@ pub(crate) enum InputValue {
 pub(crate) enum Action {
     Write(Command),
     CreateForm,
+    Help,
     Balance,
     Leaderboard,
     List,
@@ -115,6 +116,10 @@ pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str>
         bot: input.bot,
     };
     let action = match input.subcommand.as_str() {
+        "help" => {
+            exact(input, &[])?;
+            Action::Help
+        }
         "join" => {
             exact(input, &[])?;
             Action::Write(Command::Join)
@@ -246,6 +251,31 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
         options,
     })
 }
+const HELP: &str = "I run prediction markets for this server using play points—no real money.
+
+• `/market join` — get your first points and receive regular grants.
+• `/market create` — ask a question and choose possible outcomes.
+• `/market list` — browse markets, pick an outcome, and bet points.
+• `/market balance` and `/market leaderboard` — check your points and rankings.
+
+Server admins and members with Manage Guild permission can resolve or cancel markets.";
+
+fn mention_reply(message: &Message, bot_user_id: u64) -> Option<CreateMessage> {
+    if message.guild_id.is_none()
+        || message.author.bot
+        || bot_user_id == 0
+        || !message
+            .mentions
+            .iter()
+            .any(|user| user.id.get() == bot_user_id)
+    {
+        return None;
+    }
+    Some(CreateMessage::new()
+        .content("Need a hand? Run `/market help` to learn how to join, create predictions, and bet with play points.")
+        .allowed_mentions(no_mentions()))
+}
+
 fn no_mentions() -> CreateAllowedMentions {
     CreateAllowedMentions::new()
         .everyone(false)
@@ -386,6 +416,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
             || "No market with that ID exists in this server.".to_owned(),
             |m| render_market(id, m, now),
         ),
+        Action::Help => HELP.to_owned(),
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::Write(_) => "Invalid query.".to_owned(),
     }
@@ -431,6 +462,11 @@ fn market_command() -> CreateCommand {
         |kind, name, description| CreateCommandOption::new(kind, name, description).required(true);
     CreateCommand::new("market")
         .description("Play-point prediction markets in this server")
+        .add_option(CreateCommandOption::new(
+            SubCommand,
+            "help",
+            "Learn how to use prediction markets",
+        ))
         .add_option(CreateCommandOption::new(
             SubCommand,
             "join",
@@ -505,6 +541,7 @@ fn market_command() -> CreateCommand {
 }
 struct Handler {
     store: Arc<Store>,
+    bot_user_id: u64,
 }
 impl Handler {
     async fn register(&self, ctx: &Context, guild: GuildId) {
@@ -536,6 +573,7 @@ impl Handler {
         let can_continue = defer_succeeded(command.defer_ephemeral(&ctx.http).await);
         let response = content_after_defer(can_continue, || async {
             match from_discord(&command).and_then(|input| parse(&input)) {
+                Ok((_, _, Action::Help)) => reply(HELP),
                 Ok((guild, actor, Action::Write(request))) => {
                     self.execute_request(guild, actor, &request, command.id.get())
                         .await
@@ -650,6 +688,22 @@ impl Handler {
 }
 #[serenity::async_trait]
 impl EventHandler for Handler {
+    async fn message(&self, ctx: Context, message: Message) {
+        if let Some(response) = mention_reply(&message, self.bot_user_id) {
+            if message
+                .channel_id
+                .send_message(&ctx.http, response)
+                .await
+                .is_err()
+            {
+                tracing::warn!(
+                    channel = message.channel_id.get(),
+                    "could not deliver market help prompt"
+                );
+            }
+        }
+    }
+
     async fn ready(&self, ctx: Context, ready: Ready) {
         tracing::info!(guilds = ready.guilds.len(), "Discord gateway ready");
         for guild in ready.guilds {
@@ -715,12 +769,23 @@ pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
     result
 }
 async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
-    let mut client = Client::builder(&token, GatewayIntents::GUILDS)
-        .event_handler(Handler {
-            store: Arc::clone(&store),
-        })
+    let http = Http::new(&token);
+    let bot_user_id = http
+        .get_current_user()
         .await
-        .map_err(|_| DiscordError::Gateway)?;
+        .map_err(|_| DiscordError::Gateway)?
+        .id
+        .get();
+    let mut client = ClientBuilder::new_with_http(
+        http,
+        GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES,
+    )
+    .event_handler(Handler {
+        bot_user_id,
+        store: Arc::clone(&store),
+    })
+    .await
+    .map_err(|_| DiscordError::Gateway)?;
     let shards = Arc::clone(&client.shard_manager);
     let (sender, receiver) = watch::channel(false);
     let mut worker = tokio::spawn(grant_worker(store, receiver));

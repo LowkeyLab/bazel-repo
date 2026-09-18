@@ -701,3 +701,84 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
         .is_err()
     );
 }
+
+#[test]
+fn help_is_registered_without_arguments_and_parses_before_enrollment() {
+    let registration = serde_json::to_value(super::market_command()).unwrap();
+    let help = registration["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "help")
+        .expect("help must be discoverable");
+    assert!(help["options"].as_array().is_none_or(Vec::is_empty));
+    assert!(parse(&input("help", vec![])).is_ok());
+    assert!(parse(&input("help", vec![text("unexpected", "value")])).is_err());
+}
+
+#[test]
+fn help_explains_getting_started_without_an_account() {
+    let action = parse(&input("help", vec![])).unwrap().2;
+    let view = crate::store::View {
+        revision: 0,
+        state: Default::default(),
+    };
+    let content = super::render_query(&view, &action, ui_actor(), 0);
+    for guidance in [
+        "play points",
+        "no real money",
+        "/market join",
+        "/market create",
+        "/market list",
+        "/market balance",
+        "/market leaderboard",
+        "Manage Guild",
+    ] {
+        assert!(content.contains(guidance), "missing guidance: {guidance}");
+    }
+    let response = serde_json::to_value(super::reply(&content)).unwrap();
+    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert_eq!(response["allowed_mentions"]["replied_user"], false);
+}
+
+fn mentioned_message() -> serenity::all::Message {
+    let mut message = serenity::all::Message::default();
+    message.guild_id = Some(serenity::all::GuildId::new(10));
+    message.author.id = serenity::all::UserId::new(20);
+    let mut bot = serenity::all::User::default();
+    bot.id = serenity::all::UserId::new(99);
+    bot.bot = true;
+    message.mentions = vec![bot.clone(), bot];
+    message
+}
+
+#[test]
+fn mentioning_this_bot_produces_one_help_prompt_without_pings() {
+    let response = super::mention_reply(&mentioned_message(), 99)
+        .expect("a human mentioning this bot should receive help");
+    let payload = serde_json::to_value(response).unwrap();
+    assert!(
+        payload["content"]
+            .as_str()
+            .unwrap()
+            .contains("/market help")
+    );
+    assert_eq!(payload["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert_eq!(payload["allowed_mentions"]["replied_user"], false);
+}
+
+#[test]
+fn mention_help_ignores_other_mentions_bots_and_private_messages() {
+    assert!(super::mention_reply(&mentioned_message(), 98).is_none());
+    assert!(super::mention_reply(&mentioned_message(), 0).is_none());
+    let mut ordinary = mentioned_message();
+    ordinary.mentions.clear();
+    ordinary.content = "bot, help please".to_owned();
+    assert!(super::mention_reply(&ordinary, 99).is_none());
+    let mut from_bot = mentioned_message();
+    from_bot.author.bot = true;
+    assert!(super::mention_reply(&from_bot, 99).is_none());
+    let mut private = mentioned_message();
+    private.guild_id = None;
+    assert!(super::mention_reply(&private, 99).is_none());
+}
