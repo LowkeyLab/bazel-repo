@@ -1,4 +1,9 @@
 pub(crate) mod persistence;
+pub(crate) mod render;
+pub(crate) mod worker;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SnapshotV1 {
