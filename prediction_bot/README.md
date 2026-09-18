@@ -61,7 +61,9 @@ The grant worker checks due schedules once per minute and catches up all missed 
 
 ## Operational audit records
 
-Production logging writes newline-delimited JSON at information level and above. Typed audit events cover command and query completion, interaction acknowledgement and response delivery, grant discovery or reconstruction failures, command registration, and migration, startup, readiness, and shutdown lifecycle changes. Each record has a stable event name, outcome, operation stage, and the fields appropriate to that event family.
+Production logging writes newline-delimited JSON at information level and above. Typed audit events cover command and query completion, interaction acknowledgement and response delivery, mention reply completion, grant discovery or reconstruction failures, command registration, and migration, startup, readiness, and shutdown lifecycle changes. Each record has a stable event name, outcome, operation stage, and the fields appropriate to that event family.
+
+Mention replies emit one `mention_reply_completed` record per attempted send, correlated by guild, channel, and triggering message ID. Successful delivery is logged at INFO and delivery failure at WARN with sanitized failure categories and provider status codes. Success means Discord accepted the request, not that the user read the prompt. Ignored messages emit no event.
 
 Guild IDs and existing command or interaction identifiers correlate related records. Discord command keys use `discord:<interaction-id>`; scheduled grants use `grant:<member-id>:<schedule-boundary>`, so the selected grant boundary remains visible during retries. Interaction IDs are identifiers, not interaction tokens. A successful command record describes a successful invocation. It does not prove that invocation created a new economic effect: Discord redelivery can recover an existing command receipt, and a grant retry can find an already committed receipt without issuing points twice.
 

@@ -698,6 +698,28 @@ struct Handler {
     bot_user_id: u64,
 }
 impl Handler {
+    async fn handle_message(&self, http: &Http, message: &Message) {
+        let (Some(guild), Some(response)) =
+            (message.guild_id, mention_reply(message, self.bot_user_id))
+        else {
+            return;
+        };
+        let result = message
+            .channel_id
+            .send_message(http, response)
+            .await
+            .map(|_| ());
+        self.store
+            .audit()
+            .on_event(&AuditEvent::MentionReplyCompleted {
+                guild: guild.get(),
+                channel_id: message.channel_id.get(),
+                message_id: message.id.get(),
+                outcome: delivery_outcome(&result),
+                stage: Stage::Deliver,
+            });
+    }
+
     async fn register(&self, http: &serenity::http::Http, guild: GuildId) {
         let result = guild
             .set_commands(http, vec![market_command()])
@@ -884,19 +906,7 @@ impl Handler {
 #[serenity::async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, message: Message) {
-        if let Some(response) = mention_reply(&message, self.bot_user_id) {
-            if message
-                .channel_id
-                .send_message(&ctx.http, response)
-                .await
-                .is_err()
-            {
-                tracing::warn!(
-                    channel = message.channel_id.get(),
-                    "could not deliver market help prompt"
-                );
-            }
-        }
+        self.handle_message(&ctx.http, &message).await;
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {

@@ -866,7 +866,7 @@ type HttpRequests = std::sync::Arc<std::sync::Mutex<Vec<(String, String, serde_j
 
 async fn discord_endpoint(
     acknowledged: bool,
-    fail_edits: bool,
+    fail_delivery: bool,
 ) -> (
     serenity::http::Http,
     HttpRequests,
@@ -883,8 +883,14 @@ async fn discord_endpoint(
         let requests = captured.clone();
         async move {
             requests.lock().unwrap().push((method.to_string(), uri.path().to_owned(), body));
-            if method == Method::PATCH {
-                if fail_edits {
+            if method == Method::POST && uri.path().starts_with("/api/v10/channels/") {
+                if fail_delivery {
+                    (StatusCode::FORBIDDEN, Json(serde_json::json!({"code": 50013, "message": "sentinel secret provider text"}))).into_response()
+                } else {
+                    Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
+                }
+            } else if method == Method::PATCH {
+                if fail_delivery {
                     (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({"code": 10015, "message": "sentinel secret provider text"}))).into_response()
                 } else {
                     Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
@@ -1284,4 +1290,77 @@ async fn gateway_http_failure_retains_safe_details_after_shutdown() {
             }),
         }]
     );
+}
+
+#[tokio::test]
+async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, Stage};
+    for failed in [false, true] {
+        let recorder = std::sync::Arc::new(AuditRecorder::default());
+        let handler = unavailable_handler(recorder.clone()).await;
+        let (http, requests, server) = discord_endpoint(false, failed).await;
+        let mut message = mentioned_message();
+        message.id = 123.into();
+        message.channel_id = 20.into();
+        handler.handle_message(&http, &message).await;
+        let requests = requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].0, "POST");
+        assert_eq!(requests[0].1, "/api/v10/channels/20/messages");
+        assert!(
+            requests[0].2["content"]
+                .as_str()
+                .unwrap()
+                .contains("/market help")
+        );
+        assert_eq!(
+            requests[0].2["allowed_mentions"]["parse"],
+            serde_json::json!([])
+        );
+        assert_eq!(requests[0].2["allowed_mentions"]["replied_user"], false);
+        server.abort();
+        let outcome = if failed {
+            Outcome::Failed(Failure {
+                category: FailureCategory::Discord,
+                sqlstate: None,
+                http_status: Some(403),
+                discord_code: Some(50013),
+            })
+        } else {
+            Outcome::Succeeded
+        };
+        assert_eq!(
+            *recorder.0.lock().unwrap(),
+            vec![AuditEvent::MentionReplyCompleted {
+                guild: 10,
+                channel_id: 20,
+                message_id: 123,
+                outcome,
+                stage: Stage::Deliver,
+            }]
+        );
+    }
+}
+
+#[tokio::test]
+async fn ignored_messages_neither_send_nor_emit_audit_events() {
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let (http, requests, server) = discord_endpoint(false, false).await;
+    let mut ordinary = mentioned_message();
+    ordinary.mentions.clear();
+    let mut other = mentioned_message();
+    for mention in &mut other.mentions {
+        mention.id = 98.into();
+    }
+    let mut bot = mentioned_message();
+    bot.author.bot = true;
+    let mut private = mentioned_message();
+    private.guild_id = None;
+    for message in [ordinary, other, bot, private] {
+        handler.handle_message(&http, &message).await;
+    }
+    server.abort();
+    assert!(requests.lock().unwrap().is_empty());
+    assert!(recorder.0.lock().unwrap().is_empty());
 }
