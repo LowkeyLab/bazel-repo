@@ -30,6 +30,63 @@ fn number(name: &str, value: i64) -> InputOption {
     }
 }
 
+fn channel(name: &str, value: u64) -> InputOption {
+    InputOption {
+        name: name.to_owned(),
+        value: InputValue::Channel(value),
+    }
+}
+
+#[test]
+fn announcement_configuration_requires_server_management() {
+    let mut request = input("announcements.disable", vec![]);
+    assert!(parse(&request).is_err());
+    request.moderator = true;
+    assert!(matches!(
+        parse(&request),
+        Ok((10, _, Action::AnnouncementsDisable))
+    ));
+}
+
+#[test]
+fn announcement_actions_require_exact_typed_options() {
+    let mut set = input("announcements.set", vec![channel("channel", 55)]);
+    assert!(parse(&set).is_err());
+    set.moderator = true;
+    assert_eq!(
+        parse(&set).unwrap().2,
+        Action::AnnouncementsSet { channel_id: 55 }
+    );
+
+    for malformed in [
+        input("announcements.set", vec![]),
+        input("announcements.set", vec![number("channel", 55)]),
+        input(
+            "announcements.set",
+            vec![channel("channel", 55), text("extra", "value")],
+        ),
+        input("announcements.status", vec![text("extra", "value")]),
+        input("announcements.disable", vec![text("extra", "value")]),
+    ] {
+        let mut malformed = malformed;
+        malformed.moderator = true;
+        assert!(parse(&malformed).is_err());
+    }
+
+    let mut status = input("announcements.status", vec![]);
+    status.moderator = true;
+    assert!(matches!(
+        parse(&status),
+        Ok((10, _, Action::AnnouncementsStatus))
+    ));
+
+    status.guild_id = None;
+    assert!(parse(&status).is_err());
+    status.guild_id = Some(10);
+    status.bot = true;
+    assert!(parse(&status).is_err());
+}
+
 #[test]
 fn guild_and_bot_metadata_are_enforced() {
     let mut join = input("join", vec![]);
@@ -707,6 +764,116 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
 }
 
 #[test]
+fn announcements_are_registered_as_an_admin_subcommand_group_without_restricting_market() {
+    let registration = serde_json::to_value(super::market_command()).unwrap();
+    assert!(registration["default_member_permissions"].is_null());
+
+    let announcements = registration["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "announcements")
+        .expect("announcement configuration must be discoverable");
+    assert_eq!(announcements["type"], 2);
+    let commands = announcements["options"].as_array().unwrap();
+    assert_eq!(
+        commands
+            .iter()
+            .map(|command| command["name"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["set", "status", "disable"]
+    );
+    let channel = &commands[0]["options"][0];
+    assert_eq!(channel["name"], "channel");
+    assert_eq!(channel["type"], 7);
+    assert_eq!(channel["required"], true);
+    assert_eq!(channel["channel_types"], serde_json::json!([0]));
+}
+
+#[test]
+fn discord_adapter_flattens_only_the_supported_announcement_group() {
+    let mut payload = interaction_json(
+        200,
+        serde_json::json!({
+            "id": "1",
+            "name": "market",
+            "type": 1,
+            "options": [{
+                "name": "announcements",
+                "type": 2,
+                "options": [{
+                    "name": "set",
+                    "type": 1,
+                    "options": [{"name": "channel", "type": 7, "value": "55"}]
+                }]
+            }]
+        }),
+    );
+    payload["member"] = serde_json::json!({
+        "permissions": "32",
+        "roles": [],
+        "deaf": false,
+        "mute": false,
+        "flags": 0,
+        "joined_at": null,
+        "premium_since": null,
+        "user": {
+            "id": "7",
+            "username": "player",
+            "discriminator": "0",
+            "avatar": null
+        }
+    });
+    let command: serenity::all::CommandInteraction = serde_json::from_value(payload).unwrap();
+    assert_eq!(
+        super::from_discord(&command).unwrap(),
+        Input {
+            guild_id: Some(10),
+            user_id: 7,
+            bot: false,
+            moderator: true,
+            subcommand: "announcements.set".into(),
+            options: vec![channel("channel", 55)],
+        }
+    );
+    for name in ["status", "disable"] {
+        let mut command = command.clone();
+        command.data.options = serde_json::from_value(serde_json::json!([{
+            "name": "announcements",
+            "type": 2,
+            "options": [{"name": name, "type": 1, "options": []}]
+        }]))
+        .unwrap();
+        let input = super::from_discord(&command).unwrap();
+        assert_eq!(input.subcommand, format!("announcements.{name}"));
+        assert!(input.options.is_empty());
+    }
+
+    for options in [
+        serde_json::json!([]),
+        serde_json::json!([
+            {"name": "set", "type": 1, "options": []},
+            {"name": "status", "type": 1, "options": []}
+        ]),
+        serde_json::json!([{"name": "unknown", "type": 1, "options": []}]),
+        serde_json::json!([{
+            "name": "nested",
+            "type": 2,
+            "options": [{"name": "status", "type": 1, "options": []}]
+        }]),
+    ] {
+        let mut malformed = command.clone();
+        malformed.data.options = serde_json::from_value(serde_json::json!([{
+            "name": "announcements",
+            "type": 2,
+            "options": options
+        }]))
+        .unwrap();
+        assert!(super::from_discord(&malformed).is_err());
+    }
+}
+
+#[test]
 fn help_is_registered_without_arguments_and_parses_before_enrollment() {
     let registration = serde_json::to_value(super::market_command()).unwrap();
     let help = registration["options"]
@@ -736,6 +903,7 @@ fn help_explains_getting_started_without_an_account() {
         "/market list",
         "/market balance",
         "/market leaderboard",
+        "/market announcements",
         "Manage Guild",
     ] {
         assert!(content.contains(guidance), "missing guidance: {guidance}");
@@ -1412,4 +1580,397 @@ async fn ignored_messages_neither_send_nor_emit_audit_events() {
 
     assert!(server.received_requests().await.unwrap().is_empty());
     assert!(recorder.0.lock().unwrap().is_empty());
+}
+
+fn guild_json(permissions: u64) -> serde_json::Value {
+    serde_json::json!({
+        "id": "10",
+        "name": "Test guild",
+        "icon": null,
+        "icon_hash": null,
+        "splash": null,
+        "discovery_splash": null,
+        "owner_id": "7",
+        "afk_channel_id": null,
+        "afk_timeout": 60,
+        "widget_enabled": false,
+        "widget_channel_id": null,
+        "verification_level": 0,
+        "default_message_notifications": 0,
+        "explicit_content_filter": 0,
+        "roles": [{
+            "id": "10",
+            "name": "@everyone",
+            "color": 0,
+            "colors": {"primary_color": 0, "secondary_color": null, "tertiary_color": null},
+            "hoist": false,
+            "managed": false,
+            "mentionable": false,
+            "permissions": permissions.to_string(),
+            "position": 0,
+            "tags": {},
+            "icon": null,
+            "unicode_emoji": null
+        }],
+        "emojis": [],
+        "features": [],
+        "mfa_level": 0,
+        "application_id": null,
+        "system_channel_id": null,
+        "system_channel_flags": 0,
+        "rules_channel_id": null,
+        "max_presences": null,
+        "max_members": null,
+        "vanity_url_code": null,
+        "description": null,
+        "banner": null,
+        "premium_tier": 0,
+        "premium_subscription_count": null,
+        "preferred_locale": "en-US",
+        "public_updates_channel_id": null,
+        "max_video_channel_users": null,
+        "max_stage_video_channel_users": null,
+        "approximate_member_count": null,
+        "approximate_presence_count": null,
+        "welcome_screen": null,
+        "nsfw_level": 0,
+        "stickers": [],
+        "premium_progress_bar_enabled": false,
+        "safety_alerts_channel_id": null,
+        "incidents_data": null
+    })
+}
+
+fn channel_json(guild: u64, kind: u8, deny: u64) -> serde_json::Value {
+    serde_json::json!({
+        "id": "55",
+        "guild_id": guild.to_string(),
+        "type": kind,
+        "name": "announcements",
+        "position": 0,
+        "permission_overwrites": [{
+            "id": "10",
+            "type": 0,
+            "allow": "0",
+            "deny": deny.to_string()
+        }]
+    })
+}
+
+fn bot_member_json() -> serde_json::Value {
+    let mut user = serenity::all::User::default();
+    user.id = serenity::all::UserId::new(99);
+    user.bot = true;
+    serde_json::json!({
+        "user": user,
+        "nick": null,
+        "avatar": null,
+        "banner": null,
+        "roles": [],
+        "joined_at": null,
+        "premium_since": null,
+        "deaf": false,
+        "mute": false,
+        "flags": 0,
+        "pending": false,
+        "permissions": null,
+        "communication_disabled_until": null,
+        "unusual_dm_activity_until": null,
+        "avatar_decoration_data": null
+    })
+}
+
+async fn mount_destination_reads(
+    server: &MockServer,
+    channel: serde_json::Value,
+    permissions: u64,
+) {
+    Mock::given(method("GET"))
+        .and(path("/api/v10/channels/55"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(channel))
+        .expect(1)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/guilds/10"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(guild_json(permissions)))
+        .expect(1)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/guilds/10/members/99"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(bot_member_json()))
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn destination_validation_uses_real_http_and_effective_bot_permissions() {
+    let server = MockServer::start().await;
+    mount_destination_reads(&server, channel_json(10, 0, 0), 1024 | 2048).await;
+
+    assert_eq!(
+        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        Ok(())
+    );
+    assert_eq!(server.received_requests().await.unwrap().len(), 3);
+}
+
+#[tokio::test]
+async fn destination_validation_rejects_cross_guild_non_text_missing_permissions_and_reads() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/channels/55"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(channel_json(11, 0, 0)))
+        .expect(1)
+        .mount(&server)
+        .await;
+    assert_eq!(
+        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        Err("Choose a text channel in this server.")
+    );
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/channels/55"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(channel_json(10, 2, 0)))
+        .expect(1)
+        .mount(&server)
+        .await;
+    assert_eq!(
+        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        Err("Choose a text channel in this server.")
+    );
+
+    let server = MockServer::start().await;
+    mount_destination_reads(&server, channel_json(10, 0, 2048), 1024 | 2048).await;
+    assert_eq!(
+        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        Err("I need View Channel and Send Messages in that channel.")
+    );
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/channels/55"))
+        .respond_with(ResponseTemplate::new(503))
+        .expect(1)
+        .mount(&server)
+        .await;
+    assert_eq!(
+        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        Err("I could not verify that channel. Please try again.")
+    );
+}
+
+fn admin_announcement_command(
+    id: u64,
+    subcommand: &str,
+    options: serde_json::Value,
+) -> serenity::all::CommandInteraction {
+    let mut payload = interaction_json(
+        id,
+        serde_json::json!({
+            "id": "1",
+            "name": "market",
+            "type": 1,
+            "options": [{
+                "name": "announcements",
+                "type": 2,
+                "options": [{
+                    "name": subcommand,
+                    "type": 1,
+                    "options": options
+                }]
+            }]
+        }),
+    );
+    payload["member"] = serde_json::json!({
+        "permissions": "32",
+        "roles": [],
+        "deaf": false,
+        "mute": false,
+        "flags": 0,
+        "joined_at": null,
+        "premium_since": null,
+        "user": {
+            "id": "7",
+            "username": "admin",
+            "discriminator": "0",
+            "avatar": null
+        }
+    });
+    serde_json::from_value(payload).unwrap()
+}
+
+async fn mount_deferred_reply(server: &MockServer, id: u64) {
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/api/v10/interactions/{id}/test-interaction-token/callback"
+        )))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v10/webhooks/42/test-interaction-token/messages/@original",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn set_handler_validates_before_writing_and_keeps_failures_private_and_non_pinging() {
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder).await;
+    let server = MockServer::start().await;
+    mount_deferred_reply(&server, 201).await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/channels/55"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(channel_json(11, 0, 0)))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    handler
+        .handle(
+            &discord_http(&server),
+            admin_announcement_command(
+                201,
+                "set",
+                serde_json::json!([{"name": "channel", "type": 7, "value": "55"}]),
+            ),
+        )
+        .await;
+
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 3);
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["type"],
+        5
+    );
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
+        64
+    );
+    let response = requests[2].body_json::<serde_json::Value>().unwrap();
+    assert_eq!(response["content"], "Choose a text channel in this server.");
+    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert!(!requests.iter().any(|request| {
+        request.method.as_str() == "POST" && request.url.path() == "/api/v10/channels/55/messages"
+    }));
+}
+
+#[tokio::test]
+async fn set_handler_uses_successful_http_validation_before_store_configuration() {
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder).await;
+    let server = MockServer::start().await;
+    mount_deferred_reply(&server, 202).await;
+    mount_destination_reads(&server, channel_json(10, 0, 0), 1024 | 2048).await;
+
+    handler
+        .handle(
+            &discord_http(&server),
+            admin_announcement_command(
+                202,
+                "set",
+                serde_json::json!([{"name": "channel", "type": 7, "value": "55"}]),
+            ),
+        )
+        .await;
+
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 5);
+    let response = requests
+        .last()
+        .unwrap()
+        .body_json::<serde_json::Value>()
+        .unwrap();
+    assert_eq!(
+        response["content"],
+        "The prediction economy is temporarily unavailable. Please try again."
+    );
+    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert!(
+        !requests
+            .iter()
+            .any(|request| request.url.path() == "/api/v10/channels/55/messages")
+    );
+}
+
+#[test]
+fn announcement_status_and_receipts_explain_delivery_state() {
+    let status = crate::announcements::AnnouncementStatus {
+        channel_id: Some(55),
+        enabled: true,
+        version: 3,
+        pause_reason: Some("The configured channel is unavailable.".into()),
+        pending: 4,
+    };
+    let rendered = super::announcements::render_status(&status);
+    for detail in [
+        "<#55>",
+        "Status: paused",
+        "Pending: 4",
+        "Reason: The configured channel is unavailable.",
+    ] {
+        assert!(rendered.contains(detail), "missing status detail: {detail}");
+    }
+
+    let changed =
+        super::announcements::configuration_receipt("Announcements enabled for <#55>.", false);
+    assert!(changed.contains("Pending announcements will use this destination."));
+    assert!(changed.contains("already in flight"));
+    let disabled = super::announcements::configuration_receipt("Announcements disabled.", true);
+    assert!(disabled.contains("Pending announcements were discarded."));
+    assert!(disabled.contains("already in flight"));
+}
+
+#[tokio::test]
+async fn status_and_disable_handlers_use_private_deferred_store_paths() {
+    use crate::audit::AuditEvent;
+
+    for (id, action) in [(203, "status"), (204, "disable")] {
+        let recorder = std::sync::Arc::new(AuditRecorder::default());
+        let handler = unavailable_handler(recorder.clone()).await;
+        let server = MockServer::start().await;
+        mount_deferred_reply(&server, id).await;
+
+        handler
+            .handle(
+                &discord_http(&server),
+                admin_announcement_command(id, action, serde_json::json!([])),
+            )
+            .await;
+
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 2);
+        assert_eq!(
+            requests[0].body_json::<serde_json::Value>().unwrap()["type"],
+            5
+        );
+        assert_eq!(
+            requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
+            64
+        );
+        let response = requests[1].body_json::<serde_json::Value>().unwrap();
+        assert_eq!(
+            response["content"],
+            "The prediction economy is temporarily unavailable. Please try again."
+        );
+        assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
+        assert!(
+            !recorder
+                .0
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| matches!(event, AuditEvent::QueryCompleted { .. })),
+            "{action} fell through to the economy query path"
+        );
+    }
 }

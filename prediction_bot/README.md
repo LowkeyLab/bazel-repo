@@ -57,6 +57,14 @@ All timestamps are represented as whole Unix seconds. Fractional seconds in RFC 
 
 The direct shortcuts remain available: `/market create question options closes_at` requires all three fields, outcomes separated by `|` (for example `Yes | No`), and an RFC 3339 close time. `/market bet id outcome amount` uses the displayed **one-based** outcome number and a positive integer stake. `/market balance` and `/market leaderboard` show current points. `/market resolve id outcome` requires the market to have closed; `/market cancel id` can be used before or after close while the market is unresolved. Both moderation commands require Administrator or Manage Guild permission. Slash-command responses are private to the invoking member and do not ping users or roles.
 
+### Market announcements
+
+A server Administrator or member with Manage Guild permission can run `/market announcements set channel` to choose one ordinary server text channel. The bot validates that the channel belongs to the server and that its effective permissions include **View Channel** and **Send Messages** before saving it. The root `/market` command remains available to every server member. Configuration responses are private and suppress user and role pings.
+
+When enabled, the bot announces market creation, resolution, and cancellation. It does not announce bets and does not backfill events that happened before announcements were enabled. Use `/market announcements status` to see the configured channel, whether delivery is enabled or paused, the pending count, and any safe pause reason.
+
+Failed deliveries retry after five seconds with an increasing delay capped at five minutes; provider-requested longer delays are respected, and there is no attempt limit. Delivery is at least once: an uncertain Discord response can cause a duplicate announcement. Changing the destination moves pending work to the new channel, but an announcement already in flight can still reach the old channel. `/market announcements disable` stops future enqueueing and permanently discards pending announcements; reenabling later does not restore discarded work, though an in-flight request may still complete.
+
 The grant worker checks due schedules once per minute and catches up all missed intervals. Its stream command key and guild transaction lock prevent double grants. The process holds a PostgreSQL gateway advisory lock so only one gateway process runs for an application. Stop with Ctrl-C or SIGTERM for a graceful shutdown.
 
 ## Operational audit records
