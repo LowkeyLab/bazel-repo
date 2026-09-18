@@ -1,3 +1,4 @@
+pub mod announcements;
 pub mod audit;
 pub mod discord;
 pub mod domain;

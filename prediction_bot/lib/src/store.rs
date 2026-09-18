@@ -132,6 +132,26 @@ impl Store {
                 "run the supported schema migration first",
             ));
         }
+        let announcements_installed: bool = sqlx::query_scalar(
+            "SELECT to_regclass('prediction_announcement_settings') IS NOT NULL AND to_regclass('prediction_announcement_outbox') IS NOT NULL",
+        )
+        .fetch_one(&pool)
+        .await?;
+        if !announcements_installed {
+            return Err(StoreError::Configuration(
+                "run the supported schema migration first",
+            ));
+        }
+        let announcements_migrated: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM _sqlx_migrations WHERE version=3 AND success)",
+        )
+        .fetch_one(&pool)
+        .await?;
+        if !announcements_migrated {
+            return Err(StoreError::Configuration(
+                "run the supported schema migration first",
+            ));
+        }
         let mutable: bool = sqlx::query_scalar("SELECT has_table_privilege('prediction_events', 'UPDATE,DELETE,TRUNCATE') OR has_table_privilege('prediction_commands', 'UPDATE,DELETE,TRUNCATE')").fetch_one(&pool).await?;
         if mutable {
             return Err(StoreError::Configuration(
@@ -619,6 +639,13 @@ pub async fn migrate(pool: &PgPool, runtime_password: &str) -> Result<(), StoreE
             "application login".into(),
             MigrationType::Simple,
             include_str!("../../migrations/002_application_login.sql").into_sql_str(),
+            false,
+        ),
+        Migration::new(
+            3,
+            "announcements".into(),
+            MigrationType::Simple,
+            include_str!("../../migrations/003_announcements.sql").into_sql_str(),
             false,
         ),
     ]);

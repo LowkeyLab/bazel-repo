@@ -1,5 +1,6 @@
 use prediction_bot::store::{Store, StoreError, migrate};
 use prediction_bot::{
+    announcements::ConfigurationChange,
     audit::{AuditEvent, AuditListener, Outcome, Rejection, SharedAudit, Stage},
     domain::{Actor, Command, Policy},
 };
@@ -496,6 +497,47 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
+    store
+        .configure_announcements(
+            1,
+            "discord:2",
+            Actor {
+                user_id: 9,
+                moderator: true,
+                bot: false,
+            },
+            ConfigurationChange::Set { channel_id: 20 },
+        )
+        .await
+        .unwrap();
+    let status = store
+        .announcement_status(
+            1,
+            Actor {
+                user_id: 9,
+                moderator: true,
+                bot: false,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(status.enabled);
+    assert_eq!(status.channel_id, Some(20));
+    sqlx::query("INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ('1',1,1,'{}'::jsonb,0)")
+        .execute(&runtime)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE prediction_announcement_outbox SET attempts=1,next_attempt_at=5 WHERE guild_id='1' AND revision=1")
+        .execute(&runtime)
+        .await
+        .unwrap();
+    let attempts: i64 = sqlx::query_scalar(
+        "SELECT attempts FROM prediction_announcement_outbox WHERE guild_id='1' AND revision=1",
+    )
+    .fetch_one(&runtime)
+    .await
+    .unwrap();
+    assert_eq!(attempts, 1);
     for query in [
         "UPDATE prediction_events SET accepted_at=0",
         "DELETE FROM prediction_events",
@@ -513,6 +555,34 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         );
     }
     assert_eq!(owner.view(1).await.unwrap().state.accounts[&7].balance, 100);
+}
+
+#[tokio::test]
+async fn startup_rejects_a_missing_announcements_migration_record() {
+    let (container, owner) = fixture().await;
+    sqlx::query("DELETE FROM _sqlx_migrations WHERE version=3")
+        .execute(&owner.pool)
+        .await
+        .unwrap();
+    let runtime_url = format!(
+        "postgres://prediction_bot_app:test-runtime-%27password%5Cwith-special-characters@{}:{}/postgres",
+        container.get_host().await.unwrap(),
+        container.get_host_port_ipv4(5432).await.unwrap()
+    );
+
+    let error = Store::connect(
+        &runtime_url,
+        42,
+        Policy {
+            amount: 100,
+            interval: 86_400,
+        },
+    )
+    .await
+    .err()
+    .unwrap();
+
+    assert!(matches!(error, StoreError::Configuration(_)));
 }
 
 #[tokio::test]
@@ -639,7 +709,7 @@ async fn repeated_migrations_preserve_events_and_login_credentials() {
             .fetch_all(&store.pool)
             .await
             .unwrap();
-    assert_eq!(versions, vec![1, 2]);
+    assert_eq!(versions, vec![1, 2, 3]);
     let options = PgConnectOptions::new()
         .host(&container.get_host().await.unwrap().to_string())
         .port(container.get_host_port_ipv4(5432).await.unwrap())
