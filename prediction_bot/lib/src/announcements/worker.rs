@@ -31,6 +31,22 @@ pub(crate) fn classify_delivery_failure(error: &serenity::Error) -> AttemptOutco
         | serenity::Error::Io(_)
         | serenity::Error::Gateway(_)
         | serenity::Error::Tungstenite(_) => retry("transport"),
+        serenity::Error::Http(
+            HttpError::Url(_)
+            | HttpError::InvalidWebhook
+            | HttpError::InvalidHeader(_)
+            | HttpError::InvalidScheme
+            | HttpError::InvalidPort
+            | HttpError::ApplicationIdMissing,
+        )
+        | serenity::Error::Model(_)
+        | serenity::Error::Format(_)
+        | serenity::Error::ExceededLimit(_, _)
+        | serenity::Error::NotInRange(_, _, _, _)
+        | serenity::Error::Url(_) => {
+            pause("The announcement could not be prepared for Discord; contact an operator.")
+        }
+        serenity::Error::Json(_) => retry("discord_json"),
         serenity::Error::Http(_) => retry("discord_http"),
         _ => retry("discord_transport"),
     }

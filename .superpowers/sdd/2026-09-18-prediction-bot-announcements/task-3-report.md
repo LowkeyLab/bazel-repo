@@ -59,3 +59,15 @@ It reported that no files were modified.
 - `PendingAnnouncement` and the `AttemptOutcome::Delivered` variant emit dead-code warnings until Task 4 consumes them. These are expected handoff APIs, not unused final design.
 - Provider-specific retry delays are accepted by `retry_at`; Serenity's normal rate limiter handles provider responses and Task 4 can pass a surfaced delay when available.
 - Full-repository `aspect build //...` is assigned to the parent agent and was not run here.
+
+## Review fix round 1
+
+Review found that the initial catch-all classified permanent local Serenity model and HTTP request-construction failures as retryable. Focused RED verification ran 67 tests: 65 passed and 2 failed. `ModelError::MessageTooLong` returned the retry catch-all, and the new explicit JSON classification had not been implemented.
+
+Pinned Serenity 0.12.5 source shows that `Http::send_message` calls `to_vec(map)?` before sending, while `Http::fire` calls `request` and then `decode_resp` on a successful response. Both paths use `Error::Json`, so a JSON error alone cannot prove that Discord rejected or never accepted the request. JSON failures therefore remain retryable to preserve recovery from the documented acknowledgement gap. Model errors and explicit local HTTP URL/header/webhook/configuration variants are known pre-request failures and now pause with a fixed safe operator reason. No raw error detail is persisted.
+
+Regression coverage also confirms that a valid 36-byte market ID remains intact under Unicode truncation and that HTTP 429 remains retryable under Serenity's normal rate limiter. After implementation, the focused target passed all 67 tests, including 10 announcement tests:
+
+```sh
+nix develop --command aspect test //prediction_bot/lib:discord_test --test_filter=announcements --test_output=errors
+```

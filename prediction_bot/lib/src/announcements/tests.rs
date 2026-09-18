@@ -113,6 +113,53 @@ fn retry_ignores_negative_provider_delays() {
 }
 
 #[test]
+fn truncation_preserves_a_valid_maximum_length_market_id() {
+    let id = "12345678-1234-1234-1234-123456789abc";
+    let payload = payload(SnapshotV1::Created {
+        id: id.into(),
+        question: "🔮".repeat(1_500),
+        creator: 7,
+        options: vec!["A".repeat(1_500), "B".into()],
+        closes_at: 2_000,
+        occurred_at: 1_000,
+    });
+
+    assert!(content(&payload).starts_with(&format!("📈 Market created\nMarket ID: `{id}`")));
+}
+
+#[test]
+fn permanent_local_delivery_errors_pause_without_copying_details() {
+    let model = serenity::Error::Model(serenity::model::ModelError::MessageTooLong(1));
+    assert_eq!(
+        classify_delivery_failure(&model),
+        AttemptOutcome::Pause {
+            reason: "The announcement could not be prepared for Discord; contact an operator.",
+        }
+    );
+
+    let missing_application =
+        serenity::Error::Http(serenity::http::HttpError::ApplicationIdMissing);
+    assert_eq!(
+        classify_delivery_failure(&missing_application),
+        AttemptOutcome::Pause {
+            reason: "The announcement could not be prepared for Discord; contact an operator.",
+        }
+    );
+}
+
+#[test]
+fn ambiguous_json_errors_retry_because_discord_may_have_accepted_the_message() {
+    let json = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+    assert_eq!(
+        classify_delivery_failure(&serenity::Error::Json(json)),
+        AttemptOutcome::Retry {
+            reason: "discord_json",
+            provider_delay: None,
+        }
+    );
+}
+
+#[test]
 fn http_failures_use_safe_delivery_outcomes() {
     let transport = serenity::Error::Io(std::io::Error::new(
         std::io::ErrorKind::ConnectionReset,
@@ -122,6 +169,13 @@ fn http_failures_use_safe_delivery_outcomes() {
         classify_delivery_failure(&transport),
         AttemptOutcome::Retry {
             reason: "transport",
+            provider_delay: None,
+        }
+    );
+    assert_eq!(
+        classify_http_failure(429, 0),
+        AttemptOutcome::Retry {
+            reason: "discord_rate_limit",
             provider_delay: None,
         }
     );
