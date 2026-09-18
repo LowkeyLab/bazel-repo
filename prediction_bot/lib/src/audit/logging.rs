@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use super::{AuditEvent, AuditListener, FailureCategory, Outcome, Stage};
+use super::{AuditEvent, AuditListener, FailureCategory, LifecycleKind, Outcome, Stage};
 
 pub(super) struct LoggingListener;
 
@@ -51,12 +51,34 @@ impl<'a> From<&'a Outcome> for OutcomeFields<'a> {
     }
 }
 
-fn level(stage: Stage, outcome: &Outcome) -> Level {
+fn level(event: &AuditEvent, outcome: &Outcome) -> Level {
     match outcome {
         Outcome::Succeeded | Outcome::Rejected(_) => Level::Info,
+        Outcome::Failed(_)
+            if matches!(
+                event,
+                AuditEvent::InteractionCompleted {
+                    stage: Stage::Acknowledge | Stage::Deliver,
+                    ..
+                }
+            ) =>
+        {
+            Level::Warn
+        }
         Outcome::Failed(failure)
-            if matches!(stage, Stage::Acknowledge | Stage::Deliver)
-                || failure.category == FailureCategory::Timeout =>
+            if failure.category == FailureCategory::Timeout
+                && failure.sqlstate.is_none()
+                && matches!(
+                    event,
+                    AuditEvent::QueryCompleted {
+                        stage: Stage::Query,
+                        ..
+                    } | AuditEvent::Lifecycle {
+                        kind: LifecycleKind::Shutdown,
+                        stage: Stage::GatewayShutdown | Stage::GrantWorkerShutdown,
+                        ..
+                    }
+                ) =>
         {
             Level::Warn
         }
@@ -118,7 +140,7 @@ impl AuditListener for LoggingListener {
             } => {
                 let fields = OutcomeFields::from(outcome);
                 emit!(
-                    level(*stage, outcome),
+                    level(event, outcome),
                     "command_completed",
                     fields,
                     "command.kind" = command.as_str(),
@@ -138,7 +160,7 @@ impl AuditListener for LoggingListener {
             } => {
                 let fields = OutcomeFields::from(outcome);
                 emit!(
-                    level(*stage, outcome),
+                    level(event, outcome),
                     "query_completed",
                     fields,
                     "query.kind" = query.as_str(),
@@ -156,7 +178,7 @@ impl AuditListener for LoggingListener {
             } => {
                 let fields = OutcomeFields::from(outcome);
                 emit!(
-                    level(*stage, outcome),
+                    level(event, outcome),
                     "interaction_completed",
                     fields,
                     "interaction.guild" = *guild,
@@ -171,7 +193,7 @@ impl AuditListener for LoggingListener {
             } => {
                 let fields = OutcomeFields::from(outcome);
                 emit!(
-                    level(*stage, outcome),
+                    level(event, outcome),
                     "grant_failed",
                     fields,
                     "grant.guild" = *guild,
@@ -185,7 +207,7 @@ impl AuditListener for LoggingListener {
             } => {
                 let fields = OutcomeFields::from(outcome);
                 emit!(
-                    level(*stage, outcome),
+                    level(event, outcome),
                     "registration_completed",
                     fields,
                     "registration.guild" = *guild,
@@ -200,7 +222,7 @@ impl AuditListener for LoggingListener {
             } => {
                 let fields = OutcomeFields::from(outcome);
                 emit!(
-                    level(*stage, outcome),
+                    level(event, outcome),
                     "lifecycle",
                     fields,
                     "lifecycle.kind" = kind.as_str(),

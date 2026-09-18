@@ -145,6 +145,10 @@ impl Store {
         Ok(store)
     }
 
+    pub(crate) const fn application_id(&self) -> u64 {
+        self.application
+    }
+
     pub(crate) fn audit(&self) -> &SharedAudit {
         &self.audit
     }

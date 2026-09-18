@@ -1090,7 +1090,7 @@ async fn gateway_guard_failure_is_reported_before_run_returns() {
         recorder.0.lock().unwrap().as_slice(),
         [AuditEvent::Lifecycle {
             kind: LifecycleKind::Startup,
-            application_id: None,
+            application_id: Some(42),
             stage: Stage::Acquire,
             outcome: Outcome::Failed(Failure {
                 category: FailureCategory::Connection,

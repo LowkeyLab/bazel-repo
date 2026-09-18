@@ -908,13 +908,14 @@ async fn shutdown_signal() -> Result<(), std::io::Error> {
 /// Returns an error if the gateway lock, Discord connection, or shutdown signal cannot initialize,
 /// or if the gateway fails while running.
 pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
+    let application_id = Some(store.application_id());
     let mut guard = match store.gateway_guard().await {
         Ok(guard) => guard,
         Err(error) => {
             lifecycle(
                 store.audit().as_ref(),
                 LifecycleKind::Startup,
-                None,
+                application_id,
                 Stage::Acquire,
                 store_outcome(Stage::Acquire, &error),
             );
@@ -927,7 +928,7 @@ pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
         lifecycle(
             store.audit().as_ref(),
             LifecycleKind::Shutdown,
-            None,
+            application_id,
             Stage::GatewayLockRelease,
             store_outcome(Stage::GatewayLockRelease, &StoreError::Database(error)),
         );
@@ -949,6 +950,7 @@ fn lifecycle(
     });
 }
 async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
+    let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
     let client = Client::builder(&token, GatewayIntents::GUILDS)
         .event_handler(Handler {
@@ -961,7 +963,7 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
             lifecycle(
                 audit.as_ref(),
                 LifecycleKind::Startup,
-                None,
+                application_id,
                 Stage::Startup,
                 Outcome::Failed(discord_failure(&error)),
             );
@@ -977,9 +979,9 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
         result = shutdown_signal() => {
             match result {
                 Ok(()) => {
-                    lifecycle(audit.as_ref(), LifecycleKind::Shutdown, None, Stage::ShutdownRequested, Outcome::Succeeded);
+                    lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::ShutdownRequested, Outcome::Succeeded);
                     shards.shutdown_all().await;
-                    if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { lifecycle(audit.as_ref(), LifecycleKind::Shutdown, None, Stage::GatewayShutdown, category_failure(FailureCategory::Timeout)); }
+                    if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::GatewayShutdown, category_failure(FailureCategory::Timeout)); }
                     Ok(())
                 }
                 Err(error) => Err(DiscordError::Signal(error)),
@@ -995,7 +997,7 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
         lifecycle(
             audit.as_ref(),
             LifecycleKind::Shutdown,
-            None,
+            application_id,
             Stage::GrantWorkerShutdown,
             category_failure(FailureCategory::Timeout),
         );
@@ -1005,7 +1007,7 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
     lifecycle(
         audit.as_ref(),
         LifecycleKind::Shutdown,
-        None,
+        application_id,
         Stage::Shutdown,
         match &result {
             Ok(()) => Outcome::Succeeded,
