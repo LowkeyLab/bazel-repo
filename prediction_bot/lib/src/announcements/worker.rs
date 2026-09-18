@@ -37,7 +37,7 @@ pub(crate) enum AttemptOutcome {
 }
 
 pub(crate) fn retry_at(now: i64, failures: i64, provider_delay: Option<i64>) -> i64 {
-    let exponent = failures.saturating_sub(1).clamp(0, 6) as u32;
+    let exponent = u32::try_from(failures.saturating_sub(1).clamp(0, 6)).unwrap_or(6);
     let local_delay = 5_i64.saturating_mul(1_i64 << exponent).min(300);
     let delay = local_delay.max(provider_delay.unwrap_or(0).max(0));
     now.saturating_add(delay)
@@ -204,10 +204,10 @@ async fn await_attempts(tasks: &mut Attempts) -> Result<(), StoreError> {
         let result = result.unwrap_or(Err(StoreError::History(
             "announcement delivery task failed",
         )));
-        if let Err(error) = result {
-            if failure.is_none() {
-                failure = Some(error);
-            }
+        if let Err(error) = result
+            && failure.is_none()
+        {
+            failure = Some(error);
         }
     }
     failure.map_or(Ok(()), Err)

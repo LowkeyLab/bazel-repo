@@ -36,6 +36,10 @@ fn create(id: &str) -> Command {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep the event sequence and independently specified durable snapshots in one scenario"
+)]
 async fn market_events_enqueue_durable_snapshots_once_at_their_original_revisions() {
     let (_container, store, owner) = fixture().await;
     store
@@ -1311,33 +1315,34 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
             .await
             .unwrap()
             .unwrap();
-        let events = audit.events.lock().unwrap();
-        assert!(events.iter().any(|event| match event {
-            AuditEvent::AnnouncementAttemptCompleted {
-                guild: 10,
-                revision: 4,
-                channel_id: 20,
-                decision,
-                outcome: Outcome::Failed(failure),
-                stage,
-                ..
-            } => {
-                if rejected {
-                    *decision == AnnouncementDecision::Pause
-                        && *stage == Stage::Deliver
-                        && failure.http_status == Some(403)
-                        && failure.discord_code == Some(50013)
-                } else {
-                    *decision == AnnouncementDecision::Delivered
-                        && *stage == Stage::Commit
-                        && failure.category == FailureCategory::Constraint
-                        && failure.sqlstate.as_deref() == Some("23514")
+        {
+            let events = audit.events.lock().unwrap();
+            assert!(events.iter().any(|event| match event {
+                AuditEvent::AnnouncementAttemptCompleted {
+                    guild: 10,
+                    revision: 4,
+                    channel_id: 20,
+                    decision,
+                    outcome: Outcome::Failed(failure),
+                    stage,
+                    ..
+                } => {
+                    if rejected {
+                        *decision == AnnouncementDecision::Pause
+                            && *stage == Stage::Deliver
+                            && failure.http_status == Some(403)
+                            && failure.discord_code == Some(50013)
+                    } else {
+                        *decision == AnnouncementDecision::Delivered
+                            && *stage == Stage::Commit
+                            && failure.category == FailureCategory::Constraint
+                            && failure.sqlstate.as_deref() == Some("23514")
+                    }
                 }
-            }
-            _ => false,
-        }));
-        assert!(!format!("{events:?}").contains("sentinel"));
-        drop(events);
+                _ => false,
+            }));
+            assert!(!format!("{events:?}").contains("sentinel"));
+        }
         assert_eq!(
             store
                 .announcement_status(10, admin())
@@ -1467,6 +1472,10 @@ async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep configuration, slash and modal replay assertions in one adapter composition scenario"
+)]
 async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
     use prediction_bot::discord::handle_interaction;
     use serenity::all::Interaction;
@@ -1510,7 +1519,7 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
         .mount(&server)
         .await;
 
-    let configure = Interaction::Command(serde_json::from_value(interaction_json(201, json!({
+    let configure = Interaction::Command(serde_json::from_value(interaction_json(201, &json!({
         "id": "1", "name": "market", "type": 1,
         "options": [{"name": "announcements", "type": 2, "options": [{
             "name": "set", "type": 1, "options": [{"name": "channel", "type": 7, "value": "55"}]
@@ -1519,7 +1528,7 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
     let slash = Interaction::Command(
         serde_json::from_value(interaction_json(
             202,
-            json!({
+            &json!({
                 "id": "1", "name": "market", "type": 1,
                 "options": [{"name": "create", "type": 1, "options": [
                     {"name": "question", "type": 3, "value": "Slash-created market?"},
@@ -1530,7 +1539,7 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
         ))
         .unwrap(),
     );
-    let modal = Interaction::Modal(serde_json::from_value(interaction_json(203, json!({
+    let modal = Interaction::Modal(serde_json::from_value(interaction_json(203, &json!({
         "custom_id": "pm:10:7:new:yesno",
         "components": [
             {"type": 1, "components": [{"type": 4, "custom_id": "question", "style": 1, "label": "Question", "value": "Modal-created market?"}]},

@@ -282,7 +282,7 @@ pub async fn mount_replayed_destination_validation(server: &wiremock::MockServer
 }
 
 /// A complete incoming interaction envelope; only the command/form data varies.
-pub fn interaction_json(id: u64, data: serde_json::Value) -> serde_json::Value {
+pub fn interaction_json(id: u64, data: &serde_json::Value) -> serde_json::Value {
     serde_json::json!({
         "id": id.to_string(), "application_id": "42", "guild_id": "10", "channel_id": "20",
         "token": "test-interaction-token", "version": 1, "locale": "en-US", "entitlements": [],

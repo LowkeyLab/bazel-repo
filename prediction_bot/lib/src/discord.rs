@@ -528,6 +528,10 @@ fn render_market(id: &str, market: &Market, now: i64) -> String {
     }
     out
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep the declarative market command schema together"
+)]
 fn market_command() -> CreateCommand {
     use CommandOptionType::{Channel, Integer, String as Text, SubCommand, SubCommandGroup};
     let required =
@@ -1212,6 +1216,10 @@ async fn run_gateway_client(store: Arc<Store>, client: Client) -> Result<(), Dis
     run_gateway_client_with_clock(store, client, Arc::new(|| chrono::Utc::now().timestamp())).await
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep worker ownership and the shared shutdown deadline visible in one lifecycle"
+)]
 async fn run_gateway_client_with_clock(
     store: Arc<Store>,
     mut client: Client,

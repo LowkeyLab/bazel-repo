@@ -137,6 +137,10 @@ macro_rules! emit {
 }
 
 impl AuditListener for LoggingListener {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "Keep the exhaustive event-to-log field mapping together for review"
+    )]
     fn on_event(&self, event: &AuditEvent) {
         match event {
             AuditEvent::AnnouncementAttemptCompleted {

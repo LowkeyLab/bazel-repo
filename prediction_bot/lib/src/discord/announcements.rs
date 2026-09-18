@@ -73,7 +73,7 @@ pub(super) fn render_status(status: &AnnouncementStatus) -> String {
     let reason = status
         .pause_reason
         .as_deref()
-        .map_or_else(|| "none".to_owned(), |reason| reason.to_owned());
+        .map_or_else(|| "none".to_owned(), str::to_owned);
     format!(
         "Announcement channel: {channel}
 Status: {state}
