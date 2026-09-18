@@ -343,13 +343,34 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
         .await
         .unwrap();
 
-    let created_market = create(CONCURRENT_MARKET);
-    let (disabled, created) = tokio::join!(
-        store.configure_announcements(10, "discord:402", admin(), ConfigurationChange::Disable),
-        store.execute_at(10, "discord:403", admin(), &created_market, 1000),
-    );
-    disabled.unwrap();
-    created.unwrap();
+    // Queue both operations behind the real guild lock and observe each waiter.
+    // Removing either production lock makes this synchronization fail.
+    let mut gate = owner.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(10)")
+        .execute(&mut *gate)
+        .await
+        .unwrap();
+    let disabling = {
+        let store = store.clone();
+        tokio::spawn(async move {
+            store
+                .configure_announcements(10, "discord:402", admin(), ConfigurationChange::Disable)
+                .await
+        })
+    };
+    wait_for_guild_lock_waiters(&owner, 1).await;
+    let creating = {
+        let store = store.clone();
+        tokio::spawn(async move {
+            store
+                .execute_at(10, "discord:403", admin(), &create(CONCURRENT_MARKET), 1000)
+                .await
+        })
+    };
+    wait_for_guild_lock_waiters(&owner, 2).await;
+    gate.commit().await.unwrap();
+    disabling.await.unwrap().unwrap();
+    creating.await.unwrap().unwrap();
 
     let states: Vec<String> = sqlx::query_scalar(
         "SELECT state FROM prediction_announcement_outbox WHERE guild_id='10' ORDER BY revision",
@@ -357,7 +378,7 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
     .fetch_all(&owner)
     .await
     .unwrap();
-    assert!(states.is_empty() || states == ["discarded"]);
+    assert!(states.is_empty());
 }
 
 #[tokio::test]
@@ -479,4 +500,490 @@ async fn repeated_configuration_commands_replay_their_receipts_once() {
     let status = store.announcement_status(10, admin()).await.unwrap();
     assert!(!status.enabled);
     assert_eq!(status.version, 2);
+}
+
+use prediction_bot::announcements::deliver_due;
+use std::sync::Arc;
+use support::{clock, delivered, discord_http, queued, restart};
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{method, path},
+};
+
+#[tokio::test]
+async fn delivery_posts_saved_content_without_mentions_and_records_the_message() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000))
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 1);
+    let payload: serde_json::Value = requests[0].body_json().unwrap();
+    assert!(
+        payload["content"]
+            .as_str()
+            .unwrap()
+            .contains("Market created")
+    );
+    assert!(
+        payload["content"]
+            .as_str()
+            .unwrap()
+            .contains("Will it rain?")
+    );
+    assert_eq!(payload["allowed_mentions"]["parse"], json!([]));
+    assert_eq!(payload["allowed_mentions"]["replied_user"], false);
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+    let receipt: (String, String, String) = sqlx::query_as("SELECT state,delivered_channel_id,delivered_message_id FROM prediction_announcement_outbox").fetch_one(&owner).await.unwrap();
+    assert_eq!(receipt, ("delivered".into(), "20".into(), "99".into()));
+}
+
+#[tokio::test]
+async fn delivery_retries_after_restart_at_the_persisted_deadline() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(500).set_body_json(json!({"code":0,"message":"temporary"})),
+        )
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000))
+        .await
+        .unwrap();
+    let retry: (i64, i64) =
+        sqlx::query_as("SELECT attempts,next_attempt_at FROM prediction_announcement_outbox")
+            .fetch_one(&owner)
+            .await
+            .unwrap();
+    assert_eq!(retry, (1, 1005));
+    let store = restart(&store);
+    server.reset().await;
+    Mock::given(method("POST"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1004))
+        .await
+        .unwrap();
+    assert!(server.received_requests().await.unwrap().is_empty());
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1005))
+        .await
+        .unwrap();
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+}
+
+#[tokio::test]
+async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    queued(&store, 11, 21).await;
+    store
+        .execute_at(
+            10,
+            "discord:resolve",
+            admin(),
+            &Command::Resolve {
+                id: FIXTURE_MARKET.into(),
+                outcome: 0,
+            },
+            2000,
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(path("/api/v10/channels/20/messages"))
+        .respond_with(
+            ResponseTemplate::new(500).set_body_json(json!({"code":0,"message":"temporary"})),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(path("/api/v10/channels/21/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2000))
+        .await
+        .unwrap();
+    assert_eq!(
+        store
+            .announcement_status(11, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        2
+    );
+    let failed: Vec<i64> = sqlx::query_scalar(
+        "SELECT attempts FROM prediction_announcement_outbox WHERE guild_id='10' ORDER BY revision",
+    )
+    .fetch_all(&owner)
+    .await
+    .unwrap();
+    assert_eq!(failed, [1, 0]);
+    server.reset().await;
+    Mock::given(method("POST"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2004))
+        .await
+        .unwrap();
+    assert!(server.received_requests().await.unwrap().is_empty());
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2005))
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(
+        requests[0].body_json::<serde_json::Value>().unwrap()["content"]
+            .as_str()
+            .unwrap()
+            .contains("Market created")
+    );
+    assert!(
+        requests[1].body_json::<serde_json::Value>().unwrap()["content"]
+            .as_str()
+            .unwrap()
+            .contains("Market resolved")
+    );
+}
+
+#[tokio::test]
+async fn delivery_recovers_the_acknowledgement_gap_after_restart() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    sqlx::query("ALTER TABLE prediction_announcement_outbox ADD CONSTRAINT reject_delivery CHECK (state <> 'delivered')").execute(&owner).await.unwrap();
+    assert!(
+        deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000))
+            .await
+            .is_err()
+    );
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        1
+    );
+    sqlx::query("ALTER TABLE prediction_announcement_outbox DROP CONSTRAINT reject_delivery")
+        .execute(&owner)
+        .await
+        .unwrap();
+    let restarted = restart(&store);
+    deliver_due(
+        restarted.clone(),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+    )
+    .await
+    .unwrap();
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+    assert_eq!(
+        restarted
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn delivery_in_flight_configuration_changes_condition_completion() {
+    use std::sync::atomic::{AtomicI64, Ordering};
+    use support::ResponseBarrier;
+    for (disable, success) in [(false, false), (false, true), (true, false), (true, true)] {
+        let (_container, store, owner) = fixture().await;
+        queued(&store, 10, 20).await;
+        let server = MockServer::start().await;
+        let response = if success {
+            delivered()
+        } else {
+            ResponseTemplate::new(403)
+                .set_body_json(json!({"code":50013,"message":"missing permission"}))
+        };
+        let barrier = ResponseBarrier::mount(&server, response).await;
+        let now = Arc::new(AtomicI64::new(1000));
+        let clock: prediction_bot::announcements::Clock = {
+            let now = now.clone();
+            Arc::new(move || now.load(Ordering::SeqCst))
+        };
+        let delivery = tokio::spawn(deliver_due(
+            store.clone(),
+            Arc::new(discord_http(&server)),
+            clock.clone(),
+        ));
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            barrier.arrived.notified(),
+        )
+        .await
+        .expect("send did not reach endpoint");
+        let change = if disable {
+            ConfigurationChange::Disable
+        } else {
+            ConfigurationChange::Set { channel_id: 21 }
+        };
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            store.configure_announcements(10, "discord:change", admin(), change),
+        )
+        .await
+        .expect("HTTP must not hold the guild lock")
+        .unwrap();
+        barrier.release();
+        delivery.await.unwrap().unwrap();
+        let status = store.announcement_status(10, admin()).await.unwrap();
+        assert_eq!(status.pause_reason, None);
+        let row: (String, Option<String>) =
+            sqlx::query_as("SELECT state,delivered_channel_id FROM prediction_announcement_outbox")
+                .fetch_one(&owner)
+                .await
+                .unwrap();
+        if disable {
+            assert_eq!(row, ("discarded".into(), None));
+        } else if success {
+            assert_eq!(row, ("delivered".into(), Some("20".into())));
+        } else {
+            assert_eq!(row, ("pending".into(), None));
+        }
+        server.reset().await;
+        Mock::given(path("/api/v10/channels/21/messages"))
+            .respond_with(delivered())
+            .mount(&server)
+            .await;
+        // Set resets the deadline using wall time; drive the worker from the saved deadline.
+        let deadline: i64 =
+            sqlx::query_scalar("SELECT next_attempt_at FROM prediction_announcement_outbox")
+                .fetch_one(&owner)
+                .await
+                .unwrap();
+        now.store(deadline, Ordering::SeqCst);
+        deliver_due(store.clone(), Arc::new(discord_http(&server)), clock)
+            .await
+            .unwrap();
+        assert_eq!(
+            server.received_requests().await.unwrap().len(),
+            usize::from(!disable && !success)
+        );
+    }
+}
+
+async fn wait_for_guild_lock_waiters(owner: &sqlx::PgPool, expected: i64) {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let waiting: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM pg_locks WHERE locktype='advisory' AND objid=10 AND NOT granted").fetch_one(owner).await.unwrap();
+            if waiting == expected { break; }
+            tokio::task::yield_now().await;
+        }
+    }).await.expect("guild operations did not serialize on the transaction lock");
+}
+
+#[tokio::test]
+async fn enabled_announcements_do_not_enqueue_member_joins() {
+    let (_container, store, owner) = fixture().await;
+    store
+        .configure_announcements(
+            10,
+            "discord:enable",
+            admin(),
+            ConfigurationChange::Set { channel_id: 20 },
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(10, "discord:join", member(), &Command::Join, 1000)
+        .await
+        .unwrap();
+    assert!(
+        store
+            .view(10)
+            .await
+            .unwrap()
+            .state
+            .accounts
+            .contains_key(&8)
+    );
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prediction_announcement_outbox")
+        .fetch_one(&owner)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+}
+
+#[tokio::test]
+async fn delivery_waiting_for_one_guild_completion_does_not_block_another_guild() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    queued(&store, 11, 21).await;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    let mut gate = owner.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(10)")
+        .execute(&mut *gate)
+        .await
+        .unwrap();
+    let delivery = tokio::spawn(deliver_due(
+        store.clone(),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+    ));
+    wait_for_guild_lock_waiters(&owner, 1).await;
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while store
+            .announcement_status(11, admin())
+            .await
+            .unwrap()
+            .pending
+            != 0
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("another guild must complete while guild 10 waits");
+    gate.commit().await.unwrap();
+    delivery.await.unwrap().unwrap();
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn delivery_permission_failure_pauses_until_configuration_changes() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(403)
+                .set_body_json(json!({"code":50013,"message":"sentinel-provider-secret"})),
+        )
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000))
+        .await
+        .unwrap();
+    let status = store.announcement_status(10, admin()).await.unwrap();
+    assert_eq!(status.pending, 1);
+    let reason = status.pause_reason.unwrap();
+    assert!(reason.contains("permission"));
+    assert!(!reason.contains("sentinel"));
+    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2000))
+        .await
+        .unwrap();
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    store
+        .configure_announcements(
+            10,
+            "discord:reset",
+            admin(),
+            ConfigurationChange::Set { channel_id: 21 },
+        )
+        .await
+        .unwrap();
+    server.reset().await;
+    Mock::given(path("/api/v10/channels/21/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    let deadline: i64 =
+        sqlx::query_scalar("SELECT next_attempt_at FROM prediction_announcement_outbox")
+            .fetch_one(&owner)
+            .await
+            .unwrap();
+    deliver_due(
+        store.clone(),
+        Arc::new(discord_http(&server)),
+        clock(deadline),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        store
+            .announcement_status(10, admin())
+            .await
+            .unwrap()
+            .pending,
+        0
+    );
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn delivery_retry_deadline_uses_completion_time_and_saturates_attempts() {
+    use std::sync::atomic::{AtomicI64, Ordering};
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    sqlx::query("UPDATE prediction_announcement_outbox SET attempts=$1")
+        .bind(i64::MAX)
+        .execute(&owner)
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let barrier = support::ResponseBarrier::mount(
+        &server,
+        ResponseTemplate::new(500).set_body_json(json!({"code":0,"message":"temporary"})),
+    )
+    .await;
+    let now = Arc::new(AtomicI64::new(1000));
+    let clock: prediction_bot::announcements::Clock = {
+        let now = now.clone();
+        Arc::new(move || now.load(Ordering::SeqCst))
+    };
+    let delivery = tokio::spawn(deliver_due(store, Arc::new(discord_http(&server)), clock));
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        barrier.arrived.notified(),
+    )
+    .await
+    .unwrap();
+    now.store(1007, Ordering::SeqCst);
+    barrier.release();
+    delivery.await.unwrap().unwrap();
+    let retry: (i64, i64) =
+        sqlx::query_as("SELECT attempts,next_attempt_at FROM prediction_announcement_outbox")
+            .fetch_one(&owner)
+            .await
+            .unwrap();
+    assert_eq!(retry, (i64::MAX, 1307));
 }

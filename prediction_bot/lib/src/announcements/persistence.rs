@@ -274,3 +274,110 @@ impl Store {
         })
     }
 }
+
+pub(crate) async fn next_due(
+    store: &Store,
+    now: i64,
+    limit: i64,
+) -> Result<Vec<super::PendingAnnouncement>, StoreError> {
+    let rows = sqlx::query(
+        "SELECT o.guild_id,o.revision,o.snapshot_version,o.snapshot,o.attempts,s.channel_id,s.configuration_version
+         FROM prediction_announcement_outbox o
+         JOIN prediction_announcement_settings s USING (guild_id)
+         WHERE o.state='pending' AND s.enabled AND s.pause_reason IS NULL
+           AND NOT EXISTS (SELECT 1 FROM prediction_announcement_outbox older
+                           WHERE older.guild_id=o.guild_id AND older.state='pending' AND older.revision<o.revision)
+           AND o.next_attempt_at<=$1
+         ORDER BY o.next_attempt_at,o.guild_id LIMIT $2",
+    ).bind(now).bind(limit.clamp(0, 8)).fetch_all(&store.pool).await?;
+    rows.into_iter()
+        .map(|row| {
+            if row.try_get::<i32, _>("snapshot_version")? != 1 {
+                return Err(StoreError::History(
+                    "unsupported announcement snapshot version",
+                ));
+            }
+            let snapshot = serde_json::from_value(row.try_get("snapshot")?)
+                .map_err(|_| StoreError::History("invalid announcement snapshot"))?;
+            Ok(super::PendingAnnouncement {
+                guild: row
+                    .try_get::<String, _>("guild_id")?
+                    .parse()
+                    .map_err(|_| StoreError::History("invalid announcement guild ID"))?,
+                revision: row.try_get("revision")?,
+                channel_id: row
+                    .try_get::<String, _>("channel_id")?
+                    .parse()
+                    .map_err(|_| StoreError::History("invalid announcement channel ID"))?,
+                configuration_version: row.try_get("configuration_version")?,
+                attempts: row.try_get("attempts")?,
+                snapshot,
+            })
+        })
+        .collect()
+}
+
+pub(crate) async fn still_eligible(
+    store: &Store,
+    item: &super::PendingAnnouncement,
+) -> Result<bool, StoreError> {
+    Ok(sqlx::query_scalar(
+        "SELECT EXISTS (
+           SELECT 1 FROM prediction_announcement_outbox o
+           JOIN prediction_announcement_settings s USING (guild_id)
+           WHERE o.guild_id=$1 AND o.revision=$2 AND o.state='pending'
+             AND s.enabled AND s.pause_reason IS NULL AND s.channel_id=$3 AND s.configuration_version=$4
+             AND NOT EXISTS (SELECT 1 FROM prediction_announcement_outbox older
+                             WHERE older.guild_id=o.guild_id AND older.state='pending' AND older.revision<o.revision))",
+    ).bind(item.guild.to_string()).bind(item.revision).bind(item.channel_id.to_string())
+        .bind(item.configuration_version).fetch_one(&store.pool).await?)
+}
+
+pub(crate) async fn finish_attempt(
+    store: &Store,
+    item: &super::PendingAnnouncement,
+    outcome: &super::worker::AttemptOutcome,
+    completed_at: i64,
+) -> Result<(), StoreError> {
+    use super::worker::{AttemptOutcome, retry_at};
+    let mut tx = store.pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(i64::from_ne_bytes(item.guild.to_ne_bytes()))
+        .execute(&mut *tx)
+        .await?;
+    let guild = item.guild.to_string();
+    if let AttemptOutcome::Delivered { message_id } = outcome {
+        // A successful in-flight send remains an actual old-channel delivery even after Set.
+        // Disable wins by discarding the row before this conditional update.
+        sqlx::query("UPDATE prediction_announcement_outbox SET state='delivered',delivered_channel_id=$3,delivered_message_id=$4,last_failure=NULL WHERE guild_id=$1 AND revision=$2 AND state='pending'")
+            .bind(&guild).bind(item.revision).bind(item.channel_id.to_string()).bind(message_id.to_string())
+            .execute(&mut *tx).await?;
+    } else {
+        let applicable: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM prediction_announcement_outbox o JOIN prediction_announcement_settings s USING(guild_id)
+             WHERE o.guild_id=$1 AND o.revision=$2 AND o.state='pending' AND s.configuration_version=$3)",
+        ).bind(&guild).bind(item.revision).bind(item.configuration_version).fetch_one(&mut *tx).await?;
+        if applicable {
+            let attempts = item.attempts.saturating_add(1);
+            let (reason, deadline) = match outcome {
+                AttemptOutcome::Retry {
+                    reason,
+                    provider_delay,
+                } => (*reason, retry_at(completed_at, attempts, *provider_delay)),
+                AttemptOutcome::Pause { reason } => {
+                    sqlx::query("UPDATE prediction_announcement_settings SET pause_reason=$2 WHERE guild_id=$1")
+                        .bind(&guild).bind(reason).execute(&mut *tx).await?;
+                    (*reason, completed_at)
+                }
+                AttemptOutcome::Delivered { .. } => unreachable!(),
+            };
+            sqlx::query("UPDATE prediction_announcement_outbox SET attempts=$3,next_attempt_at=$4,last_failure=$5 WHERE guild_id=$1 AND revision=$2 AND state='pending'")
+                .bind(&guild).bind(item.revision).bind(attempts).bind(deadline).bind(reason).execute(&mut *tx).await?;
+        }
+    }
+    tx.commit().await?;
+    Ok(())
+}

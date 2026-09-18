@@ -55,3 +55,5 @@ pub(crate) struct PendingAnnouncement {
 }
 
 pub type Clock = std::sync::Arc<dyn Fn() -> i64 + Send + Sync>;
+
+pub use worker::deliver_due;

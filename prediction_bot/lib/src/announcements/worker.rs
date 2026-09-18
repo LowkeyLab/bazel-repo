@@ -85,3 +85,62 @@ fn retry(reason: &'static str) -> AttemptOutcome {
 fn pause(reason: &'static str) -> AttemptOutcome {
     AttemptOutcome::Pause { reason }
 }
+
+/// Send due announcements, preserving revision order within each guild.
+///
+/// Only one scheduler may call this function for an application at a time.
+///
+/// # Errors
+/// Returns storage or task failures after awaiting every guild in the current batch.
+pub async fn deliver_due(
+    store: std::sync::Arc<crate::store::Store>,
+    http: std::sync::Arc<serenity::http::Http>,
+    clock: super::Clock,
+) -> Result<(), crate::store::StoreError> {
+    use super::persistence::{finish_attempt, next_due, still_eligible};
+    use crate::store::StoreError;
+    loop {
+        let items = next_due(&store, clock(), 8).await?;
+        if items.is_empty() {
+            return Ok(());
+        }
+        let mut tasks = tokio::task::JoinSet::new();
+        for item in items {
+            let store = store.clone();
+            let http = http.clone();
+            let clock = clock.clone();
+            tasks.spawn(async move {
+                if !still_eligible(&store, &item).await? {
+                    return Ok(());
+                }
+                let request = serenity::all::ChannelId::new(item.channel_id)
+                    .send_message(&http, super::render::render(&item.snapshot));
+                let outcome =
+                    match tokio::time::timeout(std::time::Duration::from_secs(30), request).await {
+                        Ok(Ok(message)) => AttemptOutcome::Delivered {
+                            message_id: message.id.get(),
+                        },
+                        Ok(Err(error)) => classify_delivery_failure(&error),
+                        Err(_) => retry("timeout"),
+                    };
+                finish_attempt(&store, &item, &outcome, clock()).await
+            });
+        }
+        // Do not abort other guilds when one completion fails: their accepted requests
+        // must get a chance to persist before the supervisor retries this worker.
+        let mut failure = None;
+        while let Some(result) = tasks.join_next().await {
+            let result = result.unwrap_or(Err(StoreError::History(
+                "announcement delivery task failed",
+            )));
+            if let Err(error) = result {
+                if failure.is_none() {
+                    failure = Some(error);
+                }
+            }
+        }
+        if let Some(error) = failure {
+            return Err(error);
+        }
+    }
+}
