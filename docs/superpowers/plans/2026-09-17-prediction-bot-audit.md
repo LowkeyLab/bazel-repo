@@ -1,6 +1,6 @@
 # Prediction Bot Audit Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Subagent execution is an alternative only if selected by the user.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking. Subagent execution is an alternative only if selected by the user.
 
 **Goal:** Correct the four logging-audit findings using typed operational events delivered directly to a listener, initially backed by JSON diagnostic logging.
 
@@ -91,7 +91,7 @@ Define `CommandKind` for the existing Join/Create/Bet/Resolve/Cancel/Grant comma
 
 Only validated existing command keys enter the event; reject malformed input without copying arbitrary key contents. Valid keys are canonical numeric `discord:<id>` and `grant:<user>:<boundary>` strings. Do not change which keys public store methods accept solely to improve diagnostics: emit `None` for noncanonical keys accepted by existing tests/callers. In-memory events contain no raw error or payload fields.
 
-- [ ] Add focused classification regression tests with explicit expected outcomes. Run them before implementation, noting compilation failure separately from an observed behavior failure.
+- [x] Add focused classification regression tests with explicit expected outcomes. Run them before implementation, noting compilation failure separately from an observed behavior failure.
 
 ```rust
 #[test]
@@ -119,10 +119,10 @@ fn configuration_details_do_not_enter_the_event_contract() {
 }
 ```
 
-- [ ] Run `nix develop --command aspect test //prediction_bot/lib:discord_test`; record the intended missing-contract failure.
-- [ ] Implement the contract and classification. Match domain rejection reasons only at `Decide`, allowlist externally safe SQLSTATE/status/code fields, and classify replay validation as history failure. Unknown reasons use a safe category rather than copying text.
-- [ ] Implement `logging_listener()` returning `Arc::new(LoggingListener)`. Map variants to stable event names and named tracing fields; do not Debug-format entire events or raw errors. Success/rejection maps to INFO, delivery and timeout failures to WARN, operational failures to ERROR. Code-review this mapping; do not test rendered logs.
-- [ ] Run the same focused tests, format, review the diff, and commit `feat(prediction_bot): add typed operational audit events`.
+- [x] Run `nix develop --command aspect test //prediction_bot/lib:discord_test`; record the intended missing-contract failure.
+- [x] Implement the contract and classification. Match domain rejection reasons only at `Decide`, allowlist externally safe SQLSTATE/status/code fields, and classify replay validation as history failure. Unknown reasons use a safe category rather than copying text.
+- [x] Implement `logging_listener()` returning `Arc::new(LoggingListener)`. Map variants to stable event names and named tracing fields; do not Debug-format entire events or raw errors. Success/rejection maps to INFO, delivery and timeout failures to WARN, operational failures to ERROR. Code-review this mapping; do not test rendered logs.
+- [x] Run the same focused tests, format, review the diff, and commit `feat(prediction_bot): add typed operational audit events`.
 
 ## Task 2: Emit store command and grant outcomes through the listener
 
@@ -144,8 +144,8 @@ pub(crate) fn audit(&self) -> &SharedAudit;
 
 Keep `Store::new` and `Store::connect` as delegating entrypoints using the production listener. `execute` and `execute_at` retain their existing signatures and results. Existing deterministic time entrypoints remain sufficient; do not add a clock framework.
 
-- [ ] Run current `//prediction_bot/lib:store_test` and `//prediction_bot/lib:discord_test` before moving behavior. Docker/remote-executor failures are a fidelity gap, not permission to replace PostgreSQL with a mocked repository.
-- [ ] Extend the PostgreSQL fixture to accept `SharedAudit`; retain its existing convenience wrapper. Use a test-local recorder:
+- [x] Run current `//prediction_bot/lib:store_test` and `//prediction_bot/lib:discord_test` before moving behavior. Docker/remote-executor failures are a fidelity gap, not permission to replace PostgreSQL with a mocked repository.
+- [x] Extend the PostgreSQL fixture to accept `SharedAudit`; retain its existing convenience wrapper. Use a test-local recorder:
 
 ```rust
 #[derive(Default)]
@@ -169,8 +169,8 @@ let commands: Vec<_> = events.iter().filter_map(|event| match event {
 assert_eq!(commands, vec![&Outcome::Rejected(Rejection::InsufficientPoints)]);
 ```
 
-- [ ] Run `nix develop --command aspect test //prediction_bot/lib:store_test` and capture failing event assertions before adding emissions where feasible.
-- [ ] Retain the retry loop but collect its final result before emitting. Track stage internally without changing public errors. One practical implementation is a private transaction result carrying `(Stage, StoreError)` on failure; tag each acquisition, replay, decision, append, commit, and post-receipt refresh boundary using `map_err`. Adapt retry matching to inspect the contained database error. Emit after retry completion, then return the original `StoreError` to callers.
+- [x] Run `nix develop --command aspect test //prediction_bot/lib:store_test` and capture failing event assertions before adding emissions where feasible.
+- [x] Retain the retry loop but collect its final result before emitting. Track stage internally without changing public errors. One practical implementation is a private transaction result carrying `(Stage, StoreError)` on failure; tag each acquisition, replay, decision, append, commit, and post-receipt refresh boundary using `map_err`. Adapt retry matching to inspect the contained database error. Emit after retry completion, then return the original `StoreError` to callers.
 
 ```rust
 let outcome = match &result {
@@ -183,9 +183,9 @@ result.map_err(|(_, error)| error)
 
 No per-retry event, no success before commit, and no assumed rollback on commit failure. Receipt recovery refresh failure has stage `Refresh`. Invalid command-key input receives `Validate` and safe omitted correlation.
 
-- [ ] Replace `grant_due` reconstruction logs with `GrantFailed`; report discovery failure once at its worker boundary. Remove the per-grant execution log because `execute` now reports the final command outcome. Preserve continued iteration and future retry behavior.
-- [ ] Add a real PostgreSQL constraint that rejects one enrolled account's grant receipt, allow another account's grant, and invoke the actual `grant_due` method. Set enrollment time sufficiently in the past via `execute_at`; do not sleep. Assert the failed account remains unchanged, the other account advances, and the failed grant event retains its schedule key. Also exercise discovery failure and corrupt-guild reconstruction independently.
-- [ ] Run `store_test`, `domain_test`, and `discord_test`; format and commit `feat(prediction_bot): audit store and grant outcomes`.
+- [x] Replace `grant_due` reconstruction logs with `GrantFailed`; report discovery failure once at its worker boundary. Remove the per-grant execution log because `execute` now reports the final command outcome. Preserve continued iteration and future retry behavior.
+- [x] Add a real PostgreSQL constraint that rejects one enrolled account's grant receipt, allow another account's grant, and invoke the actual `grant_due` method. Set enrollment time sufficiently in the past via `execute_at`; do not sleep. Assert the failed account remains unchanged, the other account advances, and the failed grant event retains its schedule key. Also exercise discovery failure and corrupt-guild reconstruction independently.
+- [x] Run `store_test`, `domain_test`, and `discord_test`; format and commit `feat(prediction_bot): audit store and grant outcomes`.
 
 ## Task 3: Make Discord orchestration observable at the event boundary
 
@@ -206,8 +206,8 @@ pub trait InteractionTransport: Send + Sync {
 
 Concrete command/modal/component wrappers borrow their interaction and `Http`; implement methods using the existing Serenity calls. Components retain initial-response semantics and are never deferred. Expose only the minimal orchestration entrypoint needed for the PostgreSQL integration target, not `Handler` internals. Its inputs are the transport, `Arc<Store>`, guild, actor, command, and numeric interaction ID; its implementation is the same one used for slash and modal writes. Keep query/rendering helpers real.
 
-- [ ] Preserve and run existing acknowledgement and safe-response tests before extraction. Add a test-local transport that returns a chosen acknowledgement result and records delivered response builders; it must not emulate economic behavior.
-- [ ] Exercise the shared write orchestration with real PostgreSQL and a transport whose edit fails. Use canonical numeric interaction IDs. Assert the committed balance, persisted receipt, `CommandCompleted(Succeeded)`, and `InteractionCompleted(Failed)` with matching correlation. Repeat the same interaction and verify no second charge. Assert no mutation and an acknowledgement-failure event when acknowledgement fails. Existing 40060 recovery remains accepted and is not reported as a terminal failure.
+- [x] Preserve and run existing acknowledgement and safe-response tests before extraction. Add a test-local transport that returns a chosen acknowledgement result and records delivered response builders; it must not emulate economic behavior.
+- [x] Exercise the shared write orchestration with real PostgreSQL and a transport whose edit fails. Use canonical numeric interaction IDs. Assert the committed balance, persisted receipt, `CommandCompleted(Succeeded)`, and `InteractionCompleted(Failed)` with matching correlation. Repeat the same interaction and verify no second charge. Assert no mutation and an acknowledgement-failure event when acknowledgement fails. Existing 40060 recovery remains accepted and is not reported as a terminal failure.
 
 Representative outcome assertion:
 
@@ -225,13 +225,13 @@ assert!(events.iter().any(|event| matches!(event,
 )));
 ```
 
-- [ ] Run `store_test` and `discord_test` to show the missing event or correlation before implementing emissions. Report extraction-only compile failures separately.
-- [ ] Route acknowledgement/edit/initial-response calls through the real adapter and shared orchestration. Remove `execute_request`'s unconditional ERROR log; the store now owns that outcome. Emit sanitized acknowledgement/delivery facts separately from store results, including on modal and component paths.
-- [ ] Emit final query events around the actual `store.view` calls in slash and component handlers. Report component timeout explicitly. Extract the bounded-read orchestration to accept its read future and timeout duration if needed for deterministic testing, rather than substituting a store repository. Production supplies the real view future and existing two-second limit. A pending future with a zero test timeout exercises the timeout branch without sleeps; do not assert elapsed duration.
-- [ ] Test failed reads and timeouts retain the existing safe responses and identify guild/interaction/query stage. Test the normal composition path with the recorder; do not create a separate test-only orchestration implementation. Parsing and form validation rejections should also use a safe rejection event at their boundary, with existing input messages preserved and no copied input fields.
-- [ ] Replace registration, grant discovery, and lifecycle application logs with typed events using the store's listener. Preserve existing recovery/shutdown semantics. Do not add an independent worker supervision redesign.
-- [ ] Inspect the concrete Serenity wrappers and, if the pinned client's endpoint configuration permits, exercise them against a controlled HTTP endpoint. Explicitly record any remaining transport/live-provider fidelity gap; injected transport tests alone do not establish live Discord compatibility.
-- [ ] Run `discord_test` and `store_test`, format, and commit `feat(prediction_bot): audit Discord request and delivery outcomes`.
+- [x] Run `store_test` and `discord_test` to show the missing event or correlation before implementing emissions. Report extraction-only compile failures separately.
+- [x] Route acknowledgement/edit/initial-response calls through the real adapter and shared orchestration. Remove `execute_request`'s unconditional ERROR log; the store now owns that outcome. Emit sanitized acknowledgement/delivery facts separately from store results, including on modal and component paths.
+- [x] Emit final query events around the actual `store.view` calls in slash and component handlers. Report component timeout explicitly. Extract the bounded-read orchestration to accept its read future and timeout duration if needed for deterministic testing, rather than substituting a store repository. Production supplies the real view future and existing two-second limit. A pending future with a zero test timeout exercises the timeout branch without sleeps; do not assert elapsed duration.
+- [x] Test failed reads and timeouts retain the existing safe responses and identify guild/interaction/query stage. Test the normal composition path with the recorder; do not create a separate test-only orchestration implementation. Parsing and form validation rejections should also use a safe rejection event at their boundary, with existing input messages preserved and no copied input fields.
+- [x] Replace registration, grant discovery, and lifecycle application logs with typed events using the store's listener. Preserve existing recovery/shutdown semantics. Do not add an independent worker supervision redesign.
+- [x] Inspect the concrete Serenity wrappers and, if the pinned client's endpoint configuration permits, exercise them against a controlled HTTP endpoint. Explicitly record any remaining transport/live-provider fidelity gap; injected transport tests alone do not establish live Discord compatibility.
+- [x] Run `discord_test` and `store_test`, format, and commit `feat(prediction_bot): audit Discord request and delivery outcomes`.
 
 ## Task 4: Wire JSON logging and complete repository verification
 
@@ -276,3 +276,22 @@ git diff --check
 ## Plan self-review
 
 Coverage: Task 1 defines typed/sanitized facts and severity mapping; Task 2 covers command and grant audit defects plus retry/commit semantics; Task 3 covers query, acknowledgement, delivery, registration, and lifecycle paths plus the Discord seam; Task 4 covers JSON composition, documentation, and repository checks. Existing public entrypoints delegate to injected composition. Tests observe listener events and economic behavior, never diagnostic JSON output. Live-provider verification is explicitly separate from test-double evidence.
+
+## Execution evidence (2026-09-18)
+
+Implemented in commits `7ec05dab`, `8c2f0815`, `eab30354`, and `960377e8`, with gateway startup reporting corrected in `66d2db67`. The temporary execution report was removed from tracking in `e8b4ab61`.
+
+- All four prediction-bot targets passed: domain, events, Discord, and PostgreSQL store tests. The final combined run took 50.9 seconds; PostgreSQL ran fresh in 37.1 seconds and the other three targets used cached results.
+- After the startup-reporting correction, all 50 Discord tests passed. The 20 PostgreSQL tests had already passed against the real isolated database, including commit followed by failed delivery, idempotent redelivery, rejection without balance changes, and continuation after grant failures.
+- `nix develop --command aspect build //...` passed after the final source correction in 26.7 seconds. Full formatting, Gazelle, and `git diff --check` passed.
+- Task 1's initial red evidence was a missing-contract compilation failure. Task 2's attempted runtime-red result was not captured and remains unverified; its later passing integration evidence is not presented as a demonstrated before/after regression. Task 3 demonstrated missing query, acknowledgement, and delivery events with runtime RED/GREEN. The startup correction likewise demonstrated a missing lifecycle event through actual `discord::run` with a closed pool before the fix.
+- Local HTTP endpoint tests exercise the actual Serenity adapters. No live Discord gateway, process signal/timeout integration, external log collection, retention, or alert delivery was verified. Rendered diagnostic JSON is intentionally outside the test contract.
+
+### Execution decisions
+
+1. JSON configuration and severity mapping were reviewed directly without output tests, as instructed. The tradeoff is no test assertion over rendered diagnostic records.
+2. Existing build/tool warnings were recorded without unrelated cleanup. Those warnings remain outside this feature's scope.
+3. Acknowledgement failures retain warning severity, as specified. A future consumer requiring error severity would need an explicit policy change.
+4. Typed events are tested through classification and application behavior, not constructor-only enum assertions. Rust type checking covers enum structure; tests focus on meaningful outcomes.
+5. The repository-wide build ran after integration rather than after every task. This delays detection of cross-project build issues; the final build passed.
+6. Added distinct shutdown stages so requested shutdown, gateway timeout, worker timeout, and lock release remain distinguishable. This extends the event vocabulary. Creation-menu reads use the existing Component query kind; a future consumer needing finer query breakdown would require a new kind.
