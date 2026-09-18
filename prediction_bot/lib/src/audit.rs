@@ -259,6 +259,13 @@ pub enum AuditEvent {
         outcome: Outcome,
         stage: Stage,
     },
+    MentionReplyCompleted {
+        guild: u64,
+        channel_id: u64,
+        message_id: u64,
+        outcome: Outcome,
+        stage: Stage,
+    },
     GrantFailed {
         guild: Option<u64>,
         outcome: Outcome,

@@ -60,6 +60,9 @@ fn level(event: &AuditEvent, outcome: &Outcome) -> Level {
                 AuditEvent::InteractionCompleted {
                     stage: Stage::Acknowledge | Stage::Deliver,
                     ..
+                } | AuditEvent::MentionReplyCompleted {
+                    stage: Stage::Deliver,
+                    ..
                 }
             ) =>
         {
@@ -181,6 +184,23 @@ impl AuditListener for LoggingListener {
                     outcome,
                     "interaction.guild" = *guild,
                     "interaction.id" = *interaction_id,
+                    "operation.stage" = stage.as_str(),
+                );
+            }
+            AuditEvent::MentionReplyCompleted {
+                guild,
+                channel_id,
+                message_id,
+                outcome,
+                stage,
+            } => {
+                emit!(
+                    level(event, outcome),
+                    "mention_reply_completed",
+                    outcome,
+                    "message.guild" = *guild,
+                    "message.channel_id" = *channel_id,
+                    "message.id" = *message_id,
                     "operation.stage" = stage.as_str(),
                 );
             }

@@ -702,6 +702,87 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
     );
 }
 
+#[test]
+fn help_is_registered_without_arguments_and_parses_before_enrollment() {
+    let registration = serde_json::to_value(super::market_command()).unwrap();
+    let help = registration["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "help")
+        .expect("help must be discoverable");
+    assert!(help["options"].as_array().is_none_or(Vec::is_empty));
+    assert!(parse(&input("help", vec![])).is_ok());
+    assert!(parse(&input("help", vec![text("unexpected", "value")])).is_err());
+}
+
+#[test]
+fn help_explains_getting_started_without_an_account() {
+    let action = parse(&input("help", vec![])).unwrap().2;
+    let view = crate::store::View {
+        revision: 0,
+        state: Default::default(),
+    };
+    let content = super::render_query(&view, &action, ui_actor(), 0);
+    for guidance in [
+        "play points",
+        "no real money",
+        "/market join",
+        "/market create",
+        "/market list",
+        "/market balance",
+        "/market leaderboard",
+        "Manage Guild",
+    ] {
+        assert!(content.contains(guidance), "missing guidance: {guidance}");
+    }
+    let response = serde_json::to_value(super::reply(&content)).unwrap();
+    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert_eq!(response["allowed_mentions"]["replied_user"], false);
+}
+
+fn mentioned_message() -> serenity::all::Message {
+    let mut message = serenity::all::Message::default();
+    message.guild_id = Some(serenity::all::GuildId::new(10));
+    message.author.id = serenity::all::UserId::new(20);
+    let mut bot = serenity::all::User::default();
+    bot.id = serenity::all::UserId::new(99);
+    bot.bot = true;
+    message.mentions = vec![bot.clone(), bot];
+    message
+}
+
+#[test]
+fn mentioning_this_bot_produces_one_help_prompt_without_pings() {
+    let response = super::mention_reply(&mentioned_message(), 99)
+        .expect("a human mentioning this bot should receive help");
+    let payload = serde_json::to_value(response).unwrap();
+    assert!(
+        payload["content"]
+            .as_str()
+            .unwrap()
+            .contains("/market help")
+    );
+    assert_eq!(payload["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert_eq!(payload["allowed_mentions"]["replied_user"], false);
+}
+
+#[test]
+fn mention_help_ignores_other_mentions_bots_and_private_messages() {
+    assert!(super::mention_reply(&mentioned_message(), 98).is_none());
+    assert!(super::mention_reply(&mentioned_message(), 0).is_none());
+    let mut ordinary = mentioned_message();
+    ordinary.mentions.clear();
+    ordinary.content = "bot, help please".to_owned();
+    assert!(super::mention_reply(&ordinary, 99).is_none());
+    let mut from_bot = mentioned_message();
+    from_bot.author.bot = true;
+    assert!(super::mention_reply(&from_bot, 99).is_none());
+    let mut private = mentioned_message();
+    private.guild_id = None;
+    assert!(super::mention_reply(&private, 99).is_none());
+}
+
 #[derive(Default)]
 struct AuditRecorder(std::sync::Mutex<Vec<crate::audit::AuditEvent>>);
 impl crate::audit::AuditListener for AuditRecorder {
@@ -785,7 +866,7 @@ type HttpRequests = std::sync::Arc<std::sync::Mutex<Vec<(String, String, serde_j
 
 async fn discord_endpoint(
     acknowledged: bool,
-    fail_edits: bool,
+    fail_delivery: bool,
 ) -> (
     serenity::http::Http,
     HttpRequests,
@@ -802,8 +883,14 @@ async fn discord_endpoint(
         let requests = captured.clone();
         async move {
             requests.lock().unwrap().push((method.to_string(), uri.path().to_owned(), body));
-            if method == Method::PATCH {
-                if fail_edits {
+            if method == Method::POST && uri.path().starts_with("/api/v10/channels/") {
+                if fail_delivery {
+                    (StatusCode::FORBIDDEN, Json(serde_json::json!({"code": 50013, "message": "sentinel secret provider text"}))).into_response()
+                } else {
+                    Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
+                }
+            } else if method == Method::PATCH {
+                if fail_delivery {
                     (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({"code": 10015, "message": "sentinel secret provider text"}))).into_response()
                 } else {
                     Json(serde_json::to_value(serenity::all::Message::default()).unwrap()).into_response()
@@ -846,6 +933,7 @@ async fn unavailable_handler(recorder: std::sync::Arc<AuditRecorder>) -> super::
         .unwrap();
     pool.close().await;
     super::Handler {
+        bot_user_id: 99,
         store: std::sync::Arc::new(crate::store::Store::new_with_audit(
             pool,
             42,
@@ -1202,4 +1290,77 @@ async fn gateway_http_failure_retains_safe_details_after_shutdown() {
             }),
         }]
     );
+}
+
+#[tokio::test]
+async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, Stage};
+    for failed in [false, true] {
+        let recorder = std::sync::Arc::new(AuditRecorder::default());
+        let handler = unavailable_handler(recorder.clone()).await;
+        let (http, requests, server) = discord_endpoint(false, failed).await;
+        let mut message = mentioned_message();
+        message.id = 123.into();
+        message.channel_id = 20.into();
+        handler.handle_message(&http, &message).await;
+        let requests = requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].0, "POST");
+        assert_eq!(requests[0].1, "/api/v10/channels/20/messages");
+        assert!(
+            requests[0].2["content"]
+                .as_str()
+                .unwrap()
+                .contains("/market help")
+        );
+        assert_eq!(
+            requests[0].2["allowed_mentions"]["parse"],
+            serde_json::json!([])
+        );
+        assert_eq!(requests[0].2["allowed_mentions"]["replied_user"], false);
+        server.abort();
+        let outcome = if failed {
+            Outcome::Failed(Failure {
+                category: FailureCategory::Discord,
+                sqlstate: None,
+                http_status: Some(403),
+                discord_code: Some(50013),
+            })
+        } else {
+            Outcome::Succeeded
+        };
+        assert_eq!(
+            *recorder.0.lock().unwrap(),
+            vec![AuditEvent::MentionReplyCompleted {
+                guild: 10,
+                channel_id: 20,
+                message_id: 123,
+                outcome,
+                stage: Stage::Deliver,
+            }]
+        );
+    }
+}
+
+#[tokio::test]
+async fn ignored_messages_neither_send_nor_emit_audit_events() {
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let (http, requests, server) = discord_endpoint(false, false).await;
+    let mut ordinary = mentioned_message();
+    ordinary.mentions.clear();
+    let mut other = mentioned_message();
+    for mention in &mut other.mentions {
+        mention.id = 98.into();
+    }
+    let mut bot = mentioned_message();
+    bot.author.bot = true;
+    let mut private = mentioned_message();
+    private.guild_id = None;
+    for message in [ordinary, other, bot, private] {
+        handler.handle_message(&http, &message).await;
+    }
+    server.abort();
+    assert!(requests.lock().unwrap().is_empty());
+    assert!(recorder.0.lock().unwrap().is_empty());
 }

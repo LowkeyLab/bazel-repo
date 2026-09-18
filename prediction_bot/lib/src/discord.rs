@@ -16,13 +16,14 @@ use serenity::{
     all::{
         ActionRowComponent, CommandDataOptionValue, CommandInteraction, CommandOptionType,
         ComponentInteraction, ComponentInteractionDataKind, Context, GatewayIntents, Guild,
-        GuildId, Interaction, ModalInteraction, Permissions, Ready,
+        GuildId, Interaction, Message, ModalInteraction, Permissions, Ready,
     },
     builder::{
         CreateAllowedMentions, CreateCommand, CreateCommandOption, CreateInteractionResponse,
-        CreateInteractionResponseMessage, EditInteractionResponse,
+        CreateInteractionResponseMessage, CreateMessage, EditInteractionResponse,
     },
-    client::EventHandler,
+    client::{ClientBuilder, EventHandler},
+    http::Http,
 };
 use thiserror::Error;
 use tokio::sync::watch;
@@ -60,6 +61,7 @@ pub(crate) enum InputValue {
 pub(crate) enum Action {
     Write(Command),
     CreateForm,
+    Help,
     Balance,
     Leaderboard,
     List,
@@ -126,6 +128,10 @@ pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str>
         bot: input.bot,
     };
     let action = match input.subcommand.as_str() {
+        "help" => {
+            exact(input, &[])?;
+            Action::Help
+        }
         "join" => {
             exact(input, &[])?;
             Action::Write(Command::Join)
@@ -257,6 +263,31 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
         options,
     })
 }
+const HELP: &str = "I run prediction markets for this server using play points—no real money.
+
+• `/market join` — get your first points and receive regular grants.
+• `/market create` — ask a question and choose possible outcomes.
+• `/market list` — browse markets, pick an outcome, and bet points.
+• `/market balance` and `/market leaderboard` — check your points and rankings.
+
+Server admins and members with Manage Guild permission can resolve or cancel markets.";
+
+fn mention_reply(message: &Message, bot_user_id: u64) -> Option<CreateMessage> {
+    if message.guild_id.is_none()
+        || message.author.bot
+        || bot_user_id == 0
+        || !message
+            .mentions
+            .iter()
+            .any(|user| user.id.get() == bot_user_id)
+    {
+        return None;
+    }
+    Some(CreateMessage::new()
+        .content("Need a hand? Run `/market help` to learn how to join, create predictions, and bet with play points.")
+        .allowed_mentions(no_mentions()))
+}
+
 fn no_mentions() -> CreateAllowedMentions {
     CreateAllowedMentions::new()
         .everyone(false)
@@ -397,6 +428,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
             || "No market with that ID exists in this server.".to_owned(),
             |m| render_market(id, m, now),
         ),
+        Action::Help => HELP.to_owned(),
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::Write(_) => "Invalid query.".to_owned(),
     }
@@ -442,6 +474,11 @@ fn market_command() -> CreateCommand {
         |kind, name, description| CreateCommandOption::new(kind, name, description).required(true);
     CreateCommand::new("market")
         .description("Play-point prediction markets in this server")
+        .add_option(CreateCommandOption::new(
+            SubCommand,
+            "help",
+            "Learn how to use prediction markets",
+        ))
         .add_option(CreateCommandOption::new(
             SubCommand,
             "join",
@@ -658,8 +695,31 @@ fn rejected(audit: &dyn AuditListener, guild: Option<u64>, interaction_id: u64) 
 
 struct Handler {
     store: Arc<Store>,
+    bot_user_id: u64,
 }
 impl Handler {
+    async fn handle_message(&self, http: &Http, message: &Message) {
+        let (Some(guild), Some(response)) =
+            (message.guild_id, mention_reply(message, self.bot_user_id))
+        else {
+            return;
+        };
+        let result = message
+            .channel_id
+            .send_message(http, response)
+            .await
+            .map(|_| ());
+        self.store
+            .audit()
+            .on_event(&AuditEvent::MentionReplyCompleted {
+                guild: guild.get(),
+                channel_id: message.channel_id.get(),
+                message_id: message.id.get(),
+                outcome: delivery_outcome(&result),
+                stage: Stage::Deliver,
+            });
+    }
+
     async fn register(&self, http: &serenity::http::Http, guild: GuildId) {
         let result = guild
             .set_commands(http, vec![market_command()])
@@ -682,6 +742,7 @@ impl Handler {
             command.id.get(),
             || async {
                 match from_discord(&command).and_then(|input| parse(&input)) {
+                    Ok((_, _, Action::Help)) => reply(HELP),
                     Ok((guild, actor, Action::Write(request))) => {
                         execute_request(&self.store, guild, actor, &request, command.id.get()).await
                     }
@@ -844,6 +905,10 @@ impl Handler {
 }
 #[serenity::async_trait]
 impl EventHandler for Handler {
+    async fn message(&self, ctx: Context, message: Message) {
+        self.handle_message(&ctx.http, &message).await;
+    }
+
     async fn ready(&self, ctx: Context, ready: Ready) {
         lifecycle(
             self.store.audit().as_ref(),
@@ -950,11 +1015,20 @@ fn lifecycle(
 async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
     let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
-    let client = Client::builder(&token, GatewayIntents::GUILDS)
+    let client = async {
+        let http = Http::new(&token);
+        let bot_user_id = http.get_current_user().await?.id.get();
+        ClientBuilder::new_with_http(
+            http,
+            GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES,
+        )
         .event_handler(Handler {
             store: Arc::clone(&store),
+            bot_user_id,
         })
-        .await;
+        .await
+    }
+    .await;
     let client = match client {
         Ok(client) => client,
         Err(error) => {
