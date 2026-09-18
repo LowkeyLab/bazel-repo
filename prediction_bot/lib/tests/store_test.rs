@@ -1,8 +1,11 @@
-use prediction_bot::domain::{Actor, Command, Policy};
-use prediction_bot::store::{Store, migrate};
+use prediction_bot::store::{Store, StoreError, migrate};
+use prediction_bot::{
+    audit::{AuditEvent, AuditListener, Outcome, Rejection, SharedAudit, Stage},
+    domain::{Actor, Command, Policy},
+};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use testcontainers_modules::{
     postgres::Postgres,
     testcontainers::{ContainerAsync, runners::AsyncRunner},
@@ -11,6 +14,10 @@ use testcontainers_modules::{
 const RUNTIME_PASSWORD: &str = "test-runtime-'password\\with-special-characters";
 
 async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>) {
+    fixture_with_audit(prediction_bot::audit::logging_listener()).await
+}
+
+async fn fixture_with_audit(audit: SharedAudit) -> (ContainerAsync<Postgres>, Arc<Store>) {
     let container = test_images::postgres().await.start().await.unwrap();
     let url = format!(
         "postgres://postgres:postgres@{}:{}/postgres",
@@ -25,15 +32,30 @@ async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>) {
     migrate(&pool, RUNTIME_PASSWORD).await.unwrap();
     (
         container,
-        Arc::new(Store::new(
+        Arc::new(Store::new_with_audit(
             pool,
             42,
             Policy {
                 amount: 100,
                 interval: 86_400,
             },
+            audit,
         )),
     )
+}
+
+#[derive(Default)]
+struct Recorder(Mutex<Vec<AuditEvent>>);
+
+impl AuditListener for Recorder {
+    fn on_event(&self, event: &AuditEvent) {
+        self.0.lock().unwrap().push(event.clone());
+    }
+}
+
+fn recording_fixture() -> (SharedAudit, Arc<Recorder>) {
+    let recorder = Arc::new(Recorder::default());
+    (recorder.clone(), recorder)
 }
 fn player(id: u64) -> Actor {
     Actor {
@@ -235,22 +257,217 @@ async fn workers_grant_each_interval_once_and_settlement_credits_once() {
 
 #[tokio::test]
 async fn failed_append_rolls_back_all_events_and_does_not_consume_revisions() {
-    let (_container, store) = fixture().await;
-    sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_test_command CHECK (command_key <> 'discord:reject')")
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_test_command CHECK (command_key <> 'discord:99')")
         .execute(&store.pool).await.unwrap();
     assert!(
         store
-            .execute_at(1, "discord:reject", player(7), &Command::Join, 1000)
+            .execute_at(1, "discord:99", player(7), &Command::Join, 1000)
             .await
             .is_err()
     );
     assert_eq!(store.view(1).await.unwrap().revision, 0);
     assert!(store.view(1).await.unwrap().state.accounts.is_empty());
+    assert!(matches!(
+        recorder.0.lock().unwrap().as_slice(),
+        [AuditEvent::CommandCompleted {
+            key: Some(key),
+            outcome: Outcome::Failed(_),
+            stage: Stage::Append,
+            ..
+        }] if key == "discord:99"
+    ));
     store
         .execute_at(1, "discord:accepted", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     assert_eq!(store.view(1).await.unwrap().revision, 3);
+}
+
+#[tokio::test]
+async fn legacy_command_keys_are_accepted_with_omitted_audit_correlation() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+
+    store
+        .execute_at(1, "discord:legacy", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+
+    assert!(matches!(
+        recorder.0.lock().unwrap().as_slice(),
+        [AuditEvent::CommandCompleted {
+            key: None,
+            outcome: Outcome::Succeeded,
+            stage: Stage::Commit,
+            ..
+        }]
+    ));
+}
+
+#[tokio::test]
+async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    let market = uuid::Uuid::new_v4().to_string();
+    store
+        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(1, "discord:2", player(7), &create(&market), 1000)
+        .await
+        .unwrap();
+
+    let error = store
+        .execute_at(
+            1,
+            "discord:99",
+            player(7),
+            &Command::Bet {
+                id: market,
+                outcome: 0,
+                amount: 101,
+            },
+            1100,
+        )
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, StoreError::Domain(_)));
+    assert_eq!(store.view(1).await.unwrap().state.accounts[&7].balance, 100);
+    let events = recorder.0.lock().unwrap();
+    let commands: Vec<_> = events
+        .iter()
+        .filter_map(|event| match event {
+            AuditEvent::CommandCompleted { key, outcome, .. }
+                if key.as_deref() == Some("discord:99") =>
+            {
+                Some(outcome)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        commands,
+        vec![&Outcome::Rejected(Rejection::InsufficientPoints)]
+    );
+}
+
+#[tokio::test]
+async fn replay_failure_emits_an_operational_command_outcome() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    store
+        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE guild_id='1' AND revision=2")
+        .execute(&store.pool)
+        .await
+        .unwrap();
+
+    assert!(
+        store
+            .execute_at(1, "discord:99", player(8), &Command::Join, 1000)
+            .await
+            .is_err()
+    );
+    assert!(matches!(
+        recorder.0.lock().unwrap().last(),
+        Some(AuditEvent::CommandCompleted {
+            key: Some(key),
+            outcome: Outcome::Failed(_),
+            stage: Stage::Replay,
+            ..
+        }) if key == "discord:99"
+    ));
+}
+
+#[tokio::test]
+async fn grant_due_continues_after_a_receipt_failure_and_reports_the_schedule_key() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    for user in [7, 8] {
+        store
+            .execute_at(
+                1,
+                &format!("discord:{user}"),
+                player(user),
+                &Command::Join,
+                -86_400,
+            )
+            .await
+            .unwrap();
+    }
+    sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_first_grant CHECK (command_key <> 'grant:7:0')")
+        .execute(&store.pool)
+        .await
+        .unwrap();
+
+    store.grant_due().await.unwrap();
+
+    let view = store.view(1).await.unwrap();
+    assert_eq!(view.state.accounts[&7].balance, 100);
+    assert!(view.state.accounts[&8].balance > 100);
+    assert!(matches!(
+        recorder.0.lock().unwrap().iter().find(|event| matches!(
+            event,
+            AuditEvent::CommandCompleted { key: Some(key), .. } if key == "grant:7:0"
+        )),
+        Some(AuditEvent::CommandCompleted {
+            outcome: Outcome::Failed(_),
+            stage: Stage::Append,
+            ..
+        })
+    ));
+}
+
+#[tokio::test]
+async fn grant_due_reports_corrupt_guild_reconstruction_and_continues() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    store
+        .execute_at(1, "discord:7", player(7), &Command::Join, -86_400)
+        .await
+        .unwrap();
+    store
+        .execute_at(2, "discord:8", player(8), &Command::Join, -86_400)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE guild_id='1' AND revision=2")
+        .execute(&store.pool)
+        .await
+        .unwrap();
+
+    store.grant_due().await.unwrap();
+
+    assert!(store.view(2).await.unwrap().state.accounts[&8].balance > 100);
+    assert!(matches!(
+        recorder
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|event| matches!(event, AuditEvent::GrantFailed { guild: Some(1), .. })),
+        Some(AuditEvent::GrantFailed {
+            outcome: Outcome::Failed(_),
+            stage: Stage::Reconstruct,
+            ..
+        })
+    ));
+}
+
+#[tokio::test]
+async fn grant_due_returns_discovery_errors_for_the_worker_to_report() {
+    let (_container, store) = fixture().await;
+    store.pool.close().await;
+
+    assert!(matches!(
+        store.grant_due().await,
+        Err(StoreError::Database(sqlx::Error::PoolClosed))
+    ));
 }
 
 #[tokio::test]
@@ -440,4 +657,135 @@ async fn repeated_migrations_preserve_events_and_login_credentials() {
     );
     assert_eq!(restarted.view(1).await.unwrap().state, before.state);
     assert_eq!(restarted.view(1).await.unwrap().revision, before.revision);
+}
+
+#[derive(Default)]
+struct TestTransport {
+    reject_acknowledgement: bool,
+    edits: Mutex<Vec<serenity::builder::EditInteractionResponse>>,
+}
+
+#[serenity::async_trait]
+impl prediction_bot::discord::transport::InteractionTransport for TestTransport {
+    async fn acknowledge(&self) -> serenity::Result<()> {
+        if self.reject_acknowledgement {
+            Err(std::io::Error::other("secret transport URL").into())
+        } else {
+            Ok(())
+        }
+    }
+    async fn edit(
+        &self,
+        response: serenity::builder::EditInteractionResponse,
+    ) -> serenity::Result<()> {
+        self.edits.lock().unwrap().push(response);
+        Err(std::io::Error::other("secret interaction token").into())
+    }
+    async fn respond(
+        &self,
+        _: serenity::builder::CreateInteractionResponse,
+    ) -> serenity::Result<()> {
+        unreachable!("writes must edit their deferred response")
+    }
+}
+
+#[tokio::test]
+async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
+    use prediction_bot::audit::{Failure, FailureCategory};
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    store
+        .execute_at(1, "discord:101", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let market = uuid::Uuid::new_v4().to_string();
+    let mut command = create(&market);
+    if let Command::Create { closes_at, .. } = &mut command {
+        *closes_at = i64::MAX;
+    }
+    store
+        .execute_at(1, "discord:102", player(7), &command, 1000)
+        .await
+        .unwrap();
+    recorder.0.lock().unwrap().clear();
+    let transport = TestTransport::default();
+    let bet = Command::Bet {
+        id: market.clone(),
+        outcome: 0,
+        amount: 80,
+    };
+    for _ in 0..2 {
+        prediction_bot::discord::execute_interaction(&transport, &store, 1, player(7), &bet, 123)
+            .await;
+    }
+    let view = store.view(1).await.unwrap();
+    assert_eq!(view.state.accounts[&7].balance, 20);
+    assert_eq!(view.state.markets[&market].bets.len(), 1);
+    let receipt: String = sqlx::query_scalar(
+        "SELECT response FROM prediction_commands WHERE guild_id='1' AND command_key='discord:123'",
+    )
+    .fetch_one(&store.pool)
+    .await
+    .unwrap();
+    let edits = transport.edits.lock().unwrap();
+    assert_eq!(edits.len(), 2);
+    for edit in edits.iter() {
+        assert_eq!(serde_json::to_value(edit).unwrap()["content"], receipt);
+    }
+    let events = recorder.0.lock().unwrap();
+    assert_eq!(events.iter().filter(|event| matches!(event, AuditEvent::CommandCompleted { key: Some(key), outcome: Outcome::Succeeded, .. } if key == "discord:123")).count(), 2);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
+                AuditEvent::InteractionCompleted {
+                    guild: Some(1),
+                    interaction_id: 123,
+                    stage: Stage::Deliver,
+                    outcome: Outcome::Failed(Failure {
+                        category: FailureCategory::Transport,
+                        ..
+                    })
+                }
+            ))
+            .count(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
+    use prediction_bot::audit::{Failure, FailureCategory};
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    let transport = TestTransport {
+        reject_acknowledgement: true,
+        ..Default::default()
+    };
+    prediction_bot::discord::execute_interaction(
+        &transport,
+        &store,
+        1,
+        player(7),
+        &Command::Join,
+        124,
+    )
+    .await;
+    assert!(store.view(1).await.unwrap().state.accounts.is_empty());
+    assert!(transport.edits.lock().unwrap().is_empty());
+    assert_eq!(
+        *recorder.0.lock().unwrap(),
+        vec![AuditEvent::InteractionCompleted {
+            guild: Some(1),
+            interaction_id: 124,
+            stage: Stage::Acknowledge,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Transport,
+                sqlstate: None,
+                http_status: None,
+                discord_code: None
+            }),
+        }]
+    );
 }
