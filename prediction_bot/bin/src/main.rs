@@ -72,7 +72,7 @@ fn lifecycle(
 }
 
 fn configured<T>(audit: &SharedAudit, kind: LifecycleKind, result: Result<T>) -> Result<T> {
-    result.map_err(|error| {
+    result.inspect_err(|_| {
         lifecycle(
             audit,
             kind,
@@ -80,7 +80,6 @@ fn configured<T>(audit: &SharedAudit, kind: LifecycleKind, result: Result<T>) ->
             Stage::Validate,
             failure(FailureCategory::Configuration),
         );
-        error
     })
 }
 
@@ -120,6 +119,53 @@ async fn application_id(token: &str) -> Result<u64, BootstrapFailure> {
     })
 }
 
+async fn run_migrations(audit: &SharedAudit) -> Result<()> {
+    let url = configured(
+        audit,
+        LifecycleKind::Migration,
+        required("MIGRATION_DATABASE_URL"),
+    )?;
+    let runtime_password = configured(
+        audit,
+        LifecycleKind::Migration,
+        required("POSTGRES_RUNTIME_PASSWORD"),
+    )?;
+    let pool = match sqlx::PgPool::connect(&url).await {
+        Ok(pool) => pool,
+        Err(error) => {
+            lifecycle(
+                audit,
+                LifecycleKind::Migration,
+                None,
+                Stage::Migrate,
+                store_outcome(Stage::Migrate, &StoreError::Database(error)),
+            );
+            return Err(anyhow!("migration database connection failed"));
+        }
+    };
+    if let Err(error) = migrate(&pool, &runtime_password).await {
+        lifecycle(
+            audit,
+            LifecycleKind::Migration,
+            None,
+            Stage::Migrate,
+            store_outcome(Stage::Migrate, &error),
+        );
+        return Err(anyhow!(
+            "event-store migration failed; check owner and CREATEROLE privileges"
+        ));
+    }
+    pool.close().await;
+    lifecycle(
+        audit,
+        LifecycleKind::Migration,
+        None,
+        Stage::Migrate,
+        Outcome::Succeeded,
+    );
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -138,50 +184,7 @@ async fn main() -> Result<()> {
         },
     )?;
     if migrate_only {
-        let url = configured(
-            &audit,
-            LifecycleKind::Migration,
-            required("MIGRATION_DATABASE_URL"),
-        )?;
-        let runtime_password = configured(
-            &audit,
-            LifecycleKind::Migration,
-            required("POSTGRES_RUNTIME_PASSWORD"),
-        )?;
-        let pool = match sqlx::PgPool::connect(&url).await {
-            Ok(pool) => pool,
-            Err(error) => {
-                lifecycle(
-                    &audit,
-                    LifecycleKind::Migration,
-                    None,
-                    Stage::Migrate,
-                    store_outcome(Stage::Migrate, &StoreError::Database(error)),
-                );
-                return Err(anyhow!("migration database connection failed"));
-            }
-        };
-        if let Err(error) = migrate(&pool, &runtime_password).await {
-            lifecycle(
-                &audit,
-                LifecycleKind::Migration,
-                None,
-                Stage::Migrate,
-                store_outcome(Stage::Migrate, &error),
-            );
-            return Err(anyhow!(
-                "event-store migration failed; check owner and CREATEROLE privileges"
-            ));
-        }
-        pool.close().await;
-        lifecycle(
-            &audit,
-            LifecycleKind::Migration,
-            None,
-            Stage::Migrate,
-            Outcome::Succeeded,
-        );
-        return Ok(());
+        return run_migrations(&audit).await;
     }
     let token = configured(&audit, LifecycleKind::Startup, required("DISCORD_TOKEN"))?;
     let url = configured(&audit, LifecycleKind::Startup, required("DATABASE_URL"))?;

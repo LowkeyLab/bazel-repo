@@ -91,40 +91,41 @@ fn elapsed_millis(elapsed: Duration) -> u64 {
 }
 
 macro_rules! emit {
-    ($level:expr, $event_name:literal, $fields:ident, $($name:literal = $value:expr),+ $(,)?) => {
+    ($level:expr, $event_name:literal, $outcome:expr, $($name:literal = $value:expr),+ $(,)?) => {{
+        let fields = OutcomeFields::from($outcome);
         match $level {
             Level::Info => tracing::info!(
                 "event.name" = $event_name,
-                "outcome.kind" = $fields.kind,
-                "outcome.rejection" = $fields.rejection,
-                "failure.category" = $fields.failure_category,
-                "failure.sqlstate" = $fields.sqlstate,
-                "failure.http_status" = $fields.http_status,
-                "failure.discord_code" = $fields.discord_code,
+                "outcome.kind" = fields.kind,
+                "outcome.rejection" = fields.rejection,
+                "failure.category" = fields.failure_category,
+                "failure.sqlstate" = fields.sqlstate,
+                "failure.http_status" = fields.http_status,
+                "failure.discord_code" = fields.discord_code,
                 $($name = $value),+
             ),
             Level::Warn => tracing::warn!(
                 "event.name" = $event_name,
-                "outcome.kind" = $fields.kind,
-                "outcome.rejection" = $fields.rejection,
-                "failure.category" = $fields.failure_category,
-                "failure.sqlstate" = $fields.sqlstate,
-                "failure.http_status" = $fields.http_status,
-                "failure.discord_code" = $fields.discord_code,
+                "outcome.kind" = fields.kind,
+                "outcome.rejection" = fields.rejection,
+                "failure.category" = fields.failure_category,
+                "failure.sqlstate" = fields.sqlstate,
+                "failure.http_status" = fields.http_status,
+                "failure.discord_code" = fields.discord_code,
                 $($name = $value),+
             ),
             Level::Error => tracing::error!(
                 "event.name" = $event_name,
-                "outcome.kind" = $fields.kind,
-                "outcome.rejection" = $fields.rejection,
-                "failure.category" = $fields.failure_category,
-                "failure.sqlstate" = $fields.sqlstate,
-                "failure.http_status" = $fields.http_status,
-                "failure.discord_code" = $fields.discord_code,
+                "outcome.kind" = fields.kind,
+                "outcome.rejection" = fields.rejection,
+                "failure.category" = fields.failure_category,
+                "failure.sqlstate" = fields.sqlstate,
+                "failure.http_status" = fields.http_status,
+                "failure.discord_code" = fields.discord_code,
                 $($name = $value),+
             ),
         }
-    };
+    }};
 }
 
 impl AuditListener for LoggingListener {
@@ -138,11 +139,10 @@ impl AuditListener for LoggingListener {
                 stage,
                 elapsed,
             } => {
-                let fields = OutcomeFields::from(outcome);
                 emit!(
                     level(event, outcome),
                     "command_completed",
-                    fields,
+                    outcome,
                     "command.kind" = command.as_str(),
                     "command.guild" = *guild,
                     "command.key" = key.as_deref(),
@@ -158,11 +158,10 @@ impl AuditListener for LoggingListener {
                 stage,
                 elapsed,
             } => {
-                let fields = OutcomeFields::from(outcome);
                 emit!(
                     level(event, outcome),
                     "query_completed",
-                    fields,
+                    outcome,
                     "query.kind" = query.as_str(),
                     "query.guild" = *guild,
                     "interaction.id" = *interaction_id,
@@ -176,11 +175,10 @@ impl AuditListener for LoggingListener {
                 outcome,
                 stage,
             } => {
-                let fields = OutcomeFields::from(outcome);
                 emit!(
                     level(event, outcome),
                     "interaction_completed",
-                    fields,
+                    outcome,
                     "interaction.guild" = *guild,
                     "interaction.id" = *interaction_id,
                     "operation.stage" = stage.as_str(),
@@ -191,11 +189,10 @@ impl AuditListener for LoggingListener {
                 outcome,
                 stage,
             } => {
-                let fields = OutcomeFields::from(outcome);
                 emit!(
                     level(event, outcome),
                     "grant_failed",
-                    fields,
+                    outcome,
                     "grant.guild" = *guild,
                     "operation.stage" = stage.as_str(),
                 );
@@ -205,11 +202,10 @@ impl AuditListener for LoggingListener {
                 outcome,
                 stage,
             } => {
-                let fields = OutcomeFields::from(outcome);
                 emit!(
                     level(event, outcome),
                     "registration_completed",
-                    fields,
+                    outcome,
                     "registration.guild" = *guild,
                     "operation.stage" = stage.as_str(),
                 );
@@ -220,11 +216,10 @@ impl AuditListener for LoggingListener {
                 outcome,
                 stage,
             } => {
-                let fields = OutcomeFields::from(outcome);
                 emit!(
                     level(event, outcome),
                     "lifecycle",
-                    fields,
+                    outcome,
                     "lifecycle.kind" = kind.as_str(),
                     "application.id" = *application_id,
                     "operation.stage" = stage.as_str(),

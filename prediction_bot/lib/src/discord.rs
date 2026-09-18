@@ -736,8 +736,8 @@ impl Handler {
         let guild = component.guild_id.map_or(0, GuildId::get);
         // A modal must be the initial response: do not defer this interaction.
         // Bound the read so a slow database can still receive an error acknowledgement.
-        let response = match &component.data.kind {
-            ComponentInteractionDataKind::StringSelect { values } => {
+        let response =
+            if let ComponentInteractionDataKind::StringSelect { values } = &component.data.kind {
                 match read_query(
                     self.store.audit().as_ref(),
                     guild,
@@ -766,16 +766,14 @@ impl Handler {
                     }),
                     Err(message) => interaction_error(&message),
                 }
-            }
-            _ => {
+            } else {
                 rejected(
                     self.store.audit().as_ref(),
                     component.guild_id.map(GuildId::get),
                     component.id.get(),
                 );
                 interaction_error("Choose an option from the market menu.")
-            }
-        };
+            };
         let result = SerenityTransport::Component(&component, http)
             .respond(response)
             .await;
