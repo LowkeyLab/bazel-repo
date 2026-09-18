@@ -79,6 +79,7 @@ bazel clean && aspect build //...
 - **Dependencies:** Prefer existing libraries in `MODULE.bazel`
 - **BUILD files:** Never manually edit BUILD files before running `bazel run //:gazelle`
 - **Verification:** Run `aspect build //...` to verify changes don't break the build
+- **Linting:** MUST run `aspect lint` and resolve lint failures before finishing implementation
 - **Security:** NEVER hardcode secrets/credentials; use environment variables
 
 ### Rust (Nicknamer)
@@ -269,7 +270,7 @@ bazel-repo/
 4. **Run tests:** `aspect test //path/to/tests` or `aspect test //...`
 5. **Test locally:** Use project-specific run commands (see subproject AGENTS.md)
 6. **Verify build:** `aspect build //...` (use `--keep_going` to see all errors)
-7. **Run linters** (optional but recommended): `aspect lint`
+7. **Run linters:** `aspect lint` (REQUIRED before finishing implementation; resolve lint failures)
 8. **Commit changes** after ensuring tests pass and code is formatted
 
 ## 5. Polyglot Environment Notes
