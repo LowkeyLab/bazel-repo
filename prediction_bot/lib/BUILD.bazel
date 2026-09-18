@@ -89,5 +89,5 @@ rust_test(
     name = "discord_test",
     size = "small",
     crate = ":lib",
-    deps = ["@crates//:axum"],
+    deps = ["@crates//:wiremock"],
 )
