@@ -1,10 +1,100 @@
-use sqlx::Row;
+use sqlx::{Row, types::Json};
 
-use super::{AnnouncementStatus, ConfigurationChange};
+use super::{AnnouncementStatus, ConfigurationChange, SnapshotV1};
 use crate::{
-    domain::Actor,
+    domain::{Actor, Event, State},
     store::{Store, StoreError},
 };
+
+pub(crate) async fn enqueue(
+    tx: &mut sqlx::PgConnection,
+    guild: u64,
+    revision: i64,
+    event: &Event,
+    state: &State,
+) -> Result<(), StoreError> {
+    let enabled: Option<bool> = sqlx::query_scalar(
+        "SELECT enabled FROM prediction_announcement_settings WHERE guild_id=$1",
+    )
+    .bind(guild.to_string())
+    .fetch_optional(&mut *tx)
+    .await?;
+    if enabled != Some(true) {
+        return Ok(());
+    }
+
+    let (snapshot, occurred_at) = match event {
+        Event::MarketCreated {
+            id,
+            creator,
+            question,
+            options,
+            closes_at,
+            created_at,
+        } => (
+            SnapshotV1::Created {
+                id: id.clone(),
+                question: question.clone(),
+                creator: *creator,
+                options: options.clone(),
+                closes_at: *closes_at,
+                occurred_at: *created_at,
+            },
+            *created_at,
+        ),
+        Event::MarketResolved {
+            id,
+            outcome,
+            refunded,
+            settled_at,
+            ..
+        } => {
+            let market = state.markets.get(id).ok_or(StoreError::History(
+                "announcement event disagrees with applied state",
+            ))?;
+            let winner = market.options.get(*outcome).ok_or(StoreError::History(
+                "announcement event disagrees with applied state",
+            ))?;
+            (
+                SnapshotV1::Resolved {
+                    id: id.clone(),
+                    question: market.question.clone(),
+                    winner: winner.clone(),
+                    refunded: *refunded,
+                    occurred_at: *settled_at,
+                },
+                *settled_at,
+            )
+        }
+        Event::MarketCancelled {
+            id, cancelled_at, ..
+        } => {
+            let market = state.markets.get(id).ok_or(StoreError::History(
+                "announcement event disagrees with applied state",
+            ))?;
+            (
+                SnapshotV1::Cancelled {
+                    id: id.clone(),
+                    question: market.question.clone(),
+                    occurred_at: *cancelled_at,
+                },
+                *cancelled_at,
+            )
+        }
+        _ => return Ok(()),
+    };
+
+    sqlx::query(
+        "INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ($1,$2,1,$3,$4)",
+    )
+    .bind(guild.to_string())
+    .bind(revision)
+    .bind(Json(snapshot))
+    .bind(occurred_at)
+    .execute(&mut *tx)
+    .await?;
+    Ok(())
+}
 
 fn validate_administrator(guild: u64, actor: Actor) -> Result<(), StoreError> {
     if guild == 0 || actor.user_id == 0 || !actor.moderator || actor.bot {

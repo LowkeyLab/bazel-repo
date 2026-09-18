@@ -12,6 +12,7 @@ use sqlx::{
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+use crate::announcements::persistence::enqueue;
 use crate::audit::{
     AuditEvent, CommandKind, Outcome, SharedAudit, Stage, canonical_command_key, logging_listener,
     store_outcome,
@@ -380,6 +381,10 @@ impl Store {
                 sqlx::query("INSERT INTO prediction_events(guild_id, revision, command_key, accepted_at, event) VALUES ($1,$2,$3,$4,$5)")
                 .bind(guild.to_string()).bind(view.revision).bind(key).bind(accepted_at).bind(Json(cloud))
                 .execute(&mut *tx).await,
+            )?;
+            at_stage(
+                Stage::Append,
+                enqueue(&mut tx, guild, view.revision, event, &view.state).await,
             )?;
         }
         at_stage(
