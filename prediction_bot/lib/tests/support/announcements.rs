@@ -155,3 +155,142 @@ impl Drop for ResponseBarrier {
         self.release();
     }
 }
+
+fn guild_json(permissions: u64) -> serde_json::Value {
+    serde_json::json!({
+        "id": "10",
+        "name": "Test guild",
+        "icon": null,
+        "icon_hash": null,
+        "splash": null,
+        "discovery_splash": null,
+        "owner_id": "7",
+        "afk_channel_id": null,
+        "afk_timeout": 60,
+        "widget_enabled": false,
+        "widget_channel_id": null,
+        "verification_level": 0,
+        "default_message_notifications": 0,
+        "explicit_content_filter": 0,
+        "roles": [{
+            "id": "10",
+            "name": "@everyone",
+            "color": 0,
+            "colors": {"primary_color": 0, "secondary_color": null, "tertiary_color": null},
+            "hoist": false,
+            "managed": false,
+            "mentionable": false,
+            "permissions": permissions.to_string(),
+            "position": 0,
+            "tags": {},
+            "icon": null,
+            "unicode_emoji": null
+        }],
+        "emojis": [],
+        "features": [],
+        "mfa_level": 0,
+        "application_id": null,
+        "system_channel_id": null,
+        "system_channel_flags": 0,
+        "rules_channel_id": null,
+        "max_presences": null,
+        "max_members": null,
+        "vanity_url_code": null,
+        "description": null,
+        "banner": null,
+        "premium_tier": 0,
+        "premium_subscription_count": null,
+        "preferred_locale": "en-US",
+        "public_updates_channel_id": null,
+        "max_video_channel_users": null,
+        "max_stage_video_channel_users": null,
+        "approximate_member_count": null,
+        "approximate_presence_count": null,
+        "welcome_screen": null,
+        "nsfw_level": 0,
+        "stickers": [],
+        "premium_progress_bar_enabled": false,
+        "safety_alerts_channel_id": null,
+        "incidents_data": null
+    })
+}
+
+fn channel_json(guild: u64, kind: u8, deny: u64) -> serde_json::Value {
+    serde_json::json!({
+        "id": "55",
+        "guild_id": guild.to_string(),
+        "type": kind,
+        "name": "announcements",
+        "position": 0,
+        "permission_overwrites": [{
+            "id": "10",
+            "type": 0,
+            "allow": "0",
+            "deny": deny.to_string()
+        }]
+    })
+}
+
+fn bot_member_json() -> serde_json::Value {
+    let mut user = serenity::all::User::default();
+    user.id = serenity::all::UserId::new(99);
+    user.bot = true;
+    serde_json::json!({
+        "user": user,
+        "nick": null,
+        "avatar": null,
+        "banner": null,
+        "roles": [],
+        "joined_at": null,
+        "premium_since": null,
+        "deaf": false,
+        "mute": false,
+        "flags": 0,
+        "pending": false,
+        "permissions": null,
+        "communication_disabled_until": null,
+        "unusual_dm_activity_until": null,
+        "avatar_decoration_data": null
+    })
+}
+
+pub async fn mount_replayed_destination_validation(server: &wiremock::MockServer) {
+    use wiremock::{
+        Mock, ResponseTemplate,
+        matchers::{method, path},
+    };
+    let channel = channel_json(10, 0, 0);
+    let permissions = 1024 | 2048;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/channels/55"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(channel))
+        .expect(2)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/guilds/10"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(guild_json(permissions)))
+        .expect(2)
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v10/guilds/10/members/99"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(bot_member_json()))
+        .expect(2)
+        .mount(server)
+        .await;
+}
+
+/// A complete incoming interaction envelope; only the command/form data varies.
+pub fn interaction_json(id: u64, data: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "id": id.to_string(), "application_id": "42", "guild_id": "10", "channel_id": "20",
+        "token": "test-interaction-token", "version": 1, "locale": "en-US", "entitlements": [],
+        "attachment_size_limit": 1000, "data": data,
+        "member": {"permissions": "32", "roles": [], "deaf": false, "mute": false,
+            "flags": 0, "joined_at": null, "premium_since": null,
+            "user": {"id": "7", "username": "admin", "discriminator": "0", "avatar": null}},
+        "user": { "id": "7", "username": "admin", "discriminator": "0", "avatar": null },
+        "message": serenity::all::Message::default(),
+    })
+}

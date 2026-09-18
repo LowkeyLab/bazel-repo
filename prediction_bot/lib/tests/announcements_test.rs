@@ -1465,3 +1465,151 @@ async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
         }
     )));
 }
+
+#[tokio::test]
+async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    use support::{interaction_json, mount_replayed_destination_validation};
+
+    let (_container, store, owner) = fixture().await;
+    store
+        .execute(10, "discord:900", admin(), &Command::Join)
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    mount_replayed_destination_validation(&server).await;
+    let callback_attempts = std::sync::atomic::AtomicUsize::new(0);
+    Mock::given(method("POST"))
+        .and(wiremock::matchers::path_regex(
+            "^/api/v10/interactions/20[123]/test-interaction-token/callback$",
+        ))
+        .respond_with(move |_: &wiremock::Request| {
+            if callback_attempts
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                .is_multiple_of(2)
+            {
+                ResponseTemplate::new(204)
+            } else {
+                // Discord redelivery can report that the original acknowledgement already exists.
+                ResponseTemplate::new(400).set_body_json(
+                    json!({"code": 40060, "message": "Interaction has already been acknowledged."}),
+                )
+            }
+        })
+        .expect(6)
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v10/webhooks/42/test-interaction-token/messages/@original",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .expect(6)
+        .mount(&server)
+        .await;
+
+    let configure = Interaction::Command(serde_json::from_value(interaction_json(201, json!({
+        "id": "1", "name": "market", "type": 1,
+        "options": [{"name": "announcements", "type": 2, "options": [{
+            "name": "set", "type": 1, "options": [{"name": "channel", "type": 7, "value": "55"}]
+        }]}]
+    }))).unwrap());
+    let slash = Interaction::Command(
+        serde_json::from_value(interaction_json(
+            202,
+            json!({
+                "id": "1", "name": "market", "type": 1,
+                "options": [{"name": "create", "type": 1, "options": [
+                    {"name": "question", "type": 3, "value": "Slash-created market?"},
+                    {"name": "options", "type": 3, "value": "Yes | No"},
+                    {"name": "closes_at", "type": 3, "value": "2099-01-01T00:00:00Z"}
+                ]}]
+            }),
+        ))
+        .unwrap(),
+    );
+    let modal = Interaction::Modal(serde_json::from_value(interaction_json(203, json!({
+        "custom_id": "pm:10:7:new:yesno",
+        "components": [
+            {"type": 1, "components": [{"type": 4, "custom_id": "question", "style": 1, "label": "Question", "value": "Modal-created market?"}]},
+            {"type": 1, "components": [{"type": 4, "custom_id": "closes_at", "style": 1, "label": "Closing time", "value": "2099-01-01T00:00:00Z"}]}
+        ]
+    }))).unwrap());
+
+    for interaction in [configure, slash, modal] {
+        for _ in 0..2 {
+            handle_interaction(store.clone(), &http, 99, interaction.clone()).await;
+        }
+    }
+
+    let status = store.announcement_status(10, admin()).await.unwrap();
+    assert!(status.enabled);
+    assert_eq!(status.channel_id, Some(55));
+    assert_eq!(
+        status.version, 1,
+        "replayed configuration must keep its original version"
+    );
+    assert_eq!(status.pending, 2);
+    let enqueued: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT snapshot->'Created'->>'question',count(*) FROM prediction_announcement_outbox WHERE guild_id='10' GROUP BY 1 ORDER BY 1",
+    ).fetch_all(&owner).await.unwrap();
+    assert_eq!(
+        enqueued,
+        vec![
+            ("Modal-created market?".into(), 1),
+            ("Slash-created market?".into(), 1)
+        ]
+    );
+
+    let requests = server.received_requests().await.unwrap();
+    let acknowledgements: Vec<_> = requests
+        .iter()
+        .filter(|request| request.url.path().ends_with("/callback"))
+        .collect();
+    assert_eq!(acknowledgements.len(), 6);
+    for acknowledgement in acknowledgements {
+        let body = acknowledgement.body_json::<serde_json::Value>().unwrap();
+        assert_eq!(body["type"], 5);
+        assert_eq!(
+            body["data"]["flags"], 64,
+            "all successful and replayed interactions stay private"
+        );
+    }
+    let replies: Vec<serde_json::Value> = requests
+        .iter()
+        .filter(|request| request.method.as_str() == "PATCH")
+        .map(|request| request.body_json().unwrap())
+        .collect();
+    assert_eq!(replies.len(), 6);
+    for pair in replies.chunks_exact(2) {
+        assert_eq!(
+            pair[0]["content"], pair[1]["content"],
+            "redelivery must recover the same receipt"
+        );
+        for reply in pair {
+            assert_eq!(reply["allowed_mentions"]["parse"], json!([]));
+        }
+    }
+    assert!(
+        replies[0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Announcements enabled for <#55>")
+    );
+    for index in [2, 4] {
+        assert!(
+            replies[index]["content"]
+                .as_str()
+                .unwrap()
+                .starts_with("Market created: ")
+        );
+    }
+    assert!(
+        !requests
+            .iter()
+            .any(|request| request.method.as_str() == "POST"
+                && request.url.path().ends_with("/messages"))
+    );
+}

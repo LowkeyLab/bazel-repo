@@ -1063,16 +1063,33 @@ impl EventHandler for Handler {
         self.register(&ctx.http, guild.id).await;
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        match interaction {
-            Interaction::Command(command) => self.handle(&ctx.http, command).await,
-            Interaction::Component(component) if component.data.custom_id.starts_with("pm:") => {
-                self.handle_component(&ctx.http, component).await;
-            }
-            Interaction::Modal(modal) if modal.data.custom_id.starts_with("pm:") => {
-                self.handle_modal(&ctx.http, modal).await;
-            }
-            _ => {}
+        handle_interaction(
+            Arc::clone(&self.store),
+            &ctx.http,
+            self.bot_user_id,
+            interaction,
+        )
+        .await;
+    }
+}
+
+/// Dispatch an incoming Discord interaction through the gateway's command and form handlers.
+pub async fn handle_interaction(
+    store: Arc<Store>,
+    http: &Http,
+    bot_user_id: u64,
+    interaction: Interaction,
+) {
+    let handler = Handler { store, bot_user_id };
+    match interaction {
+        Interaction::Command(command) => handler.handle(http, command).await,
+        Interaction::Component(component) if component.data.custom_id.starts_with("pm:") => {
+            handler.handle_component(http, component).await;
         }
+        Interaction::Modal(modal) if modal.data.custom_id.starts_with("pm:") => {
+            handler.handle_modal(http, modal).await;
+        }
+        _ => {}
     }
 }
 #[derive(Debug, Error)]
