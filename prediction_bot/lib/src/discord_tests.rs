@@ -1061,6 +1061,48 @@ async fn grant_worker_reports_discovery_failure_and_accepts_shutdown() {
 }
 
 #[tokio::test]
+async fn gateway_guard_failure_is_reported_before_run_returns() {
+    use crate::audit::{AuditEvent, Failure, FailureCategory, LifecycleKind, Outcome, Stage};
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://unused:unused@localhost/unused")
+        .unwrap();
+    pool.close().await;
+    let store = std::sync::Arc::new(crate::store::Store::new_with_audit(
+        pool,
+        42,
+        crate::domain::Policy {
+            amount: 100,
+            interval: 86_400,
+        },
+        recorder.clone(),
+    ));
+
+    let result = super::run(store, "unused".into()).await;
+
+    assert!(matches!(
+        result,
+        Err(super::DiscordError::Store(
+            crate::store::StoreError::Database(sqlx::Error::PoolClosed)
+        ))
+    ));
+    assert!(matches!(
+        recorder.0.lock().unwrap().as_slice(),
+        [AuditEvent::Lifecycle {
+            kind: LifecycleKind::Startup,
+            application_id: None,
+            stage: Stage::Acquire,
+            outcome: Outcome::Failed(Failure {
+                category: FailureCategory::Connection,
+                sqlstate: None,
+                http_status: None,
+                discord_code: None,
+            }),
+        }]
+    ));
+}
+
+#[tokio::test]
 async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind};
     let recorder = AuditRecorder::default();

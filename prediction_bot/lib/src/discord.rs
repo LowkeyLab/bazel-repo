@@ -908,7 +908,19 @@ async fn shutdown_signal() -> Result<(), std::io::Error> {
 /// Returns an error if the gateway lock, Discord connection, or shutdown signal cannot initialize,
 /// or if the gateway fails while running.
 pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
-    let mut guard = store.gateway_guard().await?;
+    let mut guard = match store.gateway_guard().await {
+        Ok(guard) => guard,
+        Err(error) => {
+            lifecycle(
+                store.audit().as_ref(),
+                LifecycleKind::Startup,
+                None,
+                Stage::Acquire,
+                store_outcome(Stage::Acquire, &error),
+            );
+            return Err(error.into());
+        }
+    };
     guard.close_on_drop();
     let result = run_gateway(Arc::clone(&store), token).await;
     if let Err(error) = guard.close().await {
@@ -938,12 +950,24 @@ fn lifecycle(
 }
 async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
     let audit = Arc::clone(store.audit());
-    let mut client = Client::builder(&token, GatewayIntents::GUILDS)
+    let client = Client::builder(&token, GatewayIntents::GUILDS)
         .event_handler(Handler {
             store: Arc::clone(&store),
         })
-        .await
-        .map_err(|_| DiscordError::Gateway)?;
+        .await;
+    let mut client = match client {
+        Ok(client) => client,
+        Err(error) => {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Startup,
+                None,
+                Stage::Startup,
+                Outcome::Failed(discord_failure(&error)),
+            );
+            return Err(DiscordError::Gateway);
+        }
+    };
     let shards = Arc::clone(&client.shard_manager);
     let (sender, receiver) = watch::channel(false);
     let mut worker = tokio::spawn(grant_worker(store, receiver));
