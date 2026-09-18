@@ -1,5 +1,10 @@
 //! Guild slash-command transport. Economic decisions remain in the domain and store.
-use std::{collections::BTreeSet, fmt::Write as _, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeSet,
+    fmt::Write as _,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use crate::{
     domain::{Actor, Command, DomainError, Market, Status},
@@ -23,8 +28,14 @@ use thiserror::Error;
 use tokio::sync::watch;
 use uuid::Uuid;
 
+pub mod transport;
 #[path = "discord_ui.rs"]
 mod ui;
+use crate::audit::{
+    AuditEvent, AuditListener, Failure, FailureCategory, LifecycleKind, Outcome, QueryKind,
+    Rejection, Stage, discord_failure, store_outcome,
+};
+use transport::{InteractionTransport, SerenityTransport};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Input {
@@ -503,63 +514,220 @@ fn market_command() -> CreateCommand {
             .add_sub_option(required(Text, "id", "Market ID")),
         )
 }
+fn interaction_event(
+    audit: &dyn AuditListener,
+    guild: Option<u64>,
+    interaction_id: u64,
+    stage: Stage,
+    outcome: Outcome,
+) {
+    audit.on_event(&AuditEvent::InteractionCompleted {
+        guild,
+        interaction_id,
+        stage,
+        outcome,
+    });
+}
+fn delivery_outcome(result: &serenity::Result<()>) -> Outcome {
+    match result {
+        Ok(()) => Outcome::Succeeded,
+        Err(error) => Outcome::Failed(discord_failure(error)),
+    }
+}
+fn category_failure(category: FailureCategory) -> Outcome {
+    Outcome::Failed(Failure {
+        category,
+        sqlstate: None,
+        http_status: None,
+        discord_code: None,
+    })
+}
+async fn deferred_response<F, Fut>(
+    transport: &dyn InteractionTransport,
+    audit: &dyn AuditListener,
+    guild: Option<u64>,
+    interaction_id: u64,
+    make_content: F,
+) where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = EditInteractionResponse>,
+{
+    let result = transport.acknowledge().await;
+    let outcome = delivery_outcome(&result);
+    let can_continue = defer_succeeded(result);
+    // Discord's already-acknowledged response permits receipt recovery.
+    interaction_event(
+        audit,
+        guild,
+        interaction_id,
+        Stage::Acknowledge,
+        if can_continue {
+            Outcome::Succeeded
+        } else {
+            outcome
+        },
+    );
+    if let Some(response) = content_after_defer(can_continue, make_content).await {
+        interaction_event(
+            audit,
+            guild,
+            interaction_id,
+            Stage::Deliver,
+            delivery_outcome(&transport.edit(response).await),
+        );
+    }
+}
+
+/// Execute a deferred Discord write using the store's receipt-based recovery.
+pub async fn execute_interaction(
+    transport: &dyn InteractionTransport,
+    store: &Arc<Store>,
+    guild: u64,
+    actor: Actor,
+    request: &Command,
+    interaction_id: u64,
+) {
+    deferred_response(
+        transport,
+        store.audit().as_ref(),
+        Some(guild),
+        interaction_id,
+        || execute_request(store, guild, actor, request, interaction_id),
+    )
+    .await;
+}
+
+async fn execute_request(
+    store: &Store,
+    guild: u64,
+    actor: Actor,
+    request: &Command,
+    interaction_id: u64,
+) -> EditInteractionResponse {
+    let key = format!("discord:{interaction_id}");
+    match store.execute(guild, &key, actor, request).await {
+        Ok(message) => reply(&message),
+        Err(error) => reply(&safe_error(&error)),
+    }
+}
+
+async fn read_query<F>(
+    audit: &dyn AuditListener,
+    guild: u64,
+    interaction_id: u64,
+    query: QueryKind,
+    read: F,
+    timeout: Option<Duration>,
+) -> Result<Arc<View>, String>
+where
+    F: std::future::Future<Output = Result<Arc<View>, StoreError>>,
+{
+    let started = Instant::now();
+    let result = match timeout {
+        Some(limit) => tokio::time::timeout(limit, read).await,
+        None => Ok(read.await),
+    };
+    let outcome = match &result {
+        Ok(Ok(_)) => Outcome::Succeeded,
+        Ok(Err(error)) => store_outcome(Stage::Query, error),
+        Err(_) => category_failure(FailureCategory::Timeout),
+    };
+    audit.on_event(&AuditEvent::QueryCompleted {
+        guild,
+        interaction_id,
+        query,
+        outcome,
+        stage: Stage::Query,
+        elapsed: started.elapsed(),
+    });
+    match result {
+        Ok(result) => result.map_err(|error| safe_error(&error)),
+        Err(_) => Err("Loading took too long. Please select the option again.".to_owned()),
+    }
+}
+
+fn rejected(audit: &dyn AuditListener, guild: Option<u64>, interaction_id: u64) {
+    interaction_event(
+        audit,
+        guild,
+        interaction_id,
+        Stage::Validate,
+        Outcome::Rejected(Rejection::InvalidInput),
+    );
+}
+
 struct Handler {
     store: Arc<Store>,
 }
 impl Handler {
-    async fn register(&self, ctx: &Context, guild: GuildId) {
-        if guild
-            .set_commands(&ctx.http, vec![market_command()])
+    async fn register(&self, http: &serenity::http::Http, guild: GuildId) {
+        let result = guild
+            .set_commands(http, vec![market_command()])
             .await
-            .is_err()
-        {
-            tracing::error!(guild = guild.get(), "market command registration failed");
-        }
+            .map(|_| ());
+        self.store
+            .audit()
+            .on_event(&AuditEvent::RegistrationCompleted {
+                guild: guild.get(),
+                outcome: delivery_outcome(&result),
+                stage: Stage::Register,
+            });
     }
-    async fn execute_request(
-        &self,
-        guild: u64,
-        actor: Actor,
-        request: &Command,
-        interaction_id: u64,
-    ) -> EditInteractionResponse {
-        let key = format!("discord:{interaction_id}");
-        match self.store.execute(guild, &key, actor, request).await {
-            Ok(message) => reply(&message),
-            Err(error) => {
-                tracing::error!(guild, "market command failed");
-                reply(&safe_error(&error))
-            }
-        }
-    }
-    async fn handle(&self, ctx: &Context, command: CommandInteraction) {
-        let can_continue = defer_succeeded(command.defer_ephemeral(&ctx.http).await);
-        let response = content_after_defer(can_continue, || async {
-            match from_discord(&command).and_then(|input| parse(&input)) {
-                Ok((guild, actor, Action::Write(request))) => {
-                    self.execute_request(guild, actor, &request, command.id.get())
-                        .await
-                }
-                Ok((guild, actor, query)) => match self.store.view(guild).await {
-                    Ok(view) => {
-                        ui::query(&view, &query, actor, guild, chrono::Utc::now().timestamp())
-                            .edit()
+    async fn handle(&self, http: &serenity::http::Http, command: CommandInteraction) {
+        let transport = SerenityTransport::Command(&command, http);
+        deferred_response(
+            &transport,
+            self.store.audit().as_ref(),
+            command.guild_id.map(GuildId::get),
+            command.id.get(),
+            || async {
+                match from_discord(&command).and_then(|input| parse(&input)) {
+                    Ok((guild, actor, Action::Write(request))) => {
+                        execute_request(&self.store, guild, actor, &request, command.id.get()).await
                     }
-                    Err(error) => reply(&safe_error(&error)),
-                },
-                Err(message) => reply(message),
-            }
-        })
+                    Ok((guild, actor, query)) => {
+                        let kind = match query {
+                            Action::Balance => QueryKind::Balance,
+                            Action::Leaderboard => QueryKind::Leaderboard,
+                            Action::List => QueryKind::List,
+                            Action::Show { .. } => QueryKind::Show,
+                            _ => QueryKind::Component,
+                        };
+                        match read_query(
+                            self.store.audit().as_ref(),
+                            guild,
+                            command.id.get(),
+                            kind,
+                            self.store.view(guild),
+                            None,
+                        )
+                        .await
+                        {
+                            Ok(view) => ui::query(
+                                &view,
+                                &query,
+                                actor,
+                                guild,
+                                chrono::Utc::now().timestamp(),
+                            )
+                            .edit(),
+                            Err(message) => reply(&message),
+                        }
+                    }
+                    Err(message) => {
+                        rejected(
+                            self.store.audit().as_ref(),
+                            command.guild_id.map(GuildId::get),
+                            command.id.get(),
+                        );
+                        reply(message)
+                    }
+                }
+            },
+        )
         .await;
-        let Some(response) = response else {
-            tracing::warn!("could not defer market interaction");
-            return;
-        };
-        if command.edit_response(&ctx.http, response).await.is_err() {
-            tracing::warn!("could not deliver market interaction response");
-        }
     }
-    async fn handle_component(&self, ctx: &Context, component: ComponentInteraction) {
+    async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
         let actor = Actor {
             user_id: component.user.id.get(),
             bot: component.user.bot,
@@ -568,10 +736,19 @@ impl Handler {
         let guild = component.guild_id.map_or(0, GuildId::get);
         // A modal must be the initial response: do not defer this interaction.
         // Bound the read so a slow database can still receive an error acknowledgement.
-        let response = match &component.data.kind {
-            ComponentInteractionDataKind::StringSelect { values } => {
-                match tokio::time::timeout(Duration::from_secs(2), self.store.view(guild)).await {
-                    Ok(Ok(view)) => ui::component(
+        let response =
+            if let ComponentInteractionDataKind::StringSelect { values } = &component.data.kind {
+                match read_query(
+                    self.store.audit().as_ref(),
+                    guild,
+                    component.id.get(),
+                    QueryKind::Component,
+                    self.store.view(guild),
+                    Some(Duration::from_secs(2)),
+                )
+                .await
+                {
+                    Ok(view) => ui::component(
                         guild,
                         actor,
                         &component.data.custom_id,
@@ -579,94 +756,117 @@ impl Handler {
                         &view,
                         chrono::Utc::now().timestamp(),
                     )
-                    .unwrap_or_else(interaction_error),
-                    Ok(Err(error)) => interaction_error(&safe_error(&error)),
-                    Err(_) => {
-                        interaction_error("Loading took too long. Please select the option again.")
+                    .unwrap_or_else(|message| {
+                        rejected(
+                            self.store.audit().as_ref(),
+                            component.guild_id.map(GuildId::get),
+                            component.id.get(),
+                        );
+                        interaction_error(message)
+                    }),
+                    Err(message) => interaction_error(&message),
+                }
+            } else {
+                rejected(
+                    self.store.audit().as_ref(),
+                    component.guild_id.map(GuildId::get),
+                    component.id.get(),
+                );
+                interaction_error("Choose an option from the market menu.")
+            };
+        let result = SerenityTransport::Component(&component, http)
+            .respond(response)
+            .await;
+        interaction_event(
+            self.store.audit().as_ref(),
+            component.guild_id.map(GuildId::get),
+            component.id.get(),
+            Stage::Deliver,
+            delivery_outcome(&result),
+        );
+    }
+    async fn handle_modal(&self, http: &serenity::http::Http, modal: ModalInteraction) {
+        let transport = SerenityTransport::Modal(&modal, http);
+        deferred_response(
+            &transport,
+            self.store.audit().as_ref(),
+            modal.guild_id.map(GuildId::get),
+            modal.id.get(),
+            || async {
+                let actor = Actor {
+                    user_id: modal.user.id.get(),
+                    bot: modal.user.bot,
+                    moderator: false,
+                };
+                let guild = modal.guild_id.map_or(0, GuildId::get);
+                let fields = modal
+                    .data
+                    .components
+                    .iter()
+                    .flat_map(|row| &row.components)
+                    .map(|component| match component {
+                        ActionRowComponent::InputText(field) => Ok(InputOption {
+                            name: field.custom_id.clone(),
+                            value: InputValue::String(
+                                field.value.clone().ok_or("Missing form value.")?,
+                            ),
+                        }),
+                        _ => Err("Invalid form field."),
+                    })
+                    .collect::<Result<Vec<_>, _>>();
+                // Anchor durations to the submission time, including on Discord redelivery.
+                let request = fields.and_then(|fields| {
+                    ui::modal_command(
+                        guild,
+                        actor,
+                        &modal.data.custom_id,
+                        fields,
+                        modal.id.created_at().unix_timestamp(),
+                    )
+                });
+                match request {
+                    Ok(request) => {
+                        execute_request(&self.store, guild, actor, &request, modal.id.get()).await
+                    }
+                    Err(message) => {
+                        rejected(
+                            self.store.audit().as_ref(),
+                            modal.guild_id.map(GuildId::get),
+                            modal.id.get(),
+                        );
+                        reply(message)
                     }
                 }
-            }
-            _ => interaction_error("Choose an option from the market menu."),
-        };
-        if component
-            .create_response(&ctx.http, response)
-            .await
-            .is_err()
-        {
-            tracing::warn!("could not deliver market component response");
-        }
-    }
-    async fn handle_modal(&self, ctx: &Context, modal: ModalInteraction) {
-        let can_continue = defer_succeeded(modal.defer_ephemeral(&ctx.http).await);
-        let response = content_after_defer(can_continue, || async {
-            let actor = Actor {
-                user_id: modal.user.id.get(),
-                bot: modal.user.bot,
-                moderator: false,
-            };
-            let guild = modal.guild_id.map_or(0, GuildId::get);
-            let fields = modal
-                .data
-                .components
-                .iter()
-                .flat_map(|row| &row.components)
-                .map(|component| match component {
-                    ActionRowComponent::InputText(field) => Ok(InputOption {
-                        name: field.custom_id.clone(),
-                        value: InputValue::String(
-                            field.value.clone().ok_or("Missing form value.")?,
-                        ),
-                    }),
-                    _ => Err("Invalid form field."),
-                })
-                .collect::<Result<Vec<_>, _>>();
-            // Anchor durations to the submission time, including on Discord redelivery.
-            let request = fields.and_then(|fields| {
-                ui::modal_command(
-                    guild,
-                    actor,
-                    &modal.data.custom_id,
-                    fields,
-                    modal.id.created_at().unix_timestamp(),
-                )
-            });
-            match request {
-                Ok(request) => {
-                    self.execute_request(guild, actor, &request, modal.id.get())
-                        .await
-                }
-                Err(message) => reply(message),
-            }
-        })
+            },
+        )
         .await;
-        let Some(response) = response else {
-            tracing::warn!("could not defer market modal");
-            return;
-        };
-        if modal.edit_response(&ctx.http, response).await.is_err() {
-            tracing::warn!("could not deliver market modal response");
-        }
     }
 }
 #[serenity::async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
-        tracing::info!(guilds = ready.guilds.len(), "Discord gateway ready");
+        lifecycle(
+            self.store.audit().as_ref(),
+            LifecycleKind::Ready,
+            Some(ready.application.id.get()),
+            Stage::Ready,
+            Outcome::Succeeded,
+        );
         for guild in ready.guilds {
-            self.register(&ctx, guild.id).await;
+            self.register(&ctx.http, guild.id).await;
         }
     }
     async fn guild_create(&self, ctx: Context, guild: Guild, _is_new: Option<bool>) {
-        self.register(&ctx, guild.id).await;
+        self.register(&ctx.http, guild.id).await;
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         match interaction {
-            Interaction::Command(command) => self.handle(&ctx, command).await,
+            Interaction::Command(command) => self.handle(&ctx.http, command).await,
             Interaction::Component(component) if component.data.custom_id.starts_with("pm:") => {
-                self.handle_component(&ctx, component).await;
+                self.handle_component(&ctx.http, component).await;
             }
             Interaction::Modal(modal) if modal.data.custom_id.starts_with("pm:") => {
-                self.handle_modal(&ctx, modal).await;
+                self.handle_modal(&ctx.http, modal).await;
             }
             _ => {}
         }
@@ -687,7 +887,7 @@ async fn grant_worker(store: Arc<Store>, mut shutdown: watch::Receiver<bool>) {
     loop {
         tokio::select! {
             changed = shutdown.changed() => { if changed.is_err() || *shutdown.borrow() { break; } }
-            _ = timer.tick() => { if store.grant_due().await.is_err() { tracing::error!("grant discovery failed"); } }
+            _ = timer.tick() => { if let Err(error) = store.grant_due().await { store.audit().on_event(&AuditEvent::GrantFailed { guild: None, outcome: store_outcome(Stage::Discover, &error), stage: Stage::Discover }); } }
         }
     }
 }
@@ -706,36 +906,94 @@ async fn shutdown_signal() -> Result<(), std::io::Error> {
 /// Returns an error if the gateway lock, Discord connection, or shutdown signal cannot initialize,
 /// or if the gateway fails while running.
 pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
-    let mut guard = store.gateway_guard().await?;
+    let application_id = Some(store.application_id());
+    let mut guard = match store.gateway_guard().await {
+        Ok(guard) => guard,
+        Err(error) => {
+            lifecycle(
+                store.audit().as_ref(),
+                LifecycleKind::Startup,
+                application_id,
+                Stage::Acquire,
+                store_outcome(Stage::Acquire, &error),
+            );
+            return Err(error.into());
+        }
+    };
     guard.close_on_drop();
-    let result = run_gateway(store, token).await;
-    if guard.close().await.is_err() {
-        tracing::warn!("could not close gateway lock connection");
+    let result = run_gateway(Arc::clone(&store), token).await;
+    if let Err(error) = guard.close().await {
+        lifecycle(
+            store.audit().as_ref(),
+            LifecycleKind::Shutdown,
+            application_id,
+            Stage::GatewayLockRelease,
+            store_outcome(Stage::GatewayLockRelease, &StoreError::Database(error)),
+        );
     }
     result
 }
+fn lifecycle(
+    audit: &dyn AuditListener,
+    kind: LifecycleKind,
+    application_id: Option<u64>,
+    stage: Stage,
+    outcome: Outcome,
+) {
+    audit.on_event(&AuditEvent::Lifecycle {
+        kind,
+        application_id,
+        stage,
+        outcome,
+    });
+}
 async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
-    let mut client = Client::builder(&token, GatewayIntents::GUILDS)
+    let application_id = Some(store.application_id());
+    let audit = Arc::clone(store.audit());
+    let client = Client::builder(&token, GatewayIntents::GUILDS)
         .event_handler(Handler {
             store: Arc::clone(&store),
         })
-        .await
-        .map_err(|_| DiscordError::Gateway)?;
+        .await;
+    let client = match client {
+        Ok(client) => client,
+        Err(error) => {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Startup,
+                application_id,
+                Stage::Startup,
+                Outcome::Failed(discord_failure(&error)),
+            );
+            return Err(DiscordError::Gateway);
+        }
+    };
+    run_gateway_client(store, client).await
+}
+async fn run_gateway_client(store: Arc<Store>, mut client: Client) -> Result<(), DiscordError> {
+    let application_id = Some(store.application_id());
+    let audit = Arc::clone(store.audit());
     let shards = Arc::clone(&client.shard_manager);
     let (sender, receiver) = watch::channel(false);
     let mut worker = tokio::spawn(grant_worker(store, receiver));
     let mut gateway = Box::pin(client.start_autosharded());
-    let result = tokio::select! {
-        result = &mut gateway => result.map_err(|_| DiscordError::Gateway),
+    let (result, outcome) = tokio::select! {
+        result = &mut gateway => {
+            let outcome = match &result {
+                Ok(()) => Outcome::Succeeded,
+                Err(error) => Outcome::Failed(discord_failure(error)),
+            };
+            (result.map_err(|_| DiscordError::Gateway), outcome)
+        },
         result = shutdown_signal() => {
             match result {
                 Ok(()) => {
-                    tracing::info!("shutdown requested");
+                    lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::ShutdownRequested, Outcome::Succeeded);
                     shards.shutdown_all().await;
-                    if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { tracing::warn!("gateway shutdown timed out"); }
-                    Ok(())
+                    if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::GatewayShutdown, category_failure(FailureCategory::Timeout)); }
+                    (Ok(()), Outcome::Succeeded)
                 }
-                Err(error) => Err(DiscordError::Signal(error)),
+                Err(error) => (Err(DiscordError::Signal(error)), category_failure(FailureCategory::Transport)),
             }
         }
     };
@@ -745,11 +1003,23 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
         .await
         .is_err()
     {
-        tracing::warn!("grant worker shutdown timed out");
+        lifecycle(
+            audit.as_ref(),
+            LifecycleKind::Shutdown,
+            application_id,
+            Stage::GrantWorkerShutdown,
+            category_failure(FailureCategory::Timeout),
+        );
         worker.abort();
         let _ = worker.await;
     }
-    tracing::info!("Discord bot stopped");
+    lifecycle(
+        audit.as_ref(),
+        LifecycleKind::Shutdown,
+        application_id,
+        Stage::Shutdown,
+        outcome,
+    );
     result
 }
 #[cfg(test)]
