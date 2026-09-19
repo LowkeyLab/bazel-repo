@@ -94,7 +94,9 @@ fn long_unicode_content_stays_within_discords_utf16_limit() {
 
     assert!(content.encode_utf16().count() <= 2_000);
     assert!(content.starts_with("📈 Market created\nMarket ID: `kept-id`"));
-    assert!(content.ends_with("\n…"));
+    assert!(content.contains("…"));
+    assert!(content.contains("Closes: <t:2000:F>"));
+    assert!(content.ends_with("Event time: <t:1000:F>"));
     assert_mentions_disabled(&payload);
 }
 
@@ -260,4 +262,29 @@ fn http_request_timeouts_retry_without_pausing_the_guild() {
             provider_delay: None,
         }
     );
+}
+
+#[test]
+fn maximum_creation_preserves_all_fields_when_user_text_expands() {
+    for character in ["🔮", "*", "\\"] {
+        let payload = payload(SnapshotV1::Created {
+            id: "12345678-1234-1234-1234-123456789abc".into(),
+            question: character.repeat(200),
+            creator: u64::MAX,
+            options: (0..10)
+                .map(|i| format!("{i}{}", character.repeat(79)))
+                .collect(),
+            closes_at: i64::MAX,
+            occurred_at: i64::MAX,
+        });
+        let text = content(&payload);
+        assert!(text.encode_utf16().count() <= 2000);
+        for i in 0..10 {
+            assert!(text.contains(&format!("• {i}")), "{text}");
+        }
+        assert!(text.contains(&format!("Creator: `{}`", u64::MAX)));
+        assert!(text.contains(&format!("Closes: <t:{}:F>", i64::MAX)));
+        assert!(text.ends_with(&format!("Event time: <t:{}:F>", i64::MAX)));
+        assert_mentions_disabled(&payload);
+    }
 }
