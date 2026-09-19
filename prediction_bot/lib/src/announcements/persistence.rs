@@ -118,6 +118,31 @@ fn validate_key(key: &str) -> Result<(), StoreError> {
 }
 
 impl Store {
+    // A committed receipt is immutable and can be recovered before external validation.
+    pub(crate) async fn announcement_configuration_receipt(
+        &self,
+        guild: u64,
+        key: &str,
+        actor: Actor,
+    ) -> Result<Option<String>, StoreError> {
+        validate_administrator(guild, actor)?;
+        validate_key(key)?;
+        let receipt: Option<(String, String)> = sqlx::query_as(
+            "SELECT actor_id, response FROM prediction_commands WHERE guild_id=$1 AND command_key=$2",
+        )
+        .bind(guild.to_string())
+        .bind(key)
+        .fetch_optional(&self.pool)
+        .await?;
+        match receipt {
+            Some((actor_id, _)) if actor_id != actor.user_id.to_string() => {
+                Err(StoreError::History("command actor mismatch"))
+            }
+            Some((_, response)) => Ok(Some(response)),
+            None => Ok(None),
+        }
+    }
+
     /// Change a guild's announcement destination or disable future delivery.
     ///
     /// # Errors

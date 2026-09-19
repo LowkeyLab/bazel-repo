@@ -835,6 +835,20 @@ impl Handler {
                         execute_request(&self.store, guild, actor, &request, command.id.get()).await
                     }
                     Ok((guild, actor, Action::AnnouncementsSet { channel_id })) => {
+                        let key = format!("discord:{}", command.id.get());
+                        match self
+                            .store
+                            .announcement_configuration_receipt(guild, &key, actor)
+                            .await
+                        {
+                            Ok(Some(message)) => {
+                                return reply(&announcements::configuration_receipt(
+                                    &message, false,
+                                ));
+                            }
+                            Ok(None) => {}
+                            Err(error) => return reply(&safe_error(&error)),
+                        }
                         match announcements::validate_destination(
                             http,
                             guild,
@@ -844,7 +858,6 @@ impl Handler {
                         .await
                         {
                             Ok(()) => {
-                                let key = format!("discord:{}", command.id.get());
                                 match self
                                     .store
                                     .configure_announcements(

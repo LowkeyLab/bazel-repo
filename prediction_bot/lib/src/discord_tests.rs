@@ -1823,7 +1823,7 @@ async fn mount_deferred_reply(server: &MockServer, id: u64) {
 }
 
 #[tokio::test]
-async fn set_handler_validates_before_writing_and_keeps_failures_private_and_non_pinging() {
+async fn set_handler_keeps_receipt_lookup_failures_private_without_destination_reads() {
     let recorder = std::sync::Arc::new(AuditRecorder::default());
     let handler = unavailable_handler(recorder).await;
     let server = MockServer::start().await;
@@ -1831,7 +1831,7 @@ async fn set_handler_validates_before_writing_and_keeps_failures_private_and_non
     Mock::given(method("GET"))
         .and(path("/api/v10/channels/55"))
         .respond_with(ResponseTemplate::new(200).set_body_json(channel_json(11, 0, 0)))
-        .expect(1)
+        .expect(0)
         .mount(&server)
         .await;
 
@@ -1847,7 +1847,7 @@ async fn set_handler_validates_before_writing_and_keeps_failures_private_and_non
         .await;
 
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 3);
+    assert_eq!(requests.len(), 2);
     assert_eq!(
         requests[0].body_json::<serde_json::Value>().unwrap()["type"],
         5
@@ -1856,50 +1856,15 @@ async fn set_handler_validates_before_writing_and_keeps_failures_private_and_non
         requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
         64
     );
-    let response = requests[2].body_json::<serde_json::Value>().unwrap();
-    assert_eq!(response["content"], "Choose a text channel in this server.");
-    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
-    assert!(!requests.iter().any(|request| {
-        request.method.as_str() == "POST" && request.url.path() == "/api/v10/channels/55/messages"
-    }));
-}
-
-#[tokio::test]
-async fn set_handler_uses_successful_http_validation_before_store_configuration() {
-    let recorder = std::sync::Arc::new(AuditRecorder::default());
-    let handler = unavailable_handler(recorder).await;
-    let server = MockServer::start().await;
-    mount_deferred_reply(&server, 202).await;
-    mount_destination_reads(&server, channel_json(10, 0, 0), 1024 | 2048).await;
-
-    handler
-        .handle(
-            &discord_http(&server),
-            admin_announcement_command(
-                202,
-                "set",
-                serde_json::json!([{"name": "channel", "type": 7, "value": "55"}]),
-            ),
-        )
-        .await;
-
-    let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 5);
-    let response = requests
-        .last()
-        .unwrap()
-        .body_json::<serde_json::Value>()
-        .unwrap();
+    let response = requests[1].body_json::<serde_json::Value>().unwrap();
     assert_eq!(
         response["content"],
         "The prediction economy is temporarily unavailable. Please try again."
     );
     assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
-    assert!(
-        !requests
-            .iter()
-            .any(|request| request.url.path() == "/api/v10/channels/55/messages")
-    );
+    assert!(!requests.iter().any(|request| {
+        request.method.as_str() == "POST" && request.url.path() == "/api/v10/channels/55/messages"
+    }));
 }
 
 #[test]

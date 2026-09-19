@@ -1622,3 +1622,106 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
                 && request.url.path().ends_with("/messages"))
     );
 }
+
+#[tokio::test]
+async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    let (_container, store, _owner) = fixture().await;
+    store
+        .configure_announcements(
+            10,
+            "discord:201",
+            admin(),
+            ConfigurationChange::Set { channel_id: 55 },
+        )
+        .await
+        .unwrap();
+    store
+        .configure_announcements(
+            10,
+            "discord:202",
+            admin(),
+            ConfigurationChange::Set { channel_id: 56 },
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(
+            "/api/v10/interactions/201/test-interaction-token/callback",
+        ))
+        .respond_with(
+            ResponseTemplate::new(400)
+                .set_body_json(json!({"code":40060,"message":"Already acknowledged"})),
+        )
+        .expect(2)
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .and(path(
+            "/api/v10/webhooks/42/test-interaction-token/messages/@original",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .expect(2)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .respond_with(
+            ResponseTemplate::new(404)
+                .set_body_json(json!({"code":10003,"message":"Unknown channel"})),
+        )
+        .expect(0)
+        .mount(&server)
+        .await;
+    let mut input = support::interaction_json(
+        201,
+        &json!({
+            "id":"1", "name":"market", "type":1,
+            "options":[{"name":"announcements", "type":2, "options":[{
+                "name":"set", "type":1, "options":[{"name":"channel", "type":7, "value":"55"}]
+            }]}]
+        }),
+    );
+    handle_interaction(
+        store.clone(),
+        &discord_http(&server),
+        99,
+        Interaction::Command(serde_json::from_value(input.clone()).unwrap()),
+    )
+    .await;
+    // A receipt must not be exposed to a different actor using the same key.
+    input["member"]["user"]["id"] = json!("8");
+    input["user"]["id"] = json!("8");
+    handle_interaction(
+        store.clone(),
+        &discord_http(&server),
+        99,
+        Interaction::Command(serde_json::from_value(input).unwrap()),
+    )
+    .await;
+    let requests = server.received_requests().await.unwrap();
+    let replies: Vec<serde_json::Value> = requests
+        .iter()
+        .filter(|request| request.method.as_str() == "PATCH")
+        .map(|request| request.body_json().unwrap())
+        .collect();
+    assert!(
+        replies[0]["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("Announcements enabled for <#55>.")
+    );
+    assert!(
+        !replies[1]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Announcements enabled")
+    );
+    for reply in replies {
+        assert_eq!(reply["allowed_mentions"]["parse"], json!([]));
+    }
+    let status = store.announcement_status(10, admin()).await.unwrap();
+    assert_eq!(status.channel_id, Some(56));
+    assert_eq!(status.version, 2);
+}

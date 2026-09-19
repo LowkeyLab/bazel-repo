@@ -264,19 +264,19 @@ pub async fn mount_replayed_destination_validation(server: &wiremock::MockServer
     Mock::given(method("GET"))
         .and(path("/api/v10/channels/55"))
         .respond_with(ResponseTemplate::new(200).set_body_json(channel))
-        .expect(2)
+        .expect(1)
         .mount(server)
         .await;
     Mock::given(method("GET"))
         .and(path("/api/v10/guilds/10"))
         .respond_with(ResponseTemplate::new(200).set_body_json(guild_json(permissions)))
-        .expect(2)
+        .expect(1)
         .mount(server)
         .await;
     Mock::given(method("GET"))
         .and(path("/api/v10/guilds/10/members/99"))
         .respond_with(ResponseTemplate::new(200).set_body_json(bot_member_json()))
-        .expect(2)
+        .expect(1)
         .mount(server)
         .await;
 }
