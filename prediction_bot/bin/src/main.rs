@@ -13,6 +13,8 @@ use prediction_bot::{
 };
 use serenity::http::Http;
 
+mod health;
+
 fn required(name: &str) -> Result<String> {
     let value = match env::var(name) {
         Ok(value) => value,
@@ -203,6 +205,18 @@ async fn main() -> Result<()> {
             positive("GRANT_INTERVAL_SECONDS", 86_400),
         )?,
     };
+    let address = configured(
+        &audit,
+        LifecycleKind::Startup,
+        health::address(env::var("HEALTH_BIND_ADDRESS")),
+    )?;
+    let listener = tokio::net::TcpListener::bind(address)
+        .await
+        .map_err(|error| anyhow!("health listener bind failed: {error}"))?;
+    health::run(listener, Box::pin(run_bot(audit, token, url, defaults))).await
+}
+
+async fn run_bot(audit: SharedAudit, token: String, url: String, defaults: Policy) -> Result<()> {
     let app_id = match application_id(&token).await {
         Ok(app_id) => app_id,
         Err(error) => {
