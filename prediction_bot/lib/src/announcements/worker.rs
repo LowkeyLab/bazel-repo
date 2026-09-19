@@ -76,9 +76,11 @@ pub(crate) fn classify_delivery_failure(error: &serenity::Error) -> AttemptOutco
 
 pub(crate) fn classify_http_failure(status: u16, discord_code: isize) -> AttemptOutcome {
     if status == 401 {
-        return pause(
-            "Discord authentication failed; an operator must correct the bot credentials.",
-        );
+        // Credential repair is global; it must not require each guild to reconfigure.
+        return retry("discord_authentication");
+    }
+    if status == 408 {
+        return retry("timeout");
     }
     if status == 403 || matches!(discord_code, 50_001 | 50_013) {
         return pause("Announcement delivery lacks permission to use the configured channel.");

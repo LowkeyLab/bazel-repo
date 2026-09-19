@@ -558,12 +558,26 @@ async fn delivery_posts_saved_content_without_mentions_and_records_the_message()
 
 #[tokio::test]
 async fn delivery_retries_after_restart_at_the_persisted_deadline() {
+    assert_delivery_recovers_after_restart(500).await;
+}
+
+#[tokio::test]
+async fn delivery_recovers_after_credentials_are_repaired_without_reconfiguration() {
+    assert_delivery_recovers_after_restart(401).await;
+}
+
+#[tokio::test]
+async fn delivery_recovers_after_http_request_timeout_without_reconfiguration() {
+    assert_delivery_recovers_after_restart(408).await;
+}
+
+async fn assert_delivery_recovers_after_restart(status: u16) {
     let (_container, store, owner) = fixture().await;
     queued(&store, 10, 20).await;
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(
-            ResponseTemplate::new(500).set_body_json(json!({"code":0,"message":"temporary"})),
+            ResponseTemplate::new(status).set_body_json(json!({"code":0,"message":"temporary"})),
         )
         .mount(&server)
         .await;
@@ -576,19 +590,33 @@ async fn delivery_retries_after_restart_at_the_persisted_deadline() {
             .await
             .unwrap();
     assert_eq!(retry, (1, 1005));
+    let settings = store.announcement_status(10, admin()).await.unwrap();
+    assert_eq!(settings.pause_reason, None);
+    assert_eq!(settings.version, 1);
+    assert_eq!(settings.channel_id, Some(20));
     let store = restart(&store);
     server.reset().await;
+    // Model operator credential repair by rebuilding the real HTTP client with a new token.
+    let http = Arc::new(
+        serenity::http::HttpBuilder::new("recovered-token")
+            .application_id(42.into())
+            .proxy(server.uri())
+            .ratelimiter_disabled(true)
+            .build(),
+    );
     Mock::given(method("POST"))
+        .and(wiremock::matchers::header(
+            "authorization",
+            "Bot recovered-token",
+        ))
         .respond_with(delivered())
         .mount(&server)
         .await;
-    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1004))
+    deliver_due(store.clone(), http.clone(), clock(1004))
         .await
         .unwrap();
     assert!(server.received_requests().await.unwrap().is_empty());
-    deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1005))
-        .await
-        .unwrap();
+    deliver_due(store.clone(), http, clock(1005)).await.unwrap();
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
     assert_eq!(
         store

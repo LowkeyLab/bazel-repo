@@ -206,8 +206,9 @@ fn http_failures_use_safe_delivery_outcomes() {
     );
     assert_eq!(
         classify_http_failure(401, 0),
-        AttemptOutcome::Pause {
-            reason: "Discord authentication failed; an operator must correct the bot credentials.",
+        AttemptOutcome::Retry {
+            reason: "discord_authentication",
+            provider_delay: None,
         }
     );
 }
@@ -248,4 +249,15 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
         }
         assert_mentions_disabled(&payload);
     }
+}
+
+#[test]
+fn http_request_timeouts_retry_without_pausing_the_guild() {
+    assert_eq!(
+        classify_http_failure(408, 0),
+        AttemptOutcome::Retry {
+            reason: "timeout",
+            provider_delay: None,
+        }
+    );
 }
