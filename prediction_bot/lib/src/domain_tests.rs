@@ -1,4 +1,8 @@
 use super::*;
+use googletest::{
+    assert_that,
+    matchers::{anything, contains_substring, eq, err, is_empty, ne},
+};
 
 const DEFAULTS: Policy = Policy {
     amount: 100,
@@ -43,20 +47,20 @@ fn market(state: &mut State, closes_at: i64) {
     );
 }
 
-#[test]
+#[googletest::test]
 fn enrollment_grants_once_and_preserves_schedule() {
     let mut state = State::default();
     let first = execute(&mut state, member(7), &Command::Join, 1_000);
-    assert_eq!(first.events.len(), 3);
-    assert_eq!(state.accounts[&7].balance, 100);
-    assert_eq!(state.accounts[&7].next_grant, 87_400);
+    assert_that!(first.events.len(), eq(3));
+    assert_that!(state.accounts[&7].balance, eq(100));
+    assert_that!(state.accounts[&7].next_grant, eq(87_400));
     let repeat = execute(&mut state, member(7), &Command::Join, 2_000);
-    assert!(repeat.events.is_empty());
-    assert_eq!(state.accounts[&7].balance, 100);
-    assert_eq!(state.accounts[&7].next_grant, 87_400);
+    assert_that!(repeat.events, is_empty());
+    assert_that!(state.accounts[&7].balance, eq(100));
+    assert_that!(state.accounts[&7].next_grant, eq(87_400));
 }
 
-#[test]
+#[googletest::test]
 fn grants_cover_exact_due_boundaries_after_offline_intervals() {
     let mut state = State::default();
     execute(&mut state, member(7), &Command::Join, 1_000);
@@ -66,19 +70,19 @@ fn grants_cover_exact_due_boundaries_after_offline_intervals() {
         &Command::Grant { user_id: 7 },
         87_399,
     );
-    assert!(early.events.is_empty());
+    assert_that!(early.events, is_empty());
     let due = execute(
         &mut state,
         member(0),
         &Command::Grant { user_id: 7 },
         173_800,
     );
-    assert_eq!(due.events.len(), 1);
-    assert_eq!(state.accounts[&7].balance, 300);
-    assert_eq!(state.accounts[&7].next_grant, 260_200);
+    assert_that!(due.events.len(), eq(1));
+    assert_that!(state.accounts[&7].balance, eq(300));
+    assert_that!(state.accounts[&7].next_grant, eq(260_200));
 }
 
-#[test]
+#[googletest::test]
 fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
     let mut state = State::default();
     market(&mut state, 2_000);
@@ -106,17 +110,17 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
         },
         2_000,
     );
-    assert_eq!(
+    assert_that!(
         (state.accounts[&2].balance, state.accounts[&3].balance),
-        (101, 101)
+        eq((101, 101))
     );
-    assert_eq!(state.accounts[&4].balance, 98);
-    assert_eq!(
+    assert_that!(state.accounts[&4].balance, eq(98));
+    assert_that!(
         state.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
-        Status::Resolved {
+        eq(&Status::Resolved {
             outcome: 0,
             refunded: false
-        }
+        })
     );
 
     let mut tied = State::default();
@@ -145,13 +149,13 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
         },
         2_000,
     );
-    assert_eq!(
+    assert_that!(
         (tied.accounts[&2].balance, tied.accounts[&3].balance),
-        (101, 100)
+        eq((101, 100))
     );
 }
 
-#[test]
+#[googletest::test]
 fn no_winner_resolution_and_cancellation_refund_stakes() {
     let mut no_winner = State::default();
     market(&mut no_winner, 2_000);
@@ -175,13 +179,13 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         },
         2_000,
     );
-    assert_eq!(no_winner.accounts[&2].balance, 100);
-    assert_eq!(
+    assert_that!(no_winner.accounts[&2].balance, eq(100));
+    assert_that!(
         no_winner.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
-        Status::Resolved {
+        eq(&Status::Resolved {
             outcome: 1,
             refunded: true
-        }
+        })
     );
 
     let mut cancelled = State::default();
@@ -205,14 +209,14 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         },
         1_700,
     );
-    assert_eq!(cancelled.accounts[&2].balance, 100);
-    assert_eq!(
+    assert_that!(cancelled.accounts[&2].balance, eq(100));
+    assert_that!(
         cancelled.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
-        Status::Cancelled
+        eq(&Status::Cancelled)
     );
 }
 
-#[test]
+#[googletest::test]
 fn invalid_commands_and_replay_do_not_publish_partial_changes() {
     let mut state = State::default();
     market(&mut state, 2_000);
@@ -235,9 +239,12 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             amount: 101,
         },
     ] {
-        assert!(decide(&state, member(2), command, 1_500, DEFAULTS).is_err());
+        assert_that!(
+            decide(&state, member(2), command, 1_500, DEFAULTS),
+            err(anything())
+        );
     }
-    assert!(
+    assert_that!(
         decide(
             &state,
             member(2),
@@ -248,10 +255,10 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             },
             2_000,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         decide(
             &state,
             member(2),
@@ -261,10 +268,10 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             },
             2_000,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         decide(
             &state,
             moderator(1),
@@ -274,10 +281,10 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             },
             2_000,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         decide(
             &state,
             moderator(1),
@@ -287,10 +294,10 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             },
             1_999,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         decide(
             &State::default(),
             Actor {
@@ -300,10 +307,10 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             &Command::Join,
             1_000,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert_eq!(state, before);
+    assert_that!(state, eq(&before));
 
     let invalid = Event::BetPlaced {
         id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
@@ -312,11 +319,11 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
         amount: 1,
         accepted_at: 1_500,
     };
-    assert!(apply(&mut state, &invalid).is_err());
-    assert_eq!(state, before);
+    assert_that!(apply(&mut state, &invalid), err(anything()));
+    assert_that!(state, eq(&before));
 }
 
-#[test]
+#[googletest::test]
 fn history_replays_identically_and_uses_recorded_allocations() {
     let mut state = State::default();
     let mut history = Vec::new();
@@ -377,7 +384,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
     for event in &history {
         apply(&mut replayed, event).unwrap();
     }
-    assert_eq!(replayed, state);
+    assert_that!(replayed, eq(&state));
     if let Event::MarketResolved { payouts, .. } = history.last_mut().unwrap() {
         *payouts = vec![
             Allocation {
@@ -396,21 +403,24 @@ fn history_replays_identically_and_uses_recorded_allocations() {
     for event in &history {
         apply(&mut altered, event).unwrap();
     }
-    assert_eq!(
+    assert_that!(
         (altered.accounts[&2].balance, altered.accounts[&3].balance),
-        (102, 100)
+        eq((102, 100))
     );
 }
 
-#[test]
+#[googletest::test]
 fn overflow_rejects_entire_decision_and_event() {
     let huge = Policy {
         amount: i64::MAX,
         interval: 1,
     };
     let empty = State::default();
-    assert!(decide(&empty, member(1), &Command::Join, i64::MAX, huge).is_err());
-    assert_eq!(empty, State::default());
+    assert_that!(
+        decide(&empty, member(1), &Command::Join, i64::MAX, huge),
+        err(anything())
+    );
+    assert_that!(empty, eq(&State::default()));
 
     let mut state = State::default();
     let join = decide(&state, member(1), &Command::Join, 0, huge).unwrap();
@@ -418,9 +428,12 @@ fn overflow_rejects_entire_decision_and_event() {
         apply(&mut state, event).unwrap();
     }
     let before = state.clone();
-    assert_eq!(state.accounts[&1].balance, i64::MAX);
-    assert!(decide(&state, member(0), &Command::Grant { user_id: 1 }, 1, huge).is_err());
-    assert_eq!(state, before);
+    assert_that!(state.accounts[&1].balance, eq(i64::MAX));
+    assert_that!(
+        decide(&state, member(0), &Command::Grant { user_id: 1 }, 1, huge),
+        err(anything())
+    );
+    assert_that!(state, eq(&before));
     let overflow = Event::PointsGranted {
         user_id: 1,
         reason: GrantReason::Periodic,
@@ -429,11 +442,11 @@ fn overflow_rejects_entire_decision_and_event() {
         through_due: 1,
         next_grant: 2,
     };
-    assert!(apply(&mut state, &overflow).is_err());
-    assert_eq!(state, before);
+    assert_that!(apply(&mut state, &overflow), err(anything()));
+    assert_that!(state, eq(&before));
 }
 
-#[test]
+#[googletest::test]
 fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
     let mut state = State::default();
     execute(&mut state, member(1), &Command::Join, 1_000);
@@ -449,9 +462,12 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
         create("Who wins?", vec!["Red"], 2_000),
         create("Who wins?", vec!["Red", "Blue"], 1_000),
     ] {
-        assert!(decide(&state, member(1), &command, 1_000, DEFAULTS).is_err());
+        assert_that!(
+            decide(&state, member(1), &command, 1_000, DEFAULTS),
+            err(anything())
+        );
     }
-    assert!(
+    assert_that!(
         decide(
             &state,
             Actor {
@@ -461,8 +477,8 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             &create("Who wins?", vec!["Red", "Blue"], 2_000),
             1_000,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
     execute(
         &mut state,
@@ -471,7 +487,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
         1_000,
     );
     let before = state.clone();
-    assert!(
+    assert_that!(
         decide(
             &state,
             Actor {
@@ -485,10 +501,10 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             },
             1_500,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         decide(
             &state,
             member(1),
@@ -497,8 +513,8 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             },
             1_500,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
     execute(
         &mut state,
@@ -508,7 +524,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
         },
         2_100,
     );
-    assert!(
+    assert_that!(
         decide(
             &state,
             moderator(1),
@@ -518,10 +534,10 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             },
             2_100,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         decide(
             &state,
             moderator(1),
@@ -530,13 +546,13 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             },
             2_100,
             DEFAULTS
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert_ne!(state, before);
+    assert_that!(state, ne(&before));
 }
 
-#[test]
+#[googletest::test]
 fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
     let mut state = State::default();
     market(&mut state, 2_000);
@@ -574,8 +590,8 @@ fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
         }],
         refunded: false,
     };
-    assert!(apply(&mut state, &invalid).is_err());
-    assert_eq!(state, before);
+    assert_that!(apply(&mut state, &invalid), err(anything()));
+    assert_that!(state, eq(&before));
     let unknown = Event::MarketResolved {
         id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
         outcome: 0,
@@ -587,31 +603,31 @@ fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
         }],
         refunded: false,
     };
-    assert!(apply(&mut state, &unknown).is_err());
-    assert_eq!(state, before);
+    assert_that!(apply(&mut state, &unknown), err(anything()));
+    assert_that!(state, eq(&before));
 }
 
-#[test]
+#[googletest::test]
 fn event_payload_round_trip_encodes_discord_ids_as_decimal_strings() {
     let event = Event::MemberEnrolled {
         user_id: u64::MAX,
         enrolled_at: 1_000,
     };
     let json = serde_json::to_value(&event).unwrap();
-    assert_eq!(json["kind"], "member_enrolled");
-    assert_eq!(json["user_id"], u64::MAX.to_string());
-    assert_eq!(
+    assert_that!(json["kind"], eq("member_enrolled"));
+    assert_that!(json["user_id"], eq(&u64::MAX.to_string()));
+    assert_that!(
         serde_json::from_value::<Event>(json.clone()).unwrap(),
-        event
+        eq(&event)
     );
     let mut unknown = json;
     unknown["extra"] = serde_json::json!("unsupported");
-    assert!(serde_json::from_value::<Event>(unknown).is_err());
-    assert_eq!(event.name(), "member.enrolled");
-    assert_eq!(event.subject(), format!("members/{}", u64::MAX));
+    assert_that!(serde_json::from_value::<Event>(unknown), err(anything()));
+    assert_that!(event.name(), eq("member.enrolled"));
+    assert_that!(event.subject(), eq(&format!("members/{}", u64::MAX)));
 }
 
-#[test]
+#[googletest::test]
 fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
     let huge = Policy {
         amount: i64::MAX,
@@ -669,7 +685,7 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
         }],
         refunded: false,
     };
-    assert!(
+    assert_that!(
         decide(
             &state,
             moderator(1),
@@ -679,14 +695,14 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
             },
             2_000,
             huge
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(apply(&mut state, &resolution).is_err());
-    assert_eq!(state, before);
+    assert_that!(apply(&mut state, &resolution), err(anything()));
+    assert_that!(state, eq(&before));
 }
 
-#[test]
+#[googletest::test]
 fn private_replay_matches_sequential_public_apply() {
     let mut decided = State::default();
     let mut events = Vec::new();
@@ -727,12 +743,12 @@ fn private_replay_matches_sequential_public_apply() {
     for event in &events {
         apply(&mut sequential, event).unwrap();
     }
-    assert_eq!(replay(&events).unwrap(), sequential);
-    assert_eq!(sequential, decided);
-    assert_eq!(replay(&[]).unwrap(), State::default());
+    assert_that!(replay(&events).unwrap(), eq(&sequential));
+    assert_that!(sequential, eq(&decided));
+    assert_that!(replay(&[]).unwrap(), eq(&State::default()));
 }
 
-#[test]
+#[googletest::test]
 fn private_replay_rejects_invalid_history_as_one_result() {
     let events = vec![
         Event::GuildEconomyInitialized {
@@ -752,10 +768,10 @@ fn private_replay_rejects_invalid_history_as_one_result() {
             next_grant: 87_400,
         },
     ];
-    assert!(replay(&events).is_err());
+    assert_that!(replay(&events), err(anything()));
 }
 
-#[test]
+#[googletest::test]
 fn serialized_allocations_reject_unexpected_nested_fields() {
     let market_id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
     for payload in [
@@ -770,18 +786,19 @@ fn serialized_allocations_reject_unexpected_nested_fields() {
             "refunds": [{"user_id": "7", "amount": 3, "note": "unexpected"}]
         }),
     ] {
-        assert!(serde_json::from_value::<Event>(payload).is_err());
+        assert_that!(serde_json::from_value::<Event>(payload), err(anything()));
     }
 }
 
-#[test]
+#[googletest::test]
 fn event_snowflakes_require_canonical_positive_decimal_strings() {
     for user_id in ["+7", "07", "0", "+0", "00", " 7", "7 ", "-7", "7.0"] {
         let payload = serde_json::json!({
             "kind": "member_enrolled", "user_id": user_id, "enrolled_at": 1_000
         });
-        assert!(
-            serde_json::from_value::<Event>(payload).is_err(),
+        assert_that!(
+            serde_json::from_value::<Event>(payload),
+            err(anything()),
             "accepted {user_id}"
         );
     }
@@ -791,15 +808,15 @@ fn event_snowflakes_require_canonical_positive_decimal_strings() {
         bot: false,
     };
     let encoded = serde_json::to_value(actor).unwrap();
-    assert_eq!(encoded["user_id"], "0");
-    assert_eq!(serde_json::from_value::<Actor>(encoded).unwrap(), actor);
+    assert_that!(encoded["user_id"], eq("0"));
+    assert_that!(serde_json::from_value::<Actor>(encoded).unwrap(), eq(actor));
     for user_id in ["+0", "00"] {
         let encoded = serde_json::json!({"user_id": user_id, "moderator": false, "bot": false});
-        assert!(serde_json::from_value::<Actor>(encoded).is_err());
+        assert_that!(serde_json::from_value::<Actor>(encoded), err(anything()));
     }
 }
 
-#[test]
+#[googletest::test]
 fn derived_market_pool_matches_stakes_and_preserves_available_points() {
     let mut state = State::default();
     market(&mut state, 2_000);
@@ -819,17 +836,17 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
         );
     }
     let market = &state.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"];
-    assert_eq!(market.total_staked, 12);
-    assert_eq!(
+    assert_that!(market.total_staked, eq(12));
+    assert_that!(
         market.total_staked,
-        market.bets.iter().map(|bet| bet.amount).sum::<i64>()
+        eq(market.bets.iter().map(|bet| bet.amount).sum::<i64>())
     );
     let available = state
         .accounts
         .values()
         .map(|account| account.balance)
         .sum::<i64>();
-    assert_eq!(available + market.total_staked, 300);
+    assert_that!(available + market.total_staked, eq(300));
     execute(
         &mut state,
         moderator(1),
@@ -838,17 +855,17 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
         },
         1_700,
     );
-    assert_eq!(
+    assert_that!(
         state
             .accounts
             .values()
             .map(|account| account.balance)
             .sum::<i64>(),
-        300
+        eq(300)
     );
 }
 
-#[test]
+#[googletest::test]
 fn bet_receipt_identifies_outcome_stake_and_remaining_balance() {
     let mut state = State::default();
     market(&mut state, 2_000);
@@ -863,8 +880,8 @@ fn bet_receipt_identifies_outcome_stake_and_remaining_balance() {
         1_500,
     )
     .response;
-    assert!(receipt.contains("Blue"));
-    assert!(receipt.contains("25 points"));
-    assert!(receipt.contains("75 points"));
-    assert_eq!(state.accounts[&1].balance, 75);
+    assert_that!(receipt, contains_substring("Blue"));
+    assert_that!(receipt, contains_substring("25 points"));
+    assert_that!(receipt, contains_substring("75 points"));
+    assert_that!(state.accounts[&1].balance, eq(75));
 }

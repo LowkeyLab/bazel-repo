@@ -1,3 +1,7 @@
+use googletest::{
+    assert_that,
+    matchers::{contains_substring, ends_with, eq, le, not, starts_with},
+};
 use serde_json::Value;
 
 use super::{
@@ -15,11 +19,14 @@ fn content(payload: &Value) -> &str {
 }
 
 fn assert_mentions_disabled(payload: &Value) {
-    assert_eq!(payload["allowed_mentions"]["parse"], serde_json::json!([]));
-    assert_eq!(payload["allowed_mentions"]["replied_user"], false);
+    assert_that!(
+        payload["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
+    assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));
 }
 
-#[test]
+#[googletest::test]
 fn creation_renders_saved_details_as_non_pinging_text() {
     let payload = payload(SnapshotV1::Created {
         id: "rain-1".into(),
@@ -31,19 +38,22 @@ fn creation_renders_saved_details_as_non_pinging_text() {
     });
     let content = content(&payload);
 
-    assert!(content.contains("Market created"));
-    assert!(content.contains("Market ID: `rain-1`"));
-    assert!(content.contains(r"Will \*\*rain\*\* ping @everyone?"));
-    assert!(content.contains("Creator: `42`"));
-    assert!(!content.contains("<@42>"));
-    assert!(content.contains(r"Yes\_please"));
-    assert!(content.contains(r"No \| sunshine"));
-    assert!(content.contains("<t:2000:F>"));
-    assert!(content.contains("<t:1000:F>"));
+    assert_that!(content, contains_substring("Market created"));
+    assert_that!(content, contains_substring("Market ID: `rain-1`"));
+    assert_that!(
+        content,
+        contains_substring(r"Will \*\*rain\*\* ping @everyone?")
+    );
+    assert_that!(content, contains_substring("Creator: `42`"));
+    assert_that!(content, not(contains_substring("<@42>")));
+    assert_that!(content, contains_substring(r"Yes\_please"));
+    assert_that!(content, contains_substring(r"No \| sunshine"));
+    assert_that!(content, contains_substring("<t:2000:F>"));
+    assert_that!(content, contains_substring("<t:1000:F>"));
     assert_mentions_disabled(&payload);
 }
 
-#[test]
+#[googletest::test]
 fn resolution_distinguishes_a_refund_and_uses_the_original_event_time() {
     let payload = payload(SnapshotV1::Resolved {
         id: "unicode-🔮".into(),
@@ -54,16 +64,19 @@ fn resolution_distinguishes_a_refund_and_uses_the_original_event_time() {
     });
     let content = content(&payload);
 
-    assert!(content.contains("Market resolved"));
-    assert!(content.contains("Market ID: `unicode-🔮`"));
-    assert!(content.contains("Café or 茶?"));
-    assert!(content.contains("Winning outcome: No winners"));
-    assert!(content.contains("Stakes refunded: yes (no winning bets)"));
-    assert!(content.contains("<t:3000:F>"));
+    assert_that!(content, contains_substring("Market resolved"));
+    assert_that!(content, contains_substring("Market ID: `unicode-🔮`"));
+    assert_that!(content, contains_substring("Café or 茶?"));
+    assert_that!(content, contains_substring("Winning outcome: No winners"));
+    assert_that!(
+        content,
+        contains_substring("Stakes refunded: yes (no winning bets)")
+    );
+    assert_that!(content, contains_substring("<t:3000:F>"));
     assert_mentions_disabled(&payload);
 }
 
-#[test]
+#[googletest::test]
 fn cancellation_confirms_refunds_and_escapes_hostile_markdown() {
     let payload = payload(SnapshotV1::Cancelled {
         id: "cancel-1".into(),
@@ -72,15 +85,18 @@ fn cancellation_confirms_refunds_and_escapes_hostile_markdown() {
     });
     let content = content(&payload);
 
-    assert!(content.contains("Market cancelled"));
-    assert!(content.contains("Market ID: `cancel-1`"));
-    assert!(content.contains(r"\[click\]\(https://example.invalid\) \# heading"));
-    assert!(content.contains("Stakes refunded: yes"));
-    assert!(content.contains("<t:4000:F>"));
+    assert_that!(content, contains_substring("Market cancelled"));
+    assert_that!(content, contains_substring("Market ID: `cancel-1`"));
+    assert_that!(
+        content,
+        contains_substring(r"\[click\]\(https://example.invalid\) \# heading")
+    );
+    assert_that!(content, contains_substring("Stakes refunded: yes"));
+    assert_that!(content, contains_substring("<t:4000:F>"));
     assert_mentions_disabled(&payload);
 }
 
-#[test]
+#[googletest::test]
 fn long_unicode_content_stays_within_discords_utf16_limit() {
     let payload = payload(SnapshotV1::Created {
         id: "kept-id".into(),
@@ -92,29 +108,32 @@ fn long_unicode_content_stays_within_discords_utf16_limit() {
     });
     let content = content(&payload);
 
-    assert!(content.encode_utf16().count() <= 2_000);
-    assert!(content.starts_with("📈 Market created\nMarket ID: `kept-id`"));
-    assert!(content.contains("…"));
-    assert!(content.contains("Closes: <t:2000:F>"));
-    assert!(content.ends_with("Event time: <t:1000:F>"));
+    assert_that!(content.encode_utf16().count(), le(2_000));
+    assert_that!(
+        content,
+        starts_with("📈 Market created\nMarket ID: `kept-id`")
+    );
+    assert_that!(content, contains_substring("…"));
+    assert_that!(content, contains_substring("Closes: <t:2000:F>"));
+    assert_that!(content, ends_with("Event time: <t:1000:F>"));
     assert_mentions_disabled(&payload);
 }
 
-#[test]
+#[googletest::test]
 fn retries_start_after_failure_and_cap_the_local_delay() {
-    assert_eq!(retry_at(1000, 1, None), 1005);
-    assert_eq!(retry_at(1000, 2, None), 1010);
-    assert_eq!(retry_at(1000, 100, None), 1300);
-    assert_eq!(retry_at(1000, 1, Some(600)), 1600);
-    assert_eq!(retry_at(i64::MAX - 1, 1, None), i64::MAX);
+    assert_that!(retry_at(1000, 1, None), eq(1005));
+    assert_that!(retry_at(1000, 2, None), eq(1010));
+    assert_that!(retry_at(1000, 100, None), eq(1300));
+    assert_that!(retry_at(1000, 1, Some(600)), eq(1600));
+    assert_that!(retry_at(i64::MAX - 1, 1, None), eq(i64::MAX));
 }
 
-#[test]
+#[googletest::test]
 fn retry_ignores_negative_provider_delays() {
-    assert_eq!(retry_at(1000, 1, Some(-60)), 1005);
+    assert_that!(retry_at(1000, 1, Some(-60)), eq(1005));
 }
 
-#[test]
+#[googletest::test]
 fn truncation_preserves_a_valid_maximum_length_market_id() {
     let id = "12345678-1234-1234-1234-123456789abc";
     let payload = payload(SnapshotV1::Created {
@@ -126,96 +145,99 @@ fn truncation_preserves_a_valid_maximum_length_market_id() {
         occurred_at: 1_000,
     });
 
-    assert!(content(&payload).starts_with(&format!("📈 Market created\nMarket ID: `{id}`")));
+    assert_that!(
+        content(&payload),
+        starts_with(format!("📈 Market created\nMarket ID: `{id}`"))
+    );
 }
 
-#[test]
+#[googletest::test]
 fn permanent_local_delivery_errors_pause_without_copying_details() {
     let model = serenity::Error::Model(serenity::model::ModelError::MessageTooLong(1));
-    assert_eq!(
+    assert_that!(
         classify_delivery_failure(&model),
-        AttemptOutcome::Pause {
+        eq(AttemptOutcome::Pause {
             reason: "The announcement could not be prepared for Discord; contact an operator.",
-        }
+        })
     );
 
     let missing_application =
         serenity::Error::Http(serenity::http::HttpError::ApplicationIdMissing);
-    assert_eq!(
+    assert_that!(
         classify_delivery_failure(&missing_application),
-        AttemptOutcome::Pause {
+        eq(AttemptOutcome::Pause {
             reason: "The announcement could not be prepared for Discord; contact an operator.",
-        }
+        })
     );
 }
 
-#[test]
+#[googletest::test]
 fn ambiguous_json_errors_retry_because_discord_may_have_accepted_the_message() {
     let json = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
-    assert_eq!(
+    assert_that!(
         classify_delivery_failure(&serenity::Error::Json(json)),
-        AttemptOutcome::Retry {
+        eq(AttemptOutcome::Retry {
             reason: "discord_json",
             provider_delay: None,
-        }
+        })
     );
 }
 
-#[test]
+#[googletest::test]
 fn http_failures_use_safe_delivery_outcomes() {
     let transport = serenity::Error::Io(std::io::Error::new(
         std::io::ErrorKind::ConnectionReset,
         "body must not be persisted",
     ));
-    assert_eq!(
+    assert_that!(
         classify_delivery_failure(&transport),
-        AttemptOutcome::Retry {
+        eq(AttemptOutcome::Retry {
             reason: "transport",
             provider_delay: None,
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         classify_http_failure(429, 0),
-        AttemptOutcome::Retry {
+        eq(AttemptOutcome::Retry {
             reason: "discord_rate_limit",
             provider_delay: None,
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         classify_http_failure(500, 0),
-        AttemptOutcome::Retry {
+        eq(AttemptOutcome::Retry {
             reason: "discord_server_error",
             provider_delay: None,
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         classify_http_failure(403, 0),
-        AttemptOutcome::Pause {
+        eq(AttemptOutcome::Pause {
             reason: "Announcement delivery lacks permission to use the configured channel.",
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         classify_http_failure(404, 10_003),
-        AttemptOutcome::Pause {
+        eq(AttemptOutcome::Pause {
             reason: "The configured announcement channel is unavailable.",
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         classify_http_failure(400, 50_035),
-        AttemptOutcome::Pause {
+        eq(AttemptOutcome::Pause {
             reason: "Discord rejected the announcement payload; reconfigure the destination or contact an operator.",
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         classify_http_failure(401, 0),
-        AttemptOutcome::Retry {
+        eq(AttemptOutcome::Retry {
             reason: "discord_authentication",
             provider_delay: None,
-        }
+        })
     );
 }
 
-#[test]
+#[googletest::test]
 fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
     let text = r"<t:0:R> <#123> <:coin:456> <a:dance:789> \<t:1:F>";
     let escaped = r"\<t:0:R\> \<\#123\> \<:coin:456\> \<a:dance:789\> \\\<t:1:F\>";
@@ -244,27 +266,27 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
     for (snapshot, expected_copies) in snapshots.into_iter().zip([2, 2, 1]) {
         let payload = payload(snapshot);
         let text = content(&payload);
-        assert_eq!(text.matches(escaped).count(), expected_copies, "{text}");
-        assert!(text.contains("Event time: <t:1000:F>"));
+        assert_that!(text.matches(escaped).count(), eq(expected_copies), "{text}");
+        assert_that!(text, contains_substring("Event time: <t:1000:F>"));
         if text.contains("Market created") {
-            assert!(text.contains("Closes: <t:2000:F>"));
+            assert_that!(text, contains_substring("Closes: <t:2000:F>"));
         }
         assert_mentions_disabled(&payload);
     }
 }
 
-#[test]
+#[googletest::test]
 fn http_request_timeouts_retry_without_pausing_the_guild() {
-    assert_eq!(
+    assert_that!(
         classify_http_failure(408, 0),
-        AttemptOutcome::Retry {
+        eq(AttemptOutcome::Retry {
             reason: "timeout",
             provider_delay: None,
-        }
+        })
     );
 }
 
-#[test]
+#[googletest::test]
 fn maximum_creation_preserves_all_fields_when_user_text_expands() {
     for character in ["🔮", "*", "\\"] {
         let payload = payload(SnapshotV1::Created {
@@ -278,13 +300,16 @@ fn maximum_creation_preserves_all_fields_when_user_text_expands() {
             occurred_at: i64::MAX,
         });
         let text = content(&payload);
-        assert!(text.encode_utf16().count() <= 2000);
+        assert_that!(text.encode_utf16().count(), le(2000));
         for i in 0..10 {
-            assert!(text.contains(&format!("• {i}")), "{text}");
+            assert_that!(text, contains_substring(format!("• {i}")), "{text}");
         }
-        assert!(text.contains(&format!("Creator: `{}`", u64::MAX)));
-        assert!(text.contains(&format!("Closes: <t:{}:F>", i64::MAX)));
-        assert!(text.ends_with(&format!("Event time: <t:{}:F>", i64::MAX)));
+        assert_that!(text, contains_substring(format!("Creator: `{}`", u64::MAX)));
+        assert_that!(
+            text,
+            contains_substring(format!("Closes: <t:{}:F>", i64::MAX))
+        );
+        assert_that!(text, ends_with(format!("Event time: <t:{}:F>", i64::MAX)));
         assert_mentions_disabled(&payload);
     }
 }

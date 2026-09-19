@@ -1,3 +1,10 @@
+use googletest::{
+    assert_that,
+    matchers::{
+        anything, contains_substring, elements_are, eq, err, gt, is_empty, matches_pattern, ne,
+        none, ok, some,
+    },
+};
 use prediction_bot::store::{Store, StoreError, migrate};
 use prediction_bot::{
     announcements::ConfigurationChange,
@@ -74,6 +81,7 @@ fn create(id: &str) -> Command {
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn enrollment_events_are_individually_revisioned_and_replay_after_restart() {
     let (_container, store) = fixture().await;
@@ -81,23 +89,23 @@ async fn enrollment_events_are_individually_revisioned_and_replay_after_restart(
         .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .execute_at(1, "discord:1", player(7), &Command::Join, 2000)
             .await
             .unwrap(),
-        response
+        eq(&response)
     );
     let before = store.view(1).await.unwrap();
-    assert_eq!(before.state.accounts[&7].balance, 100);
-    assert_eq!(before.revision, 3); // initialize, enroll, grant: three rows, not one batch revision
+    assert_that!(before.state.accounts[&7].balance, eq(100));
+    assert_that!(before.revision, eq(3)); // initialize, enroll, grant: three rows, not one batch revision
     let revisions: Vec<i64> = sqlx::query_scalar(
         "SELECT revision FROM prediction_events WHERE guild_id='1' ORDER BY revision",
     )
     .fetch_all(&store.pool)
     .await
     .unwrap();
-    assert_eq!(revisions, vec![1, 2, 3]);
+    assert_that!(revisions, eq(&vec![1, 2, 3]));
     let fresh = Store::new(
         store.pool.clone(),
         42,
@@ -106,15 +114,16 @@ async fn enrollment_events_are_individually_revisioned_and_replay_after_restart(
             interval: 1,
         },
     );
-    assert_eq!(fresh.view(1).await.unwrap().state, before.state);
-    assert!(fresh.view(2).await.unwrap().state.accounts.is_empty());
+    assert_that!(fresh.view(1).await.unwrap().state, eq(&before.state));
+    assert_that!(fresh.view(2).await.unwrap().state.accounts, is_empty());
     store
         .execute_at(1, "discord:2", player(7), &Command::Join, 2000)
         .await
         .unwrap();
-    assert_eq!(store.view(1).await.unwrap().revision, 3); // accepted no-op consumes no event revision
+    assert_that!(store.view(1).await.unwrap().revision, eq(3)); // accepted no-op consumes no event revision
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_charge() {
     let (_container, store) = fixture().await;
@@ -136,33 +145,34 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
         store.execute_at(1, "discord:3", player(7), &bet, 1100),
         store.execute_at(1, "discord:4", player(7), &bet, 1100)
     );
-    assert_ne!(a.is_ok(), b.is_ok());
+    assert_that!(a.is_ok(), ne(b.is_ok()));
     let (key, original) = if let Ok(receipt) = a {
         ("discord:3", receipt)
     } else {
         ("discord:4", b.unwrap())
     };
-    assert!(original.contains("Yes"));
-    assert!(original.contains("80 points"));
-    assert!(original.contains("20 points"));
+    assert_that!(original, contains_substring("Yes"));
+    assert_that!(original, contains_substring("80 points"));
+    assert_that!(original, contains_substring("20 points"));
     // A redelivery after the market closes must replay the original receipt.
     let repeated = store
         .execute_at(1, key, player(7), &bet, 2100)
         .await
         .unwrap();
-    assert_eq!(repeated, original);
+    assert_that!(repeated, eq(&original));
     let view = store.view(1).await.unwrap();
-    assert_eq!(view.state.accounts[&7].balance, 20);
-    assert_eq!(view.state.markets[&market].bets.len(), 1);
-    assert_eq!(view.revision, 5);
-    assert!(
+    assert_that!(view.state.accounts[&7].balance, eq(20));
+    assert_that!(view.state.markets[&market].bets.len(), eq(1));
+    assert_that!(view.revision, eq(5));
+    assert_that!(
         store
             .execute_at(2, "discord:5", player(7), &bet, 1200)
-            .await
-            .is_err()
+            .await,
+        err(anything())
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn premature_grant_can_retry_when_due_and_only_credit_once() {
     let (_container, store) = fixture().await;
@@ -179,16 +189,16 @@ async fn premature_grant_can_retry_when_due_and_only_credit_once() {
         .await
         .unwrap();
     let early = store.view(1).await.unwrap();
-    assert_eq!(early.state.accounts[&7].balance, 100);
-    assert_eq!(early.state.accounts[&7].next_grant, 87_400);
+    assert_that!(early.state.accounts[&7].balance, eq(100));
+    assert_that!(early.state.accounts[&7].next_grant, eq(87_400));
 
     store
         .execute_at(1, key, player(0), &command, 87_400)
         .await
         .unwrap();
     let due = store.view(1).await.unwrap();
-    assert_eq!(due.state.accounts[&7].balance, 200);
-    assert_eq!(due.state.accounts[&7].next_grant, 173_800);
+    assert_that!(due.state.accounts[&7].balance, eq(200));
+    assert_that!(due.state.accounts[&7].next_grant, eq(173_800));
 
     // Redelivery at the next deadline must still replay the successful grant.
     store
@@ -196,10 +206,11 @@ async fn premature_grant_can_retry_when_due_and_only_credit_once() {
         .await
         .unwrap();
     let duplicate = store.view(1).await.unwrap();
-    assert_eq!(duplicate.state.accounts[&7].balance, 200);
-    assert_eq!(duplicate.state.accounts[&7].next_grant, 173_800);
+    assert_that!(duplicate.state.accounts[&7].balance, eq(200));
+    assert_that!(duplicate.state.accounts[&7].next_grant, eq(173_800));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn workers_grant_each_interval_once_and_settlement_credits_once() {
     let (_container, store) = fixture().await;
@@ -219,7 +230,10 @@ async fn workers_grant_each_interval_once_and_settlement_credits_once() {
     );
     a.unwrap();
     b.unwrap();
-    assert_eq!(store.view(1).await.unwrap().state.accounts[&7].balance, 300);
+    assert_that!(
+        store.view(1).await.unwrap().state.accounts[&7].balance,
+        eq(300)
+    );
     let market = uuid::Uuid::new_v4().to_string();
     store
         .execute_at(1, "discord:2", player(7), &create(&market), 1000)
@@ -252,40 +266,45 @@ async fn workers_grant_each_interval_once_and_settlement_credits_once() {
         store.execute_at(1, "discord:4", moderator, &settle, 2000),
         store.execute_at(1, "discord:5", moderator, &settle, 2000)
     );
-    assert_ne!(a.is_ok(), b.is_ok());
-    assert_eq!(store.view(1).await.unwrap().state.accounts[&7].balance, 300);
+    assert_that!(a.is_ok(), ne(b.is_ok()));
+    assert_that!(
+        store.view(1).await.unwrap().state.accounts[&7].balance,
+        eq(300)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn failed_append_rolls_back_all_events_and_does_not_consume_revisions() {
     let (audit, recorder) = recording_fixture();
     let (_container, store) = fixture_with_audit(audit).await;
     sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_test_command CHECK (command_key <> 'discord:99')")
         .execute(&store.pool).await.unwrap();
-    assert!(
+    assert_that!(
         store
             .execute_at(1, "discord:99", player(7), &Command::Join, 1000)
-            .await
-            .is_err()
+            .await,
+        err(anything())
     );
-    assert_eq!(store.view(1).await.unwrap().revision, 0);
-    assert!(store.view(1).await.unwrap().state.accounts.is_empty());
-    assert!(matches!(
+    assert_that!(store.view(1).await.unwrap().revision, eq(0));
+    assert_that!(store.view(1).await.unwrap().state.accounts, is_empty());
+    assert_that!(
         recorder.0.lock().unwrap().as_slice(),
-        [AuditEvent::CommandCompleted {
-            key: Some(key),
-            outcome: Outcome::Failed(_),
-            stage: Stage::Append,
+        elements_are![matches_pattern!(AuditEvent::CommandCompleted {
+            key: some(eq("discord:99")),
+            outcome: matches_pattern!(Outcome::Failed(anything())),
+            stage: eq(&Stage::Append),
             ..
-        }] if key == "discord:99"
-    ));
+        })]
+    );
     store
         .execute_at(1, "discord:accepted", player(7), &Command::Join, 1000)
         .await
         .unwrap();
-    assert_eq!(store.view(1).await.unwrap().revision, 3);
+    assert_that!(store.view(1).await.unwrap().revision, eq(3));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn legacy_command_keys_are_accepted_with_omitted_audit_correlation() {
     let (audit, recorder) = recording_fixture();
@@ -296,17 +315,18 @@ async fn legacy_command_keys_are_accepted_with_omitted_audit_correlation() {
         .await
         .unwrap();
 
-    assert!(matches!(
+    assert_that!(
         recorder.0.lock().unwrap().as_slice(),
-        [AuditEvent::CommandCompleted {
-            key: None,
-            outcome: Outcome::Succeeded,
-            stage: Stage::Commit,
+        elements_are![matches_pattern!(AuditEvent::CommandCompleted {
+            key: none(),
+            outcome: eq(&Outcome::Succeeded),
+            stage: eq(&Stage::Commit),
             ..
-        }]
-    ));
+        })]
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
     let (audit, recorder) = recording_fixture();
@@ -336,8 +356,11 @@ async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
         .await
         .unwrap_err();
 
-    assert!(matches!(error, StoreError::Domain(_)));
-    assert_eq!(store.view(1).await.unwrap().state.accounts[&7].balance, 100);
+    assert_that!(error, matches_pattern!(StoreError::Domain(anything())));
+    assert_that!(
+        store.view(1).await.unwrap().state.accounts[&7].balance,
+        eq(100)
+    );
     let events = recorder.0.lock().unwrap();
     let commands: Vec<_> = events
         .iter()
@@ -350,12 +373,13 @@ async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
             _ => None,
         })
         .collect();
-    assert_eq!(
+    assert_that!(
         commands,
-        vec![&Outcome::Rejected(Rejection::InsufficientPoints)]
+        eq(&vec![&Outcome::Rejected(Rejection::InsufficientPoints)])
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn replay_failure_emits_an_operational_command_outcome() {
     let (audit, recorder) = recording_fixture();
@@ -369,23 +393,24 @@ async fn replay_failure_emits_an_operational_command_outcome() {
         .await
         .unwrap();
 
-    assert!(
+    assert_that!(
         store
             .execute_at(1, "discord:99", player(8), &Command::Join, 1000)
-            .await
-            .is_err()
+            .await,
+        err(anything())
     );
-    assert!(matches!(
+    assert_that!(
         recorder.0.lock().unwrap().last(),
-        Some(AuditEvent::CommandCompleted {
-            key: Some(key),
-            outcome: Outcome::Failed(_),
-            stage: Stage::Replay,
+        some(matches_pattern!(AuditEvent::CommandCompleted {
+            key: some(eq("discord:99")),
+            outcome: matches_pattern!(Outcome::Failed(anything())),
+            stage: eq(&Stage::Replay),
             ..
-        }) if key == "discord:99"
-    ));
+        }))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn grant_due_continues_after_a_receipt_failure_and_reports_the_schedule_key() {
     let (audit, recorder) = recording_fixture();
@@ -410,21 +435,22 @@ async fn grant_due_continues_after_a_receipt_failure_and_reports_the_schedule_ke
     store.grant_due().await.unwrap();
 
     let view = store.view(1).await.unwrap();
-    assert_eq!(view.state.accounts[&7].balance, 100);
-    assert!(view.state.accounts[&8].balance > 100);
-    assert!(matches!(
+    assert_that!(view.state.accounts[&7].balance, eq(100));
+    assert_that!(view.state.accounts[&8].balance, gt(100));
+    assert_that!(
         recorder.0.lock().unwrap().iter().find(|event| matches!(
             event,
             AuditEvent::CommandCompleted { key: Some(key), .. } if key == "grant:7:0"
         )),
-        Some(AuditEvent::CommandCompleted {
-            outcome: Outcome::Failed(_),
-            stage: Stage::Append,
+        some(matches_pattern!(AuditEvent::CommandCompleted {
+            outcome: matches_pattern!(Outcome::Failed(anything())),
+            stage: eq(&Stage::Append),
             ..
-        })
-    ));
+        }))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn grant_due_reports_corrupt_guild_reconstruction_and_continues() {
     let (audit, recorder) = recording_fixture();
@@ -444,33 +470,40 @@ async fn grant_due_reports_corrupt_guild_reconstruction_and_continues() {
 
     store.grant_due().await.unwrap();
 
-    assert!(store.view(2).await.unwrap().state.accounts[&8].balance > 100);
-    assert!(matches!(
+    assert_that!(
+        store.view(2).await.unwrap().state.accounts[&8].balance,
+        gt(100)
+    );
+    assert_that!(
         recorder
             .0
             .lock()
             .unwrap()
             .iter()
             .find(|event| matches!(event, AuditEvent::GrantFailed { guild: Some(1), .. })),
-        Some(AuditEvent::GrantFailed {
-            outcome: Outcome::Failed(_),
-            stage: Stage::Reconstruct,
+        some(matches_pattern!(AuditEvent::GrantFailed {
+            outcome: matches_pattern!(Outcome::Failed(anything())),
+            stage: eq(&Stage::Reconstruct),
             ..
-        })
-    ));
+        }))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn grant_due_returns_discovery_errors_for_the_worker_to_report() {
     let (_container, store) = fixture().await;
     store.pool.close().await;
 
-    assert!(matches!(
+    assert_that!(
         store.grant_due().await,
-        Err(StoreError::Database(sqlx::Error::PoolClosed))
-    ));
+        err(matches_pattern!(StoreError::Database(matches_pattern!(
+            sqlx::Error::PoolClosed
+        ))))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn runtime_role_can_append_but_cannot_change_history() {
     let (container, owner) = fixture().await;
@@ -521,8 +554,8 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         )
         .await
         .unwrap();
-    assert!(status.enabled);
-    assert_eq!(status.channel_id, Some(20));
+    assert_that!(status.enabled, eq(true));
+    assert_that!(status.channel_id, eq(Some(20)));
     sqlx::query("INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ('1',1,1,'{}'::jsonb,0)")
         .execute(&runtime)
         .await
@@ -537,7 +570,7 @@ async fn runtime_role_can_append_but_cannot_change_history() {
     .fetch_one(&runtime)
     .await
     .unwrap();
-    assert_eq!(attempts, 1);
+    assert_that!(attempts, eq(1));
     for query in [
         "UPDATE prediction_events SET accepted_at=0",
         "DELETE FROM prediction_events",
@@ -549,14 +582,18 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         "CREATE ROLE unauthorized_role",
     ] {
         let err = sqlx::query(query).execute(&runtime).await.unwrap_err();
-        assert_eq!(
+        assert_that!(
             err.as_database_error().unwrap().code().as_deref(),
-            Some("42501")
+            eq(Some("42501"))
         );
     }
-    assert_eq!(owner.view(1).await.unwrap().state.accounts[&7].balance, 100);
+    assert_that!(
+        owner.view(1).await.unwrap().state.accounts[&7].balance,
+        eq(100)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn startup_rejects_a_missing_announcements_migration_record() {
     let (container, owner) = fixture().await;
@@ -582,9 +619,13 @@ async fn startup_rejects_a_missing_announcements_migration_record() {
     .err()
     .unwrap();
 
-    assert!(matches!(error, StoreError::Configuration(_)));
+    assert_that!(
+        error,
+        matches_pattern!(StoreError::Configuration(anything()))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn corrupt_or_unsupported_history_is_not_served_as_a_valid_projection() {
     let (_container, store) = fixture().await;
@@ -593,9 +634,10 @@ async fn corrupt_or_unsupported_history_is_not_served_as_a_valid_projection() {
         .await
         .unwrap();
     sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE revision=2").execute(&store.pool).await.unwrap();
-    assert!(store.view(1).await.is_err());
+    assert_that!(store.view(1).await, err(anything()));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn replay_requires_the_initial_grant_to_belong_to_its_enrollment() {
     let (_container, store) = fixture().await;
@@ -604,9 +646,10 @@ async fn replay_requires_the_initial_grant_to_belong_to_its_enrollment() {
         .await
         .unwrap();
     sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{data,reason}', '\"periodic\"') WHERE revision=3").execute(&store.pool).await.unwrap();
-    assert!(store.view(1).await.is_err());
+    assert_that!(store.view(1).await, err(anything()));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn replay_rejects_receipts_that_disagree_with_their_events() {
     let (_container, store) = fixture().await;
@@ -629,23 +672,26 @@ async fn replay_rejects_receipts_that_disagree_with_their_events() {
         ),
     ] {
         sqlx::query(corrupt).execute(&store.pool).await.unwrap();
-        assert!(
-            store.view(1).await.is_err(),
+        assert_that!(
+            store.view(1).await,
+            err(anything()),
             "accepted corrupt receipt: {corrupt}"
         );
         sqlx::query(restore).execute(&store.pool).await.unwrap();
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn gateway_lock_is_exclusive_and_released_when_connection_closes() {
     let (_container, store) = fixture().await;
     let guard = store.gateway_guard().await.unwrap();
-    assert!(store.gateway_guard().await.is_err());
+    assert_that!(store.gateway_guard().await, err(anything()));
     guard.close().await.unwrap();
-    assert!(store.gateway_guard().await.is_ok());
+    assert_that!(store.gateway_guard().await, ok(anything()));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn bet_racing_resolution_cannot_leave_points_in_a_terminal_pool() {
     let (_container, store) = fixture().await;
@@ -678,23 +724,24 @@ async fn bet_racing_resolution_cannot_leave_points_in_a_terminal_pool() {
     );
     resolve_result.unwrap();
     let view = store.view(1).await.unwrap();
-    assert_eq!(view.state.accounts[&7].balance, 100);
-    assert_eq!(
+    assert_that!(view.state.accounts[&7].balance, eq(100));
+    assert_that!(
         view.state.markets[&market].bets.len(),
-        usize::from(bet_result.is_ok())
+        eq(usize::from(bet_result.is_ok()))
     );
-    assert!(matches!(
+    assert_that!(
         view.state.markets[&market].status,
-        prediction_bot::domain::Status::Resolved { .. }
-    ));
-    assert!(
+        matches_pattern!(prediction_bot::domain::Status::Resolved { .. })
+    );
+    assert_that!(
         store
             .execute_at(1, "discord:5", player(7), &bet, 2001)
-            .await
-            .is_err()
+            .await,
+        err(anything())
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn repeated_migrations_preserve_events_and_login_credentials() {
     let (container, store) = fixture().await;
@@ -709,7 +756,7 @@ async fn repeated_migrations_preserve_events_and_login_credentials() {
             .fetch_all(&store.pool)
             .await
             .unwrap();
-    assert_eq!(versions, vec![1, 2, 3]);
+    assert_that!(versions, eq(&vec![1, 2, 3]));
     let options = PgConnectOptions::new()
         .host(&container.get_host().await.unwrap().to_string())
         .port(container.get_host_port_ipv4(5432).await.unwrap())
@@ -725,8 +772,11 @@ async fn repeated_migrations_preserve_events_and_login_credentials() {
             interval: 86_400,
         },
     );
-    assert_eq!(restarted.view(1).await.unwrap().state, before.state);
-    assert_eq!(restarted.view(1).await.unwrap().revision, before.revision);
+    assert_that!(restarted.view(1).await.unwrap().state, eq(&before.state));
+    assert_that!(
+        restarted.view(1).await.unwrap().revision,
+        eq(before.revision)
+    );
 }
 
 #[derive(Default)]
@@ -759,6 +809,7 @@ impl prediction_bot::discord::transport::InteractionTransport for TestTransport 
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
     use prediction_bot::audit::{Failure, FailureCategory};
@@ -789,8 +840,8 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
             .await;
     }
     let view = store.view(1).await.unwrap();
-    assert_eq!(view.state.accounts[&7].balance, 20);
-    assert_eq!(view.state.markets[&market].bets.len(), 1);
+    assert_that!(view.state.accounts[&7].balance, eq(20));
+    assert_that!(view.state.markets[&market].bets.len(), eq(1));
     let receipt: String = sqlx::query_scalar(
         "SELECT response FROM prediction_commands WHERE guild_id='1' AND command_key='discord:123'",
     )
@@ -798,13 +849,13 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
     .await
     .unwrap();
     let edits = transport.edits.lock().unwrap();
-    assert_eq!(edits.len(), 2);
+    assert_that!(edits.len(), eq(2));
     for edit in edits.iter() {
-        assert_eq!(serde_json::to_value(edit).unwrap()["content"], receipt);
+        assert_that!(serde_json::to_value(edit).unwrap()["content"], eq(&receipt));
     }
     let events = recorder.0.lock().unwrap();
-    assert_eq!(events.iter().filter(|event| matches!(event, AuditEvent::CommandCompleted { key: Some(key), outcome: Outcome::Succeeded, .. } if key == "discord:123")).count(), 2);
-    assert_eq!(
+    assert_that!(events.iter().filter(|event| matches!(event, AuditEvent::CommandCompleted { key: Some(key), outcome: Outcome::Succeeded, .. } if key == "discord:123")).count(), eq(2));
+    assert_that!(
         events
             .iter()
             .filter(|event| matches!(
@@ -820,10 +871,11 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
                 }
             ))
             .count(),
-        2
+        eq(2)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
     use prediction_bot::audit::{Failure, FailureCategory};
@@ -842,11 +894,11 @@ async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
         124,
     )
     .await;
-    assert!(store.view(1).await.unwrap().state.accounts.is_empty());
-    assert!(transport.edits.lock().unwrap().is_empty());
-    assert_eq!(
+    assert_that!(store.view(1).await.unwrap().state.accounts, is_empty());
+    assert_that!(transport.edits.lock().unwrap().as_slice(), is_empty());
+    assert_that!(
         *recorder.0.lock().unwrap(),
-        vec![AuditEvent::InteractionCompleted {
+        eq(&vec![AuditEvent::InteractionCompleted {
             guild: Some(1),
             interaction_id: 124,
             stage: Stage::Acknowledge,
@@ -856,6 +908,6 @@ async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
                 http_status: None,
                 discord_code: None
             }),
-        }]
+        }])
     );
 }

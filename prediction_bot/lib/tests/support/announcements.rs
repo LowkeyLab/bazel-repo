@@ -1,3 +1,4 @@
+use googletest::{assert_that, matchers::eq};
 use std::sync::Arc;
 
 use prediction_bot::{
@@ -133,8 +134,9 @@ impl ResponseBarrier {
                         |released| !*released,
                     )
                     .unwrap();
-                assert!(
+                assert_that!(
                     *released && !timeout.timed_out(),
+                    eq(true),
                     "response barrier was not released"
                 );
                 response.clone()

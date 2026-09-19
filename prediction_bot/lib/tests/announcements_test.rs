@@ -1,3 +1,10 @@
+use googletest::{
+    assert_that,
+    matchers::{
+        anything, contains, contains_substring, eq, err, is_empty, matches_pattern, not,
+        starts_with,
+    },
+};
 use prediction_bot::{
     announcements::ConfigurationChange,
     domain::{Actor, Command, Policy},
@@ -35,11 +42,8 @@ fn create(id: &str) -> Command {
     }
 }
 
+#[googletest::test]
 #[tokio::test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "Keep the event sequence and independently specified durable snapshots in one scenario"
-)]
 async fn market_events_enqueue_durable_snapshots_once_at_their_original_revisions() {
     let (_container, store, owner) = fixture().await;
     store
@@ -102,9 +106,9 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
     .fetch_all(&owner)
     .await
     .unwrap();
-    assert_eq!(
+    assert_that!(
         snapshots,
-        vec![
+        eq(&vec![
             (
                 4,
                 json!({"Created": {
@@ -149,10 +153,11 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
                 }}),
                 2000,
             ),
-        ],
+        ])
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
     let (_container, store, owner) = fixture().await;
@@ -178,15 +183,10 @@ async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
         .execute_at(10, "discord:202", admin(), &create(FIXTURE_MARKET), 1000)
         .await;
 
-    assert!(result.is_err());
-    assert!(
-        !store
-            .view(10)
-            .await
-            .unwrap()
-            .state
-            .markets
-            .contains_key(FIXTURE_MARKET)
+    assert_that!(result, err(anything()));
+    assert_that!(
+        store.view(10).await.unwrap().state.markets,
+        not(contains((eq(FIXTURE_MARKET), anything())))
     );
     let receipts: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM prediction_commands WHERE guild_id='10' AND command_key='discord:202'",
@@ -194,9 +194,10 @@ async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
     .fetch_one(&owner)
     .await
     .unwrap();
-    assert_eq!(receipts, 0);
+    assert_that!(receipts, eq(0));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn a_receipt_failure_rolls_back_the_enqueued_snapshot() {
     let (_container, store, owner) = fixture().await;
@@ -222,16 +223,17 @@ async fn a_receipt_failure_rolls_back_the_enqueued_snapshot() {
         .execute_at(10, "discord:202", admin(), &create(FIXTURE_MARKET), 1000)
         .await;
 
-    assert!(result.is_err());
+    assert_that!(result, err(anything()));
     let pending: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM prediction_announcement_outbox WHERE guild_id='10'",
     )
     .fetch_one(&owner)
     .await
     .unwrap();
-    assert_eq!(pending, 0);
+    assert_that!(pending, eq(0));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_historical_events() {
     let (_container, store, owner) = fixture().await;
@@ -258,7 +260,7 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
     .fetch_one(&owner)
     .await
     .unwrap();
-    assert_eq!(historical, 0);
+    assert_that!(historical, eq(0));
 
     sqlx::query("UPDATE prediction_announcement_settings SET pause_reason='provider delay' WHERE guild_id='10'")
         .execute(&owner)
@@ -311,7 +313,7 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
     .fetch_one(&owner)
     .await
     .unwrap();
-    assert_eq!(pending_after_restart, 1);
+    assert_that!(pending_after_restart, eq(1));
 
     store
         .configure_announcements(10, "discord:305", admin(), ConfigurationChange::Disable)
@@ -327,9 +329,10 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
     .fetch_all(&owner)
     .await
     .unwrap();
-    assert_eq!(rows, vec![(5, "discarded".into())]);
+    assert_that!(rows, eq(&vec![(5, "discarded".into())]));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() {
     let (_container, store, owner) = fixture().await;
@@ -382,9 +385,10 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
     .fetch_all(&owner)
     .await
     .unwrap();
-    assert!(states.is_empty());
+    assert_that!(states, is_empty());
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn old_configuration_receipt_cannot_restore_a_disabled_channel() {
     let (_container, store, _owner) = fixture().await;
@@ -397,31 +401,33 @@ async fn old_configuration_receipt_cannot_restore_a_disabled_channel() {
         .configure_announcements(10, "discord:102", admin(), ConfigurationChange::Disable)
         .await
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .configure_announcements(10, "discord:101", admin(), change)
             .await
             .unwrap(),
-        receipt
+        eq(&receipt)
     );
     let status = store.announcement_status(10, admin()).await.unwrap();
-    assert!(!status.enabled);
-    assert_eq!(status.pending, 0);
+    assert_that!(status.enabled, eq(false));
+    assert_that!(status.pending, eq(0));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn announcement_status_defaults_to_disabled_for_an_unconfigured_guild() {
     let (_container, store, _owner) = fixture().await;
 
     let status = store.announcement_status(10, admin()).await.unwrap();
 
-    assert_eq!(status.channel_id, None);
-    assert!(!status.enabled);
-    assert_eq!(status.version, 0);
-    assert_eq!(status.pause_reason, None);
-    assert_eq!(status.pending, 0);
+    assert_that!(status.channel_id, eq(None));
+    assert_that!(status.enabled, eq(false));
+    assert_that!(status.version, eq(0));
+    assert_that!(status.pause_reason, eq(&None));
+    assert_that!(status.pending, eq(0));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn announcement_configuration_requires_a_human_administrator() {
     let (_container, store, _owner) = fixture().await;
@@ -432,7 +438,7 @@ async fn announcement_configuration_requires_a_human_administrator() {
     };
 
     for actor in [member(), bot_administrator] {
-        assert!(matches!(
+        assert_that!(
             store
                 .configure_announcements(
                     10,
@@ -441,22 +447,24 @@ async fn announcement_configuration_requires_a_human_administrator() {
                     ConfigurationChange::Set { channel_id: 20 },
                 )
                 .await,
-            Err(StoreError::Configuration(_))
-        ));
-        assert!(matches!(
+            err(matches_pattern!(StoreError::Configuration(anything())))
+        );
+        assert_that!(
             store.announcement_status(10, actor).await,
-            Err(StoreError::Configuration(_))
-        ));
+            err(matches_pattern!(StoreError::Configuration(anything())))
+        );
     }
-    assert!(
-        !store
+    assert_that!(
+        store
             .announcement_status(10, admin())
             .await
             .unwrap()
-            .enabled
+            .enabled,
+        eq(false)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn repeated_configuration_commands_replay_their_receipts_once() {
     let (_container, store, _owner) = fixture().await;
@@ -469,7 +477,7 @@ async fn repeated_configuration_commands_replay_their_receipts_once() {
         )
         .await
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .configure_announcements(
                 10,
@@ -479,31 +487,31 @@ async fn repeated_configuration_commands_replay_their_receipts_once() {
             )
             .await
             .unwrap(),
-        enabled
+        eq(&enabled)
     );
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .version,
-        1
+        eq(1)
     );
 
     let disabled = store
         .configure_announcements(10, "discord:102", admin(), ConfigurationChange::Disable)
         .await
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .configure_announcements(10, "discord:102", admin(), ConfigurationChange::Disable,)
             .await
             .unwrap(),
-        disabled
+        eq(&disabled)
     );
     let status = store.announcement_status(10, admin()).await.unwrap();
-    assert!(!status.enabled);
-    assert_eq!(status.version, 2);
+    assert_that!(status.enabled, eq(false));
+    assert_that!(status.version, eq(2));
 }
 
 use prediction_bot::announcements::deliver_due;
@@ -514,6 +522,7 @@ use wiremock::{
     matchers::{method, path},
 };
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_posts_saved_content_without_mentions_and_records_the_message() {
     let (_container, store, owner) = fixture().await;
@@ -528,44 +537,43 @@ async fn delivery_posts_saved_content_without_mentions_and_records_the_message()
         .await
         .unwrap();
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 1);
+    assert_that!(requests.len(), eq(1));
     let payload: serde_json::Value = requests[0].body_json().unwrap();
-    assert!(
-        payload["content"]
-            .as_str()
-            .unwrap()
-            .contains("Market created")
+    assert_that!(
+        payload["content"].as_str().unwrap(),
+        contains_substring("Market created")
     );
-    assert!(
-        payload["content"]
-            .as_str()
-            .unwrap()
-            .contains("Will it rain?")
+    assert_that!(
+        payload["content"].as_str().unwrap(),
+        contains_substring("Will it rain?")
     );
-    assert_eq!(payload["allowed_mentions"]["parse"], json!([]));
-    assert_eq!(payload["allowed_mentions"]["replied_user"], false);
-    assert_eq!(
+    assert_that!(payload["allowed_mentions"]["parse"], eq(&json!([])));
+    assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
     let receipt: (String, String, String) = sqlx::query_as("SELECT state,delivered_channel_id,delivered_message_id FROM prediction_announcement_outbox").fetch_one(&owner).await.unwrap();
-    assert_eq!(receipt, ("delivered".into(), "20".into(), "99".into()));
+    assert_that!(receipt, eq(&("delivered".into(), "20".into(), "99".into())));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_retries_after_restart_at_the_persisted_deadline() {
     assert_delivery_recovers_after_restart(500).await;
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_recovers_after_credentials_are_repaired_without_reconfiguration() {
     assert_delivery_recovers_after_restart(401).await;
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_recovers_after_http_request_timeout_without_reconfiguration() {
     assert_delivery_recovers_after_restart(408).await;
@@ -589,11 +597,11 @@ async fn assert_delivery_recovers_after_restart(status: u16) {
             .fetch_one(&owner)
             .await
             .unwrap();
-    assert_eq!(retry, (1, 1005));
+    assert_that!(retry, eq((1, 1005)));
     let settings = store.announcement_status(10, admin()).await.unwrap();
-    assert_eq!(settings.pause_reason, None);
-    assert_eq!(settings.version, 1);
-    assert_eq!(settings.channel_id, Some(20));
+    assert_that!(settings.pause_reason, eq(&None));
+    assert_that!(settings.version, eq(1));
+    assert_that!(settings.channel_id, eq(Some(20)));
     let store = restart(&store);
     server.reset().await;
     // Model operator credential repair by rebuilding the real HTTP client with a new token.
@@ -615,19 +623,20 @@ async fn assert_delivery_recovers_after_restart(status: u16) {
     deliver_due(store.clone(), http.clone(), clock(1004))
         .await
         .unwrap();
-    assert!(server.received_requests().await.unwrap().is_empty());
+    assert_that!(server.received_requests().await.unwrap(), is_empty());
     deliver_due(store.clone(), http, clock(1005)).await.unwrap();
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
-    assert_eq!(
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
     let (_container, store, owner) = fixture().await;
@@ -660,21 +669,21 @@ async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
     deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2000))
         .await
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(11, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        2
+        eq(2)
     );
     let failed: Vec<i64> = sqlx::query_scalar(
         "SELECT attempts FROM prediction_announcement_outbox WHERE guild_id='10' ORDER BY revision",
@@ -682,7 +691,7 @@ async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
     .fetch_all(&owner)
     .await
     .unwrap();
-    assert_eq!(failed, [1, 0]);
+    assert_that!(failed, eq(&[1, 0]));
     server.reset().await;
     Mock::given(method("POST"))
         .respond_with(delivered())
@@ -691,26 +700,27 @@ async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
     deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2004))
         .await
         .unwrap();
-    assert!(server.received_requests().await.unwrap().is_empty());
+    assert_that!(server.received_requests().await.unwrap(), is_empty());
     deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2005))
         .await
         .unwrap();
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 2);
-    assert!(
+    assert_that!(requests.len(), eq(2));
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["content"]
             .as_str()
-            .unwrap()
-            .contains("Market created")
+            .unwrap(),
+        contains_substring("Market created")
     );
-    assert!(
+    assert_that!(
         requests[1].body_json::<serde_json::Value>().unwrap()["content"]
             .as_str()
-            .unwrap()
-            .contains("Market resolved")
+            .unwrap(),
+        contains_substring("Market resolved")
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_recovers_the_acknowledgement_gap_after_restart() {
     let (_container, store, owner) = fixture().await;
@@ -721,19 +731,18 @@ async fn delivery_recovers_the_acknowledgement_gap_after_restart() {
         .mount(&server)
         .await;
     sqlx::query("ALTER TABLE prediction_announcement_outbox ADD CONSTRAINT reject_delivery CHECK (state <> 'delivered')").execute(&owner).await.unwrap();
-    assert!(
-        deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000))
-            .await
-            .is_err()
+    assert_that!(
+        deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000)).await,
+        err(anything())
     );
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
-    assert_eq!(
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        1
+        eq(1)
     );
     sqlx::query("ALTER TABLE prediction_announcement_outbox DROP CONSTRAINT reject_delivery")
         .execute(&owner)
@@ -747,17 +756,18 @@ async fn delivery_recovers_the_acknowledgement_gap_after_restart() {
     )
     .await
     .unwrap();
-    assert_eq!(server.received_requests().await.unwrap().len(), 2);
-    assert_eq!(
+    assert_that!(server.received_requests().await.unwrap().len(), eq(2));
+    assert_that!(
         restarted
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn delivery_in_flight_configuration_changes_condition_completion() {
     use std::sync::atomic::{AtomicI64, Ordering};
@@ -804,18 +814,18 @@ async fn delivery_in_flight_configuration_changes_condition_completion() {
         barrier.release();
         delivery.await.unwrap().unwrap();
         let status = store.announcement_status(10, admin()).await.unwrap();
-        assert_eq!(status.pause_reason, None);
+        assert_that!(status.pause_reason, eq(&None));
         let row: (String, Option<String>) =
             sqlx::query_as("SELECT state,delivered_channel_id FROM prediction_announcement_outbox")
                 .fetch_one(&owner)
                 .await
                 .unwrap();
         if disable {
-            assert_eq!(row, ("discarded".into(), None));
+            assert_that!(row, eq(&("discarded".into(), None)));
         } else if success {
-            assert_eq!(row, ("delivered".into(), Some("20".into())));
+            assert_that!(row, eq(&("delivered".into(), Some("20".into()))));
         } else {
-            assert_eq!(row, ("pending".into(), None));
+            assert_that!(row, eq(&("pending".into(), None)));
         }
         server.reset().await;
         Mock::given(path("/api/v10/channels/21/messages"))
@@ -832,9 +842,9 @@ async fn delivery_in_flight_configuration_changes_condition_completion() {
         deliver_due(store.clone(), Arc::new(discord_http(&server)), clock)
             .await
             .unwrap();
-        assert_eq!(
+        assert_that!(
             server.received_requests().await.unwrap().len(),
-            usize::from(!disable && !success)
+            eq(usize::from(!disable && !success))
         );
     }
 }
@@ -849,6 +859,7 @@ async fn wait_for_guild_lock_waiters(owner: &sqlx::PgPool, expected: i64) {
     }).await.expect("guild operations did not serialize on the transaction lock");
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn enabled_announcements_do_not_enqueue_member_joins() {
     let (_container, store, owner) = fixture().await;
@@ -865,22 +876,18 @@ async fn enabled_announcements_do_not_enqueue_member_joins() {
         .execute_at(10, "discord:join", member(), &Command::Join, 1000)
         .await
         .unwrap();
-    assert!(
-        store
-            .view(10)
-            .await
-            .unwrap()
-            .state
-            .accounts
-            .contains_key(&8)
+    assert_that!(
+        store.view(10).await.unwrap().state.accounts,
+        contains((eq(&8), anything()))
     );
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prediction_announcement_outbox")
         .fetch_one(&owner)
         .await
         .unwrap();
-    assert_eq!(count, 0);
+    assert_that!(count, eq(0));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_waiting_for_one_guild_completion_does_not_block_another_guild() {
     let (_container, store, owner) = fixture().await;
@@ -917,9 +924,10 @@ async fn delivery_waiting_for_one_guild_completion_does_not_block_another_guild(
     .expect("another guild must complete while guild 10 waits");
     gate.commit().await.unwrap();
     delivery.await.unwrap().unwrap();
-    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+    assert_that!(server.received_requests().await.unwrap().len(), eq(2));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn delivery_permission_failure_pauses_until_configuration_changes() {
     let (_container, store, owner) = fixture().await;
@@ -936,14 +944,14 @@ async fn delivery_permission_failure_pauses_until_configuration_changes() {
         .await
         .unwrap();
     let status = store.announcement_status(10, admin()).await.unwrap();
-    assert_eq!(status.pending, 1);
+    assert_that!(status.pending, eq(1));
     let reason = status.pause_reason.unwrap();
-    assert!(reason.contains("permission"));
-    assert!(!reason.contains("sentinel"));
+    assert_that!(reason, contains_substring("permission"));
+    assert_that!(reason, not(contains_substring("sentinel")));
     deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(2000))
         .await
         .unwrap();
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
     store
         .configure_announcements(
             10,
@@ -970,17 +978,18 @@ async fn delivery_permission_failure_pauses_until_configuration_changes() {
     )
     .await
     .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn delivery_retry_deadline_uses_completion_time_and_saturates_attempts() {
     use std::sync::atomic::{AtomicI64, Ordering};
@@ -1017,9 +1026,10 @@ async fn delivery_retry_deadline_uses_completion_time_and_saturates_attempts() {
             .fetch_one(&owner)
             .await
             .unwrap();
-    assert_eq!(retry, (i64::MAX, 1307));
+    assert_that!(retry, eq((i64::MAX, 1307)));
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn worker_shutdown_acknowledges_in_flight_send_without_discovering_backlog() {
     use prediction_bot::announcements::start_announcement_worker;
@@ -1061,8 +1071,8 @@ async fn worker_shutdown_acknowledges_in_flight_send_without_discovering_backlog
             .fetch_all(&owner)
             .await
             .unwrap();
-    assert_eq!(states, vec!["delivered", "pending"]);
-    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    assert_that!(states, eq(&vec!["delivered", "pending"]));
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
 
     server.reset().await;
     let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
@@ -1085,16 +1095,17 @@ async fn worker_shutdown_acknowledges_in_flight_send_without_discovering_backlog
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn worker_restart_retries_failed_send_from_its_persisted_deadline() {
     use prediction_bot::announcements::start_announcement_worker;
@@ -1131,7 +1142,7 @@ async fn worker_restart_retries_failed_send_from_its_persisted_deadline() {
             .fetch_one(&owner)
             .await
             .unwrap();
-    assert_eq!(retry, (1, 1005, "pending".into()));
+    assert_that!(retry, eq(&(1, 1005, "pending".into())));
     server.reset().await;
     let barrier = support::ResponseBarrier::mount(&server, delivered()).await;
     let (shutdown, receiver) = tokio::sync::watch::channel(false);
@@ -1153,16 +1164,17 @@ async fn worker_restart_retries_failed_send_from_its_persisted_deadline() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn worker_does_not_discover_when_shutdown_is_already_set_or_closed() {
     use prediction_bot::announcements::start_announcement_worker;
@@ -1185,14 +1197,14 @@ async fn worker_does_not_discover_when_shutdown_is_already_set_or_closed() {
             .unwrap()
             .unwrap();
     }
-    assert!(server.received_requests().await.unwrap().is_empty());
-    assert_eq!(
+    assert_that!(server.received_requests().await.unwrap(), is_empty());
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        1
+        eq(1)
     );
 }
 
@@ -1223,6 +1235,7 @@ impl WorkerAudit {
     }
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn worker_reports_discovery_failure_then_recovers_on_the_next_poll() {
     use prediction_bot::{
@@ -1272,27 +1285,28 @@ async fn worker_reports_discovery_failure_then_recovers_on_the_next_poll() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
-    assert!(audit.events.lock().unwrap().iter().any(|event| matches!(
-        event,
-        AuditEvent::AnnouncementAttemptCompleted {
-            guild: 10,
-            revision: 4,
-            channel_id: 20,
-            stage: Stage::Deliver,
-            outcome: Outcome::Succeeded,
+    assert_that!(
+        audit.events.lock().unwrap().as_slice(),
+        contains(matches_pattern!(AuditEvent::AnnouncementAttemptCompleted {
+            guild: eq(&10),
+            revision: eq(&4),
+            channel_id: eq(&20),
+            stage: eq(&Stage::Deliver),
+            outcome: eq(&Outcome::Succeeded),
             ..
-        }
-    )));
+        }))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_failure() {
     use prediction_bot::{
@@ -1345,43 +1359,47 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
             .unwrap();
         {
             let events = audit.events.lock().unwrap();
-            assert!(events.iter().any(|event| match event {
-                AuditEvent::AnnouncementAttemptCompleted {
-                    guild: 10,
-                    revision: 4,
-                    channel_id: 20,
-                    decision,
-                    outcome: Outcome::Failed(failure),
-                    stage,
-                    ..
-                } => {
-                    if rejected {
-                        *decision == AnnouncementDecision::Pause
-                            && *stage == Stage::Deliver
-                            && failure.http_status == Some(403)
-                            && failure.discord_code == Some(50013)
-                    } else {
-                        *decision == AnnouncementDecision::Delivered
-                            && *stage == Stage::Commit
-                            && failure.category == FailureCategory::Constraint
-                            && failure.sqlstate.as_deref() == Some("23514")
+            assert_that!(
+                events.iter().any(|event| match event {
+                    AuditEvent::AnnouncementAttemptCompleted {
+                        guild: 10,
+                        revision: 4,
+                        channel_id: 20,
+                        decision,
+                        outcome: Outcome::Failed(failure),
+                        stage,
+                        ..
+                    } => {
+                        if rejected {
+                            *decision == AnnouncementDecision::Pause
+                                && *stage == Stage::Deliver
+                                && failure.http_status == Some(403)
+                                && failure.discord_code == Some(50013)
+                        } else {
+                            *decision == AnnouncementDecision::Delivered
+                                && *stage == Stage::Commit
+                                && failure.category == FailureCategory::Constraint
+                                && failure.sqlstate.as_deref() == Some("23514")
+                        }
                     }
-                }
-                _ => false,
-            }));
-            assert!(!format!("{events:?}").contains("sentinel"));
+                    _ => false,
+                }),
+                eq(true)
+            );
+            assert_that!(format!("{events:?}"), not(contains_substring("sentinel")));
         }
-        assert_eq!(
+        assert_that!(
             store
                 .announcement_status(10, admin())
                 .await
                 .unwrap()
                 .pending,
-            1
+            eq(1)
         );
     }
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn application_startup_delivers_announcements_under_the_gateway_guard() {
     let (_container, store, _owner) = fixture().await;
@@ -1414,30 +1432,33 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
     )
     .await
     .unwrap();
-    assert!(matches!(
+    assert_that!(
         store.gateway_guard().await,
-        Err(StoreError::Configuration(_))
-    ));
+        err(matches_pattern!(StoreError::Configuration(anything())))
+    );
     barrier.release();
     let result = tokio::time::timeout(std::time::Duration::from_secs(5), running)
         .await
         .unwrap()
         .unwrap();
-    assert!(matches!(
+    assert_that!(
         result,
-        Err(prediction_bot::discord::DiscordError::Gateway)
-    ));
-    assert_eq!(
+        err(matches_pattern!(
+            prediction_bot::discord::DiscordError::Gateway
+        ))
+    );
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        0
+        eq(0)
     );
     store.gateway_guard().await.unwrap().close().await.unwrap();
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
     use prediction_bot::{
@@ -1478,32 +1499,31 @@ async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
         .expect("worker must abort stalled request within grace")
         .unwrap();
     barrier.release();
-    assert_eq!(
+    assert_that!(
         store
             .announcement_status(10, admin())
             .await
             .unwrap()
             .pending,
-        1
+        eq(1)
     );
-    assert!(audit.events.lock().unwrap().iter().any(|event| matches!(
-        event,
-        AuditEvent::Lifecycle {
-            stage: Stage::AnnouncementWorkerShutdown,
-            outcome: prediction_bot::audit::Outcome::Failed(Failure {
-                category: FailureCategory::Timeout,
-                ..
-            }),
+    assert_that!(
+        audit.events.lock().unwrap().as_slice(),
+        contains(matches_pattern!(AuditEvent::Lifecycle {
+            stage: eq(&Stage::AnnouncementWorkerShutdown),
+            outcome: matches_pattern!(prediction_bot::audit::Outcome::Failed(matches_pattern!(
+                Failure {
+                    category: eq(&FailureCategory::Timeout),
+                    ..
+                }
+            ))),
             ..
-        }
-    )));
+        }))
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "Keep configuration, slash and modal replay assertions in one adapter composition scenario"
-)]
 async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
     use prediction_bot::discord::handle_interaction;
     use serenity::all::Interaction;
@@ -1582,22 +1602,23 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
     }
 
     let status = store.announcement_status(10, admin()).await.unwrap();
-    assert!(status.enabled);
-    assert_eq!(status.channel_id, Some(55));
-    assert_eq!(
-        status.version, 1,
+    assert_that!(status.enabled, eq(true));
+    assert_that!(status.channel_id, eq(Some(55)));
+    assert_that!(
+        status.version,
+        eq(1),
         "replayed configuration must keep its original version"
     );
-    assert_eq!(status.pending, 2);
+    assert_that!(status.pending, eq(2));
     let enqueued: Vec<(String, i64)> = sqlx::query_as(
         "SELECT snapshot->'Created'->>'question',count(*) FROM prediction_announcement_outbox WHERE guild_id='10' GROUP BY 1 ORDER BY 1",
     ).fetch_all(&owner).await.unwrap();
-    assert_eq!(
+    assert_that!(
         enqueued,
-        vec![
+        eq(&vec![
             ("Modal-created market?".into(), 1),
             ("Slash-created market?".into(), 1)
-        ]
+        ])
     );
 
     let requests = server.received_requests().await.unwrap();
@@ -1605,12 +1626,13 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
         .iter()
         .filter(|request| request.url.path().ends_with("/callback"))
         .collect();
-    assert_eq!(acknowledgements.len(), 6);
+    assert_that!(acknowledgements.len(), eq(6));
     for acknowledgement in acknowledgements {
         let body = acknowledgement.body_json::<serde_json::Value>().unwrap();
-        assert_eq!(body["type"], 5);
-        assert_eq!(
-            body["data"]["flags"], 64,
+        assert_that!(body["type"], eq(5));
+        assert_that!(
+            body["data"]["flags"],
+            eq(64),
             "all successful and replayed interactions stay private"
         );
     }
@@ -1619,38 +1641,37 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
         .filter(|request| request.method.as_str() == "PATCH")
         .map(|request| request.body_json().unwrap())
         .collect();
-    assert_eq!(replies.len(), 6);
+    assert_that!(replies.len(), eq(6));
     for pair in replies.chunks_exact(2) {
-        assert_eq!(
-            pair[0]["content"], pair[1]["content"],
+        assert_that!(
+            pair[0]["content"],
+            eq(&pair[1]["content"]),
             "redelivery must recover the same receipt"
         );
         for reply in pair {
-            assert_eq!(reply["allowed_mentions"]["parse"], json!([]));
+            assert_that!(reply["allowed_mentions"]["parse"], eq(&json!([])));
         }
     }
-    assert!(
-        replies[0]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Announcements enabled for <#55>")
+    assert_that!(
+        replies[0]["content"].as_str().unwrap(),
+        contains_substring("Announcements enabled for <#55>")
     );
     for index in [2, 4] {
-        assert!(
-            replies[index]["content"]
-                .as_str()
-                .unwrap()
-                .starts_with("Market created: ")
+        assert_that!(
+            replies[index]["content"].as_str().unwrap(),
+            starts_with("Market created: ")
         );
     }
-    assert!(
-        !requests
+    assert_that!(
+        requests
             .iter()
             .any(|request| request.method.as_str() == "POST"
-                && request.url.path().ends_with("/messages"))
+                && request.url.path().ends_with("/messages")),
+        eq(false)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
     use prediction_bot::discord::handle_interaction;
@@ -1734,22 +1755,18 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
         .filter(|request| request.method.as_str() == "PATCH")
         .map(|request| request.body_json().unwrap())
         .collect();
-    assert!(
-        replies[0]["content"]
-            .as_str()
-            .unwrap()
-            .starts_with("Announcements enabled for <#55>.")
+    assert_that!(
+        replies[0]["content"].as_str().unwrap(),
+        starts_with("Announcements enabled for <#55>.")
     );
-    assert!(
-        !replies[1]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Announcements enabled")
+    assert_that!(
+        replies[1]["content"].as_str().unwrap(),
+        not(contains_substring("Announcements enabled"))
     );
     for reply in replies {
-        assert_eq!(reply["allowed_mentions"]["parse"], json!([]));
+        assert_that!(reply["allowed_mentions"]["parse"], eq(&json!([])));
     }
     let status = store.announcement_status(10, admin()).await.unwrap();
-    assert_eq!(status.channel_id, Some(56));
-    assert_eq!(status.version, 2);
+    assert_that!(status.channel_id, eq(Some(56)));
+    assert_that!(status.version, eq(2));
 }
