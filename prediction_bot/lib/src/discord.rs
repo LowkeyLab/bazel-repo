@@ -333,7 +333,7 @@ const HELP: &str = "I run prediction markets for this server using play pointsâ€
 
 Server admins and members with Manage Guild permission can resolve or cancel markets. They can use /market announcements set to choose a server text channel where I have View Channel and Send Messages, /market announcements status to inspect delivery, or /market announcements disable to stop delivery and discard pending announcements.
 
-Announcements cover market creation, resolution, and cancellation. They retry with increasing delays, do not backfill older events, and may be delivered twice after an uncertain Discord response. Changing or disabling the channel cannot stop an announcement already in flight.";
+Announcements cover new participant registration, each accepted bet, market creation, resolution, and cancellation. Bet announcements show the market and total bet count, without bettor, outcome, or stake details. They retry with increasing delays, do not backfill older events, and may be delivered twice after an uncertain Discord response. Changing or disabling the channel cannot stop an announcement already in flight.";
 
 fn mention_reply(message: &Message, bot_user_id: UserId) -> Option<CreateMessage> {
     if message.guild_id.is_none()

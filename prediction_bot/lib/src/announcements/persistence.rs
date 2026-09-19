@@ -24,7 +24,50 @@ pub(crate) async fn enqueue(
         return Ok(());
     }
 
-    let (snapshot, occurred_at) = match event {
+    let Some((snapshot, occurred_at)) = event_snapshot(event, state)? else {
+        return Ok(());
+    };
+
+    sqlx::query(
+        "INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ($1,$2,1,$3,$4)",
+    )
+    .bind(guild.to_string())
+    .bind(revision.0)
+    .bind(Json(snapshot))
+    .bind(occurred_at)
+    .execute(&mut *tx)
+    .await?;
+    Ok(())
+}
+
+fn event_snapshot(event: &Event, state: &State) -> Result<Option<(SnapshotV1, i64)>, StoreError> {
+    let snapshot = match event {
+        Event::MemberEnrolled {
+            user_id,
+            enrolled_at,
+        } => (
+            SnapshotV1::MemberEnrolled {
+                user_id: *user_id,
+                occurred_at: *enrolled_at,
+            },
+            *enrolled_at,
+        ),
+        Event::BetPlaced {
+            id, accepted_at, ..
+        } => {
+            let market = state.markets.get(id).ok_or(StoreError::History(
+                "announcement event disagrees with applied state",
+            ))?;
+            (
+                SnapshotV1::BetPlaced {
+                    id: id.clone(),
+                    question: market.question.clone(),
+                    bet_count: market.bets.len(),
+                    occurred_at: *accepted_at,
+                },
+                *accepted_at,
+            )
+        }
         Event::MarketCreated {
             id,
             creator,
@@ -82,19 +125,9 @@ pub(crate) async fn enqueue(
                 *cancelled_at,
             )
         }
-        _ => return Ok(()),
+        _ => return Ok(None),
     };
-
-    sqlx::query(
-        "INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ($1,$2,1,$3,$4)",
-    )
-    .bind(guild.to_string())
-    .bind(revision.0)
-    .bind(Json(snapshot))
-    .bind(occurred_at)
-    .execute(&mut *tx)
-    .await?;
-    Ok(())
+    Ok(Some(snapshot))
 }
 
 fn validate_administrator(guild: GuildId, actor: Actor) -> Result<(), StoreError> {
