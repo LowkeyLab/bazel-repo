@@ -116,7 +116,8 @@ bazel clean && aspect build //...
 
 **Testing:**
 
-- Use `insta` for snapshot testing
+- Use `googletest` as the test library for all Rust projects and its matchers for assertions
+- Use `insta` for snapshot testing alongside `googletest`
 - Integration tests use `testcontainers` for PostgreSQL
 
 ### Kotlin (Mindreadr)
