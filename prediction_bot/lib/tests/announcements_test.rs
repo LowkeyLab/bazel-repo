@@ -1543,7 +1543,60 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn application_startup_delivers_announcements_under_the_gateway_guard() {
     let (_container, store, _owner) = fixture().await;
-    queued(&store, 10, 20).await;
+    store
+        .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:create",
+            admin(),
+            &create(FIXTURE_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:startup-bet-1",
+            admin(),
+            &Command::Bet {
+                id: FIXTURE_MARKET.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(10),
+            },
+            1001,
+        )
+        .await
+        .unwrap();
+    // Queue only the movement announcement so startup coverage does not depend on polling delays.
+    store
+        .configure_announcements(
+            10.into(),
+            "discord:enable",
+            admin(),
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:startup-bet-2",
+            admin(),
+            &Command::Bet {
+                id: FIXTURE_MARKET.into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(10),
+            },
+            1001,
+        )
+        .await
+        .unwrap();
     let server = MockServer::start().await;
     let mut user = serenity::all::CurrentUser::default();
     user.id = 42.into();
@@ -1595,6 +1648,19 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
             .pending,
         eq(0)
     );
+    let requests = server.received_requests().await.unwrap();
+    let movement = requests
+        .iter()
+        .filter_map(|request| request.body_json::<serde_json::Value>().ok())
+        .find(|body| {
+            body["content"]
+                .as_str()
+                .is_some_and(|text| text.contains("2 bets placed"))
+        })
+        .expect("startup must deliver the bet movement announcement");
+    let text = movement["content"].as_str().unwrap();
+    assert_that!(text, contains_substring("Yes — 50.0% implied chance 🔴 ⬇️"));
+    assert_that!(text, contains_substring("No — 50.0% implied chance 🟢 ⬆️"));
     store.gateway_guard().await.unwrap().close().await.unwrap();
 }
 
@@ -1969,6 +2035,20 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
         )
         .await
         .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:bet-3",
+            admin(),
+            &Command::Bet {
+                id: FIXTURE_MARKET.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(26),
+            },
+            1002,
+        )
+        .await
+        .unwrap();
     let rejected = Command::Bet {
         id: FIXTURE_MARKET.into(),
         outcome: OutcomeIndex(0),
@@ -1983,7 +2063,16 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/api/v10/channels/20/messages"))
+        .and(wiremock::matchers::body_string_contains("1 bet placed"))
+        .respond_with(delivered())
+        .with_priority(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
         .respond_with(ResponseTemplate::new(500))
+        .with_priority(2)
         .expect(1)
         .mount(&server)
         .await;
@@ -1999,6 +2088,15 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     assert_that!(
         failed_body["content"].as_str().unwrap(),
         contains_substring("Yes — 100.0% implied chance")
+    );
+    assert_that!(failed_requests.len(), eq(2));
+    let first = failed_body["content"].as_str().unwrap();
+    assert_that!(first, not(contains_substring("⬆️")));
+    assert_that!(first, not(contains_substring("⬇️")));
+    let failed_movement: serde_json::Value = failed_requests[1].body_json().unwrap();
+    assert_that!(
+        failed_movement["content"].as_str().unwrap(),
+        contains_substring("Yes — 25.0% implied chance 🔴 ⬇️")
     );
     server.reset().await;
     Mock::given(method("POST"))
@@ -2016,9 +2114,19 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     .unwrap();
     let requests = server.received_requests().await.unwrap();
     assert_that!(requests.len(), eq(2));
+    let retried: serde_json::Value = requests[0].body_json().unwrap();
+    assert_that!(retried, eq(&failed_movement));
     for (request, (expected_count, yes, no)) in requests.iter().zip([
-        ("1 bet placed", "100.0%", "0.0%"),
-        ("2 bets placed", "25.0%", "75.0%"),
+        (
+            "2 bets placed",
+            "25.0% implied chance 🔴 ⬇️",
+            "75.0% implied chance 🟢 ⬆️",
+        ),
+        (
+            "3 bets placed",
+            "50.0% implied chance 🟢 ⬆️",
+            "50.0% implied chance 🔴 ⬇️",
+        ),
     ]) {
         let body: serde_json::Value = request.body_json().unwrap();
         let content = body["content"].as_str().unwrap();
@@ -2026,15 +2134,8 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
         assert_that!(content, contains_substring("Will it rain?"));
         assert_that!(content, contains_substring(FIXTURE_MARKET));
         assert_that!(content, contains_substring(expected_count));
-        assert_that!(content, contains_substring("<t:1001:F>"));
-        assert_that!(
-            content,
-            contains_substring(format!("Yes — {yes} implied chance"))
-        );
-        assert_that!(
-            content,
-            contains_substring(format!("No — {no} implied chance"))
-        );
+        assert_that!(content, contains_substring(format!("Yes — {yes}")));
+        assert_that!(content, contains_substring(format!("No — {no}")));
         for private in ["<@7>", "13", "Bettor", "Stake"] {
             assert_that!(content, not(contains_substring(private)));
         }

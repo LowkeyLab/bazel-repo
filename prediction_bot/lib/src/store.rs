@@ -19,6 +19,7 @@ use crate::audit::{
 };
 use crate::domain::{self, Actor, Command, DomainError, Event, GrantReason, Policy, State};
 use crate::events::{CloudEvent, Context, EventError};
+use crate::odds::OutcomeOdds;
 use crate::types::{ApplicationId, EventRevision, GuildId, UserId};
 
 #[derive(Debug, Error)]
@@ -376,6 +377,16 @@ impl Store {
                 Stage::Append,
                 CloudEvent::new(&ctx, event.name(), event.subject(), data),
             )?;
+            // Capture this event's baseline before applying it, within the same transaction.
+            let previous_odds = match event {
+                Event::BetPlaced { id, .. } => view
+                    .state
+                    .markets
+                    .get(id)
+                    .map(OutcomeOdds::for_market)
+                    .unwrap_or_default(),
+                _ => Vec::new(),
+            };
             at_stage(Stage::Append, domain::apply(&mut view.state, event))?;
             at_stage(
                 Stage::Append,
@@ -385,7 +396,15 @@ impl Store {
             )?;
             at_stage(
                 Stage::Append,
-                enqueue(&mut tx, guild, view.revision, event, &view.state).await,
+                enqueue(
+                    &mut tx,
+                    guild,
+                    view.revision,
+                    event,
+                    &view.state,
+                    &previous_odds,
+                )
+                .await,
             )?;
         }
         at_stage(

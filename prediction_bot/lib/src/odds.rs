@@ -7,6 +7,15 @@ use crate::domain::Market;
 pub struct OutcomeOdds {
     pub label: String,
     tenths_percent: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    movement: Option<Movement>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Movement {
+    Up,
+    Down,
 }
 
 impl OutcomeOdds {
@@ -31,9 +40,28 @@ impl OutcomeOdds {
                 Self {
                     label: label.clone(),
                     tenths_percent,
+                    movement: None,
                 }
             })
             .collect()
+    }
+
+    /// Compare displayed percentages for the same outcome before and after a bet.
+    pub(crate) fn with_previous(mut self, previous: &Self) -> Self {
+        self.movement = match (previous.tenths_percent, self.tenths_percent) {
+            (Some(before), Some(after)) if after > before => Some(Movement::Up),
+            (Some(before), Some(after)) if after < before => Some(Movement::Down),
+            _ => None,
+        };
+        self
+    }
+
+    pub(crate) fn movement_indicator(&self) -> &'static str {
+        match self.movement {
+            Some(Movement::Up) => " 🟢 ⬆️",
+            Some(Movement::Down) => " 🔴 ⬇️",
+            None => "",
+        }
     }
 
     pub(crate) fn chance(&self) -> String {
