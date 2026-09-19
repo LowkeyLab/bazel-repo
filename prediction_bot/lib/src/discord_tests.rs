@@ -2177,3 +2177,69 @@ async fn gateway_supervises_announcement_worker_panic_and_returns_failure() {
         }))
     );
 }
+
+#[googletest::test]
+fn market_cards_show_stake_weighted_percentages() {
+    use crate::domain::{Actor, Bet, Market, State, Status};
+    use crate::store::View;
+
+    // Repeated bets count by points, not by the number of bets or bettors.
+    for (stakes, expected) in [
+        (vec![(0, 25), (0, 50), (1, 25)], ["75.0%", "25.0%"]),
+        (vec![(0, 1), (1, 2)], ["33.3%", "66.7%"]),
+        (vec![(0, 5)], ["100.0%", "0.0%"]),
+        (vec![], ["N/A (no bets)", "N/A (no bets)"]),
+        (vec![(0, i64::MAX - 1), (1, 1)], ["100.0%", "0.0%"]),
+    ] {
+        let market = Market {
+            creator: UserId(20),
+            question: "Will it rain?".into(),
+            options: vec!["Yes".into(), "No".into()],
+            closes_at: 2000,
+            created_at: 1000,
+            status: Status::Open,
+            total_staked: Points(stakes.iter().map(|(_, amount)| amount).sum()),
+            bets: stakes
+                .into_iter()
+                .map(|(outcome, amount)| Bet {
+                    user_id: UserId(20),
+                    outcome: OutcomeIndex(outcome),
+                    amount: Points(amount),
+                })
+                .collect(),
+        };
+        let mut state = State::default();
+        state.markets.insert("rain".into(), market);
+        let view = View {
+            revision: EventRevision(1),
+            state,
+        };
+        let actor = Actor {
+            user_id: UserId(20),
+            moderator: false,
+            bot: false,
+        };
+        let payload = serde_json::to_value(
+            super::ui::query(
+                &view,
+                &Action::Show { id: "rain".into() },
+                actor,
+                GuildId(10),
+                1001,
+            )
+            .edit(),
+        )
+        .unwrap();
+        let description = payload["embeds"][0]["description"].as_str().unwrap();
+        for (label, percentage) in ["Yes", "No"].into_iter().zip(expected) {
+            let line = description
+                .lines()
+                .find(|line| line.contains(label))
+                .unwrap();
+            assert_that!(
+                line,
+                contains_substring(format!("{percentage} implied chance"))
+            );
+        }
+    }
+}

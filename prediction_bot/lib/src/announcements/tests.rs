@@ -56,6 +56,7 @@ fn creation_renders_saved_details_as_non_pinging_text() {
 #[googletest::test]
 fn resolution_distinguishes_a_refund_and_uses_the_original_event_time() {
     let payload = payload(SnapshotV1::Resolved {
+        odds: vec![],
         id: "unicode-🔮".into(),
         question: "Café or 茶?".into(),
         winner: "No winners".into(),
@@ -79,6 +80,7 @@ fn resolution_distinguishes_a_refund_and_uses_the_original_event_time() {
 #[googletest::test]
 fn cancellation_confirms_refunds_and_escapes_hostile_markdown() {
     let payload = payload(SnapshotV1::Cancelled {
+        odds: vec![],
         id: "cancel-1".into(),
         question: "[click](https://example.invalid) # heading".into(),
         occurred_at: 4_000,
@@ -251,6 +253,7 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
             occurred_at: 1000,
         },
         SnapshotV1::Resolved {
+            odds: vec![],
             id: "00000000-0000-4000-8000-000000000001".into(),
             question: text.into(),
             winner: text.into(),
@@ -258,6 +261,7 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
             occurred_at: 1000,
         },
         SnapshotV1::Cancelled {
+            odds: vec![],
             id: "00000000-0000-4000-8000-000000000001".into(),
             question: text.into(),
             occurred_at: 1000,
@@ -348,4 +352,82 @@ fn bet_activity_escapes_and_limits_the_saved_question() {
     assert_that!(content, contains_substring("<t:1001:F>"));
     assert_that!(content.encode_utf16().count(), le(2000));
     assert_mentions_disabled(&payload);
+}
+
+#[googletest::test]
+fn market_announcements_show_saved_percentages() {
+    for (kind, extra) in [
+        ("BetPlaced", serde_json::json!({"bet_count": 3})),
+        (
+            "Resolved",
+            serde_json::json!({"winner": "Yes", "refunded": false}),
+        ),
+        ("Cancelled", serde_json::json!({})),
+    ] {
+        let mut fields = serde_json::json!({
+            "id": "rain-1", "question": "Will it rain?", "occurred_at": 1001,
+            "odds": [
+                {"label": "Yes", "tenths_percent": 750},
+                {"label": "No", "tenths_percent": 250}
+            ]
+        });
+        fields
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let snapshot = serde_json::from_value(serde_json::json!({kind: fields})).unwrap();
+        let payload = payload(snapshot);
+        assert_that!(
+            content(&payload),
+            contains_substring("Yes — 75.0% implied chance")
+        );
+        assert_that!(
+            content(&payload),
+            contains_substring("No — 25.0% implied chance")
+        );
+        assert_mentions_disabled(&payload);
+    }
+}
+
+#[googletest::test]
+fn new_markets_have_no_bet_based_percentage() {
+    let snapshot = serde_json::from_value(serde_json::json!({"Created": {
+        "id": "rain-1", "question": "Will it rain?", "creator": 7,
+        "options": ["Yes", "No"], "closes_at": 2000, "occurred_at": 1000
+    }}))
+    .unwrap();
+    let payload = payload(snapshot);
+    for label in ["Yes", "No"] {
+        assert_that!(
+            content(&payload),
+            contains_substring(format!("{label} — N/A (no bets) implied chance"))
+        );
+    }
+}
+
+#[googletest::test]
+fn odds_preserve_every_outcome_within_discords_message_limit() {
+    for kind in ["BetPlaced", "Resolved", "Cancelled"] {
+        let snapshot = serde_json::from_value(serde_json::json!({kind: {
+            "id": "12345678-1234-1234-1234-123456789abc",
+            "question": "🔮".repeat(200), "occurred_at": i64::MAX,
+            "bet_count": 100, "winner": "*".repeat(80), "refunded": false,
+            "odds": (0..10).map(|i| serde_json::json!({
+                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100
+            })).collect::<Vec<_>>()
+        }}))
+        .unwrap();
+        let payload = payload(snapshot);
+        let text = content(&payload);
+        assert_that!(text.encode_utf16().count(), le(2000));
+        for i in 0..10 {
+            assert_that!(text, contains_substring(format!("• {i}")));
+        }
+        assert_that!(text.matches("10.0% implied chance").count(), eq(10));
+        assert_that!(
+            text,
+            contains_substring(format!("Event time: <t:{}:F>", i64::MAX))
+        );
+        assert_mentions_disabled(&payload);
+    }
 }

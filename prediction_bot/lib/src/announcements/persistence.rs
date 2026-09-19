@@ -1,6 +1,7 @@
 use sqlx::{Row, types::Json};
 
 use super::{AnnouncementStatus, ConfigurationChange, SnapshotV1};
+use crate::odds::OutcomeOdds;
 use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId};
 use crate::{
     domain::{Actor, Event, State},
@@ -63,6 +64,7 @@ fn event_snapshot(event: &Event, state: &State) -> Result<Option<(SnapshotV1, i6
                     id: id.clone(),
                     question: market.question.clone(),
                     bet_count: market.bets.len(),
+                    odds: OutcomeOdds::for_market(market),
                     occurred_at: *accepted_at,
                 },
                 *accepted_at,
@@ -105,6 +107,7 @@ fn event_snapshot(event: &Event, state: &State) -> Result<Option<(SnapshotV1, i6
                     question: market.question.clone(),
                     winner: winner.clone(),
                     refunded: *refunded,
+                    odds: OutcomeOdds::for_market(market),
                     occurred_at: *settled_at,
                 },
                 *settled_at,
@@ -120,6 +123,7 @@ fn event_snapshot(event: &Event, state: &State) -> Result<Option<(SnapshotV1, i6
                 SnapshotV1::Cancelled {
                     id: id.clone(),
                     question: market.question.clone(),
+                    odds: OutcomeOdds::for_market(market),
                     occurred_at: *cancelled_at,
                 },
                 *cancelled_at,

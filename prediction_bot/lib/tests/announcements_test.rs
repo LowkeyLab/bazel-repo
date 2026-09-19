@@ -143,6 +143,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
                     "question": "Will it rain?",
                     "winner": "Yes",
                     "refunded": true,
+                    "odds": [{"label": "Yes", "tenths_percent": null}, {"label": "No", "tenths_percent": null}],
                     "occurred_at": 2000,
                 }}),
                 2000,
@@ -152,6 +153,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
                 json!({"Cancelled": {
                     "id": CANCELLED_MARKET,
                     "question": "Will it rain?",
+                    "odds": [{"label": "Yes", "tenths_percent": null}, {"label": "No", "tenths_percent": null}],
                     "occurred_at": 2000,
                 }}),
                 2000,
@@ -1915,7 +1917,7 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
 
 #[googletest::test]
 #[tokio::test]
-async fn bet_delivery_preserves_each_accepted_count_and_time_without_bettor_details() {
+async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries() {
     let (_container, store, _owner) = fixture().await;
     store
         .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
@@ -1947,16 +1949,26 @@ async fn bet_delivery_preserves_each_accepted_count_and_time_without_bettor_deta
         outcome: OutcomeIndex(0),
         amount: Points(13),
     };
-    for (key, time) in [
-        ("discord:bet-1", 1001),
-        ("discord:bet-1", 1002),
-        ("discord:bet-2", 1001),
-    ] {
+    for (key, time) in [("discord:bet-1", 1001), ("discord:bet-1", 1002)] {
         store
             .execute_at(10.into(), key, admin(), &bet, time)
             .await
             .unwrap();
     }
+    store
+        .execute_at(
+            10.into(),
+            "discord:bet-2",
+            admin(),
+            &Command::Bet {
+                id: FIXTURE_MARKET.into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(39),
+            },
+            1001,
+        )
+        .await
+        .unwrap();
     let rejected = Command::Bet {
         id: FIXTURE_MARKET.into(),
         outcome: OutcomeIndex(0),
@@ -1971,8 +1983,8 @@ async fn bet_delivery_preserves_each_accepted_count_and_time_without_bettor_deta
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/api/v10/channels/20/messages"))
-        .respond_with(delivered())
-        .expect(2)
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
         .mount(&server)
         .await;
     deliver_due(
@@ -1982,9 +1994,32 @@ async fn bet_delivery_preserves_each_accepted_count_and_time_without_bettor_deta
     )
     .await
     .unwrap();
+    let failed_requests = server.received_requests().await.unwrap();
+    let failed_body: serde_json::Value = failed_requests[0].body_json().unwrap();
+    assert_that!(
+        failed_body["content"].as_str().unwrap(),
+        contains_substring("Yes — 100.0% implied chance")
+    );
+    server.reset().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .expect(2)
+        .mount(&server)
+        .await;
+    deliver_due(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(3010),
+    )
+    .await
+    .unwrap();
     let requests = server.received_requests().await.unwrap();
     assert_that!(requests.len(), eq(2));
-    for (request, expected_count) in requests.iter().zip(["1 bet placed", "2 bets placed"]) {
+    for (request, (expected_count, yes, no)) in requests.iter().zip([
+        ("1 bet placed", "100.0%", "0.0%"),
+        ("2 bets placed", "25.0%", "75.0%"),
+    ]) {
         let body: serde_json::Value = request.body_json().unwrap();
         let content = body["content"].as_str().unwrap();
         assert_that!(content, contains_substring("Another bet"));
@@ -1992,7 +2027,15 @@ async fn bet_delivery_preserves_each_accepted_count_and_time_without_bettor_deta
         assert_that!(content, contains_substring(FIXTURE_MARKET));
         assert_that!(content, contains_substring(expected_count));
         assert_that!(content, contains_substring("<t:1001:F>"));
-        for private in ["<@7>", "Yes", "13", "Bettor", "Stake"] {
+        assert_that!(
+            content,
+            contains_substring(format!("Yes — {yes} implied chance"))
+        );
+        assert_that!(
+            content,
+            contains_substring(format!("No — {no} implied chance"))
+        );
+        for private in ["<@7>", "13", "Bettor", "Stake"] {
             assert_that!(content, not(contains_substring(private)));
         }
         assert_that!(body["allowed_mentions"]["parse"], eq(&json!([])));
@@ -2092,6 +2135,10 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
     assert_that!(
         messages[2]["content"].as_str().unwrap(),
         contains_substring("1 bet placed")
+    );
+    assert_that!(
+        messages[2]["content"].as_str().unwrap(),
+        contains_substring("Yes — 100.0% implied chance")
     );
     for message in messages {
         assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));

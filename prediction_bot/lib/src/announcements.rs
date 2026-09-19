@@ -1,3 +1,4 @@
+use crate::odds::OutcomeOdds;
 use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId, MarketId, UserId};
 pub(crate) mod persistence;
 pub(crate) mod render;
@@ -16,6 +17,8 @@ pub enum SnapshotV1 {
         id: MarketId,
         question: String,
         bet_count: usize,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        odds: Vec<OutcomeOdds>,
         occurred_at: i64,
     },
     Created {
@@ -31,13 +34,28 @@ pub enum SnapshotV1 {
         question: String,
         winner: String,
         refunded: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        odds: Vec<OutcomeOdds>,
         occurred_at: i64,
     },
     Cancelled {
         id: MarketId,
         question: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        odds: Vec<OutcomeOdds>,
         occurred_at: i64,
     },
+}
+
+impl SnapshotV1 {
+    fn odds(&self) -> &[OutcomeOdds] {
+        match self {
+            Self::BetPlaced { odds, .. }
+            | Self::Resolved { odds, .. }
+            | Self::Cancelled { odds, .. } => odds,
+            Self::Created { .. } | Self::MemberEnrolled { .. } => &[],
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

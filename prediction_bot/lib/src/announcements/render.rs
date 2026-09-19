@@ -16,6 +16,7 @@ pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
             | SnapshotV1::BetPlaced { .. }
             | SnapshotV1::MemberEnrolled { .. } => 1,
         };
+        let field_count = field_count + snapshot.odds().len();
         let field_limit = CONTENT_LIMIT.saturating_sub(fixed_units) / field_count;
         content = render_content(snapshot, field_limit);
     }
@@ -27,6 +28,7 @@ pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
 // Rendering empty user fields measures the exact space reserved for labels,
 // every outcome bullet, identifiers, and timestamps before sharing the remainder.
 fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
+    let odds = render_odds(snapshot.odds(), field_limit);
     let (heading, id, details) = match snapshot {
         SnapshotV1::MemberEnrolled {
             user_id,
@@ -43,13 +45,14 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
             question,
             bet_count,
             occurred_at,
+            ..
         } => {
             let noun = if *bet_count == 1 { "bet" } else { "bets" };
             (
                 "🎲 Another bet",
                 Some(id),
                 format!(
-                    "Question: {}\n{bet_count} {noun} placed\nEvent time: <t:{occurred_at}:F>",
+                    "Question: {}\n{bet_count} {noun} placed{odds}\nEvent time: <t:{occurred_at}:F>",
                     escape_field(question, field_limit)
                 ),
             )
@@ -64,7 +67,12 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
         } => {
             let outcomes = options
                 .iter()
-                .map(|option| format!("• {}", escape_field(option, field_limit)))
+                .map(|option| {
+                    format!(
+                        "• {} — N/A (no bets) implied chance",
+                        escape_field(option, field_limit)
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join("\n");
             (
@@ -82,6 +90,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
             winner,
             refunded,
             occurred_at,
+            ..
         } => {
             let refund = if *refunded {
                 "yes (no winning bets)"
@@ -92,7 +101,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
                 "✅ Market resolved",
                 Some(id),
                 format!(
-                    "Question: {}\nWinning outcome: {}\nStakes refunded: {refund}\nEvent time: <t:{occurred_at}:F>",
+                    "Question: {}\nWinning outcome: {}\nStakes refunded: {refund}{odds}\nEvent time: <t:{occurred_at}:F>",
                     escape_field(question, field_limit),
                     escape_field(winner, field_limit),
                 ),
@@ -102,11 +111,12 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
             id,
             question,
             occurred_at,
+            ..
         } => (
             "🚫 Market cancelled",
             Some(id),
             format!(
-                "Question: {}\nStakes refunded: yes\nEvent time: <t:{occurred_at}:F>",
+                "Question: {}\nStakes refunded: yes{odds}\nEvent time: <t:{occurred_at}:F>",
                 escape_field(question, field_limit),
             ),
         ),
@@ -117,6 +127,24 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
         None => heading.to_owned(),
     };
     format!("{prefix}\n{details}")
+}
+
+fn render_odds(odds: &[crate::odds::OutcomeOdds], field_limit: usize) -> String {
+    if odds.is_empty() {
+        return String::new();
+    }
+    let outcomes = odds
+        .iter()
+        .map(|outcome| {
+            format!(
+                "• {} — {} implied chance",
+                escape_field(&outcome.label, field_limit),
+                outcome.chance()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("\nOutcomes:\n{outcomes}")
 }
 
 fn no_mentions() -> CreateAllowedMentions {
