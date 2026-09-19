@@ -55,7 +55,8 @@ Key targets:
 Test structure:
 
 - Unit tests in `nicknamer/server/lib/tests/`
-- Snapshot testing with the `insta` crate
+- Use `googletest` as the Rust test library and its matchers for assertions
+- Snapshot testing with the `insta` crate alongside `googletest`
 - Integration tests with `testcontainers` (spins up PostgreSQL automatically)
 
 ## Code Style Guidelines (Rust)
