@@ -101,3 +101,19 @@ nix develop --command aspect build //...
 ```
 
 The PostgreSQL integration target needs its isolated Docker test environment. Announcement composition tests use the migrated runtime database and a real Serenity HTTP client against Wiremock, including the guarded application startup path. These tests disable Serenity’s rate limiter and terminate the gateway through an HTTP error; they do not establish live Discord readiness, gateway reconnect behavior, or production rate-limit behavior. Adapter tests use local interaction inputs; they do not contact Discord or establish that a bot has been deployed successfully.
+
+## Code coverage
+
+Run coverage from the repository root (the PostgreSQL integration tests require Docker):
+
+```bash
+nix develop --command bazel run //tools/coverage -- //prediction_bot/...
+```
+
+The wrapper writes `coverage-report.lcov` and, when `genhtml` is available, an HTML report at `coverage-report/index.html`. The Nix development shell provides `genhtml`. To collect coverage without the Docker integration tests:
+
+```bash
+nix develop --command bazel run //tools/coverage -- --test_tag_filters=-requires-docker //prediction_bot/...
+```
+
+This narrower run omits integration-test coverage. The repository Coverage workflow includes `prediction_bot` in its combined report and uploads it to Codecov on pull requests and pushes to `main`.
