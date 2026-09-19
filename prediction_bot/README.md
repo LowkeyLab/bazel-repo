@@ -19,6 +19,29 @@ nix develop --command bazel run //prediction_bot/bin:bin
 
 The migration command uses `MIGRATION_DATABASE_URL` and requires `POSTGRES_RUNTIME_PASSWORD`. The password is passed as a bound connection setting and safely quoted by PostgreSQL when creating the application login. Existing login passwords are preserved; changing this variable after creation does not rotate the password. Match the password in `DATABASE_URL` to the application login (URL-encode special characters in the URL). SQLx records applied migrations in `_sqlx_migrations`, validates their checksums, and only runs pending migrations. These migrations require a fresh database and no pre-existing bot roles; adoption of the previous setup is not supported. `prediction_schema` remains the runtime schema compatibility marker. Normal startup uses `DATABASE_URL`; it rejects a role with UPDATE, DELETE, or TRUNCATE rights on the event tables, validates schema version, and replays all committed guild events before connecting to the gateway. For an existing PostgreSQL server, create an owner with schema creation and `CREATEROLE`, set `POSTGRES_RUNTIME_PASSWORD`, and run `--migrate` with that owner; no manual bot role creation is needed. Never use the owner URL for normal startup.
 
+## Liveness probe
+
+Normal bot mode serves `GET /healthz` with `200 OK` and the plain-text body `ok`.
+`HEALTH_BIND_ADDRESS` defaults to `0.0.0.0:8080`; set an IP address and port to
+change the listener, for example `127.0.0.1:8080` for local-only access.
+
+```bash
+curl http://localhost:8080/healthz
+```
+
+The listener starts before Discord and database initialization and remains
+available while the bot runs. A successful probe means the process can serve
+HTTP; it does not establish Discord connectivity, database availability, or worker
+readiness. The handler makes no dependency calls. Invalid configuration or an
+occupied port prevents startup; unexpected server termination fails the process.
+The listener stops when the bot exits, with at most five seconds to drain HTTP
+connections. Migration mode (`--migrate`) does not open a listener and ignores
+`HEALTH_BIND_ADDRESS`.
+
+When running in a container, publish port 8080 (or your configured port) to probe
+from the host. The distroless image does not include curl; run the probe from the
+host or your deployment platform.
+
 ## Container image
 
 The Deploy workflow publishes `ghcr.io/lowkeylab/prediction_bot:latest` after Bazel Tests succeeds on `main`. Aspect delivery discovers `//prediction_bot/bin:push_image` automatically. The image packages the bot binary and its embedded migrations on the repository's distroless C/C++ base.
