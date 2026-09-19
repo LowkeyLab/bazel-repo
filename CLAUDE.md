@@ -150,6 +150,8 @@ Angular 21 projects live in `angular/projects/` (mindreadr, nicknamer, predix, t
 
 ### Rust (edition 2024)
 
+- Prefer newtypes wherever practical for distinct domain concepts (e.g., `struct UserId(Uuid);`); type aliases do not prevent mixing values of the same underlying type
+- Keep fields private when enforcing invariants, validate through constructors or `TryFrom`, and expose only domain-appropriate traits and conversions
 - `anyhow::Result<T>` for binaries; `thiserror` for library error types
 - `tracing` for logging (not `println!`)
 - Tokio async runtime

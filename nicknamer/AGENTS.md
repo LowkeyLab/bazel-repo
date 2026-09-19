@@ -62,6 +62,8 @@ Test structure:
 ## Code Style Guidelines (Rust)
 
 - Use Rust 2024 edition
+- Prefer the newtype pattern wherever practical for distinct domain concepts, such as user IDs and validated names, instead of interchangeable primitives or type aliases
+- Keep fields private when enforcing invariants, validate through constructors or `TryFrom`, and expose only domain-appropriate traits and conversions
 - Format with rustfmt (run `aspect format` at repo root)
 - Follow `cargo clippy` recommendations
 - Prefer explicit error handling with `anyhow::Result`
