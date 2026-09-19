@@ -43,7 +43,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
                 "📈 Market created",
                 id,
                 format!(
-                    "Question: {}\nCreator: `{creator}`\nOutcomes:\n{outcomes}\nCloses: <t:{closes_at}:F>\nEvent time: <t:{occurred_at}:F>",
+                    "Question: {}\nCreator: <@{creator}>\nOutcomes:\n{outcomes}\nCloses: <t:{closes_at}:F>\nEvent time: <t:{occurred_at}:F>",
                     escape_field(question, field_limit),
                 ),
             )

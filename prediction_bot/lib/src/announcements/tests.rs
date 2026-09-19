@@ -1,6 +1,6 @@
 use googletest::{
     assert_that,
-    matchers::{contains_substring, ends_with, eq, le, not, starts_with},
+    matchers::{contains_substring, ends_with, eq, le, starts_with},
 };
 use serde_json::Value;
 
@@ -45,8 +45,7 @@ fn creation_renders_saved_details_as_non_pinging_text() {
         content,
         contains_substring(r"Will \*\*rain\*\* ping @everyone?")
     );
-    assert_that!(content, contains_substring("Creator: `42`"));
-    assert_that!(content, not(contains_substring("<@42>")));
+    assert_that!(content, contains_substring("Creator: <@42>"));
     assert_that!(content, contains_substring(r"Yes\_please"));
     assert_that!(content, contains_substring(r"No \| sunshine"));
     assert_that!(content, contains_substring("<t:2000:F>"));
@@ -305,7 +304,10 @@ fn maximum_creation_preserves_all_fields_when_user_text_expands() {
         for i in 0..10 {
             assert_that!(text, contains_substring(format!("• {i}")), "{text}");
         }
-        assert_that!(text, contains_substring(format!("Creator: `{}`", u64::MAX)));
+        assert_that!(
+            text,
+            contains_substring(format!("Creator: <@{}>", u64::MAX))
+        );
         assert_that!(
             text,
             contains_substring(format!("Closes: <t:{}:F>", i64::MAX))
