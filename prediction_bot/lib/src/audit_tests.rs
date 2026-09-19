@@ -92,6 +92,10 @@ fn decide_rejections_are_typed_without_copying_reasons() {
             Rejection::MarketUnavailable,
         ),
         ("moderator required", Rejection::PermissionDenied),
+        (
+            "market creator or moderator required",
+            Rejection::PermissionDenied,
+        ),
         ("sentinel-private-reason", Rejection::InvalidInput),
     ] {
         let error = StoreError::Domain(DomainError::Invalid(reason));

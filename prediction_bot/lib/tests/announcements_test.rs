@@ -635,7 +635,7 @@ use wiremock::{
 
 #[googletest::test]
 #[tokio::test]
-async fn delivery_posts_saved_content_without_mentions_and_records_the_message() {
+async fn delivery_posts_saved_content_without_pings_and_records_the_message() {
     let (_container, store, owner) = fixture().await;
     queued(&store, 10, 20).await;
     let server = MockServer::start().await;
@@ -657,6 +657,10 @@ async fn delivery_posts_saved_content_without_mentions_and_records_the_message()
     assert_that!(
         payload["content"].as_str().unwrap(),
         contains_substring("Will it rain?")
+    );
+    assert_that!(
+        payload["content"].as_str().unwrap(),
+        contains_substring("Creator: <@7>")
     );
     assert_that!(payload["allowed_mentions"]["parse"], eq(&json!([])));
     assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));

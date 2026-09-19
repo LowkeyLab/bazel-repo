@@ -48,6 +48,152 @@ fn market(state: &mut State, closes_at: i64) {
 }
 
 #[googletest::test]
+fn resolution_allows_creator_and_other_moderators_only() {
+    for (actor, allowed) in [
+        (member(1), true),
+        (moderator(2), true),
+        (member(2), false),
+        (
+            Actor {
+                bot: true,
+                ..member(1)
+            },
+            false,
+        ),
+        (
+            Actor {
+                bot: true,
+                ..moderator(2)
+            },
+            false,
+        ),
+        (moderator(0), false),
+    ] {
+        let mut state = State::default();
+        market(&mut state, 2_000);
+        execute(&mut state, member(2), &Command::Join, 1_000);
+        for (user, outcome) in [(1, 0), (2, 1)] {
+            execute(
+                &mut state,
+                member(user),
+                &Command::Bet {
+                    id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                    outcome: OutcomeIndex(outcome),
+                    amount: Points(10),
+                },
+                1_500,
+            );
+        }
+        let before = state.clone();
+        let result = decide(
+            &state,
+            actor,
+            &Command::Resolve {
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+            },
+            2_000,
+            DEFAULTS,
+        );
+        assert_that!(result.is_ok(), eq(allowed), "actor: {actor:?}");
+        if allowed {
+            let decision = result.unwrap();
+            assert_that!(decision.events.len(), eq(1));
+            match &decision.events[0] {
+                Event::MarketResolved {
+                    resolver,
+                    settled_at,
+                    ..
+                } => {
+                    assert_that!(*resolver, eq(actor.user_id));
+                    assert_that!(*settled_at, eq(2_000));
+                }
+                event => panic!("expected market resolution, got {event:?}"),
+            }
+            apply(&mut state, &decision.events[0]).unwrap();
+            assert_that!(state.accounts[&UserId(1)].balance, eq(Points(110)));
+            assert_that!(state.accounts[&UserId(2)].balance, eq(Points(90)));
+            assert_that!(
+                state.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
+                eq(&Status::Resolved {
+                    outcome: OutcomeIndex(0),
+                    refunded: false
+                })
+            );
+        } else {
+            assert_that!(
+                result.unwrap_err(),
+                eq(&DomainError::Invalid(
+                    "market creator or moderator required"
+                ))
+            );
+            assert_that!(state, eq(&before));
+        }
+    }
+}
+
+#[googletest::test]
+fn creator_resolution_preserves_market_restrictions() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into();
+    for (outcome, now, reason) in [
+        (0, 1_999, "market is not ready to resolve"),
+        (2, 2_000, "invalid outcome"),
+    ] {
+        assert_that!(
+            decide(
+                &state,
+                member(1),
+                &Command::Resolve {
+                    id: id.clone(),
+                    outcome: OutcomeIndex(outcome)
+                },
+                now,
+                DEFAULTS
+            )
+            .unwrap_err(),
+            eq(&DomainError::Invalid(reason))
+        );
+    }
+    assert_that!(
+        decide(
+            &state,
+            member(1),
+            &Command::Cancel { id: id.clone() },
+            2_000,
+            DEFAULTS
+        )
+        .unwrap_err(),
+        eq(&DomainError::Invalid("moderator required"))
+    );
+    for terminal in [
+        Command::Resolve {
+            id: id.clone(),
+            outcome: OutcomeIndex(0),
+        },
+        Command::Cancel { id: id.clone() },
+    ] {
+        let mut terminal_state = state.clone();
+        execute(&mut terminal_state, moderator(2), &terminal, 2_000);
+        assert_that!(
+            decide(
+                &terminal_state,
+                member(1),
+                &Command::Resolve {
+                    id: id.clone(),
+                    outcome: OutcomeIndex(0)
+                },
+                2_001,
+                DEFAULTS
+            )
+            .unwrap_err(),
+            eq(&DomainError::Invalid("market is not ready to resolve"))
+        );
+    }
+}
+
+#[googletest::test]
 fn enrollment_grants_once_and_preserves_schedule() {
     let mut state = State::default();
     let first = execute(&mut state, member(7), &Command::Join, 1_000);

@@ -55,7 +55,7 @@ All timestamps are represented as whole Unix seconds. Fractional seconds in RFC 
 
 `/market list` offers a dropdown of the ten newest open markets. Selecting a market, or using `/market show id`, displays its question, closing time, status, and pooled points. Choose an outcome on the card to open a stake form showing your available balance. Submit a positive whole-number stake to place the bet; the private receipt records the outcome, stake, and remaining balance. Enroll with `/market join` before betting. A market that closes while a form is open cannot accept the submitted bet, and repeated delivery of the same submission cannot charge twice. Forms and controls belong to the member and server that opened them. Use `/market list` again to refresh pooled points and available markets.
 
-The direct shortcuts remain available: `/market create question options closes_at` requires all three fields, outcomes separated by `|` (for example `Yes | No`), and an RFC 3339 close time. `/market bet id outcome amount` uses the displayed **one-based** outcome number and a positive integer stake. `/market balance` and `/market leaderboard` show current points. `/market resolve id outcome` requires the market to have closed; `/market cancel id` can be used before or after close while the market is unresolved. Both moderation commands require Administrator or Manage Guild permission. Slash-command responses are private to the invoking member and do not ping users or roles.
+The direct shortcuts remain available: `/market create question options closes_at` requires all three fields, outcomes separated by `|` (for example `Yes | No`), and an RFC 3339 close time. `/market bet id outcome amount` uses the displayed **one-based** outcome number and a positive integer stake. `/market balance` and `/market leaderboard` show current points. `/market resolve id outcome` requires the market to have closed; `/market cancel id` can be used before or after close while the market is unresolved. Resolution is available to the market creator or members with Administrator or Manage Guild permission. Cancellation requires Administrator or Manage Guild permission. Slash-command responses are private to the invoking member and do not ping users or roles.
 
 ### Market announcements
 
@@ -101,3 +101,19 @@ nix develop --command aspect build //...
 ```
 
 The PostgreSQL integration target needs its isolated Docker test environment. Announcement composition tests use the migrated runtime database and a real Serenity HTTP client against Wiremock, including the guarded application startup path. These tests disable Serenity’s rate limiter and terminate the gateway through an HTTP error; they do not establish live Discord readiness, gateway reconnect behavior, or production rate-limit behavior. Adapter tests use local interaction inputs; they do not contact Discord or establish that a bot has been deployed successfully.
+
+## Code coverage
+
+Run coverage from the repository root (the PostgreSQL integration tests require Docker):
+
+```bash
+nix develop --command bazel run //tools/coverage -- //prediction_bot/...
+```
+
+The wrapper writes `coverage-report.lcov` and, when `genhtml` is available, an HTML report at `coverage-report/index.html`. The Nix development shell provides `genhtml`. To collect coverage without the Docker integration tests:
+
+```bash
+nix develop --command bazel run //tools/coverage -- --test_tag_filters=-requires-docker //prediction_bot/...
+```
+
+This narrower run omits integration-test coverage. The repository Coverage workflow includes `prediction_bot` in its combined report and uploads it to Codecov on pull requests and pushes to `main`.

@@ -134,17 +134,20 @@ fn guild_and_bot_metadata_are_enforced() {
 
 #[googletest::test]
 fn moderator_flag_is_passed_to_resolution_and_cancel() {
-    let mut resolve = input("resolve", vec![text("id", "1234"), number("outcome", 2)]);
-    resolve.moderator = true;
-    let (_, actor, action) = parse(&resolve).unwrap();
-    assert_that!(actor.moderator, eq(true));
-    assert_that!(
-        action,
-        eq(&Action::Write(Command::Resolve {
-            id: "1234".to_owned().into(),
-            outcome: OutcomeIndex(1)
-        }))
-    );
+    for moderator in [false, true] {
+        let mut resolve = input("resolve", vec![text("id", "1234"), number("outcome", 2)]);
+        resolve.moderator = moderator;
+        let (_, actor, action) = parse(&resolve).unwrap();
+        assert_that!(actor.user_id, eq(UserId(20)));
+        assert_that!(actor.moderator, eq(moderator));
+        assert_that!(
+            action,
+            eq(&Action::Write(Command::Resolve {
+                id: "1234".to_owned().into(),
+                outcome: OutcomeIndex(1)
+            }))
+        );
+    }
     let cancel = input("cancel", vec![text("id", "1234")]);
     assert_that!(parse(&cancel).unwrap().1.moderator, eq(false));
 }
@@ -308,10 +311,27 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
         moderator: false,
         bot: false,
     };
-    let leaderboard = render_query(&view, &Action::Leaderboard, actor, 1_850_000_000);
+    let payload = serde_json::to_value(
+        super::ui::query(
+            &view,
+            &Action::Leaderboard,
+            actor,
+            GuildId(10),
+            1_850_000_000,
+        )
+        .edit(),
+    )
+    .unwrap();
+    let leaderboard = payload["content"].as_str().unwrap();
     assert_that!(
-        leaderboard.find("User ID 9").unwrap(),
-        lt(leaderboard.find("User ID 20").unwrap())
+        payload["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
+    assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));
+    assert_that!(leaderboard, contains_substring("<@20> — 75 points"));
+    assert_that!(
+        leaderboard.find("<@9>").unwrap(),
+        lt(leaderboard.find("<@20>").unwrap())
     );
     assert_that!(
         render_query(&view, &Action::Balance, actor, 1_850_000_000),

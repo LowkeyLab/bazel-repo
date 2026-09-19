@@ -840,6 +840,78 @@ impl prediction_bot::discord::transport::InteractionTransport for TestTransport 
 
 #[googletest::test]
 #[tokio::test]
+async fn creator_resolution_through_discord_is_persisted_and_replayed_once() {
+    let (_container, store) = fixture().await;
+    let market = uuid::Uuid::new_v4().to_string();
+    store
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            1.into(),
+            "discord:3",
+            player(7),
+            &Command::Bet {
+                id: market.clone().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(25),
+            },
+            1500,
+        )
+        .await
+        .unwrap();
+    let transport = TestTransport::default();
+    let resolve = Command::Resolve {
+        id: market.clone().into(),
+        outcome: OutcomeIndex(0),
+    };
+    for _ in 0..2 {
+        prediction_bot::discord::execute_interaction(
+            &transport,
+            &store,
+            1.into(),
+            player(7),
+            &resolve,
+            4,
+        )
+        .await;
+    }
+    let restarted = Store::new(
+        store.pool.clone(),
+        42.into(),
+        Policy {
+            amount: Points(100),
+            interval: 86_400,
+        },
+    );
+    let view = restarted.view(1.into()).await.unwrap();
+    assert_that!(
+        view.state.markets[market.as_str()].status,
+        eq(&prediction_bot::domain::Status::Resolved {
+            outcome: OutcomeIndex(0),
+            refunded: false,
+        })
+    );
+    assert_that!(view.state.accounts[&UserId(7)].balance, eq(Points(100)));
+    // Three enrollment events, creation, bet, and exactly one settlement.
+    assert_that!(view.revision.0, eq(6));
+    let edits = transport.edits.lock().unwrap();
+    assert_that!(edits.len(), eq(2));
+    for edit in edits.iter() {
+        assert_that!(
+            serde_json::to_value(edit).unwrap()["content"],
+            eq("Market resolved.")
+        );
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
 async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
     use prediction_bot::audit::{Failure, FailureCategory};
     let (audit, recorder) = recording_fixture();
