@@ -1,14 +1,19 @@
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 rust_binary(
     name = "bin",
-    srcs = ["src/main.rs"],
+    srcs = [
+        "src/health.rs",
+        "src/main.rs",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//prediction_bot/lib",
         "@crates//:anyhow",
+        "@crates//:axum",
         "@crates//:serenity",
         "@crates//:sqlx",
         "@crates//:tokio",
@@ -45,4 +50,31 @@ oci_load(
     name = "load_image",
     image = ":prediction_bot_image",
     repo_tags = ["local/prediction-bot:latest"],
+)
+
+rust_test(
+    name = "health_test",
+    size = "small",
+    srcs = [
+        "src/health.rs",
+        "src/health_tests.rs",
+    ],
+    crate_root = "src/health.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:reqwest",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "composition_test",
+    size = "small",
+    srcs = ["tests/composition_test.rs"],
+    crate_root = "tests/composition_test.rs",
+    data = [":bin"],
+    rustc_env = {"BOT_BINARY": "$(rootpath :bin)"},
+    deps = ["@crates//:googletest"],
 )
