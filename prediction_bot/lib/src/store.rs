@@ -19,6 +19,7 @@ use crate::audit::{
 };
 use crate::domain::{self, Actor, Command, DomainError, Event, GrantReason, Policy, State};
 use crate::events::{CloudEvent, Context, EventError};
+use crate::types::{ApplicationId, EventRevision, GuildId, UserId};
 
 #[derive(Debug, Error)]
 pub enum StoreError {
@@ -38,15 +39,15 @@ pub enum StoreError {
 
 #[derive(Clone, Debug)]
 pub struct View {
-    pub revision: i64,
+    pub revision: EventRevision,
     pub state: State,
 }
 
 pub struct Store {
     pub pool: PgPool,
-    application: u64,
+    application: ApplicationId,
     defaults: Policy,
-    views: Mutex<HashMap<u64, Arc<View>>>,
+    views: Mutex<HashMap<GuildId, Arc<View>>>,
     audit: SharedAudit,
 }
 
@@ -72,14 +73,14 @@ fn at_stage<T, E: Into<StoreError>>(
 
 impl Store {
     #[must_use]
-    pub fn new(pool: PgPool, application: u64, defaults: Policy) -> Self {
+    pub fn new(pool: PgPool, application: ApplicationId, defaults: Policy) -> Self {
         Self::new_with_audit(pool, application, defaults, logging_listener())
     }
 
     #[must_use]
     pub fn new_with_audit(
         pool: PgPool,
-        application: u64,
+        application: ApplicationId,
         defaults: Policy,
         audit: SharedAudit,
     ) -> Self {
@@ -99,7 +100,7 @@ impl Store {
     /// or invalid stored history.
     pub async fn connect(
         url: &str,
-        application: u64,
+        application: ApplicationId,
         defaults: Policy,
     ) -> Result<Self, StoreError> {
         Self::connect_with_audit(url, application, defaults, logging_listener()).await
@@ -112,11 +113,11 @@ impl Store {
     /// [`Self::connect`].
     pub async fn connect_with_audit(
         url: &str,
-        application: u64,
+        application: ApplicationId,
         defaults: Policy,
         audit: SharedAudit,
     ) -> Result<Self, StoreError> {
-        if application == 0 || defaults.amount <= 0 || defaults.interval <= 0 {
+        if application.0 == 0 || defaults.amount.0 <= 0 || defaults.interval <= 0 {
             return Err(StoreError::Configuration(
                 "application ID and grant settings must be positive",
             ));
@@ -166,7 +167,7 @@ impl Store {
         Ok(store)
     }
 
-    pub(crate) const fn application_id(&self) -> u64 {
+    pub(crate) const fn application_id(&self) -> ApplicationId {
         self.application
     }
 
@@ -184,7 +185,7 @@ impl Store {
     ) -> Result<sqlx::pool::PoolConnection<sqlx::Postgres>, StoreError> {
         let mut connection = self.pool.acquire().await?;
         // Preserve all 64 identity bits in the two signed PostgreSQL lock keys.
-        let bytes = self.application.to_be_bytes();
+        let bytes = self.application.0.to_be_bytes();
         let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1, $2)")
             .bind(i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
             .bind(i32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]))
@@ -205,7 +206,7 @@ impl Store {
     /// Returns an error for invalid commands or history, metadata errors, or database failures.
     pub async fn execute(
         &self,
-        guild: u64,
+        guild: GuildId,
         key: &str,
         actor: Actor,
         command: &Command,
@@ -219,7 +220,7 @@ impl Store {
     /// Returns the same command, history, metadata, and database errors as [`Self::execute`].
     pub async fn execute_at(
         &self,
-        guild: u64,
+        guild: GuildId,
         key: &str,
         actor: Actor,
         command: &Command,
@@ -231,7 +232,7 @@ impl Store {
 
     async fn execute_inner(
         &self,
-        guild: u64,
+        guild: GuildId,
         key: &str,
         actor: Actor,
         command: &Command,
@@ -240,13 +241,13 @@ impl Store {
         let started = Instant::now();
         let audit_key = canonical_command_key(key);
         let command_kind = CommandKind::from(command);
-        if guild == 0
+        if guild.0 == 0
             || key.is_empty()
             || key.len() > 200
             || key.chars().any(char::is_control)
             || !(key.starts_with("discord:") || key.starts_with("grant:"))
             || key.ends_with(':')
-            || (actor.user_id == 0) != key.starts_with("grant:")
+            || (actor.user_id.0 == 0) != key.starts_with("grant:")
         {
             let error = StoreError::Configuration("invalid guild or command key");
             self.audit.on_event(&AuditEvent::CommandCompleted {
@@ -294,7 +295,7 @@ impl Store {
 
     async fn transact(
         &self,
-        guild: u64,
+        guild: GuildId,
         key: &str,
         actor: Actor,
         command: &Command,
@@ -310,7 +311,7 @@ impl Store {
         at_stage(
             Stage::Acquire,
             sqlx::query("SELECT pg_advisory_xact_lock($1)")
-                .bind(i64::from_ne_bytes(guild.to_ne_bytes()))
+                .bind(i64::from_ne_bytes(guild.0.to_ne_bytes()))
                 .execute(&mut *tx)
                 .await,
         )?;
@@ -356,7 +357,7 @@ impl Store {
         for event in &decision.events {
             at_stage(Stage::Append, validate_event_actor(event, actor.user_id))?;
             at_stage(Stage::Append, validate_event_time(event, accepted_at))?;
-            view.revision = view.revision.checked_add(1).ok_or(TransactionFailure {
+            view.revision = view.revision.next().ok_or(TransactionFailure {
                 stage: Stage::Append,
                 error: StoreError::History("revision overflow"),
             })?;
@@ -379,7 +380,7 @@ impl Store {
             at_stage(
                 Stage::Append,
                 sqlx::query("INSERT INTO prediction_events(guild_id, revision, command_key, accepted_at, event) VALUES ($1,$2,$3,$4,$5)")
-                .bind(guild.to_string()).bind(view.revision).bind(key).bind(accepted_at).bind(Json(cloud))
+                .bind(guild.to_string()).bind(view.revision.0).bind(key).bind(accepted_at).bind(Json(cloud))
                 .execute(&mut *tx).await,
             )?;
             at_stage(
@@ -391,7 +392,7 @@ impl Store {
             Stage::Append,
             sqlx::query("INSERT INTO prediction_commands(guild_id,command_key,actor_id,accepted_at,response,last_revision) VALUES ($1,$2,$3,$4,$5,$6)")
             .bind(guild.to_string()).bind(key).bind(actor.user_id.to_string()).bind(accepted_at)
-            .bind(&decision.response).bind(view.revision).execute(&mut *tx).await,
+            .bind(&decision.response).bind(view.revision.0).execute(&mut *tx).await,
         )?;
         at_stage(Stage::Commit, tx.commit().await)?;
         self.publish(guild, view).await;
@@ -401,30 +402,34 @@ impl Store {
         })
     }
 
-    async fn load(&self, connection: &mut PgConnection, guild: u64) -> Result<View, StoreError> {
+    async fn load(
+        &self,
+        connection: &mut PgConnection,
+        guild: GuildId,
+    ) -> Result<View, StoreError> {
         // One SELECT snapshot sees either all or none of a command's event rows.
         let rows = sqlx::query("SELECT e.revision, e.command_key, e.accepted_at, e.event, c.actor_id, c.accepted_at AS receipt_time, c.last_revision FROM prediction_events e LEFT JOIN prediction_commands c ON c.guild_id=e.guild_id AND c.command_key=e.command_key WHERE e.guild_id=$1 ORDER BY e.revision")
             .bind(guild.to_string()).fetch_all(connection).await?;
         let mut view = View {
-            revision: 0,
+            revision: EventRevision(0),
             state: State::default(),
         };
         let mut identities = HashSet::new();
         let mut events = Vec::with_capacity(rows.len());
-        let mut enrollment: Option<(u64, String, i64)> = None;
-        let mut command_end: Option<(String, i64)> = None;
+        let mut enrollment: Option<(UserId, String, i64)> = None;
+        let mut command_end: Option<(String, EventRevision)> = None;
         let mut completed_commands = HashSet::new();
         for row in rows {
-            let revision: i64 = row.try_get("revision")?;
-            if Some(revision) != view.revision.checked_add(1) {
+            let revision = EventRevision(row.try_get("revision")?);
+            if Some(revision) != view.revision.next() {
                 return Err(StoreError::History("non-contiguous event revisions"));
             }
             let key: String = row.try_get("command_key")?;
             let accepted_at: i64 = row.try_get("accepted_at")?;
             let receipt_time: i64 = row.try_get("receipt_time")?;
-            let last_revision: i64 = row.try_get("last_revision")?;
+            let last_revision = EventRevision(row.try_get("last_revision")?);
             let actor_id: String = row.try_get("actor_id")?;
-            let actor: u64 = actor_id
+            let actor: UserId = actor_id
                 .parse()
                 .map_err(|_| StoreError::History("invalid receipt actor"))?;
             if actor_id != actor.to_string()
@@ -496,7 +501,7 @@ impl Store {
         Ok(view)
     }
 
-    async fn publish(&self, guild: u64, view: View) -> Arc<View> {
+    async fn publish(&self, guild: GuildId, view: View) -> Arc<View> {
         let mut views = self.views.lock().await;
         if let Some(current) = views.get(&guild)
             && current.revision >= view.revision
@@ -512,7 +517,7 @@ impl Store {
     ///
     /// # Errors
     /// Returns an error for database failures or invalid event history and metadata.
-    pub async fn view(&self, guild: u64) -> Result<Arc<View>, StoreError> {
+    pub async fn view(&self, guild: GuildId) -> Result<Arc<View>, StoreError> {
         let mut connection = self.pool.acquire().await?;
         let view = self.load(&mut connection, guild).await?;
         Ok(self.publish(guild, view).await)
@@ -522,7 +527,7 @@ impl Store {
     ///
     /// # Errors
     /// Returns an error if the query fails or a stored guild ID is invalid.
-    pub async fn guilds(&self) -> Result<Vec<u64>, StoreError> {
+    pub async fn guilds(&self) -> Result<Vec<GuildId>, StoreError> {
         let ids: Vec<String> =
             sqlx::query_scalar("SELECT DISTINCT guild_id FROM prediction_events ORDER BY guild_id")
                 .fetch_all(&self.pool)
@@ -557,7 +562,7 @@ impl Store {
                 if account.next_grant <= now {
                     let key = format!("grant:{user}:{}", account.next_grant);
                     let actor = Actor {
-                        user_id: 0,
+                        user_id: UserId(0),
                         moderator: false,
                         bot: false,
                     };
@@ -571,10 +576,10 @@ impl Store {
     }
 }
 
-fn validate_event_actor(event: &Event, actor: u64) -> Result<(), StoreError> {
+fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> {
     let expected = match event {
         Event::GuildEconomyInitialized { .. } => {
-            return if actor != 0 {
+            return if actor.0 != 0 {
                 Ok(())
             } else {
                 Err(StoreError::History("system cannot enroll"))
@@ -590,7 +595,7 @@ fn validate_event_actor(event: &Event, actor: u64) -> Result<(), StoreError> {
         Event::PointsGranted {
             reason: GrantReason::Periodic,
             ..
-        } => 0,
+        } => UserId(0),
         Event::MarketCreated { creator, .. } => *creator,
         Event::MarketResolved { resolver, .. } => *resolver,
         Event::MarketCancelled { moderator, .. } => *moderator,

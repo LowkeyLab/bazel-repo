@@ -5,6 +5,7 @@ use googletest::{
         starts_with,
     },
 };
+use prediction_bot::types::{ChannelId, EventRevision, GuildId, OutcomeIndex, Points, UserId};
 use prediction_bot::{
     announcements::ConfigurationChange,
     domain::{Actor, Command, Policy},
@@ -19,7 +20,7 @@ use support::{admin, fixture};
 
 fn member() -> Actor {
     Actor {
-        user_id: 8,
+        user_id: UserId(8),
         moderator: false,
         bot: false,
     }
@@ -47,15 +48,17 @@ fn create(id: &str) -> Command {
 async fn market_events_enqueue_durable_snapshots_once_at_their_original_revisions() {
     let (_container, store, owner) = fixture().await;
     store
-        .execute_at(10, "discord:100", admin(), &Command::Join, 1000)
+        .execute_at(10.into(), "discord:100", admin(), &Command::Join, 1000)
         .await
         .unwrap();
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:101",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
@@ -63,21 +66,21 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
     let resolved = create(RESOLVED_MARKET);
     let cancelled = create(CANCELLED_MARKET);
     store
-        .execute_at(10, "discord:102", admin(), &resolved, 1000)
+        .execute_at(10.into(), "discord:102", admin(), &resolved, 1000)
         .await
         .unwrap();
     store
-        .execute_at(10, "discord:103", admin(), &cancelled, 1000)
+        .execute_at(10.into(), "discord:103", admin(), &cancelled, 1000)
         .await
         .unwrap();
     store
         .execute_at(
-            10,
+            10.into(),
             "discord:104",
             admin(),
             &Command::Resolve {
                 id: RESOLVED_MARKET.into(),
-                outcome: 0,
+                outcome: OutcomeIndex(0),
             },
             2000,
         )
@@ -85,7 +88,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
         .unwrap();
     store
         .execute_at(
-            10,
+            10.into(),
             "discord:105",
             admin(),
             &Command::Cancel {
@@ -96,7 +99,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
         .await
         .unwrap();
     store
-        .execute_at(10, "discord:102", admin(), &resolved, 2000)
+        .execute_at(10.into(), "discord:102", admin(), &resolved, 2000)
         .await
         .unwrap();
 
@@ -162,15 +165,17 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
 async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
     let (_container, store, owner) = fixture().await;
     store
-        .execute_at(10, "discord:200", admin(), &Command::Join, 1000)
+        .execute_at(10.into(), "discord:200", admin(), &Command::Join, 1000)
         .await
         .unwrap();
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:201",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
@@ -180,13 +185,22 @@ async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
         .unwrap();
 
     let result = store
-        .execute_at(10, "discord:202", admin(), &create(FIXTURE_MARKET), 1000)
+        .execute_at(
+            10.into(),
+            "discord:202",
+            admin(),
+            &create(FIXTURE_MARKET),
+            1000,
+        )
         .await;
 
     assert_that!(result, err(anything()));
     assert_that!(
-        store.view(10).await.unwrap().state.markets,
-        not(contains((eq(FIXTURE_MARKET), anything())))
+        store.view(10.into()).await.unwrap().state.markets,
+        not(contains((
+            eq(&prediction_bot::types::MarketId::from(FIXTURE_MARKET)),
+            anything()
+        )))
     );
     let receipts: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM prediction_commands WHERE guild_id='10' AND command_key='discord:202'",
@@ -202,15 +216,17 @@ async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
 async fn a_receipt_failure_rolls_back_the_enqueued_snapshot() {
     let (_container, store, owner) = fixture().await;
     store
-        .execute_at(10, "discord:200", admin(), &Command::Join, 1000)
+        .execute_at(10.into(), "discord:200", admin(), &Command::Join, 1000)
         .await
         .unwrap();
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:201",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
@@ -220,7 +236,13 @@ async fn a_receipt_failure_rolls_back_the_enqueued_snapshot() {
         .unwrap();
 
     let result = store
-        .execute_at(10, "discord:202", admin(), &create(FIXTURE_MARKET), 1000)
+        .execute_at(
+            10.into(),
+            "discord:202",
+            admin(),
+            &create(FIXTURE_MARKET),
+            1000,
+        )
         .await;
 
     assert_that!(result, err(anything()));
@@ -238,19 +260,27 @@ async fn a_receipt_failure_rolls_back_the_enqueued_snapshot() {
 async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_historical_events() {
     let (_container, store, owner) = fixture().await;
     store
-        .execute_at(10, "discord:300", admin(), &Command::Join, 1000)
+        .execute_at(10.into(), "discord:300", admin(), &Command::Join, 1000)
         .await
         .unwrap();
     store
-        .execute_at(10, "discord:301", admin(), &create(HISTORICAL_MARKET), 1000)
+        .execute_at(
+            10.into(),
+            "discord:301",
+            admin(),
+            &create(HISTORICAL_MARKET),
+            1000,
+        )
         .await
         .unwrap();
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:302",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
@@ -267,18 +297,24 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
         .await
         .unwrap();
     store
-        .execute_at(10, "discord:303", admin(), &create(PAUSED_MARKET), 1000)
+        .execute_at(
+            10.into(),
+            "discord:303",
+            admin(),
+            &create(PAUSED_MARKET),
+            1000,
+        )
         .await
         .unwrap();
     store
         .execute_at(
-            10,
+            10.into(),
             "discord:304",
             admin(),
             &Command::Bet {
                 id: PAUSED_MARKET.into(),
-                outcome: 0,
-                amount: 10,
+                outcome: OutcomeIndex(0),
+                amount: Points(10),
             },
             1000,
         )
@@ -286,27 +322,27 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
         .unwrap();
     store
         .execute_at(
-            10,
+            10.into(),
             "grant:7:87400",
             Actor {
-                user_id: 0,
+                user_id: UserId(0),
                 moderator: false,
                 bot: false,
             },
-            &Command::Grant { user_id: 7 },
+            &Command::Grant { user_id: UserId(7) },
             87_400,
         )
         .await
         .unwrap();
     let restarted = prediction_bot::store::Store::new(
         store.pool.clone(),
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
     );
-    restarted.view(10).await.unwrap();
+    restarted.view(10.into()).await.unwrap();
     let pending_after_restart: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM prediction_announcement_outbox WHERE guild_id='10' AND state='pending'",
     )
@@ -316,11 +352,22 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
     assert_that!(pending_after_restart, eq(1));
 
     store
-        .configure_announcements(10, "discord:305", admin(), ConfigurationChange::Disable)
+        .configure_announcements(
+            10.into(),
+            "discord:305",
+            admin(),
+            ConfigurationChange::Disable,
+        )
         .await
         .unwrap();
     store
-        .execute_at(10, "discord:306", admin(), &create(DISABLED_MARKET), 1000)
+        .execute_at(
+            10.into(),
+            "discord:306",
+            admin(),
+            &create(DISABLED_MARKET),
+            1000,
+        )
         .await
         .unwrap();
     let rows: Vec<(i64, String)> = sqlx::query_as(
@@ -337,15 +384,17 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
 async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() {
     let (_container, store, owner) = fixture().await;
     store
-        .execute_at(10, "discord:400", admin(), &Command::Join, 1000)
+        .execute_at(10.into(), "discord:400", admin(), &Command::Join, 1000)
         .await
         .unwrap();
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:401",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
@@ -361,7 +410,12 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
         let store = store.clone();
         tokio::spawn(async move {
             store
-                .configure_announcements(10, "discord:402", admin(), ConfigurationChange::Disable)
+                .configure_announcements(
+                    10.into(),
+                    "discord:402",
+                    admin(),
+                    ConfigurationChange::Disable,
+                )
                 .await
         })
     };
@@ -370,7 +424,13 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
         let store = store.clone();
         tokio::spawn(async move {
             store
-                .execute_at(10, "discord:403", admin(), &create(CONCURRENT_MARKET), 1000)
+                .execute_at(
+                    10.into(),
+                    "discord:403",
+                    admin(),
+                    &create(CONCURRENT_MARKET),
+                    1000,
+                )
                 .await
         })
     };
@@ -392,23 +452,30 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
 #[tokio::test]
 async fn old_configuration_receipt_cannot_restore_a_disabled_channel() {
     let (_container, store, _owner) = fixture().await;
-    let change = ConfigurationChange::Set { channel_id: 20 };
+    let change = ConfigurationChange::Set {
+        channel_id: ChannelId(20),
+    };
     let receipt = store
-        .configure_announcements(10, "discord:101", admin(), change)
+        .configure_announcements(10.into(), "discord:101", admin(), change)
         .await
         .unwrap();
     store
-        .configure_announcements(10, "discord:102", admin(), ConfigurationChange::Disable)
+        .configure_announcements(
+            10.into(),
+            "discord:102",
+            admin(),
+            ConfigurationChange::Disable,
+        )
         .await
         .unwrap();
     assert_that!(
         store
-            .configure_announcements(10, "discord:101", admin(), change)
+            .configure_announcements(10.into(), "discord:101", admin(), change)
             .await
             .unwrap(),
         eq(&receipt)
     );
-    let status = store.announcement_status(10, admin()).await.unwrap();
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
     assert_that!(status.enabled, eq(false));
     assert_that!(status.pending, eq(0));
 }
@@ -418,11 +485,11 @@ async fn old_configuration_receipt_cannot_restore_a_disabled_channel() {
 async fn announcement_status_defaults_to_disabled_for_an_unconfigured_guild() {
     let (_container, store, _owner) = fixture().await;
 
-    let status = store.announcement_status(10, admin()).await.unwrap();
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
 
     assert_that!(status.channel_id, eq(None));
     assert_that!(status.enabled, eq(false));
-    assert_that!(status.version, eq(0));
+    assert_that!(status.version.0, eq(0));
     assert_that!(status.pause_reason, eq(&None));
     assert_that!(status.pending, eq(0));
 }
@@ -432,7 +499,7 @@ async fn announcement_status_defaults_to_disabled_for_an_unconfigured_guild() {
 async fn announcement_configuration_requires_a_human_administrator() {
     let (_container, store, _owner) = fixture().await;
     let bot_administrator = Actor {
-        user_id: 9,
+        user_id: UserId(9),
         moderator: true,
         bot: true,
     };
@@ -441,22 +508,24 @@ async fn announcement_configuration_requires_a_human_administrator() {
         assert_that!(
             store
                 .configure_announcements(
-                    10,
+                    10.into(),
                     "discord:101",
                     actor,
-                    ConfigurationChange::Set { channel_id: 20 },
+                    ConfigurationChange::Set {
+                        channel_id: ChannelId(20)
+                    },
                 )
                 .await,
             err(matches_pattern!(StoreError::Configuration(anything())))
         );
         assert_that!(
-            store.announcement_status(10, actor).await,
+            store.announcement_status(10.into(), actor).await,
             err(matches_pattern!(StoreError::Configuration(anything())))
         );
     }
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .enabled,
@@ -470,20 +539,24 @@ async fn repeated_configuration_commands_replay_their_receipts_once() {
     let (_container, store, _owner) = fixture().await;
     let enabled = store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:101",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
     assert_that!(
         store
             .configure_announcements(
-                10,
+                10.into(),
                 "discord:101",
                 admin(),
-                ConfigurationChange::Set { channel_id: 20 },
+                ConfigurationChange::Set {
+                    channel_id: ChannelId(20)
+                },
             )
             .await
             .unwrap(),
@@ -491,27 +564,38 @@ async fn repeated_configuration_commands_replay_their_receipts_once() {
     );
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
-            .version,
+            .version
+            .0,
         eq(1)
     );
 
     let disabled = store
-        .configure_announcements(10, "discord:102", admin(), ConfigurationChange::Disable)
+        .configure_announcements(
+            10.into(),
+            "discord:102",
+            admin(),
+            ConfigurationChange::Disable,
+        )
         .await
         .unwrap();
     assert_that!(
         store
-            .configure_announcements(10, "discord:102", admin(), ConfigurationChange::Disable,)
+            .configure_announcements(
+                10.into(),
+                "discord:102",
+                admin(),
+                ConfigurationChange::Disable,
+            )
             .await
             .unwrap(),
         eq(&disabled)
     );
-    let status = store.announcement_status(10, admin()).await.unwrap();
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
     assert_that!(status.enabled, eq(false));
-    assert_that!(status.version, eq(2));
+    assert_that!(status.version.0, eq(2));
 }
 
 use prediction_bot::announcements::deliver_due;
@@ -551,7 +635,7 @@ async fn delivery_posts_saved_content_without_mentions_and_records_the_message()
     assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -598,10 +682,10 @@ async fn assert_delivery_recovers_after_restart(status: u16) {
             .await
             .unwrap();
     assert_that!(retry, eq((1, 1005)));
-    let settings = store.announcement_status(10, admin()).await.unwrap();
+    let settings = store.announcement_status(10.into(), admin()).await.unwrap();
     assert_that!(settings.pause_reason, eq(&None));
-    assert_that!(settings.version, eq(1));
-    assert_that!(settings.channel_id, eq(Some(20)));
+    assert_that!(settings.version.0, eq(1));
+    assert_that!(settings.channel_id, eq(Some(ChannelId(20))));
     let store = restart(&store);
     server.reset().await;
     // Model operator credential repair by rebuilding the real HTTP client with a new token.
@@ -628,7 +712,7 @@ async fn assert_delivery_recovers_after_restart(status: u16) {
     assert_that!(server.received_requests().await.unwrap().len(), eq(1));
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -644,12 +728,12 @@ async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
     queued(&store, 11, 21).await;
     store
         .execute_at(
-            10,
+            10.into(),
             "discord:resolve",
             admin(),
             &Command::Resolve {
                 id: FIXTURE_MARKET.into(),
-                outcome: 0,
+                outcome: OutcomeIndex(0),
             },
             2000,
         )
@@ -671,7 +755,7 @@ async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
         .unwrap();
     assert_that!(
         store
-            .announcement_status(11, admin())
+            .announcement_status(11.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -679,7 +763,7 @@ async fn delivery_preserves_guild_revision_order_while_other_guilds_progress() {
     );
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -738,7 +822,7 @@ async fn delivery_recovers_the_acknowledgement_gap_after_restart() {
     assert_that!(server.received_requests().await.unwrap().len(), eq(1));
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -759,7 +843,7 @@ async fn delivery_recovers_the_acknowledgement_gap_after_restart() {
     assert_that!(server.received_requests().await.unwrap().len(), eq(2));
     assert_that!(
         restarted
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -802,18 +886,20 @@ async fn delivery_in_flight_configuration_changes_condition_completion() {
         let change = if disable {
             ConfigurationChange::Disable
         } else {
-            ConfigurationChange::Set { channel_id: 21 }
+            ConfigurationChange::Set {
+                channel_id: ChannelId(21),
+            }
         };
         tokio::time::timeout(
             std::time::Duration::from_secs(5),
-            store.configure_announcements(10, "discord:change", admin(), change),
+            store.configure_announcements(10.into(), "discord:change", admin(), change),
         )
         .await
         .expect("HTTP must not hold the guild lock")
         .unwrap();
         barrier.release();
         delivery.await.unwrap().unwrap();
-        let status = store.announcement_status(10, admin()).await.unwrap();
+        let status = store.announcement_status(10.into(), admin()).await.unwrap();
         assert_that!(status.pause_reason, eq(&None));
         let row: (String, Option<String>) =
             sqlx::query_as("SELECT state,delivered_channel_id FROM prediction_announcement_outbox")
@@ -865,20 +951,22 @@ async fn enabled_announcements_do_not_enqueue_member_joins() {
     let (_container, store, owner) = fixture().await;
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:enable",
             admin(),
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
     store
-        .execute_at(10, "discord:join", member(), &Command::Join, 1000)
+        .execute_at(10.into(), "discord:join", member(), &Command::Join, 1000)
         .await
         .unwrap();
     assert_that!(
-        store.view(10).await.unwrap().state.accounts,
-        contains((eq(&8), anything()))
+        store.view(10.into()).await.unwrap().state.accounts,
+        contains((eq(&UserId(8)), anything()))
     );
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prediction_announcement_outbox")
         .fetch_one(&owner)
@@ -911,7 +999,7 @@ async fn delivery_waiting_for_one_guild_completion_does_not_block_another_guild(
     wait_for_guild_lock_waiters(&owner, 1).await;
     tokio::time::timeout(std::time::Duration::from_secs(5), async {
         while store
-            .announcement_status(11, admin())
+            .announcement_status(11.into(), admin())
             .await
             .unwrap()
             .pending
@@ -943,7 +1031,7 @@ async fn delivery_permission_failure_pauses_until_configuration_changes() {
     deliver_due(store.clone(), Arc::new(discord_http(&server)), clock(1000))
         .await
         .unwrap();
-    let status = store.announcement_status(10, admin()).await.unwrap();
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
     assert_that!(status.pending, eq(1));
     let reason = status.pause_reason.unwrap();
     assert_that!(reason, contains_substring("permission"));
@@ -954,10 +1042,12 @@ async fn delivery_permission_failure_pauses_until_configuration_changes() {
     assert_that!(server.received_requests().await.unwrap().len(), eq(1));
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:reset",
             admin(),
-            ConfigurationChange::Set { channel_id: 21 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(21),
+            },
         )
         .await
         .unwrap();
@@ -980,7 +1070,7 @@ async fn delivery_permission_failure_pauses_until_configuration_changes() {
     .unwrap();
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1037,7 +1127,7 @@ async fn worker_shutdown_acknowledges_in_flight_send_without_discovering_backlog
     queued(&store, 10, 20).await;
     store
         .execute_at(
-            10,
+            10.into(),
             "discord:later",
             admin(),
             &create(CONCURRENT_MARKET),
@@ -1097,7 +1187,7 @@ async fn worker_shutdown_acknowledges_in_flight_send_without_discovering_backlog
         .unwrap();
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1166,7 +1256,7 @@ async fn worker_restart_retries_failed_send_from_its_persisted_deadline() {
         .unwrap();
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1200,7 +1290,7 @@ async fn worker_does_not_discover_when_shutdown_is_already_set_or_closed() {
     assert_that!(server.received_requests().await.unwrap(), is_empty());
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1248,9 +1338,9 @@ async fn worker_reports_discovery_failure_then_recovers_on_the_next_poll() {
     let audit = Arc::new(WorkerAudit::default());
     let store = Arc::new(Store::new_with_audit(
         store.pool.clone(),
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86400,
         },
         audit.clone(),
@@ -1287,7 +1377,7 @@ async fn worker_reports_discovery_failure_then_recovers_on_the_next_poll() {
         .unwrap();
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1296,9 +1386,9 @@ async fn worker_reports_discovery_failure_then_recovers_on_the_next_poll() {
     assert_that!(
         audit.events.lock().unwrap().as_slice(),
         contains(matches_pattern!(AuditEvent::AnnouncementAttemptCompleted {
-            guild: eq(&10),
-            revision: eq(&4),
-            channel_id: eq(&20),
+            guild: eq(&GuildId(10)),
+            revision: eq(&EventRevision(4)),
+            channel_id: eq(&ChannelId(20)),
             stage: eq(&Stage::Deliver),
             outcome: eq(&Outcome::Succeeded),
             ..
@@ -1320,9 +1410,9 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
         let audit = Arc::new(WorkerAudit::default());
         let store = Arc::new(Store::new_with_audit(
             store.pool.clone(),
-            42,
+            42.into(),
             Policy {
-                amount: 100,
+                amount: Points(100),
                 interval: 86400,
             },
             audit.clone(),
@@ -1362,9 +1452,9 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
             assert_that!(
                 events.iter().any(|event| match event {
                     AuditEvent::AnnouncementAttemptCompleted {
-                        guild: 10,
-                        revision: 4,
-                        channel_id: 20,
+                        guild: GuildId(10),
+                        revision: EventRevision(4),
+                        channel_id: ChannelId(20),
                         decision,
                         outcome: Outcome::Failed(failure),
                         stage,
@@ -1390,7 +1480,7 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
         }
         assert_that!(
             store
-                .announcement_status(10, admin())
+                .announcement_status(10.into(), admin())
                 .await
                 .unwrap()
                 .pending,
@@ -1449,7 +1539,7 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
     );
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1471,9 +1561,9 @@ async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
     let audit = Arc::new(WorkerAudit::default());
     let store = Arc::new(Store::new_with_audit(
         store.pool.clone(),
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86400,
         },
         audit.clone(),
@@ -1501,7 +1591,7 @@ async fn worker_shutdown_aborts_unacknowledged_send_after_the_grace_budget() {
     barrier.release();
     assert_that!(
         store
-            .announcement_status(10, admin())
+            .announcement_status(10.into(), admin())
             .await
             .unwrap()
             .pending,
@@ -1531,7 +1621,7 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
 
     let (_container, store, owner) = fixture().await;
     store
-        .execute(10, "discord:900", admin(), &Command::Join)
+        .execute(10.into(), "discord:900", admin(), &Command::Join)
         .await
         .unwrap();
     let server = MockServer::start().await;
@@ -1597,15 +1687,15 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
 
     for interaction in [configure, slash, modal] {
         for _ in 0..2 {
-            handle_interaction(store.clone(), &http, 99, interaction.clone()).await;
+            handle_interaction(store.clone(), &http, 99.into(), interaction.clone()).await;
         }
     }
 
-    let status = store.announcement_status(10, admin()).await.unwrap();
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
     assert_that!(status.enabled, eq(true));
-    assert_that!(status.channel_id, eq(Some(55)));
+    assert_that!(status.channel_id, eq(Some(ChannelId(55))));
     assert_that!(
-        status.version,
+        status.version.0,
         eq(1),
         "replayed configuration must keep its original version"
     );
@@ -1679,19 +1769,23 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
     let (_container, store, _owner) = fixture().await;
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:201",
             admin(),
-            ConfigurationChange::Set { channel_id: 55 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(55),
+            },
         )
         .await
         .unwrap();
     store
         .configure_announcements(
-            10,
+            10.into(),
             "discord:202",
             admin(),
-            ConfigurationChange::Set { channel_id: 56 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(56),
+            },
         )
         .await
         .unwrap();
@@ -1735,7 +1829,7 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
     handle_interaction(
         store.clone(),
         &discord_http(&server),
-        99,
+        99.into(),
         Interaction::Command(serde_json::from_value(input.clone()).unwrap()),
     )
     .await;
@@ -1745,7 +1839,7 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
     handle_interaction(
         store.clone(),
         &discord_http(&server),
-        99,
+        99.into(),
         Interaction::Command(serde_json::from_value(input).unwrap()),
     )
     .await;
@@ -1766,7 +1860,7 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
     for reply in replies {
         assert_that!(reply["allowed_mentions"]["parse"], eq(&json!([])));
     }
-    let status = store.announcement_status(10, admin()).await.unwrap();
-    assert_that!(status.channel_id, eq(Some(56)));
-    assert_that!(status.version, eq(2));
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
+    assert_that!(status.channel_id, eq(Some(ChannelId(56))));
+    assert_that!(status.version.0, eq(2));
 }

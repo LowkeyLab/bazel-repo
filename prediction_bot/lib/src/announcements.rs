@@ -1,3 +1,4 @@
+use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId, MarketId, UserId};
 pub(crate) mod persistence;
 pub(crate) mod render;
 pub(crate) mod worker;
@@ -8,22 +9,22 @@ mod tests;
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SnapshotV1 {
     Created {
-        id: String,
+        id: MarketId,
         question: String,
-        creator: u64,
+        creator: UserId,
         options: Vec<String>,
         closes_at: i64,
         occurred_at: i64,
     },
     Resolved {
-        id: String,
+        id: MarketId,
         question: String,
         winner: String,
         refunded: bool,
         occurred_at: i64,
     },
     Cancelled {
-        id: String,
+        id: MarketId,
         question: String,
         occurred_at: i64,
     },
@@ -31,25 +32,25 @@ pub enum SnapshotV1 {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConfigurationChange {
-    Set { channel_id: u64 },
+    Set { channel_id: ChannelId },
     Disable,
 }
 
 #[derive(Clone, Debug)]
 pub struct AnnouncementStatus {
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<ChannelId>,
     pub enabled: bool,
-    pub version: i64,
+    pub version: ConfigurationVersion,
     pub pause_reason: Option<String>,
     pub pending: i64,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct PendingAnnouncement {
-    pub guild: u64,
-    pub revision: i64,
-    pub channel_id: u64,
-    pub configuration_version: i64,
+    pub guild: GuildId,
+    pub revision: EventRevision,
+    pub channel_id: ChannelId,
+    pub configuration_version: ConfigurationVersion,
     pub attempts: i64,
     pub snapshot: SnapshotV1,
 }

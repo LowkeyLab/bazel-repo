@@ -4,6 +4,7 @@ use std::{sync::Arc, time::Duration};
 
 use serenity::http::HttpError;
 
+use crate::types::{ApplicationId, ChannelId, ConfigurationVersion, EventRevision, GuildId};
 use crate::{
     domain::{Command, DomainError},
     store::StoreError,
@@ -261,10 +262,10 @@ impl AnnouncementDecision {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AuditEvent {
     AnnouncementAttemptCompleted {
-        guild: u64,
-        revision: i64,
-        channel_id: u64,
-        configuration_version: i64,
+        guild: GuildId,
+        revision: EventRevision,
+        channel_id: ChannelId,
+        configuration_version: ConfigurationVersion,
         decision: AnnouncementDecision,
         outcome: Outcome,
         stage: Stage,
@@ -274,7 +275,7 @@ pub enum AuditEvent {
         stage: Stage,
     },
     CommandCompleted {
-        guild: u64,
+        guild: GuildId,
         key: Option<String>,
         command: CommandKind,
         outcome: Outcome,
@@ -282,7 +283,7 @@ pub enum AuditEvent {
         elapsed: Duration,
     },
     QueryCompleted {
-        guild: u64,
+        guild: GuildId,
         interaction_id: u64,
         query: QueryKind,
         outcome: Outcome,
@@ -290,31 +291,31 @@ pub enum AuditEvent {
         elapsed: Duration,
     },
     InteractionCompleted {
-        guild: Option<u64>,
+        guild: Option<GuildId>,
         interaction_id: u64,
         outcome: Outcome,
         stage: Stage,
     },
     MentionReplyCompleted {
-        guild: u64,
-        channel_id: u64,
+        guild: GuildId,
+        channel_id: ChannelId,
         message_id: u64,
         outcome: Outcome,
         stage: Stage,
     },
     GrantFailed {
-        guild: Option<u64>,
+        guild: Option<GuildId>,
         outcome: Outcome,
         stage: Stage,
     },
     RegistrationCompleted {
-        guild: u64,
+        guild: GuildId,
         outcome: Outcome,
         stage: Stage,
     },
     Lifecycle {
         kind: LifecycleKind,
-        application_id: Option<u64>,
+        application_id: Option<ApplicationId>,
         outcome: Outcome,
         stage: Stage,
     },

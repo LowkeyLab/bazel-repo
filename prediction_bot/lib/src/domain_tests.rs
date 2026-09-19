@@ -5,13 +5,13 @@ use googletest::{
 };
 
 const DEFAULTS: Policy = Policy {
-    amount: 100,
+    amount: Points(100),
     interval: 86_400,
 };
 
 fn member(user_id: u64) -> Actor {
     Actor {
-        user_id,
+        user_id: user_id.into(),
         moderator: false,
         bot: false,
     }
@@ -38,7 +38,7 @@ fn market(state: &mut State, closes_at: i64) {
         state,
         member(1),
         &Command::Create {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
             question: "Who wins?".to_owned(),
             options: vec!["Red".to_owned(), "Blue".to_owned()],
             closes_at,
@@ -52,12 +52,12 @@ fn enrollment_grants_once_and_preserves_schedule() {
     let mut state = State::default();
     let first = execute(&mut state, member(7), &Command::Join, 1_000);
     assert_that!(first.events.len(), eq(3));
-    assert_that!(state.accounts[&7].balance, eq(100));
-    assert_that!(state.accounts[&7].next_grant, eq(87_400));
+    assert_that!(state.accounts[&UserId(7)].balance.0, eq(100));
+    assert_that!(state.accounts[&UserId(7)].next_grant, eq(87_400));
     let repeat = execute(&mut state, member(7), &Command::Join, 2_000);
     assert_that!(repeat.events, is_empty());
-    assert_that!(state.accounts[&7].balance, eq(100));
-    assert_that!(state.accounts[&7].next_grant, eq(87_400));
+    assert_that!(state.accounts[&UserId(7)].balance.0, eq(100));
+    assert_that!(state.accounts[&UserId(7)].next_grant, eq(87_400));
 }
 
 #[googletest::test]
@@ -67,19 +67,19 @@ fn grants_cover_exact_due_boundaries_after_offline_intervals() {
     let early = execute(
         &mut state,
         member(0),
-        &Command::Grant { user_id: 7 },
+        &Command::Grant { user_id: UserId(7) },
         87_399,
     );
     assert_that!(early.events, is_empty());
     let due = execute(
         &mut state,
         member(0),
-        &Command::Grant { user_id: 7 },
+        &Command::Grant { user_id: UserId(7) },
         173_800,
     );
     assert_that!(due.events.len(), eq(1));
-    assert_that!(state.accounts[&7].balance, eq(300));
-    assert_that!(state.accounts[&7].next_grant, eq(260_200));
+    assert_that!(state.accounts[&UserId(7)].balance.0, eq(300));
+    assert_that!(state.accounts[&UserId(7)].next_grant, eq(260_200));
 }
 
 #[googletest::test]
@@ -94,9 +94,9 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
             &mut state,
             member(user),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome,
-                amount,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(outcome),
+                amount: Points(amount),
             },
             1_500,
         );
@@ -105,20 +105,23 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
         &mut state,
         moderator(1),
         &Command::Resolve {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
         },
         2_000,
     );
     assert_that!(
-        (state.accounts[&2].balance, state.accounts[&3].balance),
+        (
+            state.accounts[&UserId(2)].balance.0,
+            state.accounts[&UserId(3)].balance.0
+        ),
         eq((101, 101))
     );
-    assert_that!(state.accounts[&4].balance, eq(98));
+    assert_that!(state.accounts[&UserId(4)].balance.0, eq(98));
     assert_that!(
         state.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
         eq(&Status::Resolved {
-            outcome: 0,
+            outcome: OutcomeIndex(0),
             refunded: false
         })
     );
@@ -133,9 +136,9 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
             &mut tied,
             member(user),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome,
-                amount,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(outcome),
+                amount: Points(amount),
             },
             1_500,
         );
@@ -144,13 +147,16 @@ fn settlement_distributes_pool_and_ties_by_numeric_user_id() {
         &mut tied,
         moderator(1),
         &Command::Resolve {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
         },
         2_000,
     );
     assert_that!(
-        (tied.accounts[&2].balance, tied.accounts[&3].balance),
+        (
+            tied.accounts[&UserId(2)].balance.0,
+            tied.accounts[&UserId(3)].balance.0
+        ),
         eq((101, 100))
     );
 }
@@ -164,9 +170,9 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         &mut no_winner,
         member(2),
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
-            amount: 7,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
+            amount: Points(7),
         },
         1_500,
     );
@@ -174,16 +180,16 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         &mut no_winner,
         moderator(1),
         &Command::Resolve {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 1,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(1),
         },
         2_000,
     );
-    assert_that!(no_winner.accounts[&2].balance, eq(100));
+    assert_that!(no_winner.accounts[&UserId(2)].balance.0, eq(100));
     assert_that!(
         no_winner.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
         eq(&Status::Resolved {
-            outcome: 1,
+            outcome: OutcomeIndex(1),
             refunded: true
         })
     );
@@ -195,9 +201,9 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         &mut cancelled,
         member(2),
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
-            amount: 7,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
+            amount: Points(7),
         },
         1_500,
     );
@@ -205,11 +211,11 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         &mut cancelled,
         moderator(1),
         &Command::Cancel {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
         },
         1_700,
     );
-    assert_that!(cancelled.accounts[&2].balance, eq(100));
+    assert_that!(cancelled.accounts[&UserId(2)].balance.0, eq(100));
     assert_that!(
         cancelled.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
         eq(&Status::Cancelled)
@@ -224,19 +230,19 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
     let before = state.clone();
     for command in [
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 2,
-            amount: 1,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(2),
+            amount: Points(1),
         },
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
-            amount: -1,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
+            amount: Points(-1),
         },
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
-            amount: 101,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
+            amount: Points(101),
         },
     ] {
         assert_that!(
@@ -249,9 +255,9 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             &state,
             member(2),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount: 1
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(1)
             },
             2_000,
             DEFAULTS
@@ -263,8 +269,8 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             &state,
             member(2),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0)
             },
             2_000,
             DEFAULTS
@@ -276,8 +282,8 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             &state,
             moderator(1),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 2
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(2)
             },
             2_000,
             DEFAULTS
@@ -289,8 +295,8 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
             &state,
             moderator(1),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0)
             },
             1_999,
             DEFAULTS
@@ -313,10 +319,10 @@ fn invalid_commands_and_replay_do_not_publish_partial_changes() {
     assert_that!(state, eq(&before));
 
     let invalid = Event::BetPlaced {
-        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-        user_id: 2,
-        outcome: 99,
-        amount: 1,
+        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+        user_id: UserId(2),
+        outcome: OutcomeIndex(99),
+        amount: Points(1),
         accepted_at: 1_500,
     };
     assert_that!(apply(&mut state, &invalid), err(anything()));
@@ -335,7 +341,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         (
             member(1),
             &Command::Create {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
                 question: "Who wins?".to_owned(),
                 options: vec!["Red".to_owned(), "Blue".to_owned()],
                 closes_at: 2_000,
@@ -345,35 +351,35 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         (
             member(2),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount: 1,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(1),
             },
             1_500,
         ),
         (
             member(3),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount: 2,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(2),
             },
             1_500,
         ),
         (
             member(4),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 1,
-                amount: 2,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(2),
             },
             1_500,
         ),
         (
             moderator(1),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
             },
             2_000,
         ),
@@ -388,12 +394,12 @@ fn history_replays_identically_and_uses_recorded_allocations() {
     if let Event::MarketResolved { payouts, .. } = history.last_mut().unwrap() {
         *payouts = vec![
             Allocation {
-                user_id: 2,
-                amount: 3,
+                user_id: UserId(2),
+                amount: Points(3),
             },
             Allocation {
-                user_id: 3,
-                amount: 2,
+                user_id: UserId(3),
+                amount: Points(2),
             },
         ];
     } else {
@@ -404,7 +410,10 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         apply(&mut altered, event).unwrap();
     }
     assert_that!(
-        (altered.accounts[&2].balance, altered.accounts[&3].balance),
+        (
+            altered.accounts[&UserId(2)].balance.0,
+            altered.accounts[&UserId(3)].balance.0
+        ),
         eq((102, 100))
     );
 }
@@ -412,7 +421,7 @@ fn history_replays_identically_and_uses_recorded_allocations() {
 #[googletest::test]
 fn overflow_rejects_entire_decision_and_event() {
     let huge = Policy {
-        amount: i64::MAX,
+        amount: Points(i64::MAX),
         interval: 1,
     };
     let empty = State::default();
@@ -428,16 +437,22 @@ fn overflow_rejects_entire_decision_and_event() {
         apply(&mut state, event).unwrap();
     }
     let before = state.clone();
-    assert_that!(state.accounts[&1].balance, eq(i64::MAX));
+    assert_that!(state.accounts[&UserId(1)].balance.0, eq(i64::MAX));
     assert_that!(
-        decide(&state, member(0), &Command::Grant { user_id: 1 }, 1, huge),
+        decide(
+            &state,
+            member(0),
+            &Command::Grant { user_id: UserId(1) },
+            1,
+            huge
+        ),
         err(anything())
     );
     assert_that!(state, eq(&before));
     let overflow = Event::PointsGranted {
-        user_id: 1,
+        user_id: UserId(1),
         reason: GrantReason::Periodic,
-        amount: i64::MAX,
+        amount: Points(i64::MAX),
         from_due: 1,
         through_due: 1,
         next_grant: 2,
@@ -451,7 +466,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
     let mut state = State::default();
     execute(&mut state, member(1), &Command::Join, 1_000);
     let create = |question: &str, options: Vec<&str>, closes_at: i64| Command::Create {
-        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
         question: question.to_owned(),
         options: options.into_iter().map(str::to_owned).collect(),
         closes_at,
@@ -495,9 +510,9 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
                 ..member(1)
             },
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount: 1
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(1)
             },
             1_500,
             DEFAULTS
@@ -509,7 +524,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             &state,
             member(1),
             &Command::Cancel {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned()
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into()
             },
             1_500,
             DEFAULTS
@@ -520,7 +535,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
         &mut state,
         moderator(1),
         &Command::Cancel {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
         },
         2_100,
     );
@@ -529,8 +544,8 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             &state,
             moderator(1),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0)
             },
             2_100,
             DEFAULTS
@@ -542,7 +557,7 @@ fn malformed_markets_deadlines_bots_and_terminal_operations_are_rejected() {
             &state,
             moderator(1),
             &Command::Cancel {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned()
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into()
             },
             2_100,
             DEFAULTS
@@ -562,9 +577,9 @@ fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
         &mut state,
         member(2),
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 0,
-            amount: 1,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(0),
+            amount: Points(1),
         },
         1_500,
     );
@@ -572,34 +587,34 @@ fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
         &mut state,
         member(3),
         &Command::Bet {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-            outcome: 1,
-            amount: 1,
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(1),
+            amount: Points(1),
         },
         1_500,
     );
     let before = state.clone();
     let invalid = Event::MarketResolved {
-        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-        outcome: 0,
-        resolver: 1,
+        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+        outcome: OutcomeIndex(0),
+        resolver: UserId(1),
         settled_at: 2_000,
         payouts: vec![Allocation {
-            user_id: 2,
-            amount: 1,
+            user_id: UserId(2),
+            amount: Points(1),
         }],
         refunded: false,
     };
     assert_that!(apply(&mut state, &invalid), err(anything()));
     assert_that!(state, eq(&before));
     let unknown = Event::MarketResolved {
-        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-        outcome: 0,
-        resolver: 1,
+        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+        outcome: OutcomeIndex(0),
+        resolver: UserId(1),
         settled_at: 2_000,
         payouts: vec![Allocation {
-            user_id: 99,
-            amount: 2,
+            user_id: UserId(99),
+            amount: Points(2),
         }],
         refunded: false,
     };
@@ -610,7 +625,7 @@ fn replay_rejects_unbalanced_or_unknown_allocations_atomically() {
 #[googletest::test]
 fn event_payload_round_trip_encodes_discord_ids_as_decimal_strings() {
     let event = Event::MemberEnrolled {
-        user_id: u64::MAX,
+        user_id: UserId(u64::MAX),
         enrolled_at: 1_000,
     };
     let json = serde_json::to_value(&event).unwrap();
@@ -630,7 +645,7 @@ fn event_payload_round_trip_encodes_discord_ids_as_decimal_strings() {
 #[googletest::test]
 fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
     let huge = Policy {
-        amount: i64::MAX,
+        amount: Points(i64::MAX),
         interval: 86_400,
     };
     let mut state = State::default();
@@ -641,7 +656,7 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
         (
             member(1),
             &Command::Create {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
                 question: "Who wins?".to_owned(),
                 options: vec!["Red".to_owned(), "Blue".to_owned()],
                 closes_at: 2_000,
@@ -651,18 +666,18 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
         (
             member(2),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount: 1,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(1),
             },
             1_500,
         ),
         (
             member(3),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 1,
-                amount: 1,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(1),
             },
             1_500,
         ),
@@ -675,13 +690,13 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
     }
     let before = state.clone();
     let resolution = Event::MarketResolved {
-        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-        outcome: 0,
-        resolver: 1,
+        id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+        outcome: OutcomeIndex(0),
+        resolver: UserId(1),
         settled_at: 2_000,
         payouts: vec![Allocation {
-            user_id: 2,
-            amount: 2,
+            user_id: UserId(2),
+            amount: Points(2),
         }],
         refunded: false,
     };
@@ -690,8 +705,8 @@ fn settlement_balance_overflow_keeps_market_open_and_balances_unchanged() {
             &state,
             moderator(1),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0)
             },
             2_000,
             huge
@@ -712,7 +727,7 @@ fn private_replay_matches_sequential_public_apply() {
         (
             member(1),
             &Command::Create {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
                 question: "Who wins?".to_owned(),
                 options: vec!["Red".to_owned(), "Blue".to_owned()],
                 closes_at: 2_000,
@@ -722,17 +737,17 @@ fn private_replay_matches_sequential_public_apply() {
         (
             member(2),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount: 7,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(7),
             },
             1_500,
         ),
         (
             moderator(1),
             &Command::Resolve {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 1,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(1),
             },
             2_000,
         ),
@@ -752,17 +767,17 @@ fn private_replay_matches_sequential_public_apply() {
 fn private_replay_rejects_invalid_history_as_one_result() {
     let events = vec![
         Event::GuildEconomyInitialized {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
         Event::MemberEnrolled {
-            user_id: 7,
+            user_id: UserId(7),
             enrolled_at: 1_000,
         },
         Event::PointsGranted {
-            user_id: 7,
+            user_id: UserId(7),
             reason: GrantReason::Initial,
-            amount: 99,
+            amount: Points(99),
             from_due: 1_000,
             through_due: 1_000,
             next_grant: 87_400,
@@ -803,7 +818,7 @@ fn event_snowflakes_require_canonical_positive_decimal_strings() {
         );
     }
     let actor = Actor {
-        user_id: 0,
+        user_id: UserId(0),
         moderator: false,
         bot: false,
     };
@@ -828,30 +843,30 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
             &mut state,
             member(user),
             &Command::Bet {
-                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
-                outcome: 0,
-                amount,
+                id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(amount),
             },
             1_500,
         );
     }
     let market = &state.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"];
-    assert_that!(market.total_staked, eq(12));
+    assert_that!(market.total_staked.0, eq(12));
     assert_that!(
-        market.total_staked,
-        eq(market.bets.iter().map(|bet| bet.amount).sum::<i64>())
+        market.total_staked.0,
+        eq(market.bets.iter().map(|bet| bet.amount.0).sum::<i64>())
     );
     let available = state
         .accounts
         .values()
-        .map(|account| account.balance)
+        .map(|account| account.balance.0)
         .sum::<i64>();
-    assert_that!(available + market.total_staked, eq(300));
+    assert_that!(available + market.total_staked.0, eq(300));
     execute(
         &mut state,
         moderator(1),
         &Command::Cancel {
-            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned(),
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
         },
         1_700,
     );
@@ -859,7 +874,7 @@ fn derived_market_pool_matches_stakes_and_preserves_available_points() {
         state
             .accounts
             .values()
-            .map(|account| account.balance)
+            .map(|account| account.balance.0)
             .sum::<i64>(),
         eq(300)
     );
@@ -874,8 +889,8 @@ fn bet_receipt_identifies_outcome_stake_and_remaining_balance() {
         member(1),
         &Command::Bet {
             id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into(),
-            outcome: 1,
-            amount: 25,
+            outcome: OutcomeIndex(1),
+            amount: Points(25),
         },
         1_500,
     )
@@ -883,5 +898,20 @@ fn bet_receipt_identifies_outcome_stake_and_remaining_balance() {
     assert_that!(receipt, contains_substring("Blue"));
     assert_that!(receipt, contains_substring("25 points"));
     assert_that!(receipt, contains_substring("75 points"));
-    assert_that!(state.accounts[&1].balance, eq(75));
+    assert_that!(state.accounts[&UserId(1)].balance.0, eq(75));
+}
+
+// A points balance must not be assignable to a grant deadline, and a market
+// identity must not be interchangeable with its human-readable question.
+#[googletest::test]
+fn domain_values_have_distinct_types_for_identity_and_units() {
+    fn same_type<A: 'static, B: 'static>(_: &A, _: &B) -> bool {
+        std::any::TypeId::of::<A>() == std::any::TypeId::of::<B>()
+    }
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    let account = state.accounts.values().next().unwrap();
+    let (id, market) = state.markets.iter().next().unwrap();
+    assert_that!(same_type(&account.balance, &account.next_grant), eq(false));
+    assert_that!(same_type(id, &market.question), eq(false));
 }

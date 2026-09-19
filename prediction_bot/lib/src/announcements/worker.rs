@@ -160,7 +160,7 @@ fn spawn_attempts(
                     return Err(error);
                 }
             }
-            let request = serenity::all::ChannelId::new(item.channel_id)
+            let request = serenity::all::ChannelId::new(item.channel_id.0)
                 .send_message(&http, super::render::render(&item.snapshot));
             let (delivery, outcome) =
                 match tokio::time::timeout(Duration::from_secs(30), request).await {

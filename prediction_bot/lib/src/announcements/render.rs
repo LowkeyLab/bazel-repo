@@ -84,7 +84,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
         ),
     };
 
-    let prefix = format!("{heading}\nMarket ID: `{}`", escape_markdown(id));
+    let prefix = format!("{heading}\nMarket ID: `{}`", escape_markdown(&id.0));
     format!("{prefix}\n{details}")
 }
 

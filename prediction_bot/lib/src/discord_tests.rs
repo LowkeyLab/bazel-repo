@@ -1,5 +1,9 @@
 use super::{Action, Input, InputOption, InputValue, parse};
 use crate::domain::Command;
+use crate::types::{
+    ApplicationId, ChannelId, ConfigurationVersion, EventRevision, GuildId, OutcomeIndex, Points,
+    UserId,
+};
 use googletest::{
     assert_that,
     matchers::{
@@ -14,8 +18,8 @@ use wiremock::{
 
 fn input(subcommand: &str, options: Vec<InputOption>) -> Input {
     Input {
-        guild_id: Some(10),
-        user_id: 20,
+        guild_id: Some(GuildId(10)),
+        user_id: UserId(20),
         bot: false,
         moderator: false,
         subcommand: subcommand.to_owned(),
@@ -40,7 +44,7 @@ fn number(name: &str, value: i64) -> InputOption {
 fn channel(name: &str, value: u64) -> InputOption {
     InputOption {
         name: name.to_owned(),
-        value: InputValue::Channel(value),
+        value: InputValue::Channel(ChannelId(value)),
     }
 }
 
@@ -51,7 +55,11 @@ fn announcement_configuration_requires_server_management() {
     request.moderator = true;
     assert_that!(
         parse(&request),
-        ok((eq(&10), anything(), eq(&Action::AnnouncementsDisable)))
+        ok((
+            eq(&GuildId(10)),
+            anything(),
+            eq(&Action::AnnouncementsDisable)
+        ))
     );
 }
 
@@ -62,7 +70,9 @@ fn announcement_actions_require_exact_typed_options() {
     set.moderator = true;
     assert_that!(
         parse(&set).unwrap().2,
-        eq(&Action::AnnouncementsSet { channel_id: 55 })
+        eq(&Action::AnnouncementsSet {
+            channel_id: ChannelId(55)
+        })
     );
 
     for malformed in [
@@ -84,12 +94,16 @@ fn announcement_actions_require_exact_typed_options() {
     status.moderator = true;
     assert_that!(
         parse(&status),
-        ok((eq(&10), anything(), eq(&Action::AnnouncementsStatus)))
+        ok((
+            eq(&GuildId(10)),
+            anything(),
+            eq(&Action::AnnouncementsStatus)
+        ))
     );
 
     status.guild_id = None;
     assert_that!(parse(&status), err(anything()));
-    status.guild_id = Some(10);
+    status.guild_id = Some(GuildId(10));
     status.bot = true;
     assert_that!(parse(&status), err(anything()));
 }
@@ -100,7 +114,7 @@ fn guild_and_bot_metadata_are_enforced() {
     assert_that!(
         parse(&join),
         ok((
-            eq(&10),
+            eq(&GuildId(10)),
             anything(),
             matches_pattern!(Action::Write(eq(&Command::Join)))
         ))
@@ -110,7 +124,7 @@ fn guild_and_bot_metadata_are_enforced() {
         parse(&join),
         eq(&Err("This command is available only in a server."))
     );
-    join.guild_id = Some(10);
+    join.guild_id = Some(GuildId(10));
     join.bot = true;
     assert_that!(
         parse(&join),
@@ -127,8 +141,8 @@ fn moderator_flag_is_passed_to_resolution_and_cancel() {
     assert_that!(
         action,
         eq(&Action::Write(Command::Resolve {
-            id: "1234".to_owned(),
-            outcome: 1
+            id: "1234".to_owned().into(),
+            outcome: OutcomeIndex(1)
         }))
     );
     let cancel = input("cancel", vec![text("id", "1234")]);
@@ -173,9 +187,9 @@ fn parses_market_inputs_and_one_based_outcomes() {
     assert_that!(
         parse(&bet).unwrap().2,
         eq(&Action::Write(Command::Bet {
-            id: "1234".to_owned(),
-            outcome: 0,
-            amount: 25
+            id: "1234".to_owned().into(),
+            outcome: OutcomeIndex(0),
+            amount: Points(25)
         }))
     );
 }
@@ -248,46 +262,49 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
 
     let mut state = State::default();
     state.accounts.insert(
-        20,
+        UserId(20),
         Account {
-            balance: 75,
+            balance: Points(75),
             next_grant: 1_900_000_000,
         },
     );
     state.accounts.insert(
-        9,
+        UserId(9),
         Account {
-            balance: 75,
+            balance: Points(75),
             next_grant: 1_900_000_000,
         },
     );
     state.accounts.insert(
-        99,
+        UserId(99),
         Account {
-            balance: 1,
+            balance: Points(1),
             next_grant: 1_900_000_000,
         },
     );
     state.markets.insert(
-        "one".to_owned(),
+        "one".into(),
         Market {
-            creator: 20,
+            creator: UserId(20),
             question: "@everyone wins?".to_owned(),
             options: vec!["Yes".to_owned(), "No".to_owned()],
             closes_at: 1_900_000_000,
             created_at: 1_800_000_000,
             status: Status::Open,
             bets: vec![Bet {
-                user_id: 20,
-                outcome: 0,
-                amount: 25,
+                user_id: UserId(20),
+                outcome: OutcomeIndex(0),
+                amount: Points(25),
             }],
-            total_staked: 25,
+            total_staked: Points(25),
         },
     );
-    let view = View { revision: 7, state };
+    let view = View {
+        revision: EventRevision(7),
+        state,
+    };
     let actor = Actor {
-        user_id: 20,
+        user_id: UserId(20),
         moderator: false,
         bot: false,
     };
@@ -304,7 +321,7 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
         render_query(
             &view,
             &Action::Show {
-                id: "one".to_owned()
+                id: "one".to_owned().into()
             },
             actor,
             1_850_000_000
@@ -315,7 +332,7 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
         render_query(
             &view,
             &Action::Show {
-                id: "one".to_owned()
+                id: "one".to_owned().into()
             },
             actor,
             1_900_000_000
@@ -330,7 +347,7 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
         render_query(
             &view,
             &Action::Show {
-                id: "other-server".to_owned()
+                id: "other-server".to_owned().into()
             },
             actor,
             1_850_000_000
@@ -369,25 +386,25 @@ fn list_keeps_ten_ids_when_questions_use_long_emoji_text() {
     for index in 0..10 {
         let id = format!("{index:08x}-0000-0000-0000-000000000000");
         state.markets.insert(
-            id,
+            id.into(),
             Market {
-                creator: 20,
+                creator: UserId(20),
                 question: "🪙".repeat(200),
                 options: vec!["Yes".to_owned(), "No".to_owned()],
                 created_at: 1_800_000_000 + index,
                 closes_at: 1_900_000_000,
                 status: Status::Open,
                 bets: vec![],
-                total_staked: 0,
+                total_staked: Points(0),
             },
         );
     }
     let view = View {
-        revision: 10,
+        revision: EventRevision(10),
         state,
     };
     let actor = Actor {
-        user_id: 20,
+        user_id: UserId(20),
         moderator: false,
         bot: false,
     };
@@ -441,15 +458,24 @@ async fn already_acknowledged_defer_still_runs_receipt_lookup_and_edit_content()
 #[googletest::test]
 fn expected_application_id_must_match_authenticated_identity() {
     use super::verify_application_id;
-    assert_that!(verify_application_id(123, None), eq(Ok(123)));
-    assert_that!(verify_application_id(123, Some(123)), eq(Ok(123)));
     assert_that!(
-        verify_application_id(123, Some(456)),
+        verify_application_id(ApplicationId(123), None),
+        eq(Ok(ApplicationId(123)))
+    );
+    assert_that!(
+        verify_application_id(ApplicationId(123), Some(ApplicationId(123))),
+        eq(Ok(ApplicationId(123)))
+    );
+    assert_that!(
+        verify_application_id(ApplicationId(123), Some(ApplicationId(456))),
         eq(Err(
             "configured application ID does not match Discord token"
         ))
     );
-    assert_that!(verify_application_id(0, None), err(anything()));
+    assert_that!(
+        verify_application_id(ApplicationId(0), None),
+        err(anything())
+    );
 }
 
 #[googletest::test]
@@ -474,7 +500,7 @@ fn creation_can_start_without_typing_slash_command_fields() {
 
 fn ui_actor() -> crate::domain::Actor {
     crate::domain::Actor {
-        user_id: 20,
+        user_id: UserId(20),
         moderator: false,
         bot: false,
     }
@@ -484,33 +510,36 @@ fn ui_view() -> crate::store::View {
     use crate::domain::{Account, Market, State, Status};
     let mut state = State::default();
     state.accounts.insert(
-        20,
+        UserId(20),
         Account {
-            balance: 100,
+            balance: Points(100),
             next_grant: 90_000,
         },
     );
     state.markets.insert(
         "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into(),
         Market {
-            creator: 20,
+            creator: UserId(20),
             question: "Who wins?".into(),
             options: vec!["Red".into(), "Blue".into()],
             created_at: 1_000,
             closes_at: 10_000,
             status: Status::Open,
             bets: vec![],
-            total_staked: 0,
+            total_staked: Points(0),
         },
     );
-    crate::store::View { revision: 0, state }
+    crate::store::View {
+        revision: EventRevision(0),
+        state,
+    }
 }
 
 #[googletest::test]
 fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
     let view = ui_view();
     let picker = serde_json::to_value(
-        super::ui::query(&view, &Action::CreateForm, ui_actor(), 10, 2_000).message(),
+        super::ui::query(&view, &Action::CreateForm, ui_actor(), 10.into(), 2_000).message(),
     )
     .unwrap();
     let select = &picker["components"][0]["components"][0];
@@ -533,7 +562,7 @@ fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
             eq(true)
         );
         let response = super::ui::component(
-            10,
+            10.into(),
             ui_actor(),
             select["custom_id"].as_str().unwrap(),
             &[preset.into()],
@@ -552,7 +581,7 @@ fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
             fields.push(text("options", " First \nSecond "));
         }
         let command = super::ui::modal_command(
-            10,
+            10.into(),
             ui_actor(),
             modal["data"]["custom_id"].as_str().unwrap(),
             fields,
@@ -592,7 +621,7 @@ fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
         assert_that!(closes_at, eq(1_893_553_445));
 
         let command = super::ui::modal_command(
-            10,
+            10.into(),
             ui_actor(),
             "pm:10:20:new:yesno",
             vec![text("question", "Will it rain?"), text("closes_at", value)],
@@ -610,14 +639,14 @@ fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
 fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
     let view = ui_view();
     let list = serde_json::to_value(
-        super::ui::query(&view, &Action::List, ui_actor(), 10, 2_000).message(),
+        super::ui::query(&view, &Action::List, ui_actor(), 10.into(), 2_000).message(),
     )
     .unwrap();
     let select = &list["components"][0]["components"][0];
     let market_id = select["options"][0]["value"].as_str().unwrap();
     let card = serde_json::to_value(
         super::ui::component(
-            10,
+            10.into(),
             ui_actor(),
             select["custom_id"].as_str().unwrap(),
             &[market_id.into()],
@@ -637,7 +666,7 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
         .unwrap();
     let modal = serde_json::to_value(
         super::ui::component(
-            10,
+            10.into(),
             ui_actor(),
             outcomes["custom_id"].as_str().unwrap(),
             &[blue["value"].as_str().unwrap().into()],
@@ -649,7 +678,7 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
     .unwrap();
     assert_that!(modal["type"], eq(9));
     let command = super::ui::modal_command(
-        10,
+        10.into(),
         ui_actor(),
         modal["data"]["custom_id"].as_str().unwrap(),
         vec![text("amount", "25")],
@@ -660,8 +689,8 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
         command,
         eq(&Command::Bet {
             id: market_id.into(),
-            outcome: 1,
-            amount: 25
+            outcome: OutcomeIndex(1),
+            amount: Points(25)
         })
     );
 }
@@ -674,7 +703,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
         (
             10,
             crate::domain::Actor {
-                user_id: 21,
+                user_id: UserId(21),
                 ..ui_actor()
             },
         ),
@@ -688,7 +717,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
     ] {
         assert_that!(
             super::ui::component(
-                guild,
+                GuildId(guild),
                 actor,
                 "pm:10:20:create",
                 &["yesno".into()],
@@ -699,7 +728,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
         );
         assert_that!(
             super::ui::modal_command(
-                guild,
+                GuildId(guild),
                 actor,
                 "pm:10:20:new:yesno",
                 vec![text("question", "Q"), text("closes_at", "1h")],
@@ -717,7 +746,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
     ] {
         assert_that!(
             super::ui::modal_command(
-                10,
+                10.into(),
                 ui_actor(),
                 "pm:10:20:new:yesno",
                 vec![text("question", "Q"), text("closes_at", time)],
@@ -729,7 +758,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
     for amount in ["0", "-1", "2.5", "NaN", "9223372036854775808"] {
         assert_that!(
             super::ui::modal_command(
-                10,
+                10.into(),
                 ui_actor(),
                 "pm:10:20:stake:78e82954-4c67-4e0d-8c80-8ab95a527ae5:1",
                 vec![text("amount", amount)],
@@ -740,7 +769,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
     }
     assert_that!(
         super::ui::component(
-            10,
+            10.into(),
             ui_actor(),
             "pm:10:20:create",
             &["unknown".into()],
@@ -750,13 +779,13 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
         err(anything())
     );
     assert_that!(
-        super::ui::component(10, ui_actor(), "pm:10:20:create", &[], &view, 2_000),
+        super::ui::component(10.into(), ui_actor(), "pm:10:20:create", &[], &view, 2_000),
         err(anything())
     );
     for options in ["Only one", "Yes\nyes", "Yes\n\nNo"] {
         assert_that!(
             super::ui::modal_command(
-                10,
+                10.into(),
                 ui_actor(),
                 "pm:10:20:new:custom",
                 vec![
@@ -777,13 +806,14 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
     let action = Action::Show {
         id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into(),
     };
-    let card =
-        serde_json::to_value(super::ui::query(&view, &action, ui_actor(), 10, 10_000).message())
-            .unwrap();
+    let card = serde_json::to_value(
+        super::ui::query(&view, &action, ui_actor(), 10.into(), 10_000).message(),
+    )
+    .unwrap();
     assert_that!(card["components"], eq(&serde_json::json!([])));
     assert_that!(
         super::ui::component(
-            10,
+            10.into(),
             ui_actor(),
             "pm:10:20:bet:78e82954-4c67-4e0d-8c80-8ab95a527ae5",
             &["0".into()],
@@ -794,7 +824,7 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
     );
     assert_that!(
         super::ui::component(
-            10,
+            10.into(),
             ui_actor(),
             "pm:10:20:bet:78e82954-4c67-4e0d-8c80-8ab95a527ae5",
             &["9".into()],
@@ -873,8 +903,8 @@ fn discord_adapter_flattens_only_the_supported_announcement_group() {
     assert_that!(
         super::from_discord(&command).unwrap(),
         eq(&Input {
-            guild_id: Some(10),
-            user_id: 7,
+            guild_id: Some(GuildId(10)),
+            user_id: UserId(7),
             bot: false,
             moderator: true,
             subcommand: "announcements.set".into(),
@@ -942,7 +972,7 @@ fn help_is_registered_without_arguments_and_parses_before_enrollment() {
 fn help_explains_getting_started_without_an_account() {
     let action = parse(&input("help", vec![])).unwrap().2;
     let view = crate::store::View {
-        revision: 0,
+        revision: EventRevision(0),
         state: Default::default(),
     };
     let content = super::render_query(&view, &action, ui_actor(), 0);
@@ -984,7 +1014,7 @@ fn mentioned_message() -> serenity::all::Message {
 
 #[googletest::test]
 fn mentioning_this_bot_produces_one_help_prompt_without_pings() {
-    let response = super::mention_reply(&mentioned_message(), 99)
+    let response = super::mention_reply(&mentioned_message(), 99.into())
         .expect("a human mentioning this bot should receive help");
     let payload = serde_json::to_value(response).unwrap();
     assert_that!(
@@ -1000,18 +1030,21 @@ fn mentioning_this_bot_produces_one_help_prompt_without_pings() {
 
 #[googletest::test]
 fn mention_help_ignores_other_mentions_bots_and_private_messages() {
-    assert_that!(super::mention_reply(&mentioned_message(), 98), none());
-    assert_that!(super::mention_reply(&mentioned_message(), 0), none());
+    assert_that!(
+        super::mention_reply(&mentioned_message(), 98.into()),
+        none()
+    );
+    assert_that!(super::mention_reply(&mentioned_message(), 0.into()), none());
     let mut ordinary = mentioned_message();
     ordinary.mentions.clear();
     ordinary.content = "bot, help please".to_owned();
-    assert_that!(super::mention_reply(&ordinary, 99), none());
+    assert_that!(super::mention_reply(&ordinary, 99.into()), none());
     let mut from_bot = mentioned_message();
     from_bot.author.bot = true;
-    assert_that!(super::mention_reply(&from_bot, 99), none());
+    assert_that!(super::mention_reply(&from_bot, 99.into()), none());
     let mut private = mentioned_message();
     private.guild_id = None;
-    assert_that!(super::mention_reply(&private, 99), none());
+    assert_that!(super::mention_reply(&private, 99.into()), none());
 }
 
 #[derive(Default)]
@@ -1029,7 +1062,7 @@ async fn component_timeout_keeps_private_retry_response_and_reports_correlated_f
     let recorder = AuditRecorder::default();
     let result = super::read_query(
         &recorder,
-        10,
+        10.into(),
         123,
         QueryKind::Component,
         std::future::pending(),
@@ -1046,7 +1079,7 @@ async fn component_timeout_keeps_private_retry_response_and_reports_correlated_f
     assert_that!(
         recorder.0.lock().unwrap().as_slice(),
         elements_are![matches_pattern!(AuditEvent::QueryCompleted {
-            guild: eq(&10),
+            guild: eq(&GuildId(10)),
             interaction_id: eq(&123),
             query: eq(&QueryKind::Component),
             stage: eq(&Stage::Query),
@@ -1069,7 +1102,7 @@ async fn failed_query_keeps_safe_response_and_reports_correlated_failure() {
             sqlx::Error::Configuration("sentinel secret URL".into()),
         ))
     };
-    let error = super::read_query(&recorder, 10, 124, QueryKind::Balance, read, None)
+    let error = super::read_query(&recorder, 10.into(), 124, QueryKind::Balance, read, None)
         .await
         .err()
         .unwrap();
@@ -1080,7 +1113,7 @@ async fn failed_query_keeps_safe_response_and_reports_correlated_failure() {
     assert_that!(
         recorder.0.lock().unwrap().as_slice(),
         elements_are![matches_pattern!(AuditEvent::QueryCompleted {
-            guild: eq(&10),
+            guild: eq(&GuildId(10)),
             interaction_id: eq(&124),
             query: eq(&QueryKind::Balance),
             stage: eq(&Stage::Query),
@@ -1119,12 +1152,12 @@ async fn unavailable_handler(recorder: std::sync::Arc<AuditRecorder>) -> super::
         .unwrap();
     pool.close().await;
     super::Handler {
-        bot_user_id: 99,
+        bot_user_id: UserId(99),
         store: std::sync::Arc::new(crate::store::Store::new_with_audit(
             pool,
-            42,
+            42.into(),
             crate::domain::Policy {
-                amount: 100,
+                amount: Points(100),
                 interval: 86400,
             },
             recorder,
@@ -1197,7 +1230,7 @@ async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_del
                 ..
             }),
             matches_pattern!(AuditEvent::QueryCompleted {
-                guild: eq(&10),
+                guild: eq(&GuildId(10)),
                 interaction_id: eq(&125),
                 query: eq(&QueryKind::Balance),
                 stage: eq(&Stage::Query),
@@ -1208,7 +1241,7 @@ async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_del
                 ..
             }),
             matches_pattern!(AuditEvent::InteractionCompleted {
-                guild: some(eq(&10)),
+                guild: some(eq(&GuildId(10))),
                 interaction_id: eq(&125),
                 stage: eq(&Stage::Deliver),
                 outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
@@ -1299,7 +1332,7 @@ async fn real_modal_and_component_adapters_preserve_private_validation_responses
         assert_that!(
             events.as_slice(),
             contains(matches_pattern!(AuditEvent::InteractionCompleted {
-                guild: some(eq(&10)),
+                guild: some(eq(&GuildId(10))),
                 interaction_id: eq(&id),
                 stage: eq(&Stage::Validate),
                 outcome: matches_pattern!(Outcome::Rejected(eq(&Rejection::InvalidInput)))
@@ -1308,7 +1341,7 @@ async fn real_modal_and_component_adapters_preserve_private_validation_responses
         assert_that!(
             events.as_slice(),
             contains(matches_pattern!(AuditEvent::InteractionCompleted {
-                guild: some(eq(&10)),
+                guild: some(eq(&GuildId(10))),
                 interaction_id: eq(&id),
                 stage: eq(&Stage::Deliver),
                 outcome: eq(&Outcome::Succeeded)
@@ -1364,7 +1397,7 @@ async fn component_read_failure_delivers_initial_private_response_and_registrati
         events.as_slice(),
         elements_are![
             matches_pattern!(AuditEvent::QueryCompleted {
-                guild: eq(&10),
+                guild: eq(&GuildId(10)),
                 interaction_id: eq(&128),
                 query: eq(&QueryKind::Component),
                 outcome: matches_pattern!(Outcome::Failed(anything())),
@@ -1378,7 +1411,7 @@ async fn component_read_failure_delivers_initial_private_response_and_registrati
                 ..
             }),
             matches_pattern!(AuditEvent::RegistrationCompleted {
-                guild: eq(&10),
+                guild: eq(&GuildId(10)),
                 stage: eq(&Stage::Register),
                 outcome: eq(&Outcome::Succeeded)
             })
@@ -1413,9 +1446,9 @@ async fn grant_worker_reports_discovery_failure_and_accepts_shutdown() {
     pool.close().await;
     let store = std::sync::Arc::new(crate::store::Store::new_with_audit(
         pool,
-        42,
+        42.into(),
         crate::domain::Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86400,
         },
         recorder.clone(),
@@ -1447,9 +1480,9 @@ async fn gateway_guard_failure_is_reported_before_run_returns() {
     pool.close().await;
     let store = std::sync::Arc::new(crate::store::Store::new_with_audit(
         pool,
-        42,
+        42.into(),
         crate::domain::Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
         recorder.clone(),
@@ -1469,7 +1502,7 @@ async fn gateway_guard_failure_is_reported_before_run_returns() {
         recorder.0.lock().unwrap().as_slice(),
         elements_are![matches_pattern!(AuditEvent::Lifecycle {
             kind: eq(&LifecycleKind::Startup),
-            application_id: some(eq(&42)),
+            application_id: some(eq(&ApplicationId(42))),
             stage: eq(&Stage::Acquire),
             outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
                 category: eq(&FailureCategory::Connection),
@@ -1487,12 +1520,12 @@ async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() 
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind};
     let recorder = AuditRecorder::default();
     let view = std::sync::Arc::new(crate::store::View {
-        revision: 5,
+        revision: EventRevision(5),
         state: Default::default(),
     });
     let result = super::read_query(
         &recorder,
-        10,
+        10.into(),
         130,
         QueryKind::List,
         async { Ok(view) },
@@ -1500,14 +1533,14 @@ async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() 
     )
     .await
     .unwrap();
-    assert_that!(result.revision, eq(5));
+    assert_that!(result.revision.0, eq(5));
     let read = async {
         Err(crate::store::StoreError::Domain(
             crate::domain::DomainError::Invalid("corrupt state"),
         ))
     };
     assert_that!(
-        super::read_query(&recorder, 10, 131, QueryKind::Show, read, None).await,
+        super::read_query(&recorder, 10.into(), 131, QueryKind::Show, read, None).await,
         err(anything())
     );
     assert_that!(
@@ -1564,7 +1597,7 @@ async fn gateway_http_failure_retains_safe_details_after_shutdown() {
         lifecycle_events,
         eq(&vec![&AuditEvent::Lifecycle {
             kind: LifecycleKind::Shutdown,
-            application_id: Some(42),
+            application_id: Some(ApplicationId(42)),
             stage: Stage::Shutdown,
             outcome: Outcome::Failed(Failure {
                 category: FailureCategory::Discord,
@@ -1634,8 +1667,8 @@ async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
         assert_that!(
             *recorder.0.lock().unwrap(),
             eq(&vec![AuditEvent::MentionReplyCompleted {
-                guild: 10,
-                channel_id: 20,
+                guild: GuildId(10),
+                channel_id: ChannelId(20),
                 message_id: 123,
                 outcome,
                 stage: Stage::Deliver,
@@ -1799,7 +1832,13 @@ async fn destination_validation_uses_real_http_and_effective_bot_permissions() {
     mount_destination_reads(&server, channel_json(10, 0, 0), 1024 | 2048).await;
 
     assert_that!(
-        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        super::announcements::validate_destination(
+            &discord_http(&server),
+            10.into(),
+            99.into(),
+            55.into()
+        )
+        .await,
         eq(Ok(()))
     );
     assert_that!(server.received_requests().await.unwrap().len(), eq(3));
@@ -1816,7 +1855,13 @@ async fn destination_validation_rejects_cross_guild_non_text_missing_permissions
         .mount(&server)
         .await;
     assert_that!(
-        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        super::announcements::validate_destination(
+            &discord_http(&server),
+            10.into(),
+            99.into(),
+            55.into()
+        )
+        .await,
         eq(Err("Choose a text channel in this server."))
     );
 
@@ -1828,14 +1873,26 @@ async fn destination_validation_rejects_cross_guild_non_text_missing_permissions
         .mount(&server)
         .await;
     assert_that!(
-        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        super::announcements::validate_destination(
+            &discord_http(&server),
+            10.into(),
+            99.into(),
+            55.into()
+        )
+        .await,
         eq(Err("Choose a text channel in this server."))
     );
 
     let server = MockServer::start().await;
     mount_destination_reads(&server, channel_json(10, 0, 2048), 1024 | 2048).await;
     assert_that!(
-        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        super::announcements::validate_destination(
+            &discord_http(&server),
+            10.into(),
+            99.into(),
+            55.into()
+        )
+        .await,
         eq(Err(
             "I need View Channel and Send Messages in that channel."
         ))
@@ -1849,7 +1906,13 @@ async fn destination_validation_rejects_cross_guild_non_text_missing_permissions
         .mount(&server)
         .await;
     assert_that!(
-        super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
+        super::announcements::validate_destination(
+            &discord_http(&server),
+            10.into(),
+            99.into(),
+            55.into()
+        )
+        .await,
         eq(Err("I could not verify that channel. Please try again."))
     );
 }
@@ -1969,9 +2032,9 @@ async fn set_handler_keeps_receipt_lookup_failures_private_without_destination_r
 #[googletest::test]
 fn announcement_status_and_receipts_explain_delivery_state() {
     let status = crate::announcements::AnnouncementStatus {
-        channel_id: Some(55),
+        channel_id: Some(ChannelId(55)),
         enabled: true,
-        version: 3,
+        version: ConfigurationVersion(3),
         pause_reason: Some("The configured channel is unavailable.".into()),
         pending: 4,
     };

@@ -7,3 +7,5 @@ pub mod store;
 
 #[cfg(test)]
 mod audit_tests;
+
+pub use domain::types;
