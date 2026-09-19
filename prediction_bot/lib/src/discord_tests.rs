@@ -308,10 +308,27 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
         moderator: false,
         bot: false,
     };
-    let leaderboard = render_query(&view, &Action::Leaderboard, actor, 1_850_000_000);
+    let payload = serde_json::to_value(
+        super::ui::query(
+            &view,
+            &Action::Leaderboard,
+            actor,
+            GuildId(10),
+            1_850_000_000,
+        )
+        .edit(),
+    )
+    .unwrap();
+    let leaderboard = payload["content"].as_str().unwrap();
     assert_that!(
-        leaderboard.find("User ID 9").unwrap(),
-        lt(leaderboard.find("User ID 20").unwrap())
+        payload["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
+    assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));
+    assert_that!(leaderboard, contains_substring("<@20> — 75 points"));
+    assert_that!(
+        leaderboard.find("<@9>").unwrap(),
+        lt(leaderboard.find("<@20>").unwrap())
     );
     assert_that!(
         render_query(&view, &Action::Balance, actor, 1_850_000_000),

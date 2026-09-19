@@ -456,13 +456,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
             }
             let mut out = "Top balances:\n".to_owned();
             for (n, (user, account)) in accounts.into_iter().take(10).enumerate() {
-                let _ = writeln!(
-                    out,
-                    "{}. User ID {} — {} points",
-                    n + 1,
-                    user,
-                    account.balance
-                );
+                let _ = writeln!(out, "{}. <@{}> — {} points", n + 1, user, account.balance);
             }
             out
         }
