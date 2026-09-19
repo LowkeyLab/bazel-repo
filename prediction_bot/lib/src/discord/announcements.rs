@@ -1,6 +1,10 @@
 use crate::announcements::AnnouncementStatus;
+use crate::types::{ChannelId, GuildId, UserId};
 use serenity::{
-    all::{Channel, ChannelId, ChannelType, GuildId, Permissions, UserId},
+    all::{
+        Channel, ChannelId as SerenityChannelId, ChannelType, GuildId as SerenityGuildId,
+        Permissions, UserId as SerenityUserId,
+    },
     http::Http,
 };
 
@@ -12,32 +16,32 @@ const PERMISSION_ERROR: &str = "I need View Channel and Send Messages in that ch
 /// can see and send messages there.
 pub(super) async fn validate_destination(
     http: &Http,
-    guild: u64,
-    bot_user_id: u64,
-    channel_id: u64,
+    guild: GuildId,
+    bot_user_id: UserId,
+    channel_id: ChannelId,
 ) -> Result<(), &'static str> {
-    if guild == 0 || bot_user_id == 0 || channel_id == 0 {
+    if guild.0 == 0 || bot_user_id.0 == 0 || channel_id.0 == 0 {
         return Err(CHANNEL_ERROR);
     }
 
-    let channel = ChannelId::new(channel_id)
+    let channel = SerenityChannelId::new(channel_id.0)
         .to_channel(http)
         .await
         .map_err(|_| READ_ERROR)?;
     let Channel::Guild(channel) = channel else {
         return Err(CHANNEL_ERROR);
     };
-    if channel.kind != ChannelType::Text || channel.guild_id.get() != guild {
+    if channel.kind != ChannelType::Text || channel.guild_id.get() != guild.0 {
         return Err(CHANNEL_ERROR);
     }
 
-    let guild_id = GuildId::new(guild);
+    let guild_id = SerenityGuildId::new(guild.0);
     let partial = guild_id
         .to_partial_guild(http)
         .await
         .map_err(|_| READ_ERROR)?;
     let member = guild_id
-        .member(http, UserId::new(bot_user_id))
+        .member(http, SerenityUserId::new(bot_user_id.0))
         .await
         .map_err(|_| READ_ERROR)?;
     let permissions = partial.user_permissions_in(&channel, &member);

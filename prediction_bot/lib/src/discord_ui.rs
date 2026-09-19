@@ -3,6 +3,7 @@ use super::{
     Action, Input, InputOption, create_request, exact, no_mentions, render_market, render_query,
     text, truncate, truncate_to,
 };
+use crate::types::{GuildId, MarketId, OutcomeIndex, Points, UserId};
 use crate::{
     domain::{Actor, Command, Status},
     store::View,
@@ -47,19 +48,19 @@ fn menu(id: String, placeholder: &str, options: Vec<CreateSelectMenuOption>) -> 
             .max_values(1),
     )
 }
-fn prefix(guild: u64, actor: Actor) -> String {
+fn prefix(guild: GuildId, actor: Actor) -> String {
     format!("pm:{guild}:{}", actor.user_id)
 }
-fn scope(guild: u64, actor: Actor, custom_id: &str) -> Result<Vec<&str>, &'static str> {
-    if guild == 0 || actor.user_id == 0 || actor.bot {
+fn scope(guild: GuildId, actor: Actor, custom_id: &str) -> Result<Vec<&str>, &'static str> {
+    if guild.0 == 0 || actor.user_id.0 == 0 || actor.bot {
         return Err("Only server members can use these controls.");
     }
     let parts: Vec<_> = custom_id.split(':').collect();
     if custom_id.len() > 100
         || parts.len() < 4
         || parts[0] != "pm"
-        || parts[1].parse::<u64>().ok() != Some(guild)
-        || parts[2].parse::<u64>().ok() != Some(actor.user_id)
+        || parts[1].parse::<GuildId>().ok() != Some(guild)
+        || parts[2].parse::<UserId>().ok() != Some(actor.user_id)
     {
         return Err(
             "This control belongs to another member or server. Run /market list or /market create.",
@@ -90,7 +91,11 @@ fn field(
             .required(true),
     )
 }
-fn creation_modal(guild: u64, actor: Actor, selected: &str) -> Result<CreateModal, &'static str> {
+fn creation_modal(
+    guild: GuildId,
+    actor: Actor,
+    selected: &str,
+) -> Result<CreateModal, &'static str> {
     let options = preset(selected)?;
     let mut fields = vec![
         field(
@@ -128,7 +133,7 @@ fn creation_modal(guild: u64, actor: Actor, selected: &str) -> Result<CreateModa
     )
 }
 
-pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: u64, now: i64) -> Panel {
+pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, now: i64) -> Panel {
     let mut panel = Panel {
         content: truncate(&render_query(view, action, actor, now)),
         embed: None,
@@ -159,13 +164,12 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: u64, now:
                 .into_iter()
                 .take(10)
                 .map(|(id, m)| {
-                    CreateSelectMenuOption::new(truncate_to(&m.question, 100), id).description(
-                        format!(
+                    CreateSelectMenuOption::new(truncate_to(&m.question, 100), id.to_string())
+                        .description(format!(
                             "{} points pooled · {} outcomes",
                             m.total_staked,
                             m.options.len()
-                        ),
-                    )
+                        ))
                 })
                 .collect();
             if !options.is_empty() {
@@ -214,7 +218,7 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: u64, now:
 }
 
 pub(super) fn component(
-    guild: u64,
+    guild: GuildId,
     actor: Actor,
     custom_id: &str,
     values: &[String],
@@ -230,11 +234,20 @@ pub(super) fn component(
             guild, actor, value,
         )?)),
         ["list"] => {
-            if !view.state.markets.contains_key(value) {
+            if !view.state.markets.contains_key(value.as_str()) {
                 return Err("No market with that ID exists in this server.");
             }
             Ok(CreateInteractionResponse::Message(
-                query(view, &Action::Show { id: value.clone() }, actor, guild, now).message(),
+                query(
+                    view,
+                    &Action::Show {
+                        id: value.clone().into(),
+                    },
+                    actor,
+                    guild,
+                    now,
+                )
+                .message(),
             ))
         }
         ["bet", id] => {
@@ -302,7 +315,7 @@ fn close_time(value: &str, now: i64) -> Result<i64, &'static str> {
     Ok(timestamp)
 }
 pub(super) fn modal_command(
-    guild: u64,
+    guild: GuildId,
     actor: Actor,
     custom_id: &str,
     fields: Vec<InputOption>,
@@ -358,9 +371,9 @@ pub(super) fn modal_command(
                 return Err("Enter a valid market ID.");
             }
             Ok(Command::Bet {
-                id: (*id).to_owned(),
-                outcome,
-                amount,
+                id: MarketId::from(*id),
+                outcome: OutcomeIndex(outcome),
+                amount: Points(amount),
             })
         }
         _ => Err(

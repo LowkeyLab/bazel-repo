@@ -1,6 +1,7 @@
 use sqlx::{Row, types::Json};
 
 use super::{AnnouncementStatus, ConfigurationChange, SnapshotV1};
+use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId};
 use crate::{
     domain::{Actor, Event, State},
     store::{Store, StoreError},
@@ -8,8 +9,8 @@ use crate::{
 
 pub(crate) async fn enqueue(
     tx: &mut sqlx::PgConnection,
-    guild: u64,
-    revision: i64,
+    guild: GuildId,
+    revision: EventRevision,
     event: &Event,
     state: &State,
 ) -> Result<(), StoreError> {
@@ -52,7 +53,7 @@ pub(crate) async fn enqueue(
             let market = state.markets.get(id).ok_or(StoreError::History(
                 "announcement event disagrees with applied state",
             ))?;
-            let winner = market.options.get(*outcome).ok_or(StoreError::History(
+            let winner = market.options.get(outcome.0).ok_or(StoreError::History(
                 "announcement event disagrees with applied state",
             ))?;
             (
@@ -88,7 +89,7 @@ pub(crate) async fn enqueue(
         "INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ($1,$2,1,$3,$4)",
     )
     .bind(guild.to_string())
-    .bind(revision)
+    .bind(revision.0)
     .bind(Json(snapshot))
     .bind(occurred_at)
     .execute(&mut *tx)
@@ -96,8 +97,8 @@ pub(crate) async fn enqueue(
     Ok(())
 }
 
-fn validate_administrator(guild: u64, actor: Actor) -> Result<(), StoreError> {
-    if guild == 0 || actor.user_id == 0 || !actor.moderator || actor.bot {
+fn validate_administrator(guild: GuildId, actor: Actor) -> Result<(), StoreError> {
+    if guild.0 == 0 || actor.user_id.0 == 0 || !actor.moderator || actor.bot {
         return Err(StoreError::Configuration(
             "announcement configuration requires a guild administrator",
         ));
@@ -117,11 +118,30 @@ fn validate_key(key: &str) -> Result<(), StoreError> {
     Ok(())
 }
 
+fn validate_configuration_request(
+    guild: GuildId,
+    key: &str,
+    actor: Actor,
+    change: ConfigurationChange,
+) -> Result<(), StoreError> {
+    validate_administrator(guild, actor)?;
+    validate_key(key)?;
+    if matches!(
+        change,
+        ConfigurationChange::Set {
+            channel_id: ChannelId(0)
+        }
+    ) {
+        return Err(StoreError::Configuration("invalid announcement channel"));
+    }
+    Ok(())
+}
+
 impl Store {
     // A committed receipt is immutable and can be recovered before external validation.
     pub(crate) async fn announcement_configuration_receipt(
         &self,
-        guild: u64,
+        guild: GuildId,
         key: &str,
         actor: Actor,
     ) -> Result<Option<String>, StoreError> {
@@ -150,16 +170,12 @@ impl Store {
     /// database failures.
     pub async fn configure_announcements(
         &self,
-        guild: u64,
+        guild: GuildId,
         key: &str,
         actor: Actor,
         change: ConfigurationChange,
     ) -> Result<String, StoreError> {
-        validate_administrator(guild, actor)?;
-        validate_key(key)?;
-        if matches!(change, ConfigurationChange::Set { channel_id: 0 }) {
-            return Err(StoreError::Configuration("invalid announcement channel"));
-        }
+        validate_configuration_request(guild, key, actor, change)?;
 
         let guild_id = guild.to_string();
         let mut tx = self.pool.begin().await?;
@@ -167,7 +183,7 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(i64::from_ne_bytes(guild.to_ne_bytes()))
+            .bind(i64::from_ne_bytes(guild.0.to_ne_bytes()))
             .execute(&mut *tx)
             .await?;
 
@@ -193,10 +209,15 @@ impl Store {
         .bind(&guild_id)
         .fetch_optional(&mut *tx)
         .await?;
-        let version = current_version
-            .unwrap_or(0)
-            .checked_add(1)
-            .ok_or(StoreError::History("configuration version overflow"))?;
+        let current_version = current_version
+            .map(ConfigurationVersion)
+            .unwrap_or_default();
+        let version = ConfigurationVersion(
+            current_version
+                .0
+                .checked_add(1)
+                .ok_or(StoreError::History("configuration version overflow"))?,
+        );
         let accepted_at = chrono::Utc::now().timestamp();
         let response = match change {
             ConfigurationChange::Set { channel_id } => {
@@ -205,7 +226,7 @@ impl Store {
                 )
                 .bind(&guild_id)
                 .bind(channel_id.to_string())
-                .bind(version)
+                .bind(version.0)
                 .execute(&mut *tx)
                 .await?;
                 sqlx::query(
@@ -222,7 +243,7 @@ impl Store {
                     "INSERT INTO prediction_announcement_settings(guild_id,channel_id,enabled,configuration_version,pause_reason) VALUES ($1,NULL,FALSE,$2,NULL) ON CONFLICT (guild_id) DO UPDATE SET enabled=FALSE,configuration_version=EXCLUDED.configuration_version,pause_reason=NULL",
                 )
                 .bind(&guild_id)
-                .bind(version)
+                .bind(version.0)
                 .execute(&mut *tx)
                 .await?;
                 sqlx::query(
@@ -234,12 +255,14 @@ impl Store {
                 "Announcements disabled.".to_owned()
             }
         };
-        let revision: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(revision), 0) FROM prediction_events WHERE guild_id=$1",
-        )
-        .bind(&guild_id)
-        .fetch_one(&mut *tx)
-        .await?;
+        let revision = EventRevision(
+            sqlx::query_scalar(
+                "SELECT COALESCE(MAX(revision), 0) FROM prediction_events WHERE guild_id=$1",
+            )
+            .bind(&guild_id)
+            .fetch_one(&mut *tx)
+            .await?,
+        );
         sqlx::query(
             "INSERT INTO prediction_commands(guild_id,command_key,actor_id,accepted_at,response,last_revision) VALUES ($1,$2,$3,$4,$5,$6)",
         )
@@ -248,7 +271,7 @@ impl Store {
         .bind(actor.user_id.to_string())
         .bind(accepted_at)
         .bind(&response)
-        .bind(revision)
+        .bind(revision.0)
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
@@ -262,7 +285,7 @@ impl Store {
     /// database failures.
     pub async fn announcement_status(
         &self,
-        guild: u64,
+        guild: GuildId,
         actor: Actor,
     ) -> Result<AnnouncementStatus, StoreError> {
         validate_administrator(guild, actor)?;
@@ -277,7 +300,7 @@ impl Store {
             return Ok(AnnouncementStatus {
                 channel_id: None,
                 enabled: false,
-                version: 0,
+                version: ConfigurationVersion(0),
                 pause_reason: None,
                 pending: 0,
             });
@@ -293,7 +316,7 @@ impl Store {
         Ok(AnnouncementStatus {
             channel_id,
             enabled: row.try_get("enabled")?,
-            version: row.try_get("configuration_version")?,
+            version: ConfigurationVersion(row.try_get("configuration_version")?),
             pause_reason: row.try_get("pause_reason")?,
             pending: row.try_get("pending")?,
         })
@@ -329,12 +352,12 @@ pub(crate) async fn next_due(
                     .try_get::<String, _>("guild_id")?
                     .parse()
                     .map_err(|_| StoreError::History("invalid announcement guild ID"))?,
-                revision: row.try_get("revision")?,
+                revision: EventRevision(row.try_get("revision")?),
                 channel_id: row
                     .try_get::<String, _>("channel_id")?
                     .parse()
                     .map_err(|_| StoreError::History("invalid announcement channel ID"))?,
-                configuration_version: row.try_get("configuration_version")?,
+                configuration_version: ConfigurationVersion(row.try_get("configuration_version")?),
                 attempts: row.try_get("attempts")?,
                 snapshot,
             })
@@ -354,8 +377,8 @@ pub(crate) async fn still_eligible(
              AND s.enabled AND s.pause_reason IS NULL AND s.channel_id=$3 AND s.configuration_version=$4
              AND NOT EXISTS (SELECT 1 FROM prediction_announcement_outbox older
                              WHERE older.guild_id=o.guild_id AND older.state='pending' AND older.revision<o.revision))",
-    ).bind(item.guild.to_string()).bind(item.revision).bind(item.channel_id.to_string())
-        .bind(item.configuration_version).fetch_one(&store.pool).await?)
+    ).bind(item.guild.to_string()).bind(item.revision.0).bind(item.channel_id.to_string())
+        .bind(item.configuration_version.0).fetch_one(&store.pool).await?)
 }
 
 pub(crate) async fn finish_attempt(
@@ -370,7 +393,7 @@ pub(crate) async fn finish_attempt(
         .execute(&mut *tx)
         .await?;
     sqlx::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(i64::from_ne_bytes(item.guild.to_ne_bytes()))
+        .bind(i64::from_ne_bytes(item.guild.0.to_ne_bytes()))
         .execute(&mut *tx)
         .await?;
     let guild = item.guild.to_string();
@@ -378,13 +401,13 @@ pub(crate) async fn finish_attempt(
         // A successful in-flight send remains an actual old-channel delivery even after Set.
         // Disable wins by discarding the row before this conditional update.
         sqlx::query("UPDATE prediction_announcement_outbox SET state='delivered',delivered_channel_id=$3,delivered_message_id=$4,last_failure=NULL WHERE guild_id=$1 AND revision=$2 AND state='pending'")
-            .bind(&guild).bind(item.revision).bind(item.channel_id.to_string()).bind(message_id.to_string())
+            .bind(&guild).bind(item.revision.0).bind(item.channel_id.to_string()).bind(message_id.to_string())
             .execute(&mut *tx).await?;
     } else {
         let applicable: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM prediction_announcement_outbox o JOIN prediction_announcement_settings s USING(guild_id)
              WHERE o.guild_id=$1 AND o.revision=$2 AND o.state='pending' AND s.configuration_version=$3)",
-        ).bind(&guild).bind(item.revision).bind(item.configuration_version).fetch_one(&mut *tx).await?;
+        ).bind(&guild).bind(item.revision.0).bind(item.configuration_version.0).fetch_one(&mut *tx).await?;
         if applicable {
             let attempts = item.attempts.saturating_add(1);
             let (reason, deadline) = match outcome {
@@ -400,7 +423,7 @@ pub(crate) async fn finish_attempt(
                 AttemptOutcome::Delivered { .. } => unreachable!(),
             };
             sqlx::query("UPDATE prediction_announcement_outbox SET attempts=$3,next_attempt_at=$4,last_failure=$5 WHERE guild_id=$1 AND revision=$2 AND state='pending'")
-                .bind(&guild).bind(item.revision).bind(attempts).bind(deadline).bind(reason).execute(&mut *tx).await?;
+                .bind(&guild).bind(item.revision.0).bind(attempts).bind(deadline).bind(reason).execute(&mut *tx).await?;
         }
     }
     tx.commit().await?;

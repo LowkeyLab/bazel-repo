@@ -6,6 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::types::{ApplicationId, ChannelId, GuildId, MarketId, OutcomeIndex, Points, UserId};
 use crate::{
     announcements::ConfigurationChange,
     domain::{Actor, Command, DomainError, Market, Status},
@@ -17,7 +18,8 @@ use serenity::{
     all::{
         ActionRowComponent, ChannelType, CommandDataOptionValue, CommandInteraction,
         CommandOptionType, ComponentInteraction, ComponentInteractionDataKind, Context,
-        GatewayIntents, Guild, GuildId, Interaction, Message, ModalInteraction, Permissions, Ready,
+        GatewayIntents, Guild, GuildId as SerenityGuildId, Interaction, Message, ModalInteraction,
+        Permissions, Ready,
     },
     builder::{
         CreateAllowedMentions, CreateCommand, CreateCommandOption, CreateInteractionResponse,
@@ -42,8 +44,8 @@ use transport::{InteractionTransport, SerenityTransport};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Input {
-    pub guild_id: Option<u64>,
-    pub user_id: u64,
+    pub guild_id: Option<GuildId>,
+    pub user_id: UserId,
     pub bot: bool,
     pub moderator: bool,
     pub subcommand: String,
@@ -58,7 +60,7 @@ pub(crate) struct InputOption {
 pub(crate) enum InputValue {
     String(String),
     Integer(i64),
-    Channel(u64),
+    Channel(ChannelId),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
@@ -68,8 +70,8 @@ pub(crate) enum Action {
     Balance,
     Leaderboard,
     List,
-    Show { id: String },
-    AnnouncementsSet { channel_id: u64 },
+    Show { id: MarketId },
+    AnnouncementsSet { channel_id: ChannelId },
     AnnouncementsStatus,
     AnnouncementsDisable,
 }
@@ -106,38 +108,53 @@ fn integer(input: &Input, field: &str) -> Result<i64, &'static str> {
         })
         .ok_or("Enter a whole number.")
 }
-fn channel_id(input: &Input, field: &str) -> Result<u64, &'static str> {
+fn channel_id(input: &Input, field: &str) -> Result<ChannelId, &'static str> {
     input
         .options
         .iter()
         .find(|option| option.name == field)
         .and_then(|option| match option.value {
-            InputValue::Channel(id) if id != 0 => Some(id),
+            InputValue::Channel(id) if id.0 != 0 => Some(id),
             InputValue::Channel(_) | InputValue::String(_) | InputValue::Integer(_) => None,
         })
         .ok_or("Choose a server text channel.")
 }
 
-fn market_id(input: &Input) -> Result<String, &'static str> {
+fn market_id(input: &Input) -> Result<MarketId, &'static str> {
     let value = text(input, "id")?.trim();
     if value.is_empty() || value.len() > 64 || value.chars().any(char::is_control) {
         return Err("Enter a valid market ID.");
     }
-    Ok(value.to_owned())
+    Ok(value.into())
 }
-fn outcome(input: &Input) -> Result<usize, &'static str> {
+fn outcome(input: &Input) -> Result<OutcomeIndex, &'static str> {
     let value = integer(input, "outcome")?;
     if !(1..=10).contains(&value) {
         return Err("Choose an outcome number from 1 to 10.");
     }
-    usize::try_from(value - 1).map_err(|_| "Invalid outcome number.")
+    usize::try_from(value - 1)
+        .map(OutcomeIndex)
+        .map_err(|_| "Invalid outcome number.")
 }
-pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str> {
+fn bet_request(input: &Input) -> Result<Command, &'static str> {
+    exact(input, &["id", "outcome", "amount"])?;
+    let amount = integer(input, "amount")?;
+    if amount <= 0 {
+        return Err("Stake must be a positive whole number.");
+    }
+    Ok(Command::Bet {
+        id: market_id(input)?,
+        outcome: outcome(input)?,
+        amount: Points(amount),
+    })
+}
+
+pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static str> {
     let guild = input
         .guild_id
-        .filter(|id| *id != 0)
+        .filter(|id| id.0 != 0)
         .ok_or("This command is available only in a server.")?;
-    if input.bot || input.user_id == 0 {
+    if input.bot || input.user_id.0 == 0 {
         return Err("Bots cannot use the prediction economy.");
     }
     let actor = Actor {
@@ -189,18 +206,7 @@ pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str>
             )?)
         }
 
-        "bet" => {
-            exact(input, &["id", "outcome", "amount"])?;
-            let amount = integer(input, "amount")?;
-            if amount <= 0 {
-                return Err("Stake must be a positive whole number.");
-            }
-            Action::Write(Command::Bet {
-                id: market_id(input)?,
-                outcome: outcome(input)?,
-                amount,
-            })
-        }
+        "bet" => Action::Write(bet_request(input)?),
         "resolve" => {
             exact(input, &["id", "outcome"])?;
             Action::Write(Command::Resolve {
@@ -262,7 +268,7 @@ fn create_request(
         return Err("Outcome labels must be distinct.");
     }
     Ok(Command::Create {
-        id: Uuid::now_v7().to_string(),
+        id: Uuid::now_v7().to_string().into(),
         question: question.to_owned(),
         options,
         closes_at,
@@ -295,7 +301,7 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
             let value = match &field.value {
                 CommandDataOptionValue::String(s) => InputValue::String(s.clone()),
                 CommandDataOptionValue::Integer(i) => InputValue::Integer(*i),
-                CommandDataOptionValue::Channel(id) => InputValue::Channel(id.get()),
+                CommandDataOptionValue::Channel(id) => InputValue::Channel(ChannelId(id.get())),
                 _ => return Err("Invalid command options."),
             };
             Ok(InputOption {
@@ -310,8 +316,8 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
         .and_then(|member| member.permissions)
         .is_some_and(|p| p.intersects(Permissions::ADMINISTRATOR | Permissions::MANAGE_GUILD));
     Ok(Input {
-        guild_id: command.guild_id.map(GuildId::get),
-        user_id: command.user.id.get(),
+        guild_id: command.guild_id.map(|id| GuildId(id.get())),
+        user_id: UserId(command.user.id.get()),
         bot: command.user.bot,
         moderator,
         subcommand,
@@ -329,14 +335,14 @@ Server admins and members with Manage Guild permission can resolve or cancel mar
 
 Announcements cover market creation, resolution, and cancellation. They retry with increasing delays, do not backfill older events, and may be delivered twice after an uncertain Discord response. Changing or disabling the channel cannot stop an announcement already in flight.";
 
-fn mention_reply(message: &Message, bot_user_id: u64) -> Option<CreateMessage> {
+fn mention_reply(message: &Message, bot_user_id: UserId) -> Option<CreateMessage> {
     if message.guild_id.is_none()
         || message.author.bot
-        || bot_user_id == 0
+        || bot_user_id.0 == 0
         || !message
             .mentions
             .iter()
-            .any(|user| user.id.get() == bot_user_id)
+            .any(|user| user.id.get() == bot_user_id.0)
     {
         return None;
     }
@@ -406,8 +412,11 @@ where
 ///
 /// # Errors
 /// Returns an error if the authenticated ID is zero or differs from the configured expectation.
-pub fn verify_application_id(observed: u64, expected: Option<u64>) -> Result<u64, &'static str> {
-    if observed == 0 || expected.is_some_and(|id| id == 0 || id != observed) {
+pub fn verify_application_id(
+    observed: ApplicationId,
+    expected: Option<ApplicationId>,
+) -> Result<ApplicationId, &'static str> {
+    if observed.0 == 0 || expected.is_some_and(|id| id.0 == 0 || id != observed) {
         return Err("configured application ID does not match Discord token");
     }
     Ok(observed)
@@ -493,7 +502,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         | Action::AnnouncementsDisable => "Invalid query.".to_owned(),
     }
 }
-fn render_market(id: &str, market: &Market, now: i64) -> String {
+fn render_market(id: &MarketId, market: &Market, now: i64) -> String {
     let status = match &market.status {
         Status::Open if now < market.closes_at => "Open",
         Status::Open => "Closed; awaiting outcome",
@@ -512,8 +521,8 @@ fn render_market(id: &str, market: &Market, now: i64) -> String {
         let total: i128 = market
             .bets
             .iter()
-            .filter(|bet| bet.outcome == n)
-            .map(|bet| i128::from(bet.amount))
+            .filter(|bet| bet.outcome.0 == n)
+            .map(|bet| i128::from(bet.amount.0))
             .sum();
         let _ = writeln!(
             out,
@@ -524,7 +533,7 @@ fn render_market(id: &str, market: &Market, now: i64) -> String {
         );
     }
     if let Status::Resolved { outcome, .. } = market.status {
-        let _ = writeln!(out, "Winning outcome: {}", outcome + 1);
+        let _ = writeln!(out, "Winning outcome: {}", outcome.0 + 1);
     }
     out
 }
@@ -641,7 +650,7 @@ fn market_command() -> CreateCommand {
 }
 fn interaction_event(
     audit: &dyn AuditListener,
-    guild: Option<u64>,
+    guild: Option<GuildId>,
     interaction_id: u64,
     stage: Stage,
     outcome: Outcome,
@@ -670,7 +679,7 @@ fn category_failure(category: FailureCategory) -> Outcome {
 async fn deferred_response<F, Fut>(
     transport: &dyn InteractionTransport,
     audit: &dyn AuditListener,
-    guild: Option<u64>,
+    guild: Option<GuildId>,
     interaction_id: u64,
     make_content: F,
 ) where
@@ -707,7 +716,7 @@ async fn deferred_response<F, Fut>(
 pub async fn execute_interaction(
     transport: &dyn InteractionTransport,
     store: &Arc<Store>,
-    guild: u64,
+    guild: GuildId,
     actor: Actor,
     request: &Command,
     interaction_id: u64,
@@ -724,7 +733,7 @@ pub async fn execute_interaction(
 
 async fn execute_request(
     store: &Store,
-    guild: u64,
+    guild: GuildId,
     actor: Actor,
     request: &Command,
     interaction_id: u64,
@@ -738,7 +747,7 @@ async fn execute_request(
 
 async fn read_query<F>(
     audit: &dyn AuditListener,
-    guild: u64,
+    guild: GuildId,
     interaction_id: u64,
     query: QueryKind,
     read: F,
@@ -771,7 +780,7 @@ where
     }
 }
 
-fn rejected(audit: &dyn AuditListener, guild: Option<u64>, interaction_id: u64) {
+fn rejected(audit: &dyn AuditListener, guild: Option<GuildId>, interaction_id: u64) {
     interaction_event(
         audit,
         guild,
@@ -783,7 +792,7 @@ fn rejected(audit: &dyn AuditListener, guild: Option<u64>, interaction_id: u64) 
 
 struct Handler {
     store: Arc<Store>,
-    bot_user_id: u64,
+    bot_user_id: UserId,
 }
 impl Handler {
     async fn handle_message(&self, http: &Http, message: &Message) {
@@ -800,15 +809,15 @@ impl Handler {
         self.store
             .audit()
             .on_event(&AuditEvent::MentionReplyCompleted {
-                guild: guild.get(),
-                channel_id: message.channel_id.get(),
+                guild: GuildId(guild.get()),
+                channel_id: ChannelId(message.channel_id.get()),
                 message_id: message.id.get(),
                 outcome: delivery_outcome(&result),
                 stage: Stage::Deliver,
             });
     }
 
-    async fn register(&self, http: &serenity::http::Http, guild: GuildId) {
+    async fn register(&self, http: &serenity::http::Http, guild: SerenityGuildId) {
         let result = guild
             .set_commands(http, vec![market_command()])
             .await
@@ -816,7 +825,7 @@ impl Handler {
         self.store
             .audit()
             .on_event(&AuditEvent::RegistrationCompleted {
-                guild: guild.get(),
+                guild: GuildId(guild.get()),
                 outcome: delivery_outcome(&result),
                 stage: Stage::Register,
             });
@@ -826,7 +835,7 @@ impl Handler {
         deferred_response(
             &transport,
             self.store.audit().as_ref(),
-            command.guild_id.map(GuildId::get),
+            command.guild_id.map(|id| GuildId(id.get())),
             command.id.get(),
             || async {
                 match from_discord(&command).and_then(|input| parse(&input)) {
@@ -933,7 +942,7 @@ impl Handler {
                     Err(message) => {
                         rejected(
                             self.store.audit().as_ref(),
-                            command.guild_id.map(GuildId::get),
+                            command.guild_id.map(|id| GuildId(id.get())),
                             command.id.get(),
                         );
                         reply(message)
@@ -945,11 +954,13 @@ impl Handler {
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
         let actor = Actor {
-            user_id: component.user.id.get(),
+            user_id: UserId(component.user.id.get()),
             bot: component.user.bot,
             moderator: false,
         };
-        let guild = component.guild_id.map_or(0, GuildId::get);
+        let guild = component
+            .guild_id
+            .map_or(GuildId(0), |id| GuildId(id.get()));
         // A modal must be the initial response: do not defer this interaction.
         // Bound the read so a slow database can still receive an error acknowledgement.
         let response =
@@ -975,7 +986,7 @@ impl Handler {
                     .unwrap_or_else(|message| {
                         rejected(
                             self.store.audit().as_ref(),
-                            component.guild_id.map(GuildId::get),
+                            component.guild_id.map(|id| GuildId(id.get())),
                             component.id.get(),
                         );
                         interaction_error(message)
@@ -985,7 +996,7 @@ impl Handler {
             } else {
                 rejected(
                     self.store.audit().as_ref(),
-                    component.guild_id.map(GuildId::get),
+                    component.guild_id.map(|id| GuildId(id.get())),
                     component.id.get(),
                 );
                 interaction_error("Choose an option from the market menu.")
@@ -995,7 +1006,7 @@ impl Handler {
             .await;
         interaction_event(
             self.store.audit().as_ref(),
-            component.guild_id.map(GuildId::get),
+            component.guild_id.map(|id| GuildId(id.get())),
             component.id.get(),
             Stage::Deliver,
             delivery_outcome(&result),
@@ -1006,15 +1017,15 @@ impl Handler {
         deferred_response(
             &transport,
             self.store.audit().as_ref(),
-            modal.guild_id.map(GuildId::get),
+            modal.guild_id.map(|id| GuildId(id.get())),
             modal.id.get(),
             || async {
                 let actor = Actor {
-                    user_id: modal.user.id.get(),
+                    user_id: UserId(modal.user.id.get()),
                     bot: modal.user.bot,
                     moderator: false,
                 };
-                let guild = modal.guild_id.map_or(0, GuildId::get);
+                let guild = modal.guild_id.map_or(GuildId(0), |id| GuildId(id.get()));
                 let fields = modal
                     .data
                     .components
@@ -1047,7 +1058,7 @@ impl Handler {
                     Err(message) => {
                         rejected(
                             self.store.audit().as_ref(),
-                            modal.guild_id.map(GuildId::get),
+                            modal.guild_id.map(|id| GuildId(id.get())),
                             modal.id.get(),
                         );
                         reply(message)
@@ -1068,7 +1079,7 @@ impl EventHandler for Handler {
         lifecycle(
             self.store.audit().as_ref(),
             LifecycleKind::Ready,
-            Some(ready.application.id.get()),
+            Some(ApplicationId(ready.application.id.get())),
             Stage::Ready,
             Outcome::Succeeded,
         );
@@ -1094,7 +1105,7 @@ impl EventHandler for Handler {
 pub async fn handle_interaction(
     store: Arc<Store>,
     http: &Http,
-    bot_user_id: u64,
+    bot_user_id: UserId,
     interaction: Interaction,
 ) {
     let handler = Handler { store, bot_user_id };
@@ -1183,7 +1194,7 @@ pub async fn run_with_http(store: Arc<Store>, http: Http) -> Result<(), DiscordE
 fn lifecycle(
     audit: &dyn AuditListener,
     kind: LifecycleKind,
-    application_id: Option<u64>,
+    application_id: Option<ApplicationId>,
     stage: Stage,
     outcome: Outcome,
 ) {
@@ -1198,7 +1209,7 @@ async fn run_gateway(store: Arc<Store>, http: Http) -> Result<(), DiscordError> 
     let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
     let client = async {
-        let bot_user_id = http.get_current_user().await?.id.get();
+        let bot_user_id = UserId(http.get_current_user().await?.id.get());
         ClientBuilder::new_with_http(
             http,
             GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES,

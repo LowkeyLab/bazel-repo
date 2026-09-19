@@ -156,10 +156,10 @@ impl AuditListener for LoggingListener {
                     level(event, outcome),
                     "announcement_attempt_completed",
                     outcome,
-                    "announcement.guild" = *guild,
-                    "announcement.revision" = *revision,
-                    "announcement.channel_id" = *channel_id,
-                    "announcement.configuration_version" = *configuration_version,
+                    "announcement.guild" = guild.0,
+                    "announcement.revision" = revision.0,
+                    "announcement.channel_id" = channel_id.0,
+                    "announcement.configuration_version" = configuration_version.0,
                     "announcement.decision" = decision.as_str(),
                     "operation.stage" = stage.as_str(),
                 );
@@ -185,7 +185,7 @@ impl AuditListener for LoggingListener {
                     "command_completed",
                     outcome,
                     "command.kind" = command.as_str(),
-                    "command.guild" = *guild,
+                    "command.guild" = guild.0,
                     "command.key" = key.as_deref(),
                     "operation.stage" = stage.as_str(),
                     "operation.elapsed_ms" = elapsed_millis(*elapsed),
@@ -204,7 +204,7 @@ impl AuditListener for LoggingListener {
                     "query_completed",
                     outcome,
                     "query.kind" = query.as_str(),
-                    "query.guild" = *guild,
+                    "query.guild" = guild.0,
                     "interaction.id" = *interaction_id,
                     "operation.stage" = stage.as_str(),
                     "operation.elapsed_ms" = elapsed_millis(*elapsed),
@@ -220,7 +220,7 @@ impl AuditListener for LoggingListener {
                     level(event, outcome),
                     "interaction_completed",
                     outcome,
-                    "interaction.guild" = *guild,
+                    "interaction.guild" = guild.map(|id| id.0),
                     "interaction.id" = *interaction_id,
                     "operation.stage" = stage.as_str(),
                 );
@@ -236,8 +236,8 @@ impl AuditListener for LoggingListener {
                     level(event, outcome),
                     "mention_reply_completed",
                     outcome,
-                    "message.guild" = *guild,
-                    "message.channel_id" = *channel_id,
+                    "message.guild" = guild.0,
+                    "message.channel_id" = channel_id.0,
                     "message.id" = *message_id,
                     "operation.stage" = stage.as_str(),
                 );
@@ -251,7 +251,7 @@ impl AuditListener for LoggingListener {
                     level(event, outcome),
                     "grant_failed",
                     outcome,
-                    "grant.guild" = *guild,
+                    "grant.guild" = guild.map(|id| id.0),
                     "operation.stage" = stage.as_str(),
                 );
             }
@@ -264,7 +264,7 @@ impl AuditListener for LoggingListener {
                     level(event, outcome),
                     "registration_completed",
                     outcome,
-                    "registration.guild" = *guild,
+                    "registration.guild" = guild.0,
                     "operation.stage" = stage.as_str(),
                 );
             }
@@ -279,7 +279,7 @@ impl AuditListener for LoggingListener {
                     "lifecycle",
                     outcome,
                     "lifecycle.kind" = kind.as_str(),
-                    "application.id" = *application_id,
+                    "application.id" = application_id.map(|id| id.0),
                     "operation.stage" = stage.as_str(),
                 );
             }

@@ -2,7 +2,12 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+#[path = "types.rs"]
+pub mod types;
+use types::{MarketId, OutcomeIndex, Points, UserId};
+
 mod snowflake {
+    use super::UserId;
     use serde::{Deserialize, Deserializer, Serializer, de::Error, ser::Error as _};
 
     fn parse(value: &str, allow_system: bool) -> Result<u64, &'static str> {
@@ -22,46 +27,49 @@ mod snowflake {
         clippy::trivially_copy_pass_by_ref,
         reason = "Serde serialize_with requires a borrowed field"
     )]
-    pub fn serialize<S: Serializer>(value: &u64, serializer: S) -> Result<S::Ok, S::Error> {
-        if *value == 0 {
+    pub fn serialize<S: Serializer>(value: &UserId, serializer: S) -> Result<S::Ok, S::Error> {
+        if value.0 == 0 {
             return Err(S::Error::custom("event Discord ID must be positive"));
         }
         serializer.serialize_str(&value.to_string())
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<UserId, D::Error> {
         let value = String::deserialize(deserializer)?;
-        parse(&value, false).map_err(D::Error::custom)
+        parse(&value, false).map(UserId).map_err(D::Error::custom)
     }
 
     pub mod actor {
+        use super::UserId;
         use serde::{Deserialize, Deserializer, Serializer, de::Error};
 
         #[expect(
             clippy::trivially_copy_pass_by_ref,
             reason = "Serde serialize_with requires a borrowed field"
         )]
-        pub fn serialize<S: Serializer>(value: &u64, serializer: S) -> Result<S::Ok, S::Error> {
+        pub fn serialize<S: Serializer>(value: &UserId, serializer: S) -> Result<S::Ok, S::Error> {
             serializer.serialize_str(&value.to_string())
         }
 
-        pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {
+        pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<UserId, D::Error> {
             let value = String::deserialize(deserializer)?;
-            super::parse(&value, true).map_err(D::Error::custom)
+            super::parse(&value, true)
+                .map(UserId)
+                .map_err(D::Error::custom)
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Policy {
-    pub amount: i64,
+    pub amount: Points,
     pub interval: i64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Actor {
     #[serde(with = "snowflake::actor")]
-    pub user_id: u64,
+    pub user_id: UserId,
     pub moderator: bool,
     pub bot: bool,
 }
@@ -70,76 +78,79 @@ pub struct Actor {
 pub enum Command {
     Join,
     Create {
-        id: String,
+        id: MarketId,
         question: String,
         options: Vec<String>,
         closes_at: i64,
     },
     Bet {
-        id: String,
-        outcome: usize,
-        amount: i64,
+        id: MarketId,
+        outcome: OutcomeIndex,
+        amount: Points,
     },
     Resolve {
-        id: String,
-        outcome: usize,
+        id: MarketId,
+        outcome: OutcomeIndex,
     },
     Cancel {
-        id: String,
+        id: MarketId,
     },
     Grant {
         #[serde(with = "snowflake")]
-        user_id: u64,
+        user_id: UserId,
     },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct State {
     pub policy: Option<Policy>,
-    pub accounts: BTreeMap<u64, Account>,
-    pub markets: BTreeMap<String, Market>,
+    pub accounts: BTreeMap<UserId, Account>,
+    pub markets: BTreeMap<MarketId, Market>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Account {
-    pub balance: i64,
+    pub balance: Points,
     pub next_grant: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Market {
     #[serde(with = "snowflake")]
-    pub creator: u64,
+    pub creator: UserId,
     pub question: String,
     pub options: Vec<String>,
     pub closes_at: i64,
     pub created_at: i64,
     pub status: Status,
     pub bets: Vec<Bet>,
-    pub total_staked: i64,
+    pub total_staked: Points,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Status {
     Open,
-    Resolved { outcome: usize, refunded: bool },
+    Resolved {
+        outcome: OutcomeIndex,
+        refunded: bool,
+    },
     Cancelled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bet {
     #[serde(with = "snowflake")]
-    pub user_id: u64,
-    pub outcome: usize,
-    pub amount: i64,
+    pub user_id: UserId,
+    pub outcome: OutcomeIndex,
+    pub amount: Points,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Allocation {
     #[serde(with = "snowflake")]
-    pub user_id: u64,
-    pub amount: i64,
+    pub user_id: UserId,
+    pub amount: Points,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -153,53 +164,53 @@ pub enum GrantReason {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Event {
     GuildEconomyInitialized {
-        amount: i64,
+        amount: Points,
         interval: i64,
     },
     MemberEnrolled {
         #[serde(with = "snowflake")]
-        user_id: u64,
+        user_id: UserId,
         enrolled_at: i64,
     },
     PointsGranted {
         #[serde(with = "snowflake")]
-        user_id: u64,
+        user_id: UserId,
         reason: GrantReason,
-        amount: i64,
+        amount: Points,
         from_due: i64,
         through_due: i64,
         next_grant: i64,
     },
     MarketCreated {
-        id: String,
+        id: MarketId,
         #[serde(with = "snowflake")]
-        creator: u64,
+        creator: UserId,
         question: String,
         options: Vec<String>,
         created_at: i64,
         closes_at: i64,
     },
     BetPlaced {
-        id: String,
+        id: MarketId,
         #[serde(with = "snowflake")]
-        user_id: u64,
-        outcome: usize,
-        amount: i64,
+        user_id: UserId,
+        outcome: OutcomeIndex,
+        amount: Points,
         accepted_at: i64,
     },
     MarketResolved {
-        id: String,
-        outcome: usize,
+        id: MarketId,
+        outcome: OutcomeIndex,
         #[serde(with = "snowflake")]
-        resolver: u64,
+        resolver: UserId,
         settled_at: i64,
         payouts: Vec<Allocation>,
         refunded: bool,
     },
     MarketCancelled {
-        id: String,
+        id: MarketId,
         #[serde(with = "snowflake")]
-        moderator: u64,
+        moderator: UserId,
         cancelled_at: i64,
         refunds: Vec<Allocation>,
     },
@@ -249,7 +260,7 @@ pub enum DomainError {
 }
 
 fn positive_policy(policy: Policy) -> Result<(), DomainError> {
-    if policy.amount <= 0 || policy.interval <= 0 {
+    if policy.amount <= Points(0) || policy.interval <= 0 {
         return Err(DomainError::Invalid("grant policy must be positive"));
     }
     Ok(())
@@ -259,12 +270,16 @@ fn checked_add(a: i64, b: i64) -> Result<i64, DomainError> {
     a.checked_add(b).ok_or(DomainError::Overflow)
 }
 
+fn checked_points_add(a: Points, b: Points) -> Result<Points, DomainError> {
+    checked_add(a.0, b.0).map(Points)
+}
+
 fn checked_mul(a: i64, b: i64) -> Result<i64, DomainError> {
     a.checked_mul(b).ok_or(DomainError::Overflow)
 }
 
-fn valid_market_id(id: &str) -> bool {
-    let bytes = id.as_bytes();
+fn valid_market_id(id: &MarketId) -> bool {
+    let bytes = id.0.as_bytes();
     bytes.len() == 36
         && bytes.iter().enumerate().all(|(index, byte)| {
             if [8, 13, 18, 23].contains(&index) {
@@ -294,42 +309,45 @@ fn valid_market(question: &str, options: &[String]) -> Result<(), DomainError> {
     Ok(())
 }
 
-fn pool(market: &Market) -> Result<i64, DomainError> {
-    if market.total_staked < 0 {
+fn pool(market: &Market) -> Result<Points, DomainError> {
+    if market.total_staked < Points(0) {
         return Err(DomainError::Invalid("negative market pool"));
     }
     Ok(market.total_staked)
 }
 
-fn stakes(market: &Market, outcome: Option<usize>) -> Result<BTreeMap<u64, i64>, DomainError> {
+fn stakes(
+    market: &Market,
+    outcome: Option<OutcomeIndex>,
+) -> Result<BTreeMap<UserId, Points>, DomainError> {
     let mut totals = BTreeMap::new();
     for bet in &market.bets {
         if outcome.is_none_or(|selected| selected == bet.outcome) {
-            let old = totals.get(&bet.user_id).copied().unwrap_or(0);
-            totals.insert(bet.user_id, checked_add(old, bet.amount)?);
+            let old = totals.get(&bet.user_id).copied().unwrap_or(Points(0));
+            totals.insert(bet.user_id, checked_points_add(old, bet.amount)?);
         }
     }
     Ok(totals)
 }
 
-fn allocations(totals: BTreeMap<u64, i64>) -> Vec<Allocation> {
+fn allocations(totals: BTreeMap<UserId, Points>) -> Vec<Allocation> {
     totals
         .into_iter()
         .map(|(user_id, amount)| Allocation { user_id, amount })
         .collect()
 }
 
-fn payouts(market: &Market, outcome: usize) -> Result<(Vec<Allocation>, bool), DomainError> {
+fn payouts(market: &Market, outcome: OutcomeIndex) -> Result<(Vec<Allocation>, bool), DomainError> {
     let winners = stakes(market, Some(outcome))?;
     if winners.is_empty() {
         return Ok((allocations(stakes(market, None)?), true));
     }
-    let total_pool = i128::from(pool(market)?);
-    let total_winning_stake: i128 = winners.values().map(|stake| i128::from(*stake)).sum();
-    let mut entries: Vec<(u64, i64, i128)> = winners
+    let total_pool = i128::from(pool(market)?.0);
+    let total_winning_stake: i128 = winners.values().map(|stake| i128::from(stake.0)).sum();
+    let mut entries: Vec<(UserId, i64, i128)> = winners
         .into_iter()
         .map(|(user_id, stake)| {
-            let numerator = total_pool * i128::from(stake);
+            let numerator = total_pool * i128::from(stake.0);
             let base = i64::try_from(numerator / total_winning_stake)
                 .map_err(|_| DomainError::Overflow)?;
             Ok((user_id, base, numerator % total_winning_stake))
@@ -345,7 +363,10 @@ fn payouts(market: &Market, outcome: usize) -> Result<(Vec<Allocation>, bool), D
     Ok((
         entries
             .into_iter()
-            .map(|(user_id, amount, _)| Allocation { user_id, amount })
+            .map(|(user_id, amount, _)| Allocation {
+                user_id,
+                amount: Points(amount),
+            })
             .collect(),
         false,
     ))
@@ -387,7 +408,7 @@ pub fn decide(
             outcome,
             amount,
         } => {
-            if actor.bot || actor.user_id == 0 {
+            if actor.bot || actor.user_id == UserId(0) {
                 return Err(DomainError::Invalid("bots cannot bet"));
             }
             let account = state
@@ -401,13 +422,13 @@ pub fn decide(
             if market.status != Status::Open || now >= market.closes_at || now < market.created_at {
                 return Err(DomainError::Invalid("market is not open for betting"));
             }
-            if *outcome >= market.options.len() || *amount <= 0 {
+            if outcome.0 >= market.options.len() || *amount <= Points(0) {
                 return Err(DomainError::Invalid("invalid outcome or stake"));
             }
             if *amount > account.balance {
                 return Err(DomainError::Invalid("insufficient points"));
             }
-            checked_add(pool(market)?, *amount)?;
+            checked_points_add(pool(market)?, *amount)?;
             finish(
                 state,
                 vec![Event::BetPlaced {
@@ -419,13 +440,13 @@ pub fn decide(
                 }],
                 format!(
                     "Staked {amount} points on {}. Remaining balance: {} points.",
-                    market.options[*outcome],
-                    account.balance - amount
+                    market.options[outcome.0],
+                    account.balance.0 - amount.0
                 ),
             )
         }
         Command::Resolve { id, outcome } => {
-            if !actor.moderator || actor.bot || actor.user_id == 0 {
+            if !actor.moderator || actor.bot || actor.user_id == UserId(0) {
                 return Err(DomainError::Invalid("moderator required"));
             }
             let market = state
@@ -435,7 +456,7 @@ pub fn decide(
             if market.status != Status::Open || now < market.closes_at {
                 return Err(DomainError::Invalid("market is not ready to resolve"));
             }
-            if *outcome >= market.options.len() {
+            if outcome.0 >= market.options.len() {
                 return Err(DomainError::Invalid("invalid outcome"));
             }
             let (payouts, refunded) = payouts(market, *outcome)?;
@@ -463,11 +484,11 @@ pub fn decide(
 
 fn recorded_allocations(
     entries: &[Allocation],
-    accounts: &BTreeMap<u64, Account>,
-) -> Result<BTreeMap<u64, i64>, DomainError> {
+    accounts: &BTreeMap<UserId, Account>,
+) -> Result<BTreeMap<UserId, Points>, DomainError> {
     let mut recorded = BTreeMap::new();
     for allocation in entries {
-        if allocation.amount <= 0
+        if allocation.amount <= Points(0)
             || !accounts.contains_key(&allocation.user_id)
             || recorded
                 .insert(allocation.user_id, allocation.amount)
@@ -480,14 +501,14 @@ fn recorded_allocations(
 }
 
 fn credit_allocations(
-    accounts: &mut BTreeMap<u64, Account>,
+    accounts: &mut BTreeMap<UserId, Account>,
     entries: &[Allocation],
 ) -> Result<(), DomainError> {
     for allocation in entries {
         let account = accounts
             .get_mut(&allocation.user_id)
             .ok_or(DomainError::Invalid("unknown allocation member"))?;
-        account.balance = checked_add(account.balance, allocation.amount)?;
+        account.balance = checked_points_add(account.balance, allocation.amount)?;
     }
     Ok(())
 }
@@ -509,13 +530,16 @@ fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
             user_id,
             enrolled_at,
         } => {
-            if state.policy.is_none() || *user_id == 0 || state.accounts.contains_key(user_id) {
+            if state.policy.is_none()
+                || *user_id == UserId(0)
+                || state.accounts.contains_key(user_id)
+            {
                 return Err(DomainError::Invalid("invalid enrollment transition"));
             }
             state.accounts.insert(
                 *user_id,
                 Account {
-                    balance: 0,
+                    balance: Points(0),
                     next_grant: *enrolled_at,
                 },
             );
@@ -618,7 +642,7 @@ fn decide_join(
     now: i64,
     defaults: Policy,
 ) -> Result<Decision, DomainError> {
-    if actor.bot || actor.user_id == 0 {
+    if actor.bot || actor.user_id == UserId(0) {
         return Err(DomainError::Invalid("bots and system users cannot enroll"));
     }
     if state.accounts.contains_key(&actor.user_id) {
@@ -656,10 +680,10 @@ fn decide_join(
 fn decide_grant(
     state: &State,
     actor: Actor,
-    user_id: u64,
+    user_id: UserId,
     now: i64,
 ) -> Result<Decision, DomainError> {
-    if actor.user_id != 0 {
+    if actor.user_id != UserId(0) {
         return Err(DomainError::Invalid("grants require the system actor"));
     }
     let policy = state
@@ -676,7 +700,7 @@ fn decide_grant(
     let count128 =
         (i128::from(now) - i128::from(account.next_grant)) / i128::from(policy.interval) + 1;
     let count = i64::try_from(count128).map_err(|_| DomainError::Overflow)?;
-    let amount = checked_mul(policy.amount, count)?;
+    let amount = Points(checked_mul(policy.amount.0, count)?);
     let through_due = checked_add(account.next_grant, checked_mul(policy.interval, count - 1)?)?;
     let next_grant = checked_add(through_due, policy.interval)?;
     finish(
@@ -693,8 +717,13 @@ fn decide_grant(
     )
 }
 
-fn decide_cancel(state: &State, actor: Actor, id: &str, now: i64) -> Result<Decision, DomainError> {
-    if !actor.moderator || actor.bot || actor.user_id == 0 {
+fn decide_cancel(
+    state: &State,
+    actor: Actor,
+    id: &MarketId,
+    now: i64,
+) -> Result<Decision, DomainError> {
+    if !actor.moderator || actor.bot || actor.user_id == UserId(0) {
         return Err(DomainError::Invalid("moderator required"));
     }
     let market = state
@@ -718,9 +747,9 @@ fn decide_cancel(state: &State, actor: Actor, id: &str, now: i64) -> Result<Deci
 
 fn apply_grant(
     state: &mut State,
-    user_id: u64,
+    user_id: UserId,
     reason: GrantReason,
-    amount: i64,
+    amount: Points,
     from_due: i64,
     through_due: i64,
     next_grant: i64,
@@ -733,7 +762,7 @@ fn apply_grant(
         .accounts
         .get_mut(&user_id)
         .ok_or(DomainError::Invalid("grant to unknown member"))?;
-    if from_due != account.next_grant || through_due < from_due || amount <= 0 {
+    if from_due != account.next_grant || through_due < from_due || amount <= Points(0) {
         return Err(DomainError::Invalid("invalid grant schedule"));
     }
     let distance = i128::from(through_due) - i128::from(from_due);
@@ -743,21 +772,21 @@ fn apply_grant(
     let count = i64::try_from(distance / i128::from(policy.interval) + 1)
         .map_err(|_| DomainError::Overflow)?;
     if (reason == GrantReason::Initial && count != 1)
-        || amount != checked_mul(policy.amount, count)?
+        || amount != Points(checked_mul(policy.amount.0, count)?)
         || next_grant != checked_add(through_due, policy.interval)?
     {
         return Err(DomainError::Invalid("grant facts disagree with policy"));
     }
-    account.balance = checked_add(account.balance, amount)?;
+    account.balance = checked_points_add(account.balance, amount)?;
     account.next_grant = next_grant;
     Ok(())
 }
 
 fn apply_resolution(
     state: &mut State,
-    id: &str,
-    outcome: usize,
-    resolver: u64,
+    id: &MarketId,
+    outcome: OutcomeIndex,
+    resolver: UserId,
     settled_at: i64,
     payouts: &[Allocation],
     refunded: bool,
@@ -767,9 +796,9 @@ fn apply_resolution(
         .get(id)
         .ok_or(DomainError::Invalid("unknown market"))?;
     if market.status != Status::Open
-        || outcome >= market.options.len()
+        || outcome.0 >= market.options.len()
         || settled_at < market.closes_at
-        || resolver == 0
+        || resolver == UserId(0)
     {
         return Err(DomainError::Invalid("invalid resolution transition"));
     }
@@ -788,9 +817,9 @@ fn apply_resolution(
         {
             return Err(DomainError::Invalid("invalid winning allocations"));
         }
-        let allocated = recorded
-            .values()
-            .try_fold(0, |total, amount| checked_add(total, *amount))?;
+        let allocated = recorded.values().try_fold(Points(0), |total, amount| {
+            checked_points_add(total, *amount)
+        })?;
         if allocated != pool(market)? {
             return Err(DomainError::Invalid("allocations do not conserve the pool"));
         }
@@ -802,8 +831,8 @@ fn apply_resolution(
 
 fn apply_cancellation(
     state: &mut State,
-    id: &str,
-    moderator: u64,
+    id: &MarketId,
+    moderator: UserId,
     refunds: &[Allocation],
 ) -> Result<(), DomainError> {
     let market = state
@@ -811,7 +840,7 @@ fn apply_cancellation(
         .get(id)
         .ok_or(DomainError::Invalid("unknown market"))?;
     if market.status != Status::Open
-        || moderator == 0
+        || moderator == UserId(0)
         || recorded_allocations(refunds, &state.accounts)? != stakes(market, None)?
     {
         return Err(DomainError::Invalid("invalid cancellation transition"));
@@ -824,13 +853,13 @@ fn apply_cancellation(
 fn decide_create(
     state: &State,
     actor: Actor,
-    id: &str,
+    id: &MarketId,
     question: &str,
     options: &[String],
     closes_at: i64,
     now: i64,
 ) -> Result<Decision, DomainError> {
-    if actor.bot || actor.user_id == 0 {
+    if actor.bot || actor.user_id == UserId(0) {
         return Err(DomainError::Invalid("bots cannot create markets"));
     }
     if !state.accounts.contains_key(&actor.user_id) {
@@ -859,8 +888,8 @@ fn decide_create(
 
 fn apply_market_creation(
     state: &mut State,
-    id: &str,
-    creator: u64,
+    id: &MarketId,
+    creator: UserId,
     question: &str,
     options: &[String],
     created_at: i64,
@@ -885,7 +914,7 @@ fn apply_market_creation(
             created_at,
             status: Status::Open,
             bets: Vec::new(),
-            total_staked: 0,
+            total_staked: Points(0),
         },
     );
     Ok(())
@@ -893,10 +922,10 @@ fn apply_market_creation(
 
 fn apply_bet(
     state: &mut State,
-    id: &str,
-    user_id: u64,
-    outcome: usize,
-    amount: i64,
+    id: &MarketId,
+    user_id: UserId,
+    outcome: OutcomeIndex,
+    amount: Points,
     accepted_at: i64,
 ) -> Result<(), DomainError> {
     let market = state
@@ -906,12 +935,12 @@ fn apply_bet(
     if market.status != Status::Open
         || accepted_at < market.created_at
         || accepted_at >= market.closes_at
-        || outcome >= market.options.len()
-        || amount <= 0
+        || outcome.0 >= market.options.len()
+        || amount <= Points(0)
     {
         return Err(DomainError::Invalid("invalid bet transition"));
     }
-    let next_pool = checked_add(pool(market)?, amount)?;
+    let next_pool = checked_points_add(pool(market)?, amount)?;
     let account = state
         .accounts
         .get_mut(&user_id)
@@ -919,7 +948,7 @@ fn apply_bet(
     if account.balance < amount {
         return Err(DomainError::Invalid("insufficient points"));
     }
-    account.balance -= amount;
+    account.balance = Points(account.balance.0 - amount.0);
     let market = state.markets.get_mut(id).unwrap();
     market.total_staked = next_pool;
     market.bets.push(Bet {

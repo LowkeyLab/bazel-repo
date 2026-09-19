@@ -1,6 +1,7 @@
 use std::{env, sync::Arc};
 
 use anyhow::{Result, anyhow};
+use prediction_bot::types::{ApplicationId, Points};
 use prediction_bot::{
     audit::{
         AuditEvent, Failure, FailureCategory, LifecycleKind, Outcome, SharedAudit, Stage,
@@ -59,7 +60,7 @@ fn failure(category: FailureCategory) -> Outcome {
 fn lifecycle(
     audit: &SharedAudit,
     kind: LifecycleKind,
-    application_id: Option<u64>,
+    application_id: Option<ApplicationId>,
     stage: Stage,
     outcome: Outcome,
 ) {
@@ -83,7 +84,7 @@ fn configured<T>(audit: &SharedAudit, kind: LifecycleKind, result: Result<T>) ->
     })
 }
 
-async fn application_id(token: &str) -> Result<u64, BootstrapFailure> {
+async fn application_id(token: &str) -> Result<ApplicationId, BootstrapFailure> {
     let app = Http::new(token)
         .get_current_application_info()
         .await
@@ -93,11 +94,11 @@ async fn application_id(token: &str) -> Result<u64, BootstrapFailure> {
         })?;
     let expected = match env::var("DISCORD_APPLICATION_ID") {
         Ok(value) if !value.trim().is_empty() => {
-            let id: u64 = value.parse().map_err(|_| BootstrapFailure {
+            let id: ApplicationId = value.parse().map_err(|_| BootstrapFailure {
                 outcome: failure(FailureCategory::Configuration),
                 error: anyhow!("DISCORD_APPLICATION_ID must be a positive integer"),
             })?;
-            if id == 0 {
+            if id.0 == 0 {
                 return Err(BootstrapFailure {
                     outcome: failure(FailureCategory::Configuration),
                     error: anyhow!("DISCORD_APPLICATION_ID must be a positive integer"),
@@ -113,9 +114,11 @@ async fn application_id(token: &str) -> Result<u64, BootstrapFailure> {
             });
         }
     };
-    discord::verify_application_id(app.id.get(), expected).map_err(|reason| BootstrapFailure {
-        outcome: failure(FailureCategory::Configuration),
-        error: anyhow!("{reason}"),
+    discord::verify_application_id(ApplicationId(app.id.get()), expected).map_err(|reason| {
+        BootstrapFailure {
+            outcome: failure(FailureCategory::Configuration),
+            error: anyhow!("{reason}"),
+        }
     })
 }
 
@@ -192,7 +195,7 @@ async fn main() -> Result<()> {
         amount: configured(
             &audit,
             LifecycleKind::Startup,
-            positive("GRANT_AMOUNT", 100),
+            positive("GRANT_AMOUNT", 100).map(Points),
         )?,
         interval: configured(
             &audit,
@@ -213,7 +216,7 @@ async fn main() -> Result<()> {
             return Err(error.error);
         }
     };
-    if app_id == 0 {
+    if app_id.0 == 0 {
         lifecycle(
             &audit,
             LifecycleKind::Startup,

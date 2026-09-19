@@ -6,6 +6,7 @@ use googletest::{
     },
 };
 use prediction_bot::store::{Store, StoreError, migrate};
+use prediction_bot::types::{ChannelId, GuildId, OutcomeIndex, Points, UserId};
 use prediction_bot::{
     announcements::ConfigurationChange,
     audit::{AuditEvent, AuditListener, Outcome, Rejection, SharedAudit, Stage},
@@ -42,9 +43,9 @@ async fn fixture_with_audit(audit: SharedAudit) -> (ContainerAsync<Postgres>, Ar
         container,
         Arc::new(Store::new_with_audit(
             pool,
-            42,
+            42.into(),
             Policy {
-                amount: 100,
+                amount: Points(100),
                 interval: 86_400,
             },
             audit,
@@ -67,7 +68,7 @@ fn recording_fixture() -> (SharedAudit, Arc<Recorder>) {
 }
 fn player(id: u64) -> Actor {
     Actor {
-        user_id: id,
+        user_id: id.into(),
         moderator: false,
         bot: false,
     }
@@ -86,19 +87,19 @@ fn create(id: &str) -> Command {
 async fn enrollment_events_are_individually_revisioned_and_replay_after_restart() {
     let (_container, store) = fixture().await;
     let response = store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     assert_that!(
         store
-            .execute_at(1, "discord:1", player(7), &Command::Join, 2000)
+            .execute_at(1.into(), "discord:1", player(7), &Command::Join, 2000)
             .await
             .unwrap(),
         eq(&response)
     );
-    let before = store.view(1).await.unwrap();
-    assert_that!(before.state.accounts[&7].balance, eq(100));
-    assert_that!(before.revision, eq(3)); // initialize, enroll, grant: three rows, not one batch revision
+    let before = store.view(1.into()).await.unwrap();
+    assert_that!(before.state.accounts[&UserId(7)].balance.0, eq(100));
+    assert_that!(before.revision.0, eq(3)); // initialize, enroll, grant: three rows, not one batch revision
     let revisions: Vec<i64> = sqlx::query_scalar(
         "SELECT revision FROM prediction_events WHERE guild_id='1' ORDER BY revision",
     )
@@ -108,19 +109,22 @@ async fn enrollment_events_are_individually_revisioned_and_replay_after_restart(
     assert_that!(revisions, eq(&vec![1, 2, 3]));
     let fresh = Store::new(
         store.pool.clone(),
-        42,
+        42.into(),
         Policy {
-            amount: 999,
+            amount: Points(999),
             interval: 1,
         },
     );
-    assert_that!(fresh.view(1).await.unwrap().state, eq(&before.state));
-    assert_that!(fresh.view(2).await.unwrap().state.accounts, is_empty());
+    assert_that!(fresh.view(1.into()).await.unwrap().state, eq(&before.state));
+    assert_that!(
+        fresh.view(2.into()).await.unwrap().state.accounts,
+        is_empty()
+    );
     store
-        .execute_at(1, "discord:2", player(7), &Command::Join, 2000)
+        .execute_at(1.into(), "discord:2", player(7), &Command::Join, 2000)
         .await
         .unwrap();
-    assert_that!(store.view(1).await.unwrap().revision, eq(3)); // accepted no-op consumes no event revision
+    assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(3)); // accepted no-op consumes no event revision
 }
 
 #[googletest::test]
@@ -129,21 +133,21 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
     let (_container, store) = fixture().await;
     let market = uuid::Uuid::new_v4().to_string();
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     store
-        .execute_at(1, "discord:2", player(7), &create(&market), 1000)
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
         .await
         .unwrap();
     let bet = Command::Bet {
-        id: market.clone(),
-        outcome: 0,
-        amount: 80,
+        id: market.clone().into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(80),
     };
     let (a, b) = tokio::join!(
-        store.execute_at(1, "discord:3", player(7), &bet, 1100),
-        store.execute_at(1, "discord:4", player(7), &bet, 1100)
+        store.execute_at(1.into(), "discord:3", player(7), &bet, 1100),
+        store.execute_at(1.into(), "discord:4", player(7), &bet, 1100)
     );
     assert_that!(a.is_ok(), ne(b.is_ok()));
     let (key, original) = if let Ok(receipt) = a {
@@ -156,17 +160,17 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
     assert_that!(original, contains_substring("20 points"));
     // A redelivery after the market closes must replay the original receipt.
     let repeated = store
-        .execute_at(1, key, player(7), &bet, 2100)
+        .execute_at(1.into(), key, player(7), &bet, 2100)
         .await
         .unwrap();
     assert_that!(repeated, eq(&original));
-    let view = store.view(1).await.unwrap();
-    assert_that!(view.state.accounts[&7].balance, eq(20));
-    assert_that!(view.state.markets[&market].bets.len(), eq(1));
-    assert_that!(view.revision, eq(5));
+    let view = store.view(1.into()).await.unwrap();
+    assert_that!(view.state.accounts[&UserId(7)].balance.0, eq(20));
+    assert_that!(view.state.markets[market.as_str()].bets.len(), eq(1));
+    assert_that!(view.revision.0, eq(5));
     assert_that!(
         store
-            .execute_at(2, "discord:5", player(7), &bet, 1200)
+            .execute_at(2.into(), "discord:5", player(7), &bet, 1200)
             .await,
         err(anything())
     );
@@ -177,37 +181,37 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
 async fn premature_grant_can_retry_when_due_and_only_credit_once() {
     let (_container, store) = fixture().await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
-    let command = Command::Grant { user_id: 7 };
+    let command = Command::Grant { user_id: UserId(7) };
     let key = "grant:7:87400";
 
     // Discovery saw the deadline, but the clock moved back before execution.
     store
-        .execute_at(1, key, player(0), &command, 87_399)
+        .execute_at(1.into(), key, player(0), &command, 87_399)
         .await
         .unwrap();
-    let early = store.view(1).await.unwrap();
-    assert_that!(early.state.accounts[&7].balance, eq(100));
-    assert_that!(early.state.accounts[&7].next_grant, eq(87_400));
+    let early = store.view(1.into()).await.unwrap();
+    assert_that!(early.state.accounts[&UserId(7)].balance.0, eq(100));
+    assert_that!(early.state.accounts[&UserId(7)].next_grant, eq(87_400));
 
     store
-        .execute_at(1, key, player(0), &command, 87_400)
+        .execute_at(1.into(), key, player(0), &command, 87_400)
         .await
         .unwrap();
-    let due = store.view(1).await.unwrap();
-    assert_that!(due.state.accounts[&7].balance, eq(200));
-    assert_that!(due.state.accounts[&7].next_grant, eq(173_800));
+    let due = store.view(1.into()).await.unwrap();
+    assert_that!(due.state.accounts[&UserId(7)].balance.0, eq(200));
+    assert_that!(due.state.accounts[&UserId(7)].next_grant, eq(173_800));
 
     // Redelivery at the next deadline must still replay the successful grant.
     store
-        .execute_at(1, key, player(0), &command, 173_800)
+        .execute_at(1.into(), key, player(0), &command, 173_800)
         .await
         .unwrap();
-    let duplicate = store.view(1).await.unwrap();
-    assert_that!(duplicate.state.accounts[&7].balance, eq(200));
-    assert_that!(duplicate.state.accounts[&7].next_grant, eq(173_800));
+    let duplicate = store.view(1.into()).await.unwrap();
+    assert_that!(duplicate.state.accounts[&UserId(7)].balance.0, eq(200));
+    assert_that!(duplicate.state.accounts[&UserId(7)].next_grant, eq(173_800));
 }
 
 #[googletest::test]
@@ -215,60 +219,64 @@ async fn premature_grant_can_retry_when_due_and_only_credit_once() {
 async fn workers_grant_each_interval_once_and_settlement_credits_once() {
     let (_container, store) = fixture().await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     let system = Actor {
-        user_id: 0,
+        user_id: UserId(0),
         moderator: false,
         bot: false,
     };
-    let cmd = Command::Grant { user_id: 7 };
+    let cmd = Command::Grant { user_id: UserId(7) };
     let (a, b) = tokio::join!(
-        store.execute_at(1, "grant:7:87400", system, &cmd, 173_800),
-        store.execute_at(1, "grant:7:87400", system, &cmd, 173_800)
+        store.execute_at(1.into(), "grant:7:87400", system, &cmd, 173_800),
+        store.execute_at(1.into(), "grant:7:87400", system, &cmd, 173_800)
     );
     a.unwrap();
     b.unwrap();
     assert_that!(
-        store.view(1).await.unwrap().state.accounts[&7].balance,
+        store.view(1.into()).await.unwrap().state.accounts[&UserId(7)]
+            .balance
+            .0,
         eq(300)
     );
     let market = uuid::Uuid::new_v4().to_string();
     store
-        .execute_at(1, "discord:2", player(7), &create(&market), 1000)
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
         .await
         .unwrap();
     store
         .execute_at(
-            1,
+            1.into(),
             "discord:3",
             player(7),
             &Command::Bet {
-                id: market.clone(),
-                outcome: 0,
-                amount: 30,
+                id: market.clone().into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(30),
             },
             1100,
         )
         .await
         .unwrap();
     let moderator = Actor {
-        user_id: 9,
+        user_id: UserId(9),
         moderator: true,
         bot: false,
     };
     let settle = Command::Resolve {
-        id: market,
-        outcome: 0,
+        id: market.into(),
+        outcome: OutcomeIndex(0),
     };
     let (a, b) = tokio::join!(
-        store.execute_at(1, "discord:4", moderator, &settle, 2000),
-        store.execute_at(1, "discord:5", moderator, &settle, 2000)
+        store.execute_at(1.into(), "discord:4", moderator, &settle, 2000),
+        store.execute_at(1.into(), "discord:5", moderator, &settle, 2000)
     );
     assert_that!(a.is_ok(), ne(b.is_ok()));
     assert_that!(
-        store.view(1).await.unwrap().state.accounts[&7].balance,
+        store.view(1.into()).await.unwrap().state.accounts[&UserId(7)]
+            .balance
+            .0,
         eq(300)
     );
 }
@@ -282,12 +290,15 @@ async fn failed_append_rolls_back_all_events_and_does_not_consume_revisions() {
         .execute(&store.pool).await.unwrap();
     assert_that!(
         store
-            .execute_at(1, "discord:99", player(7), &Command::Join, 1000)
+            .execute_at(1.into(), "discord:99", player(7), &Command::Join, 1000)
             .await,
         err(anything())
     );
-    assert_that!(store.view(1).await.unwrap().revision, eq(0));
-    assert_that!(store.view(1).await.unwrap().state.accounts, is_empty());
+    assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(0));
+    assert_that!(
+        store.view(1.into()).await.unwrap().state.accounts,
+        is_empty()
+    );
     assert_that!(
         recorder.0.lock().unwrap().as_slice(),
         elements_are![matches_pattern!(AuditEvent::CommandCompleted {
@@ -298,10 +309,16 @@ async fn failed_append_rolls_back_all_events_and_does_not_consume_revisions() {
         })]
     );
     store
-        .execute_at(1, "discord:accepted", player(7), &Command::Join, 1000)
+        .execute_at(
+            1.into(),
+            "discord:accepted",
+            player(7),
+            &Command::Join,
+            1000,
+        )
         .await
         .unwrap();
-    assert_that!(store.view(1).await.unwrap().revision, eq(3));
+    assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(3));
 }
 
 #[googletest::test]
@@ -311,7 +328,7 @@ async fn legacy_command_keys_are_accepted_with_omitted_audit_correlation() {
     let (_container, store) = fixture_with_audit(audit).await;
 
     store
-        .execute_at(1, "discord:legacy", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:legacy", player(7), &Command::Join, 1000)
         .await
         .unwrap();
 
@@ -333,23 +350,23 @@ async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
     let (_container, store) = fixture_with_audit(audit).await;
     let market = uuid::Uuid::new_v4().to_string();
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     store
-        .execute_at(1, "discord:2", player(7), &create(&market), 1000)
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
         .await
         .unwrap();
 
     let error = store
         .execute_at(
-            1,
+            1.into(),
             "discord:99",
             player(7),
             &Command::Bet {
-                id: market,
-                outcome: 0,
-                amount: 101,
+                id: market.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(101),
             },
             1100,
         )
@@ -358,7 +375,9 @@ async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
 
     assert_that!(error, matches_pattern!(StoreError::Domain(anything())));
     assert_that!(
-        store.view(1).await.unwrap().state.accounts[&7].balance,
+        store.view(1.into()).await.unwrap().state.accounts[&UserId(7)]
+            .balance
+            .0,
         eq(100)
     );
     let events = recorder.0.lock().unwrap();
@@ -385,7 +404,7 @@ async fn replay_failure_emits_an_operational_command_outcome() {
     let (audit, recorder) = recording_fixture();
     let (_container, store) = fixture_with_audit(audit).await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE guild_id='1' AND revision=2")
@@ -395,7 +414,7 @@ async fn replay_failure_emits_an_operational_command_outcome() {
 
     assert_that!(
         store
-            .execute_at(1, "discord:99", player(8), &Command::Join, 1000)
+            .execute_at(1.into(), "discord:99", player(8), &Command::Join, 1000)
             .await,
         err(anything())
     );
@@ -418,7 +437,7 @@ async fn grant_due_continues_after_a_receipt_failure_and_reports_the_schedule_ke
     for user in [7, 8] {
         store
             .execute_at(
-                1,
+                1.into(),
                 &format!("discord:{user}"),
                 player(user),
                 &Command::Join,
@@ -434,9 +453,9 @@ async fn grant_due_continues_after_a_receipt_failure_and_reports_the_schedule_ke
 
     store.grant_due().await.unwrap();
 
-    let view = store.view(1).await.unwrap();
-    assert_that!(view.state.accounts[&7].balance, eq(100));
-    assert_that!(view.state.accounts[&8].balance, gt(100));
+    let view = store.view(1.into()).await.unwrap();
+    assert_that!(view.state.accounts[&UserId(7)].balance.0, eq(100));
+    assert_that!(view.state.accounts[&UserId(8)].balance.0, gt(100));
     assert_that!(
         recorder.0.lock().unwrap().iter().find(|event| matches!(
             event,
@@ -456,11 +475,11 @@ async fn grant_due_reports_corrupt_guild_reconstruction_and_continues() {
     let (audit, recorder) = recording_fixture();
     let (_container, store) = fixture_with_audit(audit).await;
     store
-        .execute_at(1, "discord:7", player(7), &Command::Join, -86_400)
+        .execute_at(1.into(), "discord:7", player(7), &Command::Join, -86_400)
         .await
         .unwrap();
     store
-        .execute_at(2, "discord:8", player(8), &Command::Join, -86_400)
+        .execute_at(2.into(), "discord:8", player(8), &Command::Join, -86_400)
         .await
         .unwrap();
     sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE guild_id='1' AND revision=2")
@@ -471,16 +490,19 @@ async fn grant_due_reports_corrupt_guild_reconstruction_and_continues() {
     store.grant_due().await.unwrap();
 
     assert_that!(
-        store.view(2).await.unwrap().state.accounts[&8].balance,
+        store.view(2.into()).await.unwrap().state.accounts[&UserId(8)]
+            .balance
+            .0,
         gt(100)
     );
     assert_that!(
-        recorder
-            .0
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|event| matches!(event, AuditEvent::GrantFailed { guild: Some(1), .. })),
+        recorder.0.lock().unwrap().iter().find(|event| matches!(
+            event,
+            AuditEvent::GrantFailed {
+                guild: Some(GuildId(1)),
+                ..
+            }
+        )),
         some(matches_pattern!(AuditEvent::GrantFailed {
             outcome: matches_pattern!(Outcome::Failed(anything())),
             stage: eq(&Stage::Reconstruct),
@@ -520,34 +542,36 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         .unwrap();
     let store = Store::new(
         runtime.clone(),
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
     );
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     store
         .configure_announcements(
-            1,
+            1.into(),
             "discord:2",
             Actor {
-                user_id: 9,
+                user_id: UserId(9),
                 moderator: true,
                 bot: false,
             },
-            ConfigurationChange::Set { channel_id: 20 },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
         )
         .await
         .unwrap();
     let status = store
         .announcement_status(
-            1,
+            1.into(),
             Actor {
-                user_id: 9,
+                user_id: UserId(9),
                 moderator: true,
                 bot: false,
             },
@@ -555,7 +579,7 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         .await
         .unwrap();
     assert_that!(status.enabled, eq(true));
-    assert_that!(status.channel_id, eq(Some(20)));
+    assert_that!(status.channel_id, eq(Some(ChannelId(20))));
     sqlx::query("INSERT INTO prediction_announcement_outbox(guild_id,revision,snapshot_version,snapshot,next_attempt_at) VALUES ('1',1,1,'{}'::jsonb,0)")
         .execute(&runtime)
         .await
@@ -588,7 +612,9 @@ async fn runtime_role_can_append_but_cannot_change_history() {
         );
     }
     assert_that!(
-        owner.view(1).await.unwrap().state.accounts[&7].balance,
+        owner.view(1.into()).await.unwrap().state.accounts[&UserId(7)]
+            .balance
+            .0,
         eq(100)
     );
 }
@@ -609,9 +635,9 @@ async fn startup_rejects_a_missing_announcements_migration_record() {
 
     let error = Store::connect(
         &runtime_url,
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
     )
@@ -630,11 +656,11 @@ async fn startup_rejects_a_missing_announcements_migration_record() {
 async fn corrupt_or_unsupported_history_is_not_served_as_a_valid_projection() {
     let (_container, store) = fixture().await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{specversion}', '\"9.0\"') WHERE revision=2").execute(&store.pool).await.unwrap();
-    assert_that!(store.view(1).await, err(anything()));
+    assert_that!(store.view(1.into()).await, err(anything()));
 }
 
 #[googletest::test]
@@ -642,11 +668,11 @@ async fn corrupt_or_unsupported_history_is_not_served_as_a_valid_projection() {
 async fn replay_requires_the_initial_grant_to_belong_to_its_enrollment() {
     let (_container, store) = fixture().await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     sqlx::query("UPDATE prediction_events SET event=jsonb_set(event, '{data,reason}', '\"periodic\"') WHERE revision=3").execute(&store.pool).await.unwrap();
-    assert_that!(store.view(1).await, err(anything()));
+    assert_that!(store.view(1.into()).await, err(anything()));
 }
 
 #[googletest::test]
@@ -654,7 +680,7 @@ async fn replay_requires_the_initial_grant_to_belong_to_its_enrollment() {
 async fn replay_rejects_receipts_that_disagree_with_their_events() {
     let (_container, store) = fixture().await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     for (corrupt, restore) in [
@@ -673,7 +699,7 @@ async fn replay_rejects_receipts_that_disagree_with_their_events() {
     ] {
         sqlx::query(corrupt).execute(&store.pool).await.unwrap();
         assert_that!(
-            store.view(1).await,
+            store.view(1.into()).await,
             err(anything()),
             "accepted corrupt receipt: {corrupt}"
         );
@@ -697,45 +723,45 @@ async fn bet_racing_resolution_cannot_leave_points_in_a_terminal_pool() {
     let (_container, store) = fixture().await;
     let market = uuid::Uuid::new_v4().to_string();
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     store
-        .execute_at(1, "discord:2", player(7), &create(&market), 1000)
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
         .await
         .unwrap();
     let moderator = Actor {
-        user_id: 9,
+        user_id: UserId(9),
         moderator: true,
         bot: false,
     };
     let bet = Command::Bet {
-        id: market.clone(),
-        outcome: 0,
-        amount: 25,
+        id: market.clone().into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(25),
     };
     let resolve = Command::Resolve {
-        id: market.clone(),
-        outcome: 0,
+        id: market.clone().into(),
+        outcome: OutcomeIndex(0),
     };
     let (bet_result, resolve_result) = tokio::join!(
-        store.execute_at(1, "discord:3", player(7), &bet, 1999),
-        store.execute_at(1, "discord:4", moderator, &resolve, 2000)
+        store.execute_at(1.into(), "discord:3", player(7), &bet, 1999),
+        store.execute_at(1.into(), "discord:4", moderator, &resolve, 2000)
     );
     resolve_result.unwrap();
-    let view = store.view(1).await.unwrap();
-    assert_that!(view.state.accounts[&7].balance, eq(100));
+    let view = store.view(1.into()).await.unwrap();
+    assert_that!(view.state.accounts[&UserId(7)].balance.0, eq(100));
     assert_that!(
-        view.state.markets[&market].bets.len(),
+        view.state.markets[market.as_str()].bets.len(),
         eq(usize::from(bet_result.is_ok()))
     );
     assert_that!(
-        view.state.markets[&market].status,
+        view.state.markets[market.as_str()].status,
         matches_pattern!(prediction_bot::domain::Status::Resolved { .. })
     );
     assert_that!(
         store
-            .execute_at(1, "discord:5", player(7), &bet, 2001)
+            .execute_at(1.into(), "discord:5", player(7), &bet, 2001)
             .await,
         err(anything())
     );
@@ -746,10 +772,10 @@ async fn bet_racing_resolution_cannot_leave_points_in_a_terminal_pool() {
 async fn repeated_migrations_preserve_events_and_login_credentials() {
     let (container, store) = fixture().await;
     store
-        .execute_at(1, "discord:1", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
         .await
         .unwrap();
-    let before = store.view(1).await.unwrap();
+    let before = store.view(1.into()).await.unwrap();
     migrate(&store.pool, "different-password").await.unwrap();
     let versions: Vec<i64> =
         sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success ORDER BY version")
@@ -766,16 +792,19 @@ async fn repeated_migrations_preserve_events_and_login_credentials() {
     let runtime = PgPoolOptions::new().connect_with(options).await.unwrap();
     let restarted = Store::new(
         runtime,
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
     );
-    assert_that!(restarted.view(1).await.unwrap().state, eq(&before.state));
     assert_that!(
-        restarted.view(1).await.unwrap().revision,
-        eq(before.revision)
+        restarted.view(1.into()).await.unwrap().state,
+        eq(&before.state)
+    );
+    assert_that!(
+        restarted.view(1.into()).await.unwrap().revision.0,
+        eq(before.revision.0)
     );
 }
 
@@ -816,7 +845,7 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
     let (audit, recorder) = recording_fixture();
     let (_container, store) = fixture_with_audit(audit).await;
     store
-        .execute_at(1, "discord:101", player(7), &Command::Join, 1000)
+        .execute_at(1.into(), "discord:101", player(7), &Command::Join, 1000)
         .await
         .unwrap();
     let market = uuid::Uuid::new_v4().to_string();
@@ -825,23 +854,30 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
         *closes_at = i64::MAX;
     }
     store
-        .execute_at(1, "discord:102", player(7), &command, 1000)
+        .execute_at(1.into(), "discord:102", player(7), &command, 1000)
         .await
         .unwrap();
     recorder.0.lock().unwrap().clear();
     let transport = TestTransport::default();
     let bet = Command::Bet {
-        id: market.clone(),
-        outcome: 0,
-        amount: 80,
+        id: market.clone().into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(80),
     };
     for _ in 0..2 {
-        prediction_bot::discord::execute_interaction(&transport, &store, 1, player(7), &bet, 123)
-            .await;
+        prediction_bot::discord::execute_interaction(
+            &transport,
+            &store,
+            1.into(),
+            player(7),
+            &bet,
+            123,
+        )
+        .await;
     }
-    let view = store.view(1).await.unwrap();
-    assert_that!(view.state.accounts[&7].balance, eq(20));
-    assert_that!(view.state.markets[&market].bets.len(), eq(1));
+    let view = store.view(1.into()).await.unwrap();
+    assert_that!(view.state.accounts[&UserId(7)].balance.0, eq(20));
+    assert_that!(view.state.markets[market.as_str()].bets.len(), eq(1));
     let receipt: String = sqlx::query_scalar(
         "SELECT response FROM prediction_commands WHERE guild_id='1' AND command_key='discord:123'",
     )
@@ -861,7 +897,7 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
             .filter(|event| matches!(
                 event,
                 AuditEvent::InteractionCompleted {
-                    guild: Some(1),
+                    guild: Some(GuildId(1)),
                     interaction_id: 123,
                     stage: Stage::Deliver,
                     outcome: Outcome::Failed(Failure {
@@ -888,18 +924,21 @@ async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
     prediction_bot::discord::execute_interaction(
         &transport,
         &store,
-        1,
+        1.into(),
         player(7),
         &Command::Join,
         124,
     )
     .await;
-    assert_that!(store.view(1).await.unwrap().state.accounts, is_empty());
+    assert_that!(
+        store.view(1.into()).await.unwrap().state.accounts,
+        is_empty()
+    );
     assert_that!(transport.edits.lock().unwrap().as_slice(), is_empty());
     assert_that!(
         *recorder.0.lock().unwrap(),
         eq(&vec![AuditEvent::InteractionCompleted {
-            guild: Some(1),
+            guild: Some(GuildId(1)),
             interaction_id: 124,
             stage: Stage::Acknowledge,
             outcome: Outcome::Failed(Failure {

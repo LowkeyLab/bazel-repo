@@ -9,6 +9,7 @@ use super::{
     render::render,
     worker::{AttemptOutcome, classify_delivery_failure, classify_http_failure, retry_at},
 };
+use crate::types::UserId;
 
 fn payload(snapshot: SnapshotV1) -> Value {
     serde_json::to_value(render(&snapshot)).expect("announcement message serializes")
@@ -31,7 +32,7 @@ fn creation_renders_saved_details_as_non_pinging_text() {
     let payload = payload(SnapshotV1::Created {
         id: "rain-1".into(),
         question: "Will **rain** ping @everyone?".into(),
-        creator: 42,
+        creator: UserId(42),
         options: vec!["Yes_please".into(), "No | sunshine".into()],
         closes_at: 2_000,
         occurred_at: 1_000,
@@ -101,7 +102,7 @@ fn long_unicode_content_stays_within_discords_utf16_limit() {
     let payload = payload(SnapshotV1::Created {
         id: "kept-id".into(),
         question: "🔮".repeat(1_500),
-        creator: 7,
+        creator: UserId(7),
         options: vec!["A".repeat(1_500), "B".into()],
         closes_at: 2_000,
         occurred_at: 1_000,
@@ -139,7 +140,7 @@ fn truncation_preserves_a_valid_maximum_length_market_id() {
     let payload = payload(SnapshotV1::Created {
         id: id.into(),
         question: "🔮".repeat(1_500),
-        creator: 7,
+        creator: UserId(7),
         options: vec!["A".repeat(1_500), "B".into()],
         closes_at: 2_000,
         occurred_at: 1_000,
@@ -245,7 +246,7 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
         SnapshotV1::Created {
             id: "00000000-0000-4000-8000-000000000001".into(),
             question: text.into(),
-            creator: 42,
+            creator: UserId(42),
             options: vec![text.into(), "No".into()],
             closes_at: 2000,
             occurred_at: 1000,
@@ -292,7 +293,7 @@ fn maximum_creation_preserves_all_fields_when_user_text_expands() {
         let payload = payload(SnapshotV1::Created {
             id: "12345678-1234-1234-1234-123456789abc".into(),
             question: character.repeat(200),
-            creator: u64::MAX,
+            creator: UserId(u64::MAX),
             options: (0..10)
                 .map(|i| format!("{i}{}", character.repeat(79)))
                 .collect(),

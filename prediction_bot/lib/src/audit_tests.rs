@@ -10,6 +10,7 @@ use super::audit::{
 };
 use super::domain::DomainError;
 use super::store::StoreError;
+use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId};
 
 #[derive(Debug)]
 struct TestDatabaseError(&'static str);
@@ -225,10 +226,10 @@ fn announcement_logging_serializes_safe_correlation_and_retry_decisions() {
         .finish();
     tracing::subscriber::with_default(subscriber, || {
         logging_listener().on_event(&AuditEvent::AnnouncementAttemptCompleted {
-            guild: 10,
-            revision: 4,
-            channel_id: 20,
-            configuration_version: 2,
+            guild: GuildId(10),
+            revision: EventRevision(4),
+            channel_id: ChannelId(20),
+            configuration_version: ConfigurationVersion(2),
             decision: AnnouncementDecision::Retry,
             stage: Stage::Deliver,
             outcome: Outcome::Failed(discord_failure(&serenity::Error::Io(io::Error::other(

@@ -1,4 +1,5 @@
 use googletest::{assert_that, matchers::eq};
+use prediction_bot::types::{Points, UserId};
 use std::sync::Arc;
 
 use prediction_bot::{
@@ -29,9 +30,9 @@ pub async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>, PgPool) {
         format!("postgres://prediction_bot_app:{RUNTIME_PASSWORD}@{host}:{port}/postgres");
     let store = Store::connect(
         &runtime_url,
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
     )
@@ -43,7 +44,7 @@ pub async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>, PgPool) {
 
 pub fn admin() -> Actor {
     Actor {
-        user_id: 7,
+        user_id: UserId(7),
         moderator: true,
         bot: false,
     }
@@ -71,9 +72,9 @@ pub fn clock(now: i64) -> prediction_bot::announcements::Clock {
 pub fn restart(store: &Store) -> Arc<Store> {
     Arc::new(Store::new(
         store.pool.clone(),
-        42,
+        42.into(),
         Policy {
-            amount: 100,
+            amount: Points(100),
             interval: 86_400,
         },
     ))
@@ -82,23 +83,23 @@ pub fn restart(store: &Store) -> Arc<Store> {
 pub async fn queued(store: &Store, guild: u64, channel: u64) {
     use prediction_bot::{announcements::ConfigurationChange, domain::Command};
     store
-        .execute_at(guild, "discord:join", admin(), &Command::Join, 1000)
+        .execute_at(guild.into(), "discord:join", admin(), &Command::Join, 1000)
         .await
         .unwrap();
     store
         .configure_announcements(
-            guild,
+            guild.into(),
             "discord:enable",
             admin(),
             ConfigurationChange::Set {
-                channel_id: channel,
+                channel_id: channel.into(),
             },
         )
         .await
         .unwrap();
     store
         .execute_at(
-            guild,
+            guild.into(),
             "discord:create",
             admin(),
             &super::create(super::FIXTURE_MARKET),

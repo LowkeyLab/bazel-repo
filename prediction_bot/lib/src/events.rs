@@ -1,4 +1,5 @@
 //! `CloudEvents` metadata is immutable; per-server event revision governs replay.
+use crate::types::{ApplicationId, EventRevision, GuildId};
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -28,9 +29,9 @@ pub struct CloudEvent {
 }
 
 pub struct Context<'a> {
-    pub application: u64,
-    pub guild: u64,
-    pub revision: i64,
+    pub application: ApplicationId,
+    pub guild: GuildId,
+    pub revision: EventRevision,
     pub command: &'a str,
     pub accepted_at: i64,
 }
@@ -91,9 +92,9 @@ impl CloudEvent {
         {
             return Err(EventError("unsupported encoding"));
         }
-        if ctx.guild == 0
-            || ctx.application == 0
-            || ctx.revision < 1
+        if ctx.guild.0 == 0
+            || ctx.application.0 == 0
+            || ctx.revision.0 < 1
             || self.source
                 != format!(
                     "urn:lowkeylab:prediction-bot:discord:{}:guild:{}",
@@ -159,9 +160,9 @@ mod tests {
         let raw = include_str!("../tests/fixtures/member-enrolled.json");
         let stored: CloudEvent = serde_json::from_str(raw).unwrap();
         let ctx = Context {
-            application: 1,
-            guild: 2,
-            revision: 3,
+            application: ApplicationId(1),
+            guild: GuildId(2),
+            revision: EventRevision(3),
             command: "discord:4",
             accepted_at: 1000,
         };
@@ -175,9 +176,9 @@ mod tests {
     #[googletest::test]
     fn serialized_event_preserves_identity_payload_and_unknown_extension() {
         let ctx = Context {
-            application: 1,
-            guild: 2,
-            revision: 3,
+            application: ApplicationId(1),
+            guild: GuildId(2),
+            revision: EventRevision(3),
             command: "discord:4",
             accepted_at: 1000,
         };
@@ -207,9 +208,9 @@ mod tests {
     #[googletest::test]
     fn rejects_wrong_identity_version_stream_schema_or_extension_type() {
         let ctx = Context {
-            application: 1,
-            guild: 2,
-            revision: 3,
+            application: ApplicationId(1),
+            guild: GuildId(2),
+            revision: EventRevision(3),
             command: "discord:4",
             accepted_at: 1000,
         };
