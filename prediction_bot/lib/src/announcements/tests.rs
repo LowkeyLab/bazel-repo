@@ -1,6 +1,6 @@
 use googletest::{
     assert_that,
-    matchers::{contains_substring, ends_with, eq, le, starts_with},
+    matchers::{contains_substring, ends_with, eq, le, not, starts_with},
 };
 use serde_json::Value;
 
@@ -315,4 +315,37 @@ fn maximum_creation_preserves_all_fields_when_user_text_expands() {
         assert_that!(text, ends_with(format!("Event time: <t:{}:F>", i64::MAX)));
         assert_mentions_disabled(&payload);
     }
+}
+
+#[googletest::test]
+fn enrollment_renders_a_member_without_pinging_or_inventing_a_market() {
+    let snapshot = serde_json::from_value(serde_json::json!({"MemberEnrolled": {
+        "user_id": 42, "occurred_at": 1000
+    }}))
+    .unwrap();
+    let payload = payload(snapshot);
+    let content = content(&payload);
+    assert_that!(
+        content,
+        contains_substring("<@42> joined this server’s prediction market!")
+    );
+    assert_that!(content, contains_substring("<t:1000:F>"));
+    assert_that!(content, not(contains_substring("Market ID")));
+    assert_mentions_disabled(&payload);
+}
+
+#[googletest::test]
+fn bet_activity_escapes_and_limits_the_saved_question() {
+    let snapshot = serde_json::from_value(serde_json::json!({"BetPlaced": {
+        "id": "rain-1", "question": "**🌧** @everyone ".repeat(500),
+        "bet_count": 2, "occurred_at": 1001
+    }}))
+    .unwrap();
+    let payload = payload(snapshot);
+    let content = content(&payload);
+    assert_that!(content, contains_substring(r"\*\*🌧\*\*"));
+    assert_that!(content, contains_substring("2 bets placed"));
+    assert_that!(content, contains_substring("<t:1001:F>"));
+    assert_that!(content.encode_utf16().count(), le(2000));
+    assert_mentions_disabled(&payload);
 }

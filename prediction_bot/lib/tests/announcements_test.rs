@@ -349,7 +349,7 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
     .fetch_one(&owner)
     .await
     .unwrap();
-    assert_that!(pending_after_restart, eq(1));
+    assert_that!(pending_after_restart, eq(2));
 
     store
         .configure_announcements(
@@ -370,13 +370,40 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
         )
         .await
         .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:disabled-join",
+            member(),
+            &Command::Join,
+            1001,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:disabled-bet",
+            member(),
+            &Command::Bet {
+                id: DISABLED_MARKET.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(10),
+            },
+            1001,
+        )
+        .await
+        .unwrap();
     let rows: Vec<(i64, String)> = sqlx::query_as(
         "SELECT revision, state FROM prediction_announcement_outbox WHERE guild_id='10' ORDER BY revision",
     )
     .fetch_all(&owner)
     .await
     .unwrap();
-    assert_that!(rows, eq(&vec![(5, "discarded".into())]));
+    assert_that!(
+        rows,
+        eq(&vec![(5, "discarded".into()), (6, "discarded".into())])
+    );
 }
 
 #[googletest::test]
@@ -951,7 +978,7 @@ async fn wait_for_guild_lock_waiters(owner: &sqlx::PgPool, expected: i64) {
 
 #[googletest::test]
 #[tokio::test]
-async fn enabled_announcements_do_not_enqueue_member_joins() {
+async fn enabled_announcements_enqueue_a_member_join_only_once() {
     let (_container, store, owner) = fixture().await;
     store
         .configure_announcements(
@@ -976,7 +1003,24 @@ async fn enabled_announcements_do_not_enqueue_member_joins() {
         .fetch_one(&owner)
         .await
         .unwrap();
-    assert_that!(count, eq(0));
+    assert_that!(count, eq(1));
+    for key in ["discord:join", "discord:join-again"] {
+        store
+            .execute_at(10.into(), key, member(), &Command::Join, 1001)
+            .await
+            .unwrap();
+    }
+    let snapshots: Vec<serde_json::Value> =
+        sqlx::query_scalar("SELECT snapshot FROM prediction_announcement_outbox")
+            .fetch_all(&owner)
+            .await
+            .unwrap();
+    assert_that!(
+        snapshots,
+        eq(&vec![json!({"MemberEnrolled": {
+            "user_id": 8, "occurred_at": 1000
+        }})])
+    );
 }
 
 #[googletest::test]
@@ -1867,4 +1911,189 @@ async fn set_redelivery_recovers_original_receipt_without_destination_reads() {
     let status = store.announcement_status(10.into(), admin()).await.unwrap();
     assert_that!(status.channel_id, eq(Some(ChannelId(56))));
     assert_that!(status.version.0, eq(2));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn bet_delivery_preserves_each_accepted_count_and_time_without_bettor_details() {
+    let (_container, store, _owner) = fixture().await;
+    store
+        .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:create",
+            admin(),
+            &create(FIXTURE_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .configure_announcements(
+            10.into(),
+            "discord:enable",
+            admin(),
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
+        )
+        .await
+        .unwrap();
+    let bet = Command::Bet {
+        id: FIXTURE_MARKET.into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(13),
+    };
+    for (key, time) in [
+        ("discord:bet-1", 1001),
+        ("discord:bet-1", 1002),
+        ("discord:bet-2", 1001),
+    ] {
+        store
+            .execute_at(10.into(), key, admin(), &bet, time)
+            .await
+            .unwrap();
+    }
+    let rejected = Command::Bet {
+        id: FIXTURE_MARKET.into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(1000),
+    };
+    assert_that!(
+        store
+            .execute_at(10.into(), "discord:rejected", admin(), &rejected, 1002)
+            .await,
+        err(anything())
+    );
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .expect(2)
+        .mount(&server)
+        .await;
+    deliver_due(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(3000),
+    )
+    .await
+    .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(2));
+    for (request, expected_count) in requests.iter().zip(["1 bet placed", "2 bets placed"]) {
+        let body: serde_json::Value = request.body_json().unwrap();
+        let content = body["content"].as_str().unwrap();
+        assert_that!(content, contains_substring("Another bet"));
+        assert_that!(content, contains_substring("Will it rain?"));
+        assert_that!(content, contains_substring(FIXTURE_MARKET));
+        assert_that!(content, contains_substring(expected_count));
+        assert_that!(content, contains_substring("<t:1001:F>"));
+        for private in ["<@7>", "Yes", "13", "Bettor", "Stake"] {
+            assert_that!(content, not(contains_substring(private)));
+        }
+        assert_that!(body["allowed_mentions"]["parse"], eq(&json!([])));
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn interaction_join_and_bet_deliver_once_after_redelivery() {
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    use support::interaction_json;
+
+    let (_container, store, _owner) = fixture().await;
+    store
+        .configure_announcements(
+            10.into(),
+            "discord:enable",
+            admin(),
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(wiremock::matchers::path_regex("/callback$"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .expect(3)
+        .mount(&server)
+        .await;
+    let http = Arc::new(discord_http(&server));
+    let join = Interaction::Command(
+        serde_json::from_value(interaction_json(
+            301,
+            &json!({
+                "id": "1", "name": "market", "type": 1,
+                "options": [{"name": "join", "type": 1, "options": []}]
+            }),
+        ))
+        .unwrap(),
+    );
+    for _ in 0..2 {
+        handle_interaction(store.clone(), &http, 99.into(), join.clone()).await;
+    }
+    let market = Command::Create {
+        id: FIXTURE_MARKET.into(),
+        question: "Will it rain?".into(),
+        options: vec!["Yes".into(), "No".into()],
+        closes_at: 4_070_908_800,
+    };
+    store
+        .execute(10.into(), "discord:create", admin(), &market)
+        .await
+        .unwrap();
+    let bet = Interaction::Command(
+        serde_json::from_value(interaction_json(
+            302,
+            &json!({
+                "id": "1", "name": "market", "type": 1,
+                "options": [{"name": "bet", "type": 1, "options": [
+                    {"name": "id", "type": 3, "value": FIXTURE_MARKET},
+                    {"name": "outcome", "type": 4, "value": 1},
+                    {"name": "amount", "type": 4, "value": 10}
+                ]}]
+            }),
+        ))
+        .unwrap(),
+    );
+    for _ in 0..2 {
+        handle_interaction(store.clone(), &http, 99.into(), bet.clone()).await;
+    }
+    deliver_due(store, http, clock(4_070_908_800))
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    let messages: Vec<serde_json::Value> = requests
+        .iter()
+        .filter(|request| request.url.path() == "/api/v10/channels/20/messages")
+        .map(|request| request.body_json().unwrap())
+        .collect();
+    assert_that!(messages.len(), eq(3));
+    assert_that!(
+        messages[0]["content"].as_str().unwrap(),
+        contains_substring("<@7> joined this server’s prediction market!")
+    );
+    assert_that!(
+        messages[2]["content"].as_str().unwrap(),
+        contains_substring("1 bet placed")
+    );
+    for message in messages {
+        assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
+    }
 }

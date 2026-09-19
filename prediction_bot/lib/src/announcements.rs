@@ -8,6 +8,16 @@ mod tests;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SnapshotV1 {
+    MemberEnrolled {
+        user_id: UserId,
+        occurred_at: i64,
+    },
+    BetPlaced {
+        id: MarketId,
+        question: String,
+        bet_count: usize,
+        occurred_at: i64,
+    },
     Created {
         id: MarketId,
         question: String,

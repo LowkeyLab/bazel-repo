@@ -80,6 +80,8 @@ test --test_verbose_timeout_warnings
 # Or run: coverage (via the flake dev shell wrapper)
 coverage --combined_report=lcov
 coverage --build_tests_only
+# Rust integration-test binaries must be instrumented to emit dependency coverage.
+coverage --instrument_test_targets
 coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindreadr[:/],^//predix[:/],^//prediction_bot[:/],^//cowsay[:/],^//angular[:/],^//kafka_calculator[:/],^//hearthstone_simulator[:/]"
 
 # Coverage with remote execution: download toplevel outputs so coverage data

@@ -12,7 +12,9 @@ pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
         let field_count = match snapshot {
             SnapshotV1::Created { options, .. } => options.len() + 1,
             SnapshotV1::Resolved { .. } => 2,
-            SnapshotV1::Cancelled { .. } => 1,
+            SnapshotV1::Cancelled { .. }
+            | SnapshotV1::BetPlaced { .. }
+            | SnapshotV1::MemberEnrolled { .. } => 1,
         };
         let field_limit = CONTENT_LIMIT.saturating_sub(fixed_units) / field_count;
         content = render_content(snapshot, field_limit);
@@ -26,6 +28,32 @@ pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
 // every outcome bullet, identifiers, and timestamps before sharing the remainder.
 fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
     let (heading, id, details) = match snapshot {
+        SnapshotV1::MemberEnrolled {
+            user_id,
+            occurred_at,
+        } => (
+            "👋 New participant",
+            None,
+            format!(
+                "<@{user_id}> joined this server’s prediction market!\nEvent time: <t:{occurred_at}:F>"
+            ),
+        ),
+        SnapshotV1::BetPlaced {
+            id,
+            question,
+            bet_count,
+            occurred_at,
+        } => {
+            let noun = if *bet_count == 1 { "bet" } else { "bets" };
+            (
+                "🎲 Another bet",
+                Some(id),
+                format!(
+                    "Question: {}\n{bet_count} {noun} placed\nEvent time: <t:{occurred_at}:F>",
+                    escape_field(question, field_limit)
+                ),
+            )
+        }
         SnapshotV1::Created {
             id,
             question,
@@ -41,7 +69,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
                 .join("\n");
             (
                 "📈 Market created",
-                id,
+                Some(id),
                 format!(
                     "Question: {}\nCreator: <@{creator}>\nOutcomes:\n{outcomes}\nCloses: <t:{closes_at}:F>\nEvent time: <t:{occurred_at}:F>",
                     escape_field(question, field_limit),
@@ -62,7 +90,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
             };
             (
                 "✅ Market resolved",
-                id,
+                Some(id),
                 format!(
                     "Question: {}\nWinning outcome: {}\nStakes refunded: {refund}\nEvent time: <t:{occurred_at}:F>",
                     escape_field(question, field_limit),
@@ -76,7 +104,7 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
             occurred_at,
         } => (
             "🚫 Market cancelled",
-            id,
+            Some(id),
             format!(
                 "Question: {}\nStakes refunded: yes\nEvent time: <t:{occurred_at}:F>",
                 escape_field(question, field_limit),
@@ -84,7 +112,10 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
         ),
     };
 
-    let prefix = format!("{heading}\nMarket ID: `{}`", escape_markdown(&id.0));
+    let prefix = match id {
+        Some(id) => format!("{heading}\nMarket ID: `{}`", escape_markdown(&id.0)),
+        None => heading.to_owned(),
+    };
     format!("{prefix}\n{details}")
 }
 
