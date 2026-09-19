@@ -14,6 +14,7 @@ pub(crate) async fn enqueue(
     revision: EventRevision,
     event: &Event,
     state: &State,
+    previous_odds: &[OutcomeOdds],
 ) -> Result<(), StoreError> {
     let enabled: Option<bool> = sqlx::query_scalar(
         "SELECT enabled FROM prediction_announcement_settings WHERE guild_id=$1",
@@ -25,7 +26,7 @@ pub(crate) async fn enqueue(
         return Ok(());
     }
 
-    let Some((snapshot, occurred_at)) = event_snapshot(event, state)? else {
+    let Some((snapshot, occurred_at)) = event_snapshot(event, state, previous_odds)? else {
         return Ok(());
     };
 
@@ -41,7 +42,11 @@ pub(crate) async fn enqueue(
     Ok(())
 }
 
-fn event_snapshot(event: &Event, state: &State) -> Result<Option<(SnapshotV1, i64)>, StoreError> {
+fn event_snapshot(
+    event: &Event,
+    state: &State,
+    previous_odds: &[OutcomeOdds],
+) -> Result<Option<(SnapshotV1, i64)>, StoreError> {
     let snapshot = match event {
         Event::MemberEnrolled {
             user_id,
@@ -64,7 +69,14 @@ fn event_snapshot(event: &Event, state: &State) -> Result<Option<(SnapshotV1, i6
                     id: id.clone(),
                     question: market.question.clone(),
                     bet_count: market.bets.len(),
-                    odds: OutcomeOdds::for_market(market),
+                    odds: OutcomeOdds::for_market(market)
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, odds)| match previous_odds.get(index) {
+                            Some(previous) => odds.with_previous(previous),
+                            None => odds,
+                        })
+                        .collect(),
                     occurred_at: *accepted_at,
                 },
                 *accepted_at,

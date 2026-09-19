@@ -413,7 +413,7 @@ fn odds_preserve_every_outcome_within_discords_message_limit() {
             "question": "🔮".repeat(200), "occurred_at": i64::MAX,
             "bet_count": 100, "winner": "*".repeat(80), "refunded": false,
             "odds": (0..10).map(|i| serde_json::json!({
-                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100
+                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100, "movement": "up"
             })).collect::<Vec<_>>()
         }}))
         .unwrap();
@@ -429,5 +429,95 @@ fn odds_preserve_every_outcome_within_discords_message_limit() {
             contains_substring(format!("Event time: <t:{}:F>", i64::MAX))
         );
         assert_mentions_disabled(&payload);
+    }
+}
+
+#[googletest::test]
+fn bet_announcements_render_saved_movement_and_allow_missing_history() {
+    let snapshot = serde_json::from_value(serde_json::json!({"BetPlaced": {
+        "id": "12345678-1234-1234-1234-123456789abc",
+        "question": "Which choice?", "occurred_at": 1000, "bet_count": 2,
+        "odds": [
+            {"label": "Rising", "tenths_percent": 600, "movement": "up"},
+            {"label": "Falling", "tenths_percent": 200, "movement": "down"},
+            {"label": "Unchanged", "tenths_percent": 100},
+            {"label": "Legacy", "tenths_percent": 100}
+        ]
+    }}))
+    .unwrap();
+    let message = payload(snapshot);
+    let text = content(&message);
+    assert_that!(
+        text,
+        contains_substring("Rising — 60.0% implied chance 🟢 ⬆️")
+    );
+    assert_that!(
+        text,
+        contains_substring("Falling — 20.0% implied chance 🔴 ⬇️")
+    );
+    assert_that!(
+        text,
+        contains_substring("Unchanged — 10.0% implied chance\n")
+    );
+    assert_that!(text, contains_substring("Legacy — 10.0% implied chance\n"));
+    assert_mentions_disabled(&message);
+}
+
+#[googletest::test]
+fn movement_compares_displayed_percentages_without_inventing_a_first_bet_baseline() {
+    use crate::domain::{Bet, Market, Status};
+    use crate::odds::OutcomeOdds;
+    use crate::types::{OutcomeIndex, Points};
+
+    for (stakes, added_outcome, added_amount, expected) in [
+        (vec![], 0, 1, ["", ""]),
+        (vec![(0, 5)], 0, 5, ["", ""]),
+        (vec![(0, 10000), (1, 10000)], 0, 1, ["", ""]),
+        (vec![(0, 1), (1, 1)], 0, 2, [" 🟢 ⬆️", " 🔴 ⬇️"]),
+        (vec![(0, 1), (1, 1)], 1, 2, [" 🔴 ⬇️", " 🟢 ⬆️"]),
+    ] {
+        let mut market = Market {
+            creator: UserId(20),
+            question: "Which choice?".into(),
+            options: vec!["Yes".into(), "No".into()],
+            closes_at: 2000,
+            created_at: 1000,
+            status: Status::Open,
+            total_staked: Points(stakes.iter().map(|(_, amount)| amount).sum()),
+            bets: stakes
+                .into_iter()
+                .map(|(outcome, amount)| Bet {
+                    user_id: UserId(20),
+                    outcome: OutcomeIndex(outcome),
+                    amount: Points(amount),
+                })
+                .collect(),
+        };
+        let previous = OutcomeOdds::for_market(&market);
+        market.bets.push(Bet {
+            user_id: UserId(20),
+            outcome: OutcomeIndex(added_outcome),
+            amount: Points(added_amount),
+        });
+        market.total_staked.0 += added_amount;
+        let odds = OutcomeOdds::for_market(&market)
+            .into_iter()
+            .zip(&previous)
+            .map(|(current, previous)| current.with_previous(previous))
+            .collect();
+        let message = payload(SnapshotV1::BetPlaced {
+            id: "market".into(),
+            question: market.question,
+            bet_count: market.bets.len(),
+            odds,
+            occurred_at: 1001,
+        });
+        for (line, indicator) in content(&message)
+            .lines()
+            .filter(|line| line.starts_with("• "))
+            .zip(expected)
+        {
+            assert_that!(line, ends_with(format!("implied chance{indicator}")));
+        }
     }
 }

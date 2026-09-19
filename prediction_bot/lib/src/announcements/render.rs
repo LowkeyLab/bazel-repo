@@ -137,9 +137,10 @@ fn render_odds(odds: &[crate::odds::OutcomeOdds], field_limit: usize) -> String 
         .iter()
         .map(|outcome| {
             format!(
-                "• {} — {} implied chance",
+                "• {} — {} implied chance{}",
                 escape_field(&outcome.label, field_limit),
-                outcome.chance()
+                outcome.chance(),
+                outcome.movement_indicator()
             )
         })
         .collect::<Vec<_>>()
