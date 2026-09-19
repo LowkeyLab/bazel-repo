@@ -345,9 +345,10 @@ fn rejection(reason: &str) -> Rejection {
         | "market is not open for betting"
         | "market is not ready to resolve"
         | "market already terminal" => Rejection::MarketUnavailable,
-        "moderator required" | "bots cannot bet" | "bots cannot create markets" => {
-            Rejection::PermissionDenied
-        }
+        "moderator required"
+        | "market creator or moderator required"
+        | "bots cannot bet"
+        | "bots cannot create markets" => Rejection::PermissionDenied,
         _ => Rejection::InvalidInput,
     }
 }

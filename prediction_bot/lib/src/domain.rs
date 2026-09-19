@@ -446,13 +446,16 @@ pub fn decide(
             )
         }
         Command::Resolve { id, outcome } => {
-            if !actor.moderator || actor.bot || actor.user_id == UserId(0) {
-                return Err(DomainError::Invalid("moderator required"));
+            if actor.bot || actor.user_id == UserId(0) {
+                return Err(DomainError::Invalid("market creator or moderator required"));
             }
             let market = state
                 .markets
                 .get(id)
                 .ok_or(DomainError::Invalid("unknown market"))?;
+            if !actor.moderator && actor.user_id != market.creator {
+                return Err(DomainError::Invalid("market creator or moderator required"));
+            }
             if market.status != Status::Open || now < market.closes_at {
                 return Err(DomainError::Invalid("market is not ready to resolve"));
             }

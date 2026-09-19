@@ -331,7 +331,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market list` — browse markets, pick an outcome, and bet points.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
 
-Server admins and members with Manage Guild permission can resolve or cancel markets. They can use /market announcements set to choose a server text channel where I have View Channel and Send Messages, /market announcements status to inspect delivery, or /market announcements disable to stop delivery and discard pending announcements.
+Market creators can resolve their own markets after they close. Server admins and members with Manage Guild permission can resolve any closed market or cancel markets. They can use /market announcements set to choose a server text channel where I have View Channel and Send Messages, /market announcements status to inspect delivery, or /market announcements disable to stop delivery and discard pending announcements.
 
 Announcements cover market creation, resolution, and cancellation. They retry with increasing delays, do not backfill older events, and may be delivered twice after an uncertain Discord response. Changing or disabling the channel cannot stop an announcement already in flight.";
 
@@ -608,7 +608,7 @@ fn market_command() -> CreateCommand {
             CreateCommandOption::new(
                 SubCommand,
                 "resolve",
-                "Settle a closed market; Manage Guild required",
+                "Settle a closed market; creator, Administrator, or Manage Guild required",
             )
             .add_sub_option(required(Text, "id", "Market ID"))
             .add_sub_option(

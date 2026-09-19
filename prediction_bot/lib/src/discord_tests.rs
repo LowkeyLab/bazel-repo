@@ -134,17 +134,20 @@ fn guild_and_bot_metadata_are_enforced() {
 
 #[googletest::test]
 fn moderator_flag_is_passed_to_resolution_and_cancel() {
-    let mut resolve = input("resolve", vec![text("id", "1234"), number("outcome", 2)]);
-    resolve.moderator = true;
-    let (_, actor, action) = parse(&resolve).unwrap();
-    assert_that!(actor.moderator, eq(true));
-    assert_that!(
-        action,
-        eq(&Action::Write(Command::Resolve {
-            id: "1234".to_owned().into(),
-            outcome: OutcomeIndex(1)
-        }))
-    );
+    for moderator in [false, true] {
+        let mut resolve = input("resolve", vec![text("id", "1234"), number("outcome", 2)]);
+        resolve.moderator = moderator;
+        let (_, actor, action) = parse(&resolve).unwrap();
+        assert_that!(actor.user_id, eq(UserId(20)));
+        assert_that!(actor.moderator, eq(moderator));
+        assert_that!(
+            action,
+            eq(&Action::Write(Command::Resolve {
+                id: "1234".to_owned().into(),
+                outcome: OutcomeIndex(1)
+            }))
+        );
+    }
     let cancel = input("cancel", vec![text("id", "1234")]);
     assert_that!(parse(&cancel).unwrap().1.moderator, eq(false));
 }
