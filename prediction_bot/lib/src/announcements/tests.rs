@@ -211,3 +211,41 @@ fn http_failures_use_safe_delivery_outcomes() {
         }
     );
 }
+
+#[test]
+fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
+    let text = r"<t:0:R> <#123> <:coin:456> <a:dance:789> \<t:1:F>";
+    let escaped = r"\<t:0:R\> \<\#123\> \<:coin:456\> \<a:dance:789\> \\\<t:1:F\>";
+    let snapshots = [
+        SnapshotV1::Created {
+            id: "00000000-0000-4000-8000-000000000001".into(),
+            question: text.into(),
+            creator: 42,
+            options: vec![text.into(), "No".into()],
+            closes_at: 2000,
+            occurred_at: 1000,
+        },
+        SnapshotV1::Resolved {
+            id: "00000000-0000-4000-8000-000000000001".into(),
+            question: text.into(),
+            winner: text.into(),
+            refunded: false,
+            occurred_at: 1000,
+        },
+        SnapshotV1::Cancelled {
+            id: "00000000-0000-4000-8000-000000000001".into(),
+            question: text.into(),
+            occurred_at: 1000,
+        },
+    ];
+    for (snapshot, expected_copies) in snapshots.into_iter().zip([2, 2, 1]) {
+        let payload = payload(snapshot);
+        let text = content(&payload);
+        assert_eq!(text.matches(escaped).count(), expected_copies, "{text}");
+        assert!(text.contains("Event time: <t:1000:F>"));
+        if text.contains("Market created") {
+            assert!(text.contains("Closes: <t:2000:F>"));
+        }
+        assert_mentions_disabled(&payload);
+    }
+}

@@ -85,7 +85,7 @@ fn escape_markdown(text: &str) -> String {
     for character in text.chars() {
         if matches!(
             character,
-            '\\' | '*' | '_' | '~' | '`' | '|' | '>' | '#' | '[' | ']' | '(' | ')'
+            '\\' | '*' | '_' | '~' | '`' | '|' | '<' | '>' | '#' | '[' | ']' | '(' | ')'
         ) {
             escaped.push('\\');
         }
