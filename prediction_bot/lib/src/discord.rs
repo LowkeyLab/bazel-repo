@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{
+    announcements::ConfigurationChange,
     domain::{Actor, Command, DomainError, Market, Status},
     store::{Store, StoreError, View},
 };
@@ -14,9 +15,9 @@ use chrono::DateTime;
 use serenity::{
     Client,
     all::{
-        ActionRowComponent, CommandDataOptionValue, CommandInteraction, CommandOptionType,
-        ComponentInteraction, ComponentInteractionDataKind, Context, GatewayIntents, Guild,
-        GuildId, Interaction, Message, ModalInteraction, Permissions, Ready,
+        ActionRowComponent, ChannelType, CommandDataOptionValue, CommandInteraction,
+        CommandOptionType, ComponentInteraction, ComponentInteractionDataKind, Context,
+        GatewayIntents, Guild, GuildId, Interaction, Message, ModalInteraction, Permissions, Ready,
     },
     builder::{
         CreateAllowedMentions, CreateCommand, CreateCommandOption, CreateInteractionResponse,
@@ -29,6 +30,7 @@ use thiserror::Error;
 use tokio::sync::watch;
 use uuid::Uuid;
 
+mod announcements;
 pub mod transport;
 #[path = "discord_ui.rs"]
 mod ui;
@@ -56,6 +58,7 @@ pub(crate) struct InputOption {
 pub(crate) enum InputValue {
     String(String),
     Integer(i64),
+    Channel(u64),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
@@ -66,6 +69,9 @@ pub(crate) enum Action {
     Leaderboard,
     List,
     Show { id: String },
+    AnnouncementsSet { channel_id: u64 },
+    AnnouncementsStatus,
+    AnnouncementsDisable,
 }
 
 fn exact(input: &Input, fields: &[&str]) -> Result<(), &'static str> {
@@ -85,7 +91,7 @@ fn text<'a>(input: &'a Input, field: &str) -> Result<&'a str, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match &o.value {
             InputValue::String(s) => Some(s.as_str()),
-            InputValue::Integer(_) => None,
+            InputValue::Integer(_) | InputValue::Channel(_) => None,
         })
         .ok_or("Enter a text value.")
 }
@@ -96,10 +102,22 @@ fn integer(input: &Input, field: &str) -> Result<i64, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match o.value {
             InputValue::Integer(i) => Some(i),
-            InputValue::String(_) => None,
+            InputValue::String(_) | InputValue::Channel(_) => None,
         })
         .ok_or("Enter a whole number.")
 }
+fn channel_id(input: &Input, field: &str) -> Result<u64, &'static str> {
+    input
+        .options
+        .iter()
+        .find(|option| option.name == field)
+        .and_then(|option| match option.value {
+            InputValue::Channel(id) if id != 0 => Some(id),
+            InputValue::Channel(_) | InputValue::String(_) | InputValue::Integer(_) => None,
+        })
+        .ok_or("Choose a server text channel.")
+}
+
 fn market_id(input: &Input) -> Result<String, &'static str> {
     let value = text(input, "id")?.trim();
     if value.is_empty() || value.len() > 64 || value.chars().any(char::is_control) {
@@ -196,6 +214,29 @@ pub(crate) fn parse(input: &Input) -> Result<(u64, Actor, Action), &'static str>
                 id: market_id(input)?,
             })
         }
+        "announcements.set" => {
+            if !input.moderator {
+                return Err("Administrator or Manage Guild permission is required.");
+            }
+            exact(input, &["channel"])?;
+            Action::AnnouncementsSet {
+                channel_id: channel_id(input, "channel")?,
+            }
+        }
+        "announcements.status" => {
+            if !input.moderator {
+                return Err("Administrator or Manage Guild permission is required.");
+            }
+            exact(input, &[])?;
+            Action::AnnouncementsStatus
+        }
+        "announcements.disable" => {
+            if !input.moderator {
+                return Err("Administrator or Manage Guild permission is required.");
+            }
+            exact(input, &[])?;
+            Action::AnnouncementsDisable
+        }
         _ => return Err("Unknown market command."),
     };
     Ok((guild, actor, action))
@@ -231,9 +272,22 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
     if command.data.name != "market" || command.data.options.len() != 1 {
         return Err("Unknown market command.");
     }
-    let sub = &command.data.options[0];
-    let CommandDataOptionValue::SubCommand(fields) = &sub.value else {
-        return Err("Invalid market command.");
+    let root = &command.data.options[0];
+    let (subcommand, fields) = match &root.value {
+        CommandDataOptionValue::SubCommand(fields) => (root.name.clone(), fields),
+        CommandDataOptionValue::SubCommandGroup(commands)
+            if root.name == "announcements" && commands.len() == 1 =>
+        {
+            let command = &commands[0];
+            if !matches!(command.name.as_str(), "set" | "status" | "disable") {
+                return Err("Invalid market command.");
+            }
+            let CommandDataOptionValue::SubCommand(fields) = &command.value else {
+                return Err("Invalid market command.");
+            };
+            (format!("announcements.{}", command.name), fields)
+        }
+        _ => return Err("Invalid market command."),
     };
     let options = fields
         .iter()
@@ -241,6 +295,7 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
             let value = match &field.value {
                 CommandDataOptionValue::String(s) => InputValue::String(s.clone()),
                 CommandDataOptionValue::Integer(i) => InputValue::Integer(*i),
+                CommandDataOptionValue::Channel(id) => InputValue::Channel(id.get()),
                 _ => return Err("Invalid command options."),
             };
             Ok(InputOption {
@@ -259,7 +314,7 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
         user_id: command.user.id.get(),
         bot: command.user.bot,
         moderator,
-        subcommand: sub.name.clone(),
+        subcommand,
         options,
     })
 }
@@ -270,7 +325,9 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market list` — browse markets, pick an outcome, and bet points.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
 
-Server admins and members with Manage Guild permission can resolve or cancel markets.";
+Server admins and members with Manage Guild permission can resolve or cancel markets. They can use /market announcements set to choose a server text channel where I have View Channel and Send Messages, /market announcements status to inspect delivery, or /market announcements disable to stop delivery and discard pending announcements.
+
+Announcements cover market creation, resolution, and cancellation. They retry with increasing delays, do not backfill older events, and may be delivered twice after an uncertain Discord response. Changing or disabling the channel cannot stop an announcement already in flight.";
 
 fn mention_reply(message: &Message, bot_user_id: u64) -> Option<CreateMessage> {
     if message.guild_id.is_none()
@@ -430,7 +487,10 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         ),
         Action::Help => HELP.to_owned(),
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
-        Action::Write(_) => "Invalid query.".to_owned(),
+        Action::Write(_)
+        | Action::AnnouncementsSet { .. }
+        | Action::AnnouncementsStatus
+        | Action::AnnouncementsDisable => "Invalid query.".to_owned(),
     }
 }
 fn render_market(id: &str, market: &Market, now: i64) -> String {
@@ -468,8 +528,12 @@ fn render_market(id: &str, market: &Market, now: i64) -> String {
     }
     out
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep the declarative market command schema together"
+)]
 fn market_command() -> CreateCommand {
-    use CommandOptionType::{Integer, String as Text, SubCommand};
+    use CommandOptionType::{Channel, Integer, String as Text, SubCommand, SubCommandGroup};
     let required =
         |kind, name, description| CreateCommandOption::new(kind, name, description).required(true);
     CreateCommand::new("market")
@@ -549,6 +613,30 @@ fn market_command() -> CreateCommand {
                 "Cancel an unresolved market; Manage Guild required",
             )
             .add_sub_option(required(Text, "id", "Market ID")),
+        )
+        .add_option(
+            CreateCommandOption::new(
+                SubCommandGroup,
+                "announcements",
+                "Configure market announcements; Manage Guild required",
+            )
+            .add_sub_option(
+                CreateCommandOption::new(SubCommand, "set", "Set the announcement destination")
+                    .add_sub_option(
+                        required(Channel, "channel", "Server text channel")
+                            .channel_types(vec![ChannelType::Text]),
+                    ),
+            )
+            .add_sub_option(CreateCommandOption::new(
+                SubCommand,
+                "status",
+                "Show announcement delivery status",
+            ))
+            .add_sub_option(CreateCommandOption::new(
+                SubCommand,
+                "disable",
+                "Disable announcements and discard pending deliveries",
+            )),
         )
 }
 fn interaction_event(
@@ -746,6 +834,73 @@ impl Handler {
                     Ok((guild, actor, Action::Write(request))) => {
                         execute_request(&self.store, guild, actor, &request, command.id.get()).await
                     }
+                    Ok((guild, actor, Action::AnnouncementsSet { channel_id })) => {
+                        let key = format!("discord:{}", command.id.get());
+                        match self
+                            .store
+                            .announcement_configuration_receipt(guild, &key, actor)
+                            .await
+                        {
+                            Ok(Some(message)) => {
+                                return reply(&announcements::configuration_receipt(
+                                    &message, false,
+                                ));
+                            }
+                            Ok(None) => {}
+                            Err(error) => return reply(&safe_error(&error)),
+                        }
+                        match announcements::validate_destination(
+                            http,
+                            guild,
+                            self.bot_user_id,
+                            channel_id,
+                        )
+                        .await
+                        {
+                            Ok(()) => {
+                                match self
+                                    .store
+                                    .configure_announcements(
+                                        guild,
+                                        &key,
+                                        actor,
+                                        ConfigurationChange::Set { channel_id },
+                                    )
+                                    .await
+                                {
+                                    Ok(message) => reply(&announcements::configuration_receipt(
+                                        &message, false,
+                                    )),
+                                    Err(error) => reply(&safe_error(&error)),
+                                }
+                            }
+                            Err(message) => reply(message),
+                        }
+                    }
+                    Ok((guild, actor, Action::AnnouncementsDisable)) => {
+                        let key = format!("discord:{}", command.id.get());
+                        match self
+                            .store
+                            .configure_announcements(
+                                guild,
+                                &key,
+                                actor,
+                                ConfigurationChange::Disable,
+                            )
+                            .await
+                        {
+                            Ok(message) => {
+                                reply(&announcements::configuration_receipt(&message, true))
+                            }
+                            Err(error) => reply(&safe_error(&error)),
+                        }
+                    }
+                    Ok((guild, actor, Action::AnnouncementsStatus)) => {
+                        match self.store.announcement_status(guild, actor).await {
+                            Ok(status) => reply(&announcements::render_status(&status)),
+                            Err(error) => reply(&safe_error(&error)),
+                        }
+                    }
                     Ok((guild, actor, query)) => {
                         let kind = match query {
                             Action::Balance => QueryKind::Balance,
@@ -925,16 +1080,33 @@ impl EventHandler for Handler {
         self.register(&ctx.http, guild.id).await;
     }
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        match interaction {
-            Interaction::Command(command) => self.handle(&ctx.http, command).await,
-            Interaction::Component(component) if component.data.custom_id.starts_with("pm:") => {
-                self.handle_component(&ctx.http, component).await;
-            }
-            Interaction::Modal(modal) if modal.data.custom_id.starts_with("pm:") => {
-                self.handle_modal(&ctx.http, modal).await;
-            }
-            _ => {}
+        handle_interaction(
+            Arc::clone(&self.store),
+            &ctx.http,
+            self.bot_user_id,
+            interaction,
+        )
+        .await;
+    }
+}
+
+/// Dispatch an incoming Discord interaction through the gateway's command and form handlers.
+pub async fn handle_interaction(
+    store: Arc<Store>,
+    http: &Http,
+    bot_user_id: u64,
+    interaction: Interaction,
+) {
+    let handler = Handler { store, bot_user_id };
+    match interaction {
+        Interaction::Command(command) => handler.handle(http, command).await,
+        Interaction::Component(component) if component.data.custom_id.starts_with("pm:") => {
+            handler.handle_component(http, component).await;
         }
+        Interaction::Modal(modal) if modal.data.custom_id.starts_with("pm:") => {
+            handler.handle_modal(http, modal).await;
+        }
+        _ => {}
     }
 }
 #[derive(Debug, Error)]
@@ -971,6 +1143,16 @@ async fn shutdown_signal() -> Result<(), std::io::Error> {
 /// Returns an error if the gateway lock, Discord connection, or shutdown signal cannot initialize,
 /// or if the gateway fails while running.
 pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
+    run_with_http(store, Http::new(&token)).await
+}
+
+/// Run with a configured Serenity HTTP client through the same guarded startup path.
+/// The caller must authenticate the application identity before opening the store,
+/// as the normal binary startup does.
+///
+/// # Errors
+/// Returns the same startup, gateway, and shutdown errors as [`run`].
+pub async fn run_with_http(store: Arc<Store>, http: Http) -> Result<(), DiscordError> {
     let application_id = Some(store.application_id());
     let mut guard = match store.gateway_guard().await {
         Ok(guard) => guard,
@@ -986,7 +1168,7 @@ pub async fn run(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
         }
     };
     guard.close_on_drop();
-    let result = run_gateway(Arc::clone(&store), token).await;
+    let result = run_gateway(Arc::clone(&store), http).await;
     if let Err(error) = guard.close().await {
         lifecycle(
             store.audit().as_ref(),
@@ -1012,11 +1194,10 @@ fn lifecycle(
         outcome,
     });
 }
-async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordError> {
+async fn run_gateway(store: Arc<Store>, http: Http) -> Result<(), DiscordError> {
     let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
     let client = async {
-        let http = Http::new(&token);
         let bot_user_id = http.get_current_user().await?.id.get();
         ClientBuilder::new_with_http(
             http,
@@ -1044,13 +1225,36 @@ async fn run_gateway(store: Arc<Store>, token: String) -> Result<(), DiscordErro
     };
     run_gateway_client(store, client).await
 }
-async fn run_gateway_client(store: Arc<Store>, mut client: Client) -> Result<(), DiscordError> {
+async fn run_gateway_client(store: Arc<Store>, client: Client) -> Result<(), DiscordError> {
+    run_gateway_client_with_clock(store, client, Arc::new(|| chrono::Utc::now().timestamp())).await
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keep worker ownership and the shared shutdown deadline visible in one lifecycle"
+)]
+async fn run_gateway_client_with_clock(
+    store: Arc<Store>,
+    mut client: Client,
+    clock: crate::announcements::Clock,
+) -> Result<(), DiscordError> {
+    use crate::announcements::worker::{SHUTDOWN_GRACE, start_announcement_worker_with_deadline};
     let application_id = Some(store.application_id());
     let audit = Arc::clone(store.audit());
     let shards = Arc::clone(&client.shard_manager);
     let (sender, receiver) = watch::channel(false);
-    let mut worker = tokio::spawn(grant_worker(store, receiver));
+    let deadline = Arc::new(std::sync::OnceLock::new());
+    let mut grants = tokio::spawn(grant_worker(Arc::clone(&store), receiver.clone()));
+    let mut announcements = start_announcement_worker_with_deadline(
+        store,
+        Arc::clone(&client.http),
+        clock,
+        receiver,
+        Arc::clone(&deadline),
+    );
     let mut gateway = Box::pin(client.start_autosharded());
+    let mut announcements_finished = false;
+    let mut await_gateway = false;
     let (result, outcome) = tokio::select! {
         result = &mut gateway => {
             let outcome = match &result {
@@ -1059,34 +1263,76 @@ async fn run_gateway_client(store: Arc<Store>, mut client: Client) -> Result<(),
             };
             (result.map_err(|_| DiscordError::Gateway), outcome)
         },
+        _ = &mut announcements => {
+            announcements_finished = true;
+            let outcome = category_failure(FailureCategory::Unknown);
+            lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::AnnouncementWorker, outcome.clone());
+            (Err(DiscordError::Gateway), outcome)
+        },
         result = shutdown_signal() => {
             match result {
                 Ok(()) => {
+                    await_gateway = true;
                     lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::ShutdownRequested, Outcome::Succeeded);
-                    shards.shutdown_all().await;
-                    if tokio::time::timeout(Duration::from_secs(15), &mut gateway).await.is_err() { lifecycle(audit.as_ref(), LifecycleKind::Shutdown, application_id, Stage::GatewayShutdown, category_failure(FailureCategory::Timeout)); }
                     (Ok(()), Outcome::Succeeded)
                 }
                 Err(error) => (Err(DiscordError::Signal(error)), category_failure(FailureCategory::Transport)),
             }
         }
     };
+    // Publish one deadline before signaling either worker. Gateway, grant, and
+    // announcement drains run concurrently; none receives a second grace period.
+    let deadline = *deadline.get_or_init(|| tokio::time::Instant::now() + SHUTDOWN_GRACE);
     let _ = sender.send(true);
-    shards.shutdown_all().await;
-    if tokio::time::timeout(Duration::from_secs(15), &mut worker)
+    let close_gateway = async {
+        if tokio::time::timeout_at(deadline, async {
+            shards.shutdown_all().await;
+            if await_gateway {
+                let _ = (&mut gateway).await;
+            }
+        })
         .await
         .is_err()
-    {
-        lifecycle(
-            audit.as_ref(),
-            LifecycleKind::Shutdown,
-            application_id,
-            Stage::GrantWorkerShutdown,
-            category_failure(FailureCategory::Timeout),
-        );
-        worker.abort();
-        let _ = worker.await;
-    }
+        {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Shutdown,
+                application_id,
+                Stage::GatewayShutdown,
+                category_failure(FailureCategory::Timeout),
+            );
+        }
+    };
+    let close_grants = async {
+        if tokio::time::timeout_at(deadline, &mut grants)
+            .await
+            .is_err()
+        {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Shutdown,
+                application_id,
+                Stage::GrantWorkerShutdown,
+                category_failure(FailureCategory::Timeout),
+            );
+            grants.abort();
+            let _ = grants.await;
+        }
+    };
+    let close_announcements = async {
+        // The worker uses the shared deadline, then aborts and awaits its own
+        // children. Await it here so their database writes cannot outlive the lock.
+        if !announcements_finished && announcements.await.is_err() {
+            lifecycle(
+                audit.as_ref(),
+                LifecycleKind::Shutdown,
+                application_id,
+                Stage::AnnouncementWorkerShutdown,
+                category_failure(FailureCategory::Unknown),
+            );
+        }
+    };
+    tokio::join!(close_gateway, close_grants, close_announcements);
     lifecycle(
         audit.as_ref(),
         LifecycleKind::Shutdown,

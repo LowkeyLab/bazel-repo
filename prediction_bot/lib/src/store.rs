@@ -12,6 +12,7 @@ use sqlx::{
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+use crate::announcements::persistence::enqueue;
 use crate::audit::{
     AuditEvent, CommandKind, Outcome, SharedAudit, Stage, canonical_command_key, logging_listener,
     store_outcome,
@@ -128,6 +129,26 @@ impl Store {
             .fetch_optional(&pool)
             .await?;
         if version != Some(1) {
+            return Err(StoreError::Configuration(
+                "run the supported schema migration first",
+            ));
+        }
+        let announcements_installed: bool = sqlx::query_scalar(
+            "SELECT to_regclass('prediction_announcement_settings') IS NOT NULL AND to_regclass('prediction_announcement_outbox') IS NOT NULL",
+        )
+        .fetch_one(&pool)
+        .await?;
+        if !announcements_installed {
+            return Err(StoreError::Configuration(
+                "run the supported schema migration first",
+            ));
+        }
+        let announcements_migrated: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM _sqlx_migrations WHERE version=3 AND success)",
+        )
+        .fetch_one(&pool)
+        .await?;
+        if !announcements_migrated {
             return Err(StoreError::Configuration(
                 "run the supported schema migration first",
             ));
@@ -360,6 +381,10 @@ impl Store {
                 sqlx::query("INSERT INTO prediction_events(guild_id, revision, command_key, accepted_at, event) VALUES ($1,$2,$3,$4,$5)")
                 .bind(guild.to_string()).bind(view.revision).bind(key).bind(accepted_at).bind(Json(cloud))
                 .execute(&mut *tx).await,
+            )?;
+            at_stage(
+                Stage::Append,
+                enqueue(&mut tx, guild, view.revision, event, &view.state).await,
             )?;
         }
         at_stage(
@@ -619,6 +644,13 @@ pub async fn migrate(pool: &PgPool, runtime_password: &str) -> Result<(), StoreE
             "application login".into(),
             MigrationType::Simple,
             include_str!("../../migrations/002_application_login.sql").into_sql_str(),
+            false,
+        ),
+        Migration::new(
+            3,
+            "announcements".into(),
+            MigrationType::Simple,
+            include_str!("../../migrations/003_announcements.sql").into_sql_str(),
             false,
         ),
     ]);

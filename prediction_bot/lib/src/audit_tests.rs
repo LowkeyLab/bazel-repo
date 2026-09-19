@@ -195,3 +195,70 @@ fn command_keys_must_be_canonical_before_entering_events() {
         assert_eq!(canonical_command_key(key), None);
     }
 }
+
+#[test]
+fn announcement_logging_serializes_safe_correlation_and_retry_decisions() {
+    use crate::audit::{AnnouncementDecision, AuditEvent, logging_listener};
+    use std::sync::{Arc, Mutex};
+    #[derive(Clone)]
+    struct Output(Arc<Mutex<Vec<u8>>>);
+    impl io::Write for Output {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+    let bytes = Arc::new(Mutex::new(Vec::new()));
+    let output = Output(bytes.clone());
+    let subscriber = tracing_subscriber::fmt()
+        .json()
+        .without_time()
+        .with_ansi(false)
+        .with_writer(move || output.clone())
+        .finish();
+    tracing::subscriber::with_default(subscriber, || {
+        logging_listener().on_event(&AuditEvent::AnnouncementAttemptCompleted {
+            guild: 10,
+            revision: 4,
+            channel_id: 20,
+            configuration_version: 2,
+            decision: AnnouncementDecision::Retry,
+            stage: Stage::Deliver,
+            outcome: Outcome::Failed(discord_failure(&serenity::Error::Io(io::Error::other(
+                "sentinel-private-token",
+            )))),
+        });
+        logging_listener().on_event(&AuditEvent::AnnouncementWorkerFailed {
+            stage: Stage::Discover,
+            outcome: store_outcome(
+                Stage::Discover,
+                &StoreError::Database(sqlx::Error::PoolClosed),
+            ),
+        });
+    });
+    let output = String::from_utf8(bytes.lock().unwrap().clone()).unwrap();
+    assert!(!output.contains("sentinel"));
+    let rows: Vec<serde_json::Value> = output
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["level"], "WARN");
+    let fields = &rows[0]["fields"];
+    assert_eq!(fields["event.name"], "announcement_attempt_completed");
+    assert_eq!(fields["announcement.guild"], 10);
+    assert_eq!(fields["announcement.revision"], 4);
+    assert_eq!(fields["announcement.channel_id"], 20);
+    assert_eq!(fields["announcement.configuration_version"], 2);
+    assert_eq!(fields["announcement.decision"], "retry");
+    assert_eq!(fields["failure.category"], "transport");
+    assert_eq!(rows[1]["level"], "ERROR");
+    assert_eq!(
+        rows[1]["fields"]["event.name"],
+        "announcement_worker_failed"
+    );
+    assert_eq!(rows[1]["fields"]["operation.stage"], "discover");
+}

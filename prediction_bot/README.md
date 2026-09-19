@@ -57,6 +57,18 @@ All timestamps are represented as whole Unix seconds. Fractional seconds in RFC 
 
 The direct shortcuts remain available: `/market create question options closes_at` requires all three fields, outcomes separated by `|` (for example `Yes | No`), and an RFC 3339 close time. `/market bet id outcome amount` uses the displayed **one-based** outcome number and a positive integer stake. `/market balance` and `/market leaderboard` show current points. `/market resolve id outcome` requires the market to have closed; `/market cancel id` can be used before or after close while the market is unresolved. Both moderation commands require Administrator or Manage Guild permission. Slash-command responses are private to the invoking member and do not ping users or roles.
 
+### Market announcements
+
+A server Administrator or member with Manage Guild permission can run `/market announcements set channel` to choose one ordinary server text channel. The bot validates that the channel belongs to the server and that its effective permissions include **View Channel** and **Send Messages** before saving it. The root `/market` command remains available to every server member. Configuration responses are private and suppress user and role pings.
+
+When enabled, the bot announces market creation, resolution, and cancellation. It does not announce bets and does not backfill events that happened before announcements were enabled. Use `/market announcements status` to see the configured channel, whether delivery is enabled or paused, the pending count, and any safe pause reason.
+
+Failed deliveries retry after five seconds with an increasing delay capped at five minutes; provider-requested longer delays are respected, and there is no attempt limit. Delivery is at least once: an uncertain Discord response can cause a duplicate announcement. Changing the destination moves pending work to the new channel, but an announcement already in flight can still reach the old channel. `/market announcements disable` stops future enqueueing and permanently discards pending announcements; reenabling later does not restore discarded work, though an in-flight request may still complete.
+
+Authentication failures (HTTP 401) and request timeouts (HTTP 408) remain queued and retry with backoff. An operator must correct invalid credentials and restart the bot; affected servers then resume at their saved retry deadlines without an administrator reconfiguring the announcement channel.
+
+The announcement worker polls immediately at startup and waits one second between completed batches. It preserves revision order within each server while allowing up to eight servers to progress concurrently. Shutdown stops discovering new announcements and gives accepted requests the remainder of a shared 15-second gateway shutdown budget to record their acknowledgement; unfinished sends are then aborted and their durable pending work remains for restart. An unexpected announcement-worker exit stops the gateway so it cannot continue with delivery silently disabled.
+
 The grant worker checks due schedules once per minute and catches up all missed intervals. Its stream command key and guild transaction lock prevent double grants. The process holds a PostgreSQL gateway advisory lock so only one gateway process runs for an application. Stop with Ctrl-C or SIGTERM for a graceful shutdown.
 
 ## Operational audit records
@@ -64,6 +76,8 @@ The grant worker checks due schedules once per minute and catches up all missed 
 Production logging writes newline-delimited JSON at information level and above. Typed audit events cover command and query completion, interaction acknowledgement and response delivery, mention reply completion, grant discovery or reconstruction failures, command registration, and migration, startup, readiness, and shutdown lifecycle changes. Each record has a stable event name, outcome, operation stage, and the fields appropriate to that event family.
 
 Mention replies emit one `mention_reply_completed` record per attempted send, correlated by guild, channel, and triggering message ID. Successful delivery is logged at INFO and delivery failure at WARN with sanitized failure categories and provider status codes. Success means Discord accepted the request, not that the user read the prompt. Ignored messages emit no event.
+
+Announcement attempts emit `announcement_attempt_completed`, correlated by guild, event revision, attempted channel, and configuration version. Records include the selected delivered/retry/pause decision and sanitized failure category; a concurrent configuration change can supersede that decision. Delivery failures are WARN, database completion failures are ERROR, and discovery failures emit `announcement_worker_failed` at ERROR. Empty polls emit no record. Use `/market announcements status` and reconfigure a paused destination after correcting its channel or permissions.
 
 Guild IDs and existing command or interaction identifiers correlate related records. Discord command keys use `discord:<interaction-id>`; scheduled grants use `grant:<member-id>:<schedule-boundary>`, so the selected grant boundary remains visible during retries. Interaction IDs are identifiers, not interaction tokens. A successful command record describes a successful invocation. It does not prove that invocation created a new economic effect: Discord redelivery can recover an existing command receipt, and a grant retry can find an already committed receipt without issuing points twice.
 
@@ -81,8 +95,9 @@ Run Bazel checks from the repository root:
 nix develop --command aspect test //prediction_bot/lib:domain_test
 nix develop --command aspect test //prediction_bot/lib:discord_test
 nix develop --command aspect test //prediction_bot/lib:store_test
+nix develop --command aspect test //prediction_bot/lib:announcements_test
 nix develop --command aspect format --scope=all
 nix develop --command aspect build //...
 ```
 
-The PostgreSQL integration target needs its isolated Docker test environment. Adapter tests use local interaction inputs; they do not contact Discord or establish that a bot has been deployed successfully.
+The PostgreSQL integration target needs its isolated Docker test environment. Announcement composition tests use the migrated runtime database and a real Serenity HTTP client against Wiremock, including the guarded application startup path. These tests disable Serenity’s rate limiter and terminate the gateway through an HTTP error; they do not establish live Discord readiness, gateway reconnect behavior, or production rate-limit behavior. Adapter tests use local interaction inputs; they do not contact Discord or establish that a bot has been deployed successfully.

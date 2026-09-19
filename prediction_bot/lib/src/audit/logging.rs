@@ -60,6 +60,9 @@ fn level(event: &AuditEvent, outcome: &Outcome) -> Level {
                 AuditEvent::InteractionCompleted {
                     stage: Stage::Acknowledge | Stage::Deliver,
                     ..
+                } | AuditEvent::AnnouncementAttemptCompleted {
+                    stage: Stage::Deliver,
+                    ..
                 } | AuditEvent::MentionReplyCompleted {
                     stage: Stage::Deliver,
                     ..
@@ -78,7 +81,9 @@ fn level(event: &AuditEvent, outcome: &Outcome) -> Level {
                         ..
                     } | AuditEvent::Lifecycle {
                         kind: LifecycleKind::Shutdown,
-                        stage: Stage::GatewayShutdown | Stage::GrantWorkerShutdown,
+                        stage: Stage::GatewayShutdown
+                            | Stage::GrantWorkerShutdown
+                            | Stage::AnnouncementWorkerShutdown,
                         ..
                     }
                 ) =>
@@ -132,8 +137,41 @@ macro_rules! emit {
 }
 
 impl AuditListener for LoggingListener {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "Keep the exhaustive event-to-log field mapping together for review"
+    )]
     fn on_event(&self, event: &AuditEvent) {
         match event {
+            AuditEvent::AnnouncementAttemptCompleted {
+                guild,
+                revision,
+                channel_id,
+                configuration_version,
+                decision,
+                outcome,
+                stage,
+            } => {
+                emit!(
+                    level(event, outcome),
+                    "announcement_attempt_completed",
+                    outcome,
+                    "announcement.guild" = *guild,
+                    "announcement.revision" = *revision,
+                    "announcement.channel_id" = *channel_id,
+                    "announcement.configuration_version" = *configuration_version,
+                    "announcement.decision" = decision.as_str(),
+                    "operation.stage" = stage.as_str(),
+                );
+            }
+            AuditEvent::AnnouncementWorkerFailed { outcome, stage } => {
+                emit!(
+                    level(event, outcome),
+                    "announcement_worker_failed",
+                    outcome,
+                    "operation.stage" = stage.as_str(),
+                );
+            }
             AuditEvent::CommandCompleted {
                 guild,
                 key,

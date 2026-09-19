@@ -11,6 +11,7 @@ rust_library(
     compile_data = [
         "//prediction_bot/migrations:001_event_store.sql",
         "//prediction_bot/migrations:002_application_login.sql",
+        "//prediction_bot/migrations:003_announcements.sql",
         "tests/fixtures/member-enrolled.json",
     ],
     crate_name = "prediction_bot",
@@ -86,8 +87,41 @@ rust_test(
 )
 
 rust_test(
+    name = "announcements_test",
+    size = "medium",
+    srcs = [
+        "tests/announcements_test.rs",
+        "tests/support/announcements.rs",
+    ],
+    crate_root = "tests/announcements_test.rs",
+    data = image_data("postgres_18"),  # keep
+    env = image_env("postgres_18"),
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":lib",
+        "//test_images/rust:test_images",  # keep
+        "@crates//:serde_json",
+        "@crates//:serenity",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:wiremock",
+    ],
+)
+
+rust_test(
     name = "discord_test",
     size = "small",
     crate = ":lib",
-    deps = ["@crates//:wiremock"],
+    deps = [
+        "@crates//:tracing-subscriber",
+        "@crates//:wiremock",
+    ],
 )
