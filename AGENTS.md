@@ -93,6 +93,9 @@ bazel clean && aspect build //...
 
 **Types & Error Handling:**
 
+- Prefer the newtype pattern wherever practical to represent distinct domain concepts (for example, `struct UserId(Uuid);`) instead of passing interchangeable primitives or using type aliases
+- Keep newtype fields private when enforcing invariants, and validate values in constructors or `TryFrom` implementations
+- Expose only the traits and conversions appropriate to the domain; unwrap newtypes at integration boundaries as needed
 - Use `anyhow::Result<T>` for applications/binaries
 - Use `thiserror` for library error types
 - Prefer `?` operator for error propagation
