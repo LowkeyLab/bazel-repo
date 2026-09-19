@@ -38,6 +38,7 @@ rust_test(
     ],
     crate_root = "src/domain.rs",
     deps = [
+        "@crates//:googletest",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",
@@ -52,6 +53,7 @@ rust_test(
     crate_root = "src/events.rs",
     deps = [
         "@crates//:chrono",
+        "@crates//:googletest",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",
@@ -77,6 +79,7 @@ rust_test(
     deps = [
         ":lib",
         "//test_images/rust:test_images",  # keep
+        "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:serenity",
         "@crates//:sqlx",
@@ -107,6 +110,7 @@ rust_test(
     deps = [
         ":lib",
         "//test_images/rust:test_images",  # keep
+        "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:serenity",
         "@crates//:sqlx",
@@ -121,6 +125,7 @@ rust_test(
     size = "small",
     crate = ":lib",
     deps = [
+        "@crates//:googletest",
         "@crates//:tracing-subscriber",
         "@crates//:wiremock",
     ],

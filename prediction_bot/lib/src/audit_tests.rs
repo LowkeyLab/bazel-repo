@@ -1,3 +1,7 @@
+use googletest::{
+    assert_that,
+    matchers::{contains_substring, eq, matches_pattern, not},
+};
 use std::{borrow::Cow, fmt, io};
 
 use super::audit::{
@@ -44,39 +48,39 @@ impl sqlx::error::DatabaseError for TestDatabaseError {
     }
 }
 
-#[test]
+#[googletest::test]
 fn replay_validation_is_an_operational_failure() {
     let error = StoreError::Domain(DomainError::Invalid("insufficient points"));
-    assert!(matches!(
+    assert_that!(
         store_outcome(Stage::Replay, &error),
-        Outcome::Failed(Failure {
-            category: FailureCategory::History,
+        matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+            category: eq(&FailureCategory::History),
             ..
-        })
-    ));
-    assert_eq!(
+        })))
+    );
+    assert_that!(
         store_outcome(Stage::Decide, &error),
-        Outcome::Rejected(Rejection::InsufficientPoints)
+        eq(&Outcome::Rejected(Rejection::InsufficientPoints))
     );
 }
 
-#[test]
+#[googletest::test]
 fn configuration_details_do_not_enter_the_event_contract() {
     let error = StoreError::Database(sqlx::Error::Configuration(
         "postgres://sentinel-secret@private-host/database".into(),
     ));
-    assert_eq!(
+    assert_that!(
         store_outcome(Stage::Acquire, &error),
-        Outcome::Failed(Failure {
+        eq(&Outcome::Failed(Failure {
             category: FailureCategory::Configuration,
             sqlstate: None,
             http_status: None,
             discord_code: None,
-        })
+        }))
     );
 }
 
-#[test]
+#[googletest::test]
 fn decide_rejections_are_typed_without_copying_reasons() {
     for (reason, rejection) in [
         ("insufficient points", Rejection::InsufficientPoints),
@@ -90,14 +94,14 @@ fn decide_rejections_are_typed_without_copying_reasons() {
         ("sentinel-private-reason", Rejection::InvalidInput),
     ] {
         let error = StoreError::Domain(DomainError::Invalid(reason));
-        assert_eq!(
+        assert_that!(
             store_outcome(Stage::Decide, &error),
-            Outcome::Rejected(rejection)
+            eq(&Outcome::Rejected(rejection))
         );
     }
 }
 
-#[test]
+#[googletest::test]
 fn operational_errors_use_safe_categories() {
     let cases = [
         (
@@ -119,19 +123,19 @@ fn operational_errors_use_safe_categories() {
     ];
 
     for (error, category) in cases {
-        assert_eq!(
+        assert_that!(
             store_outcome(Stage::Append, &error),
-            Outcome::Failed(Failure {
+            eq(&Outcome::Failed(Failure {
                 category,
                 sqlstate: None,
                 http_status: None,
                 discord_code: None,
-            })
+            }))
         );
     }
 }
 
-#[test]
+#[googletest::test]
 fn database_errors_allowlist_sqlstate_without_copying_messages() {
     for (code, category, sqlstate) in [
         ("23514", FailureCategory::Constraint, Some("23514")),
@@ -140,46 +144,46 @@ fn database_errors_allowlist_sqlstate_without_copying_messages() {
         ("SECRET", FailureCategory::Database, None),
     ] {
         let error = StoreError::Database(sqlx::Error::Database(Box::new(TestDatabaseError(code))));
-        assert_eq!(
+        assert_that!(
             store_outcome(Stage::Commit, &error),
-            Outcome::Failed(Failure {
+            eq(&Outcome::Failed(Failure {
                 category,
                 sqlstate: sqlstate.map(str::to_owned),
                 http_status: None,
                 discord_code: None,
-            })
+            }))
         );
     }
 }
 
-#[test]
+#[googletest::test]
 fn discord_failures_use_safe_categories() {
-    assert_eq!(
+    assert_that!(
         discord_failure(&serenity::Error::Io(io::Error::other(
             "sentinel-private-host"
         ))),
-        Failure {
+        eq(&Failure {
             category: FailureCategory::Transport,
             sqlstate: None,
             http_status: None,
             discord_code: None,
-        }
+        })
     );
-    assert_eq!(
+    assert_that!(
         discord_failure(&serenity::Error::Other("sentinel-private-message")),
-        Failure {
+        eq(&Failure {
             category: FailureCategory::Unknown,
             sqlstate: None,
             http_status: None,
             discord_code: None,
-        }
+        })
     );
 }
 
-#[test]
+#[googletest::test]
 fn command_keys_must_be_canonical_before_entering_events() {
     for key in ["discord:1", "discord:18446744073709551615", "grant:7:-20"] {
-        assert_eq!(canonical_command_key(key), Some(key.to_owned()));
+        assert_that!(canonical_command_key(key), eq(&Some(key.to_owned())));
     }
 
     for key in [
@@ -192,11 +196,11 @@ fn command_keys_must_be_canonical_before_entering_events() {
         "grant:7:020",
         "grant:7:20:extra",
     ] {
-        assert_eq!(canonical_command_key(key), None);
+        assert_that!(canonical_command_key(key), eq(&None));
     }
 }
 
-#[test]
+#[googletest::test]
 fn announcement_logging_serializes_safe_correlation_and_retry_decisions() {
     use crate::audit::{AnnouncementDecision, AuditEvent, logging_listener};
     use std::sync::{Arc, Mutex};
@@ -240,25 +244,25 @@ fn announcement_logging_serializes_safe_correlation_and_retry_decisions() {
         });
     });
     let output = String::from_utf8(bytes.lock().unwrap().clone()).unwrap();
-    assert!(!output.contains("sentinel"));
+    assert_that!(output, not(contains_substring("sentinel")));
     let rows: Vec<serde_json::Value> = output
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0]["level"], "WARN");
+    assert_that!(rows.len(), eq(2));
+    assert_that!(rows[0]["level"], eq("WARN"));
     let fields = &rows[0]["fields"];
-    assert_eq!(fields["event.name"], "announcement_attempt_completed");
-    assert_eq!(fields["announcement.guild"], 10);
-    assert_eq!(fields["announcement.revision"], 4);
-    assert_eq!(fields["announcement.channel_id"], 20);
-    assert_eq!(fields["announcement.configuration_version"], 2);
-    assert_eq!(fields["announcement.decision"], "retry");
-    assert_eq!(fields["failure.category"], "transport");
-    assert_eq!(rows[1]["level"], "ERROR");
-    assert_eq!(
+    assert_that!(fields["event.name"], eq("announcement_attempt_completed"));
+    assert_that!(fields["announcement.guild"], eq(10));
+    assert_that!(fields["announcement.revision"], eq(4));
+    assert_that!(fields["announcement.channel_id"], eq(20));
+    assert_that!(fields["announcement.configuration_version"], eq(2));
+    assert_that!(fields["announcement.decision"], eq("retry"));
+    assert_that!(fields["failure.category"], eq("transport"));
+    assert_that!(rows[1]["level"], eq("ERROR"));
+    assert_that!(
         rows[1]["fields"]["event.name"],
-        "announcement_worker_failed"
+        eq("announcement_worker_failed")
     );
-    assert_eq!(rows[1]["fields"]["operation.stage"], "discover");
+    assert_that!(rows[1]["fields"]["operation.stage"], eq("discover"));
 }

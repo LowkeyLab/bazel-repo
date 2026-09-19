@@ -1,5 +1,12 @@
 use super::{Action, Input, InputOption, InputValue, parse};
 use crate::domain::Command;
+use googletest::{
+    assert_that,
+    matchers::{
+        anything, contains, contains_substring, elements_are, ends_with, eq, err, is_empty, le, lt,
+        matches_pattern, none, not, ok, some,
+    },
+};
 use wiremock::{
     Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
@@ -37,25 +44,25 @@ fn channel(name: &str, value: u64) -> InputOption {
     }
 }
 
-#[test]
+#[googletest::test]
 fn announcement_configuration_requires_server_management() {
     let mut request = input("announcements.disable", vec![]);
-    assert!(parse(&request).is_err());
+    assert_that!(parse(&request), err(anything()));
     request.moderator = true;
-    assert!(matches!(
+    assert_that!(
         parse(&request),
-        Ok((10, _, Action::AnnouncementsDisable))
-    ));
+        ok((eq(&10), anything(), eq(&Action::AnnouncementsDisable)))
+    );
 }
 
-#[test]
+#[googletest::test]
 fn announcement_actions_require_exact_typed_options() {
     let mut set = input("announcements.set", vec![channel("channel", 55)]);
-    assert!(parse(&set).is_err());
+    assert_that!(parse(&set), err(anything()));
     set.moderator = true;
-    assert_eq!(
+    assert_that!(
         parse(&set).unwrap().2,
-        Action::AnnouncementsSet { channel_id: 55 }
+        eq(&Action::AnnouncementsSet { channel_id: 55 })
     );
 
     for malformed in [
@@ -70,58 +77,65 @@ fn announcement_actions_require_exact_typed_options() {
     ] {
         let mut malformed = malformed;
         malformed.moderator = true;
-        assert!(parse(&malformed).is_err());
+        assert_that!(parse(&malformed), err(anything()));
     }
 
     let mut status = input("announcements.status", vec![]);
     status.moderator = true;
-    assert!(matches!(
+    assert_that!(
         parse(&status),
-        Ok((10, _, Action::AnnouncementsStatus))
-    ));
+        ok((eq(&10), anything(), eq(&Action::AnnouncementsStatus)))
+    );
 
     status.guild_id = None;
-    assert!(parse(&status).is_err());
+    assert_that!(parse(&status), err(anything()));
     status.guild_id = Some(10);
     status.bot = true;
-    assert!(parse(&status).is_err());
+    assert_that!(parse(&status), err(anything()));
 }
 
-#[test]
+#[googletest::test]
 fn guild_and_bot_metadata_are_enforced() {
     let mut join = input("join", vec![]);
-    assert!(matches!(
+    assert_that!(
         parse(&join),
-        Ok((10, _, Action::Write(Command::Join)))
-    ));
+        ok((
+            eq(&10),
+            anything(),
+            matches_pattern!(Action::Write(eq(&Command::Join)))
+        ))
+    );
     join.guild_id = None;
-    assert_eq!(
+    assert_that!(
         parse(&join),
-        Err("This command is available only in a server.")
+        eq(&Err("This command is available only in a server."))
     );
     join.guild_id = Some(10);
     join.bot = true;
-    assert_eq!(parse(&join), Err("Bots cannot use the prediction economy."));
+    assert_that!(
+        parse(&join),
+        eq(&Err("Bots cannot use the prediction economy."))
+    );
 }
 
-#[test]
+#[googletest::test]
 fn moderator_flag_is_passed_to_resolution_and_cancel() {
     let mut resolve = input("resolve", vec![text("id", "1234"), number("outcome", 2)]);
     resolve.moderator = true;
     let (_, actor, action) = parse(&resolve).unwrap();
-    assert!(actor.moderator);
-    assert_eq!(
+    assert_that!(actor.moderator, eq(true));
+    assert_that!(
         action,
-        Action::Write(Command::Resolve {
+        eq(&Action::Write(Command::Resolve {
             id: "1234".to_owned(),
             outcome: 1
-        })
+        }))
     );
     let cancel = input("cancel", vec![text("id", "1234")]);
-    assert!(!parse(&cancel).unwrap().1.moderator);
+    assert_that!(parse(&cancel).unwrap().1.moderator, eq(false));
 }
 
-#[test]
+#[googletest::test]
 fn parses_market_inputs_and_one_based_outcomes() {
     let create = input(
         "create",
@@ -144,9 +158,9 @@ fn parses_market_inputs_and_one_based_outcomes() {
     else {
         panic!("expected create command");
     };
-    assert_eq!(question, "Will it rain?");
-    assert_eq!(options, vec!["Yes", "No"]);
-    assert_eq!(closes_at, 1_893_553_445);
+    assert_that!(question, eq("Will it rain?"));
+    assert_that!(options, eq(&vec!["Yes", "No"]));
+    assert_that!(closes_at, eq(1_893_553_445));
 
     let bet = input(
         "bet",
@@ -156,17 +170,17 @@ fn parses_market_inputs_and_one_based_outcomes() {
             number("amount", 25),
         ],
     );
-    assert_eq!(
+    assert_that!(
         parse(&bet).unwrap().2,
-        Action::Write(Command::Bet {
+        eq(&Action::Write(Command::Bet {
             id: "1234".to_owned(),
             outcome: 0,
             amount: 25
-        })
+        }))
     );
 }
 
-#[test]
+#[googletest::test]
 fn rejects_malformed_amounts_outcomes_and_times() {
     for bet in [
         input(
@@ -202,7 +216,7 @@ fn rejects_malformed_amounts_outcomes_and_times() {
             ],
         ),
     ] {
-        assert!(parse(&bet).is_err());
+        assert_that!(parse(&bet), err(anything()));
     }
     for create in [
         input(
@@ -222,11 +236,11 @@ fn rejects_malformed_amounts_outcomes_and_times() {
             ],
         ),
     ] {
-        assert!(parse(&create).is_err());
+        assert_that!(parse(&create), err(anything()));
     }
 }
 
-#[test]
+#[googletest::test]
 fn query_outputs_are_scoped_ranked_and_bounded() {
     use super::{render_query, reply, truncate};
     use crate::domain::{Account, Actor, Bet, Market, State, Status};
@@ -278,9 +292,15 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
         bot: false,
     };
     let leaderboard = render_query(&view, &Action::Leaderboard, actor, 1_850_000_000);
-    assert!(leaderboard.find("User ID 9").unwrap() < leaderboard.find("User ID 20").unwrap());
-    assert!(render_query(&view, &Action::Balance, actor, 1_850_000_000).contains("75 points"));
-    assert!(
+    assert_that!(
+        leaderboard.find("User ID 9").unwrap(),
+        lt(leaderboard.find("User ID 20").unwrap())
+    );
+    assert_that!(
+        render_query(&view, &Action::Balance, actor, 1_850_000_000),
+        contains_substring("75 points")
+    );
+    assert_that!(
         render_query(
             &view,
             &Action::Show {
@@ -288,10 +308,10 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
             },
             actor,
             1_850_000_000
-        )
-        .contains("25 points pooled")
+        ),
+        contains_substring("25 points pooled")
     );
-    assert!(
+    assert_that!(
         render_query(
             &view,
             &Action::Show {
@@ -299,11 +319,14 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
             },
             actor,
             1_900_000_000
-        )
-        .contains("Closed; awaiting outcome")
+        ),
+        contains_substring("Closed; awaiting outcome")
     );
-    assert!(render_query(&view, &Action::List, actor, 1_900_000_000).contains("No markets"));
-    assert!(
+    assert_that!(
+        render_query(&view, &Action::List, actor, 1_900_000_000),
+        contains_substring("No markets")
+    );
+    assert_that!(
         render_query(
             &view,
             &Action::Show {
@@ -311,29 +334,32 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
             },
             actor,
             1_850_000_000
-        )
-        .contains("in this server")
+        ),
+        contains_substring("in this server")
     );
 
     let content = truncate(&"🪙".repeat(2_000));
-    assert!(content.encode_utf16().count() <= 2_000);
-    assert!(content.ends_with('…'));
+    assert_that!(content.encode_utf16().count(), le(2_000));
+    assert_that!(content, ends_with("…"));
     let value = serde_json::to_value(reply("@everyone <@123>")).unwrap();
-    assert_eq!(value["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert_that!(
+        value["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
 }
 
-#[test]
+#[googletest::test]
 fn storage_failures_do_not_expose_database_details() {
     use super::safe_error;
     use crate::store::StoreError;
     let error = StoreError::Database(sqlx::Error::Configuration("secret database URL".into()));
-    assert_eq!(
+    assert_that!(
         safe_error(&error),
-        "The prediction economy is temporarily unavailable. Please try again."
+        eq("The prediction economy is temporarily unavailable. Please try again.")
     );
 }
 
-#[test]
+#[googletest::test]
 fn list_keeps_ten_ids_when_questions_use_long_emoji_text() {
     use super::{render_query, truncate};
     use crate::domain::{Actor, Market, State, Status};
@@ -366,14 +392,19 @@ fn list_keeps_ten_ids_when_questions_use_long_emoji_text() {
         bot: false,
     };
     let message = render_query(&view, &Action::List, actor, 1_850_000_000);
-    assert!(message.encode_utf16().count() <= 2_000);
+    assert_that!(message.encode_utf16().count(), le(2_000));
     let reply = truncate(&message);
     for index in 0..10 {
         let id = format!("{index:08x}-0000-0000-0000-000000000000");
-        assert!(reply.contains(&id), "missing market ID {id}");
+        assert_that!(
+            reply,
+            contains_substring(id.as_str()),
+            "missing market ID {id}"
+        );
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn already_acknowledged_defer_still_runs_receipt_lookup_and_edit_content() {
     use super::{content_after_defer, recoverable_defer_code};
@@ -390,10 +421,10 @@ async fn already_acknowledged_defer_still_runs_receipt_lookup_and_edit_content()
         }
     })
     .await;
-    assert_eq!(replayed.as_deref(), Some("Recorded market response"));
+    assert_that!(replayed.as_deref(), eq(Some("Recorded market response")));
     let edit = serde_json::to_value(super::reply(replayed.as_deref().unwrap())).unwrap();
-    assert_eq!(edit["content"], "Recorded market response");
-    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_that!(edit["content"], eq("Recorded market response"));
+    assert_that!(calls.load(Ordering::SeqCst), eq(1));
 
     let rejected = content_after_defer(recoverable_defer_code(40_061), {
         let calls = Arc::clone(&calls);
@@ -403,25 +434,27 @@ async fn already_acknowledged_defer_still_runs_receipt_lookup_and_edit_content()
         }
     })
     .await;
-    assert_eq!(rejected, None);
-    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_that!(rejected, eq(&None));
+    assert_that!(calls.load(Ordering::SeqCst), eq(1));
 }
 
-#[test]
+#[googletest::test]
 fn expected_application_id_must_match_authenticated_identity() {
     use super::verify_application_id;
-    assert_eq!(verify_application_id(123, None), Ok(123));
-    assert_eq!(verify_application_id(123, Some(123)), Ok(123));
-    assert_eq!(
+    assert_that!(verify_application_id(123, None), eq(Ok(123)));
+    assert_that!(verify_application_id(123, Some(123)), eq(Ok(123)));
+    assert_that!(
         verify_application_id(123, Some(456)),
-        Err("configured application ID does not match Discord token")
+        eq(Err(
+            "configured application ID does not match Discord token"
+        ))
     );
-    assert!(verify_application_id(0, None).is_err());
+    assert_that!(verify_application_id(0, None), err(anything()));
 }
 
-#[test]
+#[googletest::test]
 fn creation_can_start_without_typing_slash_command_fields() {
-    assert!(parse(&input("create", vec![])).is_ok());
+    assert_that!(parse(&input("create", vec![])), ok(anything()));
     let registration = serde_json::to_value(super::market_command()).unwrap();
     let create = registration["options"]
         .as_array()
@@ -429,12 +462,13 @@ fn creation_can_start_without_typing_slash_command_fields() {
         .iter()
         .find(|option| option["name"] == "create")
         .unwrap();
-    assert!(
+    assert_that!(
         create["options"]
             .as_array()
             .unwrap()
             .iter()
-            .all(|option| option["required"] != true)
+            .all(|option| option["required"] != true),
+        eq(true)
     );
 }
 
@@ -472,7 +506,7 @@ fn ui_view() -> crate::store::View {
     crate::store::View { revision: 0, state }
 }
 
-#[test]
+#[googletest::test]
 fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
     let view = ui_view();
     let picker = serde_json::to_value(
@@ -480,19 +514,23 @@ fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
     )
     .unwrap();
     let select = &picker["components"][0]["components"][0];
-    assert_eq!(picker["flags"], 64);
-    assert_eq!(picker["allowed_mentions"]["parse"], serde_json::json!([]));
+    assert_that!(picker["flags"], eq(64));
+    assert_that!(
+        picker["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
     for (preset, expected) in [
         ("yesno", vec!["Yes", "No"]),
         ("result", vec!["Win", "Lose", "Draw"]),
         ("custom", vec!["First", "Second"]),
     ] {
-        assert!(
+        assert_that!(
             select["options"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|option| option["value"] == preset)
+                .any(|option| option["value"] == preset),
+            eq(true)
         );
         let response = super::ui::component(
             10,
@@ -504,8 +542,9 @@ fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
         )
         .unwrap();
         let modal = serde_json::to_value(response).unwrap();
-        assert_eq!(
-            modal["type"], 9,
+        assert_that!(
+            modal["type"],
+            eq(9),
             "selection should open a modal immediately"
         );
         let mut fields = vec![text("question", "Will it happen?"), text("closes_at", "1h")];
@@ -529,13 +568,13 @@ fn preset_picker_opens_forms_that_create_the_selected_outcomes() {
         else {
             panic!("expected creation");
         };
-        assert_eq!(question, "Will it happen?");
-        assert_eq!(options, expected);
-        assert_eq!(closes_at, 5_600);
+        assert_that!(question, eq("Will it happen?"));
+        assert_that!(options, eq(&expected));
+        assert_that!(closes_at, eq(5_600));
     }
 }
 
-#[test]
+#[googletest::test]
 fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
     for value in ["2030-01-02T03:04:05.900Z", "2030-01-02T04:04:05.900+01:00"] {
         let (_, _, action) = parse(&input(
@@ -550,7 +589,7 @@ fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
         let Action::Write(Command::Create { closes_at, .. }) = action else {
             panic!("expected create command");
         };
-        assert_eq!(closes_at, 1_893_553_445);
+        assert_that!(closes_at, eq(1_893_553_445));
 
         let command = super::ui::modal_command(
             10,
@@ -563,11 +602,11 @@ fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
         let Command::Create { closes_at, .. } = command else {
             panic!("expected create command");
         };
-        assert_eq!(closes_at, 1_893_553_445);
+        assert_that!(closes_at, eq(1_893_553_445));
     }
 }
 
-#[test]
+#[googletest::test]
 fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
     let view = ui_view();
     let list = serde_json::to_value(
@@ -588,7 +627,7 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
         .unwrap(),
     )
     .unwrap();
-    assert_eq!(card["data"]["embeds"][0]["title"], "Who wins?");
+    assert_that!(card["data"]["embeds"][0]["title"], eq("Who wins?"));
     let outcomes = &card["data"]["components"][0]["components"][0];
     let blue = outcomes["options"]
         .as_array()
@@ -608,7 +647,7 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
         .unwrap(),
     )
     .unwrap();
-    assert_eq!(modal["type"], 9);
+    assert_that!(modal["type"], eq(9));
     let command = super::ui::modal_command(
         10,
         ui_actor(),
@@ -617,17 +656,17 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
         2_000,
     )
     .unwrap();
-    assert_eq!(
+    assert_that!(
         command,
-        Command::Bet {
+        eq(&Command::Bet {
             id: market_id.into(),
             outcome: 1,
             amount: 25
-        }
+        })
     );
 }
 
-#[test]
+#[googletest::test]
 fn forms_reject_other_members_servers_bots_and_malformed_values() {
     let view = ui_view();
     for (guild, actor) in [
@@ -647,7 +686,7 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
             },
         ),
     ] {
-        assert!(
+        assert_that!(
             super::ui::component(
                 guild,
                 actor,
@@ -655,18 +694,18 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
                 &["yesno".into()],
                 &view,
                 2_000
-            )
-            .is_err()
+            ),
+            err(anything())
         );
-        assert!(
+        assert_that!(
             super::ui::modal_command(
                 guild,
                 actor,
                 "pm:10:20:new:yesno",
                 vec![text("question", "Q"), text("closes_at", "1h")],
                 2_000
-            )
-            .is_err()
+            ),
+            err(anything())
         );
     }
     for time in [
@@ -676,30 +715,30 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
         "yesterday",
         "1970-01-01T00:00:00Z",
     ] {
-        assert!(
+        assert_that!(
             super::ui::modal_command(
                 10,
                 ui_actor(),
                 "pm:10:20:new:yesno",
                 vec![text("question", "Q"), text("closes_at", time)],
                 2_000
-            )
-            .is_err()
+            ),
+            err(anything())
         );
     }
     for amount in ["0", "-1", "2.5", "NaN", "9223372036854775808"] {
-        assert!(
+        assert_that!(
             super::ui::modal_command(
                 10,
                 ui_actor(),
                 "pm:10:20:stake:78e82954-4c67-4e0d-8c80-8ab95a527ae5:1",
                 vec![text("amount", amount)],
                 2_000
-            )
-            .is_err()
+            ),
+            err(anything())
         );
     }
-    assert!(
+    assert_that!(
         super::ui::component(
             10,
             ui_actor(),
@@ -707,12 +746,15 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
             &["unknown".into()],
             &view,
             2_000
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(super::ui::component(10, ui_actor(), "pm:10:20:create", &[], &view, 2_000).is_err());
+    assert_that!(
+        super::ui::component(10, ui_actor(), "pm:10:20:create", &[], &view, 2_000),
+        err(anything())
+    );
     for options in ["Only one", "Yes\nyes", "Yes\n\nNo"] {
-        assert!(
+        assert_that!(
             super::ui::modal_command(
                 10,
                 ui_actor(),
@@ -723,13 +765,13 @@ fn forms_reject_other_members_servers_bots_and_malformed_values() {
                     text("options", options)
                 ],
                 2_000
-            )
-            .is_err()
+            ),
+            err(anything())
         );
     }
 }
 
-#[test]
+#[googletest::test]
 fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
     let view = ui_view();
     let action = Action::Show {
@@ -738,8 +780,8 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
     let card =
         serde_json::to_value(super::ui::query(&view, &action, ui_actor(), 10, 10_000).message())
             .unwrap();
-    assert_eq!(card["components"], serde_json::json!([]));
-    assert!(
+    assert_that!(card["components"], eq(&serde_json::json!([])));
+    assert_that!(
         super::ui::component(
             10,
             ui_actor(),
@@ -747,10 +789,10 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
             &["0".into()],
             &view,
             10_000
-        )
-        .is_err()
+        ),
+        err(anything())
     );
-    assert!(
+    assert_that!(
         super::ui::component(
             10,
             ui_actor(),
@@ -758,15 +800,18 @@ fn closed_market_cards_and_stale_outcome_selections_cannot_open_bet_forms() {
             &["9".into()],
             &view,
             2_000
-        )
-        .is_err()
+        ),
+        err(anything())
     );
 }
 
-#[test]
+#[googletest::test]
 fn announcements_are_registered_as_an_admin_subcommand_group_without_restricting_market() {
     let registration = serde_json::to_value(super::market_command()).unwrap();
-    assert!(registration["default_member_permissions"].is_null());
+    assert_that!(
+        registration["default_member_permissions"].is_null(),
+        eq(true)
+    );
 
     let announcements = registration["options"]
         .as_array()
@@ -774,23 +819,23 @@ fn announcements_are_registered_as_an_admin_subcommand_group_without_restricting
         .iter()
         .find(|option| option["name"] == "announcements")
         .expect("announcement configuration must be discoverable");
-    assert_eq!(announcements["type"], 2);
+    assert_that!(announcements["type"], eq(2));
     let commands = announcements["options"].as_array().unwrap();
-    assert_eq!(
+    assert_that!(
         commands
             .iter()
             .map(|command| command["name"].as_str().unwrap())
             .collect::<Vec<_>>(),
-        vec!["set", "status", "disable"]
+        eq(&vec!["set", "status", "disable"])
     );
     let channel = &commands[0]["options"][0];
-    assert_eq!(channel["name"], "channel");
-    assert_eq!(channel["type"], 7);
-    assert_eq!(channel["required"], true);
-    assert_eq!(channel["channel_types"], serde_json::json!([0]));
+    assert_that!(channel["name"], eq("channel"));
+    assert_that!(channel["type"], eq(7));
+    assert_that!(channel["required"], eq(true));
+    assert_that!(channel["channel_types"], eq(&serde_json::json!([0])));
 }
 
-#[test]
+#[googletest::test]
 fn discord_adapter_flattens_only_the_supported_announcement_group() {
     let mut payload = interaction_json(
         200,
@@ -825,16 +870,16 @@ fn discord_adapter_flattens_only_the_supported_announcement_group() {
         }
     });
     let command: serenity::all::CommandInteraction = serde_json::from_value(payload).unwrap();
-    assert_eq!(
+    assert_that!(
         super::from_discord(&command).unwrap(),
-        Input {
+        eq(&Input {
             guild_id: Some(10),
             user_id: 7,
             bot: false,
             moderator: true,
             subcommand: "announcements.set".into(),
             options: vec![channel("channel", 55)],
-        }
+        })
     );
     for name in ["status", "disable"] {
         let mut command = command.clone();
@@ -845,8 +890,8 @@ fn discord_adapter_flattens_only_the_supported_announcement_group() {
         }]))
         .unwrap();
         let input = super::from_discord(&command).unwrap();
-        assert_eq!(input.subcommand, format!("announcements.{name}"));
-        assert!(input.options.is_empty());
+        assert_that!(input.subcommand, eq(&format!("announcements.{name}")));
+        assert_that!(input.options, is_empty());
     }
 
     for options in [
@@ -869,11 +914,11 @@ fn discord_adapter_flattens_only_the_supported_announcement_group() {
             "options": options
         }]))
         .unwrap();
-        assert!(super::from_discord(&malformed).is_err());
+        assert_that!(super::from_discord(&malformed), err(anything()));
     }
 }
 
-#[test]
+#[googletest::test]
 fn help_is_registered_without_arguments_and_parses_before_enrollment() {
     let registration = serde_json::to_value(super::market_command()).unwrap();
     let help = registration["options"]
@@ -882,12 +927,18 @@ fn help_is_registered_without_arguments_and_parses_before_enrollment() {
         .iter()
         .find(|option| option["name"] == "help")
         .expect("help must be discoverable");
-    assert!(help["options"].as_array().is_none_or(Vec::is_empty));
-    assert!(parse(&input("help", vec![])).is_ok());
-    assert!(parse(&input("help", vec![text("unexpected", "value")])).is_err());
+    assert_that!(
+        help["options"].as_array().is_none_or(Vec::is_empty),
+        eq(true)
+    );
+    assert_that!(parse(&input("help", vec![])), ok(anything()));
+    assert_that!(
+        parse(&input("help", vec![text("unexpected", "value")])),
+        err(anything())
+    );
 }
 
-#[test]
+#[googletest::test]
 fn help_explains_getting_started_without_an_account() {
     let action = parse(&input("help", vec![])).unwrap().2;
     let view = crate::store::View {
@@ -906,11 +957,18 @@ fn help_explains_getting_started_without_an_account() {
         "/market announcements",
         "Manage Guild",
     ] {
-        assert!(content.contains(guidance), "missing guidance: {guidance}");
+        assert_that!(
+            content,
+            contains_substring(guidance),
+            "missing guidance: {guidance}"
+        );
     }
     let response = serde_json::to_value(super::reply(&content)).unwrap();
-    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
-    assert_eq!(response["allowed_mentions"]["replied_user"], false);
+    assert_that!(
+        response["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
+    assert_that!(response["allowed_mentions"]["replied_user"], eq(false));
 }
 
 fn mentioned_message() -> serenity::all::Message {
@@ -924,35 +982,36 @@ fn mentioned_message() -> serenity::all::Message {
     message
 }
 
-#[test]
+#[googletest::test]
 fn mentioning_this_bot_produces_one_help_prompt_without_pings() {
     let response = super::mention_reply(&mentioned_message(), 99)
         .expect("a human mentioning this bot should receive help");
     let payload = serde_json::to_value(response).unwrap();
-    assert!(
-        payload["content"]
-            .as_str()
-            .unwrap()
-            .contains("/market help")
+    assert_that!(
+        payload["content"].as_str().unwrap(),
+        contains_substring("/market help")
     );
-    assert_eq!(payload["allowed_mentions"]["parse"], serde_json::json!([]));
-    assert_eq!(payload["allowed_mentions"]["replied_user"], false);
+    assert_that!(
+        payload["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
+    assert_that!(payload["allowed_mentions"]["replied_user"], eq(false));
 }
 
-#[test]
+#[googletest::test]
 fn mention_help_ignores_other_mentions_bots_and_private_messages() {
-    assert!(super::mention_reply(&mentioned_message(), 98).is_none());
-    assert!(super::mention_reply(&mentioned_message(), 0).is_none());
+    assert_that!(super::mention_reply(&mentioned_message(), 98), none());
+    assert_that!(super::mention_reply(&mentioned_message(), 0), none());
     let mut ordinary = mentioned_message();
     ordinary.mentions.clear();
     ordinary.content = "bot, help please".to_owned();
-    assert!(super::mention_reply(&ordinary, 99).is_none());
+    assert_that!(super::mention_reply(&ordinary, 99), none());
     let mut from_bot = mentioned_message();
     from_bot.author.bot = true;
-    assert!(super::mention_reply(&from_bot, 99).is_none());
+    assert_that!(super::mention_reply(&from_bot, 99), none());
     let mut private = mentioned_message();
     private.guild_id = None;
-    assert!(super::mention_reply(&private, 99).is_none());
+    assert_that!(super::mention_reply(&private, 99), none());
 }
 
 #[derive(Default)]
@@ -963,6 +1022,7 @@ impl crate::audit::AuditListener for AuditRecorder {
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn component_timeout_keeps_private_retry_response_and_reports_correlated_failure() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
@@ -978,27 +1038,28 @@ async fn component_timeout_keeps_private_retry_response_and_reports_correlated_f
     .await;
     let response = super::interaction_error(&result.err().unwrap());
     let value = serde_json::to_value(response).unwrap();
-    assert_eq!(
+    assert_that!(
         value["data"]["content"],
-        "Loading took too long. Please select the option again."
+        eq("Loading took too long. Please select the option again.")
     );
-    assert_eq!(value["data"]["flags"], 64);
-    assert!(matches!(
+    assert_that!(value["data"]["flags"], eq(64));
+    assert_that!(
         recorder.0.lock().unwrap().as_slice(),
-        [AuditEvent::QueryCompleted {
-            guild: 10,
-            interaction_id: 123,
-            query: QueryKind::Component,
-            stage: Stage::Query,
-            outcome: Outcome::Failed(Failure {
-                category: FailureCategory::Timeout,
+        elements_are![matches_pattern!(AuditEvent::QueryCompleted {
+            guild: eq(&10),
+            interaction_id: eq(&123),
+            query: eq(&QueryKind::Component),
+            stage: eq(&Stage::Query),
+            outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+                category: eq(&FailureCategory::Timeout),
                 ..
-            }),
+            }))),
             ..
-        }]
-    ));
+        })]
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn failed_query_keeps_safe_response_and_reports_correlated_failure() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
@@ -1012,26 +1073,26 @@ async fn failed_query_keeps_safe_response_and_reports_correlated_failure() {
         .await
         .err()
         .unwrap();
-    assert_eq!(
+    assert_that!(
         serde_json::to_value(super::reply(&error)).unwrap()["content"],
-        "The prediction economy is temporarily unavailable. Please try again."
+        eq("The prediction economy is temporarily unavailable. Please try again.")
     );
-    assert!(matches!(
+    assert_that!(
         recorder.0.lock().unwrap().as_slice(),
-        [AuditEvent::QueryCompleted {
-            guild: 10,
-            interaction_id: 124,
-            query: QueryKind::Balance,
-            stage: Stage::Query,
-            outcome: Outcome::Failed(Failure {
-                category: FailureCategory::Configuration,
-                sqlstate: None,
-                http_status: None,
-                discord_code: None
-            }),
+        elements_are![matches_pattern!(AuditEvent::QueryCompleted {
+            guild: eq(&10),
+            interaction_id: eq(&124),
+            query: eq(&QueryKind::Balance),
+            stage: eq(&Stage::Query),
+            outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+                category: eq(&FailureCategory::Configuration),
+                sqlstate: none(),
+                http_status: none(),
+                discord_code: none()
+            }))),
             ..
-        }]
-    ));
+        })]
+    );
 }
 
 fn discord_http(server: &MockServer) -> serenity::http::Http {
@@ -1071,6 +1132,7 @@ async fn unavailable_handler(recorder: std::sync::Arc<AuditRecorder>) -> super::
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_delivery_failure() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind, Stage};
@@ -1101,65 +1163,66 @@ async fn real_slash_adapter_recovers_acknowledgement_reads_store_and_reports_del
     let command = serde_json::from_value(interaction_json(125, serde_json::json!({"id": "1", "name": "market", "type": 1, "options": [{"name": "balance", "type": 1, "options": []}]}))).unwrap();
     handler.handle(&http, command).await;
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0].method.as_str(), "POST");
-    assert_eq!(
+    assert_that!(requests.len(), eq(2));
+    assert_that!(requests[0].method.as_str(), eq("POST"));
+    assert_that!(
         requests[0].url.path(),
-        "/api/v10/interactions/125/test-interaction-token/callback"
+        eq("/api/v10/interactions/125/test-interaction-token/callback")
     );
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["type"],
-        5
+        eq(5)
     );
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
-        64
+        eq(64)
     );
-    assert_eq!(requests[1].method.as_str(), "PATCH");
-    assert_eq!(
+    assert_that!(requests[1].method.as_str(), eq("PATCH"));
+    assert_that!(
         requests[1].url.path(),
-        "/api/v10/webhooks/42/test-interaction-token/messages/@original"
+        eq("/api/v10/webhooks/42/test-interaction-token/messages/@original")
     );
-    assert_eq!(
+    assert_that!(
         requests[1].body_json::<serde_json::Value>().unwrap()["content"],
-        "The prediction economy is temporarily unavailable. Please try again."
+        eq("The prediction economy is temporarily unavailable. Please try again.")
     );
     let events = recorder.0.lock().unwrap();
-    assert!(matches!(
+    assert_that!(
         events.as_slice(),
-        [
-            AuditEvent::InteractionCompleted {
-                interaction_id: 125,
-                stage: Stage::Acknowledge,
-                outcome: Outcome::Succeeded,
+        elements_are![
+            matches_pattern!(AuditEvent::InteractionCompleted {
+                interaction_id: eq(&125),
+                stage: eq(&Stage::Acknowledge),
+                outcome: eq(&Outcome::Succeeded),
                 ..
-            },
-            AuditEvent::QueryCompleted {
-                guild: 10,
-                interaction_id: 125,
-                query: QueryKind::Balance,
-                stage: Stage::Query,
-                outcome: Outcome::Failed(Failure {
-                    category: FailureCategory::Connection,
+            }),
+            matches_pattern!(AuditEvent::QueryCompleted {
+                guild: eq(&10),
+                interaction_id: eq(&125),
+                query: eq(&QueryKind::Balance),
+                stage: eq(&Stage::Query),
+                outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+                    category: eq(&FailureCategory::Connection),
                     ..
-                }),
+                }))),
                 ..
-            },
-            AuditEvent::InteractionCompleted {
-                guild: Some(10),
-                interaction_id: 125,
-                stage: Stage::Deliver,
-                outcome: Outcome::Failed(Failure {
-                    category: FailureCategory::Discord,
-                    sqlstate: None,
-                    http_status: Some(503),
-                    discord_code: Some(10015)
-                })
-            },
+            }),
+            matches_pattern!(AuditEvent::InteractionCompleted {
+                guild: some(eq(&10)),
+                interaction_id: eq(&125),
+                stage: eq(&Stage::Deliver),
+                outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+                    category: eq(&FailureCategory::Discord),
+                    sqlstate: none(),
+                    http_status: some(eq(&503)),
+                    discord_code: some(eq(&10015))
+                })))
+            })
         ]
-    ));
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn real_modal_and_component_adapters_preserve_private_validation_responses() {
     use crate::audit::{AuditEvent, Outcome, Rejection, Stage};
@@ -1204,40 +1267,57 @@ async fn real_modal_and_component_adapters_preserve_private_validation_responses
     .unwrap();
     handler.handle_component(&http, component).await;
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 3);
-    assert_eq!(
+    assert_that!(requests.len(), eq(3));
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["type"],
-        5
+        eq(5)
     );
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
-        64
+        eq(64)
     );
-    assert_eq!(requests[1].method.as_str(), "PATCH");
-    assert_eq!(
+    assert_that!(requests[1].method.as_str(), eq("PATCH"));
+    assert_that!(
         requests[1].body_json::<serde_json::Value>().unwrap()["content"],
-        "This control belongs to another member or server. Run /market list or /market create."
+        eq("This control belongs to another member or server. Run /market list or /market create.")
     );
-    assert_eq!(requests[2].method.as_str(), "POST");
-    assert_eq!(
+    assert_that!(requests[2].method.as_str(), eq("POST"));
+    assert_that!(
         requests[2].body_json::<serde_json::Value>().unwrap()["type"],
-        4
+        eq(4)
     );
-    assert_eq!(
+    assert_that!(
         requests[2].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
-        64
+        eq(64)
     );
-    assert_eq!(
+    assert_that!(
         requests[2].body_json::<serde_json::Value>().unwrap()["data"]["content"],
-        "Choose an option from the market menu."
+        eq("Choose an option from the market menu.")
     );
     let events = recorder.0.lock().unwrap();
     for id in [126, 127] {
-        assert!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { guild: Some(10), interaction_id, stage: Stage::Validate, outcome: Outcome::Rejected(Rejection::InvalidInput) } if *interaction_id == id)));
-        assert!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { guild: Some(10), interaction_id, stage: Stage::Deliver, outcome: Outcome::Succeeded } if *interaction_id == id)));
+        assert_that!(
+            events.as_slice(),
+            contains(matches_pattern!(AuditEvent::InteractionCompleted {
+                guild: some(eq(&10)),
+                interaction_id: eq(&id),
+                stage: eq(&Stage::Validate),
+                outcome: matches_pattern!(Outcome::Rejected(eq(&Rejection::InvalidInput)))
+            }))
+        );
+        assert_that!(
+            events.as_slice(),
+            contains(matches_pattern!(AuditEvent::InteractionCompleted {
+                guild: some(eq(&10)),
+                interaction_id: eq(&id),
+                stage: eq(&Stage::Deliver),
+                outcome: eq(&Outcome::Succeeded)
+            }))
+        );
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn component_read_failure_delivers_initial_private_response_and_registration_is_audited() {
     use crate::audit::{AuditEvent, Outcome, QueryKind, Stage};
@@ -1267,45 +1347,46 @@ async fn component_read_failure_delivers_initial_private_response_and_registrati
     handler.handle_component(&http, component).await;
     handler.register(&http, 10.into()).await;
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["type"],
-        4
+        eq(4)
     );
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
-        64
+        eq(64)
     );
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["data"]["content"],
-        "The prediction economy is temporarily unavailable. Please try again."
+        eq("The prediction economy is temporarily unavailable. Please try again.")
     );
     let events = recorder.0.lock().unwrap();
-    assert!(matches!(
+    assert_that!(
         events.as_slice(),
-        [
-            AuditEvent::QueryCompleted {
-                guild: 10,
-                interaction_id: 128,
-                query: QueryKind::Component,
-                outcome: Outcome::Failed(_),
-                stage: Stage::Query,
+        elements_are![
+            matches_pattern!(AuditEvent::QueryCompleted {
+                guild: eq(&10),
+                interaction_id: eq(&128),
+                query: eq(&QueryKind::Component),
+                outcome: matches_pattern!(Outcome::Failed(anything())),
+                stage: eq(&Stage::Query),
                 ..
-            },
-            AuditEvent::InteractionCompleted {
-                interaction_id: 128,
-                stage: Stage::Deliver,
-                outcome: Outcome::Succeeded,
+            }),
+            matches_pattern!(AuditEvent::InteractionCompleted {
+                interaction_id: eq(&128),
+                stage: eq(&Stage::Deliver),
+                outcome: eq(&Outcome::Succeeded),
                 ..
-            },
-            AuditEvent::RegistrationCompleted {
-                guild: 10,
-                stage: Stage::Register,
-                outcome: Outcome::Succeeded
-            },
+            }),
+            matches_pattern!(AuditEvent::RegistrationCompleted {
+                guild: eq(&10),
+                stage: eq(&Stage::Register),
+                outcome: eq(&Outcome::Succeeded)
+            })
         ]
-    ));
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn grant_worker_reports_discovery_failure_and_accepts_shutdown() {
     use crate::audit::{AuditEvent, AuditListener, Failure, FailureCategory, Outcome, Stage};
@@ -1340,9 +1421,9 @@ async fn grant_worker_reports_discovery_failure_and_accepts_shutdown() {
         recorder.clone(),
     ));
     super::grant_worker(store, receiver).await;
-    assert_eq!(
+    assert_that!(
         *recorder.events.lock().unwrap(),
-        vec![AuditEvent::GrantFailed {
+        eq(&vec![AuditEvent::GrantFailed {
             guild: None,
             stage: Stage::Discover,
             outcome: Outcome::Failed(Failure {
@@ -1351,10 +1432,11 @@ async fn grant_worker_reports_discovery_failure_and_accepts_shutdown() {
                 http_status: None,
                 discord_code: None
             }),
-        }]
+        }])
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn gateway_guard_failure_is_reported_before_run_returns() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, LifecycleKind, Outcome, Stage};
@@ -1375,28 +1457,31 @@ async fn gateway_guard_failure_is_reported_before_run_returns() {
 
     let result = super::run(store, "unused".into()).await;
 
-    assert!(matches!(
+    assert_that!(
         result,
-        Err(super::DiscordError::Store(
-            crate::store::StoreError::Database(sqlx::Error::PoolClosed)
-        ))
-    ));
-    assert!(matches!(
+        err(matches_pattern!(super::DiscordError::Store(
+            matches_pattern!(crate::store::StoreError::Database(matches_pattern!(
+                sqlx::Error::PoolClosed
+            )))
+        )))
+    );
+    assert_that!(
         recorder.0.lock().unwrap().as_slice(),
-        [AuditEvent::Lifecycle {
-            kind: LifecycleKind::Startup,
-            application_id: Some(42),
-            stage: Stage::Acquire,
-            outcome: Outcome::Failed(Failure {
-                category: FailureCategory::Connection,
-                sqlstate: None,
-                http_status: None,
-                discord_code: None,
-            }),
-        }]
-    ));
+        elements_are![matches_pattern!(AuditEvent::Lifecycle {
+            kind: eq(&LifecycleKind::Startup),
+            application_id: some(eq(&42)),
+            stage: eq(&Stage::Acquire),
+            outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+                category: eq(&FailureCategory::Connection),
+                sqlstate: none(),
+                http_status: none(),
+                discord_code: none()
+            })))
+        })]
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, QueryKind};
@@ -1415,37 +1500,37 @@ async fn query_success_and_corrupt_history_have_distinct_operational_outcomes() 
     )
     .await
     .unwrap();
-    assert_eq!(result.revision, 5);
+    assert_that!(result.revision, eq(5));
     let read = async {
         Err(crate::store::StoreError::Domain(
             crate::domain::DomainError::Invalid("corrupt state"),
         ))
     };
-    assert!(
-        super::read_query(&recorder, 10, 131, QueryKind::Show, read, None)
-            .await
-            .is_err()
+    assert_that!(
+        super::read_query(&recorder, 10, 131, QueryKind::Show, read, None).await,
+        err(anything())
     );
-    assert!(matches!(
+    assert_that!(
         recorder.0.lock().unwrap().as_slice(),
-        [
-            AuditEvent::QueryCompleted {
-                interaction_id: 130,
-                outcome: Outcome::Succeeded,
+        elements_are![
+            matches_pattern!(AuditEvent::QueryCompleted {
+                interaction_id: eq(&130),
+                outcome: eq(&Outcome::Succeeded),
                 ..
-            },
-            AuditEvent::QueryCompleted {
-                interaction_id: 131,
-                outcome: Outcome::Failed(Failure {
-                    category: FailureCategory::History,
+            }),
+            matches_pattern!(AuditEvent::QueryCompleted {
+                interaction_id: eq(&131),
+                outcome: matches_pattern!(Outcome::Failed(matches_pattern!(Failure {
+                    category: eq(&FailureCategory::History),
                     ..
-                }),
+                }))),
                 ..
-            },
+            })
         ]
-    ));
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn gateway_http_failure_retains_safe_details_after_shutdown() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, LifecycleKind, Outcome, Stage};
@@ -1469,15 +1554,15 @@ async fn gateway_http_failure_retains_safe_details_after_shutdown() {
 
     let result = super::run_gateway_client(handler.store, client).await;
 
-    assert!(matches!(result, Err(super::DiscordError::Gateway)));
+    assert_that!(result, err(matches_pattern!(super::DiscordError::Gateway)));
     let events = recorder.0.lock().unwrap();
     let lifecycle_events: Vec<_> = events
         .iter()
         .filter(|event| matches!(event, AuditEvent::Lifecycle { .. }))
         .collect();
-    assert_eq!(
+    assert_that!(
         lifecycle_events,
-        vec![&AuditEvent::Lifecycle {
+        eq(&vec![&AuditEvent::Lifecycle {
             kind: LifecycleKind::Shutdown,
             application_id: Some(42),
             stage: Stage::Shutdown,
@@ -1487,10 +1572,11 @@ async fn gateway_http_failure_retains_safe_details_after_shutdown() {
                 http_status: Some(403),
                 discord_code: Some(50001),
             }),
-        }]
+        }])
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
     use crate::audit::{AuditEvent, Failure, FailureCategory, Outcome, Stage};
@@ -1517,22 +1603,22 @@ async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
         message.channel_id = 20.into();
         handler.handle_message(&http, &message).await;
         let requests = server.received_requests().await.unwrap();
-        assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].method.as_str(), "POST");
-        assert_eq!(requests[0].url.path(), "/api/v10/channels/20/messages");
-        assert!(
+        assert_that!(requests.len(), eq(1));
+        assert_that!(requests[0].method.as_str(), eq("POST"));
+        assert_that!(requests[0].url.path(), eq("/api/v10/channels/20/messages"));
+        assert_that!(
             requests[0].body_json::<serde_json::Value>().unwrap()["content"]
                 .as_str()
-                .unwrap()
-                .contains("/market help")
+                .unwrap(),
+            contains_substring("/market help")
         );
-        assert_eq!(
+        assert_that!(
             requests[0].body_json::<serde_json::Value>().unwrap()["allowed_mentions"]["parse"],
-            serde_json::json!([])
+            eq(&serde_json::json!([]))
         );
-        assert_eq!(
+        assert_that!(
             requests[0].body_json::<serde_json::Value>().unwrap()["allowed_mentions"]["replied_user"],
-            false
+            eq(false)
         );
 
         let outcome = if failed {
@@ -1545,19 +1631,20 @@ async fn mention_delivery_reports_one_audit_event_for_success_and_failure() {
         } else {
             Outcome::Succeeded
         };
-        assert_eq!(
+        assert_that!(
             *recorder.0.lock().unwrap(),
-            vec![AuditEvent::MentionReplyCompleted {
+            eq(&vec![AuditEvent::MentionReplyCompleted {
                 guild: 10,
                 channel_id: 20,
                 message_id: 123,
                 outcome,
                 stage: Stage::Deliver,
-            }]
+            }])
         );
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn ignored_messages_neither_send_nor_emit_audit_events() {
     let recorder = std::sync::Arc::new(AuditRecorder::default());
@@ -1578,8 +1665,8 @@ async fn ignored_messages_neither_send_nor_emit_audit_events() {
         handler.handle_message(&http, &message).await;
     }
 
-    assert!(server.received_requests().await.unwrap().is_empty());
-    assert!(recorder.0.lock().unwrap().is_empty());
+    assert_that!(server.received_requests().await.unwrap(), is_empty());
+    assert_that!(recorder.0.lock().unwrap().as_slice(), is_empty());
 }
 
 fn guild_json(permissions: u64) -> serde_json::Value {
@@ -1705,18 +1792,20 @@ async fn mount_destination_reads(
         .await;
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn destination_validation_uses_real_http_and_effective_bot_permissions() {
     let server = MockServer::start().await;
     mount_destination_reads(&server, channel_json(10, 0, 0), 1024 | 2048).await;
 
-    assert_eq!(
+    assert_that!(
         super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
-        Ok(())
+        eq(Ok(()))
     );
-    assert_eq!(server.received_requests().await.unwrap().len(), 3);
+    assert_that!(server.received_requests().await.unwrap().len(), eq(3));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn destination_validation_rejects_cross_guild_non_text_missing_permissions_and_reads() {
     let server = MockServer::start().await;
@@ -1726,9 +1815,9 @@ async fn destination_validation_rejects_cross_guild_non_text_missing_permissions
         .expect(1)
         .mount(&server)
         .await;
-    assert_eq!(
+    assert_that!(
         super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
-        Err("Choose a text channel in this server.")
+        eq(Err("Choose a text channel in this server."))
     );
 
     let server = MockServer::start().await;
@@ -1738,16 +1827,18 @@ async fn destination_validation_rejects_cross_guild_non_text_missing_permissions
         .expect(1)
         .mount(&server)
         .await;
-    assert_eq!(
+    assert_that!(
         super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
-        Err("Choose a text channel in this server.")
+        eq(Err("Choose a text channel in this server."))
     );
 
     let server = MockServer::start().await;
     mount_destination_reads(&server, channel_json(10, 0, 2048), 1024 | 2048).await;
-    assert_eq!(
+    assert_that!(
         super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
-        Err("I need View Channel and Send Messages in that channel.")
+        eq(Err(
+            "I need View Channel and Send Messages in that channel."
+        ))
     );
 
     let server = MockServer::start().await;
@@ -1757,9 +1848,9 @@ async fn destination_validation_rejects_cross_guild_non_text_missing_permissions
         .expect(1)
         .mount(&server)
         .await;
-    assert_eq!(
+    assert_that!(
         super::announcements::validate_destination(&discord_http(&server), 10, 99, 55).await,
-        Err("I could not verify that channel. Please try again.")
+        eq(Err("I could not verify that channel. Please try again."))
     );
 }
 
@@ -1822,6 +1913,7 @@ async fn mount_deferred_reply(server: &MockServer, id: u64) {
         .await;
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn set_handler_keeps_receipt_lookup_failures_private_without_destination_reads() {
     let recorder = std::sync::Arc::new(AuditRecorder::default());
@@ -1847,27 +1939,34 @@ async fn set_handler_keeps_receipt_lookup_failures_private_without_destination_r
         .await;
 
     let requests = server.received_requests().await.unwrap();
-    assert_eq!(requests.len(), 2);
-    assert_eq!(
+    assert_that!(requests.len(), eq(2));
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["type"],
-        5
+        eq(5)
     );
-    assert_eq!(
+    assert_that!(
         requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
-        64
+        eq(64)
     );
     let response = requests[1].body_json::<serde_json::Value>().unwrap();
-    assert_eq!(
+    assert_that!(
         response["content"],
-        "The prediction economy is temporarily unavailable. Please try again."
+        eq("The prediction economy is temporarily unavailable. Please try again.")
     );
-    assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
-    assert!(!requests.iter().any(|request| {
-        request.method.as_str() == "POST" && request.url.path() == "/api/v10/channels/55/messages"
-    }));
+    assert_that!(
+        response["allowed_mentions"]["parse"],
+        eq(&serde_json::json!([]))
+    );
+    assert_that!(
+        requests.iter().any(|request| {
+            request.method.as_str() == "POST"
+                && request.url.path() == "/api/v10/channels/55/messages"
+        }),
+        eq(false)
+    );
 }
 
-#[test]
+#[googletest::test]
 fn announcement_status_and_receipts_explain_delivery_state() {
     let status = crate::announcements::AnnouncementStatus {
         channel_id: Some(55),
@@ -1883,18 +1982,29 @@ fn announcement_status_and_receipts_explain_delivery_state() {
         "Pending: 4",
         "Reason: The configured channel is unavailable.",
     ] {
-        assert!(rendered.contains(detail), "missing status detail: {detail}");
+        assert_that!(
+            rendered,
+            contains_substring(detail),
+            "missing status detail: {detail}"
+        );
     }
 
     let changed =
         super::announcements::configuration_receipt("Announcements enabled for <#55>.", false);
-    assert!(changed.contains("Pending announcements will use this destination."));
-    assert!(changed.contains("already in flight"));
+    assert_that!(
+        changed,
+        contains_substring("Pending announcements will use this destination.")
+    );
+    assert_that!(changed, contains_substring("already in flight"));
     let disabled = super::announcements::configuration_receipt("Announcements disabled.", true);
-    assert!(disabled.contains("Pending announcements were discarded."));
-    assert!(disabled.contains("already in flight"));
+    assert_that!(
+        disabled,
+        contains_substring("Pending announcements were discarded.")
+    );
+    assert_that!(disabled, contains_substring("already in flight"));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn status_and_disable_handlers_use_private_deferred_store_paths() {
     use crate::audit::AuditEvent;
@@ -1913,33 +2023,35 @@ async fn status_and_disable_handlers_use_private_deferred_store_paths() {
             .await;
 
         let requests = server.received_requests().await.unwrap();
-        assert_eq!(requests.len(), 2);
-        assert_eq!(
+        assert_that!(requests.len(), eq(2));
+        assert_that!(
             requests[0].body_json::<serde_json::Value>().unwrap()["type"],
-            5
+            eq(5)
         );
-        assert_eq!(
+        assert_that!(
             requests[0].body_json::<serde_json::Value>().unwrap()["data"]["flags"],
-            64
+            eq(64)
         );
         let response = requests[1].body_json::<serde_json::Value>().unwrap();
-        assert_eq!(
+        assert_that!(
             response["content"],
-            "The prediction economy is temporarily unavailable. Please try again."
+            eq("The prediction economy is temporarily unavailable. Please try again.")
         );
-        assert_eq!(response["allowed_mentions"]["parse"], serde_json::json!([]));
-        assert!(
-            !recorder
-                .0
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|event| matches!(event, AuditEvent::QueryCompleted { .. })),
+        assert_that!(
+            response["allowed_mentions"]["parse"],
+            eq(&serde_json::json!([]))
+        );
+        assert_that!(
+            recorder.0.lock().unwrap().as_slice(),
+            not(contains(matches_pattern!(
+                AuditEvent::QueryCompleted { .. }
+            ))),
             "{action} fell through to the economy query path"
         );
     }
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn gateway_supervises_announcement_worker_panic_and_returns_failure() {
     use crate::audit::{AuditEvent, LifecycleKind, Outcome, Stage};
@@ -1971,14 +2083,14 @@ async fn gateway_supervises_announcement_worker_panic_and_returns_failure() {
     )
     .await
     .expect("a dead worker must stop the gateway");
-    assert!(matches!(result, Err(super::DiscordError::Gateway)));
-    assert!(recorder.0.lock().unwrap().iter().any(|event| matches!(
-        event,
-        AuditEvent::Lifecycle {
-            kind: LifecycleKind::Shutdown,
-            stage: Stage::AnnouncementWorker,
-            outcome: Outcome::Failed(_),
+    assert_that!(result, err(matches_pattern!(super::DiscordError::Gateway)));
+    assert_that!(
+        recorder.0.lock().unwrap().as_slice(),
+        contains(matches_pattern!(AuditEvent::Lifecycle {
+            kind: eq(&LifecycleKind::Shutdown),
+            stage: eq(&Stage::AnnouncementWorker),
+            outcome: matches_pattern!(Outcome::Failed(anything())),
             ..
-        }
-    )));
+        }))
+    );
 }

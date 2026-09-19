@@ -148,9 +148,13 @@ impl CloudEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use googletest::{
+        assert_that,
+        matchers::{anything, eq, err, none},
+    };
     use serde_json::json;
 
-    #[test]
+    #[googletest::test]
     fn historical_fixture_preserves_its_original_identity_and_optional_metadata() {
         let raw = include_str!("../tests/fixtures/member-enrolled.json");
         let stored: CloudEvent = serde_json::from_str(raw).unwrap();
@@ -165,10 +169,10 @@ mod tests {
             .validate(&ctx, "member.enrolled", "members/5")
             .unwrap();
         let encoded = serde_json::to_value(&stored).unwrap();
-        assert_eq!(encoded, serde_json::from_str::<Value>(raw).unwrap());
+        assert_that!(encoded, eq(&serde_json::from_str::<Value>(raw).unwrap()));
     }
 
-    #[test]
+    #[googletest::test]
     fn serialized_event_preserves_identity_payload_and_unknown_extension() {
         let ctx = Context {
             application: 1,
@@ -186,21 +190,21 @@ mod tests {
         .unwrap();
         event.extensions.insert("tracehint".into(), json!("opaque"));
         let encoded = serde_json::to_value(&event).unwrap();
-        assert_eq!(encoded["tracehint"], "opaque");
-        assert!(encoded.get("extensions").is_none());
-        assert!(encoded.get("eventindex").is_none());
-        assert_eq!(
+        assert_that!(encoded["tracehint"], eq("opaque"));
+        assert_that!(encoded.get("extensions"), none());
+        assert_that!(encoded.get("eventindex"), none());
+        assert_that!(
             uuid::Uuid::parse_str(&event.id).unwrap().get_version_num(),
-            7
+            eq(7)
         );
         let decoded: CloudEvent = serde_json::from_value(encoded).unwrap();
         decoded
             .validate(&ctx, "member.enrolled", "members/5")
             .unwrap();
-        assert_eq!(event, decoded);
+        assert_that!(event, eq(&decoded));
     }
 
-    #[test]
+    #[googletest::test]
     fn rejects_wrong_identity_version_stream_schema_or_extension_type() {
         let ctx = Context {
             application: 1,
@@ -218,33 +222,29 @@ mod tests {
         .unwrap();
         let mut invalid = valid.clone();
         invalid.id = uuid::Uuid::new_v4().to_string();
-        assert!(
-            invalid
-                .validate(&ctx, "member.enrolled", "members/5")
-                .is_err()
+        assert_that!(
+            invalid.validate(&ctx, "member.enrolled", "members/5"),
+            err(anything())
         );
         let mut invalid = valid.clone();
         invalid.guildid = "9".into();
-        assert!(
-            invalid
-                .validate(&ctx, "member.enrolled", "members/5")
-                .is_err()
+        assert_that!(
+            invalid.validate(&ctx, "member.enrolled", "members/5"),
+            err(anything())
         );
         let mut invalid = valid.clone();
         invalid.dataschema.push_str("wrong");
-        assert!(
-            invalid
-                .validate(&ctx, "member.enrolled", "members/5")
-                .is_err()
+        assert_that!(
+            invalid.validate(&ctx, "member.enrolled", "members/5"),
+            err(anything())
         );
         let mut invalid = valid;
         invalid
             .extensions
             .insert("nested".into(), json!({"unsupported": true}));
-        assert!(
-            invalid
-                .validate(&ctx, "member.enrolled", "members/5")
-                .is_err()
+        assert_that!(
+            invalid.validate(&ctx, "member.enrolled", "members/5"),
+            err(anything())
         );
     }
 }
