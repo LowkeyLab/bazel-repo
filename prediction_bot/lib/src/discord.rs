@@ -511,7 +511,10 @@ fn render_market(id: &MarketId, market: &Market, now: i64) -> String {
         status,
         market.closes_at
     );
-    for (n, option) in market.options.iter().enumerate() {
+    for (n, odds) in crate::odds::OutcomeOdds::for_market(market)
+        .iter()
+        .enumerate()
+    {
         let total: i128 = market
             .bets
             .iter()
@@ -520,10 +523,11 @@ fn render_market(id: &MarketId, market: &Market, now: i64) -> String {
             .sum();
         let _ = writeln!(
             out,
-            "{}. {} — {} points pooled",
+            "{}. {} — {} points pooled · {} implied chance",
             n + 1,
-            truncate_to(option, 80),
-            total
+            truncate_to(&odds.label, 80),
+            total,
+            odds.chance()
         );
     }
     if let Status::Resolved { outcome, .. } = market.status {
