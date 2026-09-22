@@ -518,6 +518,29 @@ fn creation_can_start_without_typing_slash_command_fields() {
     );
 }
 
+#[googletest::test]
+fn resolution_can_start_without_ids_or_outcome_numbers() {
+    assert_that!(parse(&input("resolve", vec![])), ok(anything()));
+    let registration = serde_json::to_value(super::market_command()).unwrap();
+    let resolve = registration["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "resolve")
+        .unwrap();
+    assert_that!(
+        resolve["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|option| option["required"] != true),
+        eq(true)
+    );
+    for options in [vec![text("id", "market")], vec![number("outcome", 1)]] {
+        assert_that!(parse(&input("resolve", options)), err(anything()));
+    }
+}
+
 fn ui_actor() -> crate::domain::Actor {
     crate::domain::Actor {
         user_id: UserId(20),
@@ -553,6 +576,69 @@ fn ui_view() -> crate::store::View {
         revision: EventRevision(0),
         state,
     }
+}
+
+#[googletest::test]
+fn resolve_picker_filters_status_close_time_and_current_actor_permissions() {
+    use crate::domain::Status;
+    let mut view = ui_view();
+    let base = view.state.markets.values().next().unwrap().clone();
+    view.state.markets.clear();
+    for (id, creator, closes_at, status) in [
+        ("mine", 20, 2000, Status::Open),
+        ("others", 21, 1999, Status::Open),
+        ("future", 20, 2001, Status::Open),
+        (
+            "resolved",
+            20,
+            1999,
+            Status::Resolved {
+                outcome: OutcomeIndex(0),
+                refunded: true,
+            },
+        ),
+        ("cancelled", 20, 1999, Status::Cancelled),
+    ] {
+        let mut market = base.clone();
+        market.creator = UserId(creator);
+        market.closes_at = closes_at;
+        market.status = status;
+        view.state.markets.insert(id.into(), market);
+    }
+    let action = parse(&input("resolve", vec![])).unwrap().2;
+    for (actor, expected) in [
+        (ui_actor(), vec!["mine"]),
+        (
+            crate::domain::Actor {
+                moderator: true,
+                ..ui_actor()
+            },
+            vec!["others", "mine"],
+        ),
+    ] {
+        let panel = serde_json::to_value(
+            super::ui::query(&view, &action, actor, 10.into(), 2000).message(),
+        )
+        .unwrap();
+        let ids: Vec<_> = panel["components"][0]["components"][0]["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|option| option["value"].as_str().unwrap())
+            .collect();
+        assert_that!(ids, eq(&expected));
+        assert_that!(panel["flags"], eq(64));
+    }
+    view.state.markets.clear();
+    let empty = serde_json::to_value(
+        super::ui::query(&view, &action, ui_actor(), 10.into(), 2000).message(),
+    )
+    .unwrap();
+    assert_that!(empty["components"], eq(&serde_json::json!([])));
+    assert_that!(
+        empty["content"].as_str().unwrap(),
+        contains_substring("No closed")
+    );
 }
 
 #[googletest::test]
