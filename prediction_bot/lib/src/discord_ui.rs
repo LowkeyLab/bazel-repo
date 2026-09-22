@@ -19,9 +19,9 @@ use serenity::{
 };
 
 pub(super) struct Panel {
-    content: String,
-    embed: Option<CreateEmbed>,
-    components: Vec<CreateActionRow>,
+    pub(super) content: String,
+    pub(super) embed: Option<CreateEmbed>,
+    pub(super) components: Vec<CreateActionRow>,
 }
 impl Panel {
     pub(super) fn message(self) -> CreateInteractionResponseMessage {
@@ -40,7 +40,11 @@ impl Panel {
             .allowed_mentions(no_mentions())
     }
 }
-fn menu(id: String, placeholder: &str, options: Vec<CreateSelectMenuOption>) -> CreateActionRow {
+pub(super) fn menu(
+    id: String,
+    placeholder: &str,
+    options: Vec<CreateSelectMenuOption>,
+) -> CreateActionRow {
     CreateActionRow::SelectMenu(
         CreateSelectMenu::new(id, CreateSelectMenuKind::String { options })
             .placeholder(placeholder)
@@ -48,10 +52,14 @@ fn menu(id: String, placeholder: &str, options: Vec<CreateSelectMenuOption>) -> 
             .max_values(1),
     )
 }
-fn prefix(guild: GuildId, actor: Actor) -> String {
+pub(super) fn prefix(guild: GuildId, actor: Actor) -> String {
     format!("pm:{guild}:{}", actor.user_id)
 }
-fn scope(guild: GuildId, actor: Actor, custom_id: &str) -> Result<Vec<&str>, &'static str> {
+pub(super) fn scope(
+    guild: GuildId,
+    actor: Actor,
+    custom_id: &str,
+) -> Result<Vec<&str>, &'static str> {
     if guild.0 == 0 || actor.user_id.0 == 0 || actor.bot {
         return Err("Only server members can use these controls.");
     }
@@ -141,6 +149,7 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, 
     };
     let prefix = prefix(guild, actor);
     match action {
+        Action::ResolveForm => return super::resolve::picker(view, actor, guild, now, 0),
         Action::CreateForm => panel.components.push(menu(
             format!("{prefix}:create"),
             "Choose outcome choices",

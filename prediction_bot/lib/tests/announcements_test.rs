@@ -34,6 +34,300 @@ const PAUSED_MARKET: &str = "00000000-0000-4000-8000-000000000005";
 const DISABLED_MARKET: &str = "00000000-0000-4000-8000-000000000006";
 const CONCURRENT_MARKET: &str = "00000000-0000-4000-8000-000000000007";
 
+#[googletest::test]
+#[tokio::test]
+async fn resolve_widget_settles_only_after_confirmation_and_recovers_redelivery() {
+    use prediction_bot::{discord::handle_interaction, domain::Status};
+    use serenity::all::Interaction;
+    use support::interaction_json;
+
+    let (_container, store, owner) = fixture().await;
+    for actor in [admin(), member()] {
+        store
+            .execute_at(
+                10.into(),
+                &format!("discord:90{}", actor.user_id),
+                actor,
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    // A moderator resolves someone else's market through the real gateway dispatcher.
+    store
+        .execute_at(
+            10.into(),
+            "discord:901",
+            member(),
+            &create(RESOLVED_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:902",
+            admin(),
+            &Command::Bet {
+                id: RESOLVED_MARKET.into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(10),
+            },
+            1001,
+        )
+        .await
+        .unwrap();
+    store
+        .configure_announcements(
+            10.into(),
+            "discord:903",
+            admin(),
+            ConfigurationChange::Set {
+                channel_id: ChannelId(20),
+            },
+        )
+        .await
+        .unwrap();
+
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(support::delivered())
+        .mount(&server)
+        .await;
+    let slash = Interaction::Command(
+        serde_json::from_value(interaction_json(
+            301,
+            &json!({
+                "id": "1", "name": "market", "type": 1,
+                "options": [{"name": "resolve", "type": 1, "options": []}]
+            }),
+        ))
+        .unwrap(),
+    );
+    handle_interaction(store.clone(), &http, 99.into(), slash).await;
+    let picker = last_widget_response(&server).await;
+    assert_that!(
+        picker["components"][0]["components"][0]["options"][0]["value"],
+        eq(RESOLVED_MARKET)
+    );
+
+    let selection =
+        |id, custom_id: &str, values: Vec<&str>| {
+            Interaction::Component(serde_json::from_value(interaction_json(id, &json!({
+            "custom_id": custom_id, "component_type": if values.is_empty() { 2 } else { 3 },
+            "values": values,
+        }))).unwrap())
+        };
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            302,
+            picker["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec![RESOLVED_MARKET],
+        ),
+    )
+    .await;
+    let outcomes = last_widget_response(&server).await;
+    assert_that!(outcomes["embeds"][0]["title"], eq("Will it rain?"));
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            303,
+            outcomes["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec!["1"],
+        ),
+    )
+    .await;
+    let confirmation = last_widget_response(&server).await;
+    assert_that!(
+        confirmation["content"].as_str().unwrap(),
+        contains_substring("No")
+    );
+    assert_that!(
+        store.view(10.into()).await.unwrap().state.markets[RESOLVED_MARKET].status,
+        eq(&Status::Open)
+    );
+
+    let confirm_id = confirmation["components"][0]["components"][0]["custom_id"]
+        .as_str()
+        .unwrap();
+    let mut lost_permission = selection(306, confirm_id, vec![]);
+    if let Interaction::Component(component) = &mut lost_permission {
+        component.member.as_mut().unwrap().permissions = Some(serenity::all::Permissions::empty());
+    }
+    handle_interaction(store.clone(), &http, 99.into(), lost_permission).await;
+    assert_that!(
+        last_widget_response(&server).await["content"]
+            .as_str()
+            .unwrap(),
+        contains_substring("creator or moderator required")
+    );
+    assert_that!(
+        store.view(10.into()).await.unwrap().state.markets[RESOLVED_MARKET].status,
+        eq(&Status::Open)
+    );
+
+    let confirm = selection(304, confirm_id, vec![]);
+    for _ in 0..2 {
+        handle_interaction(store.clone(), &http, 99.into(), confirm.clone()).await;
+        let receipt = last_widget_response(&server).await;
+        assert_that!(
+            receipt["content"].as_str().unwrap(),
+            contains_substring("Market resolved")
+        );
+        assert_that!(receipt["components"], eq(&json!([])));
+        assert_that!(receipt["embeds"], eq(&json!([])));
+    }
+    // A second click has a different interaction ID and must not settle again either.
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(305, confirm_id, vec![]),
+    )
+    .await;
+    let stale = last_widget_response(&server).await;
+    assert_that!(
+        stale["content"].as_str().unwrap(),
+        contains_substring("not ready to resolve")
+    );
+    let view = store.view(10.into()).await.unwrap();
+    assert_that!(
+        view.state.markets[RESOLVED_MARKET].status,
+        eq(&Status::Resolved {
+            outcome: OutcomeIndex(1),
+            refunded: false
+        })
+    );
+    assert_that!(view.state.accounts[&UserId(7)].balance, eq(Points(100)));
+    let announcements: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM prediction_announcement_outbox WHERE snapshot ? 'Resolved'",
+    )
+    .fetch_one(&owner)
+    .await
+    .unwrap();
+    assert_that!(announcements, eq(1));
+
+    // Another resolver settles a different market after this user selected its outcome.
+    store
+        .execute_at(
+            10.into(),
+            "discord:910",
+            member(),
+            &create(CONCURRENT_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    let select_market = selection(
+        310,
+        picker["components"][0]["components"][0]["custom_id"]
+            .as_str()
+            .unwrap(),
+        vec![CONCURRENT_MARKET],
+    );
+    handle_interaction(store.clone(), &http, 99.into(), select_market).await;
+    let outcomes = last_widget_response(&server).await;
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            311,
+            outcomes["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec!["1"],
+        ),
+    )
+    .await;
+    let confirmation = last_widget_response(&server).await;
+    store
+        .execute(
+            10.into(),
+            "discord:912",
+            member(),
+            &Command::Resolve {
+                id: CONCURRENT_MARKET.into(),
+                outcome: OutcomeIndex(0),
+            },
+        )
+        .await
+        .unwrap();
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            313,
+            confirmation["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec![],
+        ),
+    )
+    .await;
+    assert_that!(
+        last_widget_response(&server).await["content"]
+            .as_str()
+            .unwrap(),
+        contains_substring("not ready to resolve")
+    );
+    assert_that!(
+        store.view(10.into()).await.unwrap().state.markets[CONCURRENT_MARKET].status,
+        eq(&Status::Resolved {
+            outcome: OutcomeIndex(0),
+            refunded: true
+        })
+    );
+
+    let requests = server.received_requests().await.unwrap();
+    let callbacks: Vec<_> = requests
+        .iter()
+        .filter(|r| r.method.as_str() == "POST")
+        .map(|r| r.body_json::<serde_json::Value>().unwrap())
+        .collect();
+    assert_that!(callbacks[0]["data"]["flags"], eq(64));
+    assert_that!(
+        callbacks[1..].iter().all(|body| body["type"] == 6),
+        eq(true)
+    );
+    for response in requests.iter().filter(|r| r.method.as_str() == "PATCH") {
+        assert_that!(
+            response.body_json::<serde_json::Value>().unwrap()["allowed_mentions"]["parse"],
+            eq(&json!([]))
+        );
+    }
+}
+
+async fn last_widget_response(server: &wiremock::MockServer) -> serde_json::Value {
+    server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|request| request.method.as_str() == "PATCH")
+        .unwrap()
+        .body_json()
+        .unwrap()
+}
+
 fn create(id: &str) -> Command {
     Command::Create {
         id: id.into(),

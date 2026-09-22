@@ -33,6 +33,7 @@ use tokio::sync::watch;
 use uuid::Uuid;
 
 mod announcements;
+mod resolve;
 pub mod transport;
 #[path = "discord_ui.rs"]
 mod ui;
@@ -66,6 +67,7 @@ pub(crate) enum InputValue {
 pub(crate) enum Action {
     Write(Command),
     CreateForm,
+    ResolveForm,
     Help,
     Balance,
     Leaderboard,
@@ -207,6 +209,7 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
         }
 
         "bet" => Action::Write(bet_request(input)?),
+        "resolve" if input.options.is_empty() => Action::ResolveForm,
         "resolve" => {
             exact(input, &["id", "outcome"])?;
             Action::Write(Command::Resolve {
@@ -329,6 +332,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market join` — get your first points and receive regular grants.
 • `/market create` — ask a question and choose possible outcomes.
 • `/market list` — browse markets, pick an outcome, and bet points.
+• `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
 
 Market creators can resolve their own markets after they close. Server admins and members with Manage Guild permission can resolve any closed market or cancel markets. They can use /market announcements set to choose a server text channel where I have View Channel and Send Messages, /market announcements status to inspect delivery, or /market announcements disable to stop delivery and discard pending announcements.
@@ -490,6 +494,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         ),
         Action::Help => HELP.to_owned(),
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
+        Action::ResolveForm => "Choose a closed market to resolve.".to_owned(),
         Action::Write(_)
         | Action::AnnouncementsSet { .. }
         | Action::AnnouncementsStatus
@@ -608,9 +613,18 @@ fn market_command() -> CreateCommand {
                 "resolve",
                 "Settle a closed market; creator, Administrator, or Manage Guild required",
             )
-            .add_sub_option(required(Text, "id", "Market ID"))
+            .add_sub_option(CreateCommandOption::new(
+                Text,
+                "id",
+                "Market ID; supply outcome too for direct resolution",
+            ))
             .add_sub_option(
-                required(Integer, "outcome", "Winning outcome number").min_int_value(1),
+                CreateCommandOption::new(
+                    Integer,
+                    "outcome",
+                    "Winning outcome number; supply ID too",
+                )
+                .min_int_value(1),
             ),
         )
         .add_option(
@@ -951,6 +965,10 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if resolve::is_control(&component.data.custom_id) {
+            self.handle_resolve_component(http, &component).await;
+            return;
+        }
         let actor = Actor {
             user_id: UserId(component.user.id.get()),
             bot: component.user.bot,
@@ -1010,6 +1028,93 @@ impl Handler {
             delivery_outcome(&result),
         );
     }
+    async fn handle_resolve_component(&self, http: &Http, component: &ComponentInteraction) {
+        let actor = Actor {
+            user_id: UserId(component.user.id.get()),
+            bot: component.user.bot,
+            moderator: component
+                .member
+                .as_ref()
+                .and_then(|member| member.permissions)
+                .is_some_and(|p| {
+                    p.intersects(Permissions::ADMINISTRATOR | Permissions::MANAGE_GUILD)
+                }),
+        };
+        let guild = component
+            .guild_id
+            .map_or(GuildId(0), |id| GuildId(id.get()));
+        let action = resolve::parse(
+            guild,
+            actor,
+            &component.data.custom_id,
+            &component.data.kind,
+        );
+        // Invalid or foreign controls get their own private error instead of editing the owner's panel.
+        let transport = if action.is_ok() {
+            SerenityTransport::ComponentUpdate(component, http)
+        } else {
+            SerenityTransport::Component(component, http)
+        };
+        deferred_response(
+            &transport,
+            self.store.audit().as_ref(),
+            component.guild_id.map(|id| GuildId(id.get())),
+            component.id.get(),
+            || async {
+                let result = match action {
+                    Ok(resolve::Action::Confirm(command)) => {
+                        return execute_request(
+                            &self.store,
+                            guild,
+                            actor,
+                            &command,
+                            component.id.get(),
+                        )
+                        .await
+                        .embeds(vec![])
+                        .components(vec![]);
+                    }
+                    Ok(action) => {
+                        match read_query(
+                            self.store.audit().as_ref(),
+                            guild,
+                            component.id.get(),
+                            QueryKind::Component,
+                            self.store.view(guild),
+                            None,
+                        )
+                        .await
+                        {
+                            Ok(view) => resolve::panel(
+                                &view,
+                                actor,
+                                guild,
+                                chrono::Utc::now().timestamp(),
+                                &action,
+                            ),
+                            Err(message) => {
+                                return reply(&message).embeds(vec![]).components(vec![]);
+                            }
+                        }
+                    }
+                    Err(message) => Err(message),
+                };
+                match result {
+                    Ok(panel) => panel.edit(),
+                    Err(message) => {
+                        rejected(
+                            self.store.audit().as_ref(),
+                            component.guild_id.map(|id| GuildId(id.get())),
+                            component.id.get(),
+                        );
+                        reply(message).embeds(vec![]).components(vec![])
+                    }
+                }
+            },
+        )
+        .await;
+    }
+
     async fn handle_modal(&self, http: &serenity::http::Http, modal: ModalInteraction) {
         let transport = SerenityTransport::Modal(&modal, http);
         deferred_response(

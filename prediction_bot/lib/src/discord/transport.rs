@@ -16,6 +16,7 @@ pub(super) enum SerenityTransport<'a> {
     Command(&'a CommandInteraction, &'a Http),
     Modal(&'a ModalInteraction, &'a Http),
     Component(&'a ComponentInteraction, &'a Http),
+    ComponentUpdate(&'a ComponentInteraction, &'a Http),
 }
 
 #[serenity::async_trait]
@@ -25,13 +26,16 @@ impl InteractionTransport for SerenityTransport<'_> {
             Self::Command(interaction, http) => interaction.defer_ephemeral(http).await,
             Self::Modal(interaction, http) => interaction.defer_ephemeral(http).await,
             Self::Component(interaction, http) => interaction.defer_ephemeral(http).await,
+            Self::ComponentUpdate(interaction, http) => interaction.defer(http).await,
         }
     }
     async fn edit(&self, response: EditInteractionResponse) -> serenity::Result<()> {
         match self {
             Self::Command(interaction, http) => interaction.edit_response(http, response).await,
             Self::Modal(interaction, http) => interaction.edit_response(http, response).await,
-            Self::Component(interaction, http) => interaction.edit_response(http, response).await,
+            Self::Component(interaction, http) | Self::ComponentUpdate(interaction, http) => {
+                interaction.edit_response(http, response).await
+            }
         }
         .map(|_| ())
     }
@@ -39,7 +43,9 @@ impl InteractionTransport for SerenityTransport<'_> {
         match self {
             Self::Command(interaction, http) => interaction.create_response(http, response).await,
             Self::Modal(interaction, http) => interaction.create_response(http, response).await,
-            Self::Component(interaction, http) => interaction.create_response(http, response).await,
+            Self::Component(interaction, http) | Self::ComponentUpdate(interaction, http) => {
+                interaction.create_response(http, response).await
+            }
         }
     }
 }
