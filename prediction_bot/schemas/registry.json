@@ -26,5 +26,9 @@
   "io.lowkeylab.predictionbot.market.cancelled.v1": {
     "dataschema": "urn:lowkeylab:prediction-bot:schema:market-cancelled:v1",
     "file": "market-cancelled-v1.json"
+  },
+  "io.lowkeylab.predictionbot.announcements.enabled.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:announcements-enabled:v1",
+    "file": "announcements-enabled-v1.json"
   }
 }
