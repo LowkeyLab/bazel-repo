@@ -33,6 +33,7 @@ use tokio::sync::watch;
 use uuid::Uuid;
 
 mod announcements;
+mod bet;
 mod resolve;
 pub mod transport;
 #[path = "discord_ui.rs"]
@@ -68,6 +69,7 @@ pub(crate) enum Action {
     Write(Command),
     CreateForm,
     ResolveForm,
+    BetForm,
     Help,
     Balance,
     Leaderboard,
@@ -208,6 +210,7 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
             )?)
         }
 
+        "bet" if input.options.is_empty() => Action::BetForm,
         "bet" => Action::Write(bet_request(input)?),
         "resolve" if input.options.is_empty() => Action::ResolveForm,
         "resolve" => {
@@ -331,6 +334,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 
 • `/market join` — get your first points and receive regular grants.
 • `/market create` — ask a question and choose possible outcomes.
+• `/market bet` — choose a market and outcome, enter a stake, then confirm your bet.
 • `/market list` — browse markets, pick an outcome, and bet points.
 • `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
@@ -495,6 +499,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         Action::Help => HELP.to_owned(),
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::ResolveForm => "Choose a closed market to resolve.".to_owned(),
+        Action::BetForm => "Choose an open market to bet on.".to_owned(),
         Action::Write(_)
         | Action::AnnouncementsSet { .. }
         | Action::AnnouncementsStatus
@@ -598,13 +603,22 @@ fn market_command() -> CreateCommand {
         )
         .add_option(
             CreateCommandOption::new(SubCommand, "bet", "Stake points on an outcome")
-                .add_sub_option(required(Text, "id", "Market ID"))
+                .add_sub_option(CreateCommandOption::new(
+                    Text,
+                    "id",
+                    "Market ID; supply outcome and amount too",
+                ))
                 .add_sub_option(
-                    required(Integer, "outcome", "Outcome number shown by /market show")
-                        .min_int_value(1),
+                    CreateCommandOption::new(
+                        Integer,
+                        "outcome",
+                        "Outcome number shown by /market show",
+                    )
+                    .min_int_value(1),
                 )
                 .add_sub_option(
-                    required(Integer, "amount", "Positive whole-point stake").min_int_value(1),
+                    CreateCommandOption::new(Integer, "amount", "Positive whole-point stake")
+                        .min_int_value(1),
                 ),
         )
         .add_option(
@@ -965,6 +979,10 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if bet::is_control(&component.data.custom_id) {
+            self.handle_bet_component(http, &component).await;
+            return;
+        }
         if resolve::is_control(&component.data.custom_id) {
             self.handle_resolve_component(http, &component).await;
             return;
@@ -1116,6 +1134,10 @@ impl Handler {
     }
 
     async fn handle_modal(&self, http: &serenity::http::Http, modal: ModalInteraction) {
+        if bet::is_control(&modal.data.custom_id) {
+            self.handle_bet_modal(http, &modal).await;
+            return;
+        }
         let transport = SerenityTransport::Modal(&modal, http);
         deferred_response(
             &transport,
