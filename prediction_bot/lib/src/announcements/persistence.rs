@@ -1,6 +1,7 @@
 use sqlx::{Row, types::Json};
 
 use super::{AnnouncementStatus, ConfigurationChange, SnapshotV1};
+use crate::events::{CloudEvent, Context};
 use crate::odds::OutcomeOdds;
 use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId};
 use crate::{
@@ -48,6 +49,12 @@ fn event_snapshot(
     previous_odds: &[OutcomeOdds],
 ) -> Result<Option<(SnapshotV1, i64)>, StoreError> {
     let snapshot = match event {
+        Event::AnnouncementsEnabled { enabled_at, .. } => (
+            SnapshotV1::Enabled {
+                occurred_at: *enabled_at,
+            },
+            *enabled_at,
+        ),
         Event::MemberEnrolled {
             user_id,
             enrolled_at,
@@ -252,14 +259,24 @@ impl Store {
             return Ok(response);
         }
 
-        let current_version: Option<i64> = sqlx::query_scalar(
-            "SELECT configuration_version FROM prediction_announcement_settings WHERE guild_id=$1",
+        let current: Option<(i64, bool, Option<String>)> = sqlx::query_as(
+            "SELECT configuration_version,enabled,channel_id FROM prediction_announcement_settings WHERE guild_id=$1",
         )
         .bind(&guild_id)
         .fetch_optional(&mut *tx)
         .await?;
-        let current_version = current_version
-            .map(ConfigurationVersion)
+        let welcome_channel = match change {
+            ConfigurationChange::Set { channel_id }
+                if !current.as_ref().is_some_and(|(_, enabled, channel)| {
+                    *enabled && channel.as_deref() == Some(channel_id.to_string().as_str())
+                }) =>
+            {
+                Some(channel_id)
+            }
+            _ => None,
+        };
+        let current_version = current
+            .map(|(version, _, _)| ConfigurationVersion(version))
             .unwrap_or_default();
         let version = ConfigurationVersion(
             current_version
@@ -304,7 +321,7 @@ impl Store {
                 "Announcements disabled.".to_owned()
             }
         };
-        let revision = EventRevision(
+        let mut revision = EventRevision(
             sqlx::query_scalar(
                 "SELECT COALESCE(MAX(revision), 0) FROM prediction_events WHERE guild_id=$1",
             )
@@ -312,6 +329,35 @@ impl Store {
             .fetch_one(&mut *tx)
             .await?,
         );
+        if let Some(channel_id) = welcome_channel {
+            revision = revision
+                .next()
+                .ok_or(StoreError::History("revision overflow"))?;
+            let event = Event::AnnouncementsEnabled {
+                channel_id,
+                moderator: actor.user_id,
+                enabled_at: accepted_at,
+            };
+            let context = Context {
+                application: self.application_id(),
+                guild,
+                revision,
+                command: key,
+                accepted_at,
+            };
+            let data = serde_json::to_value(&event)
+                .map_err(|_| StoreError::History("event cannot be serialized"))?;
+            let cloud = CloudEvent::new(&context, event.name(), event.subject(), data)?;
+            sqlx::query("INSERT INTO prediction_events(guild_id,revision,command_key,accepted_at,event) VALUES ($1,$2,$3,$4,$5)")
+                .bind(&guild_id)
+                .bind(revision.0)
+                .bind(key)
+                .bind(accepted_at)
+                .bind(Json(cloud))
+                .execute(&mut *tx)
+                .await?;
+            enqueue(&mut tx, guild, revision, &event, &State::default(), &[]).await?;
+        }
         sqlx::query(
             "INSERT INTO prediction_commands(guild_id,command_key,actor_id,accepted_at,response,last_revision) VALUES ($1,$2,$3,$4,$5,$6)",
         )

@@ -81,22 +81,12 @@ pub fn restart(store: &Store) -> Arc<Store> {
 }
 
 pub async fn queued(store: &Store, guild: u64, channel: u64) {
-    use prediction_bot::{announcements::ConfigurationChange, domain::Command};
+    use prediction_bot::domain::Command;
     store
         .execute_at(guild.into(), "discord:join", admin(), &Command::Join, 1000)
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            guild.into(),
-            "discord:enable",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: channel.into(),
-            },
-        )
-        .await
-        .unwrap();
+    existing_destination(store, guild, channel).await;
     store
         .execute_at(
             guild.into(),
@@ -296,4 +286,15 @@ pub fn interaction_json(id: u64, data: &serde_json::Value) -> serde_json::Value 
         "user": { "id": "7", "username": "admin", "discriminator": "0", "avatar": null },
         "message": serenity::all::Message::default(),
     })
+}
+
+/// Seed a destination already enabled before the behavior under test.
+/// Activation itself is covered through `configure_announcements` and the interaction adapter.
+pub async fn existing_destination(store: &Store, guild: u64, channel: u64) {
+    sqlx::query("INSERT INTO prediction_announcement_settings(guild_id,channel_id,enabled,configuration_version) VALUES ($1,$2,TRUE,1)")
+        .bind(guild.to_string())
+        .bind(channel.to_string())
+        .execute(&store.pool)
+        .await
+        .unwrap();
 }

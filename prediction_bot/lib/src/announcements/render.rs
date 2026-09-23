@@ -12,7 +12,8 @@ pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
         let field_count = match snapshot {
             SnapshotV1::Created { options, .. } => options.len() + 1,
             SnapshotV1::Resolved { .. } => 2,
-            SnapshotV1::Cancelled { .. }
+            SnapshotV1::Enabled { .. }
+            | SnapshotV1::Cancelled { .. }
             | SnapshotV1::BetPlaced { .. }
             | SnapshotV1::MemberEnrolled { .. } => 1,
         };
@@ -30,6 +31,7 @@ pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
 fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
     let odds = render_odds(snapshot.odds(), field_limit);
     let (heading, id, details) = match snapshot {
+        SnapshotV1::Enabled { .. } => return "Prediction market announcements are enabled! New markets, bets, and results will appear here.".to_owned(),
         SnapshotV1::MemberEnrolled {
             user_id,
             occurred_at,

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[path = "types.rs"]
 pub mod types;
-use types::{MarketId, OutcomeIndex, Points, UserId};
+use types::{ChannelId, MarketId, OutcomeIndex, Points, UserId};
 
 mod snowflake {
     use super::UserId;
@@ -163,6 +163,12 @@ pub enum GrantReason {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Event {
+    AnnouncementsEnabled {
+        channel_id: ChannelId,
+        #[serde(with = "snowflake")]
+        moderator: UserId,
+        enabled_at: i64,
+    },
     GuildEconomyInitialized {
         amount: Points,
         interval: i64,
@@ -220,6 +226,7 @@ impl Event {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
+            Self::AnnouncementsEnabled { .. } => "announcements.enabled",
             Self::GuildEconomyInitialized { .. } => "economy.initialized",
             Self::MemberEnrolled { .. } => "member.enrolled",
             Self::PointsGranted { .. } => "points.granted",
@@ -233,6 +240,7 @@ impl Event {
     #[must_use]
     pub fn subject(&self) -> String {
         match self {
+            Self::AnnouncementsEnabled { .. } => "announcements".to_owned(),
             Self::GuildEconomyInitialized { .. } => "economy".to_owned(),
             Self::MemberEnrolled { user_id, .. } | Self::PointsGranted { user_id, .. } => {
                 format!("members/{user_id}")
@@ -516,8 +524,23 @@ fn credit_allocations(
     Ok(())
 }
 
+fn validate_announcement_activation(
+    channel: ChannelId,
+    moderator: UserId,
+) -> Result<(), DomainError> {
+    if channel.0 == 0 || moderator.0 == 0 {
+        return Err(DomainError::Invalid("invalid announcement activation"));
+    }
+    Ok(())
+}
+
 fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
     match event {
+        Event::AnnouncementsEnabled {
+            channel_id,
+            moderator,
+            ..
+        } => validate_announcement_activation(*channel_id, *moderator)?,
         Event::GuildEconomyInitialized { amount, interval } => {
             let policy = Policy {
                 amount: *amount,
