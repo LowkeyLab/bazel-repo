@@ -2539,3 +2539,280 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
         assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
     }
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn bet_widget_confirms_once_per_submission_through_discord() {
+    const WIDGET_MARKET: &str = "aBcDeF00-0000-4000-8000-00000000000A";
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    use support::interaction_json;
+
+    let (_container, store, _owner) = fixture().await;
+    store
+        .execute_at(10.into(), "discord:801", admin(), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:802",
+            admin(),
+            &Command::Create {
+                id: WIDGET_MARKET.into(),
+                question: "Will it rain?".into(),
+                options: vec!["Yes".into(), "No".into()],
+                closes_at: 4_000_000_000,
+            },
+            1000,
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(support::delivered())
+        .mount(&server)
+        .await;
+    let slash = Interaction::Command(
+        serde_json::from_value(interaction_json(
+            803,
+            &json!({
+                "id": "1", "name": "market", "type": 1,
+                "options": [{"name": "bet", "type": 1, "options": []}]
+            }),
+        ))
+        .unwrap(),
+    );
+    handle_interaction(store.clone(), &http, 99.into(), slash).await;
+    let picker = last_widget_response(&server).await;
+    assert_that!(
+        picker["components"][0]["components"][0]["options"][0]["value"],
+        eq(WIDGET_MARKET)
+    );
+    let selection = |id, custom_id: &str, values: Vec<&str>| {
+        Interaction::Component(serde_json::from_value(interaction_json(id, &json!({
+            "custom_id": custom_id, "component_type": if values.is_empty() {2} else {3}, "values": values,
+        }))).unwrap())
+    };
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            804,
+            picker["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec![WIDGET_MARKET],
+        ),
+    )
+    .await;
+    let outcomes = last_widget_response(&server).await;
+    assert_that!(outcomes["embeds"][0]["title"], eq("Will it rain?"));
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            805,
+            outcomes["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec!["1"],
+        ),
+    )
+    .await;
+    let requests = server.received_requests().await.unwrap();
+    let modal: serde_json::Value = requests
+        .iter()
+        .rev()
+        .find(|r| r.method.as_str() == "POST")
+        .unwrap()
+        .body_json()
+        .unwrap();
+    assert_that!(modal["type"], eq(9));
+    let modal_id = modal["data"]["custom_id"].as_str().unwrap();
+    let submission = |id| {
+        Interaction::Modal(serde_json::from_value(interaction_json(id, &json!({
+        "custom_id": modal_id, "components": [{"type": 1, "components": [{"type": 4, "custom_id": "amount", "value": "10"}]}]
+    }))).unwrap())
+    };
+    handle_interaction(store.clone(), &http, 99.into(), submission(806)).await;
+    let confirmation = last_widget_response(&server).await;
+    assert_that!(
+        confirmation["content"].as_str().unwrap(),
+        contains_substring("10")
+    );
+    assert_that!(
+        confirmation["content"].as_str().unwrap(),
+        contains_substring("No")
+    );
+    assert_that!(
+        store.view(10.into()).await.unwrap().state.accounts[&admin().user_id].balance,
+        eq(Points(100))
+    );
+    let confirm_id = confirmation["components"][0]["components"][0]["custom_id"]
+        .as_str()
+        .unwrap();
+    let first = handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(807, confirm_id, vec![]),
+    );
+    let second = handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(808, confirm_id, vec![]),
+    );
+    tokio::join!(first, second);
+    // Redelivery and a fresh click must both recover the same receipt.
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(807, confirm_id, vec![]),
+    )
+    .await;
+    let view = store.view(10.into()).await.unwrap();
+    assert_that!(
+        view.state.accounts[&admin().user_id].balance,
+        eq(Points(90))
+    );
+    assert_that!(view.state.markets[WIDGET_MARKET].bets.len(), eq(1));
+    assert_that!(
+        view.state.markets[WIDGET_MARKET].bets[0].outcome,
+        eq(OutcomeIndex(1))
+    );
+    // A new stake submission is a separate intended bet.
+    handle_interaction(store.clone(), &http, 99.into(), submission(809)).await;
+    let another = last_widget_response(&server).await;
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            810,
+            another["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec![],
+        ),
+    )
+    .await;
+    assert_that!(
+        store.view(10.into()).await.unwrap().state.accounts[&admin().user_id].balance,
+        eq(Points(80))
+    );
+    // A market cancelled after preview cannot accept the pending bet.
+    handle_interaction(store.clone(), &http, 99.into(), submission(811)).await;
+    let stale = last_widget_response(&server).await;
+    handle_interaction(store.clone(), &http, 99.into(), submission(815)).await;
+    let depleted = last_widget_response(&server).await;
+    store
+        .execute(
+            10.into(),
+            "discord:814",
+            admin(),
+            &Command::Bet {
+                id: WIDGET_MARKET.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(75),
+            },
+        )
+        .await
+        .unwrap();
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            816,
+            depleted["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec![],
+        ),
+    )
+    .await;
+    let view = store.view(10.into()).await.unwrap();
+    assert_that!(view.state.accounts[&admin().user_id].balance, eq(Points(5)));
+    assert_that!(view.state.markets[WIDGET_MARKET].bets.len(), eq(3));
+    store
+        .execute(
+            10.into(),
+            "discord:812",
+            admin(),
+            &Command::Cancel {
+                id: WIDGET_MARKET.into(),
+            },
+        )
+        .await
+        .unwrap();
+    let before = store.view(10.into()).await.unwrap();
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(
+            813,
+            stale["components"][0]["components"][0]["custom_id"]
+                .as_str()
+                .unwrap(),
+            vec![],
+        ),
+    )
+    .await;
+    let after = store.view(10.into()).await.unwrap();
+    assert_that!(after.state.accounts, eq(&before.state.accounts));
+    assert_that!(after.state.markets[WIDGET_MARKET].bets.len(), eq(3));
+    // Even after cancellation, a successful submission recovers its receipt.
+    handle_interaction(
+        store.clone(),
+        &http,
+        99.into(),
+        selection(817, confirm_id, vec![]),
+    )
+    .await;
+    assert_that!(
+        store.view(10.into()).await.unwrap().state.accounts,
+        eq(&after.state.accounts)
+    );
+    assert_that!(
+        last_widget_response(&server).await["content"]
+            .as_str()
+            .unwrap(),
+        contains_substring("90")
+    );
+    let requests = server.received_requests().await.unwrap();
+    let callback = |id: u64| -> serde_json::Value {
+        requests
+            .iter()
+            .find(|r| {
+                r.url.path()
+                    == format!("/api/v10/interactions/{id}/test-interaction-token/callback")
+            })
+            .unwrap()
+            .body_json()
+            .unwrap()
+    };
+    for id in [803, 806, 809, 811, 815] {
+        assert_that!(callback(id)["type"], eq(5));
+        assert_that!(callback(id)["data"]["flags"], eq(64));
+    }
+    for id in [804, 807, 808, 810, 813, 816, 817] {
+        assert_that!(callback(id)["type"], eq(6));
+    }
+    for response in requests.iter().filter(|r| r.method.as_str() == "PATCH") {
+        assert_that!(
+            response.body_json::<serde_json::Value>().unwrap()["allowed_mentions"]["parse"],
+            eq(&json!([]))
+        );
+    }
+}

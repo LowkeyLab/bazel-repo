@@ -2329,3 +2329,24 @@ fn market_cards_show_stake_weighted_percentages() {
         }
     }
 }
+
+#[googletest::test]
+fn bet_without_arguments_opens_a_private_widget() {
+    let (guild, actor, action) = parse(&input("bet", vec![])).unwrap();
+    let view = crate::store::View {
+        state: crate::domain::State::default(),
+        revision: EventRevision(0),
+    };
+    let panel =
+        serde_json::to_value(super::ui::query(&view, &action, actor, guild, 1000).message())
+            .unwrap();
+    assert_that!(panel["flags"], eq(64));
+    assert_that!(
+        panel["content"].as_str().unwrap(),
+        contains_substring("No markets")
+    );
+    assert_that!(
+        parse(&input("bet", vec![text("id", "market")])),
+        err(anything())
+    );
+}
