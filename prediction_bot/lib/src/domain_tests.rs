@@ -1061,3 +1061,49 @@ fn domain_values_have_distinct_types_for_identity_and_units() {
     assert_that!(same_type(&account.balance, &account.next_grant), eq(false));
     assert_that!(same_type(id, &market.question), eq(false));
 }
+
+#[googletest::test]
+fn announcement_channel_ids_round_trip_without_json_number_precision_loss() {
+    let event = Event::AnnouncementsEnabled {
+        channel_id: ChannelId(u64::MAX),
+        moderator: UserId(7),
+        enabled_at: 1000,
+    };
+    let payload = serde_json::to_value(&event).unwrap();
+    assert_that!(payload["channel_id"], eq("18446744073709551615"));
+    assert_that!(
+        serde_json::from_value::<Event>(payload).unwrap(),
+        eq(&event)
+    );
+}
+
+#[googletest::test]
+fn announcement_channel_ids_require_canonical_positive_decimal_strings() {
+    for channel in [
+        serde_json::json!(0),
+        serde_json::json!(9_007_199_254_740_993_u64),
+        serde_json::json!(""),
+        serde_json::json!("0"),
+        serde_json::json!("01"),
+        serde_json::json!("+1"),
+        serde_json::json!("-1"),
+        serde_json::json!(" 1"),
+        serde_json::json!("1 "),
+        serde_json::json!("1.0"),
+        serde_json::json!("18446744073709551616"),
+    ] {
+        let payload = serde_json::json!({
+            "kind": "announcements_enabled", "channel_id": channel,
+            "moderator": "7", "enabled_at": 1000,
+        });
+        assert_that!(serde_json::from_value::<Event>(payload), err(anything()));
+    }
+    assert_that!(
+        serde_json::to_value(Event::AnnouncementsEnabled {
+            channel_id: ChannelId(0),
+            moderator: UserId(7),
+            enabled_at: 1000,
+        }),
+        err(anything())
+    );
+}

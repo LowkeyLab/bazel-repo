@@ -7,7 +7,7 @@ pub mod types;
 use types::{ChannelId, MarketId, OutcomeIndex, Points, UserId};
 
 mod snowflake {
-    use super::UserId;
+    use super::{ChannelId, UserId};
     use serde::{Deserialize, Deserializer, Serializer, de::Error, ser::Error as _};
 
     fn parse(value: &str, allow_system: bool) -> Result<u64, &'static str> {
@@ -28,7 +28,11 @@ mod snowflake {
         reason = "Serde serialize_with requires a borrowed field"
     )]
     pub fn serialize<S: Serializer>(value: &UserId, serializer: S) -> Result<S::Ok, S::Error> {
-        if value.0 == 0 {
+        serialize_positive(value.0, serializer)
+    }
+
+    fn serialize_positive<S: Serializer>(value: u64, serializer: S) -> Result<S::Ok, S::Error> {
+        if value == 0 {
             return Err(S::Error::custom("event Discord ID must be positive"));
         }
         serializer.serialize_str(&value.to_string())
@@ -37,6 +41,31 @@ mod snowflake {
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<UserId, D::Error> {
         let value = String::deserialize(deserializer)?;
         parse(&value, false).map(UserId).map_err(D::Error::custom)
+    }
+
+    pub mod channel {
+        use super::ChannelId;
+        use serde::{Deserialize, Deserializer, Serializer, de::Error};
+
+        #[expect(
+            clippy::trivially_copy_pass_by_ref,
+            reason = "Serde serialize_with requires a borrowed field"
+        )]
+        pub fn serialize<S: Serializer>(
+            value: &ChannelId,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            super::serialize_positive(value.0, serializer)
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<ChannelId, D::Error> {
+            let value = String::deserialize(deserializer)?;
+            super::parse(&value, false)
+                .map(ChannelId)
+                .map_err(D::Error::custom)
+        }
     }
 
     pub mod actor {
@@ -164,6 +193,7 @@ pub enum GrantReason {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Event {
     AnnouncementsEnabled {
+        #[serde(with = "snowflake::channel")]
         channel_id: ChannelId,
         #[serde(with = "snowflake")]
         moderator: UserId,
