@@ -9,6 +9,9 @@ mod tests;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SnapshotV1 {
+    Enabled {
+        occurred_at: i64,
+    },
     MemberEnrolled {
         user_id: UserId,
         occurred_at: i64,
@@ -53,7 +56,7 @@ impl SnapshotV1 {
             Self::BetPlaced { odds, .. }
             | Self::Resolved { odds, .. }
             | Self::Cancelled { odds, .. } => odds,
-            Self::Created { .. } | Self::MemberEnrolled { .. } => &[],
+            Self::Enabled { .. } | Self::Created { .. } | Self::MemberEnrolled { .. } => &[],
         }
     }
 }

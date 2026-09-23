@@ -79,17 +79,7 @@ async fn resolve_widget_settles_only_after_confirmation_and_recovers_redelivery(
         )
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:903",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
 
     let server = MockServer::start().await;
     let http = discord_http(&server);
@@ -345,17 +335,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
         .execute_at(10.into(), "discord:100", admin(), &Command::Join, 1000)
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:101",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
 
     let resolved = create(RESOLVED_MARKET);
     let cancelled = create(CANCELLED_MARKET);
@@ -464,17 +444,7 @@ async fn an_outbox_failure_rolls_back_the_market_and_receipt() {
         .execute_at(10.into(), "discord:200", admin(), &Command::Join, 1000)
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:201",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     sqlx::query("ALTER TABLE prediction_announcement_outbox ADD CONSTRAINT reject_fixture_guild CHECK (guild_id <> '10')")
         .execute(&owner)
         .await
@@ -515,17 +485,7 @@ async fn a_receipt_failure_rolls_back_the_enqueued_snapshot() {
         .execute_at(10.into(), "discord:200", admin(), &Command::Join, 1000)
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:201",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_fixture_receipt CHECK (command_key <> 'discord:202')")
         .execute(&owner)
         .await
@@ -569,17 +529,7 @@ async fn paused_enabled_settings_enqueue_without_backfilling_disabled_or_histori
         )
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:302",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     let historical: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM prediction_announcement_outbox WHERE guild_id='10'",
     )
@@ -710,17 +660,7 @@ async fn concurrent_disable_and_market_creation_leave_no_pending_announcement() 
         .execute_at(10.into(), "discord:400", admin(), &Command::Join, 1000)
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:401",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
 
     // Queue both operations behind the real guild lock and observe each waiter.
     // Removing either production lock makes this synchronization fail.
@@ -1229,7 +1169,7 @@ async fn delivery_in_flight_configuration_changes_condition_completion() {
         let status = store.announcement_status(10.into(), admin()).await.unwrap();
         assert_that!(status.pause_reason, eq(&None));
         let row: (String, Option<String>) =
-            sqlx::query_as("SELECT state,delivered_channel_id FROM prediction_announcement_outbox")
+            sqlx::query_as("SELECT state,delivered_channel_id FROM prediction_announcement_outbox WHERE snapshot ? 'Created'")
                 .fetch_one(&owner)
                 .await
                 .unwrap();
@@ -1247,7 +1187,7 @@ async fn delivery_in_flight_configuration_changes_condition_completion() {
             .await;
         // Set resets the deadline using wall time; drive the worker from the saved deadline.
         let deadline: i64 =
-            sqlx::query_scalar("SELECT next_attempt_at FROM prediction_announcement_outbox")
+            sqlx::query_scalar("SELECT MAX(next_attempt_at) FROM prediction_announcement_outbox")
                 .fetch_one(&owner)
                 .await
                 .unwrap();
@@ -1257,7 +1197,7 @@ async fn delivery_in_flight_configuration_changes_condition_completion() {
             .unwrap();
         assert_that!(
             server.received_requests().await.unwrap().len(),
-            eq(usize::from(!disable && !success))
+            eq(usize::from(!disable) + usize::from(!disable && !success))
         );
     }
 }
@@ -1276,17 +1216,7 @@ async fn wait_for_guild_lock_waiters(owner: &sqlx::PgPool, expected: i64) {
 #[tokio::test]
 async fn enabled_announcements_enqueue_a_member_join_only_once() {
     let (_container, store, owner) = fixture().await;
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:enable",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     store
         .execute_at(10.into(), "discord:join", member(), &Command::Join, 1000)
         .await
@@ -1420,7 +1350,7 @@ async fn delivery_permission_failure_pauses_until_configuration_changes() {
             .pending,
         eq(0)
     );
-    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
+    assert_that!(server.received_requests().await.unwrap().len(), eq(2));
 }
 
 #[googletest::test]
@@ -1866,17 +1796,7 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
         .await
         .unwrap();
     // Queue only the movement announcement so startup coverage does not depend on polling delays.
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:enable",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     store
         .execute_at(
             10.into(),
@@ -2109,9 +2029,9 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
         eq(1),
         "replayed configuration must keep its original version"
     );
-    assert_that!(status.pending, eq(2));
+    assert_that!(status.pending, eq(3));
     let enqueued: Vec<(String, i64)> = sqlx::query_as(
-        "SELECT snapshot->'Created'->>'question',count(*) FROM prediction_announcement_outbox WHERE guild_id='10' GROUP BY 1 ORDER BY 1",
+        "SELECT snapshot->'Created'->>'question',count(*) FROM prediction_announcement_outbox WHERE guild_id='10' AND snapshot ? 'Created' GROUP BY 1 ORDER BY 1",
     ).fetch_all(&owner).await.unwrap();
     assert_that!(
         enqueued,
@@ -2169,6 +2089,30 @@ async fn real_interaction_adapters_configure_and_enqueue_each_creation_once() {
                 && request.url.path().ends_with("/messages")),
         eq(false)
     );
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/55/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store, Arc::new(http), clock(4_070_908_800))
+        .await
+        .unwrap();
+    let messages: Vec<serde_json::Value> = server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|request| request.url.path() == "/api/v10/channels/55/messages")
+        .map(|request| request.body_json().unwrap())
+        .collect();
+    assert_that!(messages.len(), eq(3));
+    assert_that!(
+        messages[0]["content"],
+        eq(
+            "Prediction market announcements are enabled! New markets, bets, and results will appear here."
+        )
+    );
+    assert_that!(messages[0]["allowed_mentions"]["parse"], eq(&json!([])));
 }
 
 #[googletest::test]
@@ -2293,17 +2237,7 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
         )
         .await
         .unwrap();
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:enable",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     let bet = Command::Bet {
         id: FIXTURE_MARKET.into(),
         outcome: OutcomeIndex(0),
@@ -2445,17 +2379,7 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
     use support::interaction_json;
 
     let (_container, store, _owner) = fixture().await;
-    store
-        .configure_announcements(
-            10.into(),
-            "discord:enable",
-            admin(),
-            ConfigurationChange::Set {
-                channel_id: ChannelId(20),
-            },
-        )
-        .await
-        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(wiremock::matchers::path_regex("/callback$"))
@@ -2537,6 +2461,384 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
     );
     for message in messages {
         assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn welcome_is_delivered_for_each_activation_but_not_unchanged_or_replayed_commands() {
+    let (_container, store, _owner) = fixture().await;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    let http = Arc::new(discord_http(&server));
+    let steps = [
+        ("discord:welcome-1", Some(20), 1),
+        ("discord:welcome-1", Some(20), 1),
+        ("discord:welcome-2", Some(20), 1),
+        ("discord:welcome-3", Some(30), 2),
+        ("discord:welcome-4", None, 2),
+        ("discord:welcome-5", Some(30), 3),
+    ];
+    for (key, channel, expected_messages) in steps {
+        let change = channel.map_or(ConfigurationChange::Disable, |channel| {
+            ConfigurationChange::Set {
+                channel_id: ChannelId(channel),
+            }
+        });
+        store
+            .configure_announcements(10.into(), key, admin(), change)
+            .await
+            .unwrap();
+        deliver_due(store.clone(), http.clone(), clock(4_070_908_800))
+            .await
+            .unwrap();
+        assert_that!(
+            server.received_requests().await.unwrap().len(),
+            eq(expected_messages),
+            "command: {key}"
+        );
+    }
+    let requests = server.received_requests().await.unwrap();
+    for (request, channel) in requests.iter().zip([20, 30, 30]) {
+        assert_that!(
+            request.url.path(),
+            eq(format!("/api/v10/channels/{channel}/messages"))
+        );
+        let payload: serde_json::Value = request.body_json().unwrap();
+        assert_that!(
+            payload["content"],
+            eq(
+                "Prediction market announcements are enabled! New markets, bets, and results will appear here."
+            )
+        );
+        assert_that!(payload["allowed_mentions"]["parse"], eq(&json!([])));
+    }
+    let replayed = restart(&store);
+    assert_that!(
+        replayed.view(10.into()).await.unwrap().state.policy,
+        eq(None)
+    );
+    replayed
+        .execute_at(
+            10.into(),
+            "discord:welcome-join",
+            admin(),
+            &Command::Join,
+            1000,
+        )
+        .await
+        .unwrap();
+    replayed
+        .execute_at(
+            10.into(),
+            "discord:welcome-create",
+            admin(),
+            &create(FIXTURE_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    assert_that!(
+        replayed.view(10.into()).await.unwrap().state.accounts[&admin().user_id].balance,
+        eq(Points(100))
+    );
+    let before = replayed.view(10.into()).await.unwrap();
+    replayed
+        .configure_announcements(
+            10.into(),
+            "discord:welcome-existing-economy",
+            admin(),
+            ConfigurationChange::Set {
+                channel_id: ChannelId(40),
+            },
+        )
+        .await
+        .unwrap();
+    assert_that!(
+        restart(&replayed).view(10.into()).await.unwrap().state,
+        eq(&before.state)
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn welcome_outbox_failure_rolls_back_configuration_and_can_be_retried() {
+    let (_container, store, owner) = fixture().await;
+    sqlx::query("ALTER TABLE prediction_announcement_outbox ADD CONSTRAINT reject_welcome CHECK (guild_id <> '10')").execute(&owner).await.unwrap();
+    let change = ConfigurationChange::Set {
+        channel_id: ChannelId(20),
+    };
+    assert_that!(
+        store
+            .configure_announcements(10.into(), "discord:welcome", admin(), change)
+            .await,
+        err(anything())
+    );
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
+    assert_that!(status.enabled, eq(false));
+    assert_that!(status.pending, eq(0));
+    assert_that!(
+        store.view(10.into()).await.unwrap().revision,
+        eq(EventRevision(0))
+    );
+    sqlx::query("ALTER TABLE prediction_announcement_outbox DROP CONSTRAINT reject_welcome")
+        .execute(&owner)
+        .await
+        .unwrap();
+    store
+        .configure_announcements(10.into(), "discord:welcome", admin(), change)
+        .await
+        .unwrap();
+    let status = store.announcement_status(10.into(), admin()).await.unwrap();
+    assert_that!(status.enabled, eq(true));
+    assert_that!(status.pending, eq(1));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn concurrent_activation_queues_one_welcome() {
+    let (_container, store, owner) = fixture().await;
+    let change = ConfigurationChange::Set {
+        channel_id: ChannelId(20),
+    };
+    let mut lock = owner.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(10)")
+        .execute(&mut *lock)
+        .await
+        .unwrap();
+    let first_store = store.clone();
+    let first = tokio::spawn(async move {
+        first_store
+            .configure_announcements(10.into(), "discord:first", admin(), change)
+            .await
+    });
+    let second_store = store.clone();
+    let second = tokio::spawn(async move {
+        second_store
+            .configure_announcements(10.into(), "discord:second", admin(), change)
+            .await
+    });
+    wait_for_guild_lock_waiters(&owner, 2).await;
+    lock.commit().await.unwrap();
+    first.await.unwrap().unwrap();
+    second.await.unwrap().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store, Arc::new(discord_http(&server)), clock(4_070_908_800))
+        .await
+        .unwrap();
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn welcome_retries_after_restart_and_resuming_same_paused_channel_adds_no_welcome() {
+    let (_container, store, _owner) = fixture().await;
+    let change = ConfigurationChange::Set {
+        channel_id: ChannelId(20),
+    };
+    store
+        .configure_announcements(10.into(), "discord:welcome", admin(), change)
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let http = Arc::new(discord_http(&server));
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(500).set_body_json(json!({"code":0,"message":"temporary"})),
+        )
+        .mount(&server)
+        .await;
+    let now = 4_070_908_800;
+    deliver_due(store.clone(), http.clone(), clock(now))
+        .await
+        .unwrap();
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
+    let store = restart(&store);
+    server.reset().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(403)
+                .set_body_json(json!({"code":50013,"message":"missing permission"})),
+        )
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), http.clone(), clock(now + 4))
+        .await
+        .unwrap();
+    assert_that!(server.received_requests().await.unwrap(), is_empty());
+    deliver_due(store.clone(), http.clone(), clock(now + 5))
+        .await
+        .unwrap();
+    assert_that!(server.received_requests().await.unwrap().len(), eq(1));
+    assert_that!(
+        store
+            .announcement_status(10.into(), admin())
+            .await
+            .unwrap()
+            .pause_reason
+            .is_some(),
+        eq(true)
+    );
+    store
+        .configure_announcements(10.into(), "discord:resume", admin(), change)
+        .await
+        .unwrap();
+    assert_that!(
+        store
+            .announcement_status(10.into(), admin())
+            .await
+            .unwrap()
+            .pending,
+        eq(1)
+    );
+    server.reset().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store.clone(), http, clock(now + 5))
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(1));
+    let payload: serde_json::Value = requests[0].body_json().unwrap();
+    assert_that!(
+        payload["content"],
+        eq(
+            "Prediction market announcements are enabled! New markets, bets, and results will appear here."
+        )
+    );
+    assert_that!(
+        store
+            .announcement_status(10.into(), admin())
+            .await
+            .unwrap()
+            .pending,
+        eq(0)
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn changing_destination_coalesces_pending_welcomes_without_discarding_market_activity() {
+    for retrying in [false, true] {
+        let (_container, store, _owner) = fixture().await;
+        store
+            .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
+            .await
+            .unwrap();
+        store
+            .configure_announcements(
+                10.into(),
+                "discord:enable",
+                admin(),
+                ConfigurationChange::Set {
+                    channel_id: ChannelId(20),
+                },
+            )
+            .await
+            .unwrap();
+        store
+            .execute_at(
+                10.into(),
+                "discord:create",
+                admin(),
+                &create(FIXTURE_MARKET),
+                1000,
+            )
+            .await
+            .unwrap();
+        // A second guild's pending welcome must remain deliverable.
+        store
+            .configure_announcements(
+                11.into(),
+                "discord:other",
+                admin(),
+                ConfigurationChange::Set {
+                    channel_id: ChannelId(90),
+                },
+            )
+            .await
+            .unwrap();
+        let server = MockServer::start().await;
+        let http = Arc::new(discord_http(&server));
+        let now = 4_070_908_800;
+        if retrying {
+            Mock::given(method("POST"))
+                .respond_with(
+                    ResponseTemplate::new(500)
+                        .set_body_json(json!({"code":0,"message":"temporary"})),
+                )
+                .mount(&server)
+                .await;
+            deliver_due(store.clone(), http.clone(), clock(now))
+                .await
+                .unwrap();
+            assert_that!(server.received_requests().await.unwrap().len(), eq(2));
+            server.reset().await;
+        }
+        for (key, channel) in [("discord:move-1", 30), ("discord:move-2", 40)] {
+            store
+                .configure_announcements(
+                    10.into(),
+                    key,
+                    admin(),
+                    ConfigurationChange::Set {
+                        channel_id: ChannelId(channel),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        Mock::given(method("POST"))
+            .respond_with(delivered())
+            .mount(&server)
+            .await;
+        deliver_due(restart(&store), http, clock(now + 5))
+            .await
+            .unwrap();
+        let requests = server.received_requests().await.unwrap();
+        let messages: Vec<serde_json::Value> = requests
+            .iter()
+            .filter(|request| request.url.path() == "/api/v10/channels/40/messages")
+            .map(|request| request.body_json().unwrap())
+            .collect();
+        assert_that!(messages.len(), eq(2), "retrying: {retrying}");
+        assert_that!(
+            messages[0]["content"].as_str().unwrap(),
+            contains_substring("Market created")
+        );
+        assert_that!(
+            messages[1]["content"],
+            eq(
+                "Prediction market announcements are enabled! New markets, bets, and results will appear here."
+            )
+        );
+        assert_that!(requests.len(), eq(3));
+        assert_that!(
+            requests
+                .iter()
+                .filter(|request| request.url.path() == "/api/v10/channels/90/messages")
+                .count(),
+            eq(1)
+        );
+        assert_that!(
+            store
+                .announcement_status(10.into(), admin())
+                .await
+                .unwrap()
+                .pending,
+            eq(0)
+        );
     }
 }
 

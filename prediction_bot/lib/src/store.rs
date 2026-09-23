@@ -617,7 +617,8 @@ fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> 
         } => UserId(0),
         Event::MarketCreated { creator, .. } => *creator,
         Event::MarketResolved { resolver, .. } => *resolver,
-        Event::MarketCancelled { moderator, .. } => *moderator,
+        Event::AnnouncementsEnabled { moderator, .. }
+        | Event::MarketCancelled { moderator, .. } => *moderator,
     };
     if actor != expected {
         return Err(StoreError::History("receipt actor disagrees with event"));
@@ -627,6 +628,7 @@ fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> 
 
 fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError> {
     let matches = match event {
+        Event::AnnouncementsEnabled { enabled_at, .. } => *enabled_at == accepted_at,
         Event::GuildEconomyInitialized { .. } => true,
         Event::MemberEnrolled { enrolled_at, .. } => *enrolled_at == accepted_at,
         Event::PointsGranted { through_due, .. } => *through_due <= accepted_at,
