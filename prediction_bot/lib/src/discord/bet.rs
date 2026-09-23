@@ -74,11 +74,29 @@ fn scope(guild: GuildId, actor: Actor, id: &str) -> Result<Vec<&str>, &'static s
         .ok_or(INVALID)
 }
 fn market_key(id: &MarketId) -> Result<String, &'static str> {
-    uuid::Uuid::parse_str(&id.to_string())
-        .map(|id| compact(id.as_u128()))
+    // MarketId keys are case-sensitive. Keep all hexadecimal characters exactly
+    // as stored; removing the four hyphens still fits the control length limit.
+    uuid::Uuid::parse_str(&id.0)
+        .map(|_| id.0.replace('-', ""))
         .map_err(|_| INVALID)
 }
 fn market_id(value: &str) -> Result<MarketId, &'static str> {
+    if value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Ok(format!(
+            "{}-{}-{}-{}-{}",
+            &value[..8],
+            &value[8..12],
+            &value[12..16],
+            &value[16..20],
+            &value[20..]
+        )
+        .into());
+    }
+    // Existing widgets encoded lowercase UUIDs in base 36 (at most 25 digits).
+    // Keep accepting them so controls already displayed by Discord still work.
+    if value.len() > 25 {
+        return Err(INVALID);
+    }
     Ok(uuid::Uuid::from_u128(number(value)?).to_string().into())
 }
 fn outcome(value: &str) -> Result<OutcomeIndex, &'static str> {

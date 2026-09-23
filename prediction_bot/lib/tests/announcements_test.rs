@@ -2543,6 +2543,7 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
 #[googletest::test]
 #[tokio::test]
 async fn bet_widget_confirms_once_per_submission_through_discord() {
+    const WIDGET_MARKET: &str = "aBcDeF00-0000-4000-8000-00000000000A";
     use prediction_bot::discord::handle_interaction;
     use serenity::all::Interaction;
     use support::interaction_json;
@@ -2558,7 +2559,7 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
             "discord:802",
             admin(),
             &Command::Create {
-                id: FIXTURE_MARKET.into(),
+                id: WIDGET_MARKET.into(),
                 question: "Will it rain?".into(),
                 options: vec!["Yes".into(), "No".into()],
                 closes_at: 4_000_000_000,
@@ -2591,7 +2592,7 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
     let picker = last_widget_response(&server).await;
     assert_that!(
         picker["components"][0]["components"][0]["options"][0]["value"],
-        eq(FIXTURE_MARKET)
+        eq(WIDGET_MARKET)
     );
     let selection = |id, custom_id: &str, values: Vec<&str>| {
         Interaction::Component(serde_json::from_value(interaction_json(id, &json!({
@@ -2607,7 +2608,7 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
             picker["components"][0]["components"][0]["custom_id"]
                 .as_str()
                 .unwrap(),
-            vec![FIXTURE_MARKET],
+            vec![WIDGET_MARKET],
         ),
     )
     .await;
@@ -2684,9 +2685,9 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
         view.state.accounts[&admin().user_id].balance,
         eq(Points(90))
     );
-    assert_that!(view.state.markets[FIXTURE_MARKET].bets.len(), eq(1));
+    assert_that!(view.state.markets[WIDGET_MARKET].bets.len(), eq(1));
     assert_that!(
-        view.state.markets[FIXTURE_MARKET].bets[0].outcome,
+        view.state.markets[WIDGET_MARKET].bets[0].outcome,
         eq(OutcomeIndex(1))
     );
     // A new stake submission is a separate intended bet.
@@ -2720,7 +2721,7 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
             "discord:814",
             admin(),
             &Command::Bet {
-                id: FIXTURE_MARKET.into(),
+                id: WIDGET_MARKET.into(),
                 outcome: OutcomeIndex(0),
                 amount: Points(75),
             },
@@ -2742,14 +2743,14 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
     .await;
     let view = store.view(10.into()).await.unwrap();
     assert_that!(view.state.accounts[&admin().user_id].balance, eq(Points(5)));
-    assert_that!(view.state.markets[FIXTURE_MARKET].bets.len(), eq(3));
+    assert_that!(view.state.markets[WIDGET_MARKET].bets.len(), eq(3));
     store
         .execute(
             10.into(),
             "discord:812",
             admin(),
             &Command::Cancel {
-                id: FIXTURE_MARKET.into(),
+                id: WIDGET_MARKET.into(),
             },
         )
         .await
@@ -2770,7 +2771,7 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
     .await;
     let after = store.view(10.into()).await.unwrap();
     assert_that!(after.state.accounts, eq(&before.state.accounts));
-    assert_that!(after.state.markets[FIXTURE_MARKET].bets.len(), eq(3));
+    assert_that!(after.state.markets[WIDGET_MARKET].bets.len(), eq(3));
     // Even after cancellation, a successful submission recovers its receipt.
     handle_interaction(
         store.clone(),

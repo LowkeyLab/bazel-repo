@@ -121,7 +121,7 @@ fn pagination_reaches_all_open_markets_and_clamps_stale_pages() {
 fn maximum_confirmation_fits_discord_and_round_trips_without_losing_stake_or_identity() {
     let mut view = view(1);
     let market = view.state.markets.pop_first().unwrap().1;
-    let id: MarketId = uuid::Uuid::from_u128(u128::MAX).to_string().into();
+    let id: MarketId = "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF".into();
     view.state.markets.insert(id.clone(), market);
     let modal = serde_json::to_value(
         stake_modal(&view, actor(), u64::MAX.into(), 1000, &id, OutcomeIndex(1)).unwrap(),
@@ -267,4 +267,92 @@ fn controls_reject_wrong_scope_kind_and_malformed_values() {
             err(anything())
         );
     }
+}
+
+#[googletest::test]
+fn navigation_preserves_uppercase_and_mixed_case_market_keys() {
+    for stored in [
+        "ABCDEF00-0000-4000-8000-00000000000A",
+        "aBcDeF00-0000-4000-8000-00000000000A",
+    ] {
+        let mut view = view(1);
+        let market = view.state.markets.pop_first().unwrap().1;
+        // These are distinct domain keys, so choosing either must never select the other.
+        view.state
+            .markets
+            .insert(stored.to_lowercase().into(), market.clone());
+        view.state.markets.insert(stored.into(), market);
+        let chosen = panel(
+            &view,
+            actor(),
+            u64::MAX.into(),
+            1000,
+            &Action::Market(stored.into()),
+        )
+        .unwrap();
+        let outcome = click(&json(chosen)["components"][0]["components"][0], &["1"]);
+        assert_that!(
+            outcome,
+            eq(&Action::Stake {
+                id: stored.into(),
+                outcome: OutcomeIndex(1)
+            })
+        );
+        let Action::Stake { id, outcome } = outcome else {
+            unreachable!()
+        };
+        let modal = serde_json::to_value(
+            stake_modal(&view, actor(), u64::MAX.into(), 1000, &id, outcome).unwrap(),
+        )
+        .unwrap();
+        let confirmation = json(
+            preview(
+                &view,
+                actor(),
+                u64::MAX.into(),
+                1000,
+                modal["custom_id"].as_str().unwrap(),
+                "10",
+                123,
+            )
+            .unwrap(),
+        );
+        assert_that!(
+            click(&confirmation["components"][0]["components"][0], &[]),
+            eq(&Action::Confirm {
+                command: Command::Bet {
+                    id: stored.into(),
+                    outcome: OutcomeIndex(1),
+                    amount: Points(10)
+                },
+                submission: 123,
+            })
+        );
+        assert_that!(
+            click(&confirmation["components"][0]["components"][1], &[]),
+            eq(&Action::Market(stored.into()))
+        );
+    }
+}
+
+#[googletest::test]
+fn existing_compact_confirmation_controls_still_recover_the_same_command() {
+    let action = parse(
+        u64::MAX.into(),
+        actor(),
+        &format!("{}:c:1:0:a:3f", prefix(u64::MAX.into(), actor())),
+        &ComponentInteractionDataKind::Button,
+    )
+    .unwrap();
+    assert_that!(
+        action,
+        eq(&Action::Confirm {
+            command: Command::Bet {
+                id: "00000000-0000-0000-0000-000000000001".into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(10)
+            },
+            submission: 123,
+        })
+    );
 }
