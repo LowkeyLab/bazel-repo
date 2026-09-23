@@ -330,6 +330,11 @@ impl Store {
             .await?,
         );
         if let Some(channel_id) = welcome_channel {
+            // Pending welcomes describe the superseded destination. Preserve market activity.
+            sqlx::query("UPDATE prediction_announcement_outbox SET state='discarded' WHERE guild_id=$1 AND state='pending' AND snapshot ? 'Enabled'")
+                .bind(&guild_id)
+                .execute(&mut *tx)
+                .await?;
             revision = revision
                 .next()
                 .ok_or(StoreError::History("revision overflow"))?;

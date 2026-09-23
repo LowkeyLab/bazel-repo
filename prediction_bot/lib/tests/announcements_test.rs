@@ -2726,3 +2726,118 @@ async fn welcome_retries_after_restart_and_resuming_same_paused_channel_adds_no_
         eq(0)
     );
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn changing_destination_coalesces_pending_welcomes_without_discarding_market_activity() {
+    for retrying in [false, true] {
+        let (_container, store, _owner) = fixture().await;
+        store
+            .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
+            .await
+            .unwrap();
+        store
+            .configure_announcements(
+                10.into(),
+                "discord:enable",
+                admin(),
+                ConfigurationChange::Set {
+                    channel_id: ChannelId(20),
+                },
+            )
+            .await
+            .unwrap();
+        store
+            .execute_at(
+                10.into(),
+                "discord:create",
+                admin(),
+                &create(FIXTURE_MARKET),
+                1000,
+            )
+            .await
+            .unwrap();
+        // A second guild's pending welcome must remain deliverable.
+        store
+            .configure_announcements(
+                11.into(),
+                "discord:other",
+                admin(),
+                ConfigurationChange::Set {
+                    channel_id: ChannelId(90),
+                },
+            )
+            .await
+            .unwrap();
+        let server = MockServer::start().await;
+        let http = Arc::new(discord_http(&server));
+        let now = 4_070_908_800;
+        if retrying {
+            Mock::given(method("POST"))
+                .respond_with(
+                    ResponseTemplate::new(500)
+                        .set_body_json(json!({"code":0,"message":"temporary"})),
+                )
+                .mount(&server)
+                .await;
+            deliver_due(store.clone(), http.clone(), clock(now))
+                .await
+                .unwrap();
+            assert_that!(server.received_requests().await.unwrap().len(), eq(2));
+            server.reset().await;
+        }
+        for (key, channel) in [("discord:move-1", 30), ("discord:move-2", 40)] {
+            store
+                .configure_announcements(
+                    10.into(),
+                    key,
+                    admin(),
+                    ConfigurationChange::Set {
+                        channel_id: ChannelId(channel),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        Mock::given(method("POST"))
+            .respond_with(delivered())
+            .mount(&server)
+            .await;
+        deliver_due(restart(&store), http, clock(now + 5))
+            .await
+            .unwrap();
+        let requests = server.received_requests().await.unwrap();
+        let messages: Vec<serde_json::Value> = requests
+            .iter()
+            .filter(|request| request.url.path() == "/api/v10/channels/40/messages")
+            .map(|request| request.body_json().unwrap())
+            .collect();
+        assert_that!(messages.len(), eq(2), "retrying: {retrying}");
+        assert_that!(
+            messages[0]["content"].as_str().unwrap(),
+            contains_substring("Market created")
+        );
+        assert_that!(
+            messages[1]["content"],
+            eq(
+                "Prediction market announcements are enabled! New markets, bets, and results will appear here."
+            )
+        );
+        assert_that!(requests.len(), eq(3));
+        assert_that!(
+            requests
+                .iter()
+                .filter(|request| request.url.path() == "/api/v10/channels/90/messages")
+                .count(),
+            eq(1)
+        );
+        assert_that!(
+            store
+                .announcement_status(10.into(), admin())
+                .await
+                .unwrap()
+                .pending,
+            eq(0)
+        );
+    }
+}
