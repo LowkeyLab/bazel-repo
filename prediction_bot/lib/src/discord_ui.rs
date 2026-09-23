@@ -149,6 +149,7 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, 
     };
     let prefix = prefix(guild, actor);
     match action {
+        Action::BetForm => return super::bet::picker(view, actor, guild, now, 0),
         Action::ResolveForm => return super::resolve::picker(view, actor, guild, now, 0),
         Action::CreateForm => panel.components.push(menu(
             format!("{prefix}:create"),
