@@ -413,7 +413,7 @@ fn odds_preserve_every_outcome_within_discords_message_limit() {
             "question": "🔮".repeat(200), "occurred_at": i64::MAX,
             "bet_count": 100, "winner": "*".repeat(80), "refunded": false,
             "odds": (0..10).map(|i| serde_json::json!({
-                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100, "movement": "unchanged"
+                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100, "unchanged": true
             })).collect::<Vec<_>>()
         }}))
         .unwrap();
@@ -440,7 +440,7 @@ fn bet_announcements_render_saved_movement_and_allow_missing_history() {
         "odds": [
             {"label": "Rising", "tenths_percent": 600, "movement": "up"},
             {"label": "Falling", "tenths_percent": 200, "movement": "down"},
-            {"label": "Unchanged", "tenths_percent": 100, "movement": "unchanged"},
+            {"label": "Unchanged", "tenths_percent": 100, "unchanged": true},
             {"label": "Legacy", "tenths_percent": 100}
         ]
     }}))
@@ -525,4 +525,37 @@ fn movement_compares_displayed_percentages_without_inventing_a_first_bet_baselin
             assert_that!(line, ends_with(format!("implied chance{indicator}")));
         }
     }
+}
+
+#[googletest::test]
+fn unchanged_odds_remain_readable_by_the_previous_snapshot_reader() {
+    use crate::odds::OutcomeOdds;
+
+    // Preserve the previous release's wire schema to catch rollback incompatibility.
+    #[derive(Debug, serde::Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    enum PreviousMovement {
+        Up,
+        Down,
+    }
+    #[derive(serde::Deserialize)]
+    struct PreviousOdds {
+        label: String,
+        tenths_percent: Option<u16>,
+        #[serde(default)]
+        movement: Option<PreviousMovement>,
+    }
+
+    let previous: OutcomeOdds = serde_json::from_value(serde_json::json!({
+        "label": "Yes", "tenths_percent": 1000
+    }))
+    .unwrap();
+    let unchanged = previous.clone().with_previous(&previous);
+    let saved = serde_json::to_value(&unchanged).unwrap();
+    let old_reader: PreviousOdds = serde_json::from_value(saved.clone()).unwrap();
+    assert_that!(old_reader.label, eq("Yes"));
+    assert_that!(old_reader.tenths_percent, eq(Some(1000)));
+    assert_that!(old_reader.movement.is_none(), eq(true));
+    let current_reader: OutcomeOdds = serde_json::from_value(saved).unwrap();
+    assert_that!(current_reader.movement_indicator(), eq(" ➖ unchanged"));
 }
