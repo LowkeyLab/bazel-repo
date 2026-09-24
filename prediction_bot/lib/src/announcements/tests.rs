@@ -413,7 +413,7 @@ fn odds_preserve_every_outcome_within_discords_message_limit() {
             "question": "🔮".repeat(200), "occurred_at": i64::MAX,
             "bet_count": 100, "winner": "*".repeat(80), "refunded": false,
             "odds": (0..10).map(|i| serde_json::json!({
-                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100, "movement": "up"
+                "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100, "movement": "unchanged"
             })).collect::<Vec<_>>()
         }}))
         .unwrap();
@@ -440,7 +440,7 @@ fn bet_announcements_render_saved_movement_and_allow_missing_history() {
         "odds": [
             {"label": "Rising", "tenths_percent": 600, "movement": "up"},
             {"label": "Falling", "tenths_percent": 200, "movement": "down"},
-            {"label": "Unchanged", "tenths_percent": 100},
+            {"label": "Unchanged", "tenths_percent": 100, "movement": "unchanged"},
             {"label": "Legacy", "tenths_percent": 100}
         ]
     }}))
@@ -457,7 +457,7 @@ fn bet_announcements_render_saved_movement_and_allow_missing_history() {
     );
     assert_that!(
         text,
-        contains_substring("Unchanged — 10.0% implied chance\n")
+        contains_substring("Unchanged — 10.0% implied chance ➖ unchanged\n")
     );
     assert_that!(text, contains_substring("Legacy — 10.0% implied chance\n"));
     assert_mentions_disabled(&message);
@@ -471,8 +471,13 @@ fn movement_compares_displayed_percentages_without_inventing_a_first_bet_baselin
 
     for (stakes, added_outcome, added_amount, expected) in [
         (vec![], 0, 1, ["", ""]),
-        (vec![(0, 5)], 0, 5, ["", ""]),
-        (vec![(0, 10000), (1, 10000)], 0, 1, ["", ""]),
+        (vec![(0, 5)], 0, 5, [" ➖ unchanged", " ➖ unchanged"]),
+        (
+            vec![(0, 10000), (1, 10000)],
+            0,
+            1,
+            [" ➖ unchanged", " ➖ unchanged"],
+        ),
         (vec![(0, 1), (1, 1)], 0, 2, [" 🟢 ⬆️", " 🔴 ⬇️"]),
         (vec![(0, 1), (1, 1)], 1, 2, [" 🔴 ⬇️", " 🟢 ⬆️"]),
     ] {

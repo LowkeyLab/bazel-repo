@@ -1804,7 +1804,7 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
             admin(),
             &Command::Bet {
                 id: FIXTURE_MARKET.into(),
-                outcome: OutcomeIndex(1),
+                outcome: OutcomeIndex(0),
                 amount: Points(10),
             },
             1001,
@@ -1873,8 +1873,14 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
         })
         .expect("startup must deliver the bet movement announcement");
     let text = movement["content"].as_str().unwrap();
-    assert_that!(text, contains_substring("Yes — 50.0% implied chance 🔴 ⬇️"));
-    assert_that!(text, contains_substring("No — 50.0% implied chance 🟢 ⬆️"));
+    assert_that!(
+        text,
+        contains_substring("Yes — 100.0% implied chance ➖ unchanged")
+    );
+    assert_that!(
+        text,
+        contains_substring("No — 0.0% implied chance ➖ unchanged")
+    );
     store.gateway_guard().await.unwrap().close().await.unwrap();
 }
 
@@ -3117,4 +3123,100 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
             eq(&json!([]))
         );
     }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn unchanged_odds_survive_restart_later_bets_and_retry() {
+    let (_container, store, _owner) = fixture().await;
+    store
+        .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:create",
+            admin(),
+            &create(FIXTURE_MARKET),
+            1000,
+        )
+        .await
+        .unwrap();
+    let bet = Command::Bet {
+        id: FIXTURE_MARKET.into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(10),
+    };
+    store
+        .execute_at(10.into(), "discord:first", admin(), &bet, 1001)
+        .await
+        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
+    store
+        .execute_at(10.into(), "discord:second", admin(), &bet, 1002)
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
+        .mount(&server)
+        .await;
+    deliver_due(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(3000),
+    )
+    .await
+    .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(1));
+    let original: serde_json::Value = requests[0].body_json().unwrap();
+    let text = original["content"].as_str().unwrap();
+    assert_that!(
+        text,
+        contains_substring("Yes — 100.0% implied chance ➖ unchanged")
+    );
+    assert_that!(
+        text,
+        contains_substring("No — 0.0% implied chance ➖ unchanged")
+    );
+    store
+        .execute_at(
+            10.into(),
+            "discord:third",
+            admin(),
+            &Command::Bet {
+                id: FIXTURE_MARKET.into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(20),
+            },
+            1003,
+        )
+        .await
+        .unwrap();
+    server.reset().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .expect(2)
+        .mount(&server)
+        .await;
+    deliver_due(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(3010),
+    )
+    .await
+    .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(2));
+    let retried: serde_json::Value = requests[0].body_json().unwrap();
+    assert_that!(retried, eq(&original));
+    let later: serde_json::Value = requests[1].body_json().unwrap();
+    let text = later["content"].as_str().unwrap();
+    assert_that!(text, contains_substring("Yes — 50.0% implied chance 🔴 ⬇️"));
+    assert_that!(text, contains_substring("No — 50.0% implied chance 🟢 ⬆️"));
 }

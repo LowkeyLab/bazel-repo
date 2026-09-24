@@ -16,6 +16,7 @@ pub struct OutcomeOdds {
 enum Movement {
     Up,
     Down,
+    Unchanged,
 }
 
 impl OutcomeOdds {
@@ -51,6 +52,7 @@ impl OutcomeOdds {
         self.movement = match (previous.tenths_percent, self.tenths_percent) {
             (Some(before), Some(after)) if after > before => Some(Movement::Up),
             (Some(before), Some(after)) if after < before => Some(Movement::Down),
+            (Some(_), Some(_)) => Some(Movement::Unchanged),
             _ => None,
         };
         self
@@ -60,6 +62,7 @@ impl OutcomeOdds {
         match self.movement {
             Some(Movement::Up) => " 🟢 ⬆️",
             Some(Movement::Down) => " 🔴 ⬇️",
+            Some(Movement::Unchanged) => " ➖ unchanged",
             None => "",
         }
     }
