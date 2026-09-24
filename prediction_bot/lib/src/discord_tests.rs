@@ -742,7 +742,7 @@ fn closing_times_discard_fractional_seconds_in_commands_and_forms() {
 }
 
 #[googletest::test]
-fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
+fn browsing_markets_shows_read_only_cards_with_betting_guidance() {
     let view = ui_view();
     let list = serde_json::to_value(
         super::ui::query(&view, &Action::List, ui_actor(), 10.into(), 2_000).message(),
@@ -763,42 +763,22 @@ fn browsing_and_selecting_an_outcome_preserves_market_and_stake() {
     )
     .unwrap();
     assert_that!(card["data"]["embeds"][0]["title"], eq("Who wins?"));
-    let outcomes = &card["data"]["components"][0]["components"][0];
-    let blue = outcomes["options"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|option| option["label"] == "Blue")
-        .unwrap();
-    let modal = serde_json::to_value(
-        super::ui::component(
-            10.into(),
-            ui_actor(),
-            outcomes["custom_id"].as_str().unwrap(),
-            &[blue["value"].as_str().unwrap().into()],
-            &view,
-            2_000,
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    assert_that!(modal["type"], eq(9));
-    let command = super::ui::modal_command(
-        10.into(),
-        ui_actor(),
-        modal["data"]["custom_id"].as_str().unwrap(),
-        vec![text("amount", "25")],
-        2_000,
-    )
-    .unwrap();
+    assert_that!(card["data"]["components"], eq(&serde_json::json!([])));
     assert_that!(
-        command,
-        eq(&Command::Bet {
-            id: market_id.into(),
-            outcome: OutcomeIndex(1),
-            amount: Points(25)
-        })
+        card["data"]["content"].as_str().unwrap(),
+        contains_substring("/market bet")
     );
+    let shown = super::ui::query(
+        &view,
+        &Action::Show {
+            id: market_id.into(),
+        },
+        ui_actor(),
+        10.into(),
+        2_000,
+    );
+    assert_that!(shown.components, is_empty());
+    assert_that!(shown.content, contains_substring("/market bet"));
 }
 
 #[googletest::test]
@@ -2349,4 +2329,76 @@ fn bet_without_arguments_opens_a_private_widget() {
         parse(&input("bet", vec![text("id", "market")])),
         err(anything())
     );
+}
+
+#[googletest::test]
+fn legacy_betting_controls_redirect_to_market_bet() {
+    let view = ui_view();
+    assert_that!(
+        super::ui::component(
+            10.into(),
+            ui_actor(),
+            "pm:10:20:bet:78e82954-4c67-4e0d-8c80-8ab95a527ae5",
+            &["1".into()],
+            &view,
+            2_000
+        ),
+        err(contains_substring("/market bet"))
+    );
+    assert_that!(
+        super::ui::modal_command(
+            10.into(),
+            ui_actor(),
+            "pm:10:20:stake:78e82954-4c67-4e0d-8c80-8ab95a527ae5:1",
+            vec![text("amount", "25")],
+            2_000
+        ),
+        err(contains_substring("/market bet"))
+    );
+}
+
+#[googletest::test]
+fn unavailable_market_cards_do_not_advertise_betting() {
+    use crate::domain::Status;
+
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    for (status, now) in [
+        (Status::Open, 10_000),
+        (
+            Status::Resolved {
+                outcome: OutcomeIndex(0),
+                refunded: false,
+            },
+            2_000,
+        ),
+        (Status::Cancelled, 2_000),
+    ] {
+        let mut view = ui_view();
+        view.state.markets.get_mut(id).unwrap().status = status;
+        let card = super::ui::query(
+            &view,
+            &Action::Show { id: id.into() },
+            ui_actor(),
+            10.into(),
+            now,
+        );
+        assert_that!(card.content, not(contains_substring("/market bet")));
+        assert_that!(card.components, is_empty());
+        let selected = serde_json::to_value(
+            super::ui::component(
+                10.into(),
+                ui_actor(),
+                "pm:10:20:list",
+                &[id.into()],
+                &view,
+                now,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_that!(
+            selected["data"]["content"].as_str().unwrap(),
+            not(contains_substring("/market bet"))
+        );
+    }
 }
