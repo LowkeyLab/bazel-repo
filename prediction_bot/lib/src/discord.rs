@@ -335,7 +335,8 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market join` — get your first points and receive regular grants.
 • `/market create` — ask a question and choose possible outcomes.
 • `/market bet` — choose a market and outcome, enter a stake, then confirm your bet.
-• `/market list` — browse markets, pick an outcome, and bet points.
+• `/market bet id outcome amount` — place a bet directly using a market ID, outcome number, and stake.
+• `/market list` and `/market show id` — view markets and their outcomes.
 • `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
 

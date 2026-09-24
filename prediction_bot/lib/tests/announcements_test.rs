@@ -3118,3 +3118,82 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
         );
     }
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn legacy_betting_interactions_cannot_stake_points() {
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    use support::interaction_json;
+
+    let (_container, store, _owner) = fixture().await;
+    store
+        .execute_at(10.into(), "discord:820", admin(), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            10.into(),
+            "discord:821",
+            admin(),
+            &Command::Create {
+                id: FIXTURE_MARKET.into(),
+                question: "Will it rain?".into(),
+                options: vec!["Yes".into(), "No".into()],
+                closes_at: 4_000_000_000,
+            },
+            1000,
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(support::delivered())
+        .mount(&server)
+        .await;
+    let interactions = [
+        Interaction::Component(
+            serde_json::from_value(interaction_json(
+                822,
+                &json!({
+                    "custom_id": format!("pm:10:7:bet:{FIXTURE_MARKET}"),
+                    "component_type": 3, "values": ["1"]
+                }),
+            ))
+            .unwrap(),
+        ),
+        Interaction::Modal(
+            serde_json::from_value(interaction_json(
+                823,
+                &json!({
+                    "custom_id": format!("pm:10:7:stake:{FIXTURE_MARKET}:1"),
+                    "components": [{"type": 1, "components": [{
+                        "type": 4, "custom_id": "amount", "value": "25"
+                    }]}]
+                }),
+            ))
+            .unwrap(),
+        ),
+    ];
+    for interaction in interactions {
+        handle_interaction(store.clone(), &http, 99.into(), interaction).await;
+        let requests = server.received_requests().await.unwrap();
+        let body: serde_json::Value = requests.last().unwrap().body_json().unwrap();
+        let response = body.get("data").unwrap_or(&body);
+        assert_that!(
+            response["content"].as_str().unwrap(),
+            contains_substring("/market bet")
+        );
+        let view = store.view(10.into()).await.unwrap();
+        assert_that!(
+            view.state.accounts[&admin().user_id].balance,
+            eq(Points(100))
+        );
+        assert_that!(view.state.markets[FIXTURE_MARKET].bets, is_empty());
+    }
+}

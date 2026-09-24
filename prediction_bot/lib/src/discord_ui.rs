@@ -3,7 +3,7 @@ use super::{
     Action, Input, InputOption, create_request, exact, no_mentions, render_market, render_query,
     text, truncate, truncate_to,
 };
-use crate::types::{GuildId, MarketId, OutcomeIndex, Points, UserId};
+use crate::types::{GuildId, UserId};
 use crate::{
     domain::{Actor, Command, Status},
     store::View,
@@ -184,7 +184,8 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, 
                 .collect();
             if !options.is_empty() {
                 panel.content =
-                    "Choose an open market to view its outcomes and place a bet.".into();
+                    "Choose an open market to view its outcomes. Use /market bet to place a bet."
+                        .into();
                 panel.components.push(menu(
                     format!("{prefix}:list"),
                     "Browse open markets",
@@ -199,27 +200,13 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, 
                 let description = details
                     .split_once('\n')
                     .map_or(details.as_str(), |(_, rest)| rest);
-                panel.content.clear();
+                panel.content = "Use /market bet to place a bet.".into();
                 panel.embed = Some(
                     CreateEmbed::new()
                         .title(truncate_to(&market.question, 256))
                         .description(description)
                         .color(if open { 0x0058_65f2 } else { 0x0074_7f8d }),
                 );
-                if open {
-                    panel.components.push(menu(
-                        format!("{prefix}:bet:{id}"),
-                        "Choose an outcome to place a bet",
-                        market
-                            .options
-                            .iter()
-                            .enumerate()
-                            .map(|(i, label)| {
-                                CreateSelectMenuOption::new(truncate_to(label, 100), i.to_string())
-                            })
-                            .collect(),
-                    ));
-                }
             }
         }
         _ => {}
@@ -260,39 +247,8 @@ pub(super) fn component(
                 .message(),
             ))
         }
-        ["bet", id] => {
-            let market = view
-                .state
-                .markets
-                .get(*id)
-                .ok_or("No market with that ID exists in this server.")?;
-            if market.status != Status::Open || now >= market.closes_at {
-                return Err("This market is closed for betting.");
-            }
-            let outcome = value
-                .parse::<usize>()
-                .ok()
-                .filter(|i| *i < market.options.len())
-                .ok_or("Choose a valid outcome.")?;
-            let account = view
-                .state
-                .accounts
-                .get(&actor.user_id)
-                .ok_or("You are not enrolled. Use /market join first.")?;
-            let label = truncate_to(&format!("Points on {}", market.options[outcome]), 45);
-            Ok(CreateInteractionResponse::Modal(
-                CreateModal::new(
-                    format!("{}:stake:{id}:{outcome}", prefix(guild, actor)),
-                    "Place your bet",
-                )
-                .components(vec![field(
-                    "amount",
-                    &label,
-                    &format!("Available: {} points", account.balance),
-                    19,
-                    InputTextStyle::Short,
-                )]),
-            ))
+        ["bet", _] => {
+            Err("This betting control is no longer supported. Run /market bet to place a bet.")
         }
         _ => Err("This control is no longer supported. Run /market list or /market create."),
     }
@@ -364,27 +320,8 @@ pub(super) fn modal_command(
                 close_time(text(&input, "closes_at")?, now)?,
             )
         }
-        ["stake", id, outcome] => {
-            exact(&input, &["amount"])?;
-            let amount = text(&input, "amount")?
-                .trim()
-                .parse::<i64>()
-                .ok()
-                .filter(|n| *n > 0)
-                .ok_or("Stake must be a positive whole number.")?;
-            let outcome = outcome
-                .parse::<usize>()
-                .ok()
-                .filter(|i| *i < 10)
-                .ok_or("Choose a valid outcome.")?;
-            if uuid::Uuid::parse_str(id).is_err() {
-                return Err("Enter a valid market ID.");
-            }
-            Ok(Command::Bet {
-                id: MarketId::from(*id),
-                outcome: OutcomeIndex(outcome),
-                amount: Points(amount),
-            })
+        ["stake", _, _] => {
+            Err("This stake form is no longer supported. Run /market bet to place a bet.")
         }
         _ => Err(
             "This form is no longer supported. Start again with /market create or /market list.",
