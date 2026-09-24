@@ -200,7 +200,11 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, 
                 let description = details
                     .split_once('\n')
                     .map_or(details.as_str(), |(_, rest)| rest);
-                panel.content = "Use /market bet to place a bet.".into();
+                panel.content = if open {
+                    "Use /market bet to place a bet.".into()
+                } else {
+                    String::new()
+                };
                 panel.embed = Some(
                     CreateEmbed::new()
                         .title(truncate_to(&market.question, 256))

@@ -2356,3 +2356,49 @@ fn legacy_betting_controls_redirect_to_market_bet() {
         err(contains_substring("/market bet"))
     );
 }
+
+#[googletest::test]
+fn unavailable_market_cards_do_not_advertise_betting() {
+    use crate::domain::Status;
+
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    for (status, now) in [
+        (Status::Open, 10_000),
+        (
+            Status::Resolved {
+                outcome: OutcomeIndex(0),
+                refunded: false,
+            },
+            2_000,
+        ),
+        (Status::Cancelled, 2_000),
+    ] {
+        let mut view = ui_view();
+        view.state.markets.get_mut(id).unwrap().status = status;
+        let card = super::ui::query(
+            &view,
+            &Action::Show { id: id.into() },
+            ui_actor(),
+            10.into(),
+            now,
+        );
+        assert_that!(card.content, not(contains_substring("/market bet")));
+        assert_that!(card.components, is_empty());
+        let selected = serde_json::to_value(
+            super::ui::component(
+                10.into(),
+                ui_actor(),
+                "pm:10:20:list",
+                &[id.into()],
+                &view,
+                now,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_that!(
+            selected["data"]["content"].as_str().unwrap(),
+            not(contains_substring("/market bet"))
+        );
+    }
+}
