@@ -89,7 +89,7 @@ bazel_dep(name = "rules_jvm_external", version = "7.1")
 bazel_dep(name = "rules_clojure", version = "0.5")
 git_override(
     module_name = "rules_clojure",
-    commit = "7526d41e1c28d2a746fc457e44f219489cc6304e",
+    commit = "2ebb5d842db0c5234716133a2097d1a69d4d0e66",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_clojure:bazel9_java_info.patch"],
     remote = "https://github.com/griffinbank/rules_clojure.git",
