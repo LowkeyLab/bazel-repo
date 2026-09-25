@@ -67,7 +67,7 @@ tracing = "0.1.41"
 tracing-futures = "0.2.5"
 tracing-subscriber = { version = "0.3.20", features = ["json"] }
 utoipa = { version = "6.0.0", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "10.0.0", features = ["axum", "debug-embed"] }
+utoipa-swagger-ui = { version = "10.0.0", features = ["axum"] }
 uuid = { version = "1.18.1", features = ["v4", "v7"] }
 wasm-bindgen = "=0.2.105"
 
