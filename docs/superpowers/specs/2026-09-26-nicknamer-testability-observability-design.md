@@ -1,7 +1,7 @@
 # Nicknamer production composition and observability
 
 Date: 2026-09-26
-Status: Written spec for user review; implementation has not started.
+Status: Approved. Observability and shared production composition are implemented; the separate JWT issuance-time refactor is deferred by the implementation plan.
 
 ## Intent and success criteria
 
