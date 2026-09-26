@@ -63,7 +63,13 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
 
     // Create AuthState from config
     let auth_state = Arc::new(AuthState::from_config(&config));
-    let name_state = Arc::new(NameState { db: Arc::new(db) });
+    let observer: crate::observations::SharedObserver = Arc::new(
+        crate::observations::Dispatcher::new(vec![Arc::new(crate::observations::LoggingListener)]),
+    );
+    let name_state = Arc::new(NameState {
+        db: Arc::new(db),
+        observer,
+    });
 
     let web_app = create_web_handler(auth_state.clone(), name_state.clone());
     let api = create_api_router(auth_state.clone(), name_state.clone());

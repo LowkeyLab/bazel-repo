@@ -184,3 +184,5 @@ pub async fn stub_user_middleware(mut request: Request<Body>, next: Next) -> Res
     request.extensions_mut().insert(current_user);
     next.run(request).await
 }
+
+pub mod observations;

@@ -152,7 +152,10 @@ async fn create_editable_test_name(db: &DatabaseConnection) -> i32 {
 /// # Returns
 /// An `Arc<NameState>` instance that wraps the shared state.
 fn create_name_state(db: DatabaseConnection) -> Arc<NameState> {
-    Arc::new(NameState { db: Arc::new(db) })
+    Arc::new(NameState {
+        db: Arc::new(db),
+        observer: Arc::new(nicknamer_server::observations::Dispatcher::new(vec![])),
+    })
 }
 
 #[tokio::test]
