@@ -32,7 +32,7 @@ pub struct BulkAddForm {
 
 /// Helper function to get all names, sort them using the provided function, and render them as a names table.
 /// This reduces code duplication across handlers that need to display sorted names.
-#[tracing::instrument(skip(name_service, sort_fn))]
+#[tracing::instrument(skip_all)]
 async fn render_names_table<F>(
     name_service: &NameService<'_>,
     sort_fn: F,
@@ -209,25 +209,27 @@ impl BulkDeleteTableTemplate {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct NameState {
     pub db: Arc<sea_orm::DatabaseConnection>,
+    pub observer: crate::observations::SharedObserver,
 }
 
 /// Handler for the /names endpoint that displays all names in a table.
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 async fn names_handler() -> Result<Html<String>, NameError> {
     let template = NamesTemplate::new();
     template.render().map(Html).map_err(NameError::from)
 }
 
 /// Handler for creating a new name via POST request.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn create_name_handler(
     State(state): State<Arc<NameState>>,
     Form(form): Form<CreateNameForm>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service
         .create_name(form.discord_id, form.name, form.server_id)
@@ -236,7 +238,7 @@ async fn create_name_handler(
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
-                names.sort_by_key(|name| name.id());
+                names.sort_by_key(Name::id);
             })
             .await?;
             Ok(Html(table_html))
@@ -247,25 +249,26 @@ async fn create_name_handler(
 }
 
 /// Handler for serving the add name form.
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 async fn add_name_form_handler() -> Result<Html<String>, NameError> {
     let template = AddNameFormTemplate;
     template.render().map(Html).map_err(NameError::from)
 }
 
 /// Handler for deleting a name via POST request.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn delete_name_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service.delete_name_by_id(id).await {
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
-                names.sort_by_key(|name| name.id());
+                names.sort_by_key(Name::id);
             })
             .await?;
             Ok(Html(table_html))
@@ -275,12 +278,13 @@ async fn delete_name_handler(
 }
 
 /// Handler for bulk deleting names via DELETE request.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn bulk_delete_names_handler(
     State(state): State<Arc<NameState>>,
     RawQuery(query): RawQuery,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     // Parse query parameters manually to handle multiple values with the same key
     let selected_ids: Vec<u32> = if let Some(query_str) = query {
@@ -302,7 +306,7 @@ async fn bulk_delete_names_handler(
     if selected_ids.is_empty() {
         // No names selected for deletion, just return the current table
         let table_html = render_names_table(&name_service, |names| {
-            names.sort_by_key(|name| name.id());
+            names.sort_by_key(Name::id);
         })
         .await?;
         return Ok(Html(table_html));
@@ -312,7 +316,7 @@ async fn bulk_delete_names_handler(
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
-                names.sort_by_key(|name| name.id());
+                names.sort_by_key(Name::id);
             })
             .await?;
             Ok(Html(table_html))
@@ -322,12 +326,13 @@ async fn bulk_delete_names_handler(
 }
 
 /// Handler for serving the edit name form.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn edit_name_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service.get_name_by_id(id).await {
         Ok(name) => {
@@ -339,13 +344,14 @@ async fn edit_name_handler(
 }
 
 /// Handler for updating a name via PUT request.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn update_name_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
     Form(form): Form<EditNameForm>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service
         .edit_name_by_id(id, form.name, form.server_id)
@@ -366,25 +372,27 @@ async fn update_name_handler(
 }
 
 /// Handler for GET /names/table that returns just the names table fragment.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn names_table_handler(
     State(state): State<Arc<NameState>>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
     let table_html = render_names_table(&name_service, |names| {
-        names.sort_by_key(|name| name.id());
+        names.sort_by_key(Name::id);
     })
     .await?;
     Ok(Html(table_html))
 }
 
 /// Handler for GET /names/{id} that returns a single name row.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn get_name_row_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service.get_name_by_id(id).await {
         Ok(name) => {
@@ -396,19 +404,20 @@ async fn get_name_row_handler(
 }
 
 /// Handler for GET /names/bulk-add that displays the bulk add form.
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 async fn bulk_add_form_handler() -> Result<Html<String>, NameError> {
     let template = BulkAddFormTemplate;
     template.render().map(Html).map_err(NameError::from)
 }
 
 /// Handler for POST /names/bulk-add that processes the YAML content.
-#[tracing::instrument(skip(state, form))]
+#[tracing::instrument(skip_all)]
 async fn bulk_add_handler(
     State(state): State<Arc<NameState>>,
     Form(form): Form<BulkAddForm>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     // Process the bulk upload using the pasted YAML content
     match name_service
@@ -430,31 +439,33 @@ async fn bulk_add_handler(
 }
 
 /// Handler for GET /names/delete that displays the bulk delete interface.
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 async fn bulk_delete_page_handler() -> Result<Html<String>, NameError> {
     let template = BulkDeleteTemplate;
     template.render().map(Html).map_err(NameError::from)
 }
 
 /// Handler for GET /names/delete/table that returns the bulk delete table fragment.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn bulk_delete_table_handler(
     State(state): State<Arc<NameState>>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
     let mut names = name_service.get_all_names().await?;
-    names.sort_by_key(|name| name.id());
+    names.sort_by_key(Name::id);
     let template = BulkDeleteTableTemplate::new(names);
     template.render().map(Html).map_err(NameError::from)
 }
 
 /// Handler for DELETE /names/delete that processes bulk deletion and returns the updated bulk delete table.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn bulk_delete_names_delete_handler(
     State(state): State<Arc<NameState>>,
     RawQuery(query): RawQuery,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::new(&state.db);
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     // Parse query parameters manually to handle multiple values with the same key
     let selected_ids: Vec<u32> = if let Some(query_str) = query {
@@ -480,32 +491,25 @@ async fn bulk_delete_names_delete_handler(
 
     // Return the updated bulk delete table (same as GET /names/delete/table)
     let mut names = name_service.get_all_names().await?;
-    names.sort_by_key(|name| name.id());
+    names.sort_by_key(Name::id);
     let template = BulkDeleteTableTemplate::new(names);
     template.render().map(Html).map_err(NameError::from)
 }
 
 /// Handler for GET /names/export that exports all names as a YAML file download.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 async fn export_names_handler(
     State(state): State<Arc<NameState>>,
 ) -> Result<impl IntoResponse, NameError> {
-    let name_service = NameService::new(&state.db);
-    let names = name_service.get_all_names().await?;
-
-    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
-        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
-            std::collections::BTreeMap::new();
-        for n in names {
-            map.entry(n.server_id().to_string())
-                .or_default()
-                .insert(n.discord_id(), n.name().to_string());
-        }
-        map
-    };
-
-    let yaml =
-        serde_yaml::to_string(&yaml_map).map_err(|e| NameError::Serialization(e.to_string()))?;
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
+    let names = name_service.get_all_names().await.map_err(|error| {
+        name_service.export_query_failed();
+        NameError::Service(error)
+    })?;
+    let yaml = name_service
+        .prepare_export(&names)
+        .map_err(|error| NameError::Serialization(error.to_string()))?;
 
     Ok((
         [

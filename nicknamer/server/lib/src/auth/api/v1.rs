@@ -11,7 +11,10 @@ pub struct LoginResponse {
     pub token: String,
 }
 
-use crate::auth::{AuthState, CurrentUser, decode_jwt, encode_jwt};
+use crate::auth::{
+    AuthState, CurrentUser, decode_jwt, encode_jwt, record_auth, record_denied, rejection_reason,
+};
+use crate::observations::{AccessReason, AuthenticationOutcome, Channel, FailureCategory};
 use crate::web::api::v1::ServerErrorResponse;
 use axum::{
     Json, Router,
@@ -21,6 +24,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use std::sync::Arc;
+use std::time::Instant;
 use utoipa::ToSchema;
 
 /// Creates a JSON API router for authentication endpoints.
@@ -38,13 +42,28 @@ pub async fn auth_user_middleware(
     mut request: Request,
     next: Next,
 ) -> Response {
-    if let Some(auth_header) = headers.get("authorization")
-        && let Ok(auth_str) = auth_header.to_str()
-        && let Some(token) = auth_str.strip_prefix("Bearer ")
-        && let Ok(claims) = decode_jwt(token, &state.jwt_secret).await
-    {
-        let current_user = CurrentUser::new(claims.username);
-        request.extensions_mut().insert(current_user);
+    request.extensions_mut().insert(state.observer.clone());
+    if let Some(header) = headers.get("authorization") {
+        let token = header
+            .to_str()
+            .ok()
+            .and_then(|value| value.strip_prefix("Bearer "));
+        let reason = if let Some(token) = token {
+            match decode_jwt(token, &state.jwt_secret).await {
+                Ok(claims) => {
+                    request
+                        .extensions_mut()
+                        .insert(CurrentUser::new(claims.username));
+                    None
+                }
+                Err(error) => Some(rejection_reason(&error)),
+            }
+        } else {
+            Some(AccessReason::Invalid)
+        };
+        if let Some(reason) = reason {
+            request.extensions_mut().insert(reason);
+        }
     }
 
     next.run(request).await
@@ -58,6 +77,7 @@ pub async fn require_auth_middleware(request: Request, next: Next) -> Response {
     let is_authenticated = request.extensions().get::<CurrentUser>().is_some();
 
     if !is_authenticated {
+        record_denied(&request, Channel::Api);
         let error_response = ServerErrorResponse::new_with_message(
             "UNAUTHORIZED".to_string(),
             "Authentication required to access this resource".to_string(),
@@ -86,11 +106,19 @@ pub async fn json_login_handler(
     State(state): State<Arc<AuthState>>,
     Json(payload): Json<JsonLoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ServerErrorResponse>)> {
+    let started = Instant::now();
     if payload.username == state.admin_username && payload.password == state.admin_password {
         // Generate JWT token
         let jwt_token = encode_jwt(payload.username.clone(), &state.jwt_secret)
             .await
             .map_err(|_| {
+                record_auth(
+                    &state.observer,
+                    started,
+                    Channel::Api,
+                    AuthenticationOutcome::Failed,
+                    Some(FailureCategory::Token),
+                );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ServerErrorResponse::new_with_message(
@@ -102,8 +130,22 @@ pub async fn json_login_handler(
 
         let response = LoginResponse { token: jwt_token };
 
+        record_auth(
+            &state.observer,
+            started,
+            Channel::Api,
+            AuthenticationOutcome::Accepted,
+            None,
+        );
         Ok(Json(response))
     } else {
+        record_auth(
+            &state.observer,
+            started,
+            Channel::Api,
+            AuthenticationOutcome::Rejected,
+            Some(FailureCategory::InvalidCredentials),
+        );
         Err((
             StatusCode::UNAUTHORIZED,
             Json(ServerErrorResponse::new_with_message(

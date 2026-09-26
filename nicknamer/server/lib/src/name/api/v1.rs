@@ -9,7 +9,6 @@ use axum::{
     routing::{get, put},
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use utoipa::ToSchema;
 
@@ -73,7 +72,7 @@ pub struct UpdateNameRequest {
 }
 
 /// Handler for GET /api/v1/names - Returns all names in JSON format.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 #[utoipa::path(
     get,
     path = "/api/v1/names",
@@ -90,7 +89,8 @@ pub async fn get_names_handler(
     State(state): State<Arc<NameState>>,
     Query(query): Query<NamesQuery>,
 ) -> Result<Json<NamesResponse>, (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::new(&state.db);
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     let names_result = match query.server_id {
         Some(server_id) => service.get_names_by_server(&server_id).await,
@@ -107,20 +107,17 @@ pub async fn get_names_handler(
                 count,
             }))
         }
-        Err(err) => {
-            tracing::error!("Failed to get names: {}", err);
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ServerErrorResponse::new(
-                    "Failed to retrieve names".to_string(),
-                )),
-            ))
-        }
+        Err(_err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ServerErrorResponse::new(
+                "Failed to retrieve names".to_string(),
+            )),
+        )),
     }
 }
 
 /// Handler for POST /api/v1/names - Creates a new name.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 #[utoipa::path(
     post,
     path = "/api/v1/names",
@@ -137,41 +134,31 @@ pub async fn create_name_handler(
     State(state): State<Arc<NameState>>,
     Json(request): Json<CreateNameRequest>,
 ) -> Result<(StatusCode, Json<NameJson>), (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::new(&state.db);
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match service
         .create_name(request.discord_id, request.name, request.server_id)
         .await
     {
         Ok(name) => Ok((StatusCode::CREATED, Json(NameJson::from(name)))),
-        Err(crate::name::NameServiceError::DuplicateEntryError(discord_id, server_id)) => {
-            tracing::warn!(
-                "Duplicate name entry for Discord ID {} in server {}",
-                discord_id,
-                server_id
-            );
-            Err((
-                StatusCode::CONFLICT,
-                Json(ServerErrorResponse::new(format!(
-                    "Name already exists for Discord ID {} in server '{}'",
-                    discord_id, server_id
-                ))),
-            ))
-        }
-        Err(err) => {
-            tracing::error!("Failed to create name: {}", err);
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ServerErrorResponse::new(
-                    "Failed to create name".to_string(),
-                )),
-            ))
-        }
+        Err(crate::name::NameServiceError::DuplicateEntryError(discord_id, server_id)) => Err((
+            StatusCode::CONFLICT,
+            Json(ServerErrorResponse::new(format!(
+                "Name already exists for Discord ID {discord_id} in server '{server_id}'"
+            ))),
+        )),
+        Err(_err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ServerErrorResponse::new(
+                "Failed to create name".to_string(),
+            )),
+        )),
     }
 }
 
-/// Handler for PUT /api/v1/names/{discord_id}/servers/{server_id} - Updates an existing name.
-#[tracing::instrument(skip(state))]
+/// Handler for PUT `/api/v1/names/{discord_id}/servers/{server_id}` - Updates an existing name.
+#[tracing::instrument(skip_all)]
 #[utoipa::path(
     put,
     path = "/api/v1/names/{discord_id}/servers/{server_id}",
@@ -193,7 +180,8 @@ pub async fn update_name_by_discord_server_handler(
     Path((discord_id, server_id)): Path<(u64, String)>,
     Json(request): Json<UpdateNameRequest>,
 ) -> Result<Json<NameJson>, (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::new(&state.db);
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match service
         .update_name_by_discord_server(discord_id, &server_id, request.name)
@@ -201,11 +189,6 @@ pub async fn update_name_by_discord_server_handler(
     {
         Ok(updated_name) => Ok(Json(NameJson::from(updated_name))),
         Err(crate::name::NameServiceError::NameNotFoundByDiscordServer(discord_id, server_id)) => {
-            tracing::warn!(
-                "Name not found for Discord ID {} in server {}",
-                discord_id,
-                server_id
-            );
             Err((
                 StatusCode::NOT_FOUND,
                 Json(ServerErrorResponse::new(format!(
@@ -214,20 +197,17 @@ pub async fn update_name_by_discord_server_handler(
                 ))),
             ))
         }
-        Err(err) => {
-            tracing::error!("Failed to update name: {}", err);
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ServerErrorResponse::new(
-                    "Failed to update name".to_string(),
-                )),
-            ))
-        }
+        Err(_err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ServerErrorResponse::new(
+                "Failed to update name".to_string(),
+            )),
+        )),
     }
 }
 
 /// Handler for GET /api/v1/names/export - Exports all names as a YAML file.
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip_all)]
 #[utoipa::path(
     get,
     path = "/api/v1/names/export",
@@ -244,14 +224,15 @@ pub async fn export_names_handler(
     State(state): State<Arc<NameState>>,
     Query(query): Query<NamesQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::new(&state.db);
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     let names = match query.server_id {
         Some(server_id) => service.get_names_by_server(&server_id).await,
         None => service.get_all_names().await,
     }
-    .map_err(|err| {
-        tracing::error!("Failed to get names for export: {}", err);
+    .map_err(|_| {
+        service.export_query_failed();
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ServerErrorResponse::new(
@@ -260,18 +241,7 @@ pub async fn export_names_handler(
         )
     })?;
 
-    let yaml_map: BTreeMap<String, BTreeMap<u64, String>> = {
-        let mut map: BTreeMap<String, BTreeMap<u64, String>> = BTreeMap::new();
-        for n in names {
-            map.entry(n.server_id().to_string())
-                .or_default()
-                .insert(n.discord_id(), n.name().to_string());
-        }
-        map
-    };
-
-    let yaml = serde_yaml::to_string(&yaml_map).map_err(|err| {
-        tracing::error!("Failed to serialize names to YAML: {}", err);
+    let yaml = service.prepare_export(&names).map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ServerErrorResponse::new(

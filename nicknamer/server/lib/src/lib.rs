@@ -29,6 +29,7 @@ pub mod config {
 }
 pub mod entities;
 pub mod name;
+pub mod observations;
 
 pub mod auth;
 pub mod web;

@@ -11,12 +11,11 @@ use tower_http::cors::CorsLayer;
 use tower_http::sensitive_headers::{
     SetSensitiveRequestHeadersLayer, SetSensitiveResponseHeadersLayer,
 };
-use tower_http::trace::TraceLayer;
 
 use crate::auth::{
     AuthState, CurrentUser, auth_user_middleware, create_login_router, login_redirect_middleware,
 };
-use crate::config::{self, Config};
+use crate::config::Config;
 use crate::name::web::{NameState, create_name_router};
 use crate::web::api::v1::create_api_router;
 pub(crate) mod api;
@@ -51,26 +50,76 @@ impl axum::response::IntoResponse for WebError {
     }
 }
 
-#[tracing::instrument(skip(config))]
-pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
-    let server_address = format!("0.0.0.0:{}", &config.port);
-    let listener = tokio::net::TcpListener::bind(&server_address).await?;
-    tracing::info!("Web server running on http://{}", server_address);
+pub struct PreparedServer {
+    pub listener: tokio::net::TcpListener,
+    pub app: axum::Router,
+}
 
-    let db = Database::connect(&config.db_url).await?;
-    migration::Migrator::up(&db, None).await?;
-    tracing::info!("Database migrations applied successfully");
+/// Bind, connect, migrate and compose the application in that order.
+///
+/// # Errors
+/// Returns a sanitized startup failure after recording the failed stage.
+pub async fn prepare_server(
+    config: Config,
+    dispatcher: Arc<crate::observations::Dispatcher>,
+) -> Result<PreparedServer, crate::observations::lifecycle::StartupFailure> {
+    use crate::observations::{FailureCategory, StartupStage, lifecycle::stage_result};
+    use std::time::Instant;
+    let started = Instant::now();
+    let listener = stage_result(
+        &dispatcher,
+        StartupStage::Binding,
+        FailureCategory::Bind,
+        started,
+        tokio::net::TcpListener::bind(("0.0.0.0", config.port)).await,
+    )?;
+    let mut options = sea_orm::ConnectOptions::new(config.db_url.clone());
+    options.sqlx_logging(false);
+    let started = Instant::now();
+    let db = stage_result(
+        &dispatcher,
+        StartupStage::Connection,
+        FailureCategory::Database,
+        started,
+        Database::connect(options).await,
+    )?;
+    let started = Instant::now();
+    stage_result(
+        &dispatcher,
+        StartupStage::Migration,
+        FailureCategory::Database,
+        started,
+        migration::Migrator::up(&db, None).await,
+    )?;
+    let started = Instant::now();
+    let observer: crate::observations::SharedObserver = dispatcher.clone();
+    let auth_state = Arc::new(AuthState::from_config(&config, observer.clone()));
+    let name_state = Arc::new(NameState {
+        db: Arc::new(db),
+        observer: observer.clone(),
+    });
+    let app = create_app(auth_state, name_state, observer);
+    stage_result(
+        &dispatcher,
+        StartupStage::Composition,
+        FailureCategory::Internal,
+        started,
+        Ok::<_, std::convert::Infallible>(PreparedServer { listener, app }),
+    )
+}
 
-    // Create AuthState from config
-    let auth_state = Arc::new(AuthState::from_config(&config));
-    let name_state = Arc::new(NameState { db: Arc::new(db) });
-
-    let web_app = create_web_handler(auth_state.clone(), name_state.clone());
-    let api = create_api_router(auth_state.clone(), name_state.clone());
-    let app = web_app.merge(api);
-
-    axum::serve(listener, app).await?;
-    Ok(())
+/// Compose the browser and API application.
+pub fn create_app(
+    auth: Arc<AuthState>,
+    names: Arc<NameState>,
+    observer: crate::observations::SharedObserver,
+) -> axum::Router {
+    create_web_handler(auth.clone(), names.clone())
+        .merge(create_api_router(auth, names))
+        .layer(from_fn_with_state(
+            observer,
+            crate::observations::http::observe_request,
+        ))
 }
 
 /// Creates the main web application router with all routes and middleware configured.
@@ -126,7 +175,6 @@ fn create_web_handler(auth_state: Arc<AuthState>, name_state: Arc<NameState>) ->
                 .layer(SetSensitiveRequestHeadersLayer::from_shared(Arc::clone(
                     &sensitive_headers,
                 )))
-                .layer(TraceLayer::new_for_http())
                 .layer(SetSensitiveResponseHeadersLayer::from_shared(
                     sensitive_headers,
                 ))
@@ -137,18 +185,26 @@ fn create_web_handler(auth_state: Arc<AuthState>, name_state: Arc<NameState>) ->
         )
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn health_check_handler() -> &'static str {
     "OK"
 }
 
-#[tracing::instrument]
+/// Renders the page fragment.
+///
+/// # Errors
+/// Returns an error if the template cannot be rendered.
+#[tracing::instrument(skip_all)]
 pub async fn welcome_handler() -> Result<Html<String>, WebError> {
     let template = IndexTemplate::new();
     template.render().map(Html).map_err(WebError::from)
 }
 
-#[tracing::instrument]
+/// Renders the page fragment.
+///
+/// # Errors
+/// Returns an error if the template cannot be rendered.
+#[tracing::instrument(skip_all)]
 pub async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, WebError> {

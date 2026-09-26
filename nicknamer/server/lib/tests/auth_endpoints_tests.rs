@@ -23,7 +23,10 @@ async fn setup_auth_state() -> Arc<AuthState> {
         admin_password: "password".to_string(),
         jwt_secret: "some_secret".to_string(),
     };
-    Arc::new(AuthState::from_config(&config))
+    Arc::new(AuthState::from_config(
+        &config,
+        Arc::new(nicknamer_server::observations::Dispatcher::new(vec![])),
+    ))
 }
 
 /// Test helper to create test app with auth state.
