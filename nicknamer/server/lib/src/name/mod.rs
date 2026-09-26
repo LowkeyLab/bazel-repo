@@ -19,6 +19,7 @@ pub struct Name {
 }
 
 impl Name {
+    #[must_use]
     pub fn new(id: u32, discord_id: u64, name: String, server_id: String) -> Self {
         Self {
             id,
@@ -29,16 +30,19 @@ impl Name {
     }
 
     /// Returns the Discord ID of the name.
+    #[must_use]
     pub fn discord_id(&self) -> u64 {
         self.discord_id
     }
 
     /// Returns the name.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Returns the server ID of the name.
+    #[must_use]
     pub fn server_id(&self) -> &str {
         &self.server_id
     }
