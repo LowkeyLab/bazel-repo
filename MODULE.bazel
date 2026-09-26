@@ -377,15 +377,9 @@ toolchains = use_extension(
     "toolchains",
 )
 
-# aspect_rules_lint_rust imports this repo but no longer declares its toolchain.
-# Explicit toolchains below suppress rules_rs automatic default creation.
+# Share the stable toolchain with aspect_rules_lint_rust, which imports this name.
 toolchains.toolchain(
     name = "default_rust_toolchains",
-    edition = "2021",
-    version = "1.92.0",
-)
-toolchains.toolchain(
-    name = "rust_toolchains_1_96_0",
     edition = "2024",
     version = "1.96.0",
 )
@@ -399,12 +393,11 @@ use_repo(
     "default_rust_toolchains",
     "gazelle_ts_rust_toolchains",
     "nightly_rust_toolchains",
-    "rust_toolchains_1_96_0",
     "rustfmt_linux_x86_64_1_96_0",
 )
 
 register_toolchains(
-    "@rust_toolchains_1_96_0//...",
+    "@default_rust_toolchains//...",
     "@nightly_rust_toolchains//...",
 )
 
