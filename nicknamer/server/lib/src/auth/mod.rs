@@ -53,7 +53,7 @@ pub(crate) fn record_denied(request: &Request, channel: Channel) {
 pub(crate) fn rejection_reason(error: &anyhow::Error) -> AccessReason {
     match error
         .downcast_ref::<jsonwebtoken::errors::Error>()
-        .map(|e| e.kind())
+        .map(jsonwebtoken::errors::Error::kind)
     {
         Some(jsonwebtoken::errors::ErrorKind::ExpiredSignature) => AccessReason::Expired,
         _ => AccessReason::Invalid,
@@ -67,7 +67,8 @@ pub struct CurrentUser {
 }
 
 impl CurrentUser {
-    /// Creates a new CurrentUser instance.
+    /// Creates a new `CurrentUser` instance.
+    #[must_use]
     pub fn new(username: String) -> Self {
         Self { username }
     }
@@ -83,7 +84,7 @@ pub struct AuthState {
 }
 
 impl AuthState {
-    /// Creates a new AuthState from the application config.
+    /// Creates a new `AuthState` from the application config.
     pub fn from_config(config: &Config, observer: SharedObserver) -> Self {
         Self {
             admin_username: config.admin_username.clone(),
@@ -328,6 +329,9 @@ pub struct LoginTemplate {
 }
 
 /// Handles GET requests to display the login page.
+///
+/// # Errors
+/// Returns an error if the login template cannot be rendered.
 #[tracing::instrument(skip_all)]
 pub async fn login_page_handler(
     current_user: Option<Extension<CurrentUser>>,

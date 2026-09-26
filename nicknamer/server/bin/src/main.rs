@@ -21,19 +21,15 @@ async fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     let dispatcher = Arc::new(Dispatcher::new(vec![Arc::new(LoggingListener)]));
-    let config = match load_configuration(&dispatcher, nicknamer_server::config::Config::from_env) {
-        Ok(config) => config,
-        Err(_) => {
-            dispatcher.flush();
-            return ExitCode::FAILURE;
-        }
+    let Ok(config) = load_configuration(&dispatcher, nicknamer_server::config::Config::from_env)
+    else {
+        dispatcher.flush();
+        return ExitCode::FAILURE;
     };
-    let prepared = match nicknamer_server::web::prepare_server(config, dispatcher.clone()).await {
-        Ok(prepared) => prepared,
-        Err(_) => {
-            dispatcher.flush();
-            return ExitCode::FAILURE;
-        }
+    let Ok(prepared) = nicknamer_server::web::prepare_server(config, dispatcher.clone()).await
+    else {
+        dispatcher.flush();
+        return ExitCode::FAILURE;
     };
     let outcome = serve_until(
         prepared.listener,

@@ -190,12 +190,20 @@ pub async fn health_check_handler() -> &'static str {
     "OK"
 }
 
+/// Renders the page fragment.
+///
+/// # Errors
+/// Returns an error if the template cannot be rendered.
 #[tracing::instrument(skip_all)]
 pub async fn welcome_handler() -> Result<Html<String>, WebError> {
     let template = IndexTemplate::new();
     template.render().map(Html).map_err(WebError::from)
 }
 
+/// Renders the page fragment.
+///
+/// # Errors
+/// Returns an error if the template cannot be rendered.
 #[tracing::instrument(skip_all)]
 pub async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,

@@ -1,9 +1,9 @@
-use crate::entities::*;
+use crate::entities::name;
 use crate::observations::{
     BulkOperation, BulkOutcome, Fact, FailureCategory, MutationKind, MutationOrigin,
     MutationOutcome, Observation, ObservationContext, Outcome, SharedObserver,
 };
-use sea_orm::*;
+use sea_orm::{ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, QueryFilter};
 use std::collections::{BTreeMap, HashMap};
 use std::time::Instant;
 
@@ -49,7 +49,7 @@ impl Name {
     }
 }
 
-/// Error type for NameService operations.
+/// Error type for `NameService` operations.
 #[derive(Debug, thiserror::Error)]
 pub enum NameServiceError {
     /// Represents a duplicate entry error (Discord ID + Server ID combination already exists).
@@ -75,11 +75,12 @@ pub struct NameService<'a> {
     context: Option<ObservationContext>,
 }
 
+// IDs retain their unsigned bit patterns in the signed database columns.
 impl From<name::Model> for Name {
     fn from(model: name::Model) -> Self {
         Name::new(
-            model.id as u32,
-            model.discord_id as u64,
+            model.id.cast_unsigned(),
+            model.discord_id.cast_unsigned(),
             model.name,
             model.server_id,
         )
@@ -87,6 +88,7 @@ impl From<name::Model> for Name {
 }
 
 impl NameService<'_> {
+    #[must_use]
     pub fn new(db: &sea_orm::DatabaseConnection) -> NameService<'_> {
         NameService {
             db,
@@ -107,6 +109,7 @@ impl NameService<'_> {
     }
 
     /// Supplies request correlation for facts produced by this service.
+    #[must_use]
     pub fn with_context(mut self, context: ObservationContext) -> Self {
         self.context = Some(context);
         self
@@ -184,6 +187,10 @@ impl NameService<'_> {
         );
     }
 
+    /// Serializes names grouped by server as YAML.
+    ///
+    /// # Errors
+    /// Returns the YAML serialization error if encoding fails.
     pub fn prepare_export(&self, names: &[Name]) -> Result<String, serde_yaml::Error> {
         let mut yaml_map: BTreeMap<String, BTreeMap<u64, String>> = BTreeMap::new();
         for name in names {
@@ -223,6 +230,9 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing the created `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the Discord/server pair already exists or the database fails.
     #[tracing::instrument(skip_all)]
     pub async fn create_name(
         &self,
@@ -247,7 +257,7 @@ impl NameService<'_> {
                 return Err(NameServiceError::DuplicateEntryError(discord_id, server_id));
             }
             let active_model = name::ActiveModel {
-                discord_id: ActiveValue::Set(discord_id as i64),
+                discord_id: ActiveValue::Set(discord_id.cast_signed()),
                 name: ActiveValue::Set(name),
                 server_id: ActiveValue::Set(server_id),
                 ..Default::default()
@@ -274,12 +284,15 @@ impl NameService<'_> {
     ///
     /// # Arguments
     ///
-    /// * `yaml_content` - The YAML content as a string containing discord_id: name mappings.
+    /// * `yaml_content` - The YAML content as a string containing `discord_id: name` mappings.
     /// * `server_id` - The server ID where the names are used.
     ///
     /// # Returns
     ///
-    /// A `Result` containing a tuple with (created_count, skipped_count, errors) if successful, or an error otherwise.
+    /// A `Result` containing a tuple with `(created_count, skipped_count, errors)` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error for malformed YAML. Per-entry failures are returned in the errors list.
     #[tracing::instrument(skip_all)]
     pub async fn bulk_create_names(
         &self,
@@ -305,8 +318,7 @@ impl NameService<'_> {
                     },
                 );
                 return Err(NameServiceError::MalformedData(format!(
-                    "Invalid YAML format: {}",
-                    error
+                    "Invalid YAML format: {error}"
                 )));
             }
         };
@@ -328,8 +340,7 @@ impl NameService<'_> {
                 Err(error) => {
                     add_category(&mut categories, Self::category(&error));
                     errors.push(format!(
-                        "Failed to create entry for Discord ID {}: {}",
-                        discord_id, error
+                        "Failed to create entry for Discord ID {discord_id}: {error}"
                     ));
                 }
             }
@@ -362,6 +373,9 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing the updated `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the entry does not exist or the database fails.
     #[tracing::instrument(skip_all)]
     pub async fn edit_name_by_id(
         &self,
@@ -372,7 +386,7 @@ impl NameService<'_> {
         let context = self.context(None);
         let started = Instant::now();
         let result = async {
-            let name_to_update = name::Entity::find_by_id(id as i32)
+            let name_to_update = name::Entity::find_by_id(id.cast_signed())
                 .one(self.db)
                 .await?
                 .ok_or(NameServiceError::NameNotFound(id))?;
@@ -399,6 +413,9 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing a vector of `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the database query fails.
     #[tracing::instrument(skip_all)]
     pub async fn get_all_names(&self) -> Result<Vec<Name>, NameServiceError> {
         let started = Instant::now();
@@ -438,6 +455,9 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing a vector of `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the database query fails.
     #[tracing::instrument(skip_all)]
     pub async fn get_names_by_server(
         &self,
@@ -481,6 +501,9 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing the deleted `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the entry does not exist or the database fails.
     #[tracing::instrument(skip_all)]
     pub async fn delete_name_by_id(&self, id: u32) -> Result<Name, NameServiceError> {
         self.delete_name_in(id, None).await.map(|(name, _)| name)
@@ -494,13 +517,15 @@ impl NameService<'_> {
         let context = self.context(parent);
         let started = Instant::now();
         let result = async {
-            let name_to_delete = name::Entity::find_by_id(id as i32)
+            let name_to_delete = name::Entity::find_by_id(id.cast_signed())
                 .one(self.db)
                 .await?
                 .ok_or(NameServiceError::NameNotFound(id))?;
 
             let name_copy = Name::from(name_to_delete.clone());
-            let deleted = name::Entity::delete_by_id(id as i32).exec(self.db).await?;
+            let deleted = name::Entity::delete_by_id(id.cast_signed())
+                .exec(self.db)
+                .await?;
             Ok((name_copy, deleted.rows_affected > 0))
         }
         .await;
@@ -541,7 +566,10 @@ impl NameService<'_> {
     ///
     /// # Returns
     ///
-    /// A `Result` containing a tuple with (deleted_count, failed_deletes) if successful, or an error otherwise.
+    /// A `Result` containing a tuple with `(deleted_count, failed_deletes)` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Currently returns per-entry failures in the result rather than returning an error.
     #[tracing::instrument(skip_all)]
     pub async fn bulk_delete_names(
         &self,
@@ -566,12 +594,12 @@ impl NameService<'_> {
                     add_category(&mut categories, FailureCategory::NoRowsAffected);
                 }
                 Err(NameServiceError::NameNotFound(_)) => {
-                    failed_deletes.push(format!("Name with ID {} not found", id));
+                    failed_deletes.push(format!("Name with ID {id} not found"));
                     observed_failed += 1;
                     add_category(&mut categories, FailureCategory::MissingEntry);
                 }
                 Err(error) => {
-                    failed_deletes.push(format!("Failed to delete name with ID {}: {}", id, error));
+                    failed_deletes.push(format!("Failed to delete name with ID {id}: {error}"));
                     observed_failed += 1;
                     add_category(&mut categories, Self::category(&error));
                 }
@@ -610,7 +638,7 @@ impl NameService<'_> {
         server_id: &str,
     ) -> Result<bool, NameServiceError> {
         let existing_name = name::Entity::find()
-            .filter(name::Column::DiscordId.eq(discord_id as i64))
+            .filter(name::Column::DiscordId.eq(discord_id.cast_signed()))
             .filter(name::Column::ServerId.eq(server_id))
             .one(self.db)
             .await?;
@@ -626,12 +654,15 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing the `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the entry does not exist or the database fails.
     #[tracing::instrument(skip_all)]
     pub async fn get_name_by_id(&self, id: u32) -> Result<Name, NameServiceError> {
         let started = Instant::now();
         let context = self.context(None);
         let result: Result<_, NameServiceError> = async {
-            let name_model = name::Entity::find_by_id(id as i32)
+            let name_model = name::Entity::find_by_id(id.cast_signed())
                 .one(self.db)
                 .await?
                 .ok_or(NameServiceError::NameNotFound(id))?;
@@ -665,6 +696,9 @@ impl NameService<'_> {
     /// # Returns
     ///
     /// A `Result` containing the updated `Name` if successful, or an error otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the Discord/server pair does not exist or the database fails.
     #[tracing::instrument(skip_all)]
     pub async fn update_name_by_discord_server(
         &self,
@@ -676,7 +710,7 @@ impl NameService<'_> {
         let started = Instant::now();
         let result = async {
             let name_to_update = name::Entity::find()
-                .filter(name::Column::DiscordId.eq(discord_id as i64))
+                .filter(name::Column::DiscordId.eq(discord_id.cast_signed()))
                 .filter(name::Column::ServerId.eq(server_id))
                 .one(self.db)
                 .await?

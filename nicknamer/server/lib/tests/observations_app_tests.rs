@@ -1,3 +1,4 @@
+use nicknamer_server::observations::{AccessReason, Route};
 mod common;
 use axum::{
     Router,
@@ -191,7 +192,6 @@ async fn api_token_reuse_correlates_committed_mutation_and_public_routes() {
             .count(),
         eq(1)
     );
-    use nicknamer_server::observations::Route;
     let routes: Vec<_> = events
         .iter()
         .filter_map(|e| match e.fact {
@@ -266,7 +266,6 @@ async fn denied_mutations_leave_database_unchanged_and_record_denial() {
         eq(0)
     );
     let events = recorder.events();
-    use nicknamer_server::observations::AccessReason;
     for reason in [AccessReason::Missing, AccessReason::Invalid] {
         assert_that!(events.iter().filter(|e| matches!(e.fact, Fact::AccessDenied { reason: actual, .. } if actual == reason)).count(), eq(2));
     }

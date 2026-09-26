@@ -601,3 +601,39 @@ async fn web_export_query_failure_records_query_stage() {
         eq(true)
     );
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn unsigned_discord_ids_round_trip_through_signed_database_columns() {
+    let db = common::setup_db_with_global_container().await.unwrap();
+    let service = NameService::new(&db);
+    for discord_id in [
+        i64::MAX.cast_unsigned(),
+        i64::MAX.cast_unsigned() + 1,
+        u64::MAX,
+    ] {
+        let created = service
+            .create_name(discord_id, "original".into(), "srv".into())
+            .await
+            .unwrap();
+        assert_that!(created.discord_id(), eq(discord_id));
+        let stored = service.get_name_by_id(created.id()).await.unwrap();
+        assert_that!(stored.discord_id(), eq(discord_id));
+        assert_that!(
+            service
+                .create_name(discord_id, "duplicate".into(), "srv".into())
+                .await
+                .is_err(),
+            eq(true)
+        );
+        let updated = service
+            .update_name_by_discord_server(discord_id, "srv", "updated".into())
+            .await
+            .unwrap();
+        assert_that!(updated.discord_id(), eq(discord_id));
+        assert_that!(
+            service.get_name_by_id(created.id()).await.unwrap().name(),
+            eq("updated")
+        );
+    }
+}

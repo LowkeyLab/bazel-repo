@@ -114,11 +114,11 @@ The user selected local logging on 2026-09-26. Implement typed events, a local t
 
 All four tasks were implemented and independently reviewed. The final whole-change review found no blocking issue; its two minor findings (signal failure classification and service-test assertion conventions) were fixed in f3dd2c54.
 
-Final validation: 152 test cases across nine Nicknamer targets passed (including cached unchanged targets), the full repository build passed, and lint completed with 58 warnings and no errors. A real binary with disposable PostgreSQL exercised migrations, health, browser/API authentication, invalid configuration, and SIGTERM shutdown. Controlled signal-error futures verify failure outcomes after both draining and deadline cancellation; OS signal-registration failure itself is not forced in a subprocess.
+Final validation after lint cleanup: 153 test cases across nine Nicknamer targets passed, the full repository build passed, and PR-scoped lint reported no findings. All 58 reported warnings were fixed without suppressions; a new PostgreSQL boundary test verifies that explicit signed/unsigned conversions preserve existing Discord ID storage behavior. A real binary with disposable PostgreSQL exercised migrations, health, browser/API authentication, invalid configuration, and SIGTERM shutdown. Controlled signal-error futures verify failure outcomes after both draining and deadline cancellation; OS signal-registration failure itself is not forced in a subprocess.
 
-- Suite: `a37b605a-0949-4784-aa74-d90cf10f9d2e`
-- Full build: `ef81a82b-99d9-40d6-8e79-5034815ae2e5`
-- Lint: `f46e6dc2-68ec-46cd-a4ac-3801fa04dd36` (style/documentation warnings, including a test-helper length warning)
+- Suite: `eb5d0470-be6c-4f0d-a76b-fc63344a0fa2`
+- Full build: `05143603-556f-47f4-9403-42cd2a6ad9bf`
+- Lint: `52cb0d56-f0fd-4ad0-ad18-16047c229bf4` (no findings)
 
 Formatting and diff whitespace checks passed. All implementation commits use conventional commit messages.
 

@@ -145,8 +145,7 @@ pub async fn create_name_handler(
         Err(crate::name::NameServiceError::DuplicateEntryError(discord_id, server_id)) => Err((
             StatusCode::CONFLICT,
             Json(ServerErrorResponse::new(format!(
-                "Name already exists for Discord ID {} in server '{}'",
-                discord_id, server_id
+                "Name already exists for Discord ID {discord_id} in server '{server_id}'"
             ))),
         )),
         Err(_err) => Err((
@@ -158,7 +157,7 @@ pub async fn create_name_handler(
     }
 }
 
-/// Handler for PUT /api/v1/names/{discord_id}/servers/{server_id} - Updates an existing name.
+/// Handler for PUT `/api/v1/names/{discord_id}/servers/{server_id}` - Updates an existing name.
 #[tracing::instrument(skip_all)]
 #[utoipa::path(
     put,

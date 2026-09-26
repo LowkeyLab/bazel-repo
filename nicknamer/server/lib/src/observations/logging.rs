@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use super::{
     AccessReason, AuthenticationOutcome, BulkOperation, BulkOutcome, Channel, DeliveryError,
     ExportStage, Fact, FailureCategory, Method, MutationKind, MutationOrigin, MutationOutcome,
-    Observation, ObservationListener, Outcome, RequestOutcome, Route, ShutdownOutcome,
-    StartupStage,
+    Observation, ObservationContext, ObservationListener, Outcome, RequestOutcome, Route,
+    ShutdownOutcome, StartupStage,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -59,185 +59,238 @@ impl LoggingListener {
         ) {
             return None;
         }
-        let mut fields = BTreeMap::new();
-        fields.insert(
-            "occurred_at",
-            FieldValue::Timestamp(observation.context.occurred_at),
-        );
-        fields.insert(
-            "operation_id",
-            FieldValue::Identifier(observation.context.operation_id.to_string()),
-        );
-        if let Some(id) = observation.context.request_id {
-            fields.insert("request_id", FieldValue::Identifier(id.to_string()));
-        }
-        if let Some(id) = observation.context.parent_operation_id {
-            fields.insert(
-                "parent_operation_id",
-                FieldValue::Identifier(id.to_string()),
-            );
-        }
-        if let Some(duration) = observation.context.duration {
-            fields.insert(
-                "duration_ms",
-                FieldValue::Count(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)),
-            );
-        }
-        let (event, severity) = match fact {
-            Fact::StartupStageFinished {
-                stage,
-                outcome,
-                category,
-            } => {
-                fields.insert("stage", stage.label().into());
-                fields.insert("outcome", outcome.label().into());
-                insert_category(&mut fields, *category);
-                ("startup_stage_finished", severity_for_outcome(*outcome))
-            }
-            Fact::ApplicationReady => ("application_ready", Severity::Info),
-            Fact::AuthenticationFinished {
-                channel,
-                outcome,
-                category,
-            } => {
-                fields.insert("channel", channel.label().into());
-                fields.insert("outcome", outcome.label().into());
-                insert_category(&mut fields, *category);
-                (
-                    "authentication_finished",
-                    if *outcome == AuthenticationOutcome::Failed {
-                        Severity::Error
-                    } else {
-                        Severity::Info
-                    },
-                )
-            }
-            Fact::AccessDenied { channel, reason } => {
-                fields.insert("channel", channel.label().into());
-                fields.insert("reason", reason.label().into());
-                ("access_denied", Severity::Info)
-            }
-            Fact::NameMutationFinished {
-                kind,
-                origin,
-                outcome,
-                category,
-            } => {
-                fields.insert("operation", kind.label().into());
-                fields.insert("origin", origin.label().into());
-                fields.insert("outcome", outcome.label().into());
-                insert_category(&mut fields, *category);
-                (
-                    "name_mutation_finished",
-                    if *outcome == MutationOutcome::Failed {
-                        Severity::Error
-                    } else {
-                        Severity::Info
-                    },
-                )
-            }
-            Fact::BulkOperationFinished {
-                operation,
-                attempted,
-                succeeded,
-                skipped,
-                failed,
-                input_count,
-                outcome,
-                categories,
-            } => {
-                fields.insert("operation", operation.label().into());
-                fields.insert("attempted", (*attempted).into());
-                fields.insert("succeeded", (*succeeded).into());
-                fields.insert("skipped", (*skipped).into());
-                fields.insert("failed", (*failed).into());
-                fields.insert("outcome", outcome.label().into());
-                if let Some(count) = input_count {
-                    fields.insert("input_count", (*count).into());
-                }
-                for (category, count) in categories {
-                    fields.insert(category.count_field(), (*count).into());
-                }
-                (
-                    "bulk_operation_finished",
-                    match outcome {
-                        BulkOutcome::Partial => Severity::Warn,
-                        BulkOutcome::Failed => Severity::Error,
-                        _ => Severity::Info,
-                    },
-                )
-            }
-            Fact::NamesReadFinished {
-                filter_present,
-                result_count,
-                outcome,
-                category,
-            } => {
-                fields.insert("filter_present", FieldValue::Flag(*filter_present));
-                fields.insert("outcome", outcome.label().into());
-                if let Some(count) = result_count {
-                    fields.insert("result_count", (*count).into());
-                }
-                insert_category(&mut fields, *category);
-                ("names_read_finished", severity_for_outcome(*outcome))
-            }
-            Fact::ExportPrepared {
-                entry_count,
-                prepared_bytes,
-                outcome,
-                stage,
-                category,
-            } => {
-                fields.insert("stage", stage.label().into());
-                fields.insert("outcome", outcome.label().into());
-                if let Some(count) = entry_count {
-                    fields.insert("entry_count", (*count).into());
-                }
-                if let Some(count) = prepared_bytes {
-                    fields.insert("prepared_bytes", (*count).into());
-                }
-                insert_category(&mut fields, *category);
-                ("export_prepared", severity_for_outcome(*outcome))
-            }
-            Fact::RequestFinished {
-                route,
-                method,
-                status,
-                outcome,
-            } => {
-                fields.insert("route", route.label().into());
-                fields.insert("method", method.label().into());
-                fields.insert("status", u64::from(*status).into());
-                fields.insert("outcome", outcome.label().into());
-                (
-                    "request_finished",
-                    if *status >= 500 {
-                        Severity::Error
-                    } else if *outcome == RequestOutcome::Aborted {
-                        Severity::Warn
-                    } else {
-                        Severity::Info
-                    },
-                )
-            }
-            Fact::ShutdownFinished { outcome } => {
-                fields.insert("outcome", outcome.label().into());
-                (
-                    "shutdown_finished",
-                    match outcome {
-                        ShutdownOutcome::Drained => Severity::Info,
-                        ShutdownOutcome::TimedOut => Severity::Warn,
-                        ShutdownOutcome::Failed => Severity::Error,
-                    },
-                )
-            }
-        };
+        let mut fields = context_fields(&observation.context);
+        let (event, severity) = fact_fields(fact, &mut fields);
         Some(StructuredRecord {
             severity,
             event,
             fields,
         })
     }
+}
+
+fn fact_fields(
+    fact: &Fact,
+    fields: &mut BTreeMap<&'static str, FieldValue>,
+) -> (&'static str, Severity) {
+    match fact {
+        Fact::StartupStageFinished {
+            stage,
+            outcome,
+            category,
+        } => {
+            fields.insert("stage", stage.label().into());
+            fields.insert("outcome", outcome.label().into());
+            insert_category(fields, *category);
+            ("startup_stage_finished", severity_for_outcome(*outcome))
+        }
+        Fact::ApplicationReady => ("application_ready", Severity::Info),
+        Fact::AuthenticationFinished {
+            channel,
+            outcome,
+            category,
+        } => authentication_fields(fields, *channel, *outcome, *category),
+        Fact::AccessDenied { channel, reason } => {
+            fields.insert("channel", channel.label().into());
+            fields.insert("reason", reason.label().into());
+            ("access_denied", Severity::Info)
+        }
+        Fact::NameMutationFinished {
+            kind,
+            origin,
+            outcome,
+            category,
+        } => mutation_fields(fields, *kind, *origin, *outcome, *category),
+        Fact::BulkOperationFinished {
+            operation,
+            attempted,
+            succeeded,
+            skipped,
+            failed,
+            input_count,
+            outcome,
+            categories,
+        } => {
+            fields.insert("operation", operation.label().into());
+            fields.insert("attempted", (*attempted).into());
+            fields.insert("succeeded", (*succeeded).into());
+            fields.insert("skipped", (*skipped).into());
+            fields.insert("failed", (*failed).into());
+            fields.insert("outcome", outcome.label().into());
+            if let Some(count) = input_count {
+                fields.insert("input_count", (*count).into());
+            }
+            for (category, count) in categories {
+                fields.insert(category.count_field(), (*count).into());
+            }
+            (
+                "bulk_operation_finished",
+                match outcome {
+                    BulkOutcome::Partial => Severity::Warn,
+                    BulkOutcome::Failed => Severity::Error,
+                    _ => Severity::Info,
+                },
+            )
+        }
+        Fact::NamesReadFinished {
+            filter_present,
+            result_count,
+            outcome,
+            category,
+        } => {
+            fields.insert("filter_present", FieldValue::Flag(*filter_present));
+            fields.insert("outcome", outcome.label().into());
+            if let Some(count) = result_count {
+                fields.insert("result_count", (*count).into());
+            }
+            insert_category(fields, *category);
+            ("names_read_finished", severity_for_outcome(*outcome))
+        }
+        Fact::ExportPrepared {
+            entry_count,
+            prepared_bytes,
+            outcome,
+            stage,
+            category,
+        } => export_fields(
+            fields,
+            *entry_count,
+            *prepared_bytes,
+            *outcome,
+            *stage,
+            *category,
+        ),
+        Fact::RequestFinished {
+            route,
+            method,
+            status,
+            outcome,
+        } => request_fields(fields, *route, *method, *status, *outcome),
+        Fact::ShutdownFinished { outcome } => shutdown_fields(fields, *outcome),
+    }
+}
+
+fn shutdown_fields(
+    fields: &mut BTreeMap<&'static str, FieldValue>,
+    outcome: ShutdownOutcome,
+) -> (&'static str, Severity) {
+    fields.insert("outcome", outcome.label().into());
+    (
+        "shutdown_finished",
+        match outcome {
+            ShutdownOutcome::Drained => Severity::Info,
+            ShutdownOutcome::TimedOut => Severity::Warn,
+            ShutdownOutcome::Failed => Severity::Error,
+        },
+    )
+}
+
+fn export_fields(
+    fields: &mut BTreeMap<&'static str, FieldValue>,
+    entry_count: Option<u64>,
+    prepared_bytes: Option<u64>,
+    outcome: Outcome,
+    stage: ExportStage,
+    category: Option<FailureCategory>,
+) -> (&'static str, Severity) {
+    fields.insert("stage", stage.label().into());
+    fields.insert("outcome", outcome.label().into());
+    if let Some(count) = entry_count {
+        fields.insert("entry_count", count.into());
+    }
+    if let Some(count) = prepared_bytes {
+        fields.insert("prepared_bytes", count.into());
+    }
+    insert_category(fields, category);
+    ("export_prepared", severity_for_outcome(outcome))
+}
+
+fn context_fields(context: &ObservationContext) -> BTreeMap<&'static str, FieldValue> {
+    let mut fields = BTreeMap::new();
+    fields.insert("occurred_at", FieldValue::Timestamp(context.occurred_at));
+    fields.insert(
+        "operation_id",
+        FieldValue::Identifier(context.operation_id.to_string()),
+    );
+    if let Some(id) = context.request_id {
+        fields.insert("request_id", FieldValue::Identifier(id.to_string()));
+    }
+    if let Some(id) = context.parent_operation_id {
+        fields.insert(
+            "parent_operation_id",
+            FieldValue::Identifier(id.to_string()),
+        );
+    }
+    if let Some(duration) = context.duration {
+        fields.insert(
+            "duration_ms",
+            FieldValue::Count(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)),
+        );
+    }
+    fields
+}
+
+fn authentication_fields(
+    fields: &mut BTreeMap<&'static str, FieldValue>,
+    channel: Channel,
+    outcome: AuthenticationOutcome,
+    category: Option<FailureCategory>,
+) -> (&'static str, Severity) {
+    fields.insert("channel", channel.label().into());
+    fields.insert("outcome", outcome.label().into());
+    insert_category(fields, category);
+    (
+        "authentication_finished",
+        if outcome == AuthenticationOutcome::Failed {
+            Severity::Error
+        } else {
+            Severity::Info
+        },
+    )
+}
+
+fn mutation_fields(
+    fields: &mut BTreeMap<&'static str, FieldValue>,
+    kind: MutationKind,
+    origin: MutationOrigin,
+    outcome: MutationOutcome,
+    category: Option<FailureCategory>,
+) -> (&'static str, Severity) {
+    fields.insert("operation", kind.label().into());
+    fields.insert("origin", origin.label().into());
+    fields.insert("outcome", outcome.label().into());
+    insert_category(fields, category);
+    (
+        "name_mutation_finished",
+        if outcome == MutationOutcome::Failed {
+            Severity::Error
+        } else {
+            Severity::Info
+        },
+    )
+}
+
+fn request_fields(
+    fields: &mut BTreeMap<&'static str, FieldValue>,
+    route: Route,
+    method: Method,
+    status: u16,
+    outcome: RequestOutcome,
+) -> (&'static str, Severity) {
+    fields.insert("route", route.label().into());
+    fields.insert("method", method.label().into());
+    fields.insert("status", u64::from(status).into());
+    fields.insert("outcome", outcome.label().into());
+    (
+        "request_finished",
+        if status >= 500 {
+            Severity::Error
+        } else if outcome == RequestOutcome::Aborted {
+            Severity::Warn
+        } else {
+            Severity::Info
+        },
+    )
 }
 
 impl StructuredRecord {

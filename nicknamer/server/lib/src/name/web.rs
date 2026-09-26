@@ -238,7 +238,7 @@ async fn create_name_handler(
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
-                names.sort_by_key(|name| name.id());
+                names.sort_by_key(Name::id);
             })
             .await?;
             Ok(Html(table_html))
@@ -268,7 +268,7 @@ async fn delete_name_handler(
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
-                names.sort_by_key(|name| name.id());
+                names.sort_by_key(Name::id);
             })
             .await?;
             Ok(Html(table_html))
@@ -306,7 +306,7 @@ async fn bulk_delete_names_handler(
     if selected_ids.is_empty() {
         // No names selected for deletion, just return the current table
         let table_html = render_names_table(&name_service, |names| {
-            names.sort_by_key(|name| name.id());
+            names.sort_by_key(Name::id);
         })
         .await?;
         return Ok(Html(table_html));
@@ -316,7 +316,7 @@ async fn bulk_delete_names_handler(
         Ok(_) => {
             // Get updated names for the table and render
             let table_html = render_names_table(&name_service, |names| {
-                names.sort_by_key(|name| name.id());
+                names.sort_by_key(Name::id);
             })
             .await?;
             Ok(Html(table_html))
@@ -379,7 +379,7 @@ async fn names_table_handler(
     let name_service = NameService::with_observer(&state.db, state.observer.clone())
         .with_context(crate::observations::http::current_context());
     let table_html = render_names_table(&name_service, |names| {
-        names.sort_by_key(|name| name.id());
+        names.sort_by_key(Name::id);
     })
     .await?;
     Ok(Html(table_html))
@@ -453,7 +453,7 @@ async fn bulk_delete_table_handler(
     let name_service = NameService::with_observer(&state.db, state.observer.clone())
         .with_context(crate::observations::http::current_context());
     let mut names = name_service.get_all_names().await?;
-    names.sort_by_key(|name| name.id());
+    names.sort_by_key(Name::id);
     let template = BulkDeleteTableTemplate::new(names);
     template.render().map(Html).map_err(NameError::from)
 }
@@ -491,7 +491,7 @@ async fn bulk_delete_names_delete_handler(
 
     // Return the updated bulk delete table (same as GET /names/delete/table)
     let mut names = name_service.get_all_names().await?;
-    names.sort_by_key(|name| name.id());
+    names.sort_by_key(Name::id);
     let template = BulkDeleteTableTemplate::new(names);
     template.render().map(Html).map_err(NameError::from)
 }

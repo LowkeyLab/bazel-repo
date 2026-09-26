@@ -14,6 +14,7 @@ pub use logging::{LoggingListener, Severity, StructuredRecord};
 pub struct RequestId(Uuid);
 
 impl RequestId {
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -35,6 +36,7 @@ impl std::fmt::Display for RequestId {
 pub struct OperationId(Uuid);
 
 impl OperationId {
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -62,6 +64,7 @@ pub struct ObservationContext {
 }
 
 impl ObservationContext {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             occurred_at: Utc::now(),
@@ -72,6 +75,7 @@ impl ObservationContext {
         }
     }
 
+    #[must_use]
     pub fn for_request(request_id: RequestId) -> Self {
         Self {
             request_id: Some(request_id),
@@ -79,6 +83,7 @@ impl ObservationContext {
         }
     }
 
+    #[must_use]
     pub fn child_of(parent: &Self) -> Self {
         Self {
             request_id: parent.request_id,
@@ -87,6 +92,7 @@ impl ObservationContext {
         }
     }
 
+    #[must_use]
     pub fn with_duration(mut self, duration: Duration) -> Self {
         self.duration = Some(duration);
         self
@@ -285,7 +291,15 @@ pub trait ObservationSink: Send + Sync {
 }
 
 pub trait ObservationListener: Send + Sync {
+    /// Delivers one observation.
+    ///
+    /// # Errors
+    /// Returns an error if the listener cannot deliver the observation.
     fn on_event(&self, event: &Observation) -> Result<(), DeliveryError>;
+    /// Flushes pending observations.
+    ///
+    /// # Errors
+    /// Returns an error if pending observations cannot be flushed.
     fn flush(&self) -> Result<(), DeliveryError>;
 }
 
@@ -298,6 +312,7 @@ pub struct Dispatcher {
 }
 
 impl Dispatcher {
+    #[must_use]
     pub fn new(listeners: Vec<Arc<dyn ObservationListener>>) -> Self {
         Self::with_diagnostic(
             listeners,
@@ -327,8 +342,8 @@ impl Dispatcher {
         let mut last = self
             .last_diagnostic
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if last.is_none_or(|then| now.duration_since(then) >= Duration::from_secs(60)) {
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if last.is_none_or(|then| now.duration_since(then) >= Duration::from_mins(1)) {
             *last = Some(now);
             drop(last);
             let _ = catch_unwind(AssertUnwindSafe(|| (self.diagnostic)()));

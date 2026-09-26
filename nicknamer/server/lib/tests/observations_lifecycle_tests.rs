@@ -221,20 +221,7 @@ async fn controlled_request_shutdown(timeout: bool, signal_failed: bool) {
         release.notify_one();
     }
     let outcome = server.await.unwrap();
-    let mut response = Vec::new();
-    loop {
-        socket.readable().await.unwrap();
-        let mut chunk = [0; 1024];
-        match socket.try_read(&mut chunk) {
-            Ok(0) => break,
-            Ok(size) => response.extend_from_slice(&chunk[..size]),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => continue,
-            Err(error) => panic!("HTTP response read failed: {error}"),
-        }
-        if response.windows(2).any(|window| window == b"\r\n") {
-            break;
-        }
-    }
+    let response = read_response_head(&socket).await;
     let response = std::str::from_utf8(&response).unwrap();
     assert_that!(
         response.split_whitespace().nth(1),
@@ -250,6 +237,24 @@ async fn controlled_request_shutdown(timeout: bool, signal_failed: bool) {
     };
     assert_that!(outcome, eq(expected));
     assert_shutdown_order(&entries.lock().unwrap(), timeout, expected);
+}
+
+async fn read_response_head(socket: &tokio::net::TcpStream) -> Vec<u8> {
+    let mut response = Vec::new();
+    loop {
+        socket.readable().await.unwrap();
+        let mut chunk = [0; 1024];
+        match socket.try_read(&mut chunk) {
+            Ok(0) => break,
+            Ok(size) => response.extend_from_slice(&chunk[..size]),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => continue,
+            Err(error) => panic!("HTTP response read failed: {error}"),
+        }
+        if response.windows(2).any(|window| window == b"\r\n") {
+            break;
+        }
+    }
+    response
 }
 
 fn assert_shutdown_order(
