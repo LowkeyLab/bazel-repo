@@ -11,7 +11,6 @@ use tower_http::cors::CorsLayer;
 use tower_http::sensitive_headers::{
     SetSensitiveRequestHeadersLayer, SetSensitiveResponseHeadersLayer,
 };
-use tower_http::trace::TraceLayer;
 
 use crate::auth::{
     AuthState, CurrentUser, auth_user_middleware, create_login_router, login_redirect_middleware,
@@ -62,21 +61,33 @@ pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
     tracing::info!("Database migrations applied successfully");
 
     // Create AuthState from config
-    let auth_state = Arc::new(AuthState::from_config(&config));
     let observer: crate::observations::SharedObserver = Arc::new(
         crate::observations::Dispatcher::new(vec![Arc::new(crate::observations::LoggingListener)]),
     );
+    let auth_state = Arc::new(AuthState::from_config(&config, observer.clone()));
     let name_state = Arc::new(NameState {
         db: Arc::new(db),
-        observer,
+        observer: observer.clone(),
     });
 
-    let web_app = create_web_handler(auth_state.clone(), name_state.clone());
-    let api = create_api_router(auth_state.clone(), name_state.clone());
-    let app = web_app.merge(api);
+    let app = create_app(auth_state, name_state, observer);
 
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+/// Compose the browser and API application.
+pub fn create_app(
+    auth: Arc<AuthState>,
+    names: Arc<NameState>,
+    observer: crate::observations::SharedObserver,
+) -> axum::Router {
+    create_web_handler(auth.clone(), names.clone())
+        .merge(create_api_router(auth, names))
+        .layer(from_fn_with_state(
+            observer,
+            crate::observations::http::observe_request,
+        ))
 }
 
 /// Creates the main web application router with all routes and middleware configured.
@@ -132,7 +143,6 @@ fn create_web_handler(auth_state: Arc<AuthState>, name_state: Arc<NameState>) ->
                 .layer(SetSensitiveRequestHeadersLayer::from_shared(Arc::clone(
                     &sensitive_headers,
                 )))
-                .layer(TraceLayer::new_for_http())
                 .layer(SetSensitiveResponseHeadersLayer::from_shared(
                     sensitive_headers,
                 ))
@@ -143,18 +153,18 @@ fn create_web_handler(auth_state: Arc<AuthState>, name_state: Arc<NameState>) ->
         )
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn health_check_handler() -> &'static str {
     "OK"
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn welcome_handler() -> Result<Html<String>, WebError> {
     let template = IndexTemplate::new();
     template.render().map(Html).map_err(WebError::from)
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, WebError> {

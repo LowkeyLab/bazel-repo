@@ -89,7 +89,8 @@ pub async fn get_names_handler(
     State(state): State<Arc<NameState>>,
     Query(query): Query<NamesQuery>,
 ) -> Result<Json<NamesResponse>, (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::with_observer(&state.db, state.observer.clone());
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     let names_result = match query.server_id {
         Some(server_id) => service.get_names_by_server(&server_id).await,
@@ -133,7 +134,8 @@ pub async fn create_name_handler(
     State(state): State<Arc<NameState>>,
     Json(request): Json<CreateNameRequest>,
 ) -> Result<(StatusCode, Json<NameJson>), (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::with_observer(&state.db, state.observer.clone());
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match service
         .create_name(request.discord_id, request.name, request.server_id)
@@ -179,7 +181,8 @@ pub async fn update_name_by_discord_server_handler(
     Path((discord_id, server_id)): Path<(u64, String)>,
     Json(request): Json<UpdateNameRequest>,
 ) -> Result<Json<NameJson>, (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::with_observer(&state.db, state.observer.clone());
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match service
         .update_name_by_discord_server(discord_id, &server_id, request.name)
@@ -222,7 +225,8 @@ pub async fn export_names_handler(
     State(state): State<Arc<NameState>>,
     Query(query): Query<NamesQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ServerErrorResponse>)> {
-    let service = NameService::with_observer(&state.db, state.observer.clone());
+    let service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     let names = match query.server_id {
         Some(server_id) => service.get_names_by_server(&server_id).await,

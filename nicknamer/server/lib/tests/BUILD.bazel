@@ -9,6 +9,7 @@ test_suite(
         ":auth_endpoints_tests",
         ":name_service_tests",
         ":names_endpoints_tests",
+        ":observations_app_tests",
         ":observations_service_tests",
         ":observations_tests",
         ":web_endpoints_tests",
@@ -136,4 +137,18 @@ rust_test(
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
     deps = COMMON_DEPS,
+)
+
+rust_test(
+    name = "observations_app_tests",
+    size = "small",
+    srcs = ["observations_app_tests.rs"] + COMMON_SRCS,
+    crate_name = "tests_observations_app_tests_test",
+    crate_root = "observations_app_tests.rs",
+    data = COMMON_DATA,
+    env = COMMON_ENV,
+    exec_properties = COMMON_EXEC_PROPERTIES,
+    rustc_env = COMMON_RUSTC_ENV,
+    tags = COMMON_TAGS,
+    deps = COMMON_DEPS + ["@crates//:googletest"],
 )

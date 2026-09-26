@@ -7,8 +7,58 @@ use axum::response::{Html, IntoResponse, Response};
 use axum_extra::extract::CookieJar;
 use jsonwebtoken::encode;
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::config::Config;
+use crate::observations::http::current_context;
+use crate::observations::{
+    AccessReason, AuthenticationOutcome, Channel, Fact, FailureCategory, Observation,
+    ObservationContext, SharedObserver,
+};
+
+pub(crate) fn record_auth(
+    observer: &SharedObserver,
+    started: Instant,
+    channel: Channel,
+    outcome: AuthenticationOutcome,
+    category: Option<FailureCategory>,
+) {
+    let context = ObservationContext::child_of(&current_context()).with_duration(started.elapsed());
+    observer.record(&Observation {
+        context,
+        fact: Fact::AuthenticationFinished {
+            channel,
+            outcome,
+            category,
+        },
+    });
+}
+
+pub(crate) fn record_denied(request: &Request, channel: Channel) {
+    if let Some(observer) = request.extensions().get::<SharedObserver>() {
+        observer.record(&Observation {
+            context: ObservationContext::child_of(&current_context()),
+            fact: Fact::AccessDenied {
+                channel,
+                reason: request
+                    .extensions()
+                    .get::<AccessReason>()
+                    .copied()
+                    .unwrap_or(AccessReason::Missing),
+            },
+        });
+    }
+}
+
+pub(crate) fn rejection_reason(error: &anyhow::Error) -> AccessReason {
+    match error
+        .downcast_ref::<jsonwebtoken::errors::Error>()
+        .map(|e| e.kind())
+    {
+        Some(jsonwebtoken::errors::ErrorKind::ExpiredSignature) => AccessReason::Expired,
+        _ => AccessReason::Invalid,
+    }
+}
 
 /// Represents the currently authenticated user.
 #[derive(Debug, Clone)]
@@ -29,15 +79,17 @@ pub struct AuthState {
     pub admin_username: String,
     pub admin_password: String,
     pub jwt_secret: String,
+    pub observer: SharedObserver,
 }
 
 impl AuthState {
     /// Creates a new AuthState from the application config.
-    pub fn from_config(config: &Config) -> Self {
+    pub fn from_config(config: &Config, observer: SharedObserver) -> Self {
         Self {
             admin_username: config.admin_username.clone(),
             admin_password: config.admin_password.clone(),
             jwt_secret: config.jwt_secret.clone(),
+            observer,
         }
     }
 }
@@ -58,11 +110,18 @@ pub async fn auth_user_middleware(
     mut request: Request,
     next: Next,
 ) -> Response {
-    if let Some(token_cookie) = jar.get("auth_token")
-        && let Ok(claims) = decode_jwt(token_cookie.value(), &state.jwt_secret).await
-    {
-        let current_user = CurrentUser::new(claims.username);
-        request.extensions_mut().insert(current_user);
+    request.extensions_mut().insert(state.observer.clone());
+    if let Some(cookie) = jar.get("auth_token") {
+        match decode_jwt(cookie.value(), &state.jwt_secret).await {
+            Ok(claims) => {
+                request
+                    .extensions_mut()
+                    .insert(CurrentUser::new(claims.username));
+            }
+            Err(error) => {
+                request.extensions_mut().insert(rejection_reason(&error));
+            }
+        }
     }
 
     next.run(request).await
@@ -76,6 +135,7 @@ pub async fn login_redirect_middleware(request: Request, next: Next) -> Response
 
     // If no valid authentication and accessing a protected route, redirect to login
     if !is_authenticated {
+        record_denied(&request, Channel::Web);
         return axum::response::Redirect::to("/login").into_response();
     }
 
@@ -137,12 +197,29 @@ pub async fn login_handler(
         return handle_already_logged_in_user(jar, &user).await;
     }
 
-    handle_login_attempt(state, jar, payload).await
+    let started = Instant::now();
+    let accepted =
+        payload.username == state.admin_username && payload.password == state.admin_password;
+    let result = handle_login_attempt(state.clone(), jar, payload, accepted).await;
+    let (outcome, category) = match &result {
+        Ok(_) if accepted => (AuthenticationOutcome::Accepted, None),
+        Ok(_) => (
+            AuthenticationOutcome::Rejected,
+            Some(FailureCategory::InvalidCredentials),
+        ),
+        Err(AuthError::Template(_)) => (
+            AuthenticationOutcome::Failed,
+            Some(FailureCategory::Template),
+        ),
+        Err(AuthError::JwtError) => (AuthenticationOutcome::Failed, Some(FailureCategory::Token)),
+    };
+    record_auth(&state.observer, started, Channel::Web, outcome, category);
+    result
 }
 
 /// Handles the case when a user is already logged in.
 /// Returns a success response with the current user's information.
-#[tracing::instrument(skip(jar))]
+#[tracing::instrument(skip_all)]
 async fn handle_already_logged_in_user(
     jar: CookieJar,
     user: &CurrentUser,
@@ -158,13 +235,14 @@ async fn handle_already_logged_in_user(
 
 /// Handles a login attempt when the user is not logged in.
 /// Validates credentials and either returns success with JWT token or error response.
-#[tracing::instrument(skip(state, jar, payload))]
+#[tracing::instrument(skip_all)]
 async fn handle_login_attempt(
     state: Arc<AuthState>,
     jar: CookieJar,
     payload: LoginRequest,
+    accepted: bool,
 ) -> Result<(CookieJar, Response), AuthError> {
-    if payload.username == state.admin_username && payload.password == state.admin_password {
+    if accepted {
         // Generate JWT token
         let jwt_token = encode_jwt(payload.username.clone(), &state.jwt_secret)
             .await
@@ -250,7 +328,7 @@ pub struct LoginTemplate {
 }
 
 /// Handles GET requests to display the login page.
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn login_page_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, AuthError> {
@@ -264,7 +342,6 @@ pub async fn login_page_handler(
 mod tests {
     use super::*;
     use crate::config::Config;
-
     #[tokio::test]
     async fn auth_middlewares_work_together() {
         use axum::body::Body;
@@ -280,7 +357,10 @@ mod tests {
             jwt_secret: "test_secret".to_string(),
         };
 
-        let auth_state = Arc::new(AuthState::from_config(&config));
+        let auth_state = Arc::new(AuthState::from_config(
+            &config,
+            Arc::new(crate::observations::Dispatcher::new(vec![])),
+        ));
 
         // Create a test app with both middlewares in the correct order
         // Note: Layers are applied in reverse order (bottom to top)

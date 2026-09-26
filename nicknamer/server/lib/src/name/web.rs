@@ -228,7 +228,8 @@ async fn create_name_handler(
     State(state): State<Arc<NameState>>,
     Form(form): Form<CreateNameForm>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service
         .create_name(form.discord_id, form.name, form.server_id)
@@ -260,7 +261,8 @@ async fn delete_name_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service.delete_name_by_id(id).await {
         Ok(_) => {
@@ -281,7 +283,8 @@ async fn bulk_delete_names_handler(
     State(state): State<Arc<NameState>>,
     RawQuery(query): RawQuery,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     // Parse query parameters manually to handle multiple values with the same key
     let selected_ids: Vec<u32> = if let Some(query_str) = query {
@@ -328,7 +331,8 @@ async fn edit_name_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service.get_name_by_id(id).await {
         Ok(name) => {
@@ -346,7 +350,8 @@ async fn update_name_handler(
     axum::extract::Path(id): axum::extract::Path<u32>,
     Form(form): Form<EditNameForm>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service
         .edit_name_by_id(id, form.name, form.server_id)
@@ -371,7 +376,8 @@ async fn update_name_handler(
 async fn names_table_handler(
     State(state): State<Arc<NameState>>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
     let table_html = render_names_table(&name_service, |names| {
         names.sort_by_key(|name| name.id());
     })
@@ -385,7 +391,8 @@ async fn get_name_row_handler(
     State(state): State<Arc<NameState>>,
     axum::extract::Path(id): axum::extract::Path<u32>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     match name_service.get_name_by_id(id).await {
         Ok(name) => {
@@ -409,7 +416,8 @@ async fn bulk_add_handler(
     State(state): State<Arc<NameState>>,
     Form(form): Form<BulkAddForm>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     // Process the bulk upload using the pasted YAML content
     match name_service
@@ -442,7 +450,8 @@ async fn bulk_delete_page_handler() -> Result<Html<String>, NameError> {
 async fn bulk_delete_table_handler(
     State(state): State<Arc<NameState>>,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
     let mut names = name_service.get_all_names().await?;
     names.sort_by_key(|name| name.id());
     let template = BulkDeleteTableTemplate::new(names);
@@ -455,7 +464,8 @@ async fn bulk_delete_names_delete_handler(
     State(state): State<Arc<NameState>>,
     RawQuery(query): RawQuery,
 ) -> Result<Html<String>, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
 
     // Parse query parameters manually to handle multiple values with the same key
     let selected_ids: Vec<u32> = if let Some(query_str) = query {
@@ -491,7 +501,8 @@ async fn bulk_delete_names_delete_handler(
 async fn export_names_handler(
     State(state): State<Arc<NameState>>,
 ) -> Result<impl IntoResponse, NameError> {
-    let name_service = NameService::with_observer(&state.db, state.observer.clone());
+    let name_service = NameService::with_observer(&state.db, state.observer.clone())
+        .with_context(crate::observations::http::current_context());
     let names = name_service.get_all_names().await.map_err(|error| {
         name_service.export_query_failed();
         NameError::Service(error)

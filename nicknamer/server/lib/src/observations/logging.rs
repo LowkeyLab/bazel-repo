@@ -295,7 +295,7 @@ labels!(BulkOperation { Import => "import", Delete => "delete" });
 labels!(BulkOutcome { Succeeded => "succeeded", Rejected => "rejected", Partial => "partial", Failed => "failed" });
 labels!(ExportStage { Query => "query", Serialization => "serialization" });
 labels!(Method { Get => "get", Post => "post", Put => "put", Patch => "patch", Delete => "delete", Other => "other" });
-labels!(Route { Health => "health", WebLogin => "web_login", WebNames => "web_names", WebName => "web_name", WebBulk => "web_bulk", WebExport => "web_export", ApiLogin => "api_login", ApiNames => "api_names", ApiName => "api_name", Other => "other" });
+labels!(Route { Health => "health", WebLogin => "web_login", WebNames => "web_names", WebName => "web_name", WebBulk => "web_bulk", WebExport => "web_export", ApiLogin => "api_login", ApiNames => "api_names", ApiName => "api_name", ApiExport => "api_export", Other => "other" });
 labels!(RequestOutcome { Completed => "completed", Aborted => "aborted" });
 labels!(ShutdownOutcome { Drained => "drained", TimedOut => "timed_out", Failed => "failed" });
 labels!(FailureCategory { Duplicate => "duplicate", MissingEntry => "missing_entry", NoRowsAffected => "no_rows_affected", MalformedInput => "malformed_input", Database => "database", Serialization => "serialization", Template => "template", Token => "token", Configuration => "configuration", Bind => "bind", InvalidCredentials => "invalid_credentials", Internal => "internal" });
