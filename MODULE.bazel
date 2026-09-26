@@ -112,10 +112,6 @@ bazel_dep(name = "gazelle_ts", dev_dependency = True)
 git_override(
     module_name = "gazelle_ts",
     commit = "701dd6eefba82b77e8da981ff5648e24f7629dd5",
-    patch_args = ["-p1"],
-    patches = [
-        "//3rdparty/gazelle_ts:unique_rust_toolchain.patch",
-    ],
     remote = "https://github.com/hermeticbuild/gazelle_ts.git",
 )
 
@@ -391,7 +387,6 @@ toolchains.toolchain(
 use_repo(
     toolchains,
     "default_rust_toolchains",
-    "gazelle_ts_rust_toolchains",
     "nightly_rust_toolchains",
     "rustfmt_linux_x86_64_1_96_0",
 )
