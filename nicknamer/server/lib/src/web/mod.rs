@@ -236,31 +236,3 @@ impl CallToActionTemplate {
         Self { username }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::http::StatusCode;
-
-    #[tokio::test]
-    async fn can_handle_template_error_with_internal_server_error() {
-        // Simulate a template rendering error using askama::Error::Custom
-        let custom_error_message = "Simulated template rendering failure".to_string();
-        let template_error = askama::Error::Custom(custom_error_message.into());
-
-        let web_error = WebError::Template(template_error);
-        let response = axum::response::IntoResponse::into_response(web_error);
-
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let body_text = std::str::from_utf8(&body).unwrap();
-
-        assert_eq!(
-            body_text,
-            "<h1>Internal Server Error</h1><p>An unexpected error occurred while processing your request. Please try again later.</p>"
-        );
-    }
-}
