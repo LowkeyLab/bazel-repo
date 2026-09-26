@@ -1,6 +1,6 @@
 use nicknamer_server::observations::{
     Dispatcher, LoggingListener, ShutdownOutcome,
-    lifecycle::{DRAIN_TIMEOUT, RequestWork, load_configuration, serve_until},
+    lifecycle::{DRAIN_TIMEOUT, RequestWork, SignalFailure, load_configuration, serve_until},
 };
 use std::{process::ExitCode, sync::Arc};
 use tracing::level_filters::LevelFilter;
@@ -51,23 +51,19 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn shutdown_signal() {
+async fn shutdown_signal() -> Result<(), SignalFailure> {
     #[cfg(unix)]
     {
-        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
-            Ok(mut terminate) => {
-                tokio::select! {
-                    _ = tokio::signal::ctrl_c() => {},
-                    _ = terminate.recv() => {},
-                }
-            }
-            Err(_) => {
-                eprintln!("application signal setup failed: category=internal");
-            }
+        let mut terminate =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .map_err(|_| SignalFailure)?;
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => result.map_err(|_| SignalFailure),
+            result = terminate.recv() => result.ok_or(SignalFailure),
         }
     }
     #[cfg(not(unix))]
     {
-        let _ = tokio::signal::ctrl_c().await;
+        tokio::signal::ctrl_c().await.map_err(|_| SignalFailure)
     }
 }

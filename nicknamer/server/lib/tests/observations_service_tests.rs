@@ -1,9 +1,11 @@
 mod common;
 
 use common::observations::RecordingObserver;
+use googletest::prelude::*;
 use nicknamer_server::name::NameService;
 use nicknamer_server::observations::{Fact, MutationKind, MutationOutcome};
 
+#[googletest::test]
 #[tokio::test]
 async fn create_and_duplicate_record_persistence_outcomes() {
     let db = common::setup_db_with_global_container().await.unwrap();
@@ -13,13 +15,14 @@ async fn create_and_duplicate_record_persistence_outcomes() {
         .create_name(10, "first".into(), "srv".into())
         .await
         .unwrap();
-    assert!(
+    assert_that!(
         service
             .create_name(10, "second".into(), "srv".into())
             .await
-            .is_err()
+            .is_err(),
+        eq(true)
     );
-    assert_eq!(service.get_all_names().await.unwrap().len(), 1);
+    assert_that!(service.get_all_names().await.unwrap().len(), eq(1));
     let outcomes: Vec<_> = recorder
         .events()
         .into_iter()
@@ -32,33 +35,35 @@ async fn create_and_duplicate_record_persistence_outcomes() {
             _ => None,
         })
         .collect();
-    assert_eq!(
+    assert_that!(
         outcomes,
-        vec![MutationOutcome::Committed, MutationOutcome::Rejected]
+        eq(&vec![MutationOutcome::Committed, MutationOutcome::Rejected])
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn malformed_and_empty_import_have_distinct_summaries() {
     use nicknamer_server::observations::{BulkOperation, BulkOutcome};
     let db = common::setup_db_with_global_container().await.unwrap();
     let (recorder, observer) = RecordingObserver::shared();
     let service = NameService::with_observer(&db, observer);
-    assert!(
+    assert_that!(
         service
             .bulk_create_names("[invalid", "srv".into())
             .await
-            .is_err()
+            .is_err(),
+        eq(true)
     );
-    assert_eq!(
+    assert_that!(
         service
             .bulk_create_names("{}", "srv".into())
             .await
             .unwrap()
             .0,
-        0
+        eq(0)
     );
-    assert!(service.get_all_names().await.unwrap().is_empty());
+    assert_that!(service.get_all_names().await.unwrap().is_empty(), eq(true));
     let summaries: Vec<_> = recorder
         .events()
         .into_iter()
@@ -73,15 +78,16 @@ async fn malformed_and_empty_import_have_distinct_summaries() {
             _ => None,
         })
         .collect();
-    assert_eq!(
+    assert_that!(
         summaries,
-        vec![
+        eq(&vec![
             (0, None, BulkOutcome::Rejected),
             (0, Some(0), BulkOutcome::Succeeded)
-        ]
+        ])
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn duplicate_only_import_succeeds_with_skip_and_parented_rejection() {
     use nicknamer_server::observations::{BulkOutcome, MutationOrigin};
@@ -96,35 +102,45 @@ async fn duplicate_only_import_succeeds_with_skip_and_parented_rejection() {
         .bulk_create_names("10: replacement", "srv".into())
         .await
         .unwrap();
-    assert_eq!((result.0, result.1, result.2.len()), (0, 1, 0));
-    assert_eq!(service.get_all_names().await.unwrap()[0].name(), "original");
+    assert_that!((result.0, result.1, result.2.len()), eq((0, 1, 0)));
+    assert_that!(
+        service.get_all_names().await.unwrap()[0].name(),
+        eq("original")
+    );
     let events = recorder.events();
     let summary = events
         .iter()
         .find(|event| matches!(event.fact, Fact::BulkOperationFinished { .. }))
         .unwrap();
-    assert!(matches!(
-        summary.fact,
-        Fact::BulkOperationFinished {
-            attempted: 1,
-            succeeded: 0,
-            skipped: 1,
-            failed: 0,
-            outcome: BulkOutcome::Succeeded,
-            ..
-        }
-    ));
-    assert!(events.iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            origin: MutationOrigin::Bulk,
-            outcome: MutationOutcome::Rejected,
-            ..
-        }
-    ) && event.context.parent_operation_id
-        == Some(summary.context.operation_id)));
+    assert_that!(
+        matches!(
+            summary.fact,
+            Fact::BulkOperationFinished {
+                attempted: 1,
+                succeeded: 0,
+                skipped: 1,
+                failed: 0,
+                outcome: BulkOutcome::Succeeded,
+                ..
+            }
+        ),
+        eq(true)
+    );
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                origin: MutationOrigin::Bulk,
+                outcome: MutationOutcome::Rejected,
+                ..
+            }
+        ) && event.context.parent_operation_id
+            == Some(summary.context.operation_id)),
+        eq(true)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn repeated_and_missing_delete_are_partial_with_aggregate_missing_category() {
     use nicknamer_server::observations::{BulkOutcome, FailureCategory, MutationOrigin};
@@ -140,17 +156,18 @@ async fn repeated_and_missing_delete_are_partial_with_aggregate_missing_category
         .bulk_delete_names(&[id, id, u32::MAX])
         .await
         .unwrap();
-    assert_eq!((deleted, errors.len()), (1, 2));
-    assert!(service.get_all_names().await.unwrap().is_empty());
+    assert_that!((deleted, errors.len()), eq((1, 2)));
+    assert_that!(service.get_all_names().await.unwrap().is_empty(), eq(true));
     let events = recorder.events();
     let summary = events
         .iter()
         .find(|event| matches!(event.fact, Fact::BulkOperationFinished { .. }))
         .unwrap();
-    assert!(
-        matches!(&summary.fact, Fact::BulkOperationFinished { attempted: 3, succeeded: 1, failed: 2, outcome: BulkOutcome::Partial, categories, .. } if categories == &vec![(FailureCategory::MissingEntry, 2)])
+    assert_that!(
+        matches!(&summary.fact, Fact::BulkOperationFinished { attempted: 3, succeeded: 1, failed: 2, outcome: BulkOutcome::Partial, categories, .. } if categories == &vec![(FailureCategory::MissingEntry, 2)]),
+        eq(true)
     );
-    assert_eq!(
+    assert_that!(
         events
             .iter()
             .filter(|event| matches!(
@@ -162,10 +179,11 @@ async fn repeated_and_missing_delete_are_partial_with_aggregate_missing_category
             ) && event.context.parent_operation_id
                 == Some(summary.context.operation_id))
             .count(),
-        3
+        eq(3)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn web_export_records_prepared_bytes_after_serialization() {
     use axum::{
@@ -197,38 +215,44 @@ async fn web_export_records_prepared_bytes_after_serialization() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_that!(response.status(), eq(StatusCode::OK));
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    assert!(
+    assert_that!(
         recorder
             .events()
             .iter()
             .any(|event| matches!(event.fact, Fact::ExportPrepared {
         entry_count: Some(1), prepared_bytes: Some(n), outcome: Outcome::Succeeded,
         stage: ExportStage::Serialization, category: None,
-    } if n == bytes.len() as u64))
+    } if n == bytes.len() as u64)),
+        eq(true)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn missing_delete_is_rejected_without_a_write() {
     let db = common::setup_db_with_global_container().await.unwrap();
     let (recorder, observer) = RecordingObserver::shared();
     let service = NameService::with_observer(&db, observer);
-    assert!(service.delete_name_by_id(999).await.is_err());
-    assert!(service.get_all_names().await.unwrap().is_empty());
-    assert!(recorder.events().iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            kind: MutationKind::Delete,
-            outcome: MutationOutcome::Rejected,
-            ..
-        }
-    )));
+    assert_that!(service.delete_name_by_id(999).await.is_err(), eq(true));
+    assert_that!(service.get_all_names().await.unwrap().is_empty(), eq(true));
+    assert_that!(
+        recorder.events().iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                kind: MutationKind::Delete,
+                outcome: MutationOutcome::Rejected,
+                ..
+            }
+        )),
+        eq(true)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn suppressed_delete_keeps_public_success_but_does_not_observe_commit() {
     use sea_orm::ConnectionTrait;
@@ -244,38 +268,48 @@ async fn suppressed_delete_keeps_public_success_but_does_not_observe_commit() {
         .await.unwrap();
     let (recorder, observer) = RecordingObserver::shared();
     let service = NameService::with_observer(&db, observer);
-    assert_eq!(service.delete_name_by_id(id).await.unwrap().id(), id);
-    assert_eq!(service.get_all_names().await.unwrap().len(), 1);
-    assert!(recorder.events().iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            kind: MutationKind::Delete,
-            outcome: MutationOutcome::Rejected,
-            ..
-        }
-    )));
-    assert!(!recorder.events().iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            kind: MutationKind::Delete,
-            outcome: MutationOutcome::Committed,
-            ..
-        }
-    )));
+    assert_that!(service.delete_name_by_id(id).await.unwrap().id(), eq(id));
+    assert_that!(service.get_all_names().await.unwrap().len(), eq(1));
+    assert_that!(
+        recorder.events().iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                kind: MutationKind::Delete,
+                outcome: MutationOutcome::Rejected,
+                ..
+            }
+        )),
+        eq(true)
+    );
+    assert_that!(
+        recorder.events().iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                kind: MutationKind::Delete,
+                outcome: MutationOutcome::Committed,
+                ..
+            }
+        )),
+        eq(false)
+    );
 
     let (returned_count, errors) = service.bulk_delete_names(&[id]).await.unwrap();
-    assert_eq!((returned_count, errors.len()), (1, 0));
-    assert!(recorder.events().iter().any(|event| matches!(
-        event.fact,
-        Fact::BulkOperationFinished {
-            attempted: 1,
-            succeeded: 0,
-            failed: 1,
-            ..
-        }
-    )));
+    assert_that!((returned_count, errors.len()), eq((1, 0)));
+    assert_that!(
+        recorder.events().iter().any(|event| matches!(
+            event.fact,
+            Fact::BulkOperationFinished {
+                attempted: 1,
+                succeeded: 0,
+                failed: 1,
+                ..
+            }
+        )),
+        eq(true)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn database_failure_never_records_committed() {
     use sea_orm::ConnectionTrait;
@@ -283,30 +317,38 @@ async fn database_failure_never_records_committed() {
     let (recorder, observer) = RecordingObserver::shared();
     let service = NameService::with_observer(&db, observer);
     db.execute_unprepared("DROP TABLE name").await.unwrap();
-    assert!(
+    assert_that!(
         service
             .create_name(10, "first".into(), "srv".into())
             .await
-            .is_err()
+            .is_err(),
+        eq(true)
     );
     let events = recorder.events();
-    assert!(events.iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            kind: MutationKind::Create,
-            outcome: MutationOutcome::Failed,
-            ..
-        }
-    )));
-    assert!(!events.iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            outcome: MutationOutcome::Committed,
-            ..
-        }
-    )));
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                kind: MutationKind::Create,
+                outcome: MutationOutcome::Failed,
+                ..
+            }
+        )),
+        eq(true)
+    );
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                outcome: MutationOutcome::Committed,
+                ..
+            }
+        )),
+        eq(false)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn api_export_records_prepared_bytes() {
     use axum::{
@@ -337,21 +379,23 @@ async fn api_export_records_prepared_bytes() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_that!(response.status(), eq(StatusCode::OK));
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    assert!(
+    assert_that!(
         recorder
             .events()
             .iter()
             .any(|event| matches!(event.fact, Fact::ExportPrepared {
         entry_count: Some(1), prepared_bytes: Some(n), outcome: Outcome::Succeeded,
         stage: ExportStage::Serialization, category: None,
-    } if n == bytes.len() as u64))
+    } if n == bytes.len() as u64)),
+        eq(true)
     );
 }
 
+#[googletest::test]
 #[tokio::test(flavor = "multi_thread")]
 async fn create_handler_read_error_after_commit_keeps_committed_fact() {
     use axum::{
@@ -418,7 +462,7 @@ async fn create_handler_read_error_after_commit_keeps_committed_fact() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_that!(response.status(), eq(StatusCode::INTERNAL_SERVER_ERROR));
     let count = db
         .query_one_raw(Statement::from_string(
             DatabaseBackend::Postgres,
@@ -429,25 +473,32 @@ async fn create_handler_read_error_after_commit_keeps_committed_fact() {
         .unwrap()
         .try_get::<i64>("", "count")
         .unwrap();
-    assert_eq!(count, 1);
+    assert_that!(count, eq(1));
     let events = recorder.events();
-    assert!(events.iter().any(|event| matches!(
-        event.fact,
-        Fact::NameMutationFinished {
-            kind: MutationKind::Create,
-            outcome: MutationOutcome::Committed,
-            ..
-        }
-    )));
-    assert!(events.iter().any(|event| matches!(
-        event.fact,
-        Fact::NamesReadFinished {
-            outcome: nicknamer_server::observations::Outcome::Failed,
-            ..
-        }
-    )));
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event.fact,
+            Fact::NameMutationFinished {
+                kind: MutationKind::Create,
+                outcome: MutationOutcome::Committed,
+                ..
+            }
+        )),
+        eq(true)
+    );
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event.fact,
+            Fact::NamesReadFinished {
+                outcome: nicknamer_server::observations::Outcome::Failed,
+                ..
+            }
+        )),
+        eq(true)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn import_success_and_database_failure_is_partial_and_keeps_successful_row() {
     use nicknamer_server::observations::{BulkOutcome, FailureCategory};
@@ -464,41 +515,50 @@ async fn import_success_and_database_failure_is_partial_and_keeps_successful_row
         .bulk_create_names("10: first\n20: denied", "srv".into())
         .await
         .unwrap();
-    assert_eq!((created, skipped, errors.len()), (1, 0, 1));
-    assert_eq!(service.get_all_names().await.unwrap()[0].discord_id(), 10);
+    assert_that!((created, skipped, errors.len()), eq((1, 0, 1)));
+    assert_that!(
+        service.get_all_names().await.unwrap()[0].discord_id(),
+        eq(10)
+    );
     let events = recorder.events();
-    assert!(
+    assert_that!(
         events
             .iter()
             .any(|event| matches!(&event.fact, Fact::BulkOperationFinished {
         attempted: 2, succeeded: 1, skipped: 0, failed: 1,
         outcome: BulkOutcome::Partial, categories, ..
-    } if categories == &vec![(FailureCategory::Database, 1)]))
+    } if categories == &vec![(FailureCategory::Database, 1)])),
+        eq(true)
     );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn empty_bulk_delete_is_successful_noop() {
     use nicknamer_server::observations::BulkOutcome;
     let db = common::setup_db_with_global_container().await.unwrap();
     let (recorder, observer) = RecordingObserver::shared();
     let service = NameService::with_observer(&db, observer);
-    assert_eq!(service.bulk_delete_names(&[]).await.unwrap().0, 0);
-    assert!(service.get_all_names().await.unwrap().is_empty());
-    assert!(recorder.events().iter().any(|event| matches!(
-        event.fact,
-        Fact::BulkOperationFinished {
-            attempted: 0,
-            succeeded: 0,
-            skipped: 0,
-            failed: 0,
-            input_count: Some(0),
-            outcome: BulkOutcome::Succeeded,
-            ..
-        }
-    )));
+    assert_that!(service.bulk_delete_names(&[]).await.unwrap().0, eq(0));
+    assert_that!(service.get_all_names().await.unwrap().is_empty(), eq(true));
+    assert_that!(
+        recorder.events().iter().any(|event| matches!(
+            event.fact,
+            Fact::BulkOperationFinished {
+                attempted: 0,
+                succeeded: 0,
+                skipped: 0,
+                failed: 0,
+                input_count: Some(0),
+                outcome: BulkOutcome::Succeeded,
+                ..
+            }
+        )),
+        eq(true)
+    );
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn web_export_query_failure_records_query_stage() {
     use axum::{
@@ -526,15 +586,18 @@ async fn web_export_query_failure_records_query_stage() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    assert!(recorder.events().iter().any(|event| matches!(
-        event.fact,
-        Fact::ExportPrepared {
-            entry_count: None,
-            prepared_bytes: None,
-            outcome: Outcome::Failed,
-            stage: ExportStage::Query,
-            category: Some(FailureCategory::Database),
-        }
-    )));
+    assert_that!(response.status(), eq(StatusCode::INTERNAL_SERVER_ERROR));
+    assert_that!(
+        recorder.events().iter().any(|event| matches!(
+            event.fact,
+            Fact::ExportPrepared {
+                entry_count: None,
+                prepared_bytes: None,
+                outcome: Outcome::Failed,
+                stage: ExportStage::Query,
+                category: Some(FailureCategory::Database),
+            }
+        )),
+        eq(true)
+    );
 }

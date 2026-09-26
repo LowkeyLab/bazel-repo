@@ -10,6 +10,10 @@ use std::{
 };
 use tokio::sync::watch;
 
+/// Signal registration or waiting failed; provider errors never enter observations.
+#[derive(Clone, Copy, Debug)]
+pub struct SignalFailure;
+
 pub const DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
@@ -114,7 +118,7 @@ pub async fn serve_until<S, D>(
     deadline: D,
 ) -> ShutdownOutcome
 where
-    S: Future<Output = ()>,
+    S: Future<Output = Result<(), SignalFailure>>,
     D: Future<Output = ()>,
 {
     let (stop, stopped) = tokio::sync::oneshot::channel();
@@ -130,13 +134,14 @@ where
     let started;
     let outcome = tokio::select! {
         result = &mut server => { started = Instant::now(); if result.is_ok() { ShutdownOutcome::Drained } else { ShutdownOutcome::Failed } },
-        () = shutdown => {
+        signal_result = shutdown => {
             started = Instant::now();
             let _ = stop.send(());
-            tokio::select! {
+            let drain_outcome = tokio::select! {
                 result = &mut server => if result.is_ok() { ShutdownOutcome::Drained } else { ShutdownOutcome::Failed },
                 () = deadline => ShutdownOutcome::TimedOut,
-            }
+            };
+            if signal_result.is_err() { ShutdownOutcome::Failed } else { drain_outcome }
         }
     };
     // Close the listening socket even when the deadline wins before graceful shutdown polls.

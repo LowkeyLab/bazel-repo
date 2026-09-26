@@ -112,7 +112,7 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS,
+    deps = COMMON_DEPS + ["@crates//:googletest"],
 )
 
 rust_test(

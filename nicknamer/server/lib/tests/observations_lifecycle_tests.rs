@@ -147,7 +147,7 @@ impl ObservationListener for Failing {
     }
 }
 
-async fn controlled_request_shutdown(timeout: bool) {
+async fn controlled_request_shutdown(timeout: bool, signal_failed: bool) {
     use nicknamer_server::observations::{
         ShutdownOutcome,
         lifecycle::{RequestWork, serve_until},
@@ -196,8 +196,13 @@ async fn controlled_request_shutdown(timeout: bool) {
         app,
         RequestWork::default(),
         dispatcher,
-        async {
+        async move {
             let _ = stopped.await;
+            if signal_failed {
+                Err(nicknamer_server::observations::lifecycle::SignalFailure)
+            } else {
+                Ok(())
+            }
         },
         async {
             let _ = expired.await;
@@ -236,7 +241,9 @@ async fn controlled_request_shutdown(timeout: bool) {
         eq(Some(if timeout { "503" } else { "200" }))
     );
 
-    let expected = if timeout {
+    let expected = if signal_failed {
+        ShutdownOutcome::Failed
+    } else if timeout {
         ShutdownOutcome::TimedOut
     } else {
         ShutdownOutcome::Drained
@@ -281,12 +288,12 @@ fn assert_shutdown_order(
 #[googletest::test]
 #[tokio::test]
 async fn shutdown_drains_active_request_before_final_event_and_flush() {
-    controlled_request_shutdown(false).await;
+    controlled_request_shutdown(false, false).await;
 }
 #[googletest::test]
 #[tokio::test]
 async fn deadline_drops_active_request_before_final_event_and_flush() {
-    controlled_request_shutdown(true).await;
+    controlled_request_shutdown(true, false).await;
 }
 
 #[googletest::test]
@@ -339,7 +346,7 @@ async fn real_postgres_startup_migration_and_failure_stages_are_truthful() {
         prepared.app,
         RequestWork::default(),
         dispatcher,
-        std::future::ready(()),
+        std::future::ready(Ok(())),
         std::future::pending(),
     )
     .await;
@@ -392,4 +399,16 @@ async fn real_postgres_startup_migration_and_failure_stages_are_truthful() {
             .any(|fact| matches!(fact, Fact::ApplicationReady)),
         eq(false)
     );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn signal_failure_still_drains_and_flushes_but_reports_failure() {
+    controlled_request_shutdown(false, true).await;
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn signal_failure_remains_failed_after_deadline_cancellation() {
+    controlled_request_shutdown(true, true).await;
 }
