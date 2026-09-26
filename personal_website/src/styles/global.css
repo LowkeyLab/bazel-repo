@@ -7,14 +7,6 @@
   include: rootcolor;
 }
 
-@font-face {
-  font-family: "Caveat";
-  src: url("../assets/caveat.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-}
-
 @plugin "daisyui/theme" {
   name: "light";
   default: true;
