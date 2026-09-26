@@ -1,3 +1,4 @@
+use googletest::prelude::*;
 use nicknamer_server::entities::name;
 use nicknamer_server::name::NameService;
 use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait};
@@ -34,6 +35,7 @@ async fn can_register_name() {
     assert!(created_name.id() > 0); // ID should be generated and positive
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn can_update_name() {
     let state = setup().await.expect("Failed to setup test context");
@@ -53,28 +55,28 @@ async fn can_update_name() {
         .await
         .expect("Failed to create name");
 
-    let expected_initial_name = nicknamer_server::name::Name::from(initial_name_entry.clone());
-    let service_initial_name = nicknamer_server::name::Name::from(initial_name_entry.clone());
-    assert_eq!(service_initial_name, expected_initial_name);
+    let expected_id = u32::try_from(initial_name_entry.id).expect("Positive database ID");
+    let expected_discord_id = u64::try_from(initial_discord_id).expect("Positive Discord ID");
 
     // Edit the name
     let new_name = "UpdatedName".to_string();
     let updated_name = name_service
-        .edit_name_by_id(
-            initial_name_entry.id as u32,
-            new_name.clone(),
-            "server456".to_string(),
-        )
+        .edit_name_by_id(expected_id, new_name.clone(), "server456".to_string())
         .await
         .expect("Failed to update name");
 
-    let expected_updated_name = {
-        let mut expected_model = initial_name_entry.clone();
-        expected_model.name = new_name.clone();
-        expected_model.server_id = "server456".to_string();
-        nicknamer_server::name::Name::from(expected_model)
-    };
-    assert_eq!(updated_name, expected_updated_name);
+    assert_that!(updated_name.id(), eq(expected_id));
+    assert_that!(updated_name.discord_id(), eq(expected_discord_id));
+    assert_that!(updated_name.name(), eq("UpdatedName"));
+    assert_that!(updated_name.server_id(), eq("server456"));
+    let stored = name_service
+        .get_name_by_id(expected_id)
+        .await
+        .expect("Failed to read edited name");
+    assert_that!(stored.name(), eq("UpdatedName"));
+    assert_that!(stored.server_id(), eq("server456"));
+    assert_that!(stored.id(), eq(expected_id));
+    assert_that!(stored.discord_id(), eq(expected_discord_id));
 }
 
 #[tokio::test]
@@ -1093,6 +1095,7 @@ async fn can_update_name_by_discord_server_different_servers() {
     assert_eq!(unchanged_name2.server_id(), server2_id);
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn can_export_names_as_yaml() {
     let state = setup().await.expect("Failed to setup test context");
@@ -1116,30 +1119,23 @@ async fn can_export_names_as_yaml() {
         .get_all_names()
         .await
         .expect("Failed to get names");
-    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
-        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
-            std::collections::BTreeMap::new();
-        for n in names {
-            map.entry(n.server_id().to_string())
-                .or_default()
-                .insert(n.discord_id(), n.name().to_string());
-        }
-        map
-    };
-    let yaml = serde_yaml::to_string(&yaml_map).expect("Failed to serialize");
+    let yaml = name_service
+        .prepare_export(&names)
+        .expect("Failed to export");
 
     let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(&yaml).expect("Failed to parse YAML");
-    assert_eq!(parsed.len(), 2);
+    assert_that!(parsed.len(), eq(2));
     let server1 = parsed.get("server1").expect("server1 key missing");
-    assert_eq!(server1.len(), 2);
-    assert_eq!(server1.get(&111), Some(&"Alice".to_string()));
-    assert_eq!(server1.get(&222), Some(&"Bob".to_string()));
+    assert_that!(server1.len(), eq(2));
+    assert_that!(server1.get(&111), eq(Some(&"Alice".to_string())));
+    assert_that!(server1.get(&222), eq(Some(&"Bob".to_string())));
     let server2 = parsed.get("server2").expect("server2 key missing");
-    assert_eq!(server2.len(), 1);
-    assert_eq!(server2.get(&111), Some(&"AliceOther".to_string()));
+    assert_that!(server2.len(), eq(1));
+    assert_that!(server2.get(&111), eq(Some(&"AliceOther".to_string())));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn can_export_names_filtered_by_server() {
     let state = setup().await.expect("Failed to setup test context");
@@ -1158,27 +1154,20 @@ async fn can_export_names_filtered_by_server() {
         .get_names_by_server("server1")
         .await
         .expect("Failed to get names");
-    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
-        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
-            std::collections::BTreeMap::new();
-        for n in names {
-            map.entry(n.server_id().to_string())
-                .or_default()
-                .insert(n.discord_id(), n.name().to_string());
-        }
-        map
-    };
-    let yaml = serde_yaml::to_string(&yaml_map).expect("Failed to serialize");
+    let yaml = name_service
+        .prepare_export(&names)
+        .expect("Failed to export");
 
     let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(&yaml).expect("Failed to parse YAML");
-    assert_eq!(parsed.len(), 1);
+    assert_that!(parsed.len(), eq(1));
     let server1 = parsed.get("server1").expect("server1 key missing");
-    assert_eq!(server1.len(), 1);
-    assert_eq!(server1.get(&111), Some(&"Alice".to_string()));
-    assert!(!parsed.contains_key("server2"));
+    assert_that!(server1.len(), eq(1));
+    assert_that!(server1.get(&111), eq(Some(&"Alice".to_string())));
+    assert_that!(parsed.contains_key("server2"), eq(false));
 }
 
+#[googletest::test]
 #[tokio::test]
 async fn can_export_empty_names_as_yaml() {
     let state = setup().await.expect("Failed to setup test context");
@@ -1188,19 +1177,11 @@ async fn can_export_empty_names_as_yaml() {
         .get_all_names()
         .await
         .expect("Failed to get names");
-    let yaml_map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> = {
-        let mut map: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
-            std::collections::BTreeMap::new();
-        for n in names {
-            map.entry(n.server_id().to_string())
-                .or_default()
-                .insert(n.discord_id(), n.name().to_string());
-        }
-        map
-    };
-    let yaml = serde_yaml::to_string(&yaml_map).expect("Failed to serialize");
+    let yaml = name_service
+        .prepare_export(&names)
+        .expect("Failed to export");
 
     let parsed: std::collections::BTreeMap<String, std::collections::BTreeMap<u64, String>> =
         serde_yaml::from_str(&yaml).expect("Failed to parse YAML");
-    assert!(parsed.is_empty());
+    assert_that!(parsed.is_empty(), eq(true));
 }
