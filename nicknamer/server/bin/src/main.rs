@@ -1,23 +1,42 @@
 use nicknamer_server::observations::{
     Dispatcher, LoggingListener, ShutdownOutcome,
     lifecycle::{DRAIN_TIMEOUT, RequestWork, SignalFailure, load_configuration, serve_until},
+    otlp::OtlpJson,
 };
-use std::{process::ExitCode, sync::Arc};
+use std::{io::Write, process::ExitCode, sync::Arc};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    let service_name = std::env::var("OTEL_SERVICE_NAME")
+        .ok()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| "nicknamer".into());
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env()
+        .unwrap_or_else(|_| {
+            let _ = writeln!(
+                std::io::stdout().lock(),
+                "invalid RUST_LOG; using info filter"
+            );
+            EnvFilter::new("info")
+        });
     if tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
+        .with_ansi(false)
+        // A broken stdout cannot report its own failure; avoid a stderr fallback.
+        .log_internal_errors(false)
+        .event_format(OtlpJson::new(service_name))
+        .with_writer(std::io::stdout)
+        .with_env_filter(filter)
         .try_init()
         .is_err()
     {
-        eprintln!("application initialization failed: stage=logging category=internal");
+        let _ = writeln!(
+            std::io::stdout().lock(),
+            "application initialization failed: stage=logging category=internal"
+        );
         return ExitCode::FAILURE;
     }
     let dispatcher = Arc::new(Dispatcher::new(vec![Arc::new(LoggingListener)]));

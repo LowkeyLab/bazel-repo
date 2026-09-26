@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 pub mod logging;
+pub mod otlp;
 pub use logging::{LoggingListener, Severity, StructuredRecord};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -319,7 +320,7 @@ impl Dispatcher {
             Arc::new(|| {
                 use std::io::Write;
                 let _ = writeln!(
-                    std::io::stderr().lock(),
+                    std::io::stdout().lock(),
                     "observation listener delivery failed"
                 );
             }),

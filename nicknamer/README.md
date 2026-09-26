@@ -66,9 +66,21 @@ docker run --rm -p 8080:8080 nicknamer-server:latest
 - `migration/` - Database migration utilities
 - `compose.yaml` - Docker Compose configuration for local development
 
-## Local operational observations
+## Operational observations and OTLP stdout logs
 
-The server registers one synchronous local tracing listener before configuration loading.
+The server registers one synchronous tracing listener before configuration loading.
+Its output formatter writes one compact OTLP JSON `LogsData` object per line to stdout,
+using the [OTLP JSON encoding](https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding).
+`OTEL_SERVICE_NAME` sets the resource's `service.name` (default: `nicknamer`).
+`RUST_LOG` controls tracing filtering (default: `info`); an invalid filter produces a
+plain stdout diagnostic and falls back to `info`. No network endpoint is needed.
+This is local OTLP serialization using the existing tracing pipeline, not an OpenTelemetry
+SDK provider or network exporter; other `OTEL_*` settings are not interpreted.
+Records include severity, instrumentation scope, typed attributes, observation time,
+and the original occurrence time when supplied by the event. Request and operation IDs
+remain attributes; no OpenTelemetry trace or span IDs are fabricated.
+Infrastructure diagnostics also go to stdout and may be plain text, so consumers must
+handle a mixed-format stream rather than assume every line is OTLP JSON.
 Startup reports configuration, binding, database connection, migration, and composition
 outcomes; `application_ready` follows successful initialization immediately before serving.
 Binding still precedes database connection. Startup failures return a failure exit status
@@ -97,9 +109,10 @@ The deadline bounds the graceful-drain phase, not arbitrary synchronous blocking
 
 Delivery is best effort and in-process: each event attempts each listener once, and a
 failing listener does not change application responses or persistence outcomes. Listener
-failures use a rate-limited, sanitized stderr fallback independent of tracing. Local
+failures use a rate-limited, sanitized stdout fallback independent of tracing. Local
 logging has writer latency and no SDK queue to flush; flush does not promise OS or log
 collector persistence. Crashes, process aborts, and sink failures can lose records.
 No remote exporter, OpenTelemetry backend, durable audit trail, retention policy, or
-monitoring service is configured. Tests and the disposable-PostgreSQL process smoke
-exercise local composition; hosted collection and retention require deployment evidence.
+monitoring service is configured. Existing tests cover structured application facts and
+lifecycle behavior; stdout delivery and serialization are not asserted as external
+contracts. Hosted collection and retention require deployment evidence.
