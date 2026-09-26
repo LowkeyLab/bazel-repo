@@ -10,7 +10,7 @@ module(
 bazel_dep(name = "bazel_lib", version = "3.7.2")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint", version = "2.9.0")
-bazel_dep(name = "aspect_rules_lint_rust", version = "0.0.2")
+bazel_dep(name = "aspect_rules_lint_rust", version = "0.0.3")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.27.1")
 bazel_dep(name = "aspect_rules_js", version = "3.4.1")
 bazel_dep(name = "aspect_rules_swc", version = "2.7.6")
@@ -375,6 +375,14 @@ register_toolchains("@llvm//toolchain:all")
 toolchains = use_extension(
     "@rules_rs//rs/toolchains:module_extension.bzl",
     "toolchains",
+)
+
+# aspect_rules_lint_rust imports this repo but no longer declares its toolchain.
+# Explicit toolchains below suppress rules_rs automatic default creation.
+toolchains.toolchain(
+    name = "default_rust_toolchains",
+    edition = "2021",
+    version = "1.92.0",
 )
 toolchains.toolchain(
     name = "rust_toolchains_1_96_0",
