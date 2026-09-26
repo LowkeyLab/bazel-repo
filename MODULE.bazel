@@ -376,6 +376,14 @@ toolchains = use_extension(
     "@rules_rs//rs/toolchains:module_extension.bzl",
     "toolchains",
 )
+
+# aspect_rules_lint_rust imports this repo but no longer declares its toolchain.
+# Explicit toolchains below suppress rules_rs automatic default creation.
+toolchains.toolchain(
+    name = "default_rust_toolchains",
+    edition = "2021",
+    version = "1.92.0",
+)
 toolchains.toolchain(
     name = "rust_toolchains_1_96_0",
     edition = "2024",
