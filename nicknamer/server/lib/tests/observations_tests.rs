@@ -85,6 +85,15 @@ fn operational_failure_is_error() {
 }
 
 #[googletest::test]
+fn failed_shutdown_is_error() {
+    let event = observed(Fact::ShutdownFinished {
+        outcome: nicknamer_server::observations::ShutdownOutcome::Failed,
+    });
+    let record = LoggingListener::record_for(&event).unwrap();
+    expect_that!(record.severity, eq(Severity::Error));
+}
+
+#[googletest::test]
 fn successful_health_request_has_no_record() {
     let event = observed(Fact::RequestFinished {
         route: nicknamer_server::observations::Route::Health,

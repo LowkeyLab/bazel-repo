@@ -223,10 +223,10 @@ impl LoggingListener {
                 fields.insert("outcome", outcome.label().into());
                 (
                     "shutdown_finished",
-                    if *outcome == ShutdownOutcome::Drained {
-                        Severity::Info
-                    } else {
-                        Severity::Warn
+                    match outcome {
+                        ShutdownOutcome::Drained => Severity::Info,
+                        ShutdownOutcome::TimedOut => Severity::Warn,
+                        ShutdownOutcome::Failed => Severity::Error,
                     },
                 )
             }
