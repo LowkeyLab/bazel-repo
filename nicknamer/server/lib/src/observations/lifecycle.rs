@@ -5,7 +5,9 @@ use super::{
 };
 use std::{
     future::Future,
+    pin::Pin,
     sync::{Arc, Mutex},
+    task::{Context, Poll},
     time::{Duration, Instant},
 };
 use tokio::sync::watch;
@@ -42,6 +44,12 @@ impl RequestWork {
         self.0.active.send_replace(state.1);
         Some(WorkGuard(self.clone()))
     }
+    fn track(&self) -> WorkGuard {
+        let mut state = self.0.state.lock().unwrap();
+        state.1 += 1;
+        self.0.active.send_replace(state.1);
+        WorkGuard(self.clone())
+    }
     pub(crate) async fn cancelled(&self) {
         let mut receiver = self.0.cancelled.subscribe();
         let _ = receiver.wait_for(|value| *value).await;
@@ -61,6 +69,90 @@ impl Drop for WorkGuard {
         let mut state = self.0.0.state.lock().unwrap();
         state.1 -= 1;
         self.0.0.active.send_replace(state.1);
+    }
+}
+
+// Added outside the application's layers so cancellation also waits for requests
+// that entered the router but have not yet reached observation middleware.
+async fn track_request(
+    axum::extract::State(work): axum::extract::State<RequestWork>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let _active = work.track();
+    // This nested future is destroyed before _active on cancellation.
+    next.run(request).await
+}
+
+// Axum owns detached connection tasks. Interrupt their IO at the deadline, then
+// finish connections through graceful shutdown and await tracked request cleanup.
+struct CancellableListener {
+    listener: tokio::net::TcpListener,
+    work: RequestWork,
+}
+impl axum::serve::Listener for CancellableListener {
+    type Io = CancellableIo;
+    type Addr = std::net::SocketAddr;
+
+    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+        let (stream, address) = axum::serve::Listener::accept(&mut self.listener).await;
+        let work = self.work.clone();
+        (
+            CancellableIo {
+                stream,
+                cancelled: Box::pin(async move { work.cancelled().await }),
+                is_cancelled: false,
+            },
+            address,
+        )
+    }
+    fn local_addr(&self) -> std::io::Result<Self::Addr> {
+        self.listener.local_addr()
+    }
+}
+struct CancellableIo {
+    stream: tokio::net::TcpStream,
+    cancelled: Pin<Box<dyn Future<Output = ()> + Send>>,
+    is_cancelled: bool,
+}
+impl CancellableIo {
+    fn check_cancelled(&mut self, cx: &mut Context<'_>) -> std::io::Result<()> {
+        if !self.is_cancelled {
+            self.is_cancelled = self.cancelled.as_mut().poll(cx).is_ready();
+        }
+        if self.is_cancelled {
+            Err(std::io::ErrorKind::ConnectionAborted.into())
+        } else {
+            Ok(())
+        }
+    }
+}
+impl tokio::io::AsyncRead for CancellableIo {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        self.check_cancelled(cx)?;
+        Pin::new(&mut self.stream).poll_read(cx, buf)
+    }
+}
+impl tokio::io::AsyncWrite for CancellableIo {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        self.check_cancelled(cx)?;
+        Pin::new(&mut self.stream).poll_write(cx, buf)
+    }
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        self.check_cancelled(cx)?;
+        Pin::new(&mut self.stream).poll_flush(cx)
+    }
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        self.check_cancelled(cx)?;
+        Pin::new(&mut self.stream).poll_shutdown(cx)
     }
 }
 
@@ -122,33 +214,45 @@ where
     D: Future<Output = ()>,
 {
     let (stop, stopped) = tokio::sync::oneshot::channel();
-    let server = axum::serve(listener, app.layer(axum::Extension(work.clone())))
-        .with_graceful_shutdown(async {
-            let _ = stopped.await;
-        });
+    let listener = CancellableListener {
+        listener,
+        work: work.clone(),
+    };
+    let app = app
+        .layer(axum::Extension(work.clone()))
+        .layer(axum::middleware::from_fn_with_state(
+            work.clone(),
+            track_request,
+        ));
+    let server = axum::serve(listener, app).with_graceful_shutdown(async {
+        let _ = stopped.await;
+    });
     let mut server = Box::pin(std::future::IntoFuture::into_future(server));
     dispatcher.record(&Observation {
         context: ObservationContext::new(),
         fact: Fact::ApplicationReady,
     });
     let started;
+    let mut server_finished = false;
     let outcome = tokio::select! {
-        result = &mut server => { started = Instant::now(); if result.is_ok() { ShutdownOutcome::Drained } else { ShutdownOutcome::Failed } },
+        result = &mut server => { server_finished = true; started = Instant::now(); if result.is_ok() { ShutdownOutcome::Drained } else { ShutdownOutcome::Failed } },
         signal_result = shutdown => {
             started = Instant::now();
             let _ = stop.send(());
             let drain_outcome = tokio::select! {
-                result = &mut server => if result.is_ok() { ShutdownOutcome::Drained } else { ShutdownOutcome::Failed },
+                result = &mut server => { server_finished = true; if result.is_ok() { ShutdownOutcome::Drained } else { ShutdownOutcome::Failed } },
                 () = deadline => ShutdownOutcome::TimedOut,
             };
             if signal_result.is_err() { ShutdownOutcome::Failed } else { drain_outcome }
         }
     };
-    // Close the listening socket even when the deadline wins before graceful shutdown polls.
-    drop(server);
     work.cancel();
-    // Cancellation is cooperative: wait for handlers' drops (including their observations),
-    // not merely the detached connection task's parent serve future.
+    // Stop acceptance and connection processing before awaiting tracked request cleanup.
+    if !server_finished {
+        let _ = server.await;
+    }
+    // Axum signals connection completion before destroying its connection future.
+    // Tracked outer request guards cover that final destruction and all observations.
     work.idle().await;
     dispatcher.record(&Observation {
         context: ObservationContext::new().with_duration(started.elapsed()),

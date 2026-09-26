@@ -44,6 +44,7 @@ impl Name {
     }
 
     /// Returns the ID of the name.
+    #[must_use]
     pub fn id(&self) -> u32 {
         self.id
     }

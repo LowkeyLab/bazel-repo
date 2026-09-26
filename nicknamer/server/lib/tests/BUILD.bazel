@@ -173,6 +173,7 @@ rust_test(
         "@crates//:sea-orm",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 

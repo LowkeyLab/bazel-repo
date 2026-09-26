@@ -17,6 +17,7 @@ pub fn current_context() -> ObservationContext {
 }
 
 struct Completion {
+    active: Option<super::lifecycle::WorkGuard>,
     observer: SharedObserver,
     context: ObservationContext,
     started: Instant,
@@ -58,11 +59,6 @@ pub async fn observe_request(
         .get::<super::lifecycle::RequestWork>()
         .cloned()
         .unwrap_or_default();
-    let Some(_active) = work.enter() else {
-        return axum::response::IntoResponse::into_response(
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-        );
-    };
     let context = ObservationContext::for_request(RequestId::new());
     let route = match request
         .extensions()
@@ -90,6 +86,7 @@ pub async fn observe_request(
         _ => Method::Other,
     };
     let mut completion = Completion {
+        active: work.enter(),
         observer,
         context: context.clone(),
         started: Instant::now(),
@@ -97,6 +94,13 @@ pub async fn observe_request(
         method,
         recorded: false,
     };
+    if completion.active.is_none() {
+        completion.recorded = true;
+        completion.record(503, RequestOutcome::Aborted);
+        return axum::response::IntoResponse::into_response(
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+        );
+    }
     let response = tokio::select! {
         biased;
         () = work.cancelled() => {

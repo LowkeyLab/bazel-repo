@@ -81,12 +81,16 @@ queries, bodies, SQL statements/parameters, and raw error messages. Successful h
 requests are omitted by the logging listener. `/health` still returns `OK`; it is not a
 database readiness probe. Request completion measures response preparation, not delivery
 to the client. Externally dropped requests use aborted status `0` because no response
-was prepared. Explicit shutdown cancellation records aborted status `503` for the
-shutdown rejection response; it does not claim the handler completed.
+was prepared. Shutdown cancellation records aborted status `503` when middleware prepares a rejection
+response, or `0` when the connection drops the request first. Neither claims handler
+completion or delivery to the client.
 
 SIGINT/SIGTERM stops acceptance and allows up to ten seconds for graceful draining.
-At the deadline the observation middleware cancels remaining handler futures, waits for
-their drop observations, emits `shutdown_finished` with `timed_out`, then flushes listeners.
+At the deadline the server cancels remaining handlers and accepted connection IO,
+including stalled response writes. It stops connection processing and waits for tracked
+request cleanup and drop observations before emitting `shutdown_finished` with `timed_out` and
+flushing listeners. Requests reaching observation middleware after cancellation emit
+one aborted `503` observation; tasks dropped before entering it produce no request event.
 Cancelled work is not reported as completed. Cancellation is cooperative: synchronous
 handler work or a blocking local writer can delay runtime scheduling and final cleanup.
 The deadline bounds the graceful-drain phase, not arbitrary synchronous blocking.

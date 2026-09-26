@@ -114,11 +114,13 @@ The user selected local logging on 2026-09-26. Implement typed events, a local t
 
 All four tasks were implemented and independently reviewed. The final whole-change review found no blocking issue; its two minor findings (signal failure classification and service-test assertion conventions) were fixed in f3dd2c54.
 
-Final validation after lint cleanup: 153 test cases across nine Nicknamer targets passed, the full repository build passed, and PR-scoped lint reported no findings. All 58 reported warnings were fixed without suppressions; a new PostgreSQL boundary test verifies that explicit signed/unsigned conversions preserve existing Discord ID storage behavior. A real binary with disposable PostgreSQL exercised migrations, health, browser/API authentication, invalid configuration, and SIGTERM shutdown. Controlled signal-error futures verify failure outcomes after both draining and deadline cancellation; OS signal-registration failure itself is not forced in a subprocess.
+Final validation after PR review fixes: 157 test cases across nine Nicknamer targets passed, the full repository build passed, and PR-scoped lint reported no findings. All 58 reported warnings were fixed without suppressions; a new PostgreSQL boundary test verifies that explicit signed/unsigned conversions preserve existing Discord ID storage behavior. A real binary with disposable PostgreSQL exercised migrations, health, browser/API authentication, invalid configuration, and SIGTERM shutdown. Controlled signal-error futures verify failure outcomes after both draining and deadline cancellation; OS signal-registration failure itself is not forced in a subprocess.
 
-- Suite: `eb5d0470-be6c-4f0d-a76b-fc63344a0fa2`
-- Full build: `05143603-556f-47f4-9403-42cd2a6ad9bf`
-- Lint: `52cb0d56-f0fd-4ad0-ad18-16047c229bf4` (no findings)
+- Suite: `661bf03f-cd98-4e67-8c55-a68e25cc6a77`
+- Full build: `8b1f3ec9-4153-4a16-b8fd-05a4225e6963`
+- Lint: `bd055afc-931d-4713-bc82-598312fc83bf` (no findings)
+
+PR review also identified late requests bypassing observation after shutdown cancellation. Accepted IO now cancels at the deadline, and tracked request cleanup completes before the final shutdown observation and flush. Four regressions cover late admission, delayed middleware, slow response delivery, and multithreaded completion ordering.
 
 Formatting and diff whitespace checks passed. All implementation commits use conventional commit messages.
 
