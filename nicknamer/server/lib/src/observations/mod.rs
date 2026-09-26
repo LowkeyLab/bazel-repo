@@ -205,6 +205,7 @@ pub enum ShutdownOutcome {
 pub enum FailureCategory {
     Duplicate,
     MissingEntry,
+    NoRowsAffected,
     MalformedInput,
     Database,
     Serialization,

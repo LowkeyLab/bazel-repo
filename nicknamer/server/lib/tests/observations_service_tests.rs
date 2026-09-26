@@ -230,6 +230,53 @@ async fn missing_delete_is_rejected_without_a_write() {
 }
 
 #[tokio::test]
+async fn suppressed_delete_keeps_public_success_but_does_not_observe_commit() {
+    use sea_orm::ConnectionTrait;
+    let db = common::setup_db_with_global_container().await.unwrap();
+    let id = NameService::new(&db)
+        .create_name(10, "first".into(), "srv".into())
+        .await
+        .unwrap()
+        .id();
+    db.execute_unprepared("CREATE FUNCTION suppress_name_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$")
+        .await.unwrap();
+    db.execute_unprepared("CREATE TRIGGER suppress_name_delete BEFORE DELETE ON name FOR EACH ROW EXECUTE FUNCTION suppress_name_delete()")
+        .await.unwrap();
+    let (recorder, observer) = RecordingObserver::shared();
+    let service = NameService::with_observer(&db, observer);
+    assert_eq!(service.delete_name_by_id(id).await.unwrap().id(), id);
+    assert_eq!(service.get_all_names().await.unwrap().len(), 1);
+    assert!(recorder.events().iter().any(|event| matches!(
+        event.fact,
+        Fact::NameMutationFinished {
+            kind: MutationKind::Delete,
+            outcome: MutationOutcome::Rejected,
+            ..
+        }
+    )));
+    assert!(!recorder.events().iter().any(|event| matches!(
+        event.fact,
+        Fact::NameMutationFinished {
+            kind: MutationKind::Delete,
+            outcome: MutationOutcome::Committed,
+            ..
+        }
+    )));
+
+    let (returned_count, errors) = service.bulk_delete_names(&[id]).await.unwrap();
+    assert_eq!((returned_count, errors.len()), (1, 0));
+    assert!(recorder.events().iter().any(|event| matches!(
+        event.fact,
+        Fact::BulkOperationFinished {
+            attempted: 1,
+            succeeded: 0,
+            failed: 1,
+            ..
+        }
+    )));
+}
+
+#[tokio::test]
 async fn database_failure_never_records_committed() {
     use sea_orm::ConnectionTrait;
     let db = common::setup_db_with_global_container().await.unwrap();
@@ -305,24 +352,97 @@ async fn api_export_records_prepared_bytes() {
     );
 }
 
-#[tokio::test]
-async fn later_response_error_does_not_change_committed_fact() {
-    use axum::{http::StatusCode, response::IntoResponse};
-    let db = common::setup_db_with_global_container().await.unwrap();
-    let (recorder, observer) = RecordingObserver::shared();
-    let service = NameService::with_observer(&db, observer);
-    service
-        .create_name(10, "first".into(), "srv".into())
+#[tokio::test(flavor = "multi_thread")]
+async fn create_handler_read_error_after_commit_keeps_committed_fact() {
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use nicknamer_server::name::web::{NameState, create_name_router};
+    use nicknamer_server::observations::{Observation, ObservationSink, SharedObserver};
+    use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    use tower::ServiceExt;
+
+    struct RenameOnCommit {
+        recorder: Arc<RecordingObserver>,
+        db: Arc<DatabaseConnection>,
+        renamed: AtomicBool,
+    }
+    impl ObservationSink for RenameOnCommit {
+        fn record(&self, event: &Observation) {
+            self.recorder.record(event);
+            if matches!(
+                event.fact,
+                Fact::NameMutationFinished {
+                    kind: MutationKind::Create,
+                    outcome: MutationOutcome::Committed,
+                    ..
+                }
+            ) && !self.renamed.swap(true, Ordering::SeqCst)
+            {
+                let db = self.db.clone();
+                tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async move {
+                        db.execute_unprepared("ALTER TABLE name RENAME TO name_after_commit")
+                            .await
+                            .unwrap();
+                    });
+                });
+            }
+        }
+    }
+
+    let db = Arc::new(common::setup_db_with_global_container().await.unwrap());
+    let (recorder, _) = RecordingObserver::shared();
+    let observer: SharedObserver = Arc::new(RenameOnCommit {
+        recorder: recorder.clone(),
+        db: db.clone(),
+        renamed: AtomicBool::new(false),
+    });
+    let app = create_name_router(Arc::new(NameState {
+        db: db.clone(),
+        observer,
+    }));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/names")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(Body::from("discord_id=10&name=first&server_id=srv"))
+                .unwrap(),
+        )
         .await
         .unwrap();
-    let response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(service.get_all_names().await.unwrap().len(), 1);
-    assert!(recorder.events().iter().any(|event| matches!(
+    let count = db
+        .query_one_raw(Statement::from_string(
+            DatabaseBackend::Postgres,
+            "SELECT count(*) AS count FROM name_after_commit".to_string(),
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get::<i64>("", "count")
+        .unwrap();
+    assert_eq!(count, 1);
+    let events = recorder.events();
+    assert!(events.iter().any(|event| matches!(
         event.fact,
         Fact::NameMutationFinished {
             kind: MutationKind::Create,
             outcome: MutationOutcome::Committed,
+            ..
+        }
+    )));
+    assert!(events.iter().any(|event| matches!(
+        event.fact,
+        Fact::NamesReadFinished {
+            outcome: nicknamer_server::observations::Outcome::Failed,
             ..
         }
     )));

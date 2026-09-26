@@ -483,14 +483,14 @@ impl NameService<'_> {
     /// A `Result` containing the deleted `Name` if successful, or an error otherwise.
     #[tracing::instrument(skip_all)]
     pub async fn delete_name_by_id(&self, id: u32) -> Result<Name, NameServiceError> {
-        self.delete_name_in(id, None).await
+        self.delete_name_in(id, None).await.map(|(name, _)| name)
     }
 
     async fn delete_name_in(
         &self,
         id: u32,
         parent: Option<&ObservationContext>,
-    ) -> Result<Name, NameServiceError> {
+    ) -> Result<(Name, bool), NameServiceError> {
         let context = self.context(parent);
         let started = Instant::now();
         let result = async {
@@ -500,19 +500,35 @@ impl NameService<'_> {
                 .ok_or(NameServiceError::NameNotFound(id))?;
 
             let name_copy = Name::from(name_to_delete.clone());
-            name::Entity::delete_by_id(id as i32).exec(self.db).await?;
-            Ok(name_copy)
+            let deleted = name::Entity::delete_by_id(id as i32).exec(self.db).await?;
+            Ok((name_copy, deleted.rows_affected > 0))
         }
         .await;
-        self.mutation(
+        let origin = if parent.is_some() {
+            MutationOrigin::Bulk
+        } else {
+            MutationOrigin::Standalone
+        };
+        let (outcome, category) = match &result {
+            Ok((_, true)) => (MutationOutcome::Committed, None),
+            Ok((_, false)) => (
+                MutationOutcome::Rejected,
+                Some(FailureCategory::NoRowsAffected),
+            ),
+            Err(NameServiceError::NameNotFound(..)) => (
+                MutationOutcome::Rejected,
+                Some(FailureCategory::MissingEntry),
+            ),
+            Err(_) => (MutationOutcome::Failed, Some(FailureCategory::Database)),
+        };
+        self.record(
             context.with_duration(started.elapsed()),
-            MutationKind::Delete,
-            if parent.is_some() {
-                MutationOrigin::Bulk
-            } else {
-                MutationOrigin::Standalone
+            Fact::NameMutationFinished {
+                kind: MutationKind::Delete,
+                origin,
+                outcome,
+                category,
             },
-            &result,
         );
         result
     }
@@ -534,32 +550,43 @@ impl NameService<'_> {
         let started = Instant::now();
         let context = self.context(None);
         let mut deleted_count = 0;
+        let mut observed_succeeded = 0;
+        let mut observed_failed = 0;
         let mut failed_deletes = Vec::new();
         let mut categories = Vec::new();
         for &id in ids {
             match self.delete_name_in(id, Some(&context)).await {
-                Ok(_) => deleted_count += 1,
+                Ok((_, true)) => {
+                    deleted_count += 1;
+                    observed_succeeded += 1;
+                }
+                Ok((_, false)) => {
+                    deleted_count += 1;
+                    observed_failed += 1;
+                    add_category(&mut categories, FailureCategory::NoRowsAffected);
+                }
                 Err(NameServiceError::NameNotFound(_)) => {
                     failed_deletes.push(format!("Name with ID {} not found", id));
+                    observed_failed += 1;
                     add_category(&mut categories, FailureCategory::MissingEntry);
                 }
                 Err(error) => {
                     failed_deletes.push(format!("Failed to delete name with ID {}: {}", id, error));
+                    observed_failed += 1;
                     add_category(&mut categories, Self::category(&error));
                 }
             }
         }
-        let failed = failed_deletes.len() as u64;
         self.record(
             context.with_duration(started.elapsed()),
             Fact::BulkOperationFinished {
                 operation: BulkOperation::Delete,
                 attempted: ids.len() as u64,
-                succeeded: deleted_count as u64,
+                succeeded: observed_succeeded,
                 skipped: 0,
-                failed,
+                failed: observed_failed,
                 input_count: Some(ids.len() as u64),
-                outcome: bulk_outcome(deleted_count as u64, failed),
+                outcome: bulk_outcome(observed_succeeded, observed_failed),
                 categories,
             },
         );

@@ -298,13 +298,14 @@ labels!(Method { Get => "get", Post => "post", Put => "put", Patch => "patch", D
 labels!(Route { Health => "health", WebLogin => "web_login", WebNames => "web_names", WebName => "web_name", WebBulk => "web_bulk", WebExport => "web_export", ApiLogin => "api_login", ApiNames => "api_names", ApiName => "api_name", Other => "other" });
 labels!(RequestOutcome { Completed => "completed", Aborted => "aborted" });
 labels!(ShutdownOutcome { Drained => "drained", TimedOut => "timed_out", Failed => "failed" });
-labels!(FailureCategory { Duplicate => "duplicate", MissingEntry => "missing_entry", MalformedInput => "malformed_input", Database => "database", Serialization => "serialization", Template => "template", Token => "token", Configuration => "configuration", Bind => "bind", InvalidCredentials => "invalid_credentials", Internal => "internal" });
+labels!(FailureCategory { Duplicate => "duplicate", MissingEntry => "missing_entry", NoRowsAffected => "no_rows_affected", MalformedInput => "malformed_input", Database => "database", Serialization => "serialization", Template => "template", Token => "token", Configuration => "configuration", Bind => "bind", InvalidCredentials => "invalid_credentials", Internal => "internal" });
 
 impl FailureCategory {
     fn count_field(self) -> &'static str {
         match self {
             Self::Duplicate => "duplicate_count",
             Self::MissingEntry => "missing_entry_count",
+            Self::NoRowsAffected => "no_rows_affected_count",
             Self::MalformedInput => "malformed_input_count",
             Self::Database => "database_count",
             Self::Serialization => "serialization_count",
