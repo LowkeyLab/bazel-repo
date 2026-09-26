@@ -38,8 +38,9 @@ if grep -R -n -E 'href="/projects(/|"|#)' "${dist}"; then
 	fail "generated site still links to /projects"
 fi
 
-blog_link_count="$(grep -o 'href="/blog"' "${dist}/index.html" | wc -l)"
-[[ "${blog_link_count}" -eq 3 ]] || fail "home page must contain Blog links in both navbar variants and the hero"
+for destination in /blog /work; do
+	grep -q "href=\"${destination}\"" "${dist}/index.html" || fail "home page must link to ${destination}"
+done
 
 readonly caddyfile="${TEST_SRCDIR}/${TEST_WORKSPACE}/personal_website/Caddyfile"
 
