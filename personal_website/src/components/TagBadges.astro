@@ -4,20 +4,11 @@ interface Props {
   size?: "sm" | "md" | "lg";
   className?: string;
 }
-
 const { tags, size = "sm", className = "" } = Astro.props;
-
-// Sort tags alphabetically
 const sortedTags = [...tags].sort();
-
-// Determine badge size class
-const sizeClass = size === "sm" ? "badge-sm" : size === "lg" ? "badge-lg" : "";
 ---
-
-<div class={`flex flex-wrap gap-1 ${className}`}>
-  {
-    sortedTags.map((tag) => (
-      <div class={`badge badge-outline ${sizeClass}`}>{tag}</div>
-    ))
-  }
+<div class={`tags ${className}`}>
+  {sortedTags.map((tag) => (
+    <span class:list={["paper-tag", { "paper-tag-lg": size === "lg" }]}>{tag}</span>
+  ))}
 </div>
