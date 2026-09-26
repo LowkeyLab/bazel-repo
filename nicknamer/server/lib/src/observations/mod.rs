@@ -1,4 +1,5 @@
 pub mod http;
+pub mod lifecycle;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -300,7 +301,13 @@ impl Dispatcher {
     pub fn new(listeners: Vec<Arc<dyn ObservationListener>>) -> Self {
         Self::with_diagnostic(
             listeners,
-            Arc::new(|| tracing::error!("observation listener delivery failed")),
+            Arc::new(|| {
+                use std::io::Write;
+                let _ = writeln!(
+                    std::io::stderr().lock(),
+                    "observation listener delivery failed"
+                );
+            }),
         )
     }
 

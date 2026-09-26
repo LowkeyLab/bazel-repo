@@ -22,7 +22,7 @@ struct Completion {
     started: Instant,
     route: Route,
     method: Method,
-    completed: bool,
+    recorded: bool,
 }
 impl Completion {
     fn record(&self, status: u16, outcome: RequestOutcome) {
@@ -42,7 +42,7 @@ impl Completion {
 // Status 0 means that cancellation produced no HTTP response.
 impl Drop for Completion {
     fn drop(&mut self) {
-        if !self.completed {
+        if !self.recorded {
             self.record(0, RequestOutcome::Aborted);
         }
     }
@@ -53,6 +53,16 @@ pub async fn observe_request(
     request: Request,
     next: Next,
 ) -> Response {
+    let work = request
+        .extensions()
+        .get::<super::lifecycle::RequestWork>()
+        .cloned()
+        .unwrap_or_default();
+    let Some(_active) = work.enter() else {
+        return axum::response::IntoResponse::into_response(
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+        );
+    };
     let context = ObservationContext::for_request(RequestId::new());
     let route = match request
         .extensions()
@@ -85,10 +95,18 @@ pub async fn observe_request(
         started: Instant::now(),
         route,
         method,
-        completed: false,
+        recorded: false,
     };
-    let response = CONTEXT.scope(context, next.run(request)).await;
-    completion.completed = true;
+    let response = tokio::select! {
+        biased;
+        () = work.cancelled() => {
+            completion.recorded = true;
+            completion.record(503, RequestOutcome::Aborted);
+            return axum::response::IntoResponse::into_response(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        },
+        response = CONTEXT.scope(context, next.run(request)) => response,
+    };
+    completion.recorded = true;
     completion.record(response.status().as_u16(), RequestOutcome::Completed);
     response
 }

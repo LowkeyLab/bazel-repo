@@ -45,6 +45,7 @@ pub struct StructuredRecord {
 pub struct LoggingListener;
 
 impl LoggingListener {
+    #[must_use]
     pub fn record_for(observation: &Observation) -> Option<StructuredRecord> {
         let fact = &observation.fact;
         if matches!(
@@ -79,7 +80,7 @@ impl LoggingListener {
         if let Some(duration) = observation.context.duration {
             fields.insert(
                 "duration_ms",
-                FieldValue::Count(duration.as_millis().min(u128::from(u64::MAX)) as u64),
+                FieldValue::Count(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)),
             );
         }
         let (event, severity) = match fact {
@@ -239,19 +240,106 @@ impl LoggingListener {
     }
 }
 
+impl StructuredRecord {
+    fn text(&self, key: &str) -> Option<&str> {
+        match self.fields.get(key) {
+            Some(FieldValue::Text(value)) => Some(value),
+            Some(FieldValue::Identifier(value)) => Some(value),
+            _ => None,
+        }
+    }
+
+    fn count(&self, key: &str) -> Option<u64> {
+        match self.fields.get(key) {
+            Some(FieldValue::Count(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    fn flag(&self, key: &str) -> Option<bool> {
+        match self.fields.get(key) {
+            Some(FieldValue::Flag(value)) => Some(*value),
+            _ => None,
+        }
+    }
+}
+
 impl ObservationListener for LoggingListener {
     fn on_event(&self, event: &Observation) -> Result<(), DeliveryError> {
-        if let Some(record) = Self::record_for(event) {
-            match record.severity {
-                Severity::Info => tracing::info!(event = record.event, fields = ?record.fields),
-                Severity::Warn => tracing::warn!(event = record.event, fields = ?record.fields),
-                Severity::Error => tracing::error!(event = record.event, fields = ?record.fields),
-            }
+        let Some(record) = Self::record_for(event) else {
+            return Ok(());
+        };
+        let occurred_at = event.context.occurred_at.to_rfc3339();
+        // Static field names preserve native tracing value types. Optional values are
+        // omitted by tracing; subscribers never have to parse a Debug-formatted map.
+        macro_rules! emit {
+            ($level:expr; $($key:ident = $value:expr),* $(,)?) => {
+                tracing::event!(
+                    $level,
+                    event = record.event,
+                    occurred_at = occurred_at.as_str(),
+                    operation_id = record.text("operation_id"),
+                    request_id = record.text("request_id"),
+                    parent_operation_id = record.text("parent_operation_id"),
+                    duration_ms = record.count("duration_ms"),
+                    $($key = $value),*
+                )
+            };
+        }
+        macro_rules! emit_at_severity {
+            ($($key:ident = $value:expr),* $(,)?) => {
+                match record.severity {
+                    Severity::Info => emit!(tracing::Level::INFO; $($key = $value),*),
+                    Severity::Warn => emit!(tracing::Level::WARN; $($key = $value),*),
+                    Severity::Error => emit!(tracing::Level::ERROR; $($key = $value),*),
+                }
+            };
+        }
+        if matches!(event.fact, Fact::BulkOperationFinished { .. }) {
+            emit_at_severity!(
+                operation = record.text("operation"),
+                outcome = record.text("outcome"),
+                attempted = record.count("attempted"),
+                succeeded = record.count("succeeded"),
+                skipped = record.count("skipped"),
+                failed = record.count("failed"),
+                input_count = record.count("input_count"),
+                duplicate_count = record.count("duplicate_count"),
+                missing_entry_count = record.count("missing_entry_count"),
+                no_rows_affected_count = record.count("no_rows_affected_count"),
+                malformed_input_count = record.count("malformed_input_count"),
+                database_count = record.count("database_count"),
+                serialization_count = record.count("serialization_count"),
+                template_count = record.count("template_count"),
+                token_count = record.count("token_count"),
+                configuration_count = record.count("configuration_count"),
+                bind_count = record.count("bind_count"),
+                invalid_credentials_count = record.count("invalid_credentials_count"),
+                internal_count = record.count("internal_count"),
+            );
+        } else {
+            emit_at_severity!(
+                stage = record.text("stage"),
+                outcome = record.text("outcome"),
+                category = record.text("category"),
+                channel = record.text("channel"),
+                reason = record.text("reason"),
+                operation = record.text("operation"),
+                origin = record.text("origin"),
+                route = record.text("route"),
+                method = record.text("method"),
+                status = record.count("status"),
+                result_count = record.count("result_count"),
+                entry_count = record.count("entry_count"),
+                prepared_bytes = record.count("prepared_bytes"),
+                filter_present = record.flag("filter_present"),
+            );
         }
         Ok(())
     }
 
     fn flush(&self) -> Result<(), DeliveryError> {
+        // The local fmt writer is synchronous; there is no listener-owned queue.
         Ok(())
     }
 }

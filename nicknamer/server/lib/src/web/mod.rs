@@ -15,7 +15,7 @@ use tower_http::sensitive_headers::{
 use crate::auth::{
     AuthState, CurrentUser, auth_user_middleware, create_login_router, login_redirect_middleware,
 };
-use crate::config::{self, Config};
+use crate::config::Config;
 use crate::name::web::{NameState, create_name_router};
 use crate::web::api::v1::create_api_router;
 pub(crate) mod api;
@@ -50,30 +50,62 @@ impl axum::response::IntoResponse for WebError {
     }
 }
 
-#[tracing::instrument(skip(config))]
-pub async fn start_web_server(config: config::Config) -> anyhow::Result<()> {
-    let server_address = format!("0.0.0.0:{}", &config.port);
-    let listener = tokio::net::TcpListener::bind(&server_address).await?;
-    tracing::info!("Web server running on http://{}", server_address);
+pub struct PreparedServer {
+    pub listener: tokio::net::TcpListener,
+    pub app: axum::Router,
+}
 
-    let db = Database::connect(&config.db_url).await?;
-    migration::Migrator::up(&db, None).await?;
-    tracing::info!("Database migrations applied successfully");
-
-    // Create AuthState from config
-    let observer: crate::observations::SharedObserver = Arc::new(
-        crate::observations::Dispatcher::new(vec![Arc::new(crate::observations::LoggingListener)]),
-    );
+/// Bind, connect, migrate and compose the application in that order.
+///
+/// # Errors
+/// Returns a sanitized startup failure after recording the failed stage.
+pub async fn prepare_server(
+    config: Config,
+    dispatcher: Arc<crate::observations::Dispatcher>,
+) -> Result<PreparedServer, crate::observations::lifecycle::StartupFailure> {
+    use crate::observations::{FailureCategory, StartupStage, lifecycle::stage_result};
+    use std::time::Instant;
+    let started = Instant::now();
+    let listener = stage_result(
+        &dispatcher,
+        StartupStage::Binding,
+        FailureCategory::Bind,
+        started,
+        tokio::net::TcpListener::bind(("0.0.0.0", config.port)).await,
+    )?;
+    let mut options = sea_orm::ConnectOptions::new(config.db_url.clone());
+    options.sqlx_logging(false);
+    let started = Instant::now();
+    let db = stage_result(
+        &dispatcher,
+        StartupStage::Connection,
+        FailureCategory::Database,
+        started,
+        Database::connect(options).await,
+    )?;
+    let started = Instant::now();
+    stage_result(
+        &dispatcher,
+        StartupStage::Migration,
+        FailureCategory::Database,
+        started,
+        migration::Migrator::up(&db, None).await,
+    )?;
+    let started = Instant::now();
+    let observer: crate::observations::SharedObserver = dispatcher.clone();
     let auth_state = Arc::new(AuthState::from_config(&config, observer.clone()));
     let name_state = Arc::new(NameState {
         db: Arc::new(db),
         observer: observer.clone(),
     });
-
     let app = create_app(auth_state, name_state, observer);
-
-    axum::serve(listener, app).await?;
-    Ok(())
+    stage_result(
+        &dispatcher,
+        StartupStage::Composition,
+        FailureCategory::Internal,
+        started,
+        Ok::<_, std::convert::Infallible>(PreparedServer { listener, app }),
+    )
 }
 
 /// Compose the browser and API application.

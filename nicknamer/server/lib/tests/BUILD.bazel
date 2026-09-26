@@ -10,6 +10,8 @@ test_suite(
         ":name_service_tests",
         ":names_endpoints_tests",
         ":observations_app_tests",
+        ":observations_lifecycle_tests",
+        ":observations_logging_tests",
         ":observations_service_tests",
         ":observations_tests",
         ":web_endpoints_tests",
@@ -151,4 +153,39 @@ rust_test(
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
     deps = COMMON_DEPS + ["@crates//:googletest"],
+)
+
+rust_test(
+    name = "observations_lifecycle_tests",
+    size = "small",
+    srcs = ["observations_lifecycle_tests.rs"],
+    crate_root = "observations_lifecycle_tests.rs",
+    data = COMMON_DATA,
+    env = COMMON_ENV,
+    exec_properties = COMMON_EXEC_PROPERTIES,
+    tags = COMMON_TAGS,
+    deps = [
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:sea-orm",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "observations_logging_tests",
+    size = "small",
+    srcs = ["observations_logging_tests.rs"],
+    crate_name = "tests_observations_logging_tests_test",
+    crate_root = "observations_logging_tests.rs",
+    deps = [
+        "//nicknamer/server/lib",
+        "@crates//:googletest",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
 )
