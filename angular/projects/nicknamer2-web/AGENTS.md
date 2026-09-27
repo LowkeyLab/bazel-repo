@@ -15,8 +15,10 @@ aspect test //angular/projects/nicknamer2-web:test
 # Lint
 aspect lint //angular/projects/nicknamer2-web/...
 
-# Regenerate GraphQL types (backend must be running)
-graphql-codegen --config angular/projects/nicknamer2-web/codegen.ts
+# Regenerate GraphQL types from the repo root (backend must be running)
+# Set the working directory for the config, document globs, and generated output.
+JS_BINARY__CHDIR="$PWD/angular/projects/nicknamer2-web" \
+  bazel run //tools:graphql-codegen -- --config codegen.ts
 ```
 
 ## Patterns
