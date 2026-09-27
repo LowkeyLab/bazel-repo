@@ -10,6 +10,7 @@ rust_binary(
     deps = [
         "//nicknamer/server/lib",
         "@crates//:anyhow",
+        "@crates//:opentelemetry-appender-tracing",
         "@crates//:tokio",
         "@crates//:tracing",
         "@crates//:tracing-subscriber",

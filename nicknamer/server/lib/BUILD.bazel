@@ -21,6 +21,8 @@ rust_library(
         "@crates//:chrono",
         "@crates//:config",
         "@crates//:jsonwebtoken",
+        "@crates//:opentelemetry-proto",
+        "@crates//:opentelemetry_sdk",
         "@crates//:sea-orm",
         "@crates//:serde",
         "@crates//:serde_json",

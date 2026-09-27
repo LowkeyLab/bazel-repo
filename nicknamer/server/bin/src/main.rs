@@ -1,11 +1,13 @@
 use nicknamer_server::observations::{
     Dispatcher, LoggingListener, ShutdownOutcome,
     lifecycle::{DRAIN_TIMEOUT, RequestWork, SignalFailure, load_configuration, serve_until},
-    otlp::OtlpJson,
+    otlp::{SHUTDOWN_TIMEOUT, StdoutExporter, diagnostic, logger_provider, run_with_telemetry},
 };
-use std::{io::Write, process::ExitCode, sync::Arc};
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use std::{process::ExitCode, sync::Arc};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -17,28 +19,25 @@ async fn main() -> ExitCode {
         .with_default_directive(LevelFilter::INFO.into())
         .from_env()
         .unwrap_or_else(|_| {
-            let _ = writeln!(
-                std::io::stdout().lock(),
-                "invalid RUST_LOG; using info filter"
-            );
+            diagnostic("invalid RUST_LOG; using info filter");
             EnvFilter::new("info")
         });
-    if tracing_subscriber::fmt()
-        .with_ansi(false)
-        // A broken stdout cannot report its own failure; avoid a stderr fallback.
-        .log_internal_errors(false)
-        .event_format(OtlpJson::new(service_name))
-        .with_writer(std::io::stdout)
-        .with_env_filter(filter)
-        .try_init()
-        .is_err()
-    {
-        let _ = writeln!(
-            std::io::stdout().lock(),
-            "application initialization failed: stage=logging category=internal"
-        );
-        return ExitCode::FAILURE;
-    }
+    let provider = logger_provider(service_name, StdoutExporter::default());
+    let initialized = tracing_subscriber::registry()
+        .with(filter)
+        .with(OpenTelemetryTracingBridge::new(&provider))
+        .try_init();
+    run_with_telemetry(provider, SHUTDOWN_TIMEOUT, async {
+        if initialized.is_err() {
+            diagnostic("application initialization failed: stage=logging category=internal");
+            return ExitCode::FAILURE;
+        }
+        run_application().await
+    })
+    .await
+}
+
+async fn run_application() -> ExitCode {
     let dispatcher = Arc::new(Dispatcher::new(vec![Arc::new(LoggingListener)]));
     let Ok(config) = load_configuration(&dispatcher, nicknamer_server::config::Config::from_env)
     else {

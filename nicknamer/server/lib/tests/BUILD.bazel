@@ -13,6 +13,7 @@ test_suite(
         ":observations_lifecycle_tests",
         ":observations_logging_tests",
         ":observations_service_tests",
+        ":observations_telemetry_tests",
         ":observations_tests",
         ":web_endpoints_tests",
     ],
@@ -186,6 +187,24 @@ rust_test(
     deps = [
         "//nicknamer/server/lib",
         "@crates//:googletest",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
+)
+
+rust_test(
+    name = "observations_telemetry_tests",
+    size = "small",
+    srcs = ["observations_telemetry_tests.rs"],
+    crate_root = "observations_telemetry_tests.rs",
+    deps = [
+        "//nicknamer/server/lib",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:opentelemetry-appender-tracing",
+        "@crates//:opentelemetry_sdk",
+        "@crates//:tokio",
         "@crates//:tracing",
         "@crates//:tracing-subscriber",
     ],

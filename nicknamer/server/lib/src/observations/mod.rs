@@ -318,11 +318,7 @@ impl Dispatcher {
         Self::with_diagnostic(
             listeners,
             Arc::new(|| {
-                use std::io::Write;
-                let _ = writeln!(
-                    std::io::stdout().lock(),
-                    "observation listener delivery failed"
-                );
+                otlp::diagnostic("observation listener delivery failed");
             }),
         )
     }

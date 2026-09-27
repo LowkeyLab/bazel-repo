@@ -1,140 +1,146 @@
-//! OTLP JSON log serialization for the existing synchronous tracing pipeline.
-use std::{collections::BTreeMap, fmt};
-
-use chrono::{DateTime, Utc};
-use serde_json::{Value, json};
-use tracing::{
-    Event, Subscriber,
-    field::{Field, Visit},
-};
-use tracing_subscriber::{
-    fmt::{FmtContext, FormatEvent, FormatFields, format::Writer},
-    registry::LookupSpan,
+//! OpenTelemetry composition and best-effort OTLP stdout export.
+use std::{
+    future::Future,
+    io::Write,
+    process::ExitCode,
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-/// Writes one OTLP `LogsData` object per tracing event, without a network exporter.
-pub struct OtlpJson {
+use opentelemetry_proto::{
+    tonic::{common::v1::any_value, logs::v1::LogsData},
+    transform::{
+        common::tonic::ResourceAttributesWithSchema, logs::tonic::group_logs_by_resource_and_scope,
+    },
+};
+use opentelemetry_sdk::{
+    Resource,
+    error::{OTelSdkError, OTelSdkResult},
+    logs::{BatchConfigBuilder, BatchLogProcessor, LogBatch, LogExporter, SdkLoggerProvider},
+};
+
+pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
+static OUTPUT: Mutex<()> = Mutex::new(());
+
+/// Emits a fixed diagnostic without entering the telemetry pipeline or waiting
+/// for a stalled telemetry writer. A broken stdout cannot diagnose itself.
+pub fn diagnostic(message: &'static str) {
+    if let Ok(_guard) = OUTPUT.try_lock() {
+        let _ = writeln!(std::io::stdout().lock(), "{message}");
+    }
+}
+
+/// Builds an instance-local provider; global subscriber registration belongs to main.
+#[must_use]
+pub fn logger_provider(
     service_name: String,
+    exporter: impl LogExporter + 'static,
+) -> SdkLoggerProvider {
+    let batch = BatchConfigBuilder::default()
+        .with_max_queue_size(2048)
+        .with_max_export_batch_size(512)
+        .with_scheduled_delay(Duration::from_secs(1))
+        .build();
+    SdkLoggerProvider::builder()
+        .with_resource(
+            Resource::builder_empty()
+                .with_service_name(service_name)
+                .build(),
+        )
+        .with_log_processor(
+            BatchLogProcessor::builder(exporter)
+                .with_batch_config(batch)
+                .build(),
+        )
+        .build()
 }
 
-impl OtlpJson {
-    #[must_use]
-    pub fn new(service_name: String) -> Self {
-        Self { service_name }
+/// Drains telemetry after application cleanup on both successful and failed exits.
+/// Export and shutdown failures never replace the application's exit status.
+pub async fn run_with_telemetry(
+    provider: SdkLoggerProvider,
+    timeout: Duration,
+    application: impl Future<Output = ExitCode>,
+) -> ExitCode {
+    let outcome = application.await;
+    // SDK shutdown drains its queue and bounds waiting for the exporter thread.
+    // Do not call force_flush first: it has a separate, longer timeout.
+    if provider.shutdown_with_timeout(timeout).is_err() {
+        diagnostic("telemetry shutdown failed or timed out");
     }
+    outcome
 }
 
-#[derive(Default)]
-struct Attributes(BTreeMap<String, Value>);
+#[derive(Debug, Default)]
+pub struct StdoutExporter {
+    resource: ResourceAttributesWithSchema,
+    failure_reported: AtomicBool,
+}
 
-impl Visit for Attributes {
-    fn record_str(&mut self, field: &Field, value: &str) {
-        self.0
-            .insert(field.name().into(), json!({"stringValue": value}));
-    }
-
-    fn record_bool(&mut self, field: &Field, value: bool) {
-        self.0
-            .insert(field.name().into(), json!({"boolValue": value}));
-    }
-
-    fn record_i64(&mut self, field: &Field, value: i64) {
-        self.0
-            .insert(field.name().into(), json!({"intValue": value.to_string()}));
-    }
-
-    fn record_u64(&mut self, field: &Field, value: u64) {
-        // OTLP integers are signed. Preserve larger values as decimal strings.
-        if let Ok(value) = i64::try_from(value) {
-            self.record_i64(field, value);
-        } else {
-            self.record_str(field, &value.to_string());
-        }
-    }
-
-    fn record_f64(&mut self, field: &Field, value: f64) {
-        let value = if value.is_finite() {
-            json!(value)
-        } else {
-            json!(if value.is_nan() {
-                "NaN"
-            } else if value.is_sign_positive() {
-                "Infinity"
-            } else {
-                "-Infinity"
-            })
+impl StdoutExporter {
+    fn write_batch(&self, batch: &LogBatch<'_>) -> OTelSdkResult {
+        let mut data = LogsData {
+            resource_logs: group_logs_by_resource_and_scope(batch, &self.resource),
         };
-        self.0
-            .insert(field.name().into(), json!({"doubleValue": value}));
-    }
-
-    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
-        self.record_str(field, &format!("{value:?}"));
-    }
-}
-
-fn unix_nanos(time: DateTime<Utc>) -> String {
-    let nanos =
-        i128::from(time.timestamp()) * 1_000_000_000 + i128::from(time.timestamp_subsec_nanos());
-    u64::try_from(nanos).unwrap_or_default().to_string()
-}
-
-impl<S, N> FormatEvent<S, N> for OtlpJson
-where
-    S: Subscriber + for<'a> LookupSpan<'a>,
-    N: for<'a> FormatFields<'a> + 'static,
-{
-    fn format_event(
-        &self,
-        _context: &FmtContext<'_, S, N>,
-        mut writer: Writer<'_>,
-        event: &Event<'_>,
-    ) -> fmt::Result {
-        let observed_at = unix_nanos(Utc::now());
-        let mut attributes = Attributes::default();
-        event.record(&mut attributes);
-        let occurred_at = attributes
-            .0
-            .get("occurred_at")
-            .and_then(|value| value.get("stringValue"))
-            .and_then(Value::as_str)
-            .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
-            .map(|value| unix_nanos(value.with_timezone(&Utc)));
-        let body = attributes
-            .0
-            .get("event")
-            .or_else(|| attributes.0.get("message"))
-            .cloned()
-            .unwrap_or_else(|| json!({"stringValue": event.metadata().name()}));
-        let severity = match *event.metadata().level() {
-            tracing::Level::TRACE => 1,
-            tracing::Level::DEBUG => 5,
-            tracing::Level::INFO => 9,
-            tracing::Level::WARN => 13,
-            tracing::Level::ERROR => 17,
-        };
-        let mut record = json!({
-            "observedTimeUnixNano": observed_at,
-            "severityNumber": severity,
-            "severityText": event.metadata().level().as_str(),
-            "body": body,
-            "attributes": attributes.0.into_iter()
-                .map(|(key, value)| json!({"key": key, "value": value}))
-                .collect::<Vec<_>>(),
-        });
-        if let Some(occurred_at) = occurred_at {
-            record["timeUnixNano"] = json!(occurred_at);
+        // Preserve Nicknamer's explicit fact name and occurrence time. All other
+        // field conversion and OTLP serialization are owned by the upstream crates.
+        for resource in &mut data.resource_logs {
+            for scope in &mut resource.scope_logs {
+                for record in &mut scope.log_records {
+                    for attribute in &record.attributes {
+                        let Some(any_value::Value::StringValue(value)) =
+                            attribute.value.as_ref().and_then(|v| v.value.as_ref())
+                        else {
+                            continue;
+                        };
+                        match attribute.key.as_str() {
+                            "event" => {
+                                record.event_name.clone_from(value);
+                                record.body.clone_from(&attribute.value);
+                            }
+                            "occurred_at" => {
+                                if let Some(nanos) = chrono::DateTime::parse_from_rfc3339(value)
+                                    .ok()
+                                    .and_then(|time| {
+                                        SystemTime::from(time).duration_since(UNIX_EPOCH).ok()
+                                    })
+                                    .and_then(|elapsed| u64::try_from(elapsed.as_nanos()).ok())
+                                {
+                                    record.time_unix_nano = nanos;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
         }
-        // Application operation/request IDs are attributes, not fabricated trace IDs.
-        let data = json!({"resourceLogs": [{
-            "resource": {"attributes": [{
-                "key": "service.name", "value": {"stringValue": self.service_name}
-            }]},
-            "scopeLogs": [{
-                "scope": {"name": event.metadata().target()},
-                "logRecords": [record]
-            }]
-        }]});
-        writeln!(writer, "{data}")
+        let mut bytes = serde_json::to_vec(&data)
+            .map_err(|_| OTelSdkError::InternalFailure("OTLP serialization failed".into()))?;
+        bytes.push(b'\n');
+        let _guard = OUTPUT
+            .lock()
+            .map_err(|_| OTelSdkError::InternalFailure("stdout writer unavailable".into()))?;
+        std::io::stdout()
+            .lock()
+            .write_all(&bytes)
+            .map_err(|_| OTelSdkError::InternalFailure("stdout write failed".into()))
+    }
+}
+
+impl LogExporter for StdoutExporter {
+    async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+        let result = self.write_batch(&batch);
+        if result.is_err() && !self.failure_reported.swap(true, Ordering::Relaxed) {
+            diagnostic("telemetry stdout export failed");
+        }
+        result
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        self.resource = resource.into();
     }
 }
