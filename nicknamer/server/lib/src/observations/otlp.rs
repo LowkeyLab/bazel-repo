@@ -7,11 +7,11 @@ use std::{
         Mutex,
         atomic::{AtomicBool, Ordering},
     },
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 use opentelemetry_proto::{
-    tonic::{common::v1::any_value, logs::v1::LogsData},
+    tonic::logs::v1::LogsData,
     transform::{
         common::tonic::ResourceAttributesWithSchema, logs::tonic::group_logs_by_resource_and_scope,
     },
@@ -82,42 +82,9 @@ pub struct StdoutExporter {
 
 impl StdoutExporter {
     fn write_batch(&self, batch: &LogBatch<'_>) -> OTelSdkResult {
-        let mut data = LogsData {
+        let data = LogsData {
             resource_logs: group_logs_by_resource_and_scope(batch, &self.resource),
         };
-        // Preserve Nicknamer's explicit fact name and occurrence time. All other
-        // field conversion and OTLP serialization are owned by the upstream crates.
-        for resource in &mut data.resource_logs {
-            for scope in &mut resource.scope_logs {
-                for record in &mut scope.log_records {
-                    for attribute in &record.attributes {
-                        let Some(any_value::Value::StringValue(value)) =
-                            attribute.value.as_ref().and_then(|v| v.value.as_ref())
-                        else {
-                            continue;
-                        };
-                        match attribute.key.as_str() {
-                            "event" => {
-                                record.event_name.clone_from(value);
-                                record.body.clone_from(&attribute.value);
-                            }
-                            "occurred_at" => {
-                                if let Some(nanos) = chrono::DateTime::parse_from_rfc3339(value)
-                                    .ok()
-                                    .and_then(|time| {
-                                        SystemTime::from(time).duration_since(UNIX_EPOCH).ok()
-                                    })
-                                    .and_then(|elapsed| u64::try_from(elapsed.as_nanos()).ok())
-                                {
-                                    record.time_unix_nano = nanos;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
         let mut bytes = serde_json::to_vec(&data)
             .map_err(|_| OTelSdkError::InternalFailure("OTLP serialization failed".into()))?;
         bytes.push(b'\n');

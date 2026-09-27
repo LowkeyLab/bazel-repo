@@ -79,9 +79,9 @@ plain stdout diagnostic and falls back to `info`. No network endpoint is needed.
 The pipeline uses `opentelemetry-appender-tracing`, `opentelemetry_sdk`, and
 `opentelemetry-proto`. No network exporter is installed. Resource identity is configured
 explicitly; other `OTEL_*` settings are not interpreted.
-Records include severity, instrumentation scope, typed attributes, observation time,
-and the original occurrence time when supplied by the event. Request and operation IDs
-remain attributes; no OpenTelemetry trace or span IDs are fabricated.
+Records use the bridge's standard mapping for severity, instrumentation scope, and
+timestamps. Application `event` and `occurred_at` fields remain ordinary attributes,
+alongside request and operation IDs; no OpenTelemetry trace or span IDs are fabricated.
 Infrastructure diagnostics also go to stdout and may be plain text, so consumers must
 handle a mixed-format stream rather than assume every line is OTLP JSON.
 Startup reports configuration, binding, database connection, migration, and composition
