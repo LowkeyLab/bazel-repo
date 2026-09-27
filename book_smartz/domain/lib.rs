@@ -1,8 +1,13 @@
+pub mod command;
 pub mod error;
 pub mod event;
 pub mod identity;
 pub mod projection;
 
+#[cfg(test)]
+mod command_tests;
+
+pub use command::{Command, CommandContext, Ranking, decide};
 pub use error::{DomainError, IdentityError, ReplayError, ReplayErrorReason};
 pub use event::{ComparisonChoice, EventKind, EventMetadata, RankingEvent, Sequence};
 pub use identity::{Book, BookId, BookRegistry, EventId, OpenLibraryWorkId, ReaderId};

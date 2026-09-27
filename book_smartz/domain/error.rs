@@ -14,6 +14,12 @@ pub enum DomainError {
     InvalidSequence,
     #[error("sequence overflow")]
     SequenceOverflow,
+    #[error("book is not registered")]
+    UnknownBook,
+    #[error("stale revision: expected {expected}, current {actual}")]
+    StaleRevision { expected: u64, actual: u64 },
+    #[error("invalid command transition: {0}")]
+    InvalidTransition(ReplayErrorReason),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
