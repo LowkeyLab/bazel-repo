@@ -245,6 +245,62 @@ fn extensions_survive_roundtrip() {
 }
 
 #[googletest::test]
+fn dataschema_requires_an_absolute_uri_and_survives_roundtrip() {
+    for schema in [
+        "https://example.org/schemas/books?v=1",
+        "urn:bookranking:schema:v1",
+    ] {
+        let mut wire = sample();
+        wire["dataschema"] = json!(schema);
+        let document = decode_event(&wire.to_string()).unwrap();
+        let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+        assert_that!(encoded["dataschema"].as_str(), eq(Some(schema)));
+    }
+    for invalid in [
+        json!(""),
+        json!("schema/books"),
+        json!("/schema/books"),
+        json!("https://exa mple.org/schema"),
+        json!("https://example.org/%ZZ"),
+        json!("https://example.org/schema[bad]"),
+        json!("https://user@@example.org/schema"),
+        json!("https://example.org/schema#fragment"),
+        json!(42),
+        json!(true),
+    ] {
+        let mut wire = sample();
+        wire["dataschema"] = invalid;
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+}
+
+#[googletest::test]
+fn null_optional_context_is_omitted_on_roundtrip() {
+    let mut wire = sample();
+    wire["trace"] = Value::Null;
+    wire["dataschema"] = Value::Null;
+    let document = decode_event(&wire.to_string()).unwrap();
+    let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(encoded.get("trace").is_none(), eq(true));
+    assert_that!(encoded.get("dataschema").is_none(), eq(true));
+    let mut missing_required = sample();
+    missing_required["subject"] = Value::Null;
+    assert_that!(
+        decode_event(&missing_required.to_string()).is_err(),
+        eq(true)
+    );
+}
+
+#[googletest::test]
+fn string_context_rejects_unicode_noncharacters() {
+    for value in ["bad\u{fdd0}", "bad\u{ffff}", "bad\u{10ffff}"] {
+        let mut wire = sample();
+        wire["trace"] = json!(value);
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+}
+
+#[googletest::test]
 fn derived_notices_are_not_replay_events() {
     let reader = ReaderId::new(id(100));
     let before = RankingProjection::replay(reader, &[]).unwrap();

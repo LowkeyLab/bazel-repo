@@ -4,6 +4,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};
+use url::Url;
 use uuid::Uuid;
 
 use crate::{
@@ -30,6 +31,7 @@ pub enum CodecError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CloudEventDocument {
     event: RankingEvent,
+    dataschema: Option<String>,
     extensions: BTreeMap<String, Value>,
 }
 
@@ -49,6 +51,8 @@ struct WireEnvelope {
     subject: Option<String>,
     time: Option<String>,
     datacontenttype: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dataschema: Option<String>,
     data: Option<Value>,
     #[serde(flatten)]
     extensions: BTreeMap<String, Value>,
@@ -100,6 +104,58 @@ fn valid_extension_name(name: &str) -> bool {
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
 }
 
+fn valid_absolute_uri(value: &str) -> bool {
+    if value.is_empty() || value.contains('#') {
+        return false;
+    }
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if byte == b'%' {
+            if index + 2 >= bytes.len()
+                || !bytes[index + 1].is_ascii_hexdigit()
+                || !bytes[index + 2].is_ascii_hexdigit()
+            {
+                return false;
+            }
+            index += 3;
+            continue;
+        }
+        if !(byte.is_ascii_alphanumeric() || b"-._~:/?[]@!$&'()*+,;=".contains(&byte)) {
+            return false;
+        }
+        index += 1;
+    }
+    let Some((_, remainder)) = value.split_once(':') else {
+        return false;
+    };
+    let after_authority = if let Some(with_authority) = remainder.strip_prefix("//") {
+        let boundary = with_authority
+            .find(['/', '?'])
+            .unwrap_or(with_authority.len());
+        let (authority, rest) = with_authority.split_at(boundary);
+        if authority.bytes().filter(|byte| *byte == b'@').count() > 1 {
+            return false;
+        }
+        rest
+    } else {
+        remainder
+    };
+    if after_authority.contains(['[', ']']) {
+        return false;
+    }
+    Url::parse(value).is_ok()
+}
+
+fn invalid_context_string(value: &str) -> bool {
+    value.chars().any(|character| {
+        let codepoint = character as u32;
+        matches!(codepoint, 0x00..=0x1f | 0x7f..=0x9f | 0xfdd0..=0xfdef)
+            || codepoint & 0xffff >= 0xfffe
+    })
+}
+
 fn validate_extensions(extensions: &BTreeMap<String, Value>) -> Result<(), CodecError> {
     for (name, value) in extensions {
         if name == "data_base64"
@@ -118,10 +174,7 @@ fn validate_extensions(extensions: &BTreeMap<String, Value>) -> Result<(), Codec
             }
         }
         if let Value::String(value) = value {
-            if value
-                .chars()
-                .any(|character| matches!(character as u32, 0x00..=0x1f | 0x7f..=0x9f))
-            {
+            if invalid_context_string(value) {
                 return Err(CodecError::InvalidExtension(name.clone()));
             }
         }
@@ -157,6 +210,7 @@ fn base_envelope(
         subject: Some(format!("books/{}", candidate.as_uuid())),
         time: Some(time_string(metadata.time)),
         datacontenttype: Some("application/json".into()),
+        dataschema: None,
         data: Some(data),
         extensions: BTreeMap::new(),
     }
@@ -215,6 +269,7 @@ pub fn encode_document(document: &CloudEventDocument) -> Result<String, CodecErr
     let mut wire: WireEnvelope = serde_json::from_str(&encode_event(&document.event)?)
         .map_err(|error| CodecError::MalformedJson(error.to_string()))?;
     wire.extensions = document.extensions.clone();
+    wire.dataschema = document.dataschema.clone();
     encode_wire(&wire)
 }
 
@@ -262,8 +317,12 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
     if !value.is_object() {
         return Err(CodecError::InvalidField("envelope"));
     }
-    let wire: WireEnvelope = serde_json::from_value(value)
+    let mut wire: WireEnvelope = serde_json::from_value(value)
         .map_err(|error| CodecError::MalformedJson(error.to_string()))?;
+    if wire.extensions.contains_key("data_base64") {
+        return Err(CodecError::InvalidField("data_base64"));
+    }
+    wire.extensions.retain(|_, value| !value.is_null());
     if required(wire.specversion, "specversion")? != "1.0" {
         return Err(CodecError::UnsupportedSpecVersion);
     }
@@ -276,6 +335,13 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
         .with_timezone(&Utc);
     if required(wire.datacontenttype, "datacontenttype")? != "application/json" {
         return Err(CodecError::InvalidField("datacontenttype"));
+    }
+    if wire
+        .dataschema
+        .as_deref()
+        .is_some_and(|schema| !valid_absolute_uri(schema))
+    {
+        return Err(CodecError::InvalidField("dataschema"));
     }
     let data = wire.data.ok_or(CodecError::MissingField("data"))?;
     if !data.is_object() {
@@ -329,6 +395,7 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
             candidate,
             kind,
         ),
+        dataschema: wire.dataschema,
         extensions: wire.extensions,
     })
 }
