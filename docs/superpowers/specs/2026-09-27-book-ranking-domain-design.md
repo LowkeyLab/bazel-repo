@@ -5,7 +5,9 @@
 Readers build their own ordered bookshelf by comparing a newly added book with
 books already ranked. This iteration implements only a pure domain library and
 its tests. It supports adding books, winner-or-skip comparisons, and resumable
-placement. It exposes the current ranking only.
+placement. An ordered stream of accepted domain events is authoritative; the
+current ranking and pending placement are projections of those events. The
+product exposes the current ranking only, despite retaining decisions for replay.
 
 Excluded: persistence, authentication, website UI, external API clients, telemetry
 listeners, historical ranking snapshots, reranking, removal, ties, community
@@ -29,9 +31,11 @@ are implementation-plan decisions; the contracts below are language independent.
 - Ranking operations accept registered identities. Display metadata is not part
   of ranking identity or necessary for this iteration.
 
-The registry owns identity associations; each reader's ranking aggregate owns
-ordered entries and at most one pending placement. Both are in-memory domain
-values. No repository interfaces or storage implementations are introduced.
+The registry owns identity associations. Each reader's ranking aggregate owns an
+append-only in-memory event stream, from which ordered entries and at most one
+pending placement are derived. The registry remains a separate pure value; this
+iteration does not require event sourcing the catalog. No repository interfaces,
+event broker, or storage implementations are introduced.
 
 Open Library's [API documentation](https://openlibrary.org/dev/docs/api/books)
 distinguishes works from editions. Its
@@ -40,25 +44,57 @@ and abridgements under a work, while adaptations and dramatizations are separate
 works. A future catalog integration must explicitly reconcile merges without
 silently altering rankings. No merge operation is included here.
 
-## Domain state
+## Event-driven domain architecture
 
-| Value            | Meaning                                                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| PersonalRanking  | Reader ID, ordered entries, state revision, optional pending placement                                                               |
-| RankingEntry     | Book ID and `addedAt` UTC instant; position is derived from list order                                                               |
-| PlacementSession | Candidate Book ID, inclusive insertion bounds, skipped opponents for this round, active/paused status, `startedAt`, `lastActivityAt` |
-| ComparisonChoice | Prefer candidate, prefer opponent, or skip                                                                                           |
-| Transition       | Next state and ordered structured outcomes, or a typed error                                                                         |
+The domain separates command decisions from event application:
 
-Successful state-changing commands advance the aggregate revision once. Commands
-carry the expected revision; stale commands fail without changing state. Reads
-do not advance it. This detects stale responses within the domain contract; it
-does not provide database concurrency control.
+```text
+command + current projection + explicit time + registered book identity
+    -> decide -> accepted event or typed error
+prior event stream + accepted event
+    -> replay/apply -> current ranking and pending placement
+```
 
-No unbounded decision history is retained. Bounds preserve the consequences of
-winner decisions; the skipped set tracks only the current round. Domain state
-survives a pause when the caller retains it. Surviving process restart is outside
-this iteration because persistence is excluded.
+`decide` validates intent without mutating state. Every accepted state-changing
+command produces exactly one event. The aggregate validates and appends that
+event, then advances its projection by applying it. Rejecting a command appends
+nothing. The projection is never an independent source of truth, and callers
+cannot directly edit positions, placement bounds, or timestamps.
+
+| Value            | Meaning                                                                                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| RankingHistory   | Reader ID and ordered accepted events; authoritative input to replay                                                   |
+| PersonalRanking  | Derived reader ID, ordered entries, revision, optional pending placement                                               |
+| RankingEntry     | Derived Book ID and `addedAt`; position comes from projected list order                                                |
+| PlacementSession | Derived candidate, inclusive insertion bounds, skipped opponents for this round, status, `startedAt`, `lastActivityAt` |
+| ComparisonChoice | Prefer candidate, prefer opponent, or skip                                                                             |
+| DecisionResult   | One proposed event or a typed error                                                                                    |
+
+An empty history projects to an empty ranking at revision zero. Each event carries
+its reader ID, contiguous sequence number starting at one, candidate Book ID,
+and caller-supplied `occurredAt` UTC instant. Projection revision equals the last
+applied sequence. Commands carry the expected revision; stale commands fail.
+Reads and replay never append events or advance the sequence.
+
+Replay uses recorded events only: no Open Library lookup, mutable catalog metadata,
+clock, random UUID generation, or authentication is consulted. Starting placement
+requires a registered book at command validation time; its stable Book ID is
+recorded in the event. Later metadata changes do not alter replay.
+
+Replay validates reader identity, sequence continuity, event preconditions, and
+pair validity under the rules below. Duplicate, missing, out-of-order, wrong-reader,
+or semantically invalid events return a typed invalid-history error identifying
+the failing sequence; no partial projection is exposed as valid current state.
+This is strict replay, not duplicate-tolerant message consumption. Stale command
+retries fail rather than appending the same answer twice.
+
+The full event history is retained in memory. Bounds and skipped sets are derived
+working state, not replacements for history. Losing the caller-held history loses
+the ranking; restart recovery, durable append, snapshots, serialization, and event
+schema migrations remain outside this iteration. Changes to event interpretation
+or selection rules must preserve existing replay fixtures; future incompatible
+rules require an explicit version/migration design rather than silently replaying
+old choices with new semantics.
 
 ## Placement rules
 
@@ -84,7 +120,7 @@ positions are the gaps `0..n`; initial bounds are `lo = 0`, `hi = n`.
 Only the currently selected pair can be answered. Reject an answer for another
 opponent, an absent or paused session, or a stale revision. Pair selection itself
 is a read and never changes time or revision. Invalid commands leave state
-unchanged and return no successful outcomes.
+unchanged and append no events.
 
 Some skipped opponents may eventually be necessary for exact placement. Never
 invent a preference or arbitrarily finalize an unresolved position. Placement
@@ -99,10 +135,14 @@ before B, so A is next. All existing relative ordering is preserved.
 The caller supplies a UTC instant to each state-changing operation. UUID
 generation and reading the current clock are outside the domain boundary.
 
-- `startedAt`: supplied instant when placement begins.
-- `lastActivityAt`: supplied instant for the latest accepted placement command.
-- `addedAt`: supplied instant when a book is successfully placed.
-- Outcome `occurredAt`: the accepted command's supplied instant.
+- Event `occurredAt`: the accepted command's supplied instant, retained in history.
+- `startedAt`: derived from `PlacementStarted.occurredAt`.
+- `lastActivityAt`: derived from the latest event affecting the pending placement.
+- `addedAt`: derived from the event that makes placement complete: the first-book
+  start event or the decisive comparison event.
+
+Replay preserves these original values; it never stamps events or projections
+with the time at which rebuilding happens.
 
 These are recorded instants, not local calendar commitments. No time zone, local
 date conversion, scheduling, or publication-date model is necessary. Equal or
@@ -110,33 +150,46 @@ backward-moving timestamps are accepted: revisions establish logical order, and
 timestamps must not influence ranking or opponent selection. No duration is
 computed by subtracting wall-clock values.
 
-## Observable outcomes
+## Authoritative domain events and observability
 
-Domain transitions return immutable structured facts. They do not invoke
-listeners or claim that state was persisted. A future application can publish
-these facts after committing the corresponding state.
+| Event              | Payload beyond the common envelope                    | Projection effect                                                      |
+| ------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| PlacementStarted   | None                                                  | Initialize bounds/session; immediately insert if ranking is empty      |
+| ComparisonAnswered | Opponent Book ID and choice                           | Narrow bounds or mark skip, then derive completion or automatic pause  |
+| PlacementPaused    | None; this event represents an explicit pause request | Mark active session paused                                             |
+| PlacementResumed   | None                                                  | Reactivate paused session and clear round skips while retaining bounds |
 
-Every outcome carries reader ID, candidate Book ID, resulting revision, and
-`occurredAt`. Concrete outcomes are:
+A comparison records the actual pair and choice, including skips. Replay verifies
+that this was the selected pair and applies the specified insertion rules.
+Completed position is derived from the decisions; a separately recorded
+`BookRanked` event or stored final order is not needed to determine it. Likewise,
+exhausting useful opponents derives an automatic pause from the skip event.
+Explicit pause/resume events are necessary because those reader actions cannot
+be inferred from preference decisions.
 
-| Outcome            | Additional fields and emission boundary                                         |
-| ------------------ | ------------------------------------------------------------------------------- |
-| PlacementStarted   | Emitted when addition starts, including immediate first-book placement          |
-| ComparisonAnswered | Opponent Book ID and choice; emitted for each accepted answer, including skip   |
-| PlacementPaused    | Reason: requested or no eligible opponents                                      |
-| PlacementResumed   | Emitted on explicit resume                                                      |
-| BookRanked         | Zero-based position and resulting entry count; emitted when insertion completes |
+For example, `Start(A)`, `Start(B)`, `Answer(B, A, prefer candidate)` projects to
+`B > A`. Replaying the same history produces the same ranking, revision, and
+timestamps. A skip records no preference but does affect which pair comes next.
 
-A completing answer returns `ComparisonAnswered` followed by `BookRanked`.
-An exhausting skip returns `ComparisonAnswered` followed by `PlacementPaused`.
-First-book addition returns `PlacementStarted` followed by `BookRanked`.
+Domain events are authoritative behavioral inputs, not diagnostic logs. To support
+future observability, a pure transition classifier can derive `BookRanked`
+(position and entry count) and `PlacementAutomaticallyPaused` (reason: no eligible
+opponents) notices from the old projection, applied event, and new projection.
+These notices are outputs only and are never appended to history or consumed to
+reconstruct state. Accepted domain events already describe starts, choices,
+explicit pauses, and resumes. Notices inherit reader ID, candidate Book ID,
+sequence, and occurrence time from the triggering event.
 
-These contracts let a future operator distinguish starting, skipping, pausing,
-and completing placement, rather than observing only exceptions. Typed errors
-describe rejected operations separately. Names, email addresses, titles, and raw
-request content are absent. IDs may support correlation but must not become
-metric labels. Listener registration, metrics, traces, retries, delivery,
-retention, and shutdown belong to a later application iteration.
+Replay must have no telemetry side effects and must not count historical actions
+as new activity. A future application may publish accepted events and derived
+notices only for newly committed commands. Commit timing, delivery guarantees,
+listener registration, metrics, traces, retries, retention, and shutdown remain
+out of scope. Merely returning or appending an in-memory event claims no durable
+commit. Typed command errors are separate from accepted history.
+
+This provides structured facts for operators to distinguish starts, skips,
+pauses, and completions. Names, email addresses, titles, and raw request content
+are absent. IDs can support correlation but must not become metric labels.
 
 ## Verification design
 
@@ -154,12 +207,21 @@ repository interface. Fixed UUIDs and explicit instants are ordinary inputs.
 | Pause/resume          | State: unfinished placement is retained, bounds survive, and a new round retries relevant skipped opponents                                        |
 | Invalid commands      | Output/state: duplicate addition, second pending addition, stale revision, wrong opponent, and invalid lifecycle transitions leave state unchanged |
 | Explicit time         | State/outcomes: supplied instants are retained; equal/backward times do not change ordering behavior                                               |
-| Structured outcomes   | Output: exact fact types, typed fields, and ordering match successful transitions; rejected commands return errors without success facts           |
+| Event decisions       | Output: given history and a command, return the expected typed event or error; rejection appends nothing                                           |
+| Replay equivalence    | State: full replay equals incremental application for ranking, pending placement, revisions, and timestamps                                        |
+| Invalid history       | Output: duplicate/gapped/reordered sequences, mixed readers, invalid pairs, and invalid lifecycle events are rejected                              |
+| Derived notices       | Output: completion and automatic pause notices match transitions without becoming authoritative history                                            |
+| Replay isolation      | Output/state: replay with no external dependencies preserves original times and produces no telemetry effects                                      |
 
 Use exhaustive small-list insertion scenarios to protect boundary arithmetic
 without coupling tests to helper methods. Test deterministic midpoint tie-breaks
 because they are part of the chosen selection contract. Assert returned values
 and visible state, never logging text or internal collaborator call counts.
+
+Construct ranking fixtures through events rather than manually populated final
+orders. Include replay of partially completed sessions, skip exhaustion, explicit
+pause/resume, and completed insertion. Replaying the same history twice must
+produce equal independent projections, without appending duplicate activity.
 
 These checks target ranking correctness and refactoring resistance without
 network/database fixtures. Feedback speed is expected to be fast but has not
@@ -168,7 +230,9 @@ checks have been executed as part of this design.
 
 ## Review status
 
-The conversational design and pure-domain scope are approved. This consolidated
-spec adds precise boundary arithmetic, identity registration, revision handling,
-and timestamp behavior for review. Written-spec approval precedes an
+The conversational pure-domain scope is approved. At the user's request, this
+revision makes accepted ranking events authoritative and derives current state
+through replay. It replaces the prior mutable-state-plus-outcomes design while
+retaining the no-persistence scope. Event envelopes, strict replay validation,
+and derived observability notices are concrete design choices for review. Written-spec approval precedes an
 implementation plan; production code is not authorized by this document alone.
