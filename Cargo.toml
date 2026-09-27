@@ -17,6 +17,9 @@ console_error_panic_hook = "0.1"
 jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 juniper = { version = "0.17.1", features = ["uuid", "chrono"] }
 juniper_axum = "0.3.0"
+opentelemetry-appender-tracing = { version = "0.33.0", default-features = false }
+opentelemetry_sdk = { version = "0.33.0", default-features = false, features = ["logs"] }
+opentelemetry-proto = { version = "0.33.0", default-features = false, features = ["gen-tonic-messages", "logs", "with-serde"] }
 pinyin = "0.11"
 pinyinchch = { version = "0.3.0", features = ["hmm"] }
 pinyinchch-model-hmm = "0.3.0"

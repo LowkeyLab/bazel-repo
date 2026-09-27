@@ -66,9 +66,24 @@ docker run --rm -p 8080:8080 nicknamer-server:latest
 - `migration/` - Database migration utilities
 - `compose.yaml` - Docker Compose configuration for local development
 
-## Local operational observations
+## Operational observations and OTLP stdout logs
 
-The server registers one synchronous local tracing listener before configuration loading.
+The server registers its existing structured-event listener and an OpenTelemetry tracing
+bridge before configuration loading. The SDK batches records on a dedicated thread; a
+small stdout exporter uses `opentelemetry-proto` conversions and Serde support to write
+one compact OTLP JSON `LogsData` object per batch,
+using the [OTLP JSON encoding](https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding).
+`OTEL_SERVICE_NAME` sets the resource's `service.name` (default: `nicknamer`).
+`RUST_LOG` controls tracing filtering (default: `info`); an invalid filter produces a
+plain stdout diagnostic and falls back to `info`. No network endpoint is needed.
+The pipeline uses `opentelemetry-appender-tracing`, `opentelemetry_sdk`, and
+`opentelemetry-proto`. No network exporter is installed. Resource identity is configured
+explicitly; other `OTEL_*` settings are not interpreted.
+Records use the bridge's standard mapping for severity, instrumentation scope, and
+timestamps. Application `event` and `occurred_at` fields remain ordinary attributes,
+alongside request and operation IDs; no OpenTelemetry trace or span IDs are fabricated.
+Infrastructure diagnostics also go to stdout and may be plain text, so consumers must
+handle a mixed-format stream rather than assume every line is OTLP JSON.
 Startup reports configuration, binding, database connection, migration, and composition
 outcomes; `application_ready` follows successful initialization immediately before serving.
 Binding still precedes database connection. Startup failures return a failure exit status
@@ -94,12 +109,23 @@ one aborted `503` observation; tasks dropped before entering it produce no reque
 Cancelled work is not reported as completed. Cancellation is cooperative: synchronous
 handler work or a blocking local writer can delay runtime scheduling and final cleanup.
 The deadline bounds the graceful-drain phase, not arbitrary synchronous blocking.
+After application cleanup (also on startup failure), SDK shutdown drains pending records
+and waits at most two seconds for the exporter worker. No separate unbounded flush is
+performed. A stalled stdout write may outlive this wait on the detached SDK thread;
+remaining records can be lost on process exit. Telemetry failure does not change the
+application exit status.
 
 Delivery is best effort and in-process: each event attempts each listener once, and a
 failing listener does not change application responses or persistence outcomes. Listener
-failures use a rate-limited, sanitized stderr fallback independent of tracing. Local
-logging has writer latency and no SDK queue to flush; flush does not promise OS or log
-collector persistence. Crashes, process aborts, and sink failures can lose records.
+failures use a rate-limited, sanitized stdout fallback independent of tracing. The SDK
+queue holds at most 2,048 records, exports batches of at most 512 records, and schedules
+export every second. Queue overflow drops records. SDK internal logging is disabled to
+avoid recursively exporting its own errors. The exporter reports its first failure with
+a fixed stdout diagnostic; diagnostics are skipped while the telemetry writer is busy.
+Normal request threads enqueue records instead of waiting for stdout writes. Successful
+SDK shutdown does not promise OS or collector persistence. Crashes, process aborts,
+queue overflow, and sink failures can lose records.
 No remote exporter, OpenTelemetry backend, durable audit trail, retention policy, or
-monitoring service is configured. Tests and the disposable-PostgreSQL process smoke
-exercise local composition; hosted collection and retention require deployment evidence.
+monitoring service is configured. Existing tests cover structured application facts and
+lifecycle behavior; stdout delivery and serialization are not asserted as external
+contracts. Hosted collection and retention require deployment evidence.

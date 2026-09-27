@@ -1,25 +1,43 @@
 use nicknamer_server::observations::{
     Dispatcher, LoggingListener, ShutdownOutcome,
     lifecycle::{DRAIN_TIMEOUT, RequestWork, SignalFailure, load_configuration, serve_until},
+    otlp::{SHUTDOWN_TIMEOUT, StdoutExporter, diagnostic, logger_provider, run_with_telemetry},
 };
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use std::{process::ExitCode, sync::Arc};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    if tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
-        .try_init()
-        .is_err()
-    {
-        eprintln!("application initialization failed: stage=logging category=internal");
-        return ExitCode::FAILURE;
-    }
+    let service_name = std::env::var("OTEL_SERVICE_NAME")
+        .ok()
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| "nicknamer".into());
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env()
+        .unwrap_or_else(|_| {
+            diagnostic("invalid RUST_LOG; using info filter");
+            EnvFilter::new("info")
+        });
+    let provider = logger_provider(service_name, StdoutExporter::default());
+    let initialized = tracing_subscriber::registry()
+        .with(filter)
+        .with(OpenTelemetryTracingBridge::new(&provider))
+        .try_init();
+    run_with_telemetry(provider, SHUTDOWN_TIMEOUT, async {
+        if initialized.is_err() {
+            diagnostic("application initialization failed: stage=logging category=internal");
+            return ExitCode::FAILURE;
+        }
+        run_application().await
+    })
+    .await
+}
+
+async fn run_application() -> ExitCode {
     let dispatcher = Arc::new(Dispatcher::new(vec![Arc::new(LoggingListener)]));
     let Ok(config) = load_configuration(&dispatcher, nicknamer_server::config::Config::from_env)
     else {
