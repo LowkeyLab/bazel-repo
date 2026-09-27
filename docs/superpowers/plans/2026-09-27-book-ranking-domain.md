@@ -32,7 +32,7 @@
 
 ## Files and responsibilities
 
-Create the package `book_ranking/domain` with crate name `book_ranking_domain`:
+Create the package `book_smartz/domain` with crate name `book_smartz_domain`:
 
 | File             | Responsibility                                                          |
 | ---------------- | ----------------------------------------------------------------------- |
@@ -49,14 +49,14 @@ Create the package `book_ranking/domain` with crate name `book_ranking_domain`:
 
 Keep tests in each responsible module's `#[cfg(test)]` section, with exhaustive insertion coverage in `command.rs`. Do not create generic repository, clock, emitter, or catalog interfaces.
 
-Generate BUILD rules with Gazelle first, following `hearthstone_simulator/simulator/BUILD.bazel` for a `rust_library` and `rust_test(crate = ":domain")`. Intended test target is `//book_ranking/domain:domain_test`; inspect generated output and adjust only after Gazelle if needed. Ensure all modules belong to the library and GoogleTest is a test-only dependency.
+Generate BUILD rules with Gazelle first, following `hearthstone_simulator/simulator/BUILD.bazel` for a `rust_library` and `rust_test(crate = ":domain")`. Intended test target is `//book_smartz/domain:domain_test`; inspect generated output and adjust only after Gazelle if needed. Ensure all modules belong to the library and GoogleTest is a test-only dependency.
 
 ## Shared verification cycle
 
 Every task below uses this sequence; each named test must have executed assertions, not merely a successful filtered command:
 
 1. Write the specified failing tests and run `nix develop --command bazel run //:gazelle` immediately.
-2. Run `nix develop --command aspect test //book_ranking/domain:domain_test --test_output=errors`. Confirm the intended failure, distinguishing source failures from tool/environment failures.
+2. Run `nix develop --command aspect test //book_smartz/domain:domain_test --test_output=errors`. Confirm the intended failure, distinguishing source failures from tool/environment failures.
 3. Implement the specified interfaces and behavior; run Gazelle immediately after source edits.
 4. Run `nix develop --command aspect format --scope=all`, then the same full package test target. Confirm passing bodies in the test log.
 5. Run `git diff --check`, inspect the scoped diff, and commit only task-owned files using the listed conventional commit message.
@@ -76,7 +76,7 @@ Every task below uses this sequence; each named test must have executed assertio
 - [ ] Write `registration_rejects_conflicting_identity`: reject both same work/different UUID and same UUID/different work; assert original lookup is unchanged.
 - [ ] Write `work_id_requires_canonical_work_form`: accept `OL45804W`; reject `OL7353617M`, `/works/OL45804W`, empty digits, zero, leading zeros, and non-ASCII digits.
 - [ ] Run the failing-test cycle, then implement the types and bidirectional registry. UUID validity comes from `Uuid`, without prescribing v4 versus v7.
-- [ ] Complete the shared verification cycle; commit `feat(book-ranking): add domain identities and book registry`.
+- [ ] Complete the shared verification cycle; commit `feat(book-smartz): add domain identities and book registry`.
 
 ## Task 2: Authoritative events and strict replay
 
@@ -101,7 +101,7 @@ The projection privately tracks previously applied EventIds for duplicate reject
 - [ ] Write `invalid_history_is_rejected`: cover missing/repeated/reordered sequences, repeated ID with fresh sequence, wrong reader/candidate/opponent, duplicate book start, second pending start, answers while paused, and invalid resume/pause transitions.
 - [ ] Write `timestamps_do_not_order_decisions`: equal and decreasing instants preserve sequence-driven results and original times.
 - [ ] Implement the spec's bounds, midpoint tie-break, skip exhaustion, explicit pause/resume, and completion rules in one event application path. Compute midpoint without adding indices in an overflow-prone way. Sequence overflow is a typed failure.
-- [ ] Complete the shared verification cycle; commit `feat(book-ranking): derive rankings by replaying decisions`.
+- [ ] Complete the shared verification cycle; commit `feat(book-smartz): derive rankings by replaying decisions`.
 
 ## Task 3: Pure commands and aggregate append
 
@@ -125,7 +125,7 @@ The projection privately tracks previously applied EventIds for duplicate reject
 - [ ] Write `explicit_pause_preserves_winning_decisions`: pause and resume mid-placement; bounds survive, skipped set resets, existing ranked times do not change.
 - [ ] Write `all_small_insertions_preserve_order`: for list lengths 0 through 8 and every insertion gap, answer according to that intended position and assert final order, uniqueness, exact inserted position, and termination. Build all fixtures through commands/events.
 - [ ] Write `revision_increment_rejects_overflow`: exercise checked sequence successor on `u64::MAX`; no wrapping or fabricated event.
-- [ ] Implement command/aggregate interfaces and complete the shared verification cycle; commit `feat(book-ranking): add validated placement commands`.
+- [ ] Implement command/aggregate interfaces and complete the shared verification cycle; commit `feat(book-smartz): add validated placement commands`.
 
 ## Task 4: CloudEvents codec and derived notices
 
@@ -148,20 +148,20 @@ Use private serde wire structs and validated conversions, not derived deserializ
 - [ ] Write `extensions_survive_roundtrip`: preserve an unknown valid string/bool/32-bit integer extension; reject uppercase names, array/object values, and out-of-range integer extension values. Additional payload fields may be ignored for forward-compatible additive data; missing required payload fields remain errors.
 - [ ] Write `derived_notices_are_not_replay_events`: completion and exhausted-skip notices have the spec's type, deterministic suffix ID, causationId and inherited context; authoritative codec rejects them. Explicit pauses do not generate automatic-pause notices.
 - [ ] Implement pure encoding/decoding and notice classification. Never publish while replaying. Include the approved JSON example as a parsed-value assertion, not a formatted string snapshot.
-- [ ] Complete the shared verification cycle; commit `feat(book-ranking): encode domain events as CloudEvents`.
+- [ ] Complete the shared verification cycle; commit `feat(book-smartz): encode domain events as CloudEvents`.
 
 ## Task 5: Public usage and repository verification
 
-**Files:** Create `book_ranking/domain/README.md`; finalize `lib.rs` documentation and tests.
+**Files:** Create `book_smartz/domain/README.md`; finalize `lib.rs` documentation and tests.
 
 - [ ] Add a public API test that registers A/B, starts and places them, encodes their history, decodes it, rebuilds the ranking, and proves state equality. Assert duplicate/stale requests leave that history unchanged. Run Gazelle after editing Rust.
 - [ ] Document caller-supplied identity/time, single active placement, skip/resume, authoritative histories, CloudEvents profile, and the absence of restart durability.
 - [ ] Run `nix develop --command aspect format --scope=all`.
-- [ ] Run `nix develop --command aspect test //book_ranking/domain:domain_test --test_output=errors` and inspect execution counts.
+- [ ] Run `nix develop --command aspect test //book_smartz/domain:domain_test --test_output=errors` and inspect execution counts.
 - [ ] Run `nix develop --command aspect build //...`.
 - [ ] Run `nix develop --command aspect test //...`.
 - [ ] Run `nix develop --command aspect lint`; resolve relevant failures and distinguish pre-existing/environment blockers explicitly.
-- [ ] Run `git diff --check`, inspect the full scoped diff, and commit `docs(book-ranking): document event-driven domain usage` with any final verified source changes.
+- [ ] Run `git diff --check`, inspect the full scoped diff, and commit `docs(book-smartz): document event-driven domain usage` with any final verified source changes.
 
 ## Plan review and execution
 

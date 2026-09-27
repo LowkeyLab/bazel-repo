@@ -1,8 +1,8 @@
-# Personal book ranking: pure domain model
+# Book Smartz: personal book ranking domain
 
 ## Intent and scope
 
-Readers build their own ordered bookshelf by comparing a newly added book with
+The project is named `book_smartz`. Readers build their own ordered bookshelf by comparing a newly added book with
 books already ranked. This iteration implements only a pure domain library and
 its tests. It supports adding books, winner-or-skip comparisons, and resumable
 placement. An ordered stream of accepted domain events is authoritative; the
