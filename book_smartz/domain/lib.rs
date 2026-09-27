@@ -5,6 +5,8 @@
 //! reconstructs current state solely from that history. See the package README for
 //! a complete usage example and the `CloudEvents` JSON profile.
 
+#![forbid(unsafe_code)]
+
 pub mod cloudevents;
 pub mod command;
 pub mod error;

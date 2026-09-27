@@ -15,44 +15,48 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 fn example() -> Result<(), Box<dyn std::error::Error>> {
-let reader = ReaderId::new(Uuid::from_u128(100));
-let a = BookId::new(Uuid::from_u128(1));
-let b = BookId::new(Uuid::from_u128(2));
-let mut books = BookRegistry::new();
-books.register(Book::new(a, OpenLibraryWorkId::try_from("OL1W")?))?;
-books.register(Book::new(b, OpenLibraryWorkId::try_from("OL2W")?))?;
+    let reader = ReaderId::new(Uuid::from_u128(100));
+    let a = BookId::new(Uuid::from_u128(1));
+    let b = BookId::new(Uuid::from_u128(2));
+    let mut books = BookRegistry::new();
+    books.register(Book::new(a, OpenLibraryWorkId::try_from("OL1W")?))?;
+    books.register(Book::new(b, OpenLibraryWorkId::try_from("OL2W")?))?;
 
-let mut ranking = Ranking::new(reader);
-let at = |second| {
-    DateTime::parse_from_rfc3339(&format!("2026-09-27T12:00:{second:02}Z"))
-        .unwrap()
-        .with_timezone(&Utc)
-};
-let mut execute = |sequence, command| {
-    ranking.execute(
-        &books,
-        CommandContext {
-            expected_revision: sequence - 1,
-            event_id: EventId::new(Uuid::from_u128(sequence.into())),
-            time: at(sequence),
-        },
-        command,
-    )
-};
-execute(1, Command::Start { book_id: a })?; // first book ranks immediately
-execute(2, Command::Start { book_id: b })?;
-execute(3, Command::Answer {
-    opponent: a,
-    choice: ComparisonChoice::PreferCandidate,
-})?; // ranking is now B > A
+    let mut ranking = Ranking::new(reader);
+    let at = |second| {
+        DateTime::parse_from_rfc3339(&format!("2026-09-27T12:00:{second:02}Z"))
+            .unwrap()
+            .with_timezone(&Utc)
+    };
+    let mut execute = |sequence, command| {
+        ranking.execute(
+            &books,
+            CommandContext {
+                expected_revision: sequence - 1,
+                event_id: EventId::new(Uuid::from_u128(sequence.into())),
+                time: at(sequence),
+            },
+            command,
+        )
+    };
+    execute(1, Command::Start { book_id: a })?; // first book ranks immediately
+    execute(2, Command::Start { book_id: b })?;
+    execute(3, Command::Answer {
+        opponent: a,
+        choice: ComparisonChoice::PreferCandidate,
+    })?; // ranking is now B > A
 
-let decoded = ranking.history().iter().map(|event| {
-    let json = encode_event(event)?;
-    Ok(decode_event(&json)?.event().clone())
-}).collect::<Result<Vec<_>, book_smartz_domain::CodecError>>()?;
-let rebuilt = Ranking::from_history(reader, decoded)?;
-assert_eq!(rebuilt.projection(), ranking.projection());
-Ok(())
+    let decoded = ranking
+        .history()
+        .iter()
+        .map(|event| {
+            let json = encode_event(event)?;
+            Ok(decode_event(&json)?.event().clone())
+        })
+        .collect::<Result<Vec<_>, book_smartz_domain::CodecError>>()?;
+    let rebuilt = Ranking::from_history(reader, decoded)?;
+    assert_eq!(rebuilt.projection(), ranking.projection());
+    Ok(())
 }
 ```
 

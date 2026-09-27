@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use googletest::prelude::*;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
-    AutomaticPauseReason, BookId, ComparisonChoice, DomainNotice, EventId, EventKind,
+    AutomaticPauseReason, BookId, CodecError, ComparisonChoice, DomainNotice, EventId, EventKind,
     EventMetadata, RankingEvent, RankingProjection, ReaderId, Sequence, decode_event,
     derive_notices, encode_document, encode_event, encode_notice,
 };
@@ -30,6 +30,27 @@ fn event(sequence: u64, kind: EventKind) -> RankingEvent {
         BookId::new(id(200)),
         kind,
     )
+}
+
+fn event_at(instant: DateTime<Utc>) -> RankingEvent {
+    RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(1)),
+            reader_id: ReaderId::new(id(100)),
+            sequence: Sequence::new(1).unwrap(),
+            time: instant,
+        },
+        BookId::new(id(200)),
+        EventKind::PlacementStarted,
+    )
+}
+
+fn utc_date(year: i32, month: u32, day: u32, hour: u32, minute: u32, second: u32) -> DateTime<Utc> {
+    NaiveDate::from_ymd_opt(year, month, day)
+        .unwrap()
+        .and_hms_opt(hour, minute, second)
+        .unwrap()
+        .and_utc()
 }
 
 fn sample() -> Value {
@@ -212,6 +233,63 @@ fn large_sequence_and_offset_time_roundtrip() {
     ] {
         wire["data"]["sequence"] = invalid_sequence;
         assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+}
+
+#[googletest::test]
+fn offset_times_crossing_the_rfc3339_year_range_are_rejected() {
+    for input in ["9999-12-31T23:00:00-01:00", "0000-01-01T00:00:00+01:00"] {
+        let mut wire = sample();
+        wire["time"] = json!(input);
+        assert_that!(
+            decode_event(&wire.to_string()),
+            eq(&Err(CodecError::InvalidField("time")))
+        );
+    }
+}
+
+#[googletest::test]
+fn direct_event_and_notice_encoding_reject_out_of_range_utc_time() {
+    for instant in [
+        utc_date(-1, 12, 31, 23, 59, 59),
+        utc_date(10000, 1, 1, 0, 0, 0),
+    ] {
+        let event = event_at(instant);
+        assert_that!(
+            encode_event(&event),
+            eq(&Err(CodecError::InvalidField("time")))
+        );
+        let notice = DomainNotice::BookRanked {
+            metadata: *event.metadata(),
+            candidate: event.candidate(),
+            position: 0,
+            entry_count: 1,
+        };
+        assert_that!(
+            encode_notice(&notice),
+            eq(&Err(CodecError::InvalidField("time")))
+        );
+    }
+}
+
+#[googletest::test]
+fn boundary_year_utc_times_encode_and_roundtrip() {
+    for (instant, expected) in [
+        (utc_date(0, 1, 1, 0, 0, 0), "0000-01-01T00:00:00Z"),
+        (utc_date(9999, 12, 31, 23, 59, 59), "9999-12-31T23:59:59Z"),
+    ] {
+        let event = event_at(instant);
+        let encoded = encode_event(&event).unwrap();
+        let wire: Value = serde_json::from_str(&encoded).unwrap();
+        assert_that!(wire["time"].as_str(), eq(Some(expected)));
+        let document = decode_event(&encoded).unwrap();
+        assert_that!(document.event(), eq(&event));
+        assert_that!(
+            decode_event(&encode_document(&document).unwrap())
+                .unwrap()
+                .event(),
+            eq(&event)
+        );
     }
 }
 

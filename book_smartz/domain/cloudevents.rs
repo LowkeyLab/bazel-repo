@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Datelike, SecondsFormat, Utc};
 use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};
@@ -191,8 +191,15 @@ fn event_type(kind: &EventKind) -> &'static str {
     }
 }
 
-fn time_string(time: DateTime<Utc>) -> String {
-    time.to_rfc3339_opts(SecondsFormat::AutoSi, true)
+fn valid_utc_time(time: &DateTime<Utc>) -> bool {
+    (0..=9999).contains(&time.year())
+}
+
+fn time_string(time: DateTime<Utc>) -> Result<String, CodecError> {
+    if !valid_utc_time(&time) {
+        return Err(CodecError::InvalidField("time"));
+    }
+    Ok(time.to_rfc3339_opts(SecondsFormat::AutoSi, true))
 }
 
 fn base_envelope(
@@ -201,19 +208,19 @@ fn base_envelope(
     candidate: BookId,
     event_type: &str,
     data: Value,
-) -> WireEnvelope {
-    WireEnvelope {
+) -> Result<WireEnvelope, CodecError> {
+    Ok(WireEnvelope {
         specversion: Some("1.0".into()),
         id: Some(id),
         source: Some(format!("urn:uuid:{}", metadata.reader_id.as_uuid())),
         event_type: Some(event_type.into()),
         subject: Some(format!("books/{}", candidate.as_uuid())),
-        time: Some(time_string(metadata.time)),
+        time: Some(time_string(metadata.time)?),
         datacontenttype: Some("application/json".into()),
         dataschema: None,
         data: Some(data),
         extensions: BTreeMap::new(),
-    }
+    })
 }
 
 fn common_data(metadata: &EventMetadata, candidate: BookId) -> Map<String, Value> {
@@ -266,7 +273,7 @@ pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
         event.candidate(),
         event_type(event.kind()),
         Value::Object(data),
-    ))
+    )?)
 }
 
 /// Re-encodes a decoded event while retaining its optional context attributes.
@@ -320,7 +327,7 @@ pub fn encode_notice(notice: &DomainNotice) -> Result<String, CodecError> {
         candidate,
         event_type,
         Value::Object(data),
-    ))
+    )?)
 }
 
 /// Decodes and validates an authoritative event in the ranking profile.
@@ -349,6 +356,9 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
     let time = DateTime::parse_from_rfc3339(&required(wire.time, "time")?)
         .map_err(|_| CodecError::InvalidField("time"))?
         .with_timezone(&Utc);
+    if !valid_utc_time(&time) {
+        return Err(CodecError::InvalidField("time"));
+    }
     if required(wire.datacontenttype, "datacontenttype")? != "application/json" {
         return Err(CodecError::InvalidField("datacontenttype"));
     }
