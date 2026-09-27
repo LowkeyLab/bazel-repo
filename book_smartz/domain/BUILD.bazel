@@ -7,17 +7,22 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "lib",
     srcs = [
+        "cloudevents.rs",
+        "cloudevents_tests.rs",
         "command.rs",
         "command_tests.rs",
         "error.rs",
         "event.rs",
         "identity.rs",
         "lib.rs",
+        "notice.rs",
         "projection.rs",
     ],
     crate_name = "book_smartz_domain",
     deps = [
         "@crates//:chrono",
+        "@crates//:serde",
+        "@crates//:serde_json",
         "@crates//:thiserror",
         "@crates//:uuid",
     ],

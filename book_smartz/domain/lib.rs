@@ -1,16 +1,24 @@
+pub mod cloudevents;
 pub mod command;
 pub mod error;
 pub mod event;
 pub mod identity;
+pub mod notice;
 pub mod projection;
 
 #[cfg(test)]
+mod cloudevents_tests;
+#[cfg(test)]
 mod command_tests;
 
+pub use cloudevents::{
+    CloudEventDocument, CodecError, decode_event, encode_document, encode_event, encode_notice,
+};
 pub use command::{Command, CommandContext, Ranking, decide};
 pub use error::{DomainError, IdentityError, ReplayError, ReplayErrorReason};
 pub use event::{ComparisonChoice, EventKind, EventMetadata, RankingEvent, Sequence};
 pub use identity::{Book, BookId, BookRegistry, EventId, OpenLibraryWorkId, ReaderId};
+pub use notice::{AutomaticPauseReason, DomainNotice, derive_notices};
 pub use projection::{PlacementSession, RankingEntry, RankingProjection};
 
 #[cfg(test)]
