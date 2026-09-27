@@ -49,7 +49,7 @@ silently altering rankings. No merge operation is included here.
 The domain separates command decisions from event application:
 
 ```text
-command + current projection + explicit time + registered book identity
+command + current projection + explicit event UUID/time + registered book identity
     -> decide -> accepted event or typed error
 prior event stream + accepted event
     -> replay/apply -> current ranking and pending placement
@@ -72,7 +72,7 @@ cannot directly edit positions, placement bounds, or timestamps.
 
 An empty history projects to an empty ranking at revision zero. Each event carries
 its reader ID, contiguous sequence number starting at one, candidate Book ID,
-and caller-supplied `occurredAt` UTC instant. Projection revision equals the last
+and caller-supplied UTC instant in CloudEvents `time`. Projection revision equals the last
 applied sequence. Commands carry the expected revision; stale commands fail.
 Reads and replay never append events or advance the sequence.
 
@@ -90,8 +90,9 @@ retries fail rather than appending the same answer twice.
 
 The full event history is retained in memory. Bounds and skipped sets are derived
 working state, not replacements for history. Losing the caller-held history loses
-the ranking; restart recovery, durable append, snapshots, serialization, and event
-schema migrations remain outside this iteration. Changes to event interpretation
+the ranking; restart recovery, durable append, snapshots, and event schema migrations remain
+outside this iteration. Pure CloudEvents JSON encoding/decoding is included;
+transport bindings and storage are not. Changes to event interpretation
 or selection rules must preserve existing replay fixtures; future incompatible
 rules require an explicit version/migration design rather than silently replaying
 old choices with new semantics.
@@ -135,8 +136,9 @@ before B, so A is next. All existing relative ordering is preserved.
 The caller supplies a UTC instant to each state-changing operation. UUID
 generation and reading the current clock are outside the domain boundary.
 
-- Event `occurredAt`: the accepted command's supplied instant, retained in history.
-- `startedAt`: derived from `PlacementStarted.occurredAt`.
+- CloudEvents `time`: the accepted command's supplied instant, retained in history.
+  It is required by our domain profile, although optional in CloudEvents itself.
+- `startedAt`: derived from the `PlacementStarted` event's `time`.
 - `lastActivityAt`: derived from the latest event affecting the pending placement.
 - `addedAt`: derived from the event that makes placement complete: the first-book
   start event or the decisive comparison event.
@@ -150,9 +152,89 @@ backward-moving timestamps are accepted: revisions establish logical order, and
 timestamps must not influence ranking or opponent selection. No duration is
 computed by subtracting wall-clock values.
 
+## CloudEvents contract
+
+Use the [CloudEvents 1.0.2 specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
+and its [JSON event format](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md).
+The envelope's `specversion` is `"1.0"`, not the specification document's patch
+version. CloudEvents defines the envelope; our profile below defines ranking
+payloads and replay constraints. It supplies no persistence or ordering guarantee.
+
+| Attribute         | Domain profile                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `specversion`     | Required string `"1.0"`                                                                                      |
+| `id`              | Required caller-supplied EventId UUID, encoded as a canonical UUID string; distinct from BookId and ReaderId |
+| `source`          | Required absolute URI `urn:uuid:<ReaderId>`; identifies this reader's single ranking stream                  |
+| `type`            | Required versioned name from the mapping below                                                               |
+| `subject`         | Required by this profile: `books/<BookId>` for the candidate                                                 |
+| `time`            | Required by this profile: original occurrence instant; encode UTC as RFC 3339 with `Z`                       |
+| `datacontenttype` | Required by this profile: `application/json`                                                                 |
+| `data`            | Required JSON object containing common ranking fields and event-specific fields                              |
+
+CloudEvents requires `id`, `source`, `specversion`, and `type`. Our additional
+requirements are deliberately stricter. No custom context extensions or
+`dataschema` URI are necessary initially. Incompatible domain payload changes
+need a new type version, independently of `specversion`.
+
+| Domain event       | CloudEvents `type`                   |
+| ------------------ | ------------------------------------ |
+| PlacementStarted   | `bookranking.placement.started.v1`   |
+| ComparisonAnswered | `bookranking.comparison.answered.v1` |
+| PlacementPaused    | `bookranking.placement.paused.v1`    |
+| PlacementResumed   | `bookranking.placement.resumed.v1`   |
+
+All `data` objects carry `readerId`, `candidateBookId`, and `sequence`. UUID fields
+use canonical UUID strings. `sequence` is a positive unsigned 64-bit value encoded
+as a decimal string without leading zeros, avoiding JSON numeric precision loss.
+It stays in domain data, not a CloudEvents integer extension. Comparison data
+also contains `opponentBookId` and `choice`, whose values are `prefer_candidate`,
+`prefer_opponent`, or `skip`. Lifecycle events need no additional data fields.
+
+The source must match `data.readerId`, and subject must match
+`data.candidateBookId`. Event identity is `(source, id)`; sequence controls order.
+Neither UUID sort order nor `time` controls replay. The caller supplies a fresh
+EventId for each newly accepted occurrence; reuse of an ID in a stream is rejected,
+even with a new sequence. Transport retransmission would retain the original
+identity, but strict domain replay still rejects duplicate entries.
+
+Example of a comparison event: event 1 started and immediately placed A; event 2
+started B; event 3 records the preference for B over A:
+
+```json
+{
+  "specversion": "1.0",
+  "id": "e83ecc4f-68bf-4b24-9a63-60cc7cfad460",
+  "source": "urn:uuid:b3692ae0-c782-4b0e-9335-4b2bdc7048d5",
+  "type": "bookranking.comparison.answered.v1",
+  "subject": "books/4b3d5226-5df7-4c1d-935e-bc42a3434868",
+  "time": "2026-09-27T12:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "readerId": "b3692ae0-c782-4b0e-9335-4b2bdc7048d5",
+    "candidateBookId": "4b3d5226-5df7-4c1d-935e-bc42a3434868",
+    "sequence": "3",
+    "opponentBookId": "286e3364-b260-4f4f-8ef4-8074d3eb52ba",
+    "choice": "prefer_candidate"
+  }
+}
+```
+
+The whole structured JSON event uses media type `application/cloudevents+json`;
+`datacontenttype` describes only `data`. Encode data as an object, not escaped JSON
+text or `data_base64`. Use typed payload variants within the domain rather than
+unrestricted JSON maps. A pure codec validates the envelope and payload before
+replay; unsupported specification/type versions, missing profile fields, invalid
+UUIDs/timestamps/sequences, and mismatched source/subject are typed errors.
+Unknown optional context extensions do not affect domain decisions and must not
+be mistaken for unsupported domain event types. Preserve them when round-tripping.
+
+JSON round trips preserve event identity, instant, and payload semantics; byte
+ordering and timestamp spelling are not domain contracts. This format contract
+does not mandate an SDK, HTTP server, message broker, exporter, or database.
+
 ## Authoritative domain events and observability
 
-| Event              | Payload beyond the common envelope                    | Projection effect                                                      |
+| Event              | Payload beyond the common data fields                 | Projection effect                                                      |
 | ------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
 | PlacementStarted   | None                                                  | Initialize bounds/session; immediately insert if ranking is empty      |
 | ComparisonAnswered | Opponent Book ID and choice                           | Narrow bounds or mark skip, then derive completion or automatic pause  |
@@ -178,7 +260,15 @@ opponents) notices from the old projection, applied event, and new projection.
 These notices are outputs only and are never appended to history or consumed to
 reconstruct state. Accepted domain events already describe starts, choices,
 explicit pauses, and resumes. Notices inherit reader ID, candidate Book ID,
-sequence, and occurrence time from the triggering event.
+sequence, and occurrence time from the triggering event. If exposed as events,
+these notices also use CloudEvents: types `bookranking.book.ranked.v1` and
+`bookranking.placement.automaticallypaused.v1`, the same source/subject/time, and
+IDs formed as `<trigger-event-id>:bookranked` or
+`<trigger-event-id>:automaticallypaused`. These deterministic string IDs are
+CloudEvents-valid and cannot collide with the authoritative UUID IDs. Their data
+includes the common fields, `causationId` referencing the triggering event, and
+notice-specific fields. They are not accepted by the authoritative replay codec;
+one accepted command still appends exactly one domain event.
 
 Replay must have no telemetry side effects and must not count historical actions
 as new activity. A future application may publish accepted events and derived
@@ -197,21 +287,22 @@ Tests exercise cohesive domain behavior with real private in-process values.
 There are no shared or out-of-process dependencies, no mocks, and no clock or
 repository interface. Fixed UUIDs and explicit instants are ordinary inputs.
 
-| Behavior              | Observable assertion and fault detected                                                                                                            |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identity registration | Output/state: identical mapping is idempotent; conflicting mappings and invalid work IDs are rejected                                              |
-| Empty ranking         | State/outcomes: first book is inserted immediately with supplied timestamp                                                                         |
-| Ordered insertion     | State: top, middle, and bottom placement preserves the existing order and adds exactly one book                                                    |
-| Winner decisions      | Output/state: next opponent is useful and final position satisfies all accepted preferences                                                        |
-| Skips                 | State: bounds and ranking remain unchanged; skipped opponents do not recur within a round                                                          |
-| Pause/resume          | State: unfinished placement is retained, bounds survive, and a new round retries relevant skipped opponents                                        |
-| Invalid commands      | Output/state: duplicate addition, second pending addition, stale revision, wrong opponent, and invalid lifecycle transitions leave state unchanged |
-| Explicit time         | State/outcomes: supplied instants are retained; equal/backward times do not change ordering behavior                                               |
-| Event decisions       | Output: given history and a command, return the expected typed event or error; rejection appends nothing                                           |
-| Replay equivalence    | State: full replay equals incremental application for ranking, pending placement, revisions, and timestamps                                        |
-| Invalid history       | Output: duplicate/gapped/reordered sequences, mixed readers, invalid pairs, and invalid lifecycle events are rejected                              |
-| Derived notices       | Output: completion and automatic pause notices match transitions without becoming authoritative history                                            |
-| Replay isolation      | Output/state: replay with no external dependencies preserves original times and produces no telemetry effects                                      |
+| Behavior              | Observable assertion and fault detected                                                                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity registration | Output/state: identical mapping is idempotent; conflicting mappings and invalid work IDs are rejected                                                                                   |
+| Empty ranking         | State/outcomes: first book is inserted immediately with supplied timestamp                                                                                                              |
+| Ordered insertion     | State: top, middle, and bottom placement preserves the existing order and adds exactly one book                                                                                         |
+| Winner decisions      | Output/state: next opponent is useful and final position satisfies all accepted preferences                                                                                             |
+| Skips                 | State: bounds and ranking remain unchanged; skipped opponents do not recur within a round                                                                                               |
+| Pause/resume          | State: unfinished placement is retained, bounds survive, and a new round retries relevant skipped opponents                                                                             |
+| Invalid commands      | Output/state: duplicate addition, second pending addition, stale revision, wrong opponent, and invalid lifecycle transitions leave state unchanged                                      |
+| Explicit time         | State/outcomes: supplied instants are retained; equal/backward times do not change ordering behavior                                                                                    |
+| Event decisions       | Output: given history and a command, return the expected typed event or error; rejection appends nothing                                                                                |
+| Replay equivalence    | State: full replay equals incremental application for ranking, pending placement, revisions, and timestamps                                                                             |
+| Invalid history       | Output: duplicate/gapped/reordered sequences, mixed readers, invalid pairs, and invalid lifecycle events are rejected                                                                   |
+| Derived notices       | Output: completion and automatic pause notices match transitions without becoming authoritative history                                                                                 |
+| CloudEvents contract  | Output: JSON round-trip preserves typed event semantics; required fields, source/subject agreement, event-ID uniqueness, supported versions, and precise sequence encoding are enforced |
+| Replay isolation      | Output/state: replay with no external dependencies preserves original times and produces no telemetry effects                                                                           |
 
 Use exhaustive small-list insertion scenarios to protect boundary arithmetic
 without coupling tests to helper methods. Test deterministic midpoint tie-breaks
@@ -234,5 +325,7 @@ The conversational pure-domain scope is approved. At the user's request, this
 revision makes accepted ranking events authoritative and derives current state
 through replay. It replaces the prior mutable-state-plus-outcomes design while
 retaining the no-persistence scope. Event envelopes, strict replay validation,
-and derived observability notices are concrete design choices for review. Written-spec approval precedes an
+and derived observability notices are concrete design choices for review.
+At the user's request, authoritative events and exposed notices now use CloudEvents;
+pure JSON format support is included without adding persistence or transport. Written-spec approval precedes an
 implementation plan; production code is not authorized by this document alone.
