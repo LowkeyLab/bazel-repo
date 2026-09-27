@@ -14,10 +14,12 @@ pub struct RankingEntry {
 }
 
 impl RankingEntry {
+    #[must_use]
     pub fn book_id(&self) -> BookId {
         self.book_id
     }
 
+    #[must_use]
     pub fn added_at(&self) -> DateTime<Utc> {
         self.added_at
     }
@@ -35,22 +37,27 @@ pub struct PlacementSession {
 }
 
 impl PlacementSession {
+    #[must_use]
     pub fn candidate(&self) -> BookId {
         self.candidate
     }
 
+    #[must_use]
     pub fn bounds(&self) -> (usize, usize) {
         (self.lo, self.hi)
     }
 
+    #[must_use]
     pub fn is_paused(&self) -> bool {
         self.paused
     }
 
+    #[must_use]
     pub fn started_at(&self) -> DateTime<Utc> {
         self.started_at
     }
 
+    #[must_use]
     pub fn last_activity_at(&self) -> DateTime<Utc> {
         self.last_activity_at
     }
@@ -66,6 +73,10 @@ pub struct RankingProjection {
 }
 
 impl RankingProjection {
+    /// Reconstructs current state from an ordered authoritative history.
+    ///
+    /// # Errors
+    /// Returns a replay error at the first invalid event.
     pub fn replay(reader_id: ReaderId, events: &[RankingEvent]) -> Result<Self, ReplayError> {
         let mut projection = Self {
             reader_id,
@@ -80,6 +91,10 @@ impl RankingProjection {
         Ok(projection)
     }
 
+    /// Validates and applies one event, leaving this projection unchanged.
+    ///
+    /// # Errors
+    /// Returns a replay error for an invalid sequence, identity, pair, or transition.
     pub fn apply(&self, event: &RankingEvent) -> Result<Self, ReplayError> {
         let sequence = event.metadata().sequence.value();
         let invalid = |reason| ReplayError::new(sequence, reason);
@@ -204,22 +219,27 @@ impl RankingProjection {
         Ok(())
     }
 
+    #[must_use]
     pub fn reader_id(&self) -> ReaderId {
         self.reader_id
     }
 
+    #[must_use]
     pub fn revision(&self) -> u64 {
         self.revision
     }
 
+    #[must_use]
     pub fn entries(&self) -> &[RankingEntry] {
         &self.entries
     }
 
+    #[must_use]
     pub fn pending(&self) -> Option<&PlacementSession> {
         self.pending.as_ref()
     }
 
+    #[must_use]
     pub fn next_opponent(&self) -> Option<BookId> {
         let pending = self.pending.as_ref()?;
         if pending.paused {

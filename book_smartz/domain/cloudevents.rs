@@ -36,6 +36,7 @@ pub struct CloudEventDocument {
 }
 
 impl CloudEventDocument {
+    #[must_use]
     pub fn event(&self) -> &RankingEvent {
         &self.event
     }
@@ -164,19 +165,18 @@ fn validate_extensions(extensions: &BTreeMap<String, Value>) -> Result<(), Codec
         {
             return Err(CodecError::InvalidExtension(name.clone()));
         }
-        if let Value::Number(number) = value {
-            if number
+        if let Value::Number(number) = value
+            && number
                 .as_i64()
                 .and_then(|number| i32::try_from(number).ok())
                 .is_none()
-            {
-                return Err(CodecError::InvalidExtension(name.clone()));
-            }
+        {
+            return Err(CodecError::InvalidExtension(name.clone()));
         }
-        if let Value::String(value) = value {
-            if invalid_context_string(value) {
-                return Err(CodecError::InvalidExtension(name.clone()));
-            }
+        if let Value::String(value) = value
+            && invalid_context_string(value)
+        {
+            return Err(CodecError::InvalidExtension(name.clone()));
         }
     }
     Ok(())
@@ -237,6 +237,10 @@ fn encode_wire(wire: &WireEnvelope) -> Result<String, CodecError> {
     serde_json::to_string(wire).map_err(|error| CodecError::MalformedJson(error.to_string()))
 }
 
+/// Encodes one authoritative event as `CloudEvents` JSON.
+///
+/// # Errors
+/// Returns a codec error if the event cannot be serialized.
 pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
     let mut data = common_data(event.metadata(), event.candidate());
     if let EventKind::ComparisonAnswered { opponent, choice } = event.kind() {
@@ -265,14 +269,22 @@ pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
     ))
 }
 
+/// Re-encodes a decoded event while retaining its optional context attributes.
+///
+/// # Errors
+/// Returns a codec error if the document cannot be serialized.
 pub fn encode_document(document: &CloudEventDocument) -> Result<String, CodecError> {
     let mut wire: WireEnvelope = serde_json::from_str(&encode_event(&document.event)?)
         .map_err(|error| CodecError::MalformedJson(error.to_string()))?;
     wire.extensions = document.extensions.clone();
-    wire.dataschema = document.dataschema.clone();
+    wire.dataschema.clone_from(&document.dataschema);
     encode_wire(&wire)
 }
 
+/// Encodes a derived notice as `CloudEvents` JSON.
+///
+/// # Errors
+/// Returns a codec error if the notice cannot be serialized.
 pub fn encode_notice(notice: &DomainNotice) -> Result<String, CodecError> {
     let metadata = notice.metadata();
     let candidate = notice.candidate();
@@ -311,6 +323,10 @@ pub fn encode_notice(notice: &DomainNotice) -> Result<String, CodecError> {
     ))
 }
 
+/// Decodes and validates an authoritative event in the ranking profile.
+///
+/// # Errors
+/// Returns a codec error for malformed JSON, invalid profile fields, or an unsupported version.
 pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
     let StrictValue(value) = serde_json::from_str::<StrictValue>(text)
         .map_err(|error| CodecError::MalformedJson(error.to_string()))?;

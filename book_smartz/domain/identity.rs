@@ -8,10 +8,12 @@ use crate::IdentityError;
 pub struct BookId(Uuid);
 
 impl BookId {
+    #[must_use]
     pub fn new(value: Uuid) -> Self {
         Self(value)
     }
 
+    #[must_use]
     pub fn as_uuid(&self) -> &Uuid {
         &self.0
     }
@@ -21,10 +23,12 @@ impl BookId {
 pub struct ReaderId(Uuid);
 
 impl ReaderId {
+    #[must_use]
     pub fn new(value: Uuid) -> Self {
         Self(value)
     }
 
+    #[must_use]
     pub fn as_uuid(&self) -> &Uuid {
         &self.0
     }
@@ -34,10 +38,12 @@ impl ReaderId {
 pub struct EventId(Uuid);
 
 impl EventId {
+    #[must_use]
     pub fn new(value: Uuid) -> Self {
         Self(value)
     }
 
+    #[must_use]
     pub fn as_uuid(&self) -> &Uuid {
         &self.0
     }
@@ -47,6 +53,7 @@ impl EventId {
 pub struct OpenLibraryWorkId(String);
 
 impl OpenLibraryWorkId {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -77,14 +84,17 @@ pub struct Book {
 }
 
 impl Book {
+    #[must_use]
     pub fn new(id: BookId, work_id: OpenLibraryWorkId) -> Self {
         Self { id, work_id }
     }
 
+    #[must_use]
     pub fn id(&self) -> BookId {
         self.id
     }
 
+    #[must_use]
     pub fn work_id(&self) -> &OpenLibraryWorkId {
         &self.work_id
     }
@@ -97,10 +107,15 @@ pub struct BookRegistry {
 }
 
 impl BookRegistry {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Adds an identity mapping, accepting a repeat of the identical mapping.
+    ///
+    /// # Errors
+    /// Returns an identity conflict if either ID already maps to a different value.
     pub fn register(&mut self, book: Book) -> Result<(), IdentityError> {
         if let Some(existing) = self.by_id.get(&book.id) {
             return if existing == &book {
@@ -117,6 +132,7 @@ impl BookRegistry {
         Ok(())
     }
 
+    #[must_use]
     pub fn get(&self, id: BookId) -> Option<&Book> {
         self.by_id.get(&id)
     }

@@ -1,3 +1,10 @@
+//! Pure, event-driven personal book rankings.
+//!
+//! Register caller-owned book identities, execute commands with a caller-supplied
+//! event ID and UTC instant, and retain the accepted history. `Ranking::from_history`
+//! reconstructs current state solely from that history. See the package README for
+//! a complete usage example and the `CloudEvents` JSON profile.
+
 pub mod cloudevents;
 pub mod command;
 pub mod error;
@@ -28,9 +35,9 @@ mod tests {
     use uuid::Uuid;
 
     use super::{
-        Book, BookId, BookRegistry, ComparisonChoice, DomainError, EventId, EventKind,
-        EventMetadata, IdentityError, OpenLibraryWorkId, RankingEvent, RankingProjection, ReaderId,
-        ReplayErrorReason, Sequence,
+        Book, BookId, BookRegistry, Command, CommandContext, ComparisonChoice, DomainError,
+        EventId, EventKind, EventMetadata, IdentityError, OpenLibraryWorkId, Ranking, RankingEvent,
+        RankingProjection, ReaderId, ReplayErrorReason, Sequence, decode_event, encode_event,
     };
 
     fn reader() -> ReaderId {
@@ -431,5 +438,96 @@ mod tests {
         ] {
             assert_that!(OpenLibraryWorkId::try_from(invalid).is_err(), eq(true));
         }
+    }
+
+    #[googletest::test]
+    fn public_commands_and_json_history_rebuild_the_same_ranking() {
+        let reader_id = reader();
+        let a = BookId::new(Uuid::from_u128(1));
+        let b = BookId::new(Uuid::from_u128(2));
+        let mut registry = BookRegistry::new();
+        registry
+            .register(Book::new(a, OpenLibraryWorkId::try_from("OL1W").unwrap()))
+            .unwrap();
+        registry
+            .register(Book::new(b, OpenLibraryWorkId::try_from("OL2W").unwrap()))
+            .unwrap();
+        let mut ranking = Ranking::new(reader_id);
+        for (sequence, command) in [
+            (1, Command::Start { book_id: a }),
+            (2, Command::Start { book_id: b }),
+            (
+                3,
+                Command::Answer {
+                    opponent: a,
+                    choice: ComparisonChoice::PreferCandidate,
+                },
+            ),
+        ] {
+            ranking
+                .execute(
+                    &registry,
+                    CommandContext {
+                        expected_revision: sequence - 1,
+                        event_id: EventId::new(Uuid::from_u128(sequence.into())),
+                        time: at(sequence.try_into().unwrap()),
+                    },
+                    command,
+                )
+                .unwrap();
+        }
+        assert_that!(ranking.projection().revision(), eq(3));
+        assert_that!(
+            ranking
+                .projection()
+                .entries()
+                .iter()
+                .map(|entry| entry.book_id())
+                .collect::<Vec<_>>(),
+            eq(&vec![b, a])
+        );
+        assert_that!(ranking.projection().entries()[0].added_at(), eq(at(3)));
+        let accepted = ranking.history().to_vec();
+        for (context, command, error) in [
+            (
+                CommandContext {
+                    expected_revision: 2,
+                    event_id: EventId::new(Uuid::from_u128(4)),
+                    time: at(4),
+                },
+                Command::Start { book_id: a },
+                DomainError::StaleRevision {
+                    expected: 2,
+                    actual: 3,
+                },
+            ),
+            (
+                CommandContext {
+                    expected_revision: 3,
+                    event_id: EventId::new(Uuid::from_u128(5)),
+                    time: at(5),
+                },
+                Command::Start { book_id: b },
+                DomainError::InvalidTransition(ReplayErrorReason::DuplicateBook),
+            ),
+        ] {
+            assert_that!(
+                ranking.execute(&registry, context, command),
+                eq(&Err(error))
+            );
+            assert_that!(ranking.history(), eq(accepted.as_slice()));
+        }
+        let decoded = accepted
+            .iter()
+            .map(|event| {
+                decode_event(&encode_event(event).unwrap())
+                    .unwrap()
+                    .event()
+                    .clone()
+            })
+            .collect::<Vec<_>>();
+        assert_that!(decoded, eq(&accepted));
+        let rebuilt = Ranking::from_history(reader_id, decoded).unwrap();
+        assert_that!(rebuilt, eq(&ranking));
     }
 }

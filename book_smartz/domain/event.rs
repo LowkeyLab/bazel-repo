@@ -6,6 +6,10 @@ use crate::{BookId, DomainError, EventId, ReaderId};
 pub struct Sequence(u64);
 
 impl Sequence {
+    /// Creates a positive event sequence.
+    ///
+    /// # Errors
+    /// Returns `InvalidSequence` for zero.
     pub fn new(value: u64) -> Result<Self, DomainError> {
         if value == 0 {
             return Err(DomainError::InvalidSequence);
@@ -13,10 +17,15 @@ impl Sequence {
         Ok(Self(value))
     }
 
+    #[must_use]
     pub fn value(&self) -> u64 {
         self.0
     }
 
+    /// Returns the next sequence.
+    ///
+    /// # Errors
+    /// Returns `SequenceOverflow` after the maximum sequence.
     pub fn successor(&self) -> Result<Self, DomainError> {
         self.0
             .checked_add(1)
@@ -59,6 +68,7 @@ pub struct RankingEvent {
 }
 
 impl RankingEvent {
+    #[must_use]
     pub fn new(metadata: EventMetadata, candidate: BookId, kind: EventKind) -> Self {
         Self {
             metadata,
@@ -67,14 +77,17 @@ impl RankingEvent {
         }
     }
 
+    #[must_use]
     pub fn metadata(&self) -> &EventMetadata {
         &self.metadata
     }
 
+    #[must_use]
     pub fn candidate(&self) -> BookId {
         self.candidate
     }
 
+    #[must_use]
     pub fn kind(&self) -> &EventKind {
         &self.kind
     }

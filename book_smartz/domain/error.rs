@@ -63,10 +63,12 @@ impl ReplayError {
         }
     }
 
+    #[must_use]
     pub fn attempted_sequence(&self) -> u64 {
         self.attempted_sequence
     }
 
+    #[must_use]
     pub fn reason(&self) -> &ReplayErrorReason {
         &self.reason
     }

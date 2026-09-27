@@ -25,6 +25,10 @@ pub struct CommandContext {
     pub time: DateTime<Utc>,
 }
 
+/// Validates a command and proposes its event without changing the projection.
+///
+/// # Errors
+/// Returns a domain error for stale revisions, unknown books, invalid transitions, or overflow.
 pub fn decide(
     projection: &RankingProjection,
     registry: &BookRegistry,
@@ -105,6 +109,11 @@ pub struct Ranking {
 }
 
 impl Ranking {
+    /// Creates an empty ranking for a reader.
+    ///
+    /// # Panics
+    /// Panics only if replaying an empty history violates the domain invariant.
+    #[must_use]
     pub fn new(reader_id: ReaderId) -> Self {
         Self {
             history: Vec::new(),
@@ -113,6 +122,10 @@ impl Ranking {
         }
     }
 
+    /// Rebuilds a ranking from its authoritative history.
+    ///
+    /// # Errors
+    /// Returns a replay error at the first invalid event.
     pub fn from_history(
         reader_id: ReaderId,
         history: Vec<RankingEvent>,
@@ -124,6 +137,10 @@ impl Ranking {
         })
     }
 
+    /// Accepts one command and appends its event if valid.
+    ///
+    /// # Errors
+    /// Returns a domain error without changing history for rejected commands.
     pub fn execute(
         &mut self,
         registry: &BookRegistry,
@@ -140,10 +157,12 @@ impl Ranking {
         Ok(event)
     }
 
+    #[must_use]
     pub fn history(&self) -> &[RankingEvent] {
         &self.history
     }
 
+    #[must_use]
     pub fn projection(&self) -> &RankingProjection {
         &self.projection
     }

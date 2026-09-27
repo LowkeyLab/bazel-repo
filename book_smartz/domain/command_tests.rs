@@ -255,9 +255,9 @@ fn all_useful_opponents_skipped_pauses() {
 
 #[googletest::test]
 fn explicit_pause_preserves_winning_decisions() {
-    let books = registry(1..=4);
+    let books = registry(1..=6);
     let mut ranking = Ranking::new(reader());
-    for id in 1..=3 {
+    for id in 1..=5 {
         append_at_bottom(&mut ranking, &books, id);
     }
     let original_times: Vec<_> = ranking
@@ -266,18 +266,31 @@ fn explicit_pause_preserves_winning_decisions() {
         .iter()
         .map(|entry| entry.added_at())
         .collect();
-    execute(&mut ranking, &books, Command::Start { book_id: book(4) });
+    execute(&mut ranking, &books, Command::Start { book_id: book(6) });
     let started = ranking.projection().pending().unwrap().started_at();
     let opponent = ranking.projection().next_opponent().unwrap();
+    assert_that!(opponent, eq(book(3)));
     execute(
         &mut ranking,
         &books,
         Command::Answer {
             opponent,
-            choice: ComparisonChoice::PreferOpponent,
+            choice: ComparisonChoice::PreferCandidate,
         },
     );
     let bounds = ranking.projection().pending().unwrap().bounds();
+    assert_that!(bounds, eq((0, 2)));
+    assert_that!(ranking.projection().next_opponent(), eq(Some(book(1))));
+    execute(
+        &mut ranking,
+        &books,
+        Command::Answer {
+            opponent: book(1),
+            choice: ComparisonChoice::Skip,
+        },
+    );
+    assert_that!(ranking.projection().pending().unwrap().bounds(), eq(bounds));
+    assert_that!(ranking.projection().next_opponent(), eq(Some(book(2))));
     execute(&mut ranking, &books, Command::Pause);
     assert_that!(ranking.projection().next_opponent(), eq(None));
     execute(&mut ranking, &books, Command::Resume);
@@ -295,7 +308,7 @@ fn explicit_pause_preserves_winning_decisions() {
             .collect::<Vec<_>>(),
         eq(&original_times)
     );
-    assert_that!(ranking.projection().next_opponent(), eq(Some(book(3))));
+    assert_that!(ranking.projection().next_opponent(), eq(Some(book(1))));
 }
 
 #[googletest::test]

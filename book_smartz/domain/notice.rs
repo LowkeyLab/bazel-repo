@@ -21,6 +21,7 @@ pub enum DomainNotice {
 }
 
 impl DomainNotice {
+    #[must_use]
     pub fn metadata(&self) -> &EventMetadata {
         match self {
             Self::BookRanked { metadata, .. }
@@ -28,6 +29,7 @@ impl DomainNotice {
         }
     }
 
+    #[must_use]
     pub fn candidate(&self) -> crate::BookId {
         match self {
             Self::BookRanked { candidate, .. }
@@ -36,6 +38,11 @@ impl DomainNotice {
     }
 }
 
+/// Classifies a valid applied transition without changing its authoritative history.
+///
+/// # Panics
+/// Panics if the supplied projections do not describe a valid completed transition.
+#[must_use]
 pub fn derive_notices(
     before: &RankingProjection,
     event: &RankingEvent,
@@ -56,7 +63,9 @@ pub fn derive_notices(
     }
     if matches!(event.kind(), EventKind::ComparisonAnswered { .. })
         && before.pending().is_some_and(|pending| !pending.is_paused())
-        && after.pending().is_some_and(|pending| pending.is_paused())
+        && after
+            .pending()
+            .is_some_and(crate::PlacementSession::is_paused)
     {
         return vec![DomainNotice::PlacementAutomaticallyPaused {
             metadata: *event.metadata(),
