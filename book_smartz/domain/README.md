@@ -82,8 +82,8 @@ history if the ranking must survive beyond this process: this package has no
 storage or restart durability. Replaying history does not publish telemetry or
 turn old activity into new activity.
 
-`encode_event` and `decode_event` support the library's CloudEvents 1.0 JSON
-profile. Events use `specversion: "1.0"`, `source: "urn:uuid:<reader-id>"`,
+`encode_event` and `decode_event` use `cloudevents-sdk` 0.9.0 for the library's
+CloudEvents 1.0 JSON profile. Events use `specversion: "1.0"`, `source: "urn:uuid:<reader-id>"`,
 `subject: "books/<candidate-book-id>"`, a required UTC `time`, and JSON `data`.
 The data contains `readerId`, `candidateBookId`, and a positive decimal-string
 `sequence`; comparison data also contains `opponentBookId` and `choice`.
@@ -92,6 +92,32 @@ The supported authoritative types are `bookranking.placement.started.v1`,
 `bookranking.placement.resumed.v1`. The whole document has media type
 `application/cloudevents+json`; its `datacontenttype` is `application/json`.
 The codec is pure and does not provide a transport or durable event store.
+
+Authoritative events also carry a top-level `sequence` string padded to 20 digits,
+so lexical ordering matches the domain revision across the full `u64` range.
+It is derived from `data.sequence`; a supplied extension must match exactly.
+Older envelopes without it remain readable and gain it on re-encoding. Derived
+notices omit this extension because they do not advance the reader's revision.
+This uses the [Sequence extension's string ordering](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/extensions/sequence.md),
+without the optional `sequencetype` integer mode.
+
+Use `to_cloud_event(&event)` to obtain an SDK `Event`. Callers can attach
+`traceparent` and optional `tracestate` with `Event::set_extension`, then use
+`CloudEventDocument::try_from(event)` for profile validation. The document exposes
+its validated SDK envelope through `cloud_event()` and its replayable domain event
+through `event()`. `encode_document` preserves optional context and unknown valid
+extensions. SDK URI parsing may normalize `dataschema` spelling.
+
+Trace context is opaque, caller-supplied [W3C context](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/extensions/distributed-tracing.md).
+The codec validates CloudEvents string constraints, nonempty trace values, and
+requires `traceparent` when `tracestate` is present. The caller's tracing library
+is responsible for W3C grammar and propagation semantics. The domain does not
+create traces or use tracing context in decisions or replay. SDK builders use
+`new()` with supplied IDs and times, avoiding the generated defaults.
+
+Recorded time, partitioning, and auth-context extensions are deferred until there
+is an ingestion, delivery, or authentication boundary. Authoritative decisions
+must not be expired or sampled away because replay needs the complete history.
 
 Run the package tests with
 `nix develop --command aspect test //book_smartz/domain:domain_test`.

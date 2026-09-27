@@ -21,6 +21,7 @@ rust_library(
     crate_name = "book_smartz_domain",
     deps = [
         "@crates//:chrono",
+        "@crates//:cloudevents-sdk",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",

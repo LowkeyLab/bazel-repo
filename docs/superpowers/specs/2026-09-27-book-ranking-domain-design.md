@@ -172,8 +172,9 @@ payloads and replay constraints. It supplies no persistence or ordering guarante
 | `data`            | Required JSON object containing common ranking fields and event-specific fields                              |
 
 CloudEvents requires `id`, `source`, `specversion`, and `type`. Our additional
-requirements are deliberately stricter. No custom context extensions or
-`dataschema` URI are necessary initially. Incompatible domain payload changes
+requirements are deliberately stricter. Use the official Rust `cloudevents-sdk`
+for envelopes and JSON serialization, with domain-profile validation around it.
+A `dataschema` URI is optional. Incompatible domain payload changes
 need a new type version, independently of `specversion`.
 
 | Domain event       | CloudEvents `type`                   |
@@ -186,7 +187,24 @@ need a new type version, independently of `specversion`.
 All `data` objects carry `readerId`, `candidateBookId`, and `sequence`. UUID fields
 use canonical UUID strings. `sequence` is a positive unsigned 64-bit value encoded
 as a decimal string without leading zeros, avoiding JSON numeric precision loss.
-It stays in domain data, not a CloudEvents integer extension. Comparison data
+It remains authoritative in domain data. Encode the documented
+[Sequence extension](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/extensions/sequence.md)
+as a top-level, 20-digit zero-padded string derived from this revision, so lexical
+ordering matches numeric order. Omit `sequencetype`; its integer mode does not
+match our positive `u64` revisions. Reject mismatches between the extension and
+the payload. Accept older envelopes without the optional extension and add it
+when re-encoding. Derived notices omit the extension because they do not advance
+revision.
+
+Support optional caller-supplied
+[Distributed Tracing context](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/extensions/distributed-tracing.md):
+`traceparent` and optional `tracestate`. Validate CloudEvents string constraints,
+nonempty values, and the parent dependency; the caller's tracing library owns
+W3C grammar and propagation. Preserve context without using it in replay or
+creating spans. Defer recorded-time, partitioning, and auth-context adoption until
+those application boundaries exist. Never expire or sample authoritative history.
+
+Comparison data
 also contains `opponentBookId` and `choice`, whose values are `prefer_candidate`,
 `prefer_opponent`, or `skip`. Lifecycle events need no additional data fields.
 

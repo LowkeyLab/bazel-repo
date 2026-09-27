@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-
-use chrono::{DateTime, Datelike, SecondsFormat, Utc};
+use chrono::{DateTime, Datelike, Utc};
+use cloudevents::event::ExtensionValue;
+use cloudevents::{AttributesReader, Data, Event, EventBuilder, EventBuilderV10};
 use serde::de::{MapAccess, SeqAccess, Visitor};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
 use url::Url;
 use uuid::Uuid;
@@ -31,8 +31,7 @@ pub enum CodecError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CloudEventDocument {
     event: RankingEvent,
-    dataschema: Option<String>,
-    extensions: BTreeMap<String, Value>,
+    envelope: Event,
 }
 
 impl CloudEventDocument {
@@ -40,26 +39,25 @@ impl CloudEventDocument {
     pub fn event(&self) -> &RankingEvent {
         &self.event
     }
+
+    /// Returns the validated SDK envelope, including optional context.
+    #[must_use]
+    pub fn cloud_event(&self) -> &Event {
+        &self.envelope
+    }
 }
 
-#[derive(Serialize, Deserialize)]
-struct WireEnvelope {
-    specversion: Option<String>,
-    id: Option<String>,
-    source: Option<String>,
-    #[serde(rename = "type")]
-    event_type: Option<String>,
-    subject: Option<String>,
-    time: Option<String>,
-    datacontenttype: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    dataschema: Option<String>,
-    data: Option<Value>,
-    #[serde(flatten)]
-    extensions: BTreeMap<String, Value>,
+impl TryFrom<Event> for CloudEventDocument {
+    type Error = CodecError;
+
+    fn try_from(envelope: Event) -> Result<Self, Self::Error> {
+        // Validate through the same boundary as JSON, including duplicate names
+        // introduced by SDK extensions that collide with reserved attributes.
+        decode_event(&encode_wire(&envelope)?)
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct WireData {
     #[serde(rename = "readerId")]
     reader_id: Option<String>,
@@ -157,7 +155,7 @@ fn invalid_context_string(value: &str) -> bool {
     })
 }
 
-fn validate_extensions(extensions: &BTreeMap<String, Value>) -> Result<(), CodecError> {
+fn validate_extensions(extensions: &Map<String, Value>) -> Result<(), CodecError> {
     for (name, value) in extensions {
         if name == "data_base64"
             || !valid_extension_name(name)
@@ -182,6 +180,22 @@ fn validate_extensions(extensions: &BTreeMap<String, Value>) -> Result<(), Codec
     Ok(())
 }
 
+// Trace strings are opaque caller-supplied W3C context. We enforce their
+// CloudEvents types and dependency; tracing libraries interpret their contents.
+fn validate_trace_context(extensions: &Map<String, Value>) -> Result<(), CodecError> {
+    for name in ["traceparent", "tracestate"] {
+        if let Some(value) = extensions.get(name)
+            && value.as_str().is_none_or(str::is_empty)
+        {
+            return Err(CodecError::InvalidExtension(name.into()));
+        }
+    }
+    if extensions.contains_key("tracestate") && !extensions.contains_key("traceparent") {
+        return Err(CodecError::InvalidExtension("traceparent".into()));
+    }
+    Ok(())
+}
+
 fn event_type(kind: &EventKind) -> &'static str {
     match kind {
         EventKind::PlacementStarted => "bookranking.placement.started.v1",
@@ -195,32 +209,26 @@ fn valid_utc_time(time: &DateTime<Utc>) -> bool {
     (0..=9999).contains(&time.year())
 }
 
-fn time_string(time: DateTime<Utc>) -> Result<String, CodecError> {
-    if !valid_utc_time(&time) {
-        return Err(CodecError::InvalidField("time"));
-    }
-    Ok(time.to_rfc3339_opts(SecondsFormat::AutoSi, true))
-}
-
 fn base_envelope(
     id: String,
     metadata: &EventMetadata,
     candidate: BookId,
     event_type: &str,
     data: Value,
-) -> Result<WireEnvelope, CodecError> {
-    Ok(WireEnvelope {
-        specversion: Some("1.0".into()),
-        id: Some(id),
-        source: Some(format!("urn:uuid:{}", metadata.reader_id.as_uuid())),
-        event_type: Some(event_type.into()),
-        subject: Some(format!("books/{}", candidate.as_uuid())),
-        time: Some(time_string(metadata.time)?),
-        datacontenttype: Some("application/json".into()),
-        dataschema: None,
-        data: Some(data),
-        extensions: BTreeMap::new(),
-    })
+) -> Result<Event, CodecError> {
+    if !valid_utc_time(&metadata.time) {
+        return Err(CodecError::InvalidField("time"));
+    }
+    // new(), unlike default(), never generates an ID or reads the clock.
+    EventBuilderV10::new()
+        .id(id)
+        .source(format!("urn:uuid:{}", metadata.reader_id.as_uuid()))
+        .ty(event_type)
+        .subject(format!("books/{}", candidate.as_uuid()))
+        .time(metadata.time)
+        .data("application/json", data)
+        .build()
+        .map_err(|_| CodecError::InvalidField("envelope"))
 }
 
 fn common_data(metadata: &EventMetadata, candidate: BookId) -> Map<String, Value> {
@@ -240,7 +248,7 @@ fn common_data(metadata: &EventMetadata, candidate: BookId) -> Map<String, Value
     data
 }
 
-fn encode_wire(wire: &WireEnvelope) -> Result<String, CodecError> {
+fn encode_wire(wire: &Event) -> Result<String, CodecError> {
     serde_json::to_string(wire).map_err(|error| CodecError::MalformedJson(error.to_string()))
 }
 
@@ -249,6 +257,16 @@ fn encode_wire(wire: &WireEnvelope) -> Result<String, CodecError> {
 /// # Errors
 /// Returns a codec error if the event cannot be serialized.
 pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
+    encode_wire(&to_cloud_event(event)?)
+}
+
+/// Creates an SDK event with the ranking profile and sequence extension.
+/// Callers may attach W3C trace context using the SDK's extension methods.
+/// Convert back with `CloudEventDocument::try_from` to validate the profile.
+///
+/// # Errors
+/// Returns a codec error if the occurrence time is outside the RFC 3339 range.
+pub fn to_cloud_event(event: &RankingEvent) -> Result<Event, CodecError> {
     let mut data = common_data(event.metadata(), event.candidate());
     if let EventKind::ComparisonAnswered { opponent, choice } = event.kind() {
         data.insert(
@@ -267,13 +285,18 @@ pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
             ),
         );
     }
-    encode_wire(&base_envelope(
+    let mut envelope = base_envelope(
         event.metadata().id.as_uuid().to_string(),
         event.metadata(),
         event.candidate(),
         event_type(event.kind()),
         Value::Object(data),
-    )?)
+    )?;
+    envelope.set_extension(
+        "sequence",
+        format!("{:020}", event.metadata().sequence.value()),
+    );
+    Ok(envelope)
 }
 
 /// Re-encodes a decoded event while retaining its optional context attributes.
@@ -281,11 +304,12 @@ pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
 /// # Errors
 /// Returns a codec error if the document cannot be serialized.
 pub fn encode_document(document: &CloudEventDocument) -> Result<String, CodecError> {
-    let mut wire: WireEnvelope = serde_json::from_str(&encode_event(&document.event)?)
-        .map_err(|error| CodecError::MalformedJson(error.to_string()))?;
-    wire.extensions = document.extensions.clone();
-    wire.dataschema.clone_from(&document.dataschema);
-    encode_wire(&wire)
+    let mut envelope = document.envelope.clone();
+    envelope.set_extension(
+        "sequence",
+        format!("{:020}", document.event.metadata().sequence.value()),
+    );
+    encode_wire(&envelope)
 }
 
 /// Encodes a derived notice as `CloudEvents` JSON.
@@ -337,43 +361,17 @@ pub fn encode_notice(notice: &DomainNotice) -> Result<String, CodecError> {
 pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
     let StrictValue(value) = serde_json::from_str::<StrictValue>(text)
         .map_err(|error| CodecError::MalformedJson(error.to_string()))?;
-    if !value.is_object() {
-        return Err(CodecError::InvalidField("envelope"));
-    }
-    let mut wire: WireEnvelope = serde_json::from_value(value)
-        .map_err(|error| CodecError::MalformedJson(error.to_string()))?;
-    if wire.extensions.contains_key("data_base64") {
-        return Err(CodecError::InvalidField("data_base64"));
-    }
-    wire.extensions.retain(|_, value| !value.is_null());
-    if required(wire.specversion, "specversion")? != "1.0" {
-        return Err(CodecError::UnsupportedSpecVersion);
-    }
-    let id = EventId::new(parse_uuid(&required(wire.id, "id")?, "id")?);
-    let source = required(wire.source, "source")?;
-    let event_type = required(wire.event_type, "type")?;
-    let subject = required(wire.subject, "subject")?;
-    let time = DateTime::parse_from_rfc3339(&required(wire.time, "time")?)
-        .map_err(|_| CodecError::InvalidField("time"))?
-        .with_timezone(&Utc);
+    let envelope = parse_envelope(value)?;
+    let id = EventId::new(parse_uuid(envelope.id(), "id")?);
+    let time = *envelope.time().ok_or(CodecError::MissingField("time"))?;
     if !valid_utc_time(&time) {
         return Err(CodecError::InvalidField("time"));
     }
-    if required(wire.datacontenttype, "datacontenttype")? != "application/json" {
-        return Err(CodecError::InvalidField("datacontenttype"));
-    }
-    if wire
-        .dataschema
-        .as_deref()
-        .is_some_and(|schema| !valid_absolute_uri(schema))
-    {
-        return Err(CodecError::InvalidField("dataschema"));
-    }
-    let data = wire.data.ok_or(CodecError::MissingField("data"))?;
-    if !data.is_object() {
-        return Err(CodecError::InvalidField("data"));
-    }
-    validate_extensions(&wire.extensions)?;
+    let data = match envelope.data() {
+        Some(Data::Json(data)) if data.is_object() => data.clone(),
+        None => return Err(CodecError::MissingField("data")),
+        _ => return Err(CodecError::InvalidField("data")),
+    };
     let payload: WireData =
         serde_json::from_value(data).map_err(|_| CodecError::InvalidField("data"))?;
     let reader_id = ReaderId::new(parse_uuid(
@@ -385,13 +383,18 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
         "candidateBookId",
     )?);
     let sequence = parse_sequence(&required(payload.sequence, "sequence")?)?;
-    if source != format!("urn:uuid:{}", reader_id.as_uuid()) {
+    if envelope.source() != &format!("urn:uuid:{}", reader_id.as_uuid()) {
         return Err(CodecError::InvalidField("source"));
     }
-    if subject != format!("books/{}", candidate.as_uuid()) {
+    if envelope.subject() != Some(format!("books/{}", candidate.as_uuid()).as_str()) {
         return Err(CodecError::InvalidField("subject"));
     }
-    let kind = match event_type.as_str() {
+    if let Some(extension) = envelope.extension("sequence")
+        && extension != &ExtensionValue::String(format!("{:020}", sequence.value()))
+    {
+        return Err(CodecError::InvalidExtension("sequence".into()));
+    }
+    let kind = match envelope.ty() {
         "bookranking.placement.started.v1" => EventKind::PlacementStarted,
         "bookranking.comparison.answered.v1" => {
             let opponent = BookId::new(parse_uuid(
@@ -408,7 +411,7 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
         }
         "bookranking.placement.paused.v1" => EventKind::PlacementPaused,
         "bookranking.placement.resumed.v1" => EventKind::PlacementResumed,
-        _ => return Err(CodecError::UnsupportedEventType(event_type)),
+        _ => return Err(CodecError::UnsupportedEventType(envelope.ty().into())),
     };
     Ok(CloudEventDocument {
         event: RankingEvent::new(
@@ -421,9 +424,65 @@ pub fn decode_event(text: &str) -> Result<CloudEventDocument, CodecError> {
             candidate,
             kind,
         ),
-        dataschema: wire.dataschema,
-        extensions: wire.extensions,
+        envelope,
     })
+}
+
+fn parse_envelope(value: Value) -> Result<Event, CodecError> {
+    let Value::Object(mut fields) = value else {
+        return Err(CodecError::InvalidField("envelope"));
+    };
+    if fields.contains_key("data_base64") {
+        return Err(CodecError::InvalidField("data_base64"));
+    }
+    fields.retain(|_, value| !value.is_null());
+    for name in [
+        "specversion",
+        "id",
+        "source",
+        "type",
+        "subject",
+        "time",
+        "datacontenttype",
+    ] {
+        let value = fields.get(name).ok_or(CodecError::MissingField(name))?;
+        if value.as_str().is_none_or(str::is_empty) {
+            return Err(CodecError::InvalidField(name));
+        }
+    }
+    if fields["specversion"] != "1.0" {
+        return Err(CodecError::UnsupportedSpecVersion);
+    }
+    if fields["datacontenttype"] != "application/json" {
+        return Err(CodecError::InvalidField("datacontenttype"));
+    }
+    if let Some(schema) = fields.get("dataschema")
+        && !schema.as_str().is_some_and(valid_absolute_uri)
+    {
+        return Err(CodecError::InvalidField("dataschema"));
+    }
+    let extensions = fields
+        .iter()
+        .filter(|(name, _)| {
+            !matches!(
+                name.as_str(),
+                "specversion"
+                    | "id"
+                    | "source"
+                    | "type"
+                    | "subject"
+                    | "time"
+                    | "datacontenttype"
+                    | "dataschema"
+                    | "data"
+            )
+        })
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect();
+    validate_extensions(&extensions)?;
+    validate_trace_context(&extensions)?;
+    serde_json::from_value(Value::Object(fields))
+        .map_err(|error| CodecError::MalformedJson(error.to_string()))
 }
 
 struct StrictValue(Value);

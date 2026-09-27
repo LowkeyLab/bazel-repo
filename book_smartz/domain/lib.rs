@@ -22,6 +22,7 @@ mod command_tests;
 
 pub use cloudevents::{
     CloudEventDocument, CodecError, decode_event, encode_document, encode_event, encode_notice,
+    to_cloud_event,
 };
 pub use command::{Command, CommandContext, Ranking, decide};
 pub use error::{DomainError, IdentityError, ReplayError, ReplayErrorReason};

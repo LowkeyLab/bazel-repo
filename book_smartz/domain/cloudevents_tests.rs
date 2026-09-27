@@ -504,3 +504,96 @@ fn derived_notices_are_not_replay_events() {
         eq(0)
     );
 }
+
+#[googletest::test]
+fn sequence_extension_sorts_in_revision_order() {
+    let mut values = Vec::new();
+    for (revision, expected) in [
+        (9, "00000000000000000009"),
+        (10, "00000000000000000010"),
+        (u64::MAX, "18446744073709551615"),
+    ] {
+        let original = event(revision, EventKind::PlacementStarted);
+        let wire: Value = serde_json::from_str(&encode_event(&original).unwrap()).unwrap();
+        assert_that!(wire["sequence"].as_str(), eq(Some(expected)));
+        values.push(wire["sequence"].as_str().unwrap().to_owned());
+        assert_that!(
+            decode_event(&wire.to_string()).unwrap().event(),
+            eq(&original)
+        );
+    }
+    assert_that!(values[0] < values[1] && values[1] < values[2], eq(true));
+}
+
+#[googletest::test]
+fn sequence_extension_must_match_payload_revision() {
+    for invalid in [
+        json!("00000000000000000004"),
+        json!("3"),
+        json!(3),
+        json!(true),
+    ] {
+        let mut wire = sample();
+        wire["sequence"] = invalid;
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+    // Older envelopes without the optional extension remain readable.
+    let decoded = decode_event(&sample().to_string()).unwrap();
+    let wire: Value = serde_json::from_str(&encode_document(&decoded).unwrap()).unwrap();
+    assert_that!(wire["sequence"].as_str(), eq(Some("00000000000000000003")));
+}
+
+#[googletest::test]
+fn trace_context_does_not_affect_replay() {
+    let original = event(1, EventKind::PlacementStarted);
+    let mut wire: Value = serde_json::from_str(&encode_event(&original).unwrap()).unwrap();
+    wire["traceparent"] = json!("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    wire["tracestate"] = json!("vendor=value");
+    let document = decode_event(&wire.to_string()).unwrap();
+    let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(&encoded["traceparent"], eq(&wire["traceparent"]));
+    assert_that!(&encoded["tracestate"], eq(&wire["tracestate"]));
+    let reader = original.metadata().reader_id;
+    assert_that!(
+        RankingProjection::replay(reader, &[document.event().clone()]),
+        eq(&RankingProjection::replay(reader, &[original]))
+    );
+}
+
+#[googletest::test]
+fn trace_context_requires_a_nonempty_string_parent() {
+    for parent in [Value::Null, json!(true), json!(42), json!("")] {
+        let mut wire = sample();
+        wire["traceparent"] = parent;
+        wire["tracestate"] = json!("vendor=value");
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+    let mut wire = sample();
+    wire["traceparent"] = json!("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    wire["tracestate"] = json!(false);
+    assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+}
+
+#[googletest::test]
+fn sdk_events_accept_caller_trace_context_and_enforce_the_profile() {
+    let original = event(1, EventKind::PlacementStarted);
+    let mut sdk = crate::cloudevents::to_cloud_event(&original).unwrap();
+    sdk.set_extension(
+        "traceparent",
+        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    );
+    sdk.set_extension("tracestate", "vendor=value");
+    let document = crate::CloudEventDocument::try_from(sdk.clone()).unwrap();
+    assert_that!(document.event(), eq(&original));
+    assert_that!(document.cloud_event(), eq(&sdk));
+    let wire: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(wire["tracestate"].as_str(), eq(Some("vendor=value")));
+    let mut collision = sdk.clone();
+    collision.set_extension("id", "replacement");
+    assert_that!(
+        crate::CloudEventDocument::try_from(collision).is_err(),
+        eq(true)
+    );
+    sdk.set_extension("sequence", "00000000000000000002");
+    assert_that!(crate::CloudEventDocument::try_from(sdk).is_err(), eq(true));
+}
