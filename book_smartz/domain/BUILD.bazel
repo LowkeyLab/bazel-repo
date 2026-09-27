@@ -1,0 +1,28 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "lib",
+    srcs = [
+        "error.rs",
+        "identity.rs",
+        "lib.rs",
+    ],
+    crate_name = "book_smartz_domain",
+    deps = [
+        "@crates//:thiserror",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "domain_test",
+    size = "small",
+    crate = ":lib",
+    deps = [
+        "@crates//:googletest",
+        "@crates//:uuid",
+    ],
+)
