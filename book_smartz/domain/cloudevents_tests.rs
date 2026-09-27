@@ -1,0 +1,599 @@
+use chrono::{DateTime, NaiveDate, Utc};
+use googletest::prelude::*;
+use serde_json::{Value, json};
+use uuid::Uuid;
+
+use crate::{
+    AutomaticPauseReason, BookId, CodecError, ComparisonChoice, DomainNotice, EventId, EventKind,
+    EventMetadata, RankingEvent, RankingProjection, ReaderId, Sequence, decode_event,
+    derive_notices, encode_document, encode_event, encode_notice,
+};
+
+fn id(value: u128) -> Uuid {
+    Uuid::from_u128(value)
+}
+
+fn time() -> DateTime<Utc> {
+    DateTime::parse_from_rfc3339("2026-09-27T12:00:00Z")
+        .unwrap()
+        .with_timezone(&Utc)
+}
+
+fn event(sequence: u64, kind: EventKind) -> RankingEvent {
+    RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(sequence.into())),
+            reader_id: ReaderId::new(id(100)),
+            sequence: Sequence::new(sequence).unwrap(),
+            time: time(),
+        },
+        BookId::new(id(200)),
+        kind,
+    )
+}
+
+fn event_at(instant: DateTime<Utc>) -> RankingEvent {
+    RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(1)),
+            reader_id: ReaderId::new(id(100)),
+            sequence: Sequence::new(1).unwrap(),
+            time: instant,
+        },
+        BookId::new(id(200)),
+        EventKind::PlacementStarted,
+    )
+}
+
+fn utc_date(year: i32, month: u32, day: u32, hour: u32, minute: u32, second: u32) -> DateTime<Utc> {
+    NaiveDate::from_ymd_opt(year, month, day)
+        .unwrap()
+        .and_hms_opt(hour, minute, second)
+        .unwrap()
+        .and_utc()
+}
+
+fn sample() -> Value {
+    json!({
+        "specversion": "1.0",
+        "id": "e83ecc4f-68bf-4b24-9a63-60cc7cfad460",
+        "source": "urn:uuid:b3692ae0-c782-4b0e-9335-4b2bdc7048d5",
+        "type": "bookranking.comparison.answered.v1",
+        "subject": "books/4b3d5226-5df7-4c1d-935e-bc42a3434868",
+        "time": "2026-09-27T12:00:00Z",
+        "datacontenttype": "application/json",
+        "data": {
+            "readerId": "b3692ae0-c782-4b0e-9335-4b2bdc7048d5",
+            "candidateBookId": "4b3d5226-5df7-4c1d-935e-bc42a3434868",
+            "sequence": "3",
+            "opponentBookId": "286e3364-b260-4f4f-8ef4-8074d3eb52ba",
+            "choice": "prefer_candidate"
+        }
+    })
+}
+
+#[googletest::test]
+fn cloudevent_roundtrip_preserves_each_event_kind() {
+    let kinds = [
+        (
+            EventKind::PlacementStarted,
+            "bookranking.placement.started.v1",
+        ),
+        (
+            EventKind::ComparisonAnswered {
+                opponent: BookId::new(id(300)),
+                choice: ComparisonChoice::PreferCandidate,
+            },
+            "bookranking.comparison.answered.v1",
+        ),
+        (
+            EventKind::PlacementPaused,
+            "bookranking.placement.paused.v1",
+        ),
+        (
+            EventKind::PlacementResumed,
+            "bookranking.placement.resumed.v1",
+        ),
+    ];
+    for (kind, expected_type) in kinds {
+        let original = event(3, kind);
+        let encoded: Value = serde_json::from_str(&encode_event(&original).unwrap()).unwrap();
+        assert_that!(encoded["type"].as_str(), eq(Some(expected_type)));
+        assert_that!(
+            encoded["source"].as_str(),
+            eq(Some("urn:uuid:00000000-0000-0000-0000-000000000064"))
+        );
+        assert_that!(
+            encoded["subject"].as_str(),
+            eq(Some("books/00000000-0000-0000-0000-0000000000c8"))
+        );
+        assert_that!(encoded["time"].as_str(), eq(Some("2026-09-27T12:00:00Z")));
+        assert_that!(encoded["data"]["sequence"].as_str(), eq(Some("3")));
+        assert_that!(
+            decode_event(&encoded.to_string()).unwrap().event(),
+            eq(&original)
+        );
+    }
+    for choice in [
+        ComparisonChoice::PreferCandidate,
+        ComparisonChoice::PreferOpponent,
+        ComparisonChoice::Skip,
+    ] {
+        let encoded: Value = serde_json::from_str(
+            &encode_event(&event(
+                4,
+                EventKind::ComparisonAnswered {
+                    opponent: BookId::new(id(300)),
+                    choice,
+                },
+            ))
+            .unwrap(),
+        )
+        .unwrap();
+        let expected = match choice {
+            ComparisonChoice::PreferCandidate => "prefer_candidate",
+            ComparisonChoice::PreferOpponent => "prefer_opponent",
+            ComparisonChoice::Skip => "skip",
+        };
+        assert_that!(encoded["data"]["choice"].as_str(), eq(Some(expected)));
+    }
+    let decoded = decode_event(&sample().to_string()).unwrap();
+    assert_that!(decoded.event().metadata().sequence.value(), eq(3));
+    assert_that!(
+        decoded.event().kind(),
+        eq(&EventKind::ComparisonAnswered {
+            opponent: BookId::new(Uuid::parse_str("286e3364-b260-4f4f-8ef4-8074d3eb52ba").unwrap()),
+            choice: ComparisonChoice::PreferCandidate
+        })
+    );
+}
+
+#[googletest::test]
+fn invalid_envelopes_are_rejected() {
+    let original = sample();
+    for (field, replacement) in [
+        ("specversion", json!("2.0")),
+        ("id", json!("bad")),
+        ("id", json!("")),
+        ("source", json!("urn:uuid:bad")),
+        ("subject", json!("books/bad")),
+        ("type", json!("bookranking.comparison.answered.v2")),
+        ("type", json!("bookranking.book.ranked.v1")),
+        ("time", json!("not-a-time")),
+        ("datacontenttype", json!("text/plain")),
+        ("data", json!("{\"sequence\":\"3\"}")),
+    ] {
+        let mut invalid = original.clone();
+        invalid[field] = replacement;
+        assert_that!(decode_event(&invalid.to_string()).is_err(), eq(true));
+    }
+    for field in [
+        "specversion",
+        "id",
+        "source",
+        "type",
+        "subject",
+        "time",
+        "datacontenttype",
+        "data",
+    ] {
+        let mut invalid = original.clone();
+        invalid.as_object_mut().unwrap().remove(field);
+        assert_that!(decode_event(&invalid.to_string()).is_err(), eq(true));
+    }
+    let mut invalid = original.clone();
+    invalid["source"] = json!("urn:uuid:00000000-0000-0000-0000-000000000001");
+    assert_that!(decode_event(&invalid.to_string()).is_err(), eq(true));
+    invalid = original.clone();
+    invalid["subject"] = json!("books/00000000-0000-0000-0000-000000000001");
+    assert_that!(decode_event(&invalid.to_string()).is_err(), eq(true));
+    invalid = original.clone();
+    invalid["data_base64"] = json!("e30=");
+    assert_that!(decode_event(&invalid.to_string()).is_err(), eq(true));
+    assert_that!(
+        decode_event(&original.to_string().replacen(
+            "\"specversion\":\"1.0\"",
+            "\"specversion\":\"1.0\",\"specversion\":\"2.0\"",
+            1
+        ))
+        .is_err(),
+        eq(true)
+    );
+    assert_that!(
+        decode_event(&original.to_string().replacen(
+            "\"sequence\":\"3\"",
+            "\"sequence\":\"3\",\"sequence\":\"4\"",
+            1
+        ))
+        .is_err(),
+        eq(true)
+    );
+}
+
+#[googletest::test]
+fn large_sequence_and_offset_time_roundtrip() {
+    let mut wire = sample();
+    wire["data"]["sequence"] = json!("18446744073709551615");
+    wire["time"] = json!("2026-09-27T13:00:00+01:00");
+    let document = decode_event(&wire.to_string()).unwrap();
+    assert_that!(document.event().metadata().sequence.value(), eq(u64::MAX));
+    let reencoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(
+        reencoded["data"]["sequence"].as_str(),
+        eq(Some("18446744073709551615"))
+    );
+    assert_that!(reencoded["time"].as_str(), eq(Some("2026-09-27T12:00:00Z")));
+    for invalid_sequence in [
+        json!(0),
+        json!(3),
+        json!("0"),
+        json!("03"),
+        json!("18446744073709551616"),
+        json!("+3"),
+    ] {
+        wire["data"]["sequence"] = invalid_sequence;
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+}
+
+#[googletest::test]
+fn offset_times_crossing_the_rfc3339_year_range_are_rejected() {
+    for input in ["9999-12-31T23:00:00-01:00", "0000-01-01T00:00:00+01:00"] {
+        let mut wire = sample();
+        wire["time"] = json!(input);
+        assert_that!(
+            decode_event(&wire.to_string()),
+            eq(&Err(CodecError::InvalidField("time")))
+        );
+    }
+}
+
+#[googletest::test]
+fn direct_event_and_notice_encoding_reject_out_of_range_utc_time() {
+    for instant in [
+        utc_date(-1, 12, 31, 23, 59, 59),
+        utc_date(10000, 1, 1, 0, 0, 0),
+    ] {
+        let event = event_at(instant);
+        assert_that!(
+            encode_event(&event),
+            eq(&Err(CodecError::InvalidField("time")))
+        );
+        let notice = DomainNotice::BookRanked {
+            metadata: *event.metadata(),
+            candidate: event.candidate(),
+            position: 0,
+            entry_count: 1,
+        };
+        assert_that!(
+            encode_notice(&notice),
+            eq(&Err(CodecError::InvalidField("time")))
+        );
+    }
+}
+
+#[googletest::test]
+fn boundary_year_utc_times_encode_and_roundtrip() {
+    for (instant, expected) in [
+        (utc_date(0, 1, 1, 0, 0, 0), "0000-01-01T00:00:00Z"),
+        (utc_date(9999, 12, 31, 23, 59, 59), "9999-12-31T23:59:59Z"),
+    ] {
+        let event = event_at(instant);
+        let encoded = encode_event(&event).unwrap();
+        let wire: Value = serde_json::from_str(&encoded).unwrap();
+        assert_that!(wire["time"].as_str(), eq(Some(expected)));
+        let document = decode_event(&encoded).unwrap();
+        assert_that!(document.event(), eq(&event));
+        assert_that!(
+            decode_event(&encode_document(&document).unwrap())
+                .unwrap()
+                .event(),
+            eq(&event)
+        );
+    }
+}
+
+#[googletest::test]
+fn extensions_survive_roundtrip() {
+    let mut wire = sample();
+    wire["trace"] = json!("abc");
+    wire["retry"] = json!(true);
+    wire["attempt"] = json!(2147483647);
+    wire["1step"] = json!("valid");
+    wire["data"]["futureField"] = json!({"added": true});
+    let document = decode_event(&wire.to_string()).unwrap();
+    let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    for key in ["trace", "retry", "attempt", "1step"] {
+        assert_that!(&encoded[key], eq(&wire[key]));
+    }
+    for (name, value) in [
+        ("Upper", json!("x")),
+        ("array", json!([1])),
+        ("object", json!({"x": 1})),
+        ("large", json!(2147483648_i64)),
+        ("control", json!("bad\u{007f}")),
+    ] {
+        let mut invalid = sample();
+        invalid[name] = value;
+        assert_that!(decode_event(&invalid.to_string()).is_err(), eq(true));
+    }
+    let mut missing = sample();
+    missing["data"].as_object_mut().unwrap().remove("choice");
+    assert_that!(decode_event(&missing.to_string()).is_err(), eq(true));
+}
+
+#[googletest::test]
+fn dataschema_requires_an_absolute_uri_and_survives_roundtrip() {
+    for schema in [
+        "https://example.org/schemas/books?v=1",
+        "urn:bookranking:schema:v1",
+    ] {
+        let mut wire = sample();
+        wire["dataschema"] = json!(schema);
+        let document = decode_event(&wire.to_string()).unwrap();
+        let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+        assert_that!(encoded["dataschema"].as_str(), eq(Some(schema)));
+    }
+    for invalid in [
+        json!(""),
+        json!("schema/books"),
+        json!("/schema/books"),
+        json!("https://exa mple.org/schema"),
+        json!("https://example.org/%ZZ"),
+        json!("https://example.org/schema[bad]"),
+        json!("https://user@@example.org/schema"),
+        json!("https://example.org/schema#fragment"),
+        json!(42),
+        json!(true),
+    ] {
+        let mut wire = sample();
+        wire["dataschema"] = invalid;
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+}
+
+#[googletest::test]
+fn null_optional_context_is_omitted_on_roundtrip() {
+    let mut wire = sample();
+    wire["trace"] = Value::Null;
+    wire["dataschema"] = Value::Null;
+    let document = decode_event(&wire.to_string()).unwrap();
+    let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(encoded.get("trace").is_none(), eq(true));
+    assert_that!(encoded.get("dataschema").is_none(), eq(true));
+    let mut missing_required = sample();
+    missing_required["subject"] = Value::Null;
+    assert_that!(
+        decode_event(&missing_required.to_string()).is_err(),
+        eq(true)
+    );
+}
+
+#[googletest::test]
+fn string_context_rejects_unicode_noncharacters() {
+    for value in ["bad\u{fdd0}", "bad\u{ffff}", "bad\u{10ffff}"] {
+        let mut wire = sample();
+        wire["trace"] = json!(value);
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+}
+
+#[googletest::test]
+fn derived_notices_are_not_replay_events() {
+    let reader = ReaderId::new(id(100));
+    let before = RankingProjection::replay(reader, &[]).unwrap();
+    let first = event(1, EventKind::PlacementStarted);
+    let after = before.apply(&first).unwrap();
+    let notices = derive_notices(&before, &first, &after);
+    assert_that!(notices.len(), eq(1));
+    assert_that!(
+        matches!(
+            &notices[0],
+            DomainNotice::BookRanked {
+                position: 0,
+                entry_count: 1,
+                ..
+            }
+        ),
+        eq(true)
+    );
+    let encoded: Value = serde_json::from_str(&encode_notice(&notices[0]).unwrap()).unwrap();
+    assert_that!(
+        encoded["type"].as_str(),
+        eq(Some("bookranking.book.ranked.v1"))
+    );
+    assert_that!(
+        encoded["id"].as_str(),
+        eq(Some("00000000-0000-0000-0000-000000000001:bookranked"))
+    );
+    assert_that!(
+        encoded["data"]["causationId"].as_str(),
+        eq(Some("00000000-0000-0000-0000-000000000001"))
+    );
+    assert_that!(encoded["data"]["position"].as_u64(), eq(Some(0)));
+    assert_that!(encoded["data"]["entryCount"].as_u64(), eq(Some(1)));
+    assert_that!(
+        encoded["source"].as_str(),
+        eq(Some("urn:uuid:00000000-0000-0000-0000-000000000064"))
+    );
+    assert_that!(
+        encoded["subject"].as_str(),
+        eq(Some("books/00000000-0000-0000-0000-0000000000c8"))
+    );
+    assert_that!(encoded["time"].as_str(), eq(Some("2026-09-27T12:00:00Z")));
+    assert_that!(encoded["data"]["sequence"].as_str(), eq(Some("1")));
+    assert_that!(decode_event(&encoded.to_string()).is_err(), eq(true));
+
+    let second = RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(2)),
+            reader_id: reader,
+            sequence: Sequence::new(2).unwrap(),
+            time: time(),
+        },
+        BookId::new(id(300)),
+        EventKind::PlacementStarted,
+    );
+    let pending = after.apply(&second).unwrap();
+    let skip = RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(3)),
+            reader_id: reader,
+            sequence: Sequence::new(3).unwrap(),
+            time: time(),
+        },
+        BookId::new(id(300)),
+        EventKind::ComparisonAnswered {
+            opponent: BookId::new(id(200)),
+            choice: ComparisonChoice::Skip,
+        },
+    );
+    let paused = pending.apply(&skip).unwrap();
+    let notices = derive_notices(&pending, &skip, &paused);
+    assert_that!(notices.len(), eq(1));
+    assert_that!(
+        matches!(
+            &notices[0],
+            DomainNotice::PlacementAutomaticallyPaused {
+                reason: AutomaticPauseReason::NoEligibleOpponents,
+                ..
+            }
+        ),
+        eq(true)
+    );
+    let encoded: Value = serde_json::from_str(&encode_notice(&notices[0]).unwrap()).unwrap();
+    assert_that!(
+        encoded["type"].as_str(),
+        eq(Some("bookranking.placement.automaticallypaused.v1"))
+    );
+    assert_that!(
+        encoded["id"].as_str(),
+        eq(Some(
+            "00000000-0000-0000-0000-000000000003:automaticallypaused"
+        ))
+    );
+    assert_that!(
+        encoded["data"]["reason"].as_str(),
+        eq(Some("no_eligible_opponents"))
+    );
+    assert_that!(decode_event(&encoded.to_string()).is_err(), eq(true));
+    let resumed = RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(4)),
+            reader_id: reader,
+            sequence: Sequence::new(4).unwrap(),
+            time: time(),
+        },
+        BookId::new(id(300)),
+        EventKind::PlacementResumed,
+    );
+    let active = paused.apply(&resumed).unwrap();
+    let explicit = RankingEvent::new(
+        EventMetadata {
+            id: EventId::new(id(5)),
+            reader_id: reader,
+            sequence: Sequence::new(5).unwrap(),
+            time: time(),
+        },
+        BookId::new(id(300)),
+        EventKind::PlacementPaused,
+    );
+    let explicit_paused = active.apply(&explicit).unwrap();
+    assert_that!(
+        derive_notices(&active, &explicit, &explicit_paused).len(),
+        eq(0)
+    );
+}
+
+#[googletest::test]
+fn sequence_extension_sorts_in_revision_order() {
+    let mut values = Vec::new();
+    for (revision, expected) in [
+        (9, "00000000000000000009"),
+        (10, "00000000000000000010"),
+        (u64::MAX, "18446744073709551615"),
+    ] {
+        let original = event(revision, EventKind::PlacementStarted);
+        let wire: Value = serde_json::from_str(&encode_event(&original).unwrap()).unwrap();
+        assert_that!(wire["sequence"].as_str(), eq(Some(expected)));
+        values.push(wire["sequence"].as_str().unwrap().to_owned());
+        assert_that!(
+            decode_event(&wire.to_string()).unwrap().event(),
+            eq(&original)
+        );
+    }
+    assert_that!(values[0] < values[1] && values[1] < values[2], eq(true));
+}
+
+#[googletest::test]
+fn sequence_extension_must_match_payload_revision() {
+    for invalid in [
+        json!("00000000000000000004"),
+        json!("3"),
+        json!(3),
+        json!(true),
+    ] {
+        let mut wire = sample();
+        wire["sequence"] = invalid;
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+    // Older envelopes without the optional extension remain readable.
+    let decoded = decode_event(&sample().to_string()).unwrap();
+    let wire: Value = serde_json::from_str(&encode_document(&decoded).unwrap()).unwrap();
+    assert_that!(wire["sequence"].as_str(), eq(Some("00000000000000000003")));
+}
+
+#[googletest::test]
+fn trace_context_does_not_affect_replay() {
+    let original = event(1, EventKind::PlacementStarted);
+    let mut wire: Value = serde_json::from_str(&encode_event(&original).unwrap()).unwrap();
+    wire["traceparent"] = json!("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    wire["tracestate"] = json!("vendor=value");
+    let document = decode_event(&wire.to_string()).unwrap();
+    let encoded: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(&encoded["traceparent"], eq(&wire["traceparent"]));
+    assert_that!(&encoded["tracestate"], eq(&wire["tracestate"]));
+    let reader = original.metadata().reader_id;
+    assert_that!(
+        RankingProjection::replay(reader, &[document.event().clone()]),
+        eq(&RankingProjection::replay(reader, &[original]))
+    );
+}
+
+#[googletest::test]
+fn trace_context_requires_a_nonempty_string_parent() {
+    for parent in [Value::Null, json!(true), json!(42), json!("")] {
+        let mut wire = sample();
+        wire["traceparent"] = parent;
+        wire["tracestate"] = json!("vendor=value");
+        assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+    }
+    let mut wire = sample();
+    wire["traceparent"] = json!("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    wire["tracestate"] = json!(false);
+    assert_that!(decode_event(&wire.to_string()).is_err(), eq(true));
+}
+
+#[googletest::test]
+fn sdk_events_accept_caller_trace_context_and_enforce_the_profile() {
+    let original = event(1, EventKind::PlacementStarted);
+    let mut sdk = crate::cloudevents::to_cloud_event(&original).unwrap();
+    sdk.set_extension(
+        "traceparent",
+        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    );
+    sdk.set_extension("tracestate", "vendor=value");
+    let document = crate::CloudEventDocument::try_from(sdk.clone()).unwrap();
+    assert_that!(document.event(), eq(&original));
+    assert_that!(document.cloud_event(), eq(&sdk));
+    let wire: Value = serde_json::from_str(&encode_document(&document).unwrap()).unwrap();
+    assert_that!(wire["tracestate"].as_str(), eq(Some("vendor=value")));
+    let mut collision = sdk.clone();
+    collision.set_extension("id", "replacement");
+    assert_that!(
+        crate::CloudEventDocument::try_from(collision).is_err(),
+        eq(true)
+    );
+    sdk.set_extension("sequence", "00000000000000000002");
+    assert_that!(crate::CloudEventDocument::try_from(sdk).is_err(), eq(true));
+}

@@ -1,0 +1,42 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# gazelle:ignore
+rust_library(
+    name = "lib",
+    srcs = [
+        "cloudevents.rs",
+        "cloudevents_tests.rs",
+        "command.rs",
+        "command_tests.rs",
+        "error.rs",
+        "event.rs",
+        "identity.rs",
+        "lib.rs",
+        "notice.rs",
+        "projection.rs",
+    ],
+    crate_name = "book_smartz_domain",
+    deps = [
+        "@crates//:chrono",
+        "@crates//:cloudevents-sdk",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:url",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "domain_test",
+    size = "small",
+    crate = ":lib",
+    deps = [
+        "@crates//:chrono",
+        "@crates//:googletest",
+        "@crates//:uuid",
+    ],
+)
