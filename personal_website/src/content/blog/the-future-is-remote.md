@@ -145,3 +145,5 @@ If you are investing in generating code faster, invest in validating it faster. 
 **The place where you edit code should not dictate where it can be built.**
 
 The future is remote. Start investing accordingly.
+
+And _yes_, this blog [is built with Bazel.](https://github.com/LowkeyLab/bazel-repo)
