@@ -1,4 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 128 128">
-  <rect width="128" height="128" fill="#4c1d95" rx="64"/>
-  <path fill="#fff" d="M64 30a34 34 0 1 0 0 68 34 34 0 0 0 0-68zm0 10a24 24 0 1 1 0 48 24 24 0 0 1 0-48z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254">
+  <defs>
+    <linearGradient id="ink" x1="365" y1="200" x2="890" y2="1050" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#252d34" />
+      <stop offset="1" stop-color="#1c2329" />
+    </linearGradient>
+    <linearGradient id="shade" x1="627" y1="409" x2="890" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171d22" />
+      <stop offset="1" stop-color="#1d242a" />
+    </linearGradient>
+    <linearGradient id="blue" x1="451" y1="323" x2="803" y2="391" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#087eff" />
+      <stop offset="1" stop-color="#0054fa" />
+    </linearGradient>
+  </defs>
+  <path fill="#fff" d="M0 0h1254v1254H0z" />
+  <path fill="url(#ink)" d="M480 200h294c12 0 21 9 18 23l-16 83H478l-16-83c-3-14 6-23 18-23Z" />
+  <rect x="451" y="323" width="352" height="68" rx="27" fill="url(#blue)" />
+  <path fill="url(#ink)" d="M482 409h293c16 111 52 183 114 249 2 3 2 6-1 9-115 112-194 249-257 383h-13C555 916 476 779 367 668c-3-3-4-6-1-10 62-68 100-144 116-249Z" />
+  <path fill="url(#shade)" d="M627 409h148c16 111 52 183 114 249 2 3 2 6-1 9-115 112-194 249-257 383h-4Z" />
+  <path fill="none" stroke="url(#blue)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" d="M748 593v100L630 811" />
+  <circle cx="748" cy="567" r="26" fill="none" stroke="url(#blue)" stroke-width="23" />
+  <path fill="#fff" d="M609 700h33l-11 350h-13Z" />
+  <circle cx="626" cy="658" r="47" fill="#fff" />
 </svg>
