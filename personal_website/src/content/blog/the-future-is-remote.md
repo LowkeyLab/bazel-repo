@@ -142,7 +142,7 @@ Give agents a consistent way to request work from shared infrastructure. Let the
 
 If you are investing in generating code faster, invest in validating it faster. Otherwise, you are increasing the pressure on a bottleneck you should already know exists.
 
-**The place where you edit code should not dictate where it can be built.**
+## The place where you edit code should not dictate where it can be built.
 
 The future is remote. Start investing accordingly.
 
