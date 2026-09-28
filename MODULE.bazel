@@ -111,7 +111,7 @@ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependenc
 bazel_dep(name = "gazelle_ts", dev_dependency = True)
 git_override(
     module_name = "gazelle_ts",
-    commit = "701dd6eefba82b77e8da981ff5648e24f7629dd5",
+    commit = "6f2e0d93e4e4d216e843afd417008bbc087b4736",
     remote = "https://github.com/hermeticbuild/gazelle_ts.git",
 )
 
