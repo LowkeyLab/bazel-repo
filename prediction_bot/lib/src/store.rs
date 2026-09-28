@@ -471,7 +471,7 @@ impl Store {
             }
             command_end = Some((key.clone(), last_revision));
             let cloud: Json<CloudEvent> = row.try_get("event")?;
-            let event: Event = serde_json::from_value(cloud.data.clone())
+            let event: Event = serde_json::from_value(cloud.data()?.clone())
                 .map_err(|_| StoreError::History("unsupported domain payload"))?;
             let ctx = Context {
                 application: self.application,
@@ -481,7 +481,7 @@ impl Store {
                 accepted_at,
             };
             cloud.validate(&ctx, event.name(), &event.subject())?;
-            if !identities.insert((cloud.source.clone(), cloud.id.clone())) {
+            if !identities.insert(cloud.identity()) {
                 return Err(StoreError::History("duplicate event identity"));
             }
             validate_event_time(&event, accepted_at)?;
