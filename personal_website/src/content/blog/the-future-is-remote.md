@@ -96,7 +96,7 @@ Containers remain useful here. Use them to provide consistent execution environm
 
 And use those same configured environments for developer requests and CI. Stop accepting “it works on my machine” as an inevitable feature of software development. Invest in removing the differences that make it possible.
 
-## Your integration strategy cannot depend on everyone’s laptop
+## Your integration strategy cannot depend on laptops
 
 Suppose you change a shared library and want to build and test its dependents.
 
@@ -142,7 +142,7 @@ Give agents a consistent way to request work from shared infrastructure. Let the
 
 If you are investing in generating code faster, invest in validating it faster. Otherwise, you are increasing the pressure on a bottleneck you should already know exists.
 
-**The place where you edit code should not dictate where it can be built.**
+## The place where you edit code should not dictate where it can be built.
 
 The future is remote. Start investing accordingly.
 
