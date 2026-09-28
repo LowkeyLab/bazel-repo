@@ -2,12 +2,6 @@
 
 Central Bazel-based monorepo with Rust backend services and Angular frontend applications. This root `README.md` focuses on shared workflows. Project-specific details live in their own guides.
 
-## Subproject Guides
-
-- Nicknamer Server: `nicknamer/README.md`
-- Angular Apps: `angular/AGENTS.md`
-- Monorepo Overview: `AGENTS.md`
-
 ## Prerequisites
 
 Install [Bazelisk](https://github.com/bazelbuild/bazelisk) (manages Bazel versions):
@@ -116,7 +110,7 @@ bazel run @pnpm -- --dir $PWD install
 aspect build //... --verbose_failures
 ```
 
-For service-specific environment variables, runtime instructions, or database setup, consult the respective project guide listed above.
+For service-specific environment variables, runtime instructions, or database setup, consult the respective project guide under Further Documentation below.
 
 ## License
 
