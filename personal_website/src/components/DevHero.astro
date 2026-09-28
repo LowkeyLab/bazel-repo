@@ -5,7 +5,7 @@ interface Props {
   title: string;
   description: string;
   avatarSrc: ImageMetadata;
-  socials?: { github?: string; linkedin?: string; mastodon?: string; bluesky?: string };
+  socials?: { github?: string; linkedin?: string; x?: string; bluesky?: string };
   ctaText?: string;
   ctaLink?: string;
 }
@@ -13,7 +13,7 @@ const { name, title, description, avatarSrc, socials, ctaText = "Say hello", cta
 const socialLinks = [
   { label: "GitHub", href: socials?.github },
   { label: "LinkedIn", href: socials?.linkedin },
-  { label: "Mastodon", href: socials?.mastodon },
+  { label: "X", href: socials?.x },
   { label: "Bluesky", href: socials?.bluesky },
 ].filter((link) => link.href);
 ---
@@ -30,7 +30,7 @@ const socialLinks = [
     </div>
     <div class="hero-socials">
       {socialLinks.map((link) => (
-        <a href={link.href} target="_blank" rel={link.label === "Mastodon" ? "me noreferrer" : "noreferrer"}>{link.label} <span aria-hidden="true">↗</span></a>
+        <a href={link.href} target="_blank" rel="noreferrer">{link.label} <span aria-hidden="true">↗</span></a>
       ))}
     </div>
   </div>
