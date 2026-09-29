@@ -56,8 +56,8 @@
     "https://bcr.bazel.build/modules/aspect_rules_js/3.5.0/source.json": "2ba4061829b504c2734d9c7191f845e4af7d7462694f54e4ae39495aecf6b8f8",
     "https://bcr.bazel.build/modules/aspect_rules_lint/0.12.0/MODULE.bazel": "e767c5dbfeb254ec03275a7701b5cfde2c4d2873676804bc7cb27ddff3728fed",
     "https://bcr.bazel.build/modules/aspect_rules_lint/2.6.0/MODULE.bazel": "2493658fb6414ee03601b29ee812bcb389627e81d2b8bb2d944d4e7bbff2c0a9",
-    "https://bcr.bazel.build/modules/aspect_rules_lint/2.9.0/MODULE.bazel": "d2b5471ea7e3078b8228359f2b5a1c28817a32bca842e40625284fd3474ddee9",
-    "https://bcr.bazel.build/modules/aspect_rules_lint/2.9.0/source.json": "e9abf42d80f342ff5ef1b148573c86bb0c4e5a84a73ebab6f636648c3466cc21",
+    "https://bcr.bazel.build/modules/aspect_rules_lint/2.9.1/MODULE.bazel": "d1c3d0495ca1b83b01349ed62b1c3c8e14494df7186e5937ba07369594e8b18b",
+    "https://bcr.bazel.build/modules/aspect_rules_lint/2.9.1/source.json": "6c7d6bbcad2717fda2bafb8c429a30e4fbb6d5fafdf19f58a4a90d86f25fd6b0",
     "https://bcr.bazel.build/modules/aspect_rules_lint_rust/0.0.3/MODULE.bazel": "46092c97a3af1020677a724558e8622b7a3b443ffa347f992a9bdfb3b17e475c",
     "https://bcr.bazel.build/modules/aspect_rules_lint_rust/0.0.3/source.json": "4172c6d312e35a59eeaaf96717b1b23e7a5f1301963b44be0896be32f775899a",
     "https://bcr.bazel.build/modules/aspect_rules_swc/2.7.6/MODULE.bazel": "6a493380e2f7207cf5cf0d073db68ea25c47d566e81c5b1957239d06b033a60d",
@@ -607,7 +607,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "ihzLOoAnQP6Y5iSYOhEjvb6uxEbA6ZgH8Qikau2lGRU=",
-        "usagesDigest": "w6whJsRifNPWRg5QCyeuWsQO6SofHbFzD65brKeAWOU=",
+        "usagesDigest": "nHesGeopxvJaCSRD6DGePMc/V9RGP35V7AAycvG6UQQ=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -618,14 +618,14 @@
             "repoRuleId": "@@aspect_tools_telemetry+//:extension.bzl%tel_repository",
             "attributes": {
               "deps": {
-                "aspect_rules_lint": "2.9.0",
+                "aspect_rules_lint": "2.9.1",
                 "aspect_rules_esbuild": "0.27.1",
                 "aspect_rules_js": "3.5.0",
                 "aspect_rules_swc": "2.7.6",
                 "aspect_rules_ts": "3.10.1",
                 "aspect_tools_telemetry": "0.5.2"
               },
-              "last_notice": 2
+              "last_notice": 3
             }
           }
         },
