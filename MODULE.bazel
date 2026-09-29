@@ -3,7 +3,6 @@
 module(
     name = "bazel-repo",
     version = "0.1.0",
-    compatibility_level = 1,
 )
 
 # Currently bazel-lib is only load()ed when platforms is used.
