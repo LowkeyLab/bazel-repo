@@ -5,7 +5,7 @@
     "com.google.code.findbugs:jsr305": 495355163,
     "com.google.code.gson:gson": 579810017,
     "com.google.errorprone:error_prone_annotations": 950460708,
-    "com.google.guava:guava": -2079284723,
+    "com.google.guava:guava": 1922279566,
     "com.google.j2objc:j2objc-annotations": 2003271689,
     "com.h2database:h2": 1057280578,
     "com.jayway.jsonpath:json-path": -630573646,
@@ -61,9 +61,9 @@
     "com.google.guava:failureaccess": 1715931538,
     "com.google.guava:failureaccess:jar:javadoc": 1510064030,
     "com.google.guava:failureaccess:jar:sources": 1303858893,
-    "com.google.guava:guava": 311464563,
-    "com.google.guava:guava:jar:javadoc": -1457928156,
-    "com.google.guava:guava:jar:sources": 1172872680,
+    "com.google.guava:guava": 713545847,
+    "com.google.guava:guava:jar:javadoc": 1013759076,
+    "com.google.guava:guava:jar:sources": 852714858,
     "com.google.guava:listenablefuture": 1079558157,
     "com.google.guava:listenablefuture:jar:javadoc": -2098915920,
     "com.google.j2objc:j2objc-annotations": -1008747351,
@@ -505,11 +505,11 @@
     },
     "com.google.guava:guava": {
       "shasums": {
-        "jar": "796d8e28ac64e83a47c4c5935a8fecc4682650a04bbdead738ef0f5a3a0e6c46",
-        "javadoc": "948e71574ac9e72abc70189cdc17a17ed4df735cc9ba26d5dbfdcb7da6ca2f80",
-        "sources": "9d60f1613f9252d1f1bc89847466915cfe711af33b0847b885c9184a8602d166"
+        "jar": "b530942257fb935f8b2cfaa5f8eb5bd59c555fd8e8d01b8ce98912e077ea606c",
+        "javadoc": "ec0563a444f68a2598c7fe99306524f0838623ff47dceaadebf2867e7dbec925",
+        "sources": "ab6a8934d352629e6d87087a79808b827b64ed18cff6c6b551be99cd8e03244c"
       },
-      "version": "33.7.1-jre"
+      "version": "33.7.2-jre"
     },
     "com.google.guava:listenablefuture": {
       "shasums": {
