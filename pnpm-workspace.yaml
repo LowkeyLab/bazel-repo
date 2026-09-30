@@ -9,6 +9,10 @@ allowBuilds:
   lmdb: true
   msgpackr-extract: true
 packageExtensions:
+  # rules_lint 2.9.1 resolves its CommonJS formatter dependency from ESLint.
+  'eslint@10':
+    dependencies:
+      chalk: ^4.1.2
   '@analogjs/vite-plugin-angular':
     dependencies:
       '@angular-devkit/architect': '*'
