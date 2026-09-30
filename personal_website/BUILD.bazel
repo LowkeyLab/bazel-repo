@@ -1,6 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary", "js_run_devserver")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@npm//:astro/package_json.bzl", "bin")
+load("@rules_go//go:def.bzl", "go_test")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -160,9 +161,28 @@ oci_push(
 personal_website_ts_config(
     name = "astro_config",
     srcs = ["astro.config.ts"],
+    tsconfig_types = ["node"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@tailwindcss/vite",
+        "//:node_modules/@types/node",
         "//:node_modules/astro",
     ],
+)
+
+go_test(
+    name = "personal_website_test",
+    size = "small",
+    srcs = ["cache_headers_test.go"],
+    data = [
+        "Caddyfile",
+        ":frontend_layer",
+        "@multitool//tools/caddy",
+    ],  # keep
+    env = {
+        "CADDY": "$(rlocationpath @multitool//tools/caddy)",
+        "CADDYFILE": "$(rlocationpath :Caddyfile)",
+        "SITE_ARCHIVE": "$(rlocationpath :frontend_layer)",
+    },
+    deps = ["@rules_go//go/runfiles"],
 )
