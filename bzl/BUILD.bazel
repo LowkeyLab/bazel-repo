@@ -4,5 +4,6 @@ bzl_library(
     name = "kotlin",
     srcs = ["kotlin.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_kotlin//kotlin"],
+    # The aggregate kotlin target exists only in rules_kotlin release archives.
+    deps = ["@rules_kotlin//kotlin:jvm.bzl"],  # keep
 )

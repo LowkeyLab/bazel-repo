@@ -1,6 +1,6 @@
 module github.com/lowkeylab/bazel-repo
 
-go 1.26.0
+go 1.26.4
 
 tool (
 	github.com/go-delve/delve/cmd/dlv
