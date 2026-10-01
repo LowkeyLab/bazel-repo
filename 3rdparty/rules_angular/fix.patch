@@ -26,3 +26,16 @@ diff --git a/src/architect/utils.bzl b/src/architect/utils.bzl
      directory_path(
          name = entry_point_target,
          directory = "{}/@angular/cli/dir".format(node_modules),
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -28,2 +28,2 @@
+-rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext")
+-rules_ts_ext.deps(
++rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
++rules_ts_ext.toolchain(
+@@ -31,2 +31,2 @@
+-    ts_integrity = "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+-    ts_version = "6.0.3",
++    integrity = "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
++    version = "6.0.3",
