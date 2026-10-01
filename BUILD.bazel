@@ -74,6 +74,7 @@ js_library(
 # gazelle:exclude githooks/*
 # gazelle:exclude tools/*
 # gazelle:exclude angular/*
+# gazelle:exclude book_smartz/storage/*
 # gazelle:exclude ktor_tutorial/*
 # gazelle:exclude mindreadr/*
 # gazelle:exclude nicknamer/*

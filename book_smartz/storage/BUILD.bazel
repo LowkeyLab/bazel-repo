@@ -13,6 +13,7 @@ rust_library(
         "lib.rs",
         "migration.rs",
         "observation.rs",
+        "ranking.rs",
         "wire.rs",
     ],
     compile_data = ["//book_smartz/migrations:001_initial.sql"],
@@ -36,9 +37,11 @@ rust_test(
         "tests/book_tests.rs",
         "tests/migration_tests.rs",
         "tests/mod.rs",
+        "tests/ranking_tests.rs",
         "tests/support.rs",
         "wire.rs",
     ],
+    compile_data = ["tests/fixtures/ranking-history-v1.json"],
     crate_root = "tests/mod.rs",
     data = image_data("postgres_18"),  # keep
     env = image_env("postgres_18"),
@@ -54,6 +57,7 @@ rust_test(
         ":lib",
         "//book_smartz/domain:lib",
         "//test_images/rust:test_images",  # keep
+        "@crates//:chrono",
         "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:sqlx",

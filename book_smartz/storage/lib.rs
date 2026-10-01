@@ -5,6 +5,7 @@ mod books;
 mod error;
 mod migration;
 mod observation;
+mod ranking;
 mod wire;
 
 pub use error::StoreError;
