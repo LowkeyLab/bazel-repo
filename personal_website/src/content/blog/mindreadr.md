@@ -3,6 +3,7 @@ title: "Mindreadr"
 description: "A cooperative word-guessing game"
 publishDate: 2025-11-19
 tags: ["kotlin", "ktor", "angular", "typescript", "websocket", "bazel"]
+type: project
 draft: false
 ---
 

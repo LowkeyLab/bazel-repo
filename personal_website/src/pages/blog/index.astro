@@ -2,9 +2,8 @@
 import Layout from "../../layouts/Layout.astro";
 import TagBadges from "../../components/TagBadges.astro";
 import { getCollection } from "astro:content";
-import { calculateReadingTime } from "../../utils/blog";
-const allPosts = await getCollection("blog");
-const posts = allPosts.filter((post) => !post.data.draft).sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+import { calculateReadingTime, publishedPosts } from "../../utils/blog";
+const posts = publishedPosts(await getCollection("blog"));
 ---
 <Layout title="Blog | Tim Tran" description="Thoughts on software engineering and more" activeItem="blog">
   <header class="page-heading">

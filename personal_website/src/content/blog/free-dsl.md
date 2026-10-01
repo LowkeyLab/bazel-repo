@@ -3,6 +3,7 @@ title: "Free-DSL"
 description: "An annotation processor for creating Builders in Kotlin"
 publishDate: 2024-08-31
 tags: ["kotlin"]
+type: project
 draft: false
 ---
 

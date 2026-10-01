@@ -20,6 +20,9 @@ const blog = defineCollection({
     description: z.string(),
     publishDate: z.coerce.date(),
     tags: z.array(z.string()),
+    type: z.enum(["work", "project", "essay", "note"]),
+    featured: z.boolean().default(false),
+    context: z.string().optional(),
     draft: z.boolean().optional().default(false),
   }),
 });

@@ -3,6 +3,7 @@ title: "Guess The Word"
 description: "A real-time multiplayer word guessing game"
 publishDate: 2025-01-19
 tags: ["node-js", "websocket", "svelte", "tailwind", "postgres"]
+type: project
 draft: false
 ---
 

@@ -4,4 +4,5 @@ personal_website_ts_library(
     name = "utils",
     srcs = ["blog.ts"],
     visibility = ["//visibility:public"],
+    deps = ["//personal_website/src:astro_types"],
 )

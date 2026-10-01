@@ -3,6 +3,7 @@ title: "Rust Is a Mind Virus."
 description: "How I became oxidized"
 publishDate: 2026-09-29
 tags: ["rust", "kotlin", "type-systems"]
+type: essay
 draft: true
 ---
 

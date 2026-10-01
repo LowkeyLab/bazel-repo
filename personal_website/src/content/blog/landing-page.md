@@ -3,6 +3,7 @@ title: "Personal Landing Page"
 description: "My personal website"
 publishDate: 2025-02-11
 tags: ["astro", "tailwind", "deno", "typescript"]
+type: project
 draft: false
 ---
 
