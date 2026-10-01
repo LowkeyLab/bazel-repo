@@ -7,17 +7,11 @@ type: project
 draft: false
 ---
 
-## Overview
-
 Guess The Word is a real-time multiplayer word guessing game where players take turns guessing a word until they come to an agreement.
 
-## Features
+I built it around WebSockets for live gameplay, with Supabase authentication and a responsive interface for desktop and mobile. The interesting parts were deciding where authentication belonged and finding a messaging approach that fit both sides of the application.
 
-- Real-time multiplayer gameplay using WebSockets
-- Responsive design that works on desktop and mobile devices
-- Player authentication using Supabase
-
-## Tech Stack
+## Building the game
 
 ### SvelteKit & Svelte
 
@@ -53,7 +47,7 @@ Originally, the plan was to store finished games and then run some kind of analy
 
 ## Notes
 
-This project has since been rewritten as [Mindreadr](/blog/mindreadr).
+This project has since been rewritten as [Mindreadr](/blog/mindreadr/).
 
 ## Links
 

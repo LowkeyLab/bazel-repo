@@ -7,8 +7,6 @@ type: project
 draft: false
 ---
 
-# Local-First Gradle Build Scan
-
 Gradle offers
 [remote build scans](https://docs.gradle.org/current/userguide/inspect.html)
 that show very, very useful information about your build. Information like cache

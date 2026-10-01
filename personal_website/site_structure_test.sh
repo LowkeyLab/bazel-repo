@@ -8,11 +8,15 @@ fail() {
 	exit 1
 }
 
-for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-build-scan; do
+for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-build-scan building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do
 	[[ -f "${dist}/blog/${slug}/index.html" ]] || fail "missing /blog/${slug}"
 done
 
 for route in \
+	work \
+	work/core-java-infrastructure \
+	work/ioi-pipeline \
+	work/model-driven-architecture \
 	projects \
 	projects/guess-the-word \
 	projects/free-dsl \
@@ -46,11 +50,11 @@ for title in \
 	remaining="${next}"
 done
 
-if grep -R -n -E 'href="/projects(/|"|#)' "${dist}"; then
-	fail "generated site still links to /projects"
+if grep -R -n -E 'href="/(projects|work)(/|"|#)' "${dist}"; then
+	fail "generated site still links to retired paths"
 fi
 
-for destination in /blog /work; do
+for destination in /blog/ /about/; do
 	grep -q "href=\"${destination}\"" "${dist}/index.html" || fail "home page must link to ${destination}"
 done
 
@@ -63,18 +67,18 @@ assert_redirect() {
 		fail "missing permanent redirect from ${source} to ${destination}"
 }
 
-assert_redirect "/projects" "/blog"
-assert_redirect "/projects/" "/blog"
-assert_redirect "/projects/guess-the-word" "/blog/guess-the-word"
-assert_redirect "/projects/guess-the-word/" "/blog/guess-the-word"
-assert_redirect "/projects/free-dsl" "/blog/free-dsl"
-assert_redirect "/projects/free-dsl/" "/blog/free-dsl"
-assert_redirect "/projects/landing-page" "/blog/landing-page"
-assert_redirect "/projects/landing-page/" "/blog/landing-page"
-assert_redirect "/projects/mindreadr" "/blog/mindreadr"
-assert_redirect "/projects/mindreadr/" "/blog/mindreadr"
-assert_redirect "/projects/gradle-build-scan-server" "/blog/local-first-gradle-build-scan"
-assert_redirect "/projects/gradle-build-scan-server/" "/blog/local-first-gradle-build-scan"
+assert_redirect "/projects" "/blog/"
+assert_redirect "/projects/" "/blog/"
+assert_redirect "/projects/guess-the-word" "/blog/guess-the-word/"
+assert_redirect "/projects/guess-the-word/" "/blog/guess-the-word/"
+assert_redirect "/projects/free-dsl" "/blog/free-dsl/"
+assert_redirect "/projects/free-dsl/" "/blog/free-dsl/"
+assert_redirect "/projects/landing-page" "/blog/landing-page/"
+assert_redirect "/projects/landing-page/" "/blog/landing-page/"
+assert_redirect "/projects/mindreadr" "/blog/mindreadr/"
+assert_redirect "/projects/mindreadr/" "/blog/mindreadr/"
+assert_redirect "/projects/gradle-build-scan-server" "/blog/local-first-gradle-build-scan/"
+assert_redirect "/projects/gradle-build-scan-server/" "/blog/local-first-gradle-build-scan/"
 
 project_redirect_count="$(grep -Ec '^[[:space:]]*redir[[:space:]]+/projects(/[^[:space:]]*)?[[:space:]]+' "${caddyfile}")"
 [[ "${project_redirect_count}" -eq 12 ]] || fail "expected exactly 12 approved project redirect matchers, found ${project_redirect_count}"
@@ -82,3 +86,11 @@ project_redirect_count="$(grep -Ec '^[[:space:]]*redir[[:space:]]+/projects(/[^[
 if grep -Eq '^[[:space:]]*redir[[:space:]]+/projects/\*' "${caddyfile}"; then
 	fail "wildcard project redirect would hide unknown routes"
 fi
+
+[[ -f "${dist}/about/index.html" ]] || fail "missing About page"
+for slug in building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do
+	article="$(<"${dist}/blog/${slug}/index.html")"
+	[[ "${article}" == *'entry-type">Work</span>'* ]] || fail "missing Work label for ${slug}"
+	[[ "${article}" == *'Bloomberg'* ]] || fail "missing company context for ${slug}"
+	[[ "${article}" == *'October 1, 2026'* ]] || fail "wrong publication date for ${slug}"
+done
