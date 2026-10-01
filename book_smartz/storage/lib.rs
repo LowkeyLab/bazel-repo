@@ -1,6 +1,7 @@
 //! PostgreSQL persistence for Book Smartz.
 #![forbid(unsafe_code)]
 
+mod books;
 mod error;
 mod migration;
 mod observation;

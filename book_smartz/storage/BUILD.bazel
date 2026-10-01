@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "lib",
     srcs = [
+        "books.rs",
         "error.rs",
         "lib.rs",
         "migration.rs",
@@ -32,6 +33,7 @@ rust_test(
     name = "storage_test",
     size = "medium",
     srcs = [
+        "tests/book_tests.rs",
         "tests/migration_tests.rs",
         "tests/mod.rs",
         "tests/support.rs",
@@ -50,6 +52,7 @@ rust_test(
     ],
     deps = [
         ":lib",
+        "//book_smartz/domain:lib",
         "//test_images/rust:test_images",  # keep
         "@crates//:googletest",
         "@crates//:serde_json",
