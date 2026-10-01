@@ -30,7 +30,7 @@ impl Observer for TracingObserver {
         }
         match observation.outcome {
             Outcome::Applied | Outcome::Created | Outcome::Committed => {
-                record!(tracing::Level::INFO)
+                record!(tracing::Level::INFO);
             }
             Outcome::Failed(_) | Outcome::CommitUncertain => record!(tracing::Level::ERROR),
             _ => record!(tracing::Level::DEBUG),

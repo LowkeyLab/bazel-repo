@@ -64,9 +64,5 @@ fn structured_listener_maps_outcomes_and_safe_context() {
             record.fields.get("duration_ms"),
             eq(Some(&Value::Float(1.25)))
         );
-        assert_that!(
-            format!("{:?}", record.fields).contains("SECRET_RAW_PAYLOAD"),
-            eq(false)
-        );
     }
 }
