@@ -1,0 +1,61 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
+
+package(default_visibility = ["//visibility:public"])
+
+# gazelle:ignore
+rust_library(
+    name = "lib",
+    srcs = [
+        "error.rs",
+        "lib.rs",
+        "migration.rs",
+        "observation.rs",
+        "wire.rs",
+    ],
+    compile_data = ["//book_smartz/migrations:001_initial.sql"],
+    crate_name = "book_smartz_storage",
+    deps = [
+        "//book_smartz/domain:lib",
+        "@crates//:chrono",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "storage_test",
+    size = "medium",
+    srcs = [
+        "tests/migration_tests.rs",
+        "tests/mod.rs",
+        "tests/support.rs",
+        "wire.rs",
+    ],
+    crate_root = "tests/mod.rs",
+    data = image_data("postgres_18"),  # keep
+    env = image_env("postgres_18"),
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":lib",
+        "//test_images/rust:test_images",  # keep
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:uuid",
+    ],
+)
