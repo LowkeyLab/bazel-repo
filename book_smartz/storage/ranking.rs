@@ -109,6 +109,9 @@ async fn execute_in_transaction(
     command: Command,
 ) -> Result<CommandResult, StoreError> {
     let mut transaction = pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        .execute(&mut *transaction)
+        .await?;
     sqlx::query(
         "INSERT INTO book_smartz.reader_streams (reader_id) VALUES ($1) ON CONFLICT DO NOTHING",
     )

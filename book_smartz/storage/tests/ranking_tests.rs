@@ -236,6 +236,131 @@ async fn first_and_existing_stream_races_reject_stale_writers() {
 
 #[googletest::test]
 #[tokio::test]
+async fn races_use_read_committed_with_repeatable_read_pool_defaults() {
+    let fixture = Fixture::new().await;
+    let op = OperationContext::default();
+    let setup_store = fixture.store(Arc::new(Recorder::default()));
+    setup_store.migrate(op).await.unwrap();
+    registered(&setup_store, &[book(1), book(2), book(3)]).await;
+
+    let options = fixture.pool().connect_options().as_ref().clone();
+    let repeatable_read_pool = PgPoolOptions::new()
+        .max_connections(4)
+        .after_connect(|connection, _| {
+            Box::pin(async move {
+                sqlx::query(
+                    "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+                )
+                .execute(connection)
+                .await?;
+                Ok(())
+            })
+        })
+        .connect_with(options)
+        .await
+        .unwrap();
+    let (default_isolation,): (String,) = sqlx::query_as("SHOW default_transaction_isolation")
+        .fetch_one(&repeatable_read_pool)
+        .await
+        .unwrap();
+    assert_that!(default_isolation.as_str(), eq("repeatable read"));
+    let store = Store::new(repeatable_read_pool.clone(), Arc::new(Recorder::default()));
+
+    let who = reader(111);
+    store
+        .execute(
+            who,
+            context(0, 73, 1),
+            Command::Start {
+                book_id: book(1).id(),
+            },
+            op,
+        )
+        .await
+        .unwrap();
+
+    // Hold the stream row until both writers have reached FOR UPDATE. This ensures
+    // each transaction has started under the pool default before either can append.
+    let mut holder = fixture.pool().begin().await.unwrap();
+    sqlx::query("SELECT reader_id FROM book_smartz.reader_streams WHERE reader_id = $1 FOR UPDATE")
+        .bind(who.as_uuid())
+        .fetch_one(&mut *holder)
+        .await
+        .unwrap();
+    let barrier = Arc::new(Barrier::new(3));
+    let left_store = store.clone();
+    let left_barrier = barrier.clone();
+    let left = tokio::spawn(async move {
+        left_barrier.wait().await;
+        left_store
+            .execute(
+                who,
+                context(1, 74, 10),
+                Command::Start {
+                    book_id: book(2).id(),
+                },
+                op,
+            )
+            .await
+    });
+    let right_store = store.clone();
+    let right_barrier = barrier.clone();
+    let right = tokio::spawn(async move {
+        right_barrier.wait().await;
+        right_store
+            .execute(
+                who,
+                context(1, 75, 11),
+                Command::Start {
+                    book_id: book(3).id(),
+                },
+                op,
+            )
+            .await
+    });
+    barrier.wait().await;
+    tokio::time::timeout(std::time::Duration::from_secs(20), async {
+        loop {
+            let (waiting,): (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'SELECT reader_id FROM book_smartz.reader_streams%FOR UPDATE'",
+            )
+            .fetch_one(fixture.pool())
+            .await
+            .unwrap();
+            if waiting >= 2 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    }).await.unwrap();
+    holder.commit().await.unwrap();
+    let results = [left.await.unwrap(), right.await.unwrap()];
+    assert_that!(
+        results.iter().filter(|result| result.is_ok()).count(),
+        eq(1)
+    );
+    assert_that!(
+        results
+            .iter()
+            .filter(|result| matches!(
+                result,
+                Err(StoreError::Domain(DomainError::StaleRevision {
+                    expected: 1,
+                    actual: 2
+                }))
+            ))
+            .count(),
+        eq(1)
+    );
+    assert_that!(
+        store.load_ranking(who, op).await.unwrap().history().len(),
+        eq(2)
+    );
+    repeatable_read_pool.close().await;
+}
+
+#[googletest::test]
+#[tokio::test]
 async fn reader_streams_and_duplicate_event_rules_are_independent() {
     let fixture = Fixture::new().await;
     let observations = Arc::new(Recorder::default());
@@ -277,6 +402,38 @@ async fn reader_streams_and_duplicate_event_rules_are_independent() {
             .len(),
         eq(0)
     );
+    let (unknown_stream_exists,): (bool,) = sqlx::query_as(
+        "SELECT EXISTS(SELECT 1 FROM book_smartz.reader_streams WHERE reader_id = $1)",
+    )
+    .bind(reader(105).as_uuid())
+    .fetch_one(fixture.pool())
+    .await
+    .unwrap();
+    assert_that!(unknown_stream_exists, eq(false));
+    assert_that!(
+        matches!(
+            store
+                .execute(
+                    reader(106),
+                    context(0, 43, 4),
+                    Command::Start {
+                        book_id: book(999).id()
+                    },
+                    op,
+                )
+                .await,
+            Err(StoreError::Domain(DomainError::UnknownBook))
+        ),
+        eq(true)
+    );
+    let (rejected_stream_exists,): (bool,) = sqlx::query_as(
+        "SELECT EXISTS(SELECT 1 FROM book_smartz.reader_streams WHERE reader_id = $1)",
+    )
+    .bind(reader(106).as_uuid())
+    .fetch_one(fixture.pool())
+    .await
+    .unwrap();
+    assert_that!(rejected_stream_exists, eq(false));
     assert_that!(
         matches!(
             store
