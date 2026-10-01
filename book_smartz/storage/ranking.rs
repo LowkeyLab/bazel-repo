@@ -156,7 +156,7 @@ async fn execute_in_transaction(
     transaction
         .commit()
         .await
-        .map_err(StoreError::CommitUncertain)?;
+        .map_err(StoreError::from_commit)?;
     Ok(CommandResult {
         event,
         projection: ranking.projection().clone(),

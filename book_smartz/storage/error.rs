@@ -18,6 +18,16 @@ pub enum StoreError {
 }
 
 impl StoreError {
+    /// Only a server error acknowledges that COMMIT was rejected. Other failures
+    /// cannot establish whether the server committed before transport was lost.
+    pub(crate) fn from_commit(error: sqlx::Error) -> Self {
+        if matches!(error, sqlx::Error::Database(_)) {
+            Self::Database(error)
+        } else {
+            Self::CommitUncertain(error)
+        }
+    }
+
     #[must_use]
     pub fn failure(&self) -> Failure {
         match self {

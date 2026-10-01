@@ -35,9 +35,11 @@ rust_test(
     size = "medium",
     srcs = [
         "tests/book_tests.rs",
+        "tests/commit_proxy.rs",
         "tests/migration_tests.rs",
         "tests/mod.rs",
         "tests/ranking_tests.rs",
+        "tests/recovery_tests.rs",
         "tests/support.rs",
         "wire.rs",
     ],

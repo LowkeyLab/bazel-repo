@@ -68,7 +68,7 @@ async fn register(pool: &PgPool, book: &Book) -> Result<Registration, StoreError
     transaction
         .commit()
         .await
-        .map_err(StoreError::CommitUncertain)?;
+        .map_err(StoreError::from_commit)?;
     Ok(result)
 }
 
