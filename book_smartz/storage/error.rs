@@ -1,5 +1,6 @@
 use crate::observation::Failure;
 use book_smartz_domain::{DomainError, IdentityError};
+use sqlx::postgres::{PgDatabaseError, PgSeverity};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -18,10 +19,18 @@ pub enum StoreError {
 }
 
 impl StoreError {
-    /// Only a server error acknowledges that COMMIT was rejected. Other failures
-    /// cannot establish whether the server committed before transport was lost.
+    /// ERROR normally acknowledges command rejection; connection exceptions,
+    /// unknown completion, and session-ending severities cannot confirm rollback.
     pub(crate) fn from_commit(error: sqlx::Error) -> Self {
-        if matches!(error, sqlx::Error::Database(_)) {
+        let definite_rejection = error
+            .as_database_error()
+            .and_then(|cause| cause.try_downcast_ref::<PgDatabaseError>())
+            .is_some_and(|cause| {
+                cause.severity() == PgSeverity::Error
+                    && !cause.code().starts_with("08")
+                    && cause.code() != "40003"
+            });
+        if definite_rejection {
             Self::Database(error)
         } else {
             Self::CommitUncertain(error)

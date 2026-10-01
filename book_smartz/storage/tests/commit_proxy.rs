@@ -22,6 +22,13 @@ pub struct CommitProxy {
 
 impl CommitProxy {
     pub async fn new(direct: &PgPool) -> Self {
+        Self::with_response(direct, None).await
+    }
+
+    pub async fn with_response(
+        direct: &PgPool,
+        response: Option<(&'static str, &'static str)>,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let options = direct.connect_options();
@@ -55,6 +62,17 @@ impl CommitProxy {
                     if tag == b'C' && body == b"COMMIT\0" {
                         reached.notify_one();
                         resume.notified().await;
+                        if let Some((severity, code)) = response {
+                            // Synthetic ErrorResponse exercises SQLx's real PostgreSQL decoder.
+                            let error =
+                                format!("S{severity}\0V{severity}\0C{code}\0Mfixture-secret\0\0");
+                            client_write.write_u8(b'E').await?;
+                            client_write
+                                .write_u32(u32::try_from(error.len() + 4).unwrap())
+                                .await?;
+                            client_write.write_all(error.as_bytes()).await?;
+                            client_write.flush().await?;
+                        }
                         // Drop the transport without sending CommandComplete or ReadyForQuery.
                         return Ok(());
                     }

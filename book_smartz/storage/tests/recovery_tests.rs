@@ -317,3 +317,50 @@ async fn cancellation_while_awaiting_commit_is_recoverable() {
         "fault evidence: canceled caller while real PostgreSQL COMMIT completion withheld; durable event recovered and original-context retry rejected"
     );
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn unknown_completion_and_connection_errors_preserve_commit_uncertainty() {
+    use super::commit_proxy::CommitProxy;
+    use book_smartz_storage::Store;
+    let fixture = Fixture::new().await;
+    let observations = Arc::new(Recorder::default());
+    let direct = fixture.store(observations.clone());
+    let op = OperationContext::default();
+    direct.migrate(op).await.unwrap();
+    for (index, (severity, code)) in [
+        ("ERROR", "08007"),
+        ("ERROR", "40003"),
+        ("ERROR", "08006"),
+        ("ERROR", "08P01"),
+        ("FATAL", "57P01"),
+        ("FATAL", "23514"),
+        ("PANIC", "XX000"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let proxy = CommitProxy::with_response(fixture.pool(), Some((severity, code))).await;
+        let store = Store::new(proxy.pool.clone(), observations.clone());
+        let book = book(index as u128 + 1);
+        let registering = tokio::spawn(async move { store.register_book(&book, op).await });
+        proxy.commit_reached().await;
+        proxy.disconnect();
+        let error = registering.await.unwrap().err().unwrap();
+        assert_that!(error.to_string().contains("fixture-secret"), eq(false));
+        let StoreError::CommitUncertain(sqlx::Error::Database(cause)) = error else {
+            panic!("{severity}/{code} must retain its database cause as uncertain");
+        };
+        assert_that!(cause.code().as_deref(), eq(Some(code)));
+    }
+    assert_that!(
+        observations
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|o| o.outcome == Outcome::CommitUncertain)
+            .count(),
+        eq(7)
+    );
+}
