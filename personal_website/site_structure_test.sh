@@ -23,6 +23,18 @@ for route in \
 done
 
 remaining="$(<"${dist}/blog/index.html")"
+[[ -f "${dist}/blog/rust-is-a-mind-virus/index.html" ]] || fail "missing directly accessible Rust draft"
+[[ "${remaining}" != *"Rust Is a Mind Virus."* ]] || fail "Rust draft appeared in blog listing"
+for detail in \
+	"A cooperative word-guessing game" \
+	"November 19, 2025" \
+	"kotlin" \
+	"min read"; do
+	[[ "${remaining}" == *"${detail}"* ]] || fail "missing blog entry detail: ${detail}"
+done
+[[ "${remaining}" == *'entry-type">Project</span>'* ]] || fail "missing Project label in blog listing"
+mindreadr="$(<"${dist}/blog/mindreadr/index.html")"
+[[ "${mindreadr}" == *'entry-type">Project</span>'* ]] || fail "missing Project label on Mindreadr article"
 for title in \
 	"Local-First Gradle Build Scan" \
 	"Mindreadr" \

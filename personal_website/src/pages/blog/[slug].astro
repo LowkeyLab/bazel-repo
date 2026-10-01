@@ -17,6 +17,8 @@ const { Content } = await render(post);
     <header class="reading-header">
       <h1>{post.data.title}</h1>
       <div class="reading-meta">
+        <span class="entry-type">{post.data.type[0].toUpperCase() + post.data.type.slice(1)}</span>
+        {post.data.context && <span class="reading-context">{post.data.context}</span>}
         <time datetime={post.data.publishDate.toISOString()}>{new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(post.data.publishDate)}</time>
         <span>{calculateReadingTime(post.body || "")} min read</span>
       </div>

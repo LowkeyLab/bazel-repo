@@ -1,8 +1,8 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import TagBadges from "../../components/TagBadges.astro";
+import PostList from "../../components/PostList.astro";
 import { getCollection } from "astro:content";
-import { calculateReadingTime, publishedPosts } from "../../utils/blog";
+import { publishedPosts } from "../../utils/blog";
 const posts = publishedPosts(await getCollection("blog"));
 ---
 <Layout title="Blog | Tim Tran" description="Thoughts on software engineering and more" activeItem="blog">
@@ -11,17 +11,5 @@ const posts = publishedPosts(await getCollection("blog"));
     <h1>Blog</h1>
     <p>Thoughts on software engineering, projects, and learning.</p>
   </header>
-  <section class="entry-list" aria-label="Blog posts">
-    {posts.length === 0 ? <p>No posts yet. Check back soon!</p> : posts.map((post) => (
-      <a href={`/blog/${post.id}`} class="entry-link">
-        <div class="entry-heading">
-          <h2>{post.data.title}</h2>
-          <time class="entry-meta" datetime={post.data.publishDate.toISOString()}>{new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(post.data.publishDate)}</time>
-        </div>
-        <p class="entry-description">{post.data.description}</p>
-        <p class="entry-meta mb-3">{calculateReadingTime(post.body || "")} min read</p>
-        <TagBadges tags={post.data.tags} />
-      </a>
-    ))}
-  </section>
+  <PostList posts={posts} ariaLabel="Blog posts" />
 </Layout>

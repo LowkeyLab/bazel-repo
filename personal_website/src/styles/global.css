@@ -332,6 +332,10 @@ h1 {
   font-size: 0.8rem;
   flex-shrink: 0;
 }
+.entry-type,
+.reading-context {
+  color: var(--color-secondary);
+}
 .entry-description {
   max-width: 48rem;
   margin-block: 0.75rem;
