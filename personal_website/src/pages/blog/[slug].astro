@@ -11,7 +11,7 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await render(post);
 ---
-<Layout title={`${post.data.title} | Tim Tran`} description={post.data.description} activeItem="blog">
+<Layout title={`${post.data.title} | Tim Tran`} description={post.data.description} activeItem="blog" noindex={post.data.draft} article={post.data.draft ? undefined : post.data}>
   <article class="reading-page">
     <a href="/blog" class="ink-link">← Back to blog</a>
     <header class="reading-header">

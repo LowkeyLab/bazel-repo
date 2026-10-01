@@ -2,16 +2,34 @@
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import Navbar from "../components/Navbar.astro";
+import { canonicalUrl } from "../utils/seo";
 interface Props {
   title: string;
   description?: string;
   activeItem?: "home" | "about" | "blog";
+  canonicalPath?: string;
+  noindex?: boolean;
+  article?: { title: string; description: string; publishDate: Date };
 }
 const {
   title,
   description = "Tim Tran - Software Engineer specializing in developer tooling and productivity",
   activeItem = "home",
+  canonicalPath = Astro.url.pathname,
+  noindex = false,
+  article,
 } = Astro.props;
+if (!Astro.site) throw new Error("The production site origin must be configured");
+const canonical = canonicalUrl(canonicalPath, Astro.site);
+const publishedArticle = noindex ? undefined : article;
+const structuredData = publishedArticle
+ ? JSON.stringify({
+  "@context": "https://schema.org", "@type": "BlogPosting",
+  headline: publishedArticle.title, description: publishedArticle.description,
+  datePublished: publishedArticle.publishDate.toISOString(),
+  author: { "@type": "Person", name: "Tim Tran" }, url: canonical,
+ }).replaceAll("<", "\\u003c")
+ : undefined;
 const currentYear = new Date().getFullYear();
 ---
 <html lang="en" data-theme="light">
@@ -19,6 +37,14 @@ const currentYear = new Date().getFullYear();
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={publishedArticle?.title ?? title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={publishedArticle ? "article" : "website"} />
+    <meta property="og:url" content={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="alternate" type="application/rss+xml" title="Tim Tran RSS" href={canonicalUrl("/rss.xml", Astro.site)} />
+    {structuredData && <script type="application/ld+json" is:inline set:html={structuredData} />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

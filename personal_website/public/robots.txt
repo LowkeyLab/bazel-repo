@@ -1,13 +1,4 @@
-# robots.txt for TimTran.dev
-
-# Allow all crawlers
 User-agent: *
 Allow: /
 
-# Prevent crawling of any sensitive or unfinished areas (if applicable)
-# Disallow: /admin/
-# Disallow: /private/
-# Disallow: /drafts/
-
-# Crawl-delay for heavy crawlers (optional)
-# Crawl-delay: 10
+Sitemap: https://www.tacascer.com/sitemap.xml

@@ -173,7 +173,10 @@ personal_website_ts_config(
 go_test(
     name = "personal_website_test",
     size = "small",
-    srcs = ["cache_headers_test.go"],
+    srcs = [
+        "cache_headers_test.go",
+        "publishing_test.go",
+    ],
     data = [
         "Caddyfile",
         ":frontend_layer",
@@ -184,5 +187,8 @@ go_test(
         "CADDYFILE": "$(rlocationpath :Caddyfile)",
         "SITE_ARCHIVE": "$(rlocationpath :frontend_layer)",
     },
-    deps = ["@rules_go//go/runfiles"],
+    deps = [
+        "@org_golang_x_net//html",
+        "@rules_go//go/runfiles",
+    ],
 )
