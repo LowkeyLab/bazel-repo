@@ -302,6 +302,22 @@ h1 {
     500 1.3rem/1.3 "Caveat",
     cursive;
 }
+.home-section {
+  padding-block: 2.5rem 1rem;
+}
+.home-section + .home-section {
+  margin-top: 2rem;
+}
+.home-section > h2 {
+  font-size: clamp(2.4rem, 4vw, 3.2rem);
+  line-height: 1.15;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.all-writing {
+  display: inline-block;
+  margin-top: 1.75rem;
+}
 .entry-list {
   display: grid;
   gap: 0;

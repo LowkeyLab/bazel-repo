@@ -29,14 +29,17 @@ done
 remaining="$(<"${dist}/blog/index.html")"
 [[ -f "${dist}/blog/rust-is-a-mind-virus/index.html" ]] || fail "missing directly accessible Rust draft"
 [[ "${remaining}" != *"Rust Is a Mind Virus."* ]] || fail "Rust draft appeared in blog listing"
+mindreadr_card="${remaining#*'href="/blog/mindreadr"'}"
+[[ "${mindreadr_card}" != "${remaining}" ]] || fail "missing Mindreadr card"
+mindreadr_card="${mindreadr_card%%'</a>'*}"
 for detail in \
 	"A cooperative word-guessing game" \
 	"November 19, 2025" \
 	"kotlin" \
 	"min read"; do
-	[[ "${remaining}" == *"${detail}"* ]] || fail "missing blog entry detail: ${detail}"
+	[[ "${mindreadr_card}" == *"${detail}"* ]] || fail "missing Mindreadr card detail: ${detail}"
 done
-[[ "${remaining}" == *'entry-type">Project</span>'* ]] || fail "missing Project label in blog listing"
+[[ "${mindreadr_card}" == *'entry-type">Project</span>'* ]] || fail "missing Project label in Mindreadr card"
 mindreadr="$(<"${dist}/blog/mindreadr/index.html")"
 [[ "${mindreadr}" == *'entry-type">Project</span>'* ]] || fail "missing Project label on Mindreadr article"
 for title in \
@@ -57,6 +60,34 @@ fi
 for destination in /blog/ /about/; do
 	grep -q "href=\"${destination}\"" "${dist}/index.html" || fail "home page must link to ${destination}"
 done
+
+home="$(<"${dist}/index.html")"
+[[ "${home}" == *'id="featured-heading"'* ]] || fail "missing Things I've worked on section"
+[[ "${home}" == *'id="recent-heading"'* ]] || fail "missing Recent writing section"
+featured="${home#*'id="featured-heading"'}"
+featured="${featured%%'id="recent-heading"'*}"
+recent="${home#*'id="recent-heading"'}"
+[[ "${recent}" == *'All writing'* ]] || fail "missing All writing link"
+recent_before_all="${recent%%'All writing'*}"
+
+count_entry_links() {
+	local content="$1"
+	local count=0
+	while [[ "${content}" == *'class="entry-link"'* ]]; do
+		content="${content#*'class="entry-link"'}"
+		((count += 1))
+	done
+	printf '%s' "${count}"
+}
+
+[[ "$(count_entry_links "${featured}")" -eq 3 ]] || fail "featured section must contain three article links"
+[[ "$(count_entry_links "${recent_before_all}")" -eq 3 ]] || fail "recent section must contain three entries before All writing"
+for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
+	[[ "${featured}" == *"href=\"/blog/${slug}\""* ]] || fail "missing featured article ${slug}"
+	[[ "${recent}" != *"href=\"/blog/${slug}\""* ]] || fail "featured article ${slug} repeated in recent writing"
+done
+[[ "${recent_before_all}" == *'href="/blog/"'* ]] || fail "All writing must link to Blog after recent entries"
+[[ "${recent_before_all}" == *'</section><a href="/blog/"'* ]] || fail "All writing must appear below the recent list"
 
 readonly caddyfile="${TEST_SRCDIR}/${TEST_WORKSPACE}/personal_website/Caddyfile"
 
