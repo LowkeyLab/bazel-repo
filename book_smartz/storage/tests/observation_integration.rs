@@ -1,10 +1,10 @@
 use super::observation_capture::{Capture, Value, subscriber};
 use super::support::{Fixture, recorder};
 use book_smartz_domain::{
-    Book, BookId, Command, CommandContext, EventId, OpenLibraryWorkId, ReaderId,
+    Book, BookId, Command, CommandContext, DomainError, EventId, OpenLibraryWorkId, ReaderId,
 };
 use book_smartz_storage::{
-    Observation, ObservationDeliveryError, Observer, OperationContext, Registration,
+    Observation, ObservationDeliveryError, Observer, OperationContext, Registration, StoreError,
     tracing_observer,
 };
 use googletest::{assert_that, matchers::eq};
@@ -121,10 +121,13 @@ async fn public_composition_observes_first_operation_and_committed_activity() {
             eq(1)
         );
         assert_that!(
-            store
-                .execute(reader, context(), Command::Resume, op)
-                .await
-                .is_err(),
+            matches!(
+                store.execute(reader, context(), Command::Resume, op).await,
+                Err(StoreError::Domain(DomainError::StaleRevision {
+                    expected: 0,
+                    actual: 1,
+                }))
+            ),
             eq(true)
         );
         store.load_ranking(reader, op).await.unwrap();
@@ -134,6 +137,10 @@ async fn public_composition_observes_first_operation_and_committed_activity() {
     let records = capture.0.lock().unwrap();
     assert_that!(records[0].level, eq(tracing::Level::INFO));
     assert_that!(records[3].level, eq(tracing::Level::DEBUG));
+    assert_that!(
+        records[3].fields.get("revision"),
+        eq(Some(&Value::Number(1)))
+    );
     let outcomes: Vec<_> = records
         .iter()
         .map(|r| r.fields.get("outcome").unwrap().clone())

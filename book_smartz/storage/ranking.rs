@@ -242,11 +242,11 @@ impl Store {
                 correlation_id: operation.correlation_id,
                 reader_id: Some(*reader.as_uuid()),
                 event_id: Some(*context.event_id.as_uuid()),
-                revision: result
-                    .as_ref()
-                    .map_or(Some(context.expected_revision), |value| {
-                        Some(value.projection.revision())
-                    }),
+                revision: Some(match &result {
+                    Ok(value) => value.projection.revision(),
+                    Err(StoreError::Domain(DomainError::StaleRevision { actual, .. })) => *actual,
+                    Err(_) => context.expected_revision,
+                }),
                 event_count: None,
             },
         );

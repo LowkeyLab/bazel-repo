@@ -353,10 +353,17 @@ async fn sequence_range_and_required_metadata_are_enforced() {
     )
     .await
     .unwrap();
-    let row = sqlx::query("SELECT sequence FROM book_smartz.ranking_events WHERE reader_id = $1")
-        .bind(reader)
-        .fetch_one(fixture.pool())
-        .await
-        .unwrap();
-    assert_that!(row.get::<String, _>("sequence"), eq("00000000000000000001"));
+    let rows = sqlx::query(
+        "SELECT sequence FROM book_smartz.ranking_events WHERE reader_id = $1 ORDER BY sequence",
+    )
+    .bind(reader)
+    .fetch_all(fixture.pool())
+    .await
+    .unwrap();
+    assert_that!(
+        rows.iter()
+            .map(|row| row.get::<String, _>("sequence"))
+            .collect::<Vec<_>>(),
+        eq(&vec!["00000000000000000001", "00000000000000000002"])
+    );
 }
