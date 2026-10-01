@@ -30,16 +30,32 @@ Retain all existing blog slugs and publication dates. Rewritten work posts recei
 
 Primary navigation becomes Blog, About, GitHub, retaining the theme control. The site brand links home. Preserve existing social/contact links in the introduction.
 
-The homepage retains its current introduction and adds:
+The homepage retains its headline and visual identity, uses the approved shorter introduction below, and adds:
 
 1. “Things I've worked on”: three curated published posts. Initially select the JVM RPC story, Mindreadr, and the IOI story, reflecting the original brief's professional/personal mix.
-2. “Recent writing”: up to three latest remaining published posts, excluding featured posts to avoid duplicate cards. If none remain, omit this section.
+2. “Recent writing”: up to three latest remaining published posts, excluding featured posts to avoid duplicate cards. If none remain, omit this section. Place the “All writing →” link below the final recent-writing entry, not beside the section heading.
 
 The Blog page shows all published posts, newest first, using the current list styling. Each entry shows title, description, publication date, a subdued type label, and sparse tags; preserve useful reading-time information. No filtering, search, category routes, or client-side filter state in this iteration.
 
 All articles use the existing blog presentation. Optional company context remains visually secondary. No employer logos, timelines, skill meters, or corporate Work cards. Lessons can appear as ordinary prose; a reusable lesson component is deferred.
 
-Add a compact About page using existing personal background and interview-supported professional context: software engineering at Bloomberg, developer infrastructure, build systems, automation, and reducing friction for other engineers. Do not reproduce employment chronology or invent biographical details. Preserve any existing resume if encountered; creating one is out of scope.
+Home introduces who Tim is today; About explains the broader personal journey behind those interests. About must not repeat the homepage or focus solely on Bloomberg. Use dense, connected prose rather than a chronology, technology list, or repeated contact section. Keep contact links on Home. Add “More about me →” beneath the homepage introduction. About ends with its final narrative paragraph, without a “Say hello” section or generic blog CTA. Preserve any existing resume if encountered; creating one is out of scope.
+
+Do not use em dashes in new site copy.
+
+### Approved homepage introduction
+
+I build tools that help people spend less time wrestling with software and more time making things. I’m especially interested in automation, build systems, and making complicated work easier to do.
+
+### Approved About copy
+
+I wasn’t especially interested in software in college. At Cornell, I considered ECE my main degree. CS was something I could tack on and, honestly, a way to one-up my classmates. I went through an entire CS degree without feeling particularly drawn to building software.
+
+Starting at Bloomberg changed that. I felt woefully underprepared, so I started reading software engineering books, listening to podcasts, and watching talks. At first, I was trying to catch up. Over time, I began developing my own judgment and taste from what I read, the authors’ experiences, and my own mistakes.
+
+Around 2023, I realized that despite everything I’d learned, I still didn’t know how to build a website. So I started learning and actually applying the ideas I’d been collecting. Things grew from there.
+
+Along the way, I developed a fervour for automation and eliminating toil. I’m interested in building the automation that builds the automation: looking beyond an individual task to the system that keeps producing it. That way of thinking connects my professional work, personal projects, and the things I write about here.
 
 ## Editorial design and interview evidence
 
@@ -63,7 +79,7 @@ The lesson is deliberate reuse: retain useful frameworks, implement the behavior
 
 Destination: /blog/prototyping-a-flink-pipeline/
 
-An existing end-of-day C++ pipeline motivated a Flink proof of concept. The team was unfamiliar with Java, and this was its first JVM service. The deployment also moved from traditional servers to Kubernetes. Describe Kubernetes as this project's deployment choice, not a universal Flink requirement.
+In 2022, an existing end-of-day C++ pipeline motivated a Flink proof of concept. State 2022 in the article prose; do not confuse the work year with the later article publication date or add a work-period field. The team was unfamiliar with Java, and this was its first JVM service. The deployment also moved from traditional servers to Kubernetes. Describe Kubernetes as this project's deployment choice, not a universal Flink requirement.
 
 The author built a functional end-to-end prototype: application code, builds, container images, CI/CD, Kubernetes deployment, and dummy traffic through Flink. Existing source material supports porting business logic first in Java and then Kotlin. Teaching the team the JVM, Java, Kotlin, and Kubernetes took substantial effort.
 
