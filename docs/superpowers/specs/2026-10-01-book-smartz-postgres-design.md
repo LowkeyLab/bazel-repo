@@ -39,6 +39,44 @@ Two storage approaches were considered:
 Reads and commands require work proportional to that reader's history. This is
 an accepted initial cost, not a claim that replay scales without limit.
 
+## Domain ownership and language
+
+Personal ranking is the model boundary for this slice. Rust packages and the
+PostgreSQL schema are implementation boundaries, not separate bounded contexts.
+There is no evidence requiring independent Catalog or Identity services. Open
+Library supplies an external work identifier; the local `BookId` remains the
+identity used in ranking decisions. No external catalog model enters replay.
+
+| Term              | Responsibility and invariant                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| Reader            | Caller-supplied ranking owner identity; not an account or authentication claim                       |
+| Book              | Stable local identity associated with exactly one Open Library work                                  |
+| Book registration | Enforces the unique mapping in both directions across the catalog                                    |
+| Ranking           | Aggregate rooted at `ReaderId`; owns its ordered decisions, revision, entries, and pending placement |
+| Pending placement | State inside the ranking aggregate, not an independently writable entity                             |
+| Revision          | Position in one reader's decision stream; not a global event order or wall-clock time                |
+
+The `Ranking` aggregate owns the immediate rules: at most one pending placement,
+no duplicate ranked book, answers only for the selected active pair, contiguous
+revisions, unique event IDs within its stream, and preservation of existing
+relative order when inserting a book. `Ranking::execute` and strict replay
+already enforce these rules. Storage supplies durable serialization around those
+same decisions; it does not reimplement opponent selection or placement policy.
+
+Registration has a simpler consistency requirement: preserve the immutable
+one-to-one book/work mapping. A transaction and database uniqueness constraints
+are sufficient. The in-memory `BookRegistry` is a validation collaborator, not
+one giant catalog aggregate that must be loaded or locked for every reader.
+Rankings reference books by identity. Because registration is committed before
+use and this slice has no remapping or deletion, commands do not need a
+cross-owner workflow to stabilize book identity.
+
+Successful registration does not imply that a book is ranked. If starting its
+placement later fails, the registered book remains available. A committed
+`PlacementStarted` also does not always mean ranking is complete: only the first
+book is placed immediately; later books remain pending until comparisons decide
+their position. These distinctions preserve the current business behavior.
+
 ## Package and ownership boundaries
 
 - `book_smartz/domain`: retains decisions, invariants, replay, and codecs without
@@ -116,9 +154,10 @@ No mutable ranking-position table is introduced.
    cross-check stored metadata, and replay through the existing domain.
 3. Resolve the registered identities needed by the command into the domain's
    existing registry value. Never load the entire global catalog for a command.
-4. Check expected revision and validate the command using the domain. Reject an
-   already-used event ID before append; do not return a projection that cannot be
-   replayed because the new event duplicates an earlier ID.
+4. Execute through the rehydrated domain aggregate with the supplied context.
+   Reuse its expected-revision, transition, and duplicate-event validation. Map
+   its typed rejection at the storage boundary without inventing a second rule
+   or changing validation precedence. Database uniqueness is defense in depth.
 5. Insert the single accepted event and commit. Only then expose success and emit
    a committed observation.
 
@@ -137,6 +176,37 @@ PostgreSQL documents row locks and their transaction lifetime in
 [Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html).
 Concrete SQLx calls must be checked against the repository's resolved dependency;
 the version-specific online SQLx documentation was unavailable during design.
+
+## Business events and contract evolution
+
+Commands (`Start`, `Answer`, `Pause`, `Resume`) express reader intent and can be
+rejected. The ranking aggregate produces the existing versioned decision events;
+the store makes them durable, and strict replay consumes them to reconstruct
+state. A proposed event becomes authoritative durable history only when its
+transaction commits. Ordering and event-ID uniqueness are per reader, with no
+ordering promise between readers.
+
+The existing `BookRanked` and `PlacementAutomaticallyPaused` notices are derived
+consequences, not extra authoritative decisions. Do not append them to history,
+advance revision for them, or treat replay as new business activity. Diagnostic
+operation observations have a separate consumer and best-effort delivery policy.
+CloudEvents encoding does not make these private replay records a promised
+integration feed. No external business consumer requires publication here, so
+an outbox or broker would add obligations without serving the agreed behavior.
+
+Persisted event meaning must remain stable. Future changes to opponent selection,
+placement rules, or event schemas must demonstrate that existing histories replay
+with their original meaning, or introduce explicit version-aware interpretation
+or migration. Do not rewrite old decisions or expire them as telemetry. Add a
+fixed historical CloudEvents fixture exercised through database reload to protect
+this compatibility boundary, separately from tests using newly encoded events.
+
+The delivery sequence is additive: introduce schema and migration support, add
+storage operations around the current domain, then exercise public composition
+and document caller adoption. Existing in-memory callers retain their behavior.
+No legacy durable store exists in this project; bulk import of caller-held
+histories is outside this slice. Written-spec approval still precedes a detailed
+implementation plan and execution choice.
 
 ## Failure and recovery semantics
 
