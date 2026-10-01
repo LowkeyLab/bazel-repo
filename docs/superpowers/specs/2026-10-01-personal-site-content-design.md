@@ -49,11 +49,11 @@ I build tools that help people spend less time wrestling with software and more 
 
 ### Approved About copy
 
-I wasn’t especially interested in software in college. At Cornell, I considered ECE my main degree. CS was something I could tack on and, honestly, a way to one-up my classmates. I went through an entire CS degree without feeling particularly drawn to building software.
+I wasn’t especially interested in software in college. At college, I considered Electrical and Computer Engineering my main degree. Computer Science was something I could tack on and, honestly, a way to one-up my classmates. I went through an entire Computer Science degree without feeling particularly drawn to building software.
 
-Starting at Bloomberg changed that. I felt woefully underprepared, so I started reading software engineering books, listening to podcasts, and watching talks. At first, I was trying to catch up. Over time, I began developing my own judgment and taste from what I read, the authors’ experiences, and my own mistakes.
+Starting my first full-time software job changed that. I felt woefully underprepared, so I started reading software engineering books, listening to podcasts, and watching talks. At first, I was trying to catch up. Over time, I began developing my own judgment and taste from what I read, the authors’ experiences, and my own mistakes.
 
-Around 2023, I realized that despite everything I’d learned, I still didn’t know how to build a website. So I started learning and actually applying the ideas I’d been collecting. Things grew from there.
+Around 2023, I realized that despite everything I’d learned, I still didn’t know how to build a website. So I started learning and actually applying the ideas I’d been collecting. This blog, with its many iterations, began then.
 
 Along the way, I developed a fervour for automation and eliminating toil. I’m interested in building the automation that builds the automation: looking beyond an individual task to the system that keeps producing it. That way of thinking connects my professional work, personal projects, and the things I write about here.
 
