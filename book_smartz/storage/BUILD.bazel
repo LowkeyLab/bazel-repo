@@ -13,18 +13,19 @@ rust_library(
         "lib.rs",
         "migration.rs",
         "observation.rs",
+        "observation_capture.rs",
+        "observation_tests.rs",
         "ranking.rs",
+        "tracing_listener.rs",
         "wire.rs",
     ],
     compile_data = ["//book_smartz/migrations:001_initial.sql"],
     crate_name = "book_smartz_storage",
     deps = [
         "//book_smartz/domain:lib",
-        "@crates//:chrono",
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:thiserror",
-        "@crates//:tokio",
         "@crates//:tracing",
         "@crates//:uuid",
     ],
@@ -34,10 +35,12 @@ rust_test(
     name = "storage_test",
     size = "medium",
     srcs = [
+        "observation_capture.rs",
         "tests/book_tests.rs",
         "tests/commit_proxy.rs",
         "tests/migration_tests.rs",
         "tests/mod.rs",
+        "tests/observation_integration.rs",
         "tests/ranking_tests.rs",
         "tests/recovery_tests.rs",
         "tests/support.rs",
@@ -64,7 +67,36 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
+        "@crates//:thiserror",
         "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
         "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "observation_test",
+    size = "small",
+    crate = ":lib",
+    deps = [
+        ":lib",
+        "@crates//:googletest",
+        "@crates//:thiserror",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:uuid",
+    ],
+)
+
+rust_library(
+    name = "usage",
+    srcs = ["usage.rs"],
+    crate_root = "usage.rs",
+    deps = [
+        ":lib",
+        "//book_smartz/domain:lib",
+        "@crates//:sqlx",
+        "@crates//:tracing",
     ],
 )

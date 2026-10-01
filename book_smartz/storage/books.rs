@@ -9,8 +9,8 @@ use crate::{
     observation,
 };
 
-fn decode_book(id: Uuid, work_id: String) -> Result<Book, StoreError> {
-    let work_id = OpenLibraryWorkId::try_from(work_id.as_str())
+fn decode_book(id: Uuid, work_id: &str) -> Result<Book, StoreError> {
+    let work_id = OpenLibraryWorkId::try_from(work_id)
         .map_err(|_| StoreError::CorruptHistory("invalid stored book work ID"))?;
     Ok(Book::new(BookId::new(id), work_id))
 }
@@ -24,7 +24,7 @@ async fn by_id(
             .bind(id.as_uuid())
             .fetch_optional(&mut **transaction)
             .await?;
-    row.map(|(id, work_id)| decode_book(id, work_id))
+    row.map(|(id, work_id)| decode_book(id, &work_id))
         .transpose()
 }
 
@@ -37,7 +37,7 @@ async fn by_work_id(
             .bind(id.as_str())
             .fetch_optional(&mut **transaction)
             .await?;
-    row.map(|(id, work_id)| decode_book(id, work_id))
+    row.map(|(id, work_id)| decode_book(id, &work_id))
         .transpose()
 }
 
@@ -109,6 +109,7 @@ impl Store {
             &Observation {
                 operation: Operation::Registration,
                 outcome: registration_outcome(&result),
+                command_kind: None,
                 duration: started.elapsed(),
                 correlation_id: operation.correlation_id,
                 reader_id: None,
@@ -136,7 +137,7 @@ impl Store {
                     .bind(id.as_uuid())
                     .fetch_optional(&self.pool)
                     .await?;
-            row.map(|(id, work_id)| decode_book(id, work_id))
+            row.map(|(id, work_id)| decode_book(id, &work_id))
                 .transpose()
         }
         .await;
@@ -145,6 +146,7 @@ impl Store {
             &Observation {
                 operation: Operation::BookById,
                 outcome: lookup_outcome(&result),
+                command_kind: None,
                 duration: started.elapsed(),
                 correlation_id: operation.correlation_id,
                 reader_id: None,
@@ -172,7 +174,7 @@ impl Store {
                     .bind(id.as_str())
                     .fetch_optional(&self.pool)
                     .await?;
-            row.map(|(id, work_id)| decode_book(id, work_id))
+            row.map(|(id, work_id)| decode_book(id, &work_id))
                 .transpose()
         }
         .await;
@@ -181,6 +183,7 @@ impl Store {
             &Observation {
                 operation: Operation::BookByWorkId,
                 outcome: lookup_outcome(&result),
+                command_kind: None,
                 duration: started.elapsed(),
                 correlation_id: operation.correlation_id,
                 reader_id: None,

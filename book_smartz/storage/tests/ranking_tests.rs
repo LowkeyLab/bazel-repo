@@ -89,7 +89,7 @@ async fn reconnect_recovers_ranking_and_pending_placement() {
             .projection()
             .entries()
             .iter()
-            .map(|entry| entry.book_id())
+            .map(book_smartz_domain::RankingEntry::book_id)
             .collect::<Vec<_>>(),
         eq(&vec![a.id()])
     );
@@ -140,7 +140,7 @@ async fn reconnect_recovers_ranking_and_pending_placement() {
         done.projection()
             .entries()
             .iter()
-            .map(|entry| entry.book_id())
+            .map(book_smartz_domain::RankingEntry::book_id)
             .collect::<Vec<_>>(),
         eq(&vec![b.id(), a.id()])
     );
@@ -563,7 +563,7 @@ async fn historical_v1_history_remains_replayable() {
             .projection()
             .entries()
             .iter()
-            .map(|entry| entry.book_id())
+            .map(book_smartz_domain::RankingEntry::book_id)
             .collect::<Vec<_>>(),
         eq(&vec![book(2).id(), book(1).id()])
     );
@@ -615,7 +615,7 @@ fn event(
             id: EventId::new(Uuid::from_u128(id)),
             reader_id: reader,
             sequence: book_smartz_domain::Sequence::new(sequence).unwrap(),
-            time: context(sequence - 1, id, sequence as u32).time,
+            time: context(sequence - 1, id, u32::try_from(sequence).unwrap()).time,
         },
         candidate,
         kind,

@@ -9,8 +9,8 @@ use sqlx::{PgPool, Postgres, Transaction, types::Json};
 use uuid::Uuid;
 
 use crate::{
-    CommandResult, Observation, Operation, OperationContext, Outcome, Rejection, Store, StoreError,
-    observation, wire,
+    CommandKind, CommandResult, Observation, Operation, OperationContext, Outcome, Rejection,
+    Store, StoreError, observation, wire,
 };
 
 type EventRow = (Uuid, String, Uuid, Uuid, Option<Uuid>, Json<Value>);
@@ -195,6 +195,7 @@ impl Store {
             &self.observer,
             &Observation {
                 operation: Operation::RankingLoad,
+                command_kind: None,
                 outcome: match &result {
                     Ok(_) => Outcome::Loaded,
                     Err(error) => Outcome::Failed(error.failure()),
@@ -230,6 +231,12 @@ impl Store {
             &self.observer,
             &Observation {
                 operation: Operation::RankingCommand,
+                command_kind: Some(match command {
+                    Command::Start { .. } => CommandKind::Start,
+                    Command::Answer { .. } => CommandKind::Answer,
+                    Command::Pause => CommandKind::Pause,
+                    Command::Resume => CommandKind::Resume,
+                }),
                 outcome: command_outcome(&result),
                 duration: started.elapsed(),
                 correlation_id: operation.correlation_id,

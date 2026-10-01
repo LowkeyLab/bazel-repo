@@ -1,4 +1,4 @@
-//! Test-only PostgreSQL transport: withhold a real server COMMIT completion.
+//! Test-only `PostgreSQL` transport: withhold a real server COMMIT completion.
 //! TLS is disabled only for this local fixture so backend frames remain visible.
 use std::{io, sync::Arc, time::Duration};
 

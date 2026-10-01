@@ -1,4 +1,4 @@
-//! PostgreSQL persistence for Book Smartz.
+//! `PostgreSQL` persistence for Book Smartz.
 #![forbid(unsafe_code)]
 
 mod books;
@@ -6,12 +6,14 @@ mod error;
 mod migration;
 mod observation;
 mod ranking;
+mod tracing_listener;
 mod wire;
+pub use tracing_listener::tracing_observer;
 
 pub use error::StoreError;
 pub use observation::{
-    Failure, Observation, ObservationDeliveryError, Observer, Operation, Outcome, Rejection,
-    SharedObserver,
+    CommandKind, Failure, Observation, ObservationDeliveryError, Observer, Operation, Outcome,
+    Rejection, SharedObserver,
 };
 
 use sqlx::PgPool;
@@ -61,6 +63,7 @@ impl Store {
             &self.observer,
             &Observation {
                 operation: Operation::Migration,
+                command_kind: None,
                 outcome,
                 duration: started.elapsed(),
                 correlation_id: operation.correlation_id,
@@ -73,3 +76,8 @@ impl Store {
         result
     }
 }
+
+#[cfg(test)]
+mod observation_capture;
+#[cfg(test)]
+mod observation_tests;

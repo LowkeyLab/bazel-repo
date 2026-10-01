@@ -94,7 +94,7 @@ async fn registration_preserves_both_identity_directions() {
             .unwrap(),
         eq(&None)
     );
-    let recorded = observations.0.lock().unwrap();
+    let recorded = observations.0.lock().unwrap().clone();
     let registration: Vec<_> = recorded
         .iter()
         .filter(|entry| entry.operation == Operation::Registration)

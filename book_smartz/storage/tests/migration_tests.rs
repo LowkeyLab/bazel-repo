@@ -39,7 +39,7 @@ async fn migrations_are_isolated_and_repeatable() {
             .await
             .unwrap();
     assert_that!(version, eq(1));
-    let observed = observations.0.lock().unwrap();
+    let observed = observations.0.lock().unwrap().clone();
     assert_that!(observed.len(), eq(2));
     assert_that!(
         observed
