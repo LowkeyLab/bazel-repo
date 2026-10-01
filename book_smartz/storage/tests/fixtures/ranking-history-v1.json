@@ -1,0 +1,51 @@
+[
+  {
+    "specversion": "1.0",
+    "id": "00000000-0000-0000-0000-000000000033",
+    "source": "urn:uuid:00000000-0000-0000-0000-0000000000c8",
+    "type": "bookranking.placement.started.v1",
+    "subject": "books/00000000-0000-0000-0000-000000000001",
+    "time": "2026-09-27T12:00:01Z",
+    "datacontenttype": "application/json",
+    "data": {
+      "readerId": "00000000-0000-0000-0000-0000000000c8",
+      "candidateBookId": "00000000-0000-0000-0000-000000000001",
+      "sequence": "1"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "00000000-0000-0000-0000-000000000034",
+    "source": "urn:uuid:00000000-0000-0000-0000-0000000000c8",
+    "type": "bookranking.placement.started.v1",
+    "subject": "books/00000000-0000-0000-0000-000000000002",
+    "time": "2026-09-27T12:00:02Z",
+    "datacontenttype": "application/json",
+    "sequence": "00000000000000000002",
+    "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    "tracehint": "opaque-v1",
+    "retry": true,
+    "data": {
+      "readerId": "00000000-0000-0000-0000-0000000000c8",
+      "candidateBookId": "00000000-0000-0000-0000-000000000002",
+      "sequence": "2"
+    }
+  },
+  {
+    "specversion": "1.0",
+    "id": "00000000-0000-0000-0000-000000000035",
+    "source": "urn:uuid:00000000-0000-0000-0000-0000000000c8",
+    "type": "bookranking.comparison.answered.v1",
+    "subject": "books/00000000-0000-0000-0000-000000000002",
+    "time": "2026-09-27T12:00:03Z",
+    "datacontenttype": "application/json",
+    "sequence": "00000000000000000003",
+    "data": {
+      "readerId": "00000000-0000-0000-0000-0000000000c8",
+      "candidateBookId": "00000000-0000-0000-0000-000000000002",
+      "sequence": "3",
+      "opponentBookId": "00000000-0000-0000-0000-000000000001",
+      "choice": "prefer_candidate"
+    }
+  }
+]

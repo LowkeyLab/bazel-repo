@@ -1,0 +1,102 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
+
+package(default_visibility = ["//visibility:public"])
+
+# gazelle:ignore
+rust_library(
+    name = "lib",
+    srcs = [
+        "books.rs",
+        "error.rs",
+        "lib.rs",
+        "migration.rs",
+        "observation.rs",
+        "observation_capture.rs",
+        "observation_tests.rs",
+        "ranking.rs",
+        "tracing_listener.rs",
+        "wire.rs",
+    ],
+    compile_data = ["//book_smartz/migrations:001_initial.sql"],
+    crate_name = "book_smartz_storage",
+    deps = [
+        "//book_smartz/domain:lib",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:thiserror",
+        "@crates//:tracing",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "storage_test",
+    size = "medium",
+    srcs = [
+        "observation_capture.rs",
+        "tests/book_tests.rs",
+        "tests/commit_proxy.rs",
+        "tests/migration_tests.rs",
+        "tests/mod.rs",
+        "tests/observation_integration.rs",
+        "tests/ranking_tests.rs",
+        "tests/recovery_tests.rs",
+        "tests/support.rs",
+        "wire.rs",
+    ],
+    compile_data = ["tests/fixtures/ranking-history-v1.json"],
+    crate_root = "tests/mod.rs",
+    data = image_data("postgres_18"),  # keep
+    env = image_env("postgres_18"),
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        ":lib",
+        "//book_smartz/domain:lib",
+        "//test_images/rust:test_images",  # keep
+        "@crates//:chrono",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "observation_test",
+    size = "small",
+    crate = ":lib",
+    deps = [
+        ":lib",
+        "@crates//:googletest",
+        "@crates//:thiserror",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:uuid",
+    ],
+)
+
+rust_library(
+    name = "usage",
+    srcs = ["usage.rs"],
+    crate_root = "usage.rs",
+    deps = [
+        ":lib",
+        "//book_smartz/domain:lib",
+        "@crates//:sqlx",
+        "@crates//:tracing",
+    ],
+)
