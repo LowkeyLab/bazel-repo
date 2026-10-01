@@ -29,7 +29,7 @@ done
 remaining="$(<"${dist}/blog/index.html")"
 [[ -f "${dist}/blog/rust-is-a-mind-virus/index.html" ]] || fail "missing directly accessible Rust draft"
 [[ "${remaining}" != *"Rust Is a Mind Virus."* ]] || fail "Rust draft appeared in blog listing"
-mindreadr_card="${remaining#*'href="/blog/mindreadr"'}"
+mindreadr_card="${remaining#*'href="/blog/mindreadr/"'}"
 [[ "${mindreadr_card}" != "${remaining}" ]] || fail "missing Mindreadr card"
 mindreadr_card="${mindreadr_card%%'</a>'*}"
 for detail in \
@@ -82,13 +82,13 @@ count_entry_links() {
 
 [[ "$(count_entry_links "${featured}")" -eq 3 ]] || fail "featured section must contain three article links"
 for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
-	[[ "${featured}" == *"href=\"/blog/${slug}\""* ]] || fail "missing featured article ${slug}"
+	[[ "${featured}" == *"href=\"/blog/${slug}/\""* ]] || fail "missing featured article ${slug}"
 done
 
 recent_count="$(count_entry_links "${recent_before_all}")"
 [[ "${recent_count}" -ge 1 && "${recent_count}" -le 3 ]] || fail "recent section must contain one to three entries before All writing"
 for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
-	[[ "${recent}" != *"href=\"/blog/${slug}\""* ]] || fail "featured article ${slug} repeated in recent writing"
+	[[ "${recent}" != *"href=\"/blog/${slug}/\""* ]] || fail "featured article ${slug} repeated in recent writing"
 done
 [[ "${recent_before_all}" == *'href="/blog/"'* ]] || fail "All writing must link to Blog after recent entries"
 [[ "${recent_before_all}" == *'</section><a href="/blog/"'* ]] || fail "All writing must appear below the recent list"

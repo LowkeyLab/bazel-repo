@@ -13,7 +13,7 @@ const { Content } = await render(post);
 ---
 <Layout title={`${post.data.title} | Tim Tran`} description={post.data.description} activeItem="blog" noindex={post.data.draft} article={post.data.draft ? undefined : post.data}>
   <article class="reading-page">
-    <a href="/blog" class="ink-link">← Back to blog</a>
+    <a href="/blog/" class="ink-link">← Back to blog</a>
     <header class="reading-header">
       <h1>{post.data.title}</h1>
       <div class="reading-meta">

@@ -13,7 +13,7 @@ const { posts, ariaLabel } = Astro.props;
 
 <section class="entry-list" aria-label={ariaLabel}>
   {posts.length === 0 ? <p>No posts yet. Check back soon!</p> : posts.map((post) => (
-    <a href={`/blog/${post.id}`} class="entry-link">
+    <a href={`/blog/${post.id}/`} class="entry-link">
       <div class="entry-heading">
         <h2>{post.data.title}</h2>
         <time class="entry-meta" datetime={post.data.publishDate.toISOString()}>{new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(post.data.publishDate)}</time>

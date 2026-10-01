@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"maps"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,68 @@ type rssItem struct {
 type rssDocument struct {
 	XMLName xml.Name  `xml:"rss"`
 	Items   []rssItem `xml:"channel>item"`
+}
+
+func TestInternalLinksResolve(t *testing.T) {
+	client, files, _ := startCaddy(t)
+	checked := map[string]bool{}
+	for pagePath, body := range files {
+		if !strings.HasSuffix(pagePath, "/index.html") {
+			continue
+		}
+		doc, err := html.Parse(strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var visit func(*html.Node)
+		visit = func(node *html.Node) {
+			if node.Type == html.ElementNode {
+				for _, attr := range node.Attr {
+					candidates := []string{}
+					switch attr.Key {
+					case "href", "src":
+						candidates = append(candidates, attr.Val)
+					case "srcset":
+						for _, entry := range strings.Split(attr.Val, ",") {
+							if fields := strings.Fields(entry); len(fields) > 0 {
+								candidates = append(candidates, fields[0])
+							}
+						}
+					}
+					for _, raw := range candidates {
+						if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || checked[raw] {
+							continue
+						}
+						checked[raw] = true
+						parsed, err := url.Parse(raw)
+						if err != nil {
+							t.Errorf("%s: invalid internal URL %q: %v", pagePath, raw, err)
+							continue
+						}
+						response, _ := get(t, client, parsed.RequestURI(), nil)
+						if response.StatusCode == http.StatusMovedPermanently {
+							destination := response.Header.Get("Location")
+							if !strings.HasPrefix(destination, "/") {
+								t.Errorf("%s: redirect %q has unexpected destination %q", pagePath, raw, destination)
+								continue
+							}
+							response, _ = get(t, client, destination, nil)
+						}
+						if response.StatusCode != http.StatusOK {
+							t.Errorf("%s: internal URL %q resolves to HTTP %d", pagePath, raw, response.StatusCode)
+						}
+					}
+				}
+			}
+			for child := node.FirstChild; child != nil; child = child.NextSibling {
+				visit(child)
+			}
+		}
+		visit(doc)
+	}
+	if len(checked) == 0 {
+		t.Fatal("no internal links found in rendered pages")
+	}
 }
 
 func TestPublishedDiscovery(t *testing.T) {
