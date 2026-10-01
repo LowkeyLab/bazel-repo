@@ -63,12 +63,8 @@ done
 
 home="$(<"${dist}/index.html")"
 [[ "${home}" == *'id="featured-heading"'* ]] || fail "missing Things I've worked on section"
-[[ "${home}" == *'id="recent-heading"'* ]] || fail "missing Recent writing section"
 featured="${home#*'id="featured-heading"'}"
 featured="${featured%%'id="recent-heading"'*}"
-recent="${home#*'id="recent-heading"'}"
-[[ "${recent}" == *'All writing'* ]] || fail "missing All writing link"
-recent_before_all="${recent%%'All writing'*}"
 
 count_entry_links() {
 	local content="$1"
@@ -81,13 +77,25 @@ count_entry_links() {
 }
 
 [[ "$(count_entry_links "${featured}")" -eq 3 ]] || fail "featured section must contain three article links"
-[[ "$(count_entry_links "${recent_before_all}")" -eq 3 ]] || fail "recent section must contain three entries before All writing"
 for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
 	[[ "${featured}" == *"href=\"/blog/${slug}\""* ]] || fail "missing featured article ${slug}"
-	[[ "${recent}" != *"href=\"/blog/${slug}\""* ]] || fail "featured article ${slug} repeated in recent writing"
 done
-[[ "${recent_before_all}" == *'href="/blog/"'* ]] || fail "All writing must link to Blog after recent entries"
-[[ "${recent_before_all}" == *'</section><a href="/blog/"'* ]] || fail "All writing must appear below the recent list"
+
+if [[ "${home}" == *'id="recent-heading"'* ]]; then
+	recent="${home#*'id="recent-heading"'}"
+	[[ "${recent}" == *'All writing'* ]] || fail "missing All writing link"
+	recent_before_all="${recent%%'All writing'*}"
+	recent_count="$(count_entry_links "${recent_before_all}")"
+	[[ "${recent_count}" -ge 1 && "${recent_count}" -le 3 ]] || fail "recent section must contain one to three entries before All writing"
+	for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
+		[[ "${recent}" != *"href=\"/blog/${slug}\""* ]] || fail "featured article ${slug} repeated in recent writing"
+	done
+	[[ "${recent_before_all}" == *'href="/blog/"'* ]] || fail "All writing must link to Blog after recent entries"
+	[[ "${recent_before_all}" == *'</section><a href="/blog/"'* ]] || fail "All writing must appear below the recent list"
+else
+	[[ "${home}" != *'All writing'* ]] || fail "All writing must be omitted when there are no recent entries"
+	[[ "${home}" != *'aria-label="Recent writing"'* ]] || fail "empty Recent writing list must be omitted"
+fi
 
 readonly caddyfile="${TEST_SRCDIR}/${TEST_WORKSPACE}/personal_website/Caddyfile"
 
