@@ -3394,6 +3394,26 @@
           "importpath": "google.golang.org/genproto/googleapis/rpc",
           "sha256": "67711b6f9adde7cd2d23ba3512bf371ddc628709a4b7ff598794e638607e9987",
           "version": "v0.0.0-20260630182238-925bb5da69e7"
+        },
+        {
+          "importpath": "cloud.google.com/go/pubsublite",
+          "sha256": "c2015c3e0f6e0efcac42fb723241870ce210f680079d2139cf5f449b90b79df8",
+          "version": "v1.8.2"
+        },
+        {
+          "importpath": "cloud.google.com/go/resourcesettings",
+          "sha256": "94fae5cf7329e9eabe2b771796699f9ded2f574f3d24e470780959ca19812503",
+          "version": "v1.8.3"
+        },
+        {
+          "importpath": "github.com/census-instrumentation/opencensus-proto",
+          "sha256": "61bf7c4e662f78ed335208f085d441c9dcaa15b69bdf0ec786ed06a12302b303",
+          "version": "v0.4.1"
+        },
+        {
+          "importpath": "github.com/planetscale/vtprotobuf",
+          "sha256": "e94bb181f3ef78dec16609d3c2d276c75c5668694bdc97b72bac22c84528debb",
+          "version": "v0.6.1-0.20240319094008-0393e58bdf10"
         }
       ]
     },
