@@ -43,6 +43,11 @@ async fn by_work_id(
 
 async fn register(pool: &PgPool, book: &Book) -> Result<Registration, StoreError> {
     let mut transaction = pool.begin().await?;
+    // Resolve a competing insertion against its committed mapping, even when
+    // the caller configured a stronger session isolation level.
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        .execute(&mut *transaction)
+        .await?;
     let inserted: Option<(Uuid,)> = sqlx::query_as(
         "INSERT INTO book_smartz.books (id, work_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id",
     )
