@@ -27,12 +27,12 @@ const { featured, recent } = homePosts(await getCollection("blog"));
   />
   <section class="home-section" aria-labelledby="featured-heading">
     <h2 id="featured-heading">Things I've worked on</h2>
-    <PostList posts={featured} ariaLabel="Featured writing" />
+    <PostList posts={featured} ariaLabel="Featured writing" headingLevel="h3" />
   </section>
   {recent.length > 0 && (
     <section class="home-section" aria-labelledby="recent-heading">
       <h2 id="recent-heading">Recent writing</h2>
-      <PostList posts={recent} ariaLabel="Recent writing" />
+      <PostList posts={recent} ariaLabel="Recent writing" headingLevel="h3" />
       <a href="/blog/" class="ink-link all-writing">All writing <span aria-hidden="true">→</span></a>
     </section>
   )}

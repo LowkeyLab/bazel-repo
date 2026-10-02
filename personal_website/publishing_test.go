@@ -92,6 +92,45 @@ func TestInternalLinksResolve(t *testing.T) {
 	}
 }
 
+func TestListingHeadingLevels(t *testing.T) {
+	_, files, _ := startCaddy(t)
+	for path, want := range map[string]string{"/index.html": "h3", "/blog/index.html": "h2"} {
+		page := parsePage(t, files[path])
+		if len(page.entryHeadings) == 0 {
+			t.Fatalf("%s has no post headings", path)
+		}
+		for _, got := range page.entryHeadings {
+			if got != want {
+				t.Errorf("%s post heading = %s; want %s", path, got, want)
+			}
+		}
+	}
+}
+
+func TestPublicationDates(t *testing.T) {
+	_, files, _ := startCaddy(t)
+	count := 0
+	for path, body := range files {
+		if !strings.HasSuffix(path, "/index.html") {
+			continue
+		}
+		for _, date := range parsePage(t, body).dates {
+			instant, err := time.Parse(time.RFC3339, date.datetime)
+			if err != nil {
+				t.Fatalf("%s: %v", path, err)
+			}
+			want := instant.UTC().Format("January 2, 2006")
+			if date.text != want {
+				t.Errorf("%s publication date = %q; want %q", path, date.text, want)
+			}
+			count++
+		}
+	}
+	if count == 0 {
+		t.Fatal("no publication dates checked")
+	}
+}
+
 func TestPublishedDiscovery(t *testing.T) {
 	client, files, _ := startCaddy(t)
 	published := publishedRoutes(t, files)
@@ -273,7 +312,13 @@ func publishedRoutes(t *testing.T, files map[string]string) map[string]bool {
 	return routes
 }
 
+type renderedDate struct {
+	datetime, text string
+}
+
 type renderedPage struct {
+	entryHeadings                         []string
+	dates                                 []renderedDate
 	title, heading, date, canonical, feed string
 	meta                                  map[string]string
 	structured, links                     []string
@@ -309,8 +354,17 @@ func parsePage(t *testing.T, body string) renderedPage {
 				page.title = content(n)
 			case "h1":
 				page.heading = content(n)
+			case "h2", "h3":
+				if n.Parent != nil {
+					for _, attr := range n.Parent.Attr {
+						if attr.Key == "class" && strings.Contains(" "+attr.Val+" ", " entry-heading ") {
+							page.entryHeadings = append(page.entryHeadings, n.Data)
+						}
+					}
+				}
 			case "time":
 				page.date = attrs["datetime"]
+				page.dates = append(page.dates, renderedDate{attrs["datetime"], strings.TrimSpace(content(n))})
 			case "meta":
 				key := attrs["name"]
 				if key == "" {

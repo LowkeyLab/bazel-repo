@@ -327,7 +327,7 @@ h1 {
   padding-block: 1.8rem;
   border-bottom: 1px solid var(--color-base-300);
 }
-.entry-link:hover h2 {
+.entry-link:hover .entry-title {
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.15em;
@@ -338,7 +338,7 @@ h1 {
   align-items: baseline;
   gap: 1rem;
 }
-.entry-heading h2 {
+.entry-heading .entry-title {
   font-size: 2.15rem;
   font-weight: 600;
   color: var(--color-primary);
