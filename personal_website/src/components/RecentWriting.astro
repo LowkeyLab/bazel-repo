@@ -16,7 +16,7 @@ const { posts, headingId = "recent-heading" } = Astro.props;
     <AnimationBootstrap />
     <section class="home-section" aria-labelledby={headingId}>
       <h2 id={headingId}>Recent writing</h2>
-      <PostList posts={posts} ariaLabel="Recent writing" headingLevel="h3" />
+      <PostList posts={posts} ariaLabel="Recent writing" headingLevel="h3" notebook />
       <a href="/blog/" class="ink-link all-writing" data-animation-detail>All writing <span aria-hidden="true">→</span></a>
     </section>
   </recent-writing-animation>

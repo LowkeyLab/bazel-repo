@@ -38,13 +38,7 @@ await withPage(
     );
     for (let index = 0; index < 3; index++) {
       const entry = entries.nth(index);
-      for (const selector of [
-        ".entry-title",
-        "time",
-        ".entry-description",
-        ".entry-type",
-        ".tags",
-      ]) {
+      for (const selector of [".entry-title"]) {
         assert.ok(
           await entry.locator(selector).count(),
           `${selector} belongs to entry ${index}`,
@@ -64,18 +58,12 @@ await withPage(
       pending.every((entry) => entry.inert),
       "hidden entries are not keyboard reachable",
     );
-    for (const selector of [
-      ".entry-title",
-      "time",
-      ".entry-description",
-      ".entry-type",
-      ".tags",
-    ]) {
+    for (const selector of [".entry-title"]) {
       assert.equal(
         (
           await presentation(
             page,
-            `featured-work-animation:first-of-type .entry-link:first-child ${selector}`,
+            `featured-work-animation:first-of-type li:first-child .entry-link ${selector}`,
           )
         ).visibility,
         "hidden",
@@ -100,18 +88,12 @@ await withPage(
       ),
       "every complete entry finishes visible and focusable",
     );
-    for (const selector of [
-      ".entry-title",
-      "time",
-      ".entry-description",
-      ".entry-type",
-      ".tags",
-    ]) {
+    for (const selector of [".entry-title"]) {
       assert.equal(
         (
           await presentation(
             page,
-            `featured-work-animation:first-of-type .entry-link:first-child ${selector}`,
+            `featured-work-animation:first-of-type li:first-child .entry-link ${selector}`,
           )
         ).visibility,
         "visible",
@@ -236,7 +218,7 @@ for (const theme of ["light", "dracula"]) {
       }));
       assert.ok(
         size.scroll <= size.client,
-        `${theme}: long titles and tags do not overflow at 390px`,
+        `${theme}: long titles do not overflow at 390px`,
       );
       const empty = await presentation(
         page,

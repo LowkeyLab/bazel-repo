@@ -7,13 +7,26 @@ interface Props {
   posts: CollectionEntry<"blog">[];
   ariaLabel: string;
   headingLevel?: "h2" | "h3";
+  notebook?: boolean;
 }
 
-const { posts, ariaLabel, headingLevel: Heading = "h2" } = Astro.props;
+const { posts, ariaLabel, headingLevel: Heading = "h2", notebook = false } = Astro.props;
 ---
 
-<section class="entry-list" aria-label={ariaLabel}>
-  {posts.length === 0 ? <p>No posts yet. Check back soon!</p> : posts.map((post) => (
+<section class:list={["entry-list", { "notebook-list": notebook }]} aria-label={ariaLabel}>
+  {posts.length === 0 ? <p>No posts yet. Check back soon!</p> : notebook ? (
+    <ul role="list">
+      {posts.map((post) => (
+        <li>
+          <a href={`/blog/${post.id}/`} class="entry-link">
+            <div class="entry-heading">
+              <Heading class="entry-title">{post.data.title}</Heading>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  ) : posts.map((post) => (
     <a href={`/blog/${post.id}/`} class="entry-link">
       <div class="entry-heading">
         <Heading class="entry-title">{post.data.title}</Heading>

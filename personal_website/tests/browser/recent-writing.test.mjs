@@ -23,15 +23,8 @@ await withPage(
     assert.equal(await allWriting.getAttribute("href"), "/blog/");
     for (let index = 0; index < 3; index++) {
       const entry = entries.nth(index);
-      for (const selector of [
-        ".entry-title",
-        "time",
-        ".entry-description",
-        ".entry-type",
-        ".tags",
-      ])
+      for (const selector of [".entry-title"])
         assert.equal(await entry.locator(selector).count(), 1);
-      assert.match(await entry.textContent(), /min read/);
     }
 
     await page.evaluate(() => document.fonts.ready);
@@ -47,18 +40,12 @@ await withPage(
       (await page.locator(`${root} .handwriting-word`).count()) > 0,
       "the recent heading is writing while its entries remain pending",
     );
-    for (const selector of [
-      ".entry-title",
-      "time",
-      ".entry-description",
-      ".entry-type",
-      ".tags",
-    ])
+    for (const selector of [".entry-title"])
       assert.equal(
         (
           await presentation(
             page,
-            `${root} .entry-link:first-child ${selector}`,
+            `${root} li:first-child .entry-link ${selector}`,
           )
         ).visibility,
         "hidden",
