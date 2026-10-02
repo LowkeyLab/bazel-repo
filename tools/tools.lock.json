@@ -134,22 +134,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-aarch64",
-        "sha256": "732e3a84c1a0f67256ce80bc2598a24546b10ca05f9faa97efceb1171ece2ef7",
+        "url": "https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-aarch64",
+        "sha256": "733ec76717ceb59052a9609b9dadfb523b2df8eab57a54212872d10a58078ea2",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64",
-        "sha256": "db1889184726840f75c4f9c001048430d4f25b3be3cb084d3ddd762bc0aed576",
+        "url": "https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-x86_64",
+        "sha256": "40343e21ca777173e69cff5dbafeb37c6f81f3b0d57d9e597f036e95eb63e76a",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-darwin-aarch64",
-        "sha256": "998735c9b6fe68a4f05895e6ea73d71ad06f9fc7046383ad89e47346781b6af5",
+        "url": "https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-darwin-aarch64",
+        "sha256": "bd714a42b46e51757fc1121085b3096b9064e3f80d3ca5a991e33f44df4f43c9",
         "os": "macos",
         "cpu": "arm64"
       }
