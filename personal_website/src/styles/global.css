@@ -207,6 +207,15 @@ h1 {
   gap: 3rem;
   padding-block: 1.5rem 3rem;
 }
+home-hero-animation,
+featured-work-animation,
+recent-writing-animation {
+  display: block;
+}
+[data-animation-pending] [data-animation-detail] {
+  visibility: hidden;
+  pointer-events: none;
+}
 .home-hero h1 {
   font-size: clamp(3.5rem, 6vw, 5.8rem);
   line-height: 1.03;

@@ -1,0 +1,24 @@
+<script is:inline>
+  (() => {
+    const root = document.currentScript?.parentElement;
+    if (!root || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    root.dataset.animationPending = "";
+    let expired = false;
+    let claimed = false;
+    const restore = () => {
+      clearTimeout(watchdog);
+      delete root.dataset.animationPending;
+      if (!claimed) expired = true;
+    };
+    const watchdog = setTimeout(restore, 2000);
+    root.animationBootstrap = {
+      claim: () => {
+        if (expired) return false;
+        claimed = true;
+        clearTimeout(watchdog);
+        return true;
+      },
+      restore,
+    };
+  })();
+</script>

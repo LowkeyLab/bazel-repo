@@ -21,6 +21,7 @@
     "daisyui": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-astro": "catalog:",
+    "playwright": "catalog:",
     "prettier": "catalog:",
     "stylelint": "catalog:",
     "tsconfig-to-swcconfig": "catalog:",

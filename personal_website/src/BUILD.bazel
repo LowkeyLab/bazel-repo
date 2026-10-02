@@ -25,6 +25,7 @@ js_library(
     visibility = ["//personal_website:__pkg__"],
     deps = [
         ":astro_types",
+        "//personal_website/src/components:astro_sources",
         "//personal_website/src/utils",
     ],
 )
@@ -35,6 +36,8 @@ copy_to_bin(
         "content.config.ts",
         ":astro_sources",
         ":astro_types",
+        "//personal_website/src/components",
+        "//personal_website/src/components:astro_sources",
         "//personal_website/src/pages",
         "//personal_website/src/pages:astro_pages",
         "//personal_website/src/utils",

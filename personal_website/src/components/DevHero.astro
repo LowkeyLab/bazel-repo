@@ -1,5 +1,6 @@
 ---
 import { Image } from "astro:assets";
+import AnimationBootstrap from "./AnimationBootstrap.astro";
 interface Props {
   name: string;
   title: string;
@@ -17,25 +18,27 @@ const socialLinks = [
   { label: "Bluesky", href: socials?.bluesky },
 ].filter((link) => link.href);
 ---
+<home-hero-animation>
+<AnimationBootstrap />
 <section class="home-hero" aria-labelledby="intro-heading">
   <div class="hero-copy">
-    <p class="eyebrow">{title}</p>
+    <p class="eyebrow" data-animation-detail>{title}</p>
     <h1 id="intro-heading">Hi, I'm <span class="ink-underline">Tim.
       <svg viewBox="0 0 230 20" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M4 12 Q90 2 225 8 M15 17 Q130 8 216 13" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
     </span><br />I build leverage<br />for people.</h1>
-    <p class="hero-description">{description}</p>
-    <div class="hero-actions">
+    <p class="hero-description" data-animation-detail>{description}</p>
+    <div class="hero-actions" data-animation-detail>
       <a href={ctaLink} class="paper-button">{ctaText} <span aria-hidden="true">↗</span></a>
       <a href="/about/" class="ink-link">More about me <span aria-hidden="true">→</span></a>
     </div>
-    <div class="hero-socials">
+    <div class="hero-socials" data-animation-detail>
       {socialLinks.map((link) => (
         <a href={link.href} target="_blank" rel="noreferrer">{link.label} <span aria-hidden="true">↗</span></a>
       ))}
     </div>
   </div>
   <div class="hero-art">
-    <p class="hero-note">Less toil.<br />More leverage.</p>
+    <p class="hero-note" data-animation-detail>Less toil.<br />More leverage.</p>
     <svg viewBox="0 0 430 310" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <g stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20 268 Q200 256 413 267" opacity=".5" />
@@ -55,9 +58,35 @@ const socialLinks = [
         <path d="M310 102 Q337 105 341 130 M335 123 L342 133 L347 122" stroke-width="1.6" />
       </g>
     </svg>
-    <div class="portrait-note">
+    <div class="portrait-note" data-animation-detail>
       <Image src={avatarSrc} alt={name} width={112} height={112} />
       <span>Always happy to talk<br />about build systems.</span>
     </div>
   </div>
 </section>
+</home-hero-animation>
+
+<script>
+  import { mount } from "./hero-animation";
+
+  if (!customElements.get("home-hero-animation")) {
+    customElements.define("home-hero-animation", class extends HTMLElement {
+      private dispose?: () => void;
+      private pending?: number;
+
+      connectedCallback() {
+        this.pending = window.setTimeout(() => {
+          this.pending = undefined;
+          if (this.isConnected) this.dispose = mount(this);
+        }, 0);
+      }
+
+      disconnectedCallback() {
+        if (this.pending !== undefined) clearTimeout(this.pending);
+        this.pending = undefined;
+        this.dispose?.();
+        this.dispose = undefined;
+      }
+    });
+  }
+</script>

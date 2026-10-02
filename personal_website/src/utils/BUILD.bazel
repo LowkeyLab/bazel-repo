@@ -5,6 +5,7 @@ personal_website_ts_library(
     srcs = [
         "blog.ts",
         "handwriting.ts",
+        "section-animation.ts",
         "seo.ts",
     ],
     visibility = ["//visibility:public"],

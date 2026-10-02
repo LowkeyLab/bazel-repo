@@ -86,6 +86,20 @@ js_run_binary(
     tool = ":astro",
 )
 
+js_run_binary(
+    name = "fixtures_build",
+    srcs = SRCS + ["//personal_website/tests:fixture_sources"] + BUILD_DEPS,
+    args = [
+        "build",
+        "--config",
+        "tests/fixtures.config.ts",
+    ],
+    mnemonic = "AstroFixturesBuild",
+    out_dirs = ["tests/dist"],
+    tool = ":astro",
+    visibility = ["//visibility:public"],
+)
+
 sh_test(
     name = "site_structure_test",
     srcs = ["site_structure_test.sh"],

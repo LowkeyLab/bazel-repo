@@ -1,0 +1,17 @@
+---
+import Layout from "../../src/layouts/Layout.astro";
+import DevHero from "../../src/components/DevHero.astro";
+import avatar from "../../src/assets/avatar.jpeg";
+---
+
+<Layout title="Hero fixture" activeItem="home">
+  <DevHero
+    name="Tim Tran"
+    title="Software Engineer & Toil Eliminator"
+    description="I build tools that help people spend less time wrestling with software and more time making things."
+    avatarSrc={avatar}
+    socials={{ github: "https://github.com/tacascer" }}
+    ctaText="Say hello"
+    ctaLink="mailto:hello@example.com"
+  />
+</Layout>

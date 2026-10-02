@@ -1,0 +1,18 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("//personal_website/bzl:ts.bzl", "personal_website_ts_library")
+
+js_library(
+    name = "astro_sources",
+    srcs = glob(["*.astro"]),
+    visibility = ["//personal_website/src:__pkg__"],
+)
+
+personal_website_ts_library(
+    name = "components",
+    srcs = ["hero-animation.ts"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/animejs",
+        "//personal_website/src/utils",
+    ],
+)
