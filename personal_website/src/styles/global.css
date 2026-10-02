@@ -212,7 +212,9 @@ featured-work-animation,
 recent-writing-animation {
   display: block;
 }
-[data-animation-pending] [data-animation-detail] {
+[data-animation-pending] [data-animation-detail],
+[data-animation-pending] .entry-link,
+[data-animation-pending] .entry-list > p {
   visibility: hidden;
   pointer-events: none;
 }
@@ -314,7 +316,8 @@ recent-writing-animation {
 .home-section {
   padding-block: 2.5rem 1rem;
 }
-.home-section + .home-section {
+.home-section + .home-section,
+featured-work-animation + .home-section {
   margin-top: 2rem;
 }
 .home-section > h2 {

@@ -3,13 +3,17 @@ load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 # The fixture config imports its production counterpart across package roots;
 # Astro's fixture build validates this test-only config directly.
 # gazelle:exclude fixtures.config.ts
+# gazelle:exclude fixtures/posts.ts
 
 copy_to_bin(
     name = "fixture_sources",
     srcs = [
         "empty/.gitkeep",
         "fixtures.config.ts",
-    ] + glob(["fixtures/*.astro"]),
+    ] + glob([
+        "fixtures/*.astro",
+        "fixtures/*.ts",
+    ]),
     visibility = ["//personal_website:__pkg__"],
 )
 

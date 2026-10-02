@@ -1,0 +1,11 @@
+---
+import Layout from "../../src/layouts/Layout.astro";
+import FeaturedWork from "../../src/components/FeaturedWork.astro";
+import { featuredPosts } from "./posts";
+---
+
+<Layout title="Independent featured work fixture" activeItem="home" noindex>
+  <FeaturedWork posts={featuredPosts} headingId="first-featured-heading" />
+  <div style="height: 1200px" aria-hidden="true"></div>
+  <FeaturedWork posts={featuredPosts} headingId="second-featured-heading" />
+</Layout>

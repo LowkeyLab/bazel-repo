@@ -1,0 +1,12 @@
+---
+import Layout from "../../src/layouts/Layout.astro";
+import FeaturedWork from "../../src/components/FeaturedWork.astro";
+import { featuredPosts, longPosts } from "./posts";
+---
+
+<Layout title="Featured work fixture" activeItem="home" noindex>
+  <FeaturedWork posts={featuredPosts} />
+  <p id="later-section">Later section remains in place.</p>
+  <FeaturedWork posts={longPosts} headingId="long-featured-heading" writingDuration={2600} />
+  <FeaturedWork posts={[]} headingId="empty-featured-heading" />
+</Layout>

@@ -9,7 +9,10 @@ js_library(
 
 personal_website_ts_library(
     name = "components",
-    srcs = ["hero-animation.ts"],
+    srcs = [
+        "featured-work-animation.ts",
+        "hero-animation.ts",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/animejs",

@@ -11,7 +11,12 @@ export default defineConfig({
       name: "browser-fixtures",
       hooks: {
         "astro:config:setup": ({ injectRoute }) => {
-          for (const route of ["hero", "lifecycle"]) {
+          for (const route of [
+            "hero",
+            "lifecycle",
+            "featured-work",
+            "independence",
+          ]) {
             injectRoute({
               pattern: `/tests/${route}`,
               entrypoint: `./tests/fixtures/${route}.astro`,

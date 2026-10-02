@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import DevHero from "../components/DevHero.astro";
+import FeaturedWork from "../components/FeaturedWork.astro";
 import PostList from "../components/PostList.astro";
 import avatar from "../assets/avatar.jpeg";
 import { getCollection } from "astro:content";
@@ -25,10 +26,7 @@ const { featured, recent } = homePosts(await getCollection("blog"));
     ctaText="Say hello"
     ctaLink="mailto:timdttran2000@gmail.com"
   />
-  <section class="home-section" aria-labelledby="featured-heading">
-    <h2 id="featured-heading">Things I've worked on</h2>
-    <PostList posts={featured} ariaLabel="Featured writing" headingLevel="h3" />
-  </section>
+  <FeaturedWork posts={featured} />
   {recent.length > 0 && (
     <section class="home-section" aria-labelledby="recent-heading">
       <h2 id="recent-heading">Recent writing</h2>
@@ -46,7 +44,7 @@ const { featured, recent } = homePosts(await getCollection("blog"));
 
   async function animateHome() {
     cleanup?.();
-    const sections = document.querySelectorAll<HTMLElement>(".home-section");
+    const sections = document.querySelectorAll<HTMLElement>(".home-section > #recent-heading");
     if (!sections.length) return;
     const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
     if (motionPreference.matches) return;
@@ -97,7 +95,7 @@ const { featured, recent } = homePosts(await getCollection("blog"));
         }, sectionWriting ? 1200 : 0);
       }
     }, { threshold: 0.8 });
-    document.querySelectorAll(".home-section > h2").forEach((heading) => observer?.observe(heading));
+    sections.forEach((heading) => observer?.observe(heading));
   }
 
   document.addEventListener("astro:page-load", animateHome);
