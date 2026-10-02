@@ -13,6 +13,9 @@ function underline(root: HTMLElement): AnimationRun {
     1,
   );
   const reset = utils.set(drawable, { draw: "0 0" });
+  const visibility = utils.set(root.querySelectorAll(".ink-underline > svg"), {
+    visibility: "visible",
+  });
   let settle!: (result: "completed" | "cancelled") => void;
   let settled = false;
   const finished = new Promise<"completed" | "cancelled">(
@@ -30,6 +33,7 @@ function underline(root: HTMLElement): AnimationRun {
     cancel: () => {
       timeline.revert();
       reset.revert();
+      visibility.revert();
       complete("cancelled");
     },
   };

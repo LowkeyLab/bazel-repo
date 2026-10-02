@@ -36,6 +36,11 @@ await withPage(
       ".portrait-note",
     ];
     await page.evaluate(() => document.fonts.ready);
+    assert.equal(
+      (await presentation(page, ".ink-underline > svg")).visibility,
+      "hidden",
+      "underline is hidden before heading writing",
+    );
     const headingStart = await presentation(page, "h1");
     const initial = await Promise.all(
       details.map((selector) => presentation(page, selector)),
@@ -62,6 +67,12 @@ await withPage(
         `${selector} stays hidden while heading writes`,
       );
     }
+    assert.ok((await page.locator("h1 .handwriting-word").count()) > 0);
+    assert.equal(
+      (await presentation(page, ".ink-underline > svg")).visibility,
+      "hidden",
+      "underline stays hidden while the headline writes",
+    );
     await page.clock.runFor(1200);
     for (const selector of details) {
       const state = await presentation(page, selector);
@@ -70,6 +81,11 @@ await withPage(
         `${selector} stays hidden during underline drawing`,
       );
     }
+    assert.equal(
+      (await presentation(page, ".ink-underline > svg")).visibility,
+      "visible",
+      "underline becomes visible for its drawing phase",
+    );
     const underline = await page
       .locator(".ink-underline > svg path")
       .evaluate((path) => ({
@@ -136,6 +152,11 @@ await withPage(
         `${details[index]} retains its reserved height`,
       );
     }
+    assert.equal(
+      (await presentation(page, ".ink-underline > svg")).visibility,
+      "visible",
+      "completed underline remains visible",
+    );
     const headingEnd = await presentation(page, "h1");
     for (const dimension of ["x", "y", "width", "height"]) {
       assert.ok(
@@ -171,6 +192,11 @@ for (const options of [
       `${JSON.stringify(options)} keeps static controls visible`,
     );
     assert.ok(detail.opacity > 0.99);
+    assert.equal(
+      (await presentation(page, ".ink-underline > svg")).visibility,
+      "visible",
+      "static fallback keeps the underline visible",
+    );
     if (options.reducedMotion === "reduce") {
       const art = await page.locator(".hero-art").evaluate((element) => ({
         opacity: getComputedStyle(element).opacity,
@@ -221,6 +247,11 @@ for (const change of [
     assert.equal(
       await page.locator("home-hero-animation[data-animation-pending]").count(),
       0,
+    );
+    assert.equal(
+      (await presentation(page, ".ink-underline > svg")).visibility,
+      "visible",
+      "cancellation restores the underline",
     );
     const art = await page.locator(".hero-art").evaluate((element) => ({
       opacity: getComputedStyle(element).opacity,
