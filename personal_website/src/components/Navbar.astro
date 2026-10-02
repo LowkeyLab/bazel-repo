@@ -1,13 +1,13 @@
 ---
 import ThemeToggle from "./ThemeToggle.astro";
 interface Props {
-  activeItem?: "home" | "work" | "contact" | "blog";
+  activeItem?: "home" | "about" | "blog";
 }
 const { activeItem = "home" } = Astro.props;
 const links = [
-  { id: "home", href: "/", label: "Home" },
-  { id: "work", href: "/work", label: "Work" },
-  { id: "blog", href: "/blog", label: "Blog" },
+  { id: "blog", href: "/blog/", label: "Blog" },
+  { id: "about", href: "/about/", label: "About" },
+  { id: "github", href: "https://github.com/tacascer", label: "GitHub" },
 ];
 ---
 <header class="site-header">

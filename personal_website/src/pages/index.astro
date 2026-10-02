@@ -1,7 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import DevHero from "../components/DevHero.astro";
+import PostList from "../components/PostList.astro";
 import avatar from "../assets/avatar.jpeg";
+import { getCollection } from "astro:content";
+import { homePosts } from "../utils/blog";
+
+const { featured, recent } = homePosts(await getCollection("blog"));
 ---
 
 <Layout title="Tim Tran - Software Engineer" activeItem="home">
@@ -9,7 +14,7 @@ import avatar from "../assets/avatar.jpeg";
   <DevHero
     name="Tim Tran"
     title="Software Engineer & Toil Eliminator"
-    description="I like to think of myself as a 1x engineer who creates 10x engineers. I'm passionate about building tools that help developers iterate faster and more efficiently. I'm mainly immersed in Java, Kotlin, and TypeScript. In my free time I experiment with toolchains and software ecosystems. I will talk your ears off about build systems, CI pipelines, and deployment methodologies."
+    description="I build tools that help people spend less time wrestling with software and more time making things. I’m especially interested in automation, build systems, and making complicated work easier to do."
     avatarSrc={avatar}
     socials={{
       github: "https://github.com/tacascer",
@@ -20,4 +25,15 @@ import avatar from "../assets/avatar.jpeg";
     ctaText="Say hello"
     ctaLink="mailto:timdttran2000@gmail.com"
   />
+  <section class="home-section" aria-labelledby="featured-heading">
+    <h2 id="featured-heading">Things I've worked on</h2>
+    <PostList posts={featured} ariaLabel="Featured writing" headingLevel="h3" />
+  </section>
+  {recent.length > 0 && (
+    <section class="home-section" aria-labelledby="recent-heading">
+      <h2 id="recent-heading">Recent writing</h2>
+      <PostList posts={recent} ariaLabel="Recent writing" headingLevel="h3" />
+      <a href="/blog/" class="ink-link all-writing">All writing <span aria-hidden="true">→</span></a>
+    </section>
+  )}
 </Layout>

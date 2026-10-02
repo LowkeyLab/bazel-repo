@@ -3,10 +3,9 @@ title: "Local-First Gradle Build Scan"
 description: "A technical tour of gradle-build-scan-server: a local-first way to collect, inspect, and learn from Gradle build scans."
 publishDate: 2026-05-27
 tags: ["gradle", "build-tools", "rust", "angular", "observability"]
+type: project
 draft: false
 ---
-
-# Local-First Gradle Build Scan
 
 Gradle offers
 [remote build scans](https://docs.gradle.org/current/userguide/inspect.html)

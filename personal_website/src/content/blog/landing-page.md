@@ -1,19 +1,17 @@
 ---
 title: "Personal Landing Page"
-description: "My personal website"
+description: "Building a home for my writing with Astro, and experimenting with the tools around it."
 publishDate: 2025-02-11
 tags: ["astro", "tailwind", "deno", "typescript"]
+type: project
 draft: false
 ---
 
-## Features
+I wanted a home for my writing that could also accommodate experiments with interactive frontends. Astro's approach to content and its flexibility across frontend frameworks appealed to me.
 
-- Responsive design that works on all devices
-- Project showcase with filtering capabilities
-- Fast performance with minimal JavaScript
-- Built using modern web technologies
+This is a look at an earlier iteration of the site, including the TailwindCSS, DaisyUI, and Deno choices I made then. The site has continued to change, but the reasons behind those choices and the problems I ran into are still part of its story.
 
-## Tech Stack
+## Choosing the tools
 
 ### Astro
 

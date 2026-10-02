@@ -2,30 +2,16 @@
 title: "Free-DSL"
 description: "An annotation processor for creating Builders in Kotlin"
 publishDate: 2024-08-31
-tags: ["kotlin"]
+tags: ["kotlin", "code-generation", "dsl"]
+type: project
 draft: false
 ---
 
-## Overview
+I built Free-DSL to generate idiomatic Kotlin DSL builders for classes. It uses Kotlin Symbol Processing (KSP) to turn annotations into extension functions and builder classes, giving callers a type-safe syntax for constructing instances.
 
-Free-DSL is a Kotlin Multiplatform library that generates idiomatic Kotlin DSL
-builders for data classes and regular classes with primary constructors. It uses
-Kotlin Symbol Processing (KSP) to generate extension functions and builder
-classes that enable a clean, type-safe DSL syntax for constructing instances of
-your classes.
+The generator supports data classes and regular classes with primary constructors, including nested DSL structures, nullable properties, and default values. It works with Kotlin Multiplatform projects.
 
-## Features
-
-- Simple annotation-based API
-- Generates idiomatic Kotlin DSL builders
-- Supports both data classes and regular classes with primary constructors
-- Supports nested DSL structures
-- Handles nullable properties and default values
-- Works with Kotlin Multiplatform projects
-
-## Tech Stack
-
-### Kotlin
+## Learning code generation with Kotlin
 
 Kotlin is, simply put, the better Java. Many common Java idioms are simply a
 language feature in Kotlin. This greatly reduces the boilerplate needed to write

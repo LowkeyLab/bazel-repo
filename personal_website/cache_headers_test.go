@@ -123,8 +123,49 @@ func TestCacheHeaders(t *testing.T) {
 		if response.StatusCode != http.StatusMovedPermanently {
 			t.Fatalf("redirect status = %d; want 301", response.StatusCode)
 		}
-		assertHeader(t, response, "Location", "/blog")
+		assertHeader(t, response, "Location", "/blog/")
 	})
+}
+
+func TestLegacyRedirects(t *testing.T) {
+	client, _, _ := startCaddy(t)
+	for _, route := range []struct {
+		source      string
+		destination string
+	}{
+		{"/work", "/blog/"},
+		{"/work/core-java-infrastructure", "/blog/building-jvm-rpc-tooling/"},
+		{"/work/ioi-pipeline", "/blog/prototyping-a-flink-pipeline/"},
+		{"/work/model-driven-architecture", "/blog/making-a-platform-buildable-again/"},
+		{"/projects", "/blog/"},
+		{"/projects/guess-the-word", "/blog/guess-the-word/"},
+		{"/projects/free-dsl", "/blog/free-dsl/"},
+		{"/projects/landing-page", "/blog/landing-page/"},
+		{"/projects/mindreadr", "/blog/mindreadr/"},
+		{"/projects/gradle-build-scan-server", "/blog/local-first-gradle-build-scan/"},
+	} {
+		for _, suffix := range []string{"", "/"} {
+			t.Run(route.source+suffix, func(t *testing.T) {
+				response, _ := get(t, client, route.source+suffix, nil)
+				if response.StatusCode != http.StatusMovedPermanently {
+					t.Errorf("redirect status = %d; want 301", response.StatusCode)
+				}
+				assertHeader(t, response, "Location", route.destination)
+				response, _ = get(t, client, route.destination, nil)
+				if response.StatusCode != http.StatusOK {
+					t.Errorf("destination %s status = %d; want 200", route.destination, response.StatusCode)
+				}
+			})
+		}
+	}
+	for _, path := range []string{"/work/unknown", "/work/unknown/", "/projects/unknown", "/projects/unknown/"} {
+		t.Run(path, func(t *testing.T) {
+			response, _ := get(t, client, path, nil)
+			if response.StatusCode != http.StatusNotFound {
+				t.Errorf("unknown route status = %d; want 404", response.StatusCode)
+			}
+		})
+	}
 }
 
 func contentETag(body string) string {

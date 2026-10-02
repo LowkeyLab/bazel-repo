@@ -2,23 +2,19 @@
 title: "Mindreadr"
 description: "A cooperative word-guessing game"
 publishDate: 2025-11-19
-tags: ["kotlin", "ktor", "angular", "typescript", "websocket", "bazel"]
+tags: ["kotlin", "angular", "websocket", "bazel"]
+type: project
+featured: true
 draft: false
 ---
 
-## Overview
-
 Mindreadr is a cooperative multiplayer game where two players try to arrive at the same word as each other.
 
-This is a rewrite of [Guess The Word](/blog/guess-the-word), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommissioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
+This is a rewrite of [Guess The Word](/blog/guess-the-word/), with a different tech stack and more self-hosted infrastructure. Hopefully this time I won't get my infrastructure decommissioned by someone else (looking at you, Supabase). Oh, and some new game mechanics were added, too.
 
-## Features
+Players create rooms and exchange messages in real time through an interface for desktop and mobile. Rebuilding the game gave me room to explore how Ktor, Angular, and Bazel fit together.
 
-- Create rooms and play with friends.
-- Real-time communication between players.
-- Beautiful UI on desktop and mobile.
-
-## Tech Stack
+## Rebuilding the game
 
 ### Kotlin & Ktor
 

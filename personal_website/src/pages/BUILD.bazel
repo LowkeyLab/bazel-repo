@@ -1,0 +1,26 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("//personal_website/bzl:ts.bzl", "personal_website_ts_library")
+
+personal_website_ts_library(
+    name = "pages",
+    srcs = [
+        "rss.xml.ts",
+        "sitemap.xml.ts",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/astro",
+        "//personal_website/src:astro_types",
+        "//personal_website/src/utils",
+    ],
+)
+
+js_library(
+    name = "astro_pages",
+    srcs = glob(["**/*.astro"]),
+    visibility = ["//personal_website/src:__pkg__"],
+    deps = [
+        "//personal_website/src:astro_types",
+        "//personal_website/src/utils",
+    ],
+)

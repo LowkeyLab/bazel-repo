@@ -11,13 +11,15 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 const { Content } = await render(post);
 ---
-<Layout title={`${post.data.title} | Tim Tran`} description={post.data.description} activeItem="blog">
+<Layout title={`${post.data.title} | Tim Tran`} description={post.data.description} activeItem="blog" noindex={post.data.draft} article={post.data.draft ? undefined : post.data}>
   <article class="reading-page">
-    <a href="/blog" class="ink-link">← Back to blog</a>
+    <a href="/blog/" class="ink-link">← Back to blog</a>
     <header class="reading-header">
       <h1>{post.data.title}</h1>
       <div class="reading-meta">
-        <time datetime={post.data.publishDate.toISOString()}>{new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(post.data.publishDate)}</time>
+        <span class="entry-type">{post.data.type[0].toUpperCase() + post.data.type.slice(1)}</span>
+        {post.data.context && <span class="reading-context">{post.data.context}</span>}
+        <time datetime={post.data.publishDate.toISOString()}>{new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }).format(post.data.publishDate)}</time>
         <span>{calculateReadingTime(post.body || "")} min read</span>
       </div>
       <TagBadges tags={post.data.tags} />

@@ -8,18 +8,27 @@
 		match status 4xx 5xx
 	}
 
-	redir /projects /blog permanent
-	redir /projects/ /blog permanent
-	redir /projects/guess-the-word /blog/guess-the-word permanent
-	redir /projects/guess-the-word/ /blog/guess-the-word permanent
-	redir /projects/free-dsl /blog/free-dsl permanent
-	redir /projects/free-dsl/ /blog/free-dsl permanent
-	redir /projects/landing-page /blog/landing-page permanent
-	redir /projects/landing-page/ /blog/landing-page permanent
-	redir /projects/mindreadr /blog/mindreadr permanent
-	redir /projects/mindreadr/ /blog/mindreadr permanent
-	redir /projects/gradle-build-scan-server /blog/local-first-gradle-build-scan permanent
-	redir /projects/gradle-build-scan-server/ /blog/local-first-gradle-build-scan permanent
+	redir /work /blog/ permanent
+	redir /work/ /blog/ permanent
+	redir /work/core-java-infrastructure /blog/building-jvm-rpc-tooling/ permanent
+	redir /work/core-java-infrastructure/ /blog/building-jvm-rpc-tooling/ permanent
+	redir /work/ioi-pipeline /blog/prototyping-a-flink-pipeline/ permanent
+	redir /work/ioi-pipeline/ /blog/prototyping-a-flink-pipeline/ permanent
+	redir /work/model-driven-architecture /blog/making-a-platform-buildable-again/ permanent
+	redir /work/model-driven-architecture/ /blog/making-a-platform-buildable-again/ permanent
+
+	redir /projects /blog/ permanent
+	redir /projects/ /blog/ permanent
+	redir /projects/guess-the-word /blog/guess-the-word/ permanent
+	redir /projects/guess-the-word/ /blog/guess-the-word/ permanent
+	redir /projects/free-dsl /blog/free-dsl/ permanent
+	redir /projects/free-dsl/ /blog/free-dsl/ permanent
+	redir /projects/landing-page /blog/landing-page/ permanent
+	redir /projects/landing-page/ /blog/landing-page/ permanent
+	redir /projects/mindreadr /blog/mindreadr/ permanent
+	redir /projects/mindreadr/ /blog/mindreadr/ permanent
+	redir /projects/gradle-build-scan-server /blog/local-first-gradle-build-scan/ permanent
+	redir /projects/gradle-build-scan-server/ /blog/local-first-gradle-build-scan/ permanent
 
 	# Astro's generated filenames change with their contents. Only successful
 	# asset responses may be cached for a year; errors are handled below.

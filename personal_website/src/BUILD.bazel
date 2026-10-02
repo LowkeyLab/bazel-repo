@@ -35,6 +35,8 @@ copy_to_bin(
         "content.config.ts",
         ":astro_sources",
         ":astro_types",
+        "//personal_website/src/pages",
+        "//personal_website/src/pages:astro_pages",
         "//personal_website/src/utils",
     ],
     visibility = ["//personal_website:__pkg__"],
