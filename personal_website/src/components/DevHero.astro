@@ -18,7 +18,7 @@ const socialLinks = [
 ].filter((link) => link.href);
 ---
 <section class="home-hero" aria-labelledby="intro-heading">
-  <div>
+  <div class="hero-copy">
     <p class="eyebrow">{title}</p>
     <h1 id="intro-heading">Hi, I'm <span class="ink-underline">Tim.
       <svg viewBox="0 0 230 20" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M4 12 Q90 2 225 8 M15 17 Q130 8 216 13" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
@@ -46,10 +46,12 @@ const socialLinks = [
         <path d="M119 232 L116 242 M145 233 L144 243 M172 233 L172 244 M199 234 L201 244 M228 234 L231 245 M251 234 L255 245" stroke-width="1.3" />
         <path d="M151 127 L133 145 L151 159 M207 130 L224 146 L206 161 M186 117 L174 169" stroke-width="3" />
         <path d="M343 226 L392 224 L383 268 Q369 272 352 267 Z" fill="var(--color-accent)" />
+        <g class="hero-plant">
         <path d="M367 226 Q365 170 380 121 M367 207 Q346 184 337 159 M371 179 Q400 168 401 146" />
         <path d="M380 159 Q364 135 387 110 Q401 138 380 159 Z M357 193 Q333 187 328 151 Q354 156 357 193 Z M380 189 Q382 159 407 146 Q408 177 380 189 Z" fill="var(--color-accent)" />
         <path d="M379 151 L386 122 M350 181 L335 160 M387 177 L401 154" stroke-width="1.2" />
-        <path d="M312 52 L320 32 M327 66 L349 54 M65 65 L51 52 M182 37 L183 23" />
+        </g>
+        <path class="hero-flourish" d="M312 52 L320 32 M327 66 L349 54 M65 65 L51 52 M182 37 L183 23" />
         <path d="M310 102 Q337 105 341 130 M335 123 L342 133 L347 122" stroke-width="1.6" />
       </g>
     </svg>

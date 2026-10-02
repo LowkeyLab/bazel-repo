@@ -23,6 +23,7 @@ SRCS = [
 ]
 
 BUILD_DEPS = ["//:node_modules/" + d for d in [
+    "animejs",
     "astro",
     "@tailwindcss/vite",
     "tailwindcss",

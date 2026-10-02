@@ -37,3 +37,97 @@ const { featured, recent } = homePosts(await getCollection("blog"));
     </section>
   )}
 </Layout>
+
+<script>
+  import { createTimeline, stagger, svg, utils } from "animejs";
+  import { prepareHandwriting } from "../utils/handwriting";
+
+  let cleanup: (() => void) | undefined;
+
+  async function animateHome() {
+    cleanup?.();
+    const hero = document.querySelector<HTMLElement>(".home-hero");
+    if (!hero) return;
+    const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+    if (motionPreference.matches) return;
+
+    let stopped = false;
+    let observer: IntersectionObserver | undefined;
+    const timelines: ReturnType<typeof createTimeline>[] = [];
+    const restorations: (() => void)[] = [];
+    function stop() {
+      stopped = true;
+      observer?.disconnect();
+      timelines.forEach((timeline) => timeline.revert());
+      restorations.forEach((restore) => restore());
+      motionPreference.removeEventListener("change", stop);
+      window.removeEventListener("pagehide", stop);
+      window.removeEventListener("resize", stop);
+      cleanup = undefined;
+    }
+    cleanup = stop;
+    motionPreference.addEventListener("change", stop);
+    window.addEventListener("pagehide", stop);
+    // Measurement-based masks should never outlive their layout.
+    window.addEventListener("resize", stop);
+
+    await document.fonts.ready;
+    if (stopped || !hero.isConnected) return;
+    const fontLoaded = [...document.fonts].some((font) => font.family.includes("Caveat") && font.status === "loaded");
+    if (!fontLoaded) return;
+
+    const headline = hero.querySelector<HTMLElement>("h1")!;
+    const writing = prepareHandwriting(headline, 2600);
+    const timeline = createTimeline({ defaults: { ease: "outQuad" } });
+    timelines.push(timeline);
+    if (writing) {
+      restorations.push(writing.restore);
+      timeline.sync(writing.timeline, 0);
+    }
+    const underline = svg.createDrawable(hero.querySelectorAll(".ink-underline > svg path"), 0, 1);
+    const underlineState = utils.set(underline, { draw: "0 0" });
+    restorations.push(() => underlineState.revert());
+    timeline
+      .add(hero.querySelectorAll(".hero-copy > :not(h1)"), {
+        opacity: [0.35, 1], y: [12, 0], duration: 550, delay: stagger(70),
+      }, 0)
+      .add(hero.querySelectorAll(".hero-art"), {
+        opacity: [0.35, 1], y: [10, 0], duration: 650,
+      }, 120)
+      .add(underline, {
+        draw: ["0 0", "0 1"], duration: 500,
+      }, writing ? 2600 : 200)
+      .add(svg.createDrawable(hero.querySelectorAll(".hero-flourish"), 0, 1), {
+        draw: ["0 0", "0 1"], duration: 450,
+      }, 650)
+      .add(hero.querySelectorAll(".hero-plant"), {
+        rotate: [0, -3, 2, 0], duration: 1000, ease: "inOutSine",
+      }, 450);
+
+    observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer?.unobserve(entry.target);
+        const heading = entry.target as HTMLElement;
+        const sectionWriting = prepareHandwriting(heading, 1200);
+        const sequence = createTimeline();
+        timelines.push(sequence);
+        if (sectionWriting) {
+          restorations.push(sectionWriting.restore);
+          sequence.sync(sectionWriting.timeline, 0);
+        }
+        const titles = heading.parentElement!.querySelectorAll(".entry-title");
+        const titleState = utils.set(titles, { opacity: 0, y: 8 });
+        restorations.push(() => titleState.revert());
+        sequence.add(titles, {
+          opacity: [0, 1], y: [8, 0], duration: 450,
+          delay: stagger(100), ease: "outQuad",
+        }, sectionWriting ? 1200 : 0);
+      }
+    }, { threshold: 0.8 });
+    document.querySelectorAll(".home-section > h2").forEach((heading) => observer?.observe(heading));
+  }
+
+  document.addEventListener("astro:page-load", animateHome);
+  document.addEventListener("astro:before-swap", () => cleanup?.());
+</script>
