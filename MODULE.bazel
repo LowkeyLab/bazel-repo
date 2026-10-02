@@ -14,7 +14,7 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint")
 git_override(
     module_name = "aspect_rules_lint",
-    commit = "b8d1f25b410dbbf1af93b9f4e9abc27aba3e2a19",
+    commit = "8e159452cf7f53055f123900599b190684f42dd9",
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
 
