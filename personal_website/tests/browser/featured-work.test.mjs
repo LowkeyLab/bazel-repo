@@ -185,6 +185,10 @@ await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
   assert.equal(await page.locator("#first-featured-heading").count(), 1);
   assert.equal(await page.locator("#second-featured-heading").count(), 1);
   await page.clock.runFor(500);
+  assert.ok(
+    (await roots.first().locator(".handwriting-word").count()) > 0,
+    "first heading has temporary handwriting markup when its root is removed",
+  );
   await roots.first().evaluate((root) => root.remove());
   const siblingBefore = await entryStates(page, "featured-work-animation");
   assert.ok(
@@ -195,7 +199,17 @@ await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
   );
   await page.locator("#second-featured-heading").scrollIntoViewIfNeeded();
   await page.waitForTimeout(150);
-  await page.clock.runFor(2400);
+  await page.clock.runFor(200);
+  assert.ok(
+    (await roots.locator(".handwriting-word").count()) > 0,
+    "sibling starts its own handwriting after entering the viewport",
+  );
+  const siblingWriting = await entryStates(page, "featured-work-animation");
+  assert.ok(
+    siblingWriting.every((entry) => entry.visibility === "hidden"),
+    "sibling entries remain hidden during their own heading animation",
+  );
+  await page.clock.runFor(2200);
   const siblingAfter = await entryStates(page, "featured-work-animation");
   assert.ok(
     siblingAfter.every(
