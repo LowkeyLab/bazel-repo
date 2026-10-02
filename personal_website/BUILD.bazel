@@ -84,6 +84,7 @@ js_run_binary(
     mnemonic = "AstroBuild",
     out_dirs = ["dist"],
     tool = ":astro",
+    visibility = ["//personal_website/tests/browser:__pkg__"],
 )
 
 js_run_binary(
@@ -106,6 +107,7 @@ sh_test(
     data = [
         "Caddyfile",
         ":build",
+        ":frontend_layer",
     ],
 )
 

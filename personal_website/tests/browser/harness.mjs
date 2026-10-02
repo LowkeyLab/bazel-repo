@@ -13,7 +13,7 @@ function runfile(value) {
   );
 }
 
-const fixtures = runfile(process.env.FIXTURE_DIR);
+const fixtures = runfile(process.env.SITE_DIR ?? process.env.FIXTURE_DIR);
 const font = runfile(process.env.FONT_FILE);
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -77,8 +77,6 @@ export async function withPage(options, run) {
     });
     await context.route("https://fonts.googleapis.com/**", async (route) => {
       if (options.fontMode === "blocked") return route.abort();
-      if (options.fontMode === "delayed")
-        await new Promise((resolve) => setTimeout(resolve, 2600));
       await route.fulfill({
         status: 200,
         contentType: "text/css",
@@ -87,6 +85,8 @@ export async function withPage(options, run) {
     });
     await context.route("https://fonts.gstatic.com/**", async (route) => {
       if (options.fontMode === "blocked") return route.abort();
+      if (options.fontMode === "delayed")
+        await new Promise((resolve) => setTimeout(resolve, 2600));
       await route.fulfill({
         status: 200,
         contentType: "font/ttf",
@@ -108,6 +108,28 @@ export async function withPage(options, run) {
     page = await context.newPage();
     await context.tracing.start({ screenshots: true, snapshots: true });
     if (options.clock) await page.clock.install();
+    if (options.trackPending) {
+      await page.addInitScript(() => {
+        new MutationObserver((changes) => {
+          if (window.__pendingStartedAt !== undefined) return;
+          if (
+            changes.some(
+              (change) =>
+                change.type === "attributes" &&
+                change.target.matches?.(
+                  "home-hero-animation[data-animation-pending]",
+                ),
+            )
+          ) {
+            window.__pendingStartedAt = performance.now();
+          }
+        }).observe(document, {
+          attributes: true,
+          subtree: true,
+          attributeFilter: ["data-animation-pending"],
+        });
+      });
+    }
     if (options.initialPaintSelector) {
       await page.addInitScript((selector) => {
         window.__initialPaintSamples = [];

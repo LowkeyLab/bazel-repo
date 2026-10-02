@@ -171,6 +171,14 @@ for (const change of [
   await withPage({ route: "/tests/hero/" }, async (page) => {
     await page.locator("home-hero-animation[data-animation-pending]").waitFor();
     await change(page);
+    await page.waitForFunction(
+      () =>
+        !document
+          .querySelector("home-hero-animation")
+          ?.hasAttribute("data-animation-pending"),
+      null,
+      { timeout: 1000 },
+    );
     assert.equal(
       (await presentation(page, ".hero-actions")).visibility,
       "visible",
