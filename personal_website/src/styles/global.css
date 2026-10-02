@@ -207,6 +207,18 @@ h1 {
   gap: 3rem;
   padding-block: 1.5rem 3rem;
 }
+home-hero-animation,
+featured-work-animation,
+recent-writing-animation {
+  display: block;
+}
+[data-animation-pending] .ink-underline > svg,
+[data-animation-pending] [data-animation-detail],
+[data-animation-pending] .entry-link,
+[data-animation-pending] .entry-list > p {
+  visibility: hidden;
+  pointer-events: none;
+}
 .home-hero h1 {
   font-size: clamp(3.5rem, 6vw, 5.8rem);
   line-height: 1.03;
@@ -305,7 +317,8 @@ h1 {
 .home-section {
   padding-block: 2.5rem 1rem;
 }
-.home-section + .home-section {
+.home-section + .home-section,
+featured-work-animation + recent-writing-animation {
   margin-top: 2rem;
 }
 .home-section > h2 {
@@ -476,4 +489,46 @@ h1 {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.hero-plant {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .home-hero .paper-button {
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+  .home-hero .paper-button:is(:hover, :focus-visible) {
+    transform: translateY(-2px) rotate(-1deg);
+    box-shadow: 3px 4px 0 var(--color-base-content);
+  }
+  .home-hero a span[aria-hidden="true"],
+  .home-section .all-writing span {
+    display: inline-block;
+    transition: transform 180ms ease;
+  }
+  .home-hero a:is(:hover, :focus-visible) span[aria-hidden="true"],
+  .home-section .all-writing:is(:hover, :focus-visible) span {
+    transform: translateX(3px);
+  }
+}
+
+.handwriting-word {
+  display: inline-block;
+  position: relative;
+}
+.handwriting-source {
+  opacity: 0;
+}
+.handwriting-word > .handwriting-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: inherit;
+  pointer-events: none;
 }

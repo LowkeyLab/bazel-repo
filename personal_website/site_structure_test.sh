@@ -2,11 +2,26 @@
 set -euo pipefail
 
 readonly dist="${TEST_SRCDIR}/${TEST_WORKSPACE}/personal_website/dist"
+readonly site_archive="${TEST_SRCDIR}/${TEST_WORKSPACE}/personal_website/frontend_layer.tar"
 
 fail() {
 	printf 'site structure test failed: %s\n' "$1" >&2
 	exit 1
 }
+
+# Browser routes and the pinned test font must stay out of the published site.
+[[ ! -e "${dist}/tests" ]] || fail "browser fixture route entered production output"
+[[ -f "${dist}/sitemap.xml" ]] || fail "missing sitemap"
+if grep -q '/tests/' "${dist}/sitemap.xml"; then
+	fail "browser fixture route entered sitemap"
+fi
+if [[ -n "$(find "${dist}" -type f \( -iname '*caveat*' -o -iname '*.ttf' \) -print -quit)" ]]; then
+	fail "fixture-only font entered production output"
+fi
+archive_entries="$(tar -tf "${site_archive}")"
+if grep -Eq '(^|/)tests/|(^|/)[^/]*[Cc]aveat[^/]*$|\.ttf$' <<<"${archive_entries}"; then
+	fail "browser fixture or test font entered frontend layer"
+fi
 
 for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-build-scan building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do
 	[[ -f "${dist}/blog/${slug}/index.html" ]] || fail "missing /blog/${slug}"

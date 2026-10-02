@@ -4,8 +4,13 @@ personal_website_ts_library(
     name = "utils",
     srcs = [
         "blog.ts",
+        "handwriting.ts",
+        "section-animation.ts",
         "seo.ts",
     ],
     visibility = ["//visibility:public"],
-    deps = ["//personal_website/src:astro_types"],
+    deps = [
+        "//:node_modules/animejs",
+        "//personal_website/src:astro_types",
+    ],
 )

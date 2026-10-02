@@ -7,6 +7,7 @@
     "@astrojs/ts-plugin": "catalog:",
     "@tailwindcss/typography": "catalog:",
     "@tailwindcss/vite": "catalog:",
+    "animejs": "^4.5.0",
     "astro": "catalog:",
     "sharp": "catalog:",
     "tailwindcss": "catalog:"
@@ -20,6 +21,7 @@
     "daisyui": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-astro": "catalog:",
+    "playwright": "catalog:",
     "prettier": "catalog:",
     "stylelint": "catalog:",
     "tsconfig-to-swcconfig": "catalog:",

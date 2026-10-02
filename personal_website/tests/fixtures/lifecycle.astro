@@ -1,0 +1,26 @@
+---
+import Layout from "../../src/layouts/Layout.astro";
+---
+
+<Layout title="Lifecycle fixture" activeItem="home">
+  <div class="lifecycle-fixture" data-duration="1200"><h2>Hi first heading</h2><a data-animation-detail href="#first">First detail</a></div>
+  <div class="lifecycle-fixture" data-duration="2600"><h2>Tim second heading</h2><a data-animation-detail href="#second">Second detail</a></div>
+  <div class="lifecycle-fixture" data-duration="1200"><h2>Unsupported glyph!</h2><a data-animation-detail href="#unsupported">Unsupported detail</a></div>
+</Layout>
+
+<script>
+  import { mountSection, revealDetails } from "../../src/utils/section-animation";
+  import { writeHeading } from "../../src/utils/handwriting";
+
+  for (const root of document.querySelectorAll<HTMLElement>(".lifecycle-fixture")) {
+    const heading = root.querySelector<HTMLElement>("h2")!;
+    const details = [root.querySelector<HTMLElement>("a")!];
+    mountSection(root, {
+      heading,
+      details,
+      trigger: "immediate",
+      write: () => writeHeading(heading, Number(root.dataset.duration)),
+      reveal: () => revealDetails(details),
+    });
+  }
+</script>

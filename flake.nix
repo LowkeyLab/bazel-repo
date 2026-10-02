@@ -97,6 +97,7 @@
             # On NixOS, this additionally requires `programs.nix-ld.enable = true`
             env = {
               JAVA_HOME = "${pkgs.jdk25_headless}";
+              CHROMIUM_EXECUTABLE = "${pkgs.chromium}/bin/chromium";
             } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
               NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
               NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [

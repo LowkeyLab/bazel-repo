@@ -23,6 +23,7 @@ SRCS = [
 ]
 
 BUILD_DEPS = ["//:node_modules/" + d for d in [
+    "animejs",
     "astro",
     "@tailwindcss/vite",
     "tailwindcss",
@@ -83,6 +84,21 @@ js_run_binary(
     mnemonic = "AstroBuild",
     out_dirs = ["dist"],
     tool = ":astro",
+    visibility = ["//personal_website/tests/browser:__pkg__"],
+)
+
+js_run_binary(
+    name = "fixtures_build",
+    srcs = SRCS + ["//personal_website/tests:fixture_sources"] + BUILD_DEPS,
+    args = [
+        "build",
+        "--config",
+        "tests/fixtures.config.ts",
+    ],
+    mnemonic = "AstroFixturesBuild",
+    out_dirs = ["tests/dist"],
+    tool = ":astro",
+    visibility = ["//visibility:public"],
 )
 
 sh_test(
@@ -91,6 +107,7 @@ sh_test(
     data = [
         "Caddyfile",
         ":build",
+        ":frontend_layer",
     ],
 )
 
