@@ -40,28 +40,139 @@ async function writing(page, section) {
 }
 
 async function readable(page) {
-  for (const section of sections) {
-    assert.equal(
-      await visible(page, section),
-      true,
-      `${section.root} is readable`,
-    );
-    assert.equal(
-      await page
-        .locator(`${section.root} ${section.detail}`)
-        .first()
-        .evaluate((element) => element.inert),
-      false,
-      `${section.root} detail is focusable`,
-    );
+  for (const [root, selector] of [
+    ["home-hero-animation", "[data-animation-detail]"],
+    ["featured-work-animation", ".entry-link"],
+    ["recent-writing-animation", ".entry-link, .all-writing"],
+  ]) {
+    const details = await page
+      .locator(`${root} ${selector}`)
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const style = getComputedStyle(element);
+          return {
+            text: element.textContent.trim(),
+            visibility: style.visibility,
+            opacity: Number(style.opacity),
+            inert: element.inert,
+          };
+        }),
+      );
+    assert.ok(details.length > 0, `${root} has rendered details`);
+    for (const detail of details) {
+      assert.ok(detail.text, `${root} detail has readable text`);
+      assert.equal(
+        detail.visibility,
+        "visible",
+        `${root}: ${detail.text} is visible`,
+      );
+      assert.ok(detail.opacity > 0.99, `${root}: ${detail.text} is opaque`);
+      assert.equal(detail.inert, false, `${root}: ${detail.text} is not inert`);
+    }
   }
-  await page.locator("home-hero-animation .paper-button").focus();
-  assert.equal(
-    await page
-      .locator("home-hero-animation .paper-button")
-      .evaluate((element) => document.activeElement === element),
-    true,
-    "hero action accepts keyboard focus",
+  const entryParts = await page
+    .locator(
+      "featured-work-animation .entry-link .entry-title, featured-work-animation .entry-link time, featured-work-animation .entry-link .entry-description, featured-work-animation .entry-link .entry-meta, featured-work-animation .entry-link .entry-type, featured-work-animation .entry-link .tags, featured-work-animation .entry-link .paper-tag, recent-writing-animation .entry-link .entry-title, recent-writing-animation .entry-link time, recent-writing-animation .entry-link .entry-description, recent-writing-animation .entry-link .entry-meta, recent-writing-animation .entry-link .entry-type, recent-writing-animation .entry-link .tags, recent-writing-animation .entry-link .paper-tag",
+    )
+    .evaluateAll((elements) =>
+      elements.map((element) => ({
+        text: element.textContent.trim(),
+        visibility: getComputedStyle(element).visibility,
+        opacity: Number(getComputedStyle(element).opacity),
+      })),
+    );
+  assert.ok(entryParts.length > 0, "article metadata is rendered");
+  for (const part of entryParts) {
+    assert.ok(part.text, "article detail has readable text");
+    assert.equal(part.visibility, "visible", `${part.text} is visible`);
+    assert.ok(part.opacity > 0.99, `${part.text} is opaque`);
+  }
+  const controls = await page
+    .locator(
+      "home-hero-animation a[href], featured-work-animation a[href], recent-writing-animation a[href]",
+    )
+    .evaluateAll((links) =>
+      links.map((link) => {
+        link.focus({ preventScroll: true });
+        return {
+          href: link.getAttribute("href"),
+          focusable: document.activeElement === link,
+          inert: link.inert || Boolean(link.closest("[inert]")),
+          visibility: getComputedStyle(link).visibility,
+        };
+      }),
+    );
+  assert.ok(controls.length > 0, "all section controls are rendered");
+  for (const control of controls) {
+    assert.equal(control.visibility, "visible", `${control.href} is visible`);
+    assert.equal(control.inert, false, `${control.href} is not inert`);
+    assert.equal(control.focusable, true, `${control.href} accepts focus`);
+  }
+}
+
+async function observeHeroReveals(page) {
+  await page.evaluate(() => {
+    if (window.__heroObservation) window.__heroObservation.stopped = true;
+    const observation = {
+      root: null,
+      roots: 0,
+      writingStarts: 0,
+      reveals: 0,
+      regressions: 0,
+      writing: false,
+      revealed: false,
+      stopped: false,
+    };
+    window.__heroObservation = observation;
+    const sample = () => {
+      if (observation.stopped) return;
+      const root = document.querySelector("home-hero-animation");
+      if (root !== observation.root) {
+        observation.root = root;
+        observation.writing = false;
+        observation.revealed = false;
+        if (root) observation.roots++;
+      }
+      if (root) {
+        const writing = Boolean(
+          root.querySelector("#intro-heading .handwriting-word"),
+        );
+        const detail = root.querySelector(".hero-actions");
+        const style = getComputedStyle(detail);
+        const revealed =
+          style.visibility === "visible" && Number(style.opacity) > 0.99;
+        if (writing && !observation.writing) observation.writingStarts++;
+        if (revealed && !observation.revealed) observation.reveals++;
+        if (!revealed && observation.revealed) observation.regressions++;
+        observation.writing = writing;
+        observation.revealed = revealed;
+      }
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+}
+
+async function observedHero(page) {
+  return page.evaluate(() => {
+    const { roots, writingStarts, reveals, regressions } =
+      window.__heroObservation;
+    return { roots, writingStarts, reveals, regressions };
+  });
+}
+
+async function heroCompleted(page) {
+  await page.waitForFunction(
+    () => {
+      const detail = document.querySelector(
+        "home-hero-animation .hero-actions",
+      );
+      if (!detail) return false;
+      const style = getComputedStyle(detail);
+      return style.visibility === "visible" && Number(style.opacity) > 0.99;
+    },
+    null,
+    { timeout: 10000 },
   );
 }
 
@@ -88,11 +199,17 @@ await withPage({ route: "/", clock: true }, async (page) => {
   assert.equal(await visible(page, sections[1]), false);
   assert.equal(await visible(page, sections[2]), false);
   await page.locator("#featured-heading").scrollIntoViewIfNeeded();
-  await page.waitForTimeout(150);
+  await page
+    .locator("featured-work-animation .handwriting-word")
+    .first()
+    .waitFor();
   await page.clock.runFor(200);
   await writing(page, sections[1]);
   await page.locator("#recent-heading").scrollIntoViewIfNeeded();
-  await page.waitForTimeout(150);
+  await page
+    .locator("recent-writing-animation .handwriting-word")
+    .first()
+    .waitFor();
   await page.clock.runFor(300);
   await writing(page, sections[2]);
   assert.equal(
@@ -133,12 +250,12 @@ console.log("homepage_sections_run_independently passed");
 // Navigation must dispose the old instance while handwriting is still active.
 await withPage({ route: "/" }, async (page) => {
   await page.evaluate(() => document.fonts.ready);
+  await page
+    .locator("home-hero-animation #intro-heading .handwriting-word")
+    .first()
+    .waitFor();
+  await writing(page, sections[0]);
   for (let visit = 1; visit <= 2; visit++) {
-    await page
-      .locator("home-hero-animation #intro-heading .handwriting-word")
-      .first()
-      .waitFor();
-    await writing(page, sections[0]);
     const oldRoot = await page.locator("home-hero-animation").elementHandle();
     await page.locator(".site-nav a[href='/blog/']").click();
     await page.waitForURL("**/blog/");
@@ -151,6 +268,7 @@ await withPage({ route: "/" }, async (page) => {
       await page.locator(".entry-link[data-animation-detail]").count(),
       0,
     );
+    await observeHeroReveals(page);
     await page.locator(".site-brand").click();
     await page.waitForURL((url) => url.pathname === "/");
     await page
@@ -158,19 +276,21 @@ await withPage({ route: "/" }, async (page) => {
       .first()
       .waitFor();
     await writing(page, sections[0]);
+    await heroCompleted(page);
+    await page.waitForFunction(
+      () => window.__heroObservation?.reveals === 1,
+      null,
+      {
+        timeout: 1000,
+      },
+    );
+    await page.waitForTimeout(350);
+    assert.deepEqual(
+      await observedHero(page),
+      { roots: 1, writingStarts: 1, reveals: 1, regressions: 0 },
+      `visit ${visit} writes and reveals exactly once`,
+    );
   }
-  await page
-    .locator("home-hero-animation .hero-actions")
-    .waitFor({ state: "visible" });
-  await page.waitForFunction(
-    () =>
-      getComputedStyle(document.querySelector(".hero-actions")).opacity > 0.99,
-  );
-  assert.equal(
-    await page.locator("home-hero-animation .hero-actions").count(),
-    1,
-    "one reveal on return",
-  );
 });
 console.log(
   "navigation_disposes_pending_work: two active-writing visits passed",
@@ -186,9 +306,10 @@ await withPage({ route: "/", fontMode: "delayed" }, async (page) => {
   );
   await page.locator(".site-nav a[href='/blog/']").click();
   await page.waitForURL("**/blog/");
+  await observeHeroReveals(page);
   await page.locator(".site-brand").click();
   await page.waitForURL((url) => url.pathname === "/");
-  await page.waitForTimeout(2800);
+  await page.evaluate(() => document.fonts.ready);
   assert.equal(await oldRoot.evaluate((root) => root.isConnected), false);
   assert.equal(
     await oldRoot.evaluate((root) =>
@@ -197,21 +318,36 @@ await withPage({ route: "/", fontMode: "delayed" }, async (page) => {
     false,
   );
   assert.equal(await page.locator("home-hero-animation").count(), 1);
+  await heroCompleted(page);
   await page.waitForFunction(
-    () => {
-      const style = getComputedStyle(
-        document.querySelector("home-hero-animation .hero-actions"),
-      );
-      return style.visibility === "visible" && Number(style.opacity) > 0.99;
-    },
+    () => window.__heroObservation?.reveals === 1,
     null,
-    { timeout: 10000 },
+    {
+      timeout: 1000,
+    },
   );
+  await page.waitForTimeout(350);
   assert.equal(
     await visible(page, sections[0]),
     true,
     "new visit stays readable after late font resolution",
   );
+  const observation = await observedHero(page);
+  assert.equal(
+    observation.roots,
+    1,
+    "late font resolution keeps one returned hero root",
+  );
+  assert.ok(
+    observation.writingStarts <= 1,
+    "late font resolution cannot restart handwriting",
+  );
+  assert.equal(
+    observation.reveals,
+    1,
+    "late font resolution produces one visible detail reveal",
+  );
+  assert.equal(observation.regressions, 0, "revealed detail never hides again");
 });
 console.log("navigation_disposes_pending_work: delayed font passed");
 
@@ -290,7 +426,10 @@ for (const theme of ["light", "dracula"]) {
         await noHorizontalOverflow(page, `${theme} ${width}px after reveal`);
         if (width !== 1440) {
           await page.locator("#featured-heading").scrollIntoViewIfNeeded();
-          await page.waitForTimeout(150);
+          await page
+            .locator("featured-work-animation .handwriting-word")
+            .first()
+            .waitFor();
           await page.clock.runFor(200);
           await writing(page, sections[1]);
           const recentBefore = await presentation(
