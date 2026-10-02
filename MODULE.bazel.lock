@@ -2983,7 +2983,7 @@
         {
           "importpath": "github.com/bazel-contrib/bazel-gazelle/v2",
           "sha256": "07bf6292ce307261f66bba080ce021f635c56e8d9cbf6cfac46548d6d41b4ea2",
-          "version": "v2.0.0-3"
+          "version": "v2.0.0-beta.1"
         },
         {
           "importpath": "github.com/bazelbuild/buildtools",
@@ -3084,6 +3084,11 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "github.com/bazel-contrib/bazel-gazelle/v2",
+          "sha256": "07bf6292ce307261f66bba080ce021f635c56e8d9cbf6cfac46548d6d41b4ea2",
+          "version": "v2.0.0-3"
         },
         {
           "importpath": "github.com/bazelbuild/rules_go",
