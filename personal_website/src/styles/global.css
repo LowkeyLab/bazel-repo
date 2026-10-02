@@ -357,6 +357,45 @@ featured-work-animation + recent-writing-animation {
   color: var(--color-primary);
   line-height: 1.2;
 }
+.notebook-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.notebook-list .entry-link {
+  position: relative;
+  margin-left: 2rem;
+  padding-block: 1.6rem;
+}
+.notebook-list .entry-link::before {
+  content: "";
+  position: absolute;
+  left: -1.8rem;
+  top: 2.4rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 45% 52% 43% 48%;
+  background: var(--color-primary);
+}
+.notebook-list .entry-title {
+  font-size: clamp(1.6rem, 3vw, 2.15rem);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.notebook-list .entry-title,
+.notebook-list .entry-link:hover .entry-title,
+.home-section .all-writing {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-skip-ink: none;
+}
+.home-section .all-writing {
+  font-family: "Caveat", cursive;
+  font-size: 1.6rem;
+  color: var(--color-primary);
+}
 .entry-meta {
   font-size: 0.8rem;
   flex-shrink: 0;
