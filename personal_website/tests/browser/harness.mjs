@@ -64,6 +64,10 @@ export async function withPage(options, run) {
   });
   let context;
   let page;
+  let releaseFonts;
+  let releaseModules;
+  const fontsHeld = new Promise((resolve) => (releaseFonts = resolve));
+  const modulesHeld = new Promise((resolve) => (releaseModules = resolve));
   try {
     await new Promise((done, fail) =>
       http.once("error", fail).listen(0, "127.0.0.1", done),
@@ -85,6 +89,7 @@ export async function withPage(options, run) {
     });
     await context.route("https://fonts.gstatic.com/**", async (route) => {
       if (options.fontMode === "blocked") return route.abort();
+      if (options.fontMode === "held") await fontsHeld;
       if (options.fontMode === "delayed")
         await new Promise((resolve) => setTimeout(resolve, 2600));
       await route.fulfill({
@@ -93,8 +98,10 @@ export async function withPage(options, run) {
         body: await readFile(font),
       });
     });
-    await context.route("**/*", (route) => {
+    await context.route("**/*", async (route) => {
       const url = new URL(route.request().url());
+      if (options.holdAnimationModules && url.pathname.endsWith(".js"))
+        await modulesHeld;
       if (options.blockAnimationModule && url.pathname.endsWith(".js"))
         return route.abort();
       if (
@@ -159,9 +166,9 @@ export async function withPage(options, run) {
         errors.push(new Error(message.text()));
     });
     await page.goto(`http://127.0.0.1:${port}${options.route}`, {
-      waitUntil: "domcontentloaded",
+      waitUntil: options.holdAnimationModules ? "commit" : "domcontentloaded",
     });
-    await run(page);
+    await run(page, { releaseFonts, releaseModules });
     assert.deepEqual(
       errors.map((error) => String(error)),
       [],
@@ -189,6 +196,8 @@ export async function withPage(options, run) {
     }
     throw error;
   } finally {
+    releaseFonts();
+    releaseModules();
     await context?.tracing.stop().catch(() => {});
     await context?.close();
     await browser.close();

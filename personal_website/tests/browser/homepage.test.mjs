@@ -187,6 +187,62 @@ async function noHorizontalOverflow(page, label) {
   );
 }
 
+// Hold the real font response beyond the watchdog, including a controller
+// that arrives only after the bootstrap has already restored static content.
+const expiryFailures = [];
+for (const holdAnimationModules of [false, true]) {
+  try {
+    await withPage(
+      { route: "/", fontMode: "held", holdAnimationModules },
+      async (page, { releaseFonts, releaseModules }) => {
+        await page
+          .locator("recent-writing-animation")
+          .waitFor({ state: "attached" });
+        await page.waitForFunction(() => document.fonts.status === "loading");
+        await page.waitForTimeout(2200);
+        assert.equal(
+          await page.evaluate(() => document.fonts.status),
+          "loading",
+        );
+        await readable(page);
+        if (holdAnimationModules) {
+          releaseModules();
+          await page.evaluate(() =>
+            Promise.all([
+              customElements.whenDefined("home-hero-animation"),
+              customElements.whenDefined("featured-work-animation"),
+              customElements.whenDefined("recent-writing-animation"),
+            ]),
+          );
+          await page.waitForTimeout(100);
+          assert.equal(
+            await page.evaluate(() => document.fonts.status),
+            "loading",
+          );
+          await readable(page);
+        }
+        releaseFonts();
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(250);
+        await readable(page);
+        assert.equal(
+          await page.locator(".handwriting-word").count(),
+          0,
+          "expired initialization cannot restart after fonts arrive",
+        );
+      },
+    );
+    console.log(
+      `watchdog_restores_focus: late module=${holdAnimationModules} passed`,
+    );
+  } catch (error) {
+    expiryFailures.push(
+      `late module=${holdAnimationModules}: ${error.message}`,
+    );
+  }
+}
+assert.deepEqual(expiryFailures, [], "font watchdog and late module fallback");
+
 // A production page, with all three real components, proves the visible
 // section never waits for an offscreen sibling to finish.
 await withPage({ route: "/", clock: true }, async (page) => {

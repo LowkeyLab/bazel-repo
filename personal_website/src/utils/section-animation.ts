@@ -15,7 +15,11 @@ export interface SectionSequence {
 }
 
 type BootstrapRoot = HTMLElement & {
-  animationBootstrap?: { claim(): boolean; restore(): void };
+  animationBootstrap?: {
+    register(cancel: () => void): boolean;
+    claim(): boolean;
+    restore(): void;
+  };
 };
 
 function staticContent(root: HTMLElement, details: readonly HTMLElement[]) {
@@ -91,6 +95,12 @@ export function mountSection(
     restore();
     return cancel;
   }
+  const bootstrap = (root as BootstrapRoot).animationBootstrap;
+  if (bootstrap && !bootstrap.register(cancel)) {
+    cancel();
+    return cancel;
+  }
+  for (const detail of sequence.details) detail.inert = true;
   if (!root.hasAttribute("data-animation-pending"))
     root.dataset.animationPending = "";
   motionPreference.addEventListener("change", onMotionChange);
@@ -142,10 +152,7 @@ export function mountSection(
         cancel();
         return;
       }
-      if (
-        !(root as BootstrapRoot).animationBootstrap?.claim() &&
-        (root as BootstrapRoot).animationBootstrap
-      ) {
+      if (bootstrap && !bootstrap.claim()) {
         cancel();
         return;
       }

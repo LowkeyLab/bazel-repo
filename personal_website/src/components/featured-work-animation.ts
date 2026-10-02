@@ -7,7 +7,6 @@ export function mount(root: HTMLElement): () => void {
   const details = [
     ...root.querySelectorAll<HTMLElement>(".entry-link, .entry-list > p"),
   ];
-  for (const detail of details) detail.inert = true;
   return mountSection(root, {
     heading,
     details,

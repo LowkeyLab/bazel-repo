@@ -5,16 +5,28 @@
     root.dataset.animationPending = "";
     let expired = false;
     let claimed = false;
+    let onExpire;
     const restore = () => {
       clearTimeout(watchdog);
+      onExpire = undefined;
       delete root.dataset.animationPending;
       if (!claimed) expired = true;
     };
-    const watchdog = setTimeout(restore, 2000);
+    const watchdog = setTimeout(() => {
+      const cancel = onExpire;
+      restore();
+      cancel?.();
+    }, 2000);
     root.animationBootstrap = {
+      register: (cancel) => {
+        if (expired) return false;
+        onExpire = cancel;
+        return true;
+      },
       claim: () => {
         if (expired) return false;
         claimed = true;
+        onExpire = undefined;
         clearTimeout(watchdog);
         return true;
       },

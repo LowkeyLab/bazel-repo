@@ -81,6 +81,40 @@ await withPage(
       "none",
       "underline drawing is active after heading writing",
     );
+    let revealStarted = false;
+    for (let frame = 0; frame < 100; frame++) {
+      await page.clock.runFor(16);
+      const actions = await presentation(page, ".hero-actions");
+      if (actions.visibility !== "visible") continue;
+      revealStarted = true;
+      for (const selector of [".hero-actions", ".hero-socials"]) {
+        const state = await presentation(page, selector);
+        assert.equal(
+          state.opacity,
+          0,
+          `${selector} is in the transparent stagger interval`,
+        );
+        const acceptedFocus = await page
+          .locator(`${selector} a`)
+          .evaluateAll((links) =>
+            links.some((link) => {
+              link.focus({ preventScroll: true });
+              return document.activeElement === link;
+            }),
+          );
+        assert.equal(
+          acceptedFocus,
+          false,
+          `${selector} rejects focus while transparent`,
+        );
+      }
+      break;
+    }
+    assert.equal(
+      revealStarted,
+      true,
+      "observed the start of the actual detail reveal",
+    );
     await page.clock.runFor(2800);
     for (let index = 0; index < details.length; index++) {
       const state = await presentation(page, details[index]);
