@@ -23,8 +23,20 @@ await withPage(
     assert.equal(await allWriting.getAttribute("href"), "/blog/");
     for (let index = 0; index < 3; index++) {
       const entry = entries.nth(index);
-      for (const selector of [".entry-title"])
-        assert.equal(await entry.locator(selector).count(), 1);
+      assert.equal(await entry.locator(".entry-title").count(), 1);
+      for (const selector of [
+        "time",
+        ".entry-description",
+        ".entry-meta",
+        ".entry-type",
+        ".tags",
+      ]) {
+        assert.equal(
+          await entry.locator(selector).count(),
+          0,
+          `title-only entry ${index} omits ${selector}`,
+        );
+      }
     }
 
     await page.evaluate(() => document.fonts.ready);

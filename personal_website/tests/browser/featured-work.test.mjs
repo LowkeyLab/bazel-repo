@@ -38,10 +38,18 @@ await withPage(
     );
     for (let index = 0; index < 3; index++) {
       const entry = entries.nth(index);
-      for (const selector of [".entry-title"]) {
-        assert.ok(
+      assert.equal(await entry.locator(".entry-title").count(), 1);
+      for (const selector of [
+        "time",
+        ".entry-description",
+        ".entry-meta",
+        ".entry-type",
+        ".tags",
+      ]) {
+        assert.equal(
           await entry.locator(selector).count(),
-          `${selector} belongs to entry ${index}`,
+          0,
+          `title-only entry ${index} omits ${selector}`,
         );
       }
     }
