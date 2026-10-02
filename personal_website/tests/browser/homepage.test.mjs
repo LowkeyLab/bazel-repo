@@ -187,6 +187,30 @@ async function noHorizontalOverflow(page, label) {
   );
 }
 
+async function staticHeroArtwork(page) {
+  const artwork = await page
+    .locator(".hero-art, .hero-flourish, .hero-plant")
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const style = getComputedStyle(element);
+        return {
+          opacity: style.opacity,
+          translate: style.translate,
+          rotate: style.rotate,
+          dasharray: style.strokeDasharray,
+        };
+      }),
+    );
+  assert.equal(artwork.length, 3);
+  for (const state of artwork) {
+    assert.deepEqual(
+      state,
+      { opacity: "1", translate: "none", rotate: "none", dasharray: "none" },
+      "fallback artwork stays fully drawn and stationary",
+    );
+  }
+}
+
 // Hold the real font response beyond the watchdog, including a controller
 // that arrives only after the bootstrap has already restored static content.
 const expiryFailures = [];
@@ -205,6 +229,7 @@ for (const holdAnimationModules of [false, true]) {
           "loading",
         );
         await readable(page);
+        await staticHeroArtwork(page);
         if (holdAnimationModules) {
           releaseModules();
           await page.evaluate(() =>
@@ -220,11 +245,13 @@ for (const holdAnimationModules of [false, true]) {
             "loading",
           );
           await readable(page);
+          await staticHeroArtwork(page);
         }
         releaseFonts();
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(250);
         await readable(page);
+        await staticHeroArtwork(page);
         assert.equal(
           await page.locator(".handwriting-word").count(),
           0,

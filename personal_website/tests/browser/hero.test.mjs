@@ -197,7 +197,7 @@ for (const options of [
       "visible",
       "static fallback keeps the underline visible",
     );
-    if (options.reducedMotion === "reduce") {
+    {
       const art = await page.locator(".hero-art").evaluate((element) => ({
         opacity: getComputedStyle(element).opacity,
         translate: getComputedStyle(element).translate,
@@ -205,12 +205,39 @@ for (const options of [
       assert.equal(
         art.opacity,
         "1",
-        "reduced motion does not animate the illustration",
+        "static fallback does not animate the illustration",
       );
       assert.equal(art.translate, "none");
     }
   });
 }
+
+await withPage(
+  { route: "/tests/hero/", holdAnimationModules: true, clock: true },
+  async (page, { releaseModules }) => {
+    await page.locator("h1").waitFor({ state: "attached" });
+    await page.locator("h1").evaluate((heading) => {
+      heading.firstChild.textContent = "Unsupported XYZ ";
+    });
+    await page.evaluate(() => document.fonts.ready);
+    releaseModules();
+    await page.evaluate(() =>
+      customElements.whenDefined("home-hero-animation"),
+    );
+    await page.clock.runFor(200);
+    assert.equal(await page.locator("h1 .handwriting-word").count(), 0);
+    assert.equal(
+      (await presentation(page, ".hero-actions")).visibility,
+      "visible",
+    );
+    const art = await presentation(page, ".hero-art");
+    assert.equal(
+      art.opacity,
+      1,
+      "failed handwriting initialization keeps artwork static",
+    );
+  },
+);
 
 await withPage(
   { route: "/tests/hero/", blockAnimationModule: true },
