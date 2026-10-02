@@ -1,0 +1,10 @@
+---
+import Layout from "../../src/layouts/Layout.astro";
+import RecentWriting from "../../src/components/RecentWriting.astro";
+import { recentPosts } from "./posts";
+---
+
+<Layout title="Recent writing fixture" activeItem="home" noindex>
+  <RecentWriting posts={recentPosts} headingId="fixture-recent-heading" />
+  <RecentWriting posts={[]} headingId="empty-recent-heading" />
+</Layout>

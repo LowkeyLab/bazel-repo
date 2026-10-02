@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import DevHero from "../components/DevHero.astro";
 import FeaturedWork from "../components/FeaturedWork.astro";
-import PostList from "../components/PostList.astro";
+import RecentWriting from "../components/RecentWriting.astro";
 import avatar from "../assets/avatar.jpeg";
 import { getCollection } from "astro:content";
 import { homePosts } from "../utils/blog";
@@ -27,77 +27,5 @@ const { featured, recent } = homePosts(await getCollection("blog"));
     ctaLink="mailto:timdttran2000@gmail.com"
   />
   <FeaturedWork posts={featured} />
-  {recent.length > 0 && (
-    <section class="home-section" aria-labelledby="recent-heading">
-      <h2 id="recent-heading">Recent writing</h2>
-      <PostList posts={recent} ariaLabel="Recent writing" headingLevel="h3" />
-      <a href="/blog/" class="ink-link all-writing">All writing <span aria-hidden="true">→</span></a>
-    </section>
-  )}
+  <RecentWriting posts={recent} />
 </Layout>
-
-<script>
-  import { createTimeline, stagger, utils } from "animejs";
-  import { prepareHandwriting } from "../utils/handwriting";
-
-  let cleanup: (() => void) | undefined;
-
-  async function animateHome() {
-    cleanup?.();
-    const sections = document.querySelectorAll<HTMLElement>(".home-section > #recent-heading");
-    if (!sections.length) return;
-    const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
-    if (motionPreference.matches) return;
-
-    let stopped = false;
-    let observer: IntersectionObserver | undefined;
-    const timelines: ReturnType<typeof createTimeline>[] = [];
-    const restorations: (() => void)[] = [];
-    function stop() {
-      stopped = true;
-      observer?.disconnect();
-      timelines.forEach((timeline) => timeline.revert());
-      restorations.forEach((restore) => restore());
-      motionPreference.removeEventListener("change", stop);
-      window.removeEventListener("pagehide", stop);
-      window.removeEventListener("resize", stop);
-      cleanup = undefined;
-    }
-    cleanup = stop;
-    motionPreference.addEventListener("change", stop);
-    window.addEventListener("pagehide", stop);
-    // Measurement-based masks should never outlive their layout.
-    window.addEventListener("resize", stop);
-
-    await document.fonts.ready;
-    if (stopped || !sections.length) return;
-    const fontLoaded = [...document.fonts].some((font) => font.family.includes("Caveat") && font.status === "loaded");
-    if (!fontLoaded) return;
-
-    observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        observer?.unobserve(entry.target);
-        const heading = entry.target as HTMLElement;
-        const sectionWriting = prepareHandwriting(heading, 1200);
-        const sequence = createTimeline();
-        timelines.push(sequence);
-        if (sectionWriting) {
-          restorations.push(sectionWriting.restore);
-          sequence.sync(sectionWriting.timeline, 0);
-        }
-        const titles = heading.parentElement!.querySelectorAll(".entry-title");
-        const titleState = utils.set(titles, { opacity: 0, y: 8 });
-        restorations.push(() => titleState.revert());
-        sequence.add(titles, {
-          opacity: [0, 1], y: [8, 0], duration: 450,
-          delay: stagger(100), ease: "outQuad",
-        }, sectionWriting ? 1200 : 0);
-      }
-    }, { threshold: 0.8 });
-    sections.forEach((heading) => observer?.observe(heading));
-  }
-
-  document.addEventListener("astro:page-load", animateHome);
-  document.addEventListener("astro:before-swap", () => cleanup?.());
-</script>

@@ -12,6 +12,7 @@ personal_website_ts_library(
     srcs = [
         "featured-work-animation.ts",
         "hero-animation.ts",
+        "recent-writing-animation.ts",
     ],
     visibility = ["//visibility:public"],
     deps = [

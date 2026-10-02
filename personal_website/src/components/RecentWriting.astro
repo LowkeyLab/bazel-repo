@@ -1,0 +1,48 @@
+---
+import type { CollectionEntry } from "astro:content";
+import AnimationBootstrap from "./AnimationBootstrap.astro";
+import PostList from "./PostList.astro";
+
+interface Props {
+  posts: CollectionEntry<"blog">[];
+  headingId?: string;
+}
+
+const { posts, headingId = "recent-heading" } = Astro.props;
+---
+
+{posts.length > 0 && (
+  <recent-writing-animation>
+    <AnimationBootstrap />
+    <section class="home-section" aria-labelledby={headingId}>
+      <h2 id={headingId}>Recent writing</h2>
+      <PostList posts={posts} ariaLabel="Recent writing" headingLevel="h3" />
+      <a href="/blog/" class="ink-link all-writing" data-animation-detail>All writing <span aria-hidden="true">→</span></a>
+    </section>
+  </recent-writing-animation>
+)}
+
+<script>
+  import { mount } from "./recent-writing-animation";
+
+  if (!customElements.get("recent-writing-animation")) {
+    customElements.define("recent-writing-animation", class extends HTMLElement {
+      private dispose?: () => void;
+      private pending?: number;
+
+      connectedCallback() {
+        this.pending = window.setTimeout(() => {
+          this.pending = undefined;
+          if (this.isConnected) this.dispose = mount(this);
+        }, 0);
+      }
+
+      disconnectedCallback() {
+        if (this.pending !== undefined) clearTimeout(this.pending);
+        this.pending = undefined;
+        this.dispose?.();
+        this.dispose = undefined;
+      }
+    });
+  }
+</script>

@@ -317,7 +317,7 @@ recent-writing-animation {
   padding-block: 2.5rem 1rem;
 }
 .home-section + .home-section,
-featured-work-animation + .home-section {
+featured-work-animation + recent-writing-animation {
   margin-top: 2rem;
 }
 .home-section > h2 {

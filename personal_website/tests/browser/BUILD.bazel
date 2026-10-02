@@ -39,3 +39,23 @@ js_test(
     },
     no_copy_to_bin = ["@caveat_test_font//file"],
 )
+
+js_test(
+    name = "recent_writing_test",
+    size = "small",
+    data = [
+        "harness.mjs",
+        "//:node_modules/playwright",
+        "//personal_website/tests:fixtures_build",
+        "@caveat_test_font//file",
+    ],
+    entry_point = "recent-writing.test.mjs",
+    env = {
+        "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
+        "FONT_FILE": "$(rootpath @caveat_test_font//file)",
+    },
+    exec_properties = {
+        "container-image": "docker://mcr.microsoft.com/playwright@sha256:bc6ab0d6d44ff4826e4cb8c1e6d801e185bfc42bb0753f8e2a30efc70db054c7",
+    },
+    no_copy_to_bin = ["@caveat_test_font//file"],
+)

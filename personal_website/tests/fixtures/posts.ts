@@ -64,3 +64,27 @@ export const longPosts = [
     24,
   ),
 ];
+
+export const recentPosts = [
+  post(
+    "first-recent",
+    "First recent article",
+    "First recent description.",
+    ["rust"],
+    25,
+  ),
+  post(
+    "second-recent",
+    "Second recent article",
+    "Second recent description.",
+    ["bazel"],
+    26,
+  ),
+  post(
+    "third-recent",
+    "Third recent article",
+    "Third recent description.",
+    ["astro"],
+    27,
+  ),
+];

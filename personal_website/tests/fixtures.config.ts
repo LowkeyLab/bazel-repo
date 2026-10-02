@@ -16,6 +16,7 @@ export default defineConfig({
             "lifecycle",
             "featured-work",
             "independence",
+            "recent-writing",
           ]) {
             injectRoute({
               pattern: `/tests/${route}`,
