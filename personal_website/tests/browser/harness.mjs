@@ -108,6 +108,24 @@ export async function withPage(options, run) {
     page = await context.newPage();
     await context.tracing.start({ screenshots: true, snapshots: true });
     if (options.clock) await page.clock.install();
+    if (options.initialPaintSelector) {
+      await page.addInitScript((selector) => {
+        window.__initialPaintSamples = [];
+        const sample = () => {
+          const element = document.querySelector(selector);
+          if (element) {
+            const style = getComputedStyle(element);
+            window.__initialPaintSamples.push({
+              opacity: Number(style.opacity),
+              visibility: style.visibility,
+            });
+          }
+          if (window.__initialPaintSamples.length < 120)
+            requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      }, options.initialPaintSelector);
+    }
     const errors = [];
     page.on("pageerror", (error) => errors.push(error));
     page.on("console", (message) => {

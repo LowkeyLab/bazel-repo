@@ -2,7 +2,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_test")
 
 js_test(
     name = "hero_test",
-    size = "medium",
+    size = "small",
     data = [
         "harness.mjs",
         "//:node_modules/playwright",
