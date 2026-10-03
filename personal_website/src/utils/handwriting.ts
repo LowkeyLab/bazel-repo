@@ -1,7 +1,7 @@
 import { createTimeline } from "animejs";
 import type { AnimationRun } from "./section-animation";
 
-// Pen routes in each glyph's ink bounds. The mask reveals the real Caveat text;
+// Pen routes in each glyph's ink bounds. The mask reveals the original HTML text;
 // these broad strokes are guides, not replacement letterforms.
 const penRoutes: Record<string, string> = {
   H: "M.3 0 .05 1 M1 0 .7 1 M.15 .55 .85 .4",
@@ -71,105 +71,92 @@ export function prepareHandwriting(
   )
     return;
 
-  const replacements: { original: Text; wrapper: HTMLSpanElement }[] = [];
   const strokes: { path: SVGPathElement; finish: SVGRectElement }[] = [];
+  const bounds = heading.getBoundingClientRect();
+  const id = `handwriting-${nextMaskId++}`;
+  const overlay = element("svg", {
+    class: "handwriting-overlay",
+    "aria-hidden": "true",
+    focusable: "false",
+    width: 1,
+    height: 1,
+  });
+  const mask = element("mask", {
+    id,
+    maskUnits: "userSpaceOnUse",
+    x: -20,
+    y: -20,
+    width: bounds.width + 40,
+    height: bounds.height + 40,
+  });
+  const defs = element("defs");
+  defs.append(mask);
+  overlay.append(defs);
+  const originalMask = heading.style.getPropertyValue("mask");
+  const originalMaskPriority = heading.style.getPropertyPriority("mask");
   const restore = () => {
-    for (const { original, wrapper } of replacements)
-      wrapper.replaceWith(original);
+    if (originalMask)
+      heading.style.setProperty("mask", originalMask, originalMaskPriority);
+    else heading.style.removeProperty("mask");
+    overlay.remove();
   };
 
   try {
+    // Measure the existing HTML glyphs without replacing text or wrapping words.
+    // This preserves shaping, spacing and line breaks through the final frame.
     for (const original of originals) {
-      const wrapper = document.createElement("span");
-      original.replaceWith(wrapper);
-      replacements.push({ original, wrapper });
-      for (const word of original.data.split(/(\s+)/)) {
-        if (!word.trim()) {
-          wrapper.append(document.createTextNode(word));
-          continue;
-        }
-        const span = document.createElement("span");
-        span.className = "handwriting-word";
-        const source = document.createElement("span");
-        source.className = "handwriting-source";
-        source.textContent = word;
-        span.append(source);
-        wrapper.append(span);
-        const style = getComputedStyle(span);
-        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-        const metrics = context.measureText(word);
-        const { width, height } = span.getBoundingClientRect();
+      const style = getComputedStyle(original.parentElement!);
+      context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const range = document.createRange();
+      let offset = 0;
+      for (const char of original.data) {
+        range.setStart(original, offset);
+        offset += char.length;
+        range.setEnd(original, offset);
+        if (/\s/.test(char)) continue;
+        const rect = range.getBoundingClientRect();
+        const ink = context.measureText(char);
         const baseline =
-          (height -
-            metrics.fontBoundingBoxAscent -
-            metrics.fontBoundingBoxDescent) /
+          rect.top -
+          bounds.top +
+          (rect.height -
+            ink.fontBoundingBoxAscent -
+            ink.fontBoundingBoxDescent) /
             2 +
-          metrics.fontBoundingBoxAscent;
-        const overlay = element("svg", {
-          class: "handwriting-overlay",
-          "aria-hidden": "true",
-          focusable: "false",
-          width,
-          height,
-          viewBox: `0 0 ${width} ${height}`,
+          ink.fontBoundingBoxAscent;
+        const x = rect.left - bounds.left - ink.actualBoundingBoxLeft;
+        const y = baseline - ink.actualBoundingBoxAscent;
+        const inkWidth = ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight;
+        const inkHeight =
+          ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent;
+        const path = element("path", {
+          d: penRoutes[char]!,
+          transform: `translate(${x} ${y}) scale(${inkWidth} ${inkHeight})`,
+          fill: "none",
+          stroke: "white",
+          "stroke-width": 0.5,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+          pathLength: 1,
+          "stroke-dasharray": 1,
+          "stroke-dashoffset": 1,
+          opacity: 0,
         });
-        const id = `handwriting-${nextMaskId++}`;
-        const mask = element("mask", {
-          id,
-          maskUnits: "userSpaceOnUse",
-          x: -20,
-          y: -20,
-          width: width + 40,
-          height: height + 40,
+        // Include antialiased edges beyond the fractional ink bounds.
+        const finish = element("rect", {
+          x: x - 1,
+          y: y - 1,
+          width: inkWidth + 2,
+          height: inkHeight + 2,
+          fill: "white",
+          opacity: 0,
         });
-        const defs = element("defs");
-        defs.append(mask);
-        const text = element("text", {
-          x: 0,
-          y: baseline,
-          fill: "currentColor",
-          mask: `url(#${id})`,
-        });
-        text.textContent = word;
-        overlay.append(defs, text);
-        span.append(overlay);
-
-        [...word].forEach((char, index) => {
-          const ink = context.measureText(char);
-          const x =
-            text.getStartPositionOfChar(index).x - ink.actualBoundingBoxLeft;
-          const y = baseline - ink.actualBoundingBoxAscent;
-          const inkWidth =
-            ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight;
-          const inkHeight =
-            ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent;
-          const path = element("path", {
-            d: penRoutes[char]!,
-            transform: `translate(${x} ${y}) scale(${inkWidth} ${inkHeight})`,
-            fill: "none",
-            stroke: "white",
-            "stroke-width": 0.5,
-            "stroke-linecap": "round",
-            "stroke-linejoin": "round",
-            pathLength: 1,
-            "stroke-dasharray": 1,
-            "stroke-dashoffset": 1,
-            opacity: 0,
-          });
-          // Finish the glyph's fine edges after its pen pass.
-          const finish = element("rect", {
-            x,
-            y,
-            width: inkWidth,
-            height: inkHeight,
-            fill: "white",
-            opacity: 0,
-          });
-          mask.append(path, finish);
-          strokes.push({ path, finish });
-        });
+        mask.append(path, finish);
+        strokes.push({ path, finish });
       }
     }
+    heading.append(overlay);
+    heading.style.mask = `url(#${id})`;
 
     const timeline = createTimeline({
       autoplay: false,

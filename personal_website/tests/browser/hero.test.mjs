@@ -1,5 +1,90 @@
 import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import sharp from "sharp";
 import { presentation, withPage } from "./harness.mjs";
+
+// Revealing the same HTML must preserve the final glyphs and layout, including
+// mobile line wrapping. Allow only single-value compositing rounding per channel.
+for (const viewport of [
+  { width: 1280, height: 900 },
+  { width: 390, height: 844 },
+]) {
+  await withPage(
+    { route: "/tests/hero/", clock: true, viewport },
+    async (page) => {
+      await page.evaluate(() => document.fonts.ready);
+      await page
+        .locator("h1 .handwriting-overlay")
+        .first()
+        .waitFor({ state: "attached" });
+      const screenshotOptions = {
+        style: ".ink-underline > svg { visibility: hidden !important; }",
+      };
+      const beforeWriting = await page
+        .locator("h1")
+        .screenshot(screenshotOptions);
+      await page.clock.runFor(1200);
+      const duringWriting = await page
+        .locator("h1")
+        .screenshot(screenshotOptions);
+      assert.ok(
+        !beforeWriting.equals(duringWriting),
+        "handwriting must visibly reveal letters",
+      );
+      // Finish every glyph through the real mask, without removing the mask itself.
+      assert.ok(
+        (await page.locator("h1 .handwriting-overlay").count()) > 0,
+        "animation must still be active at comparison",
+      );
+      assert.ok(
+        (await page.locator("h1 mask rect").count()) > 0,
+        "completed-mask comparison requires glyphs",
+      );
+      await page.locator("h1 mask rect").evaluateAll((finishes) => {
+        for (const finish of finishes)
+          finish.style.setProperty("opacity", "1", "important");
+      });
+      const animated = await page.locator("h1").screenshot(screenshotOptions);
+      await page.clock.runFor(5000);
+      assert.equal(
+        await page.locator("h1 .handwriting-overlay").count(),
+        0,
+        "final screenshot must follow animation cleanup",
+      );
+      const final = await page.locator("h1").screenshot(screenshotOptions);
+      const before = await sharp(animated)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const after = await sharp(final)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      assert.deepEqual(
+        before.info,
+        after.info,
+        "heading dimensions change at completion",
+      );
+      const changed = before.data.some(
+        (value, index) => Math.abs(value - after.data[index]) > 1,
+      );
+      if (changed && process.env.TEST_UNDECLARED_OUTPUTS_DIR) {
+        await writeFile(
+          join(process.env.TEST_UNDECLARED_OUTPUTS_DIR, "animated.png"),
+          animated,
+        );
+        await writeFile(
+          join(process.env.TEST_UNDECLARED_OUTPUTS_DIR, "final.png"),
+          final,
+        );
+      }
+      assert.equal(
+        changed,
+        false,
+        "heading appearance changes at handwriting completion",
+      );
+    },
+  );
+}
 
 async function tabStops(page, steps) {
   const stops = [];
@@ -67,7 +152,7 @@ await withPage(
         `${selector} stays hidden while heading writes`,
       );
     }
-    assert.ok((await page.locator("h1 .handwriting-word").count()) > 0);
+    assert.ok((await page.locator("h1 .handwriting-overlay").count()) > 0);
     assert.equal(
       (await presentation(page, ".ink-underline > svg")).visibility,
       "hidden",
@@ -225,7 +310,7 @@ await withPage(
       customElements.whenDefined("home-hero-animation"),
     );
     await page.clock.runFor(200);
-    assert.equal(await page.locator("h1 .handwriting-word").count(), 0);
+    assert.equal(await page.locator("h1 .handwriting-overlay").count(), 0);
     assert.equal(
       (await presentation(page, ".hero-actions")).visibility,
       "visible",

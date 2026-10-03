@@ -9,18 +9,22 @@ fail() {
 	exit 1
 }
 
-# Browser routes and the pinned test font must stay out of the published site.
+# Rendering must not depend on third-party font services.
+if grep -R -l -E 'fonts\.googleapis\.com|fonts\.gstatic\.com' "${dist}" --include='*.html' --include='*.css'; then
+	fail "published pages still require Google Fonts"
+fi
+grep -R -q 'data:font/woff2;base64,' "${dist}/_astro" --include='*.css' || fail "missing embedded production font"
+
+# Browser routes must stay out of the published site.
 [[ ! -e "${dist}/tests" ]] || fail "browser fixture route entered production output"
 [[ -f "${dist}/sitemap.xml" ]] || fail "missing sitemap"
 if grep -q '/tests/' "${dist}/sitemap.xml"; then
 	fail "browser fixture route entered sitemap"
 fi
-if [[ -n "$(find "${dist}" -type f \( -iname '*caveat*' -o -iname '*.ttf' \) -print -quit)" ]]; then
-	fail "fixture-only font entered production output"
-fi
+[[ -f "${dist}/caveat-OFL.txt" ]] || fail "missing bundled font license"
 archive_entries="$(tar -tf "${site_archive}")"
-if grep -Eq '(^|/)tests/|(^|/)[^/]*[Cc]aveat[^/]*$|\.ttf$' <<<"${archive_entries}"; then
-	fail "browser fixture or test font entered frontend layer"
+if grep -Eq '(^|/)tests/' <<<"${archive_entries}"; then
+	fail "browser fixture entered frontend layer"
 fi
 
 for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-build-scan building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do

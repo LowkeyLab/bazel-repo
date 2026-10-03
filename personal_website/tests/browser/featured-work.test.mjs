@@ -176,7 +176,7 @@ await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
   assert.equal(await page.locator("#second-featured-heading").count(), 1);
   await page.clock.runFor(500);
   assert.ok(
-    (await roots.first().locator(".handwriting-word").count()) > 0,
+    (await roots.first().locator(".handwriting-overlay").count()) > 0,
     "first heading has temporary handwriting markup when its root is removed",
   );
   await roots.first().evaluate((root) => root.remove());
@@ -191,7 +191,7 @@ await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
   await page.waitForTimeout(150);
   await page.clock.runFor(200);
   assert.ok(
-    (await roots.locator(".handwriting-word").count()) > 0,
+    (await roots.locator(".handwriting-overlay").count()) > 0,
     "sibling starts its own handwriting after entering the viewport",
   );
   const siblingWriting = await entryStates(page, "featured-work-animation");
