@@ -116,7 +116,12 @@ export async function withPage(options, run) {
     });
     page = await context.newPage();
     await context.tracing.start({ screenshots: true, snapshots: true });
-    if (options.clock) await page.clock.install();
+    if (options.clock) {
+      // install() still ticks in real time. Pause before navigation so slow CI
+      // requests and screenshots cannot advance the animation between runFor calls.
+      await page.clock.install({ time: 0 });
+      await page.clock.pauseAt(60_000);
+    }
     if (options.trackPending) {
       await page.addInitScript(() => {
         new MutationObserver((changes) => {

@@ -54,6 +54,9 @@ await withPage(
       }
     }
     const laterStart = await presentation(page, "#later-section");
+    await page
+      .locator("#featured-heading .handwriting-overlay")
+      .waitFor({ state: "attached" });
     await page.clock.runFor(500);
     const pending = await entryStates(page);
     assert.ok(
@@ -115,7 +118,9 @@ await withPage(
     );
 
     await page.locator("#long-featured-heading").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(150);
+    await page
+      .locator("#long-featured-heading .handwriting-overlay")
+      .waitFor({ state: "attached" });
     await page.clock.runFor(1800);
     const longPending = await entryStates(
       page,
@@ -145,7 +150,9 @@ await withPage(
     await page.evaluate(() => document.fonts.ready);
     await page.clock.runFor(16);
     await page.locator("#empty-featured-heading").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(150);
+    await page
+      .locator("#empty-featured-heading .handwriting-overlay")
+      .waitFor({ state: "attached" });
     const emptyPending = await presentation(
       page,
       "#empty-featured-heading + .entry-list p",
@@ -174,6 +181,10 @@ await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
   assert.equal(await roots.count(), 2);
   assert.equal(await page.locator("#first-featured-heading").count(), 1);
   assert.equal(await page.locator("#second-featured-heading").count(), 1);
+  await roots
+    .first()
+    .locator(".handwriting-overlay")
+    .waitFor({ state: "attached" });
   await page.clock.runFor(500);
   assert.ok(
     (await roots.first().locator(".handwriting-overlay").count()) > 0,
@@ -188,7 +199,9 @@ await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
     "offscreen sibling keeps its own pending state after the first disconnects",
   );
   await page.locator("#second-featured-heading").scrollIntoViewIfNeeded();
-  await page.waitForTimeout(150);
+  await page
+    .locator("#second-featured-heading .handwriting-overlay")
+    .waitFor({ state: "attached" });
   await page.clock.runFor(200);
   assert.ok(
     (await roots.locator(".handwriting-overlay").count()) > 0,
