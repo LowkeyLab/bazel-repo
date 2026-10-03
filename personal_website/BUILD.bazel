@@ -101,11 +101,27 @@ js_run_binary(
     visibility = ["//visibility:public"],
 )
 
+# Exercise date-only content through the real article and listing templates in
+# a timezone behind UTC; the production build environment may otherwise hide a
+# missing explicit timezone in a date formatter.
+js_run_binary(
+    name = "timezone_build",
+    srcs = SRCS + BUILD_DEPS,
+    args = [
+        "build",
+        "--outDir",
+        "timezone-dist",
+    ],
+    env = {"TZ": "America/New_York"},
+    mnemonic = "AstroTimezoneBuild",
+    out_dirs = ["timezone-dist"],
+    tool = ":astro",
+)
+
 sh_test(
     name = "site_structure_test",
     srcs = ["site_structure_test.sh"],
     data = [
-        "Caddyfile",
         ":build",
         ":frontend_layer",
     ],
@@ -197,12 +213,14 @@ go_test(
     data = [
         "Caddyfile",
         ":frontend_layer",
+        ":timezone_build",
         "@multitool//tools/caddy",
     ],  # keep
     env = {
         "CADDY": "$(rlocationpath @multitool//tools/caddy)",
         "CADDYFILE": "$(rlocationpath :Caddyfile)",
         "SITE_ARCHIVE": "$(rlocationpath :frontend_layer)",
+        "TIMEZONE_SITE": "$(rlocationpath :timezone_build)",
     },
     deps = [
         "@org_golang_x_net//html",

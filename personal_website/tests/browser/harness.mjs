@@ -162,6 +162,23 @@ export async function withPage(options, run) {
         requestAnimationFrame(sample);
       }, options.initialPaintSelector);
     }
+    if (options.recordAnimationEvents) {
+      await page.addInitScript((throwListener) => {
+        window.__animationRecords = [];
+        for (const level of ["debug", "warn"]) {
+          const original = console[level].bind(console);
+          console[level] = (...args) => {
+            const event = args.find(
+              (value) => value?.type === "SectionAnimationSettled",
+            );
+            if (event) window.__animationRecords.push({ level, event });
+            if (event && throwListener)
+              throw new Error("simulated listener failure");
+            original(...args);
+          };
+        }
+      }, options.throwAnimationListener);
+    }
     const errors = [];
     page.on("pageerror", (error) => errors.push(error));
     page.on("console", (message) => {
