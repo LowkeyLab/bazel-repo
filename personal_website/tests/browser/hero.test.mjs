@@ -883,6 +883,36 @@ for (const { viewport, interaction } of [
         rest.flourish,
         "accents draw during automatic playback",
       );
+      if (viewport.width === 1280) {
+        const links = await page
+          .locator(".hero-actions a, .hero-socials a")
+          .evaluateAll((elements) =>
+            elements.map((element) => {
+              element.focus({ preventScroll: true });
+              return {
+                href: element.getAttribute("href"),
+                opacity: Number(
+                  getComputedStyle(element.parentElement).opacity,
+                ),
+                focused: document.activeElement === element,
+              };
+            }),
+          );
+        assert.ok(links.length > 0, "hero has interactive links");
+        for (const link of links) {
+          assert.ok(link.opacity > 0.99, `${link.href} has finished revealing`);
+          assert.equal(
+            link.focused,
+            true,
+            `${link.href} accepts focus while the illustration is still playing`,
+          );
+        }
+        assert.deepEqual(
+          await page.evaluate(() => window.__animationRecords),
+          [],
+          "section completion still waits for the illustration",
+        );
+      }
       if (interaction === "cancel") {
         await changeMotionPreference(page, "reduce");
         assert.deepEqual(

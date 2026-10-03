@@ -94,9 +94,15 @@ function revealHero(
     reveal.cancel();
     throw error;
   }
+  const textFinished = reveal.finished.then((result) => {
+    if (result === "completed") {
+      for (const detail of details) detail.inert = false;
+    }
+    return result;
+  });
   return {
     // Replaying replaces the entrance art without cancelling the text reveal.
-    finished: Promise.all([reveal.finished, art.finished]).then(
+    finished: Promise.all([textFinished, art.finished]).then(
       ([result]) => result,
     ),
     cancel: () => {
