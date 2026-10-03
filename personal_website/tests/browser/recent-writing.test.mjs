@@ -49,7 +49,7 @@ await withPage(
       "complete entries stay hidden and untabbable until heading completion",
     );
     assert.ok(
-      (await page.locator(`${root} .handwriting-word`).count()) > 0,
+      (await page.locator(`${root} .handwriting-overlay`).count()) > 0,
       "the recent heading is writing while its entries remain pending",
     );
     for (const selector of [".entry-title"])

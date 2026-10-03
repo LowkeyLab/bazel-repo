@@ -330,13 +330,6 @@ http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_j
 
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
-http_file(
-    name = "caveat_test_font",
-    downloaded_file_path = "caveat-semibold.ttf",
-    sha256 = "e5be0a7ef2eb97414937cb70d079c8c9fb2e472cf74eab5b8fe9dfa2f6fb2704",
-    url = "https://fonts.gstatic.com/s/caveat/v23/WnznHAc5bAfYB2QRah7pcpNvOx-pjSx6SII.ttf",
-)
-
 http_archive(
     name = "net_sourceforge_pmd",
     build_file_content = "\n".join([

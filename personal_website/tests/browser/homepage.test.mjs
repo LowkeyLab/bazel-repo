@@ -32,7 +32,7 @@ async function visible(page, section) {
 async function writing(page, section) {
   assert.ok(
     await page
-      .locator(`${section.root} ${section.heading} .handwriting-word`)
+      .locator(`${section.root} ${section.heading} .handwriting-overlay`)
       .count(),
     `${section.root} is actively writing`,
   );
@@ -135,7 +135,7 @@ async function observeHeroReveals(page) {
       }
       if (root) {
         const writing = Boolean(
-          root.querySelector("#intro-heading .handwriting-word"),
+          root.querySelector("#intro-heading .handwriting-overlay"),
         );
         const detail = root.querySelector(".hero-actions");
         const style = getComputedStyle(detail);
@@ -253,7 +253,7 @@ for (const holdAnimationModules of [false, true]) {
         await readable(page);
         await staticHeroArtwork(page);
         assert.equal(
-          await page.locator(".handwriting-word").count(),
+          await page.locator(".handwriting-overlay").count(),
           0,
           "expired initialization cannot restart after fonts arrive",
         );
@@ -283,14 +283,14 @@ await withPage({ route: "/", clock: true }, async (page) => {
   assert.equal(await visible(page, sections[2]), false);
   await page.locator("#featured-heading").scrollIntoViewIfNeeded();
   await page
-    .locator("featured-work-animation .handwriting-word")
+    .locator("featured-work-animation .handwriting-overlay")
     .first()
     .waitFor();
   await page.clock.runFor(200);
   await writing(page, sections[1]);
   await page.locator("#recent-heading").scrollIntoViewIfNeeded();
   await page
-    .locator("recent-writing-animation .handwriting-word")
+    .locator("recent-writing-animation .handwriting-overlay")
     .first()
     .waitFor();
   await page.clock.runFor(300);
@@ -322,7 +322,7 @@ await withPage({ route: "/", clock: true }, async (page) => {
     "blog listing remains static",
   );
   assert.equal(
-    await page.locator(".handwriting-word").count(),
+    await page.locator(".handwriting-overlay").count(),
     0,
     "blog heading never writes",
   );
@@ -334,7 +334,7 @@ console.log("homepage_sections_run_independently passed");
 await withPage({ route: "/" }, async (page) => {
   await page.evaluate(() => document.fonts.ready);
   await page
-    .locator("home-hero-animation #intro-heading .handwriting-word")
+    .locator("home-hero-animation #intro-heading .handwriting-overlay")
     .first()
     .waitFor();
   await writing(page, sections[0]);
@@ -355,7 +355,7 @@ await withPage({ route: "/" }, async (page) => {
     await page.locator(".site-brand").click();
     await page.waitForURL((url) => url.pathname === "/");
     await page
-      .locator("home-hero-animation #intro-heading .handwriting-word")
+      .locator("home-hero-animation #intro-heading .handwriting-overlay")
       .first()
       .waitFor();
     await writing(page, sections[0]);
@@ -510,7 +510,7 @@ for (const theme of ["light", "dracula"]) {
         if (width !== 1440) {
           await page.locator("#featured-heading").scrollIntoViewIfNeeded();
           await page
-            .locator("featured-work-animation .handwriting-word")
+            .locator("featured-work-animation .handwriting-overlay")
             .first()
             .waitFor();
           await page.clock.runFor(200);
@@ -535,7 +535,7 @@ for (const theme of ["light", "dracula"]) {
           );
           assert.equal(
             await page
-              .locator("featured-work-animation .handwriting-word")
+              .locator("featured-work-animation .handwriting-overlay")
               .count(),
             0,
           );

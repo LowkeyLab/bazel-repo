@@ -14,7 +14,6 @@ function runfile(value) {
 }
 
 const fixtures = runfile(process.env.SITE_DIR ?? process.env.FIXTURE_DIR);
-const font = runfile(process.env.FONT_FILE);
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -79,42 +78,50 @@ export async function withPage(options, run) {
       javaScriptEnabled: options.javaScriptEnabled ?? true,
       serviceWorkers: "block",
     });
-    await context.route("https://fonts.googleapis.com/**", async (route) => {
-      if (options.fontMode === "blocked") return route.abort();
-      await route.fulfill({
-        status: 200,
-        contentType: "text/css",
-        body: "@font-face{font-family:Caveat;font-style:normal;font-weight:100 900;src:url(https://fonts.gstatic.com/caveat-test.ttf) format('truetype')}",
-      });
-    });
-    await context.route("https://fonts.gstatic.com/**", async (route) => {
+    // Fault cases delay/block the actual embedded production bytes by exposing
+    // them at a test-server URL. Normal tests leave the stylesheet untouched.
+    const embeddedFonts = new Map();
+    await context.route("**/__font_fault/*", async (route) => {
       if (options.fontMode === "blocked") return route.abort();
       if (options.fontMode === "held") await fontsHeld;
       if (options.fontMode === "delayed")
         await new Promise((resolve) => setTimeout(resolve, 2600));
-      await route.fulfill({
-        status: 200,
-        contentType: "font/ttf",
-        body: await readFile(font),
-      });
+      const name = new URL(route.request().url()).pathname;
+      const body = embeddedFonts.get(name);
+      assert.ok(body, "fault injection must serve a real production font");
+      await route.fulfill({ status: 200, contentType: "font/woff2", body });
     });
+    if (options.fontMode) {
+      await context.route("**/*.css", async (route) => {
+        const response = await route.fetch();
+        const body = (await response.text()).replace(
+          /data:font\/woff2;base64,([A-Za-z0-9+/=]+)/g,
+          (_, data) => {
+            const path = `/__font_fault/${embeddedFonts.size}.woff2`;
+            embeddedFonts.set(path, Buffer.from(data, "base64"));
+            return path;
+          },
+        );
+        await route.fulfill({ response, body });
+      });
+    }
     await context.route("**/*", async (route) => {
       const url = new URL(route.request().url());
       if (options.holdAnimationModules && url.pathname.endsWith(".js"))
         await modulesHeld;
       if (options.blockAnimationModule && url.pathname.endsWith(".js"))
         return route.abort();
-      if (
-        !["127.0.0.1", "fonts.googleapis.com", "fonts.gstatic.com"].includes(
-          url.hostname,
-        )
-      )
-        return route.abort();
+      if (url.hostname !== "127.0.0.1") return route.abort();
       return route.fallback();
     });
     page = await context.newPage();
     await context.tracing.start({ screenshots: true, snapshots: true });
-    if (options.clock) await page.clock.install();
+    if (options.clock) {
+      // install() still ticks in real time. Pause before navigation so slow CI
+      // requests and screenshots cannot advance the animation between runFor calls.
+      await page.clock.install({ time: 0 });
+      await page.clock.pauseAt(60_000);
+    }
     if (options.trackPending) {
       await page.addInitScript(() => {
         new MutationObserver((changes) => {
