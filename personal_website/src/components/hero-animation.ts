@@ -39,18 +39,21 @@ function underline(root: HTMLElement): AnimationRun {
   };
 }
 
-function writeHero(
-  root: HTMLElement,
-  heading: HTMLElement,
-): AnimationRun | undefined {
-  const writing = writeHeading(heading, 2600);
-  if (!writing) return;
-  let decoration: ReturnType<typeof createTimeline> | undefined;
+function animateArt(root: HTMLElement, entrance: boolean): () => void {
+  let cancelled = false;
+  const timeline = createTimeline({
+    defaults: { ease: "outQuad" },
+    onComplete: () => cancel(),
+  });
+  const cancel = () => {
+    if (cancelled) return;
+    cancelled = true;
+    timeline.revert();
+  };
   try {
-    decoration = createTimeline({ defaults: { ease: "outQuad" } });
-    decoration
+    timeline
       .add(
-        root.querySelectorAll(".hero-art"),
+        root.querySelectorAll(entrance ? ".hero-art" : ".hero-replay > svg"),
         { opacity: [0.35, 1], translateY: [10, 0], duration: 650 },
         120,
       )
@@ -65,18 +68,33 @@ function writeHero(
         450,
       );
   } catch (error) {
+    cancel();
+    throw error;
+  }
+  return cancel;
+}
+
+function writeHero(
+  heading: HTMLElement,
+  playArt: () => () => void,
+): AnimationRun | undefined {
+  const writing = writeHeading(heading, 2600);
+  if (!writing) return;
+  let cancelArt: (() => void) | undefined;
+  try {
+    cancelArt = playArt();
+  } catch (error) {
     writing.cancel();
-    decoration?.revert();
     throw error;
   }
   return {
     finished: writing.finished.then((result) => {
-      decoration?.revert();
+      cancelArt?.();
       return result;
     }),
     cancel: () => {
       writing.cancel();
-      decoration?.revert();
+      cancelArt?.();
     },
   };
 }
@@ -87,12 +105,47 @@ export function mount(root: HTMLElement): () => void {
   const details = [
     ...root.querySelectorAll<HTMLElement>("[data-animation-detail]"),
   ];
-  return mountSection(root, {
+  const button = root.querySelector<HTMLButtonElement>(".hero-replay");
+  const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+  let cancelArt = () => {};
+  const playArt = (entrance = false) => {
+    cancelArt();
+    cancelArt = animateArt(root, entrance);
+    return cancelArt;
+  };
+  const replay = () => {
+    if (motionPreference.matches) return;
+    try {
+      playArt();
+    } catch {
+      cancelArt();
+    }
+  };
+  const stopArt = () => cancelArt();
+  const onMotionChange = () => {
+    if (button) button.disabled = motionPreference.matches;
+    if (motionPreference.matches) stopArt();
+  };
+  button?.addEventListener("click", replay);
+  motionPreference.addEventListener("change", onMotionChange);
+  window.addEventListener("resize", stopArt);
+  window.addEventListener("pagehide", stopArt);
+  const disposeSection = mountSection(root, {
     heading,
     details,
     trigger: "immediate",
-    write: () => writeHero(root, heading),
+    write: () => writeHero(heading, () => playArt(true)),
     afterWrite: () => underline(root),
     reveal: () => revealDetails(details),
   });
+  onMotionChange();
+  return () => {
+    if (button) button.disabled = true;
+    disposeSection();
+    stopArt();
+    button?.removeEventListener("click", replay);
+    motionPreference.removeEventListener("change", onMotionChange);
+    window.removeEventListener("resize", stopArt);
+    window.removeEventListener("pagehide", stopArt);
+  };
 }

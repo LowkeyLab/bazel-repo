@@ -100,6 +100,9 @@ async function tabStops(page, steps) {
       await page.evaluate(() => ({
         href: document.activeElement?.getAttribute("href"),
         inHero: Boolean(document.activeElement?.closest("home-hero-animation")),
+        inDetail: Boolean(
+          document.activeElement?.closest("[data-animation-detail]"),
+        ),
       })),
     );
   }
@@ -152,8 +155,8 @@ await withPage(
       "keyboard traverses preceding navigation",
     );
     assert.ok(
-      pendingStops.every((stop) => !stop.inHero),
-      "pending hero controls are untabbable throughout keyboard traversal",
+      pendingStops.every((stop) => !stop.inDetail),
+      "hidden hero details are untabbable throughout keyboard traversal",
     );
     await page.clock.runFor(1484);
     for (const selector of details) {
@@ -302,6 +305,16 @@ for (const options of [
 ]) {
   await withPage({ route: "/tests/hero/", ...options }, async (page) => {
     await page.waitForTimeout(100);
+    if (
+      options.javaScriptEnabled === false ||
+      options.reducedMotion === "reduce"
+    ) {
+      assert.equal(
+        await page.locator(".hero-replay").isDisabled(),
+        true,
+        "unavailable replay is disabled",
+      );
+    }
     const detail = await presentation(page, ".hero-actions");
     assert.equal(
       detail.visibility,
@@ -364,6 +377,11 @@ await withPage(
   },
   async (page) => {
     await page.waitForTimeout(2200);
+    assert.equal(
+      await page.locator(".hero-replay").isDisabled(),
+      true,
+      "blocked module cannot advertise an available replay",
+    );
     const records = await page.evaluate(() => window.__animationRecords);
     assert.equal(records.length, 1);
     assert.equal(records[0].level, "warn");
@@ -666,5 +684,123 @@ await withPage(
       "failing listener neither changes completion nor recursively emits",
     );
     assert.equal(records[0].event.outcome, "completed");
+  },
+);
+
+// Media-query events use Chromium's rendering cycle, not the mocked animation
+// clock. Subscribe before emulation so assertions cannot outrun event delivery.
+async function changeMotionPreference(page, reducedMotion) {
+  await page.evaluate((preference) => {
+    const media = matchMedia("(prefers-reduced-motion: reduce)");
+    window.__motionPreferenceChanged = new Promise((resolve) => {
+      if (media.matches === (preference === "reduce")) resolve();
+      else media.addEventListener("change", () => resolve(), { once: true });
+    });
+  }, reducedMotion);
+  await page.emulateMedia({ reducedMotion });
+  await page.evaluate(async () => {
+    await window.__motionPreferenceChanged;
+    delete window.__motionPreferenceChanged;
+  });
+}
+
+// Replay is a real button interaction and must leave the hero copy untouched.
+await withPage(
+  { route: "/tests/hero/", clock: true, hasTouch: true },
+  async (page) => {
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() =>
+      customElements.whenDefined("home-hero-animation"),
+    );
+    await page.clock.runFor(6000);
+    const button = page.getByRole("button", {
+      name: "Replay computer and plant animation",
+    });
+    assert.equal(
+      await button.count(),
+      1,
+      "illustration must be keyboard accessible",
+    );
+    const art = button.locator("svg");
+    const rest = await art.evaluate((el) => getComputedStyle(el).opacity);
+    const plant = page.locator(".hero-plant");
+    const flourish = page.locator(".hero-flourish");
+    const restingPlant = await plant.evaluate(
+      (el) => getComputedStyle(el).transform,
+    );
+    const restingFlourish = await flourish.evaluate(
+      (el) => getComputedStyle(el).strokeDasharray,
+    );
+    for (const activation of ["click", "Enter", "Space", "tap", "click"]) {
+      if (activation === "click") await button.click();
+      else if (activation === "tap") await button.tap();
+      else await button.press(activation);
+      await page.clock.runFor(250);
+      assert.ok(
+        Number(await art.evaluate((el) => getComputedStyle(el).opacity)) <
+          Number(rest),
+      );
+      assert.equal(await page.locator("h1 .handwriting-overlay").count(), 0);
+      assert.equal(
+        (await presentation(page, ".hero-actions")).visibility,
+        "visible",
+      );
+    }
+    await page.clock.runFor(550);
+    assert.notEqual(
+      await plant.evaluate((el) => getComputedStyle(el).transform),
+      restingPlant,
+      "plant sways during replay",
+    );
+    assert.notEqual(
+      await flourish.evaluate((el) => getComputedStyle(el).strokeDasharray),
+      restingFlourish,
+      "accent strokes redraw during replay",
+    );
+    await page.clock.runFor(2000);
+    assert.equal(
+      await plant.evaluate((el) => getComputedStyle(el).transform),
+      restingPlant,
+    );
+    assert.equal(
+      await flourish.evaluate((el) => getComputedStyle(el).strokeDasharray),
+      restingFlourish,
+    );
+    assert.equal(
+      await art.evaluate((el) => getComputedStyle(el).opacity),
+      rest,
+    );
+    await button.click();
+    await page.clock.runFor(800);
+    await changeMotionPreference(page, "reduce");
+    assert.equal(
+      await plant.evaluate((el) => getComputedStyle(el).transform),
+      restingPlant,
+      "motion preference cancels an active replay",
+    );
+    assert.equal(await button.isDisabled(), true);
+    await button.evaluate((element) => element.click());
+    await page.clock.runFor(250);
+    assert.equal(
+      await art.evaluate((el) => getComputedStyle(el).opacity),
+      rest,
+    );
+    await changeMotionPreference(page, "no-preference");
+    assert.equal(await button.isEnabled(), true);
+    await button.click();
+    await page.clock.runFor(250);
+    assert.ok(
+      Number(await art.evaluate((el) => getComputedStyle(el).opacity)) <
+        Number(rest),
+    );
+    assert.equal(
+      await button.evaluate((element) => {
+        const root = element.closest("home-hero-animation");
+        root.remove();
+        return element.disabled;
+      }),
+      true,
+      "disconnection disables replay until remounted",
+    );
   },
 );

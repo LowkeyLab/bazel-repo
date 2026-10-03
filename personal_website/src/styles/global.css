@@ -323,7 +323,20 @@ recent-writing-animation {
 .hero-art {
   color: var(--color-primary);
 }
-.hero-art > svg {
+.hero-replay {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.hero-replay:disabled {
+  cursor: default;
+}
+.hero-replay > svg {
+  display: block;
   width: 100%;
   height: auto;
   overflow: visible;
