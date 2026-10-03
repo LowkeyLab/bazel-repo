@@ -21,7 +21,7 @@ git_override(
 bazel_dep(name = "aspect_rules_lint_rust")
 git_override(
     module_name = "aspect_rules_lint_rust",
-    commit = "8e159452cf7f53055f123900599b190684f42dd9",
+    commit = "0ec5d85e05d9933969ebb191315de48573449f67",
     remote = "https://github.com/aspect-build/rules_lint.git",
     strip_prefix = "lint/rust",
 )
