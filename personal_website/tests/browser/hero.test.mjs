@@ -338,6 +338,11 @@ for (const options of [
         "static fallback does not animate the illustration",
       );
       assert.equal(art.translate, "none");
+      assert.equal(
+        (await presentation(page, ".hero-code")).opacity,
+        1,
+        "fallback leaves the computer on",
+      );
     }
   });
 }
@@ -438,6 +443,11 @@ for (const [reason, change] of [
       }));
       assert.equal(art.opacity, "1", "cancellation restores illustration");
       assert.equal(art.translate, "none");
+      assert.equal(
+        (await presentation(page, ".hero-code")).opacity,
+        1,
+        "fallback leaves the computer on",
+      );
       const records = await page.evaluate(() => window.__animationRecords);
       assert.equal(records.length, 1);
       assert.equal(records[0].level, "debug");
@@ -721,7 +731,8 @@ await withPage(
       1,
       "illustration must be keyboard accessible",
     );
-    const art = button.locator("svg");
+    const illustration = button.locator("svg");
+    const art = button.locator(".hero-code");
     const rest = await art.evaluate((el) => getComputedStyle(el).opacity);
     const plant = page.locator(".hero-plant");
     const flourish = page.locator(".hero-flourish");
@@ -736,6 +747,14 @@ await withPage(
       else if (activation === "tap") await button.tap();
       else await button.press(activation);
       await page.clock.runFor(250);
+      assert.equal(
+        await illustration.evaluate((el) => getComputedStyle(el).opacity),
+        "1",
+      );
+      assert.equal(
+        await illustration.evaluate((el) => getComputedStyle(el).transform),
+        "none",
+      );
       assert.ok(
         Number(await art.evaluate((el) => getComputedStyle(el).opacity)) <
           Number(rest),
@@ -834,6 +853,8 @@ for (const { viewport, interaction } of [
             flourish.getTotalLength();
           return {
             opacity: getComputedStyle(art).opacity,
+            transform: getComputedStyle(art).transform,
+            code: getComputedStyle(art.querySelector(".hero-code")).opacity,
             plant: getComputedStyle(art.querySelector(".hero-plant")).transform,
             flourish:
               dash === "none" ? 1 : Math.min(1, parseFloat(dash) / length),
@@ -841,6 +862,13 @@ for (const { viewport, interaction } of [
         });
       const rest = await artState();
       assert.equal(rest.opacity, "1", "art stays at rest before text reveal");
+      assert.equal(
+        rest.transform,
+        "none",
+        "illustration starts in its final position",
+      );
+      assert.equal(rest.code, "0", "computer starts off before text reveal");
+      const poweredOn = { ...rest, code: "1" };
       let revealing = false;
       for (let frame = 0; frame < 250; frame++) {
         await page.clock.runFor(16);
@@ -868,8 +896,19 @@ for (const { viewport, interaction } of [
         "text is revealing",
       );
       assert.ok(
-        Number((await artState()).opacity) < 1,
-        "art animates alongside the text",
+        Number((await artState()).code) > 0 &&
+          Number((await artState()).code) < 1,
+        "code turns on alongside the text",
+      );
+      assert.equal(
+        (await artState()).opacity,
+        "1",
+        "illustration remains opaque",
+      );
+      assert.equal(
+        (await artState()).transform,
+        "none",
+        "illustration does not slide",
       );
       await page.clock.runFor(650);
       const moving = await artState();
@@ -917,7 +956,7 @@ for (const { viewport, interaction } of [
         await changeMotionPreference(page, "reduce");
         assert.deepEqual(
           await artState(),
-          rest,
+          poweredOn,
           "preference change cancels automatic playback",
         );
         assert.equal(await page.locator(".hero-replay").isDisabled(), true);
@@ -928,7 +967,7 @@ for (const { viewport, interaction } of [
           .click();
         await page.clock.runFor(250);
         assert.ok(
-          (await presentation(page, ".hero-replay > svg")).opacity < 1,
+          (await presentation(page, ".hero-code")).opacity < 1,
           "replay replaces automatic playback",
         );
         assert.ok(
@@ -939,8 +978,8 @@ for (const { viewport, interaction } of [
       await page.clock.runFor(2000);
       assert.deepEqual(
         await artState(),
-        rest,
-        "automatic playback returns to rest",
+        poweredOn,
+        "automatic playback leaves the computer on",
       );
       const outcomes = await page.evaluate(() =>
         window.__animationRecords.map(({ event }) => event.outcome),
@@ -954,7 +993,7 @@ for (const { viewport, interaction } of [
       await page.clock.runFor(800);
       assert.deepEqual(
         await artState(),
-        rest,
+        poweredOn,
         "viewport entry does not replay the art",
       );
     },
