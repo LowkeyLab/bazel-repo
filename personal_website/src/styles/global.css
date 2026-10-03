@@ -332,6 +332,9 @@ recent-writing-animation {
   color: inherit;
   cursor: pointer;
 }
+.hero-replay:disabled {
+  cursor: default;
+}
 .hero-replay > svg {
   display: block;
   width: 100%;

@@ -305,6 +305,16 @@ for (const options of [
 ]) {
   await withPage({ route: "/tests/hero/", ...options }, async (page) => {
     await page.waitForTimeout(100);
+    if (
+      options.javaScriptEnabled === false ||
+      options.reducedMotion === "reduce"
+    ) {
+      assert.equal(
+        await page.locator(".hero-replay").isDisabled(),
+        true,
+        "unavailable replay is disabled",
+      );
+    }
     const detail = await presentation(page, ".hero-actions");
     assert.equal(
       detail.visibility,
@@ -367,6 +377,11 @@ await withPage(
   },
   async (page) => {
     await page.waitForTimeout(2200);
+    assert.equal(
+      await page.locator(".hero-replay").isDisabled(),
+      true,
+      "blocked module cannot advertise an available replay",
+    );
     const records = await page.evaluate(() => window.__animationRecords);
     assert.equal(records.length, 1);
     assert.equal(records[0].level, "warn");
@@ -747,11 +762,31 @@ await withPage(
       restingPlant,
       "motion preference cancels an active replay",
     );
-    await button.click();
+    assert.equal(await button.isDisabled(), true);
+    await button.evaluate((element) => element.click());
     await page.clock.runFor(250);
     assert.equal(
       await art.evaluate((el) => getComputedStyle(el).opacity),
       rest,
+    );
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.clock.runFor(16);
+    // Media-query changes arrive asynchronously; activation waits for availability.
+    await button.click();
+    assert.equal(await button.isEnabled(), true);
+    await page.clock.runFor(250);
+    assert.ok(
+      Number(await art.evaluate((el) => getComputedStyle(el).opacity)) <
+        Number(rest),
+    );
+    assert.equal(
+      await button.evaluate((element) => {
+        const root = element.closest("home-hero-animation");
+        root.remove();
+        return element.disabled;
+      }),
+      true,
+      "disconnection disables replay until remounted",
     );
   },
 );

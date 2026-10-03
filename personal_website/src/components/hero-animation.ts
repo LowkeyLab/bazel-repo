@@ -123,6 +123,7 @@ export function mount(root: HTMLElement): () => void {
   };
   const stopArt = () => cancelArt();
   const onMotionChange = () => {
+    if (button) button.disabled = motionPreference.matches;
     if (motionPreference.matches) stopArt();
   };
   button?.addEventListener("click", replay);
@@ -137,7 +138,9 @@ export function mount(root: HTMLElement): () => void {
     afterWrite: () => underline(root),
     reveal: () => revealDetails(details),
   });
+  onMotionChange();
   return () => {
+    if (button) button.disabled = true;
     disposeSection();
     stopArt();
     button?.removeEventListener("click", replay);
