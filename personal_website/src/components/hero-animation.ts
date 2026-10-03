@@ -61,8 +61,8 @@ function animateArt(root: HTMLElement, entrance: boolean): AnimationRun {
   try {
     timeline
       .add(
-        root.querySelectorAll(entrance ? ".hero-art" : ".hero-replay > svg"),
-        { opacity: [0.35, 1], translateY: [10, 0], duration: 650 },
+        root.querySelectorAll(".hero-code"),
+        { opacity: [0, 1], duration: 650 },
         entrance ? 0 : 120,
       )
       .add(

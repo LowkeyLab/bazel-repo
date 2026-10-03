@@ -252,6 +252,9 @@ featured-work-animation,
 recent-writing-animation {
   display: block;
 }
+[data-animation-pending] .hero-code {
+  opacity: 0;
+}
 [data-animation-pending] .ink-underline > svg,
 [data-animation-pending] [data-animation-detail],
 [data-animation-pending] .entry-link,

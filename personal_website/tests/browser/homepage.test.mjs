@@ -189,7 +189,7 @@ async function noHorizontalOverflow(page, label) {
 
 async function staticHeroArtwork(page) {
   const artwork = await page
-    .locator(".hero-art, .hero-flourish, .hero-plant")
+    .locator(".hero-art, .hero-flourish, .hero-plant, .hero-code")
     .evaluateAll((elements) =>
       elements.map((element) => {
         const style = getComputedStyle(element);
@@ -201,7 +201,7 @@ async function staticHeroArtwork(page) {
         };
       }),
     );
-  assert.equal(artwork.length, 3);
+  assert.equal(artwork.length, 4);
   for (const state of artwork) {
     assert.deepEqual(
       state,
@@ -630,7 +630,7 @@ await withPage({ route: "/", clock: true }, async (page) => {
   await page.clock.runFor(250);
   assert.ok((await presentation(page, ".eyebrow")).opacity > 0);
   assert.ok(
-    (await presentation(page, ".hero-art")).opacity < 1,
+    (await presentation(page, ".hero-code")).opacity < 1,
     "homepage illustration animates with the surrounding text",
   );
 });
