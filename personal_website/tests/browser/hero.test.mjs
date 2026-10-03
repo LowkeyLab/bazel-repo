@@ -687,6 +687,23 @@ await withPage(
   },
 );
 
+// Media-query events use Chromium's rendering cycle, not the mocked animation
+// clock. Subscribe before emulation so assertions cannot outrun event delivery.
+async function changeMotionPreference(page, reducedMotion) {
+  await page.evaluate((preference) => {
+    const media = matchMedia("(prefers-reduced-motion: reduce)");
+    window.__motionPreferenceChanged = new Promise((resolve) => {
+      if (media.matches === (preference === "reduce")) resolve();
+      else media.addEventListener("change", () => resolve(), { once: true });
+    });
+  }, reducedMotion);
+  await page.emulateMedia({ reducedMotion });
+  await page.evaluate(async () => {
+    await window.__motionPreferenceChanged;
+    delete window.__motionPreferenceChanged;
+  });
+}
+
 // Replay is a real button interaction and must leave the hero copy untouched.
 await withPage(
   { route: "/tests/hero/", clock: true, hasTouch: true },
@@ -755,8 +772,7 @@ await withPage(
     );
     await button.click();
     await page.clock.runFor(800);
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.clock.runFor(16);
+    await changeMotionPreference(page, "reduce");
     assert.equal(
       await plant.evaluate((el) => getComputedStyle(el).transform),
       restingPlant,
@@ -769,11 +785,9 @@ await withPage(
       await art.evaluate((el) => getComputedStyle(el).opacity),
       rest,
     );
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.clock.runFor(16);
-    // Media-query changes arrive asynchronously; activation waits for availability.
-    await button.click();
+    await changeMotionPreference(page, "no-preference");
     assert.equal(await button.isEnabled(), true);
+    await button.click();
     await page.clock.runFor(250);
     assert.ok(
       Number(await art.evaluate((el) => getComputedStyle(el).opacity)) <
