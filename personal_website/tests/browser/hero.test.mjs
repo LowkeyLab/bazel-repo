@@ -5,7 +5,8 @@ import sharp from "sharp";
 import { presentation, withPage } from "./harness.mjs";
 
 // Revealing the same HTML must preserve the final glyphs and layout, including
-// mobile line wrapping. Allow only single-value compositing rounding per channel.
+// mobile line wrapping. Mask compositing differs by up to two colour levels
+// in the pinned CI Chromium, even when glyphs and layout are unchanged.
 for (const viewport of [
   { width: 1280, height: 900 },
   { width: 390, height: 844 },
@@ -65,7 +66,7 @@ for (const viewport of [
         "heading dimensions change at completion",
       );
       const changed = before.data.some(
-        (value, index) => Math.abs(value - after.data[index]) > 1,
+        (value, index) => Math.abs(value - after.data[index]) > 2,
       );
       if (changed && process.env.TEST_UNDECLARED_OUTPUTS_DIR) {
         await writeFile(
