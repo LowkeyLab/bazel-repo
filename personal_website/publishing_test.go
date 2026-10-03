@@ -6,10 +6,13 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/bazelbuild/rules_go/go/runfiles"
 	"golang.org/x/net/html"
 )
 
@@ -224,6 +227,13 @@ func TestPageMetadata(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			page := parsePage(t, body)
 			canonical := siteOrigin + strings.TrimSuffix(path, "index.html")
+			if published[canonical] || path == "/index.html" || path == "/blog/index.html" || path == "/about/index.html" {
+				for _, directive := range strings.FieldsFunc(strings.ToLower(page.meta["robots"]), func(r rune) bool { return r == ',' || r == ' ' }) {
+					if directive == "noindex" || directive == "none" {
+						t.Errorf("public page must remain indexable; robots = %q", page.meta["robots"])
+					}
+				}
+			}
 			if page.canonical != canonical {
 				t.Errorf("canonical = %q; want %q", page.canonical, canonical)
 			}
@@ -392,4 +402,33 @@ func parsePage(t *testing.T, body string) renderedPage {
 	}
 	visit(doc)
 	return page
+}
+
+// The input date is date-only YAML (2025-11-19). These artifacts are built in
+// America/New_York, where an accidental local-time formatter shows November 18.
+func TestPublicationDatesFromWesternTimezoneBuild(t *testing.T) {
+	root, err := runfiles.Rlocation(os.Getenv("TIMEZONE_SITE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"blog/index.html", "blog/mindreadr/index.html"} {
+		t.Run(path, func(t *testing.T) {
+			body, err := os.ReadFile(filepath.Join(root, path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := false
+			for _, date := range parsePage(t, string(body)).dates {
+				if date.datetime == "2025-11-19T00:00:00.000Z" {
+					found = true
+					if date.text != "November 19, 2025" {
+						t.Errorf("publication date = %q; want November 19, 2025", date.text)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("missing Mindreadr publication date")
+			}
+		})
+	}
 }

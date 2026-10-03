@@ -1,4 +1,12 @@
 import { animate, stagger } from "animejs";
+import {
+  createSettlement,
+  logAnimation,
+  type AnimationRoot,
+  type AnimationObserver,
+  type AnimationPhase,
+  type AnimationResult,
+} from "./animation-observation";
 
 export interface AnimationRun {
   finished: Promise<"completed" | "cancelled">;
@@ -14,16 +22,8 @@ export interface SectionSequence {
   reveal(): AnimationRun;
 }
 
-type BootstrapRoot = HTMLElement & {
-  animationBootstrap?: {
-    register(cancel: () => void): boolean;
-    claim(): boolean;
-    restore(): void;
-  };
-};
-
 function staticContent(root: HTMLElement, details: readonly HTMLElement[]) {
-  (root as BootstrapRoot).animationBootstrap?.restore();
+  (root as AnimationRoot).animationBootstrap?.restore();
   delete root.dataset.animationPending;
   for (const detail of details) {
     detail.inert = false;
@@ -69,7 +69,11 @@ export function revealDetails(details: readonly HTMLElement[]): AnimationRun {
 export function mountSection(
   root: HTMLElement,
   sequence: SectionSequence,
+  observe: AnimationObserver = logAnimation,
 ): () => void {
+  const bootstrap = (root as AnimationRoot).animationBootstrap;
+  const settle = bootstrap ? bootstrap.settle : createSettlement(root, observe);
+  let phase: AnimationPhase = "fonts";
   const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
   const active = new Set<AnimationRun>();
   let disposed = false;
@@ -77,38 +81,55 @@ export function mountSection(
   let started = false;
   const restore = () => staticContent(root, sequence.details);
 
-  const cancel = () => {
+  const cancel = (
+    result: AnimationResult = {
+      outcome: "cancelled",
+      reason: root.isConnected ? "cancelled" : "disconnection",
+    },
+  ) => {
     if (disposed) return;
     disposed = true;
     observer?.disconnect();
     for (const run of active) run.cancel();
     active.clear();
     restore();
+    settle(result, phase);
     motionPreference.removeEventListener("change", onMotionChange);
-    window.removeEventListener("resize", cancel);
-    window.removeEventListener("pagehide", cancel);
+    window.removeEventListener("resize", onResize);
+    window.removeEventListener("pagehide", onPageHide);
   };
+  const onResize = () => cancel({ outcome: "cancelled", reason: "resize" });
+  const onPageHide = () => cancel({ outcome: "cancelled", reason: "pagehide" });
   const onMotionChange = () => {
-    if (motionPreference.matches) cancel();
+    if (motionPreference.matches)
+      cancel({ outcome: "cancelled", reason: "preference" });
   };
-  if (motionPreference.matches) {
-    restore();
+  if (
+    bootstrap &&
+    !bootstrap.register(
+      () => cancel({ outcome: "fallback", reason: "watchdog_expired" }),
+      observe,
+    )
+  ) {
+    cancel();
     return cancel;
   }
-  const bootstrap = (root as BootstrapRoot).animationBootstrap;
-  if (bootstrap && !bootstrap.register(cancel)) {
-    cancel();
+  if (motionPreference.matches) {
+    cancel({ outcome: "cancelled", reason: "preference" });
     return cancel;
   }
   for (const detail of sequence.details) detail.inert = true;
   if (!root.hasAttribute("data-animation-pending"))
     root.dataset.animationPending = "";
   motionPreference.addEventListener("change", onMotionChange);
-  window.addEventListener("resize", cancel);
-  window.addEventListener("pagehide", cancel);
+  window.addEventListener("resize", onResize);
+  window.addEventListener("pagehide", onPageHide);
 
   const follow = async (run: AnimationRun | undefined): Promise<boolean> => {
-    if (!run) return false;
+    if (!run) {
+      cancel({ outcome: "fallback", reason: "initialization_unavailable" });
+      return false;
+    }
     active.add(run);
     const result = await run.finished;
     active.delete(run);
@@ -119,10 +140,12 @@ export function mountSection(
     if (started || disposed || !root.isConnected) return;
     started = true;
     try {
+      phase = "writing";
       if (!(await follow(sequence.write()))) {
         cancel();
         return;
       }
+      phase = "after_write";
       if (sequence.afterWrite && !(await follow(sequence.afterWrite()))) {
         cancel();
         return;
@@ -132,13 +155,15 @@ export function mountSection(
         detail.style.visibility = "visible";
       }
       delete root.dataset.animationPending;
+      phase = "reveal";
       if (!(await follow(sequence.reveal()))) {
         cancel();
         return;
       }
       restore();
+      settle({ outcome: "completed" }, phase);
     } catch {
-      cancel();
+      cancel({ outcome: "fallback", reason: "exception" });
     }
   };
 
@@ -148,7 +173,11 @@ export function mountSection(
       const loaded = [...document.fonts].some(
         (font) => font.family.includes("Caveat") && font.status === "loaded",
       );
-      if (!loaded || !root.hasAttribute("data-animation-pending")) {
+      if (!loaded) {
+        cancel({ outcome: "fallback", reason: "font_unavailable" });
+        return;
+      }
+      if (!root.hasAttribute("data-animation-pending")) {
         cancel();
         return;
       }
@@ -156,6 +185,7 @@ export function mountSection(
         cancel();
         return;
       }
+      phase = "waiting";
       if (sequence.trigger === "immediate") {
         void start();
       } else {
@@ -170,6 +200,6 @@ export function mountSection(
         observer.observe(sequence.heading);
       }
     })
-    .catch(cancel);
+    .catch(() => cancel({ outcome: "fallback", reason: "exception" }));
   return cancel;
 }

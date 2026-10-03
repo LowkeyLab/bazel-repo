@@ -556,3 +556,60 @@ for (const theme of ["light", "dracula"]) {
     console.log(`mobile_preserves_layout: ${theme} ${width}px passed`);
   }
 }
+
+await withPage({ route: "/", reducedMotion: "reduce" }, async (page) => {
+  const allWriting = page.getByRole("link", {
+    name: "All writing",
+    exact: true,
+  });
+  assert.equal(await allWriting.getAttribute("href"), "/blog/");
+  assert.equal(
+    await allWriting.evaluate((link) => {
+      const list = document.querySelector(
+        'section[aria-label="Recent writing"]',
+      );
+      return (
+        !list.contains(link) &&
+        Boolean(
+          list.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      );
+    }),
+    true,
+    "All writing follows the recent list",
+  );
+
+  // Operate the real accessible checkbox with the keyboard: it is visually
+  // hidden, so clicking its zero-sized input would not model a user action.
+  const toggle = page.getByRole("checkbox", { name: "Use dark theme" });
+  const initialDark = await toggle.isChecked();
+  async function assertTheme(dark) {
+    await page.waitForFunction((expectedDark) => {
+      const checkbox = document.querySelector("#theme-toggle");
+      return (
+        checkbox?.checked === expectedDark &&
+        document.documentElement.dataset.theme ===
+          (expectedDark ? "dracula" : "light")
+      );
+    }, dark);
+    assert.equal(await toggle.isChecked(), dark);
+    assert.equal(
+      await page.locator("html").getAttribute("data-theme"),
+      dark ? "dracula" : "light",
+    );
+  }
+  await assertTheme(initialDark);
+  for (const dark of [!initialDark, initialDark]) {
+    await toggle.focus();
+    await page.keyboard.press("Space");
+    await assertTheme(dark);
+    await page.getByRole("link", { name: "About", exact: true }).click();
+    await page.waitForURL("**/about/");
+    await assertTheme(dark);
+    await page.reload();
+    await assertTheme(dark);
+    await page.goto(new URL("/", page.url()).href);
+    await assertTheme(dark);
+  }
+});
+console.log("all_writing_order_and_theme_persistence: passed");

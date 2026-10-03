@@ -15,6 +15,11 @@ for (const viewport of [
     { route: "/tests/hero/", clock: true, viewport },
     async (page) => {
       await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() =>
+        customElements.whenDefined("home-hero-animation"),
+      );
+      // Mount is scheduled with setTimeout(0); explicitly advance the paused clock.
+      await page.clock.runFor(1);
       await page
         .locator("h1 .handwriting-overlay")
         .first()
@@ -102,7 +107,12 @@ async function tabStops(page, steps) {
 }
 
 await withPage(
-  { route: "/tests/hero/", clock: true, initialPaintSelector: ".hero-actions" },
+  {
+    route: "/tests/hero/",
+    clock: true,
+    initialPaintSelector: ".hero-actions",
+    recordAnimationEvents: true,
+  },
   async (page) => {
     await page.clock.runFor(16);
     const firstPaint = await page.evaluate(() => window.__initialPaintSamples);
@@ -250,6 +260,27 @@ await withPage(
         `heading retains its ${dimension} bound`,
       );
     }
+    const records = await page.evaluate(() => window.__animationRecords);
+    assert.equal(records.length, 1);
+    assert.equal(records[0].level, "debug");
+    assert.equal(records[0].event.outcome, "completed");
+    assert.equal(records[0].event.phase, "reveal");
+    assert.equal(records[0].event.section, "hero");
+    assert.ok(records[0].event.elapsedMs > 0);
+    assert.deepEqual(Object.keys(records[0].event).sort(), [
+      "elapsedMs",
+      "outcome",
+      "phase",
+      "runId",
+      "section",
+      "type",
+    ]);
+    await page.setViewportSize({ width: 1100, height: 900 });
+    assert.equal(
+      await page.evaluate(() => window.__animationRecords.length),
+      1,
+      "resize after completion cannot replace or repeat terminal outcome",
+    );
     const completedStops = await tabStops(page, 18);
     for (const href of [
       "mailto:hello@example.com",
@@ -326,9 +357,17 @@ await withPage(
 );
 
 await withPage(
-  { route: "/tests/hero/", blockAnimationModule: true },
+  {
+    route: "/tests/hero/",
+    blockAnimationModule: true,
+    recordAnimationEvents: true,
+  },
   async (page) => {
     await page.waitForTimeout(2200);
+    const records = await page.evaluate(() => window.__animationRecords);
+    assert.equal(records.length, 1);
+    assert.equal(records[0].level, "warn");
+    assert.equal(records[0].event.reason, "watchdog_expired");
     assert.equal(
       (await presentation(page, ".hero-actions")).visibility,
       "visible",
@@ -337,56 +376,78 @@ await withPage(
   },
 );
 
-for (const change of [
-  async (page) => page.emulateMedia({ reducedMotion: "reduce" }),
-  async (page) => page.setViewportSize({ width: 900, height: 800 }),
+for (const [reason, change] of [
+  [
+    "preference",
+    async (page) => page.emulateMedia({ reducedMotion: "reduce" }),
+  ],
+  ["resize", async (page) => page.setViewportSize({ width: 900, height: 800 })],
 ]) {
-  await withPage({ route: "/tests/hero/" }, async (page) => {
-    await page.locator("home-hero-animation[data-animation-pending]").waitFor();
-    await change(page);
-    await page.waitForFunction(
-      () =>
-        !document
-          .querySelector("home-hero-animation")
-          ?.hasAttribute("data-animation-pending"),
-      null,
-      { timeout: 1000 },
-    );
-    assert.equal(
-      (await presentation(page, ".hero-actions")).visibility,
-      "visible",
-      "cancellation restores controls",
-    );
-    assert.equal(
-      await page.locator("home-hero-animation[data-animation-pending]").count(),
-      0,
-    );
-    assert.equal(
-      (await presentation(page, ".ink-underline > svg")).visibility,
-      "visible",
-      "cancellation restores the underline",
-    );
-    const art = await page.locator(".hero-art").evaluate((element) => ({
-      opacity: getComputedStyle(element).opacity,
-      translate: getComputedStyle(element).translate,
-    }));
-    assert.equal(art.opacity, "1", "cancellation restores illustration");
-    assert.equal(art.translate, "none");
-  });
+  await withPage(
+    { route: "/tests/hero/", recordAnimationEvents: true },
+    async (page) => {
+      await page
+        .locator("home-hero-animation[data-animation-pending]")
+        .waitFor();
+      await change(page);
+      await page.waitForFunction(
+        () =>
+          !document
+            .querySelector("home-hero-animation")
+            ?.hasAttribute("data-animation-pending"),
+        null,
+        { timeout: 1000 },
+      );
+      assert.equal(
+        (await presentation(page, ".hero-actions")).visibility,
+        "visible",
+        "cancellation restores controls",
+      );
+      assert.equal(
+        await page
+          .locator("home-hero-animation[data-animation-pending]")
+          .count(),
+        0,
+      );
+      assert.equal(
+        (await presentation(page, ".ink-underline > svg")).visibility,
+        "visible",
+        "cancellation restores the underline",
+      );
+      const art = await page.locator(".hero-art").evaluate((element) => ({
+        opacity: getComputedStyle(element).opacity,
+        translate: getComputedStyle(element).translate,
+      }));
+      assert.equal(art.opacity, "1", "cancellation restores illustration");
+      assert.equal(art.translate, "none");
+      const records = await page.evaluate(() => window.__animationRecords);
+      assert.equal(records.length, 1);
+      assert.equal(records[0].level, "debug");
+      assert.equal(records[0].event.outcome, "cancelled");
+      assert.equal(records[0].event.reason, reason);
+    },
+  );
 }
 
-await withPage({ route: "/tests/hero/", fontMode: "delayed" }, async (page) => {
-  const root = await page.locator("home-hero-animation").elementHandle();
-  await root.evaluate((element) => element.remove());
-  await page.waitForTimeout(2800);
-  assert.equal(
-    await root.evaluate((element) =>
-      element.hasAttribute("data-animation-pending"),
-    ),
-    false,
-    "disconnected root is restored after delayed font response",
-  );
-});
+await withPage(
+  { route: "/tests/hero/", fontMode: "delayed", recordAnimationEvents: true },
+  async (page) => {
+    const root = await page.locator("home-hero-animation").elementHandle();
+    await root.evaluate((element) => element.remove());
+    await page.waitForTimeout(2800);
+    assert.equal(
+      await root.evaluate((element) =>
+        element.hasAttribute("data-animation-pending"),
+      ),
+      false,
+      "disconnected root is restored after delayed font response",
+    );
+    const records = await page.evaluate(() => window.__animationRecords);
+    assert.equal(records.length, 1);
+    assert.equal(records[0].event.reason, "disconnection");
+    assert.equal(records[0].level, "debug");
+  },
+);
 
 await withPage({ route: "/tests/hero/" }, async (page) => {
   await page.locator("home-hero-animation[data-animation-pending]").waitFor();
@@ -402,56 +463,208 @@ await withPage({ route: "/tests/hero/" }, async (page) => {
   );
 });
 
-await withPage({ route: "/tests/lifecycle/" }, async (page) => {
-  const snapshot = await page.evaluate(() => ({
-    roots: [...document.querySelectorAll(".lifecycle-fixture")].map((root) =>
-      root.outerHTML.slice(0, 160),
-    ),
-    fonts: [...document.fonts].map((font) => ({
-      family: font.family,
-      status: font.status,
-    })),
-  }));
-  assert.equal(
-    await page.locator(".lifecycle-fixture[data-animation-pending]").count(),
-    2,
-    JSON.stringify(snapshot),
+await withPage(
+  { route: "/tests/lifecycle/", recordAnimationEvents: true },
+  async (page) => {
+    const snapshot = await page.evaluate(() => ({
+      roots: [...document.querySelectorAll(".lifecycle-fixture")].map((root) =>
+        root.outerHTML.slice(0, 160),
+      ),
+      fonts: [...document.fonts].map((font) => ({
+        family: font.family,
+        status: font.status,
+      })),
+    }));
+    assert.equal(
+      await page.locator(".lifecycle-fixture[data-animation-pending]").count(),
+      2,
+      JSON.stringify(snapshot),
+    );
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(3) a"))
+        .visibility,
+      "visible",
+      "unsupported glyph falls back to static detail",
+    );
+    await page.waitForTimeout(700);
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(1) a"))
+        .visibility,
+      "hidden",
+    );
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(2) a"))
+        .visibility,
+      "hidden",
+    );
+    await page.waitForTimeout(1100);
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(1) a"))
+        .visibility,
+      "visible",
+      "1200ms handwriting releases its own detail",
+    );
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(2) a"))
+        .visibility,
+      "hidden",
+      "2600ms handwriting still owns its detail",
+    );
+    await page.waitForTimeout(1900);
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(2) a"))
+        .visibility,
+      "visible",
+      "longer handwriting releases after actual completion",
+    );
+    const records = await page.evaluate(() => window.__animationRecords);
+    assert.equal(records.length, 4);
+    assert.equal(new Set(records.map(({ event }) => event.runId)).size, 4);
+    assert.deepEqual(
+      records.map(({ event }) => event.reason ?? event.outcome).sort(),
+      ["completed", "completed", "exception", "initialization_unavailable"],
+    );
+    for (const { event, level } of records) {
+      assert.equal(level, event.outcome === "fallback" ? "warn" : "debug");
+      assert.deepEqual(
+        Object.keys(event).sort(),
+        event.outcome === "completed"
+          ? ["elapsedMs", "outcome", "phase", "runId", "section", "type"]
+          : [
+              "elapsedMs",
+              "outcome",
+              "phase",
+              "reason",
+              "runId",
+              "section",
+              "type",
+            ],
+      );
+    }
+    assert.equal(
+      (await presentation(page, ".lifecycle-fixture:nth-of-type(4) a"))
+        .visibility,
+      "visible",
+    );
+  },
+);
+
+// Inspect structured records at the console boundary, never rendered messages.
+await withPage(
+  { route: "/tests/hero/", fontMode: "blocked", recordAnimationEvents: true },
+  async (page) => {
+    await page.waitForFunction(() => window.__animationRecords?.length > 0);
+    const records = await page.evaluate(() => window.__animationRecords);
+    assert.equal(records.length, 1);
+    assert.equal(records[0].level, "warn");
+    assert.equal(records[0].event.type, "SectionAnimationSettled");
+    assert.equal(records[0].event.outcome, "fallback");
+    assert.equal(records[0].event.reason, "font_unavailable");
+    assert.equal(
+      (await presentation(page, ".hero-actions")).visibility,
+      "visible",
+    );
+    assert.equal(
+      await page
+        .locator(".hero-actions a")
+        .first()
+        .evaluate((link) => {
+          link.focus();
+          return document.activeElement === link;
+        }),
+      true,
+    );
+  },
+);
+
+for (const held of ["holdAnimationModules", "fontMode"]) {
+  await withPage(
+    {
+      route: "/tests/hero/",
+      clock: true,
+      recordAnimationEvents: true,
+      ...(held === "fontMode"
+        ? { fontMode: "held" }
+        : { holdAnimationModules: true }),
+    },
+    async (page, { releaseFonts, releaseModules }) => {
+      await page.locator("h1").waitFor({ state: "attached" });
+      await page.clock.runFor(2200);
+      assert.equal(
+        (await presentation(page, ".hero-actions")).visibility,
+        "visible",
+      );
+      assert.equal(
+        await page
+          .locator(".hero-actions a")
+          .first()
+          .evaluate((link) => {
+            link.focus();
+            return document.activeElement === link;
+          }),
+        true,
+      );
+      const records = await page.evaluate(() => window.__animationRecords);
+      assert.equal(records.length, 1);
+      assert.equal(records[0].event.reason, "watchdog_expired");
+      releaseFonts();
+      releaseModules();
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() =>
+        customElements.whenDefined("home-hero-animation"),
+      );
+      await page.clock.runFor(6000);
+      assert.equal(
+        await page.evaluate(() => window.__animationRecords.length),
+        1,
+        "late initialization must not repeat watchdog outcome",
+      );
+      assert.equal(
+        (await presentation(page, ".hero-actions")).visibility,
+        "visible",
+      );
+    },
   );
-  assert.equal(
-    (await presentation(page, ".lifecycle-fixture:nth-of-type(3) a"))
-      .visibility,
-    "visible",
-    "unsupported glyph falls back to static detail",
-  );
-  await page.waitForTimeout(700);
-  assert.equal(
-    (await presentation(page, ".lifecycle-fixture:nth-of-type(1) a"))
-      .visibility,
-    "hidden",
-  );
-  assert.equal(
-    (await presentation(page, ".lifecycle-fixture:nth-of-type(2) a"))
-      .visibility,
-    "hidden",
-  );
-  await page.waitForTimeout(1100);
-  assert.equal(
-    (await presentation(page, ".lifecycle-fixture:nth-of-type(1) a"))
-      .visibility,
-    "visible",
-    "1200ms handwriting releases its own detail",
-  );
-  assert.equal(
-    (await presentation(page, ".lifecycle-fixture:nth-of-type(2) a"))
-      .visibility,
-    "hidden",
-    "2600ms handwriting still owns its detail",
-  );
-  await page.waitForTimeout(1900);
-  assert.equal(
-    (await presentation(page, ".lifecycle-fixture:nth-of-type(2) a"))
-      .visibility,
-    "visible",
-    "longer handwriting releases after actual completion",
-  );
-});
+}
+
+await withPage(
+  {
+    route: "/tests/hero/",
+    clock: true,
+    recordAnimationEvents: true,
+    throwAnimationListener: true,
+  },
+  async (page) => {
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() =>
+      customElements.whenDefined("home-hero-animation"),
+    );
+    await page.clock.runFor(1);
+    await page
+      .locator("h1 .handwriting-overlay")
+      .first()
+      .waitFor({ state: "attached" });
+    await page.clock.runFor(6000);
+    assert.equal(
+      (await presentation(page, ".hero-actions")).visibility,
+      "visible",
+    );
+    assert.equal(
+      await page
+        .locator(".hero-actions a")
+        .first()
+        .evaluate((link) => {
+          link.focus();
+          return document.activeElement === link;
+        }),
+      true,
+    );
+    const records = await page.evaluate(() => window.__animationRecords);
+    assert.equal(
+      records.length,
+      1,
+      "failing listener neither changes completion nor recursively emits",
+    );
+    assert.equal(records[0].event.outcome, "completed");
+  },
+);

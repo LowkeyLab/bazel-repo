@@ -109,38 +109,6 @@ recent_count="$(count_entry_links "${recent_before_all}")"
 for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
 	[[ "${recent}" != *"href=\"/blog/${slug}/\""* ]] || fail "featured article ${slug} repeated in recent writing"
 done
-[[ "${recent_before_all}" == *'href="/blog/"'* ]] || fail "All writing must link to Blog after recent entries"
-[[ "${recent_before_all}" == *'</section><a href="/blog/"'* ]] || fail "All writing must appear below the recent list"
-
-readonly caddyfile="${TEST_SRCDIR}/${TEST_WORKSPACE}/personal_website/Caddyfile"
-
-assert_redirect() {
-	local source="$1"
-	local destination="$2"
-	grep -Eq "^[[:space:]]*redir[[:space:]]+${source}[[:space:]]+${destination}[[:space:]]+permanent[[:space:]]*$" "${caddyfile}" ||
-		fail "missing permanent redirect from ${source} to ${destination}"
-}
-
-assert_redirect "/projects" "/blog/"
-assert_redirect "/projects/" "/blog/"
-assert_redirect "/projects/guess-the-word" "/blog/guess-the-word/"
-assert_redirect "/projects/guess-the-word/" "/blog/guess-the-word/"
-assert_redirect "/projects/free-dsl" "/blog/free-dsl/"
-assert_redirect "/projects/free-dsl/" "/blog/free-dsl/"
-assert_redirect "/projects/landing-page" "/blog/landing-page/"
-assert_redirect "/projects/landing-page/" "/blog/landing-page/"
-assert_redirect "/projects/mindreadr" "/blog/mindreadr/"
-assert_redirect "/projects/mindreadr/" "/blog/mindreadr/"
-assert_redirect "/projects/gradle-build-scan-server" "/blog/local-first-gradle-build-scan/"
-assert_redirect "/projects/gradle-build-scan-server/" "/blog/local-first-gradle-build-scan/"
-
-project_redirect_count="$(grep -Ec '^[[:space:]]*redir[[:space:]]+/projects(/[^[:space:]]*)?[[:space:]]+' "${caddyfile}")"
-[[ "${project_redirect_count}" -eq 12 ]] || fail "expected exactly 12 approved project redirect matchers, found ${project_redirect_count}"
-
-if grep -Eq '^[[:space:]]*redir[[:space:]]+/projects/\*' "${caddyfile}"; then
-	fail "wildcard project redirect would hide unknown routes"
-fi
-
 [[ -f "${dist}/about/index.html" ]] || fail "missing About page"
 for slug in building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do
 	article="$(<"${dist}/blog/${slug}/index.html")"

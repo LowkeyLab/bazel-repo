@@ -1,3 +1,4 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 
 # The fixture config imports its production counterpart across package roots;
@@ -21,4 +22,11 @@ alias(
     name = "fixtures_build",
     actual = "//personal_website:fixtures_build",
     visibility = ["//visibility:public"],
+)
+
+js_test(
+    name = "blog_test",
+    size = "small",
+    data = ["//personal_website/src/utils"],
+    entry_point = "blog.test.mjs",
 )
