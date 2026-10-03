@@ -77,6 +77,7 @@ export async function withPage(options, run) {
       reducedMotion: options.reducedMotion ?? "no-preference",
       javaScriptEnabled: options.javaScriptEnabled ?? true,
       serviceWorkers: "block",
+      hasTouch: options.hasTouch ?? false,
     });
     // Fault cases delay/block the actual embedded production bytes by exposing
     // them at a test-server URL. Normal tests leave the stylesheet untouched.

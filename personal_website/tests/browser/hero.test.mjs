@@ -100,6 +100,9 @@ async function tabStops(page, steps) {
       await page.evaluate(() => ({
         href: document.activeElement?.getAttribute("href"),
         inHero: Boolean(document.activeElement?.closest("home-hero-animation")),
+        inDetail: Boolean(
+          document.activeElement?.closest("[data-animation-detail]"),
+        ),
       })),
     );
   }
@@ -152,8 +155,8 @@ await withPage(
       "keyboard traverses preceding navigation",
     );
     assert.ok(
-      pendingStops.every((stop) => !stop.inHero),
-      "pending hero controls are untabbable throughout keyboard traversal",
+      pendingStops.every((stop) => !stop.inDetail),
+      "hidden hero details are untabbable throughout keyboard traversal",
     );
     await page.clock.runFor(1484);
     for (const selector of details) {
@@ -666,5 +669,89 @@ await withPage(
       "failing listener neither changes completion nor recursively emits",
     );
     assert.equal(records[0].event.outcome, "completed");
+  },
+);
+
+// Replay is a real button interaction and must leave the hero copy untouched.
+await withPage(
+  { route: "/tests/hero/", clock: true, hasTouch: true },
+  async (page) => {
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() =>
+      customElements.whenDefined("home-hero-animation"),
+    );
+    await page.clock.runFor(6000);
+    const button = page.getByRole("button", {
+      name: "Replay computer and plant animation",
+    });
+    assert.equal(
+      await button.count(),
+      1,
+      "illustration must be keyboard accessible",
+    );
+    const art = button.locator("svg");
+    const rest = await art.evaluate((el) => getComputedStyle(el).opacity);
+    const plant = page.locator(".hero-plant");
+    const flourish = page.locator(".hero-flourish");
+    const restingPlant = await plant.evaluate(
+      (el) => getComputedStyle(el).transform,
+    );
+    const restingFlourish = await flourish.evaluate(
+      (el) => getComputedStyle(el).strokeDasharray,
+    );
+    for (const activation of ["click", "Enter", "Space", "tap", "click"]) {
+      if (activation === "click") await button.click();
+      else if (activation === "tap") await button.tap();
+      else await button.press(activation);
+      await page.clock.runFor(250);
+      assert.ok(
+        Number(await art.evaluate((el) => getComputedStyle(el).opacity)) <
+          Number(rest),
+      );
+      assert.equal(await page.locator("h1 .handwriting-overlay").count(), 0);
+      assert.equal(
+        (await presentation(page, ".hero-actions")).visibility,
+        "visible",
+      );
+    }
+    await page.clock.runFor(550);
+    assert.notEqual(
+      await plant.evaluate((el) => getComputedStyle(el).transform),
+      restingPlant,
+      "plant sways during replay",
+    );
+    assert.notEqual(
+      await flourish.evaluate((el) => getComputedStyle(el).strokeDasharray),
+      restingFlourish,
+      "accent strokes redraw during replay",
+    );
+    await page.clock.runFor(2000);
+    assert.equal(
+      await plant.evaluate((el) => getComputedStyle(el).transform),
+      restingPlant,
+    );
+    assert.equal(
+      await flourish.evaluate((el) => getComputedStyle(el).strokeDasharray),
+      restingFlourish,
+    );
+    assert.equal(
+      await art.evaluate((el) => getComputedStyle(el).opacity),
+      rest,
+    );
+    await button.click();
+    await page.clock.runFor(800);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.clock.runFor(16);
+    assert.equal(
+      await plant.evaluate((el) => getComputedStyle(el).transform),
+      restingPlant,
+      "motion preference cancels an active replay",
+    );
+    await button.click();
+    await page.clock.runFor(250);
+    assert.equal(
+      await art.evaluate((el) => getComputedStyle(el).opacity),
+      rest,
+    );
   },
 );
