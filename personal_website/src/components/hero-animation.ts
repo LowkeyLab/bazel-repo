@@ -39,23 +39,31 @@ function underline(root: HTMLElement): AnimationRun {
   };
 }
 
-function animateArt(root: HTMLElement, entrance: boolean): () => void {
+function animateArt(root: HTMLElement, entrance: boolean): AnimationRun {
+  let settle!: (result: "completed" | "cancelled") => void;
+  const finished = new Promise<"completed" | "cancelled">(
+    (resolve) => (settle = resolve),
+  );
   let cancelled = false;
   const timeline = createTimeline({
     defaults: { ease: "outQuad" },
-    onComplete: () => cancel(),
+    onComplete: () => {
+      settle("completed");
+      cancel();
+    },
   });
   const cancel = () => {
     if (cancelled) return;
     cancelled = true;
     timeline.revert();
+    settle("cancelled");
   };
   try {
     timeline
       .add(
         root.querySelectorAll(entrance ? ".hero-art" : ".hero-replay > svg"),
         { opacity: [0.35, 1], translateY: [10, 0], duration: 650 },
-        120,
+        entrance ? 0 : 120,
       )
       .add(
         svg.createDrawable(root.querySelectorAll(".hero-flourish"), 0, 1),
@@ -71,30 +79,35 @@ function animateArt(root: HTMLElement, entrance: boolean): () => void {
     cancel();
     throw error;
   }
-  return cancel;
+  return { finished, cancel };
 }
 
-function writeHero(
-  heading: HTMLElement,
-  playArt: () => () => void,
-): AnimationRun | undefined {
-  const writing = writeHeading(heading, 2600);
-  if (!writing) return;
-  let cancelArt: (() => void) | undefined;
+function revealHero(
+  details: readonly HTMLElement[],
+  playArt: () => AnimationRun,
+): AnimationRun {
+  const reveal = revealDetails(details);
+  let art: AnimationRun;
   try {
-    cancelArt = playArt();
+    art = playArt();
   } catch (error) {
-    writing.cancel();
+    reveal.cancel();
     throw error;
   }
+  const textFinished = reveal.finished.then((result) => {
+    if (result === "completed") {
+      for (const detail of details) detail.inert = false;
+    }
+    return result;
+  });
   return {
-    finished: writing.finished.then((result) => {
-      cancelArt?.();
-      return result;
-    }),
+    // Replaying replaces the entrance art without cancelling the text reveal.
+    finished: Promise.all([textFinished, art.finished]).then(
+      ([result]) => result,
+    ),
     cancel: () => {
-      writing.cancel();
-      cancelArt?.();
+      reveal.cancel();
+      art.cancel();
     },
   };
 }
@@ -106,12 +119,12 @@ export function mount(root: HTMLElement): () => void {
     ...root.querySelectorAll<HTMLElement>("[data-animation-detail]"),
   ];
   const button = root.querySelector<HTMLButtonElement>(".hero-replay");
-  const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
   let cancelArt = () => {};
   const playArt = (entrance = false) => {
     cancelArt();
-    cancelArt = animateArt(root, entrance);
-    return cancelArt;
+    const art = animateArt(root, entrance);
+    cancelArt = art.cancel;
+    return art;
   };
   const replay = () => {
     if (motionPreference.matches) return;
@@ -126,18 +139,20 @@ export function mount(root: HTMLElement): () => void {
     if (button) button.disabled = motionPreference.matches;
     if (motionPreference.matches) stopArt();
   };
-  button?.addEventListener("click", replay);
-  motionPreference.addEventListener("change", onMotionChange);
-  window.addEventListener("resize", stopArt);
-  window.addEventListener("pagehide", stopArt);
   const disposeSection = mountSection(root, {
     heading,
     details,
     trigger: "immediate",
-    write: () => writeHero(heading, () => playArt(true)),
+    write: () => writeHeading(heading, 2600),
     afterWrite: () => underline(root),
-    reveal: () => revealDetails(details),
+    reveal: () => revealHero(details, () => playArt(true)),
   });
+  // Section cancellation must settle before art-only listeners resolve playback.
+  const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
+  button?.addEventListener("click", replay);
+  motionPreference.addEventListener("change", onMotionChange);
+  window.addEventListener("resize", stopArt);
+  window.addEventListener("pagehide", stopArt);
   onMotionChange();
   return () => {
     if (button) button.disabled = true;

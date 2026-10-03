@@ -613,3 +613,24 @@ await withPage({ route: "/", reducedMotion: "reduce" }, async (page) => {
   }
 });
 console.log("all_writing_order_and_theme_persistence: passed");
+
+// The production homepage wires art playback to the surrounding text reveal.
+await withPage({ route: "/", clock: true }, async (page) => {
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => customElements.whenDefined("home-hero-animation"));
+  let revealing = false;
+  for (let frame = 0; frame < 300; frame++) {
+    await page.clock.runFor(16);
+    if ((await presentation(page, ".eyebrow")).visibility === "visible") {
+      revealing = true;
+      break;
+    }
+  }
+  assert.ok(revealing, "homepage text reveal starts");
+  await page.clock.runFor(250);
+  assert.ok((await presentation(page, ".eyebrow")).opacity > 0);
+  assert.ok(
+    (await presentation(page, ".hero-art")).opacity < 1,
+    "homepage illustration animates with the surrounding text",
+  );
+});

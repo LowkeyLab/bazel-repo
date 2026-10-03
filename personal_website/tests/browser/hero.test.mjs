@@ -804,3 +804,159 @@ await withPage(
     );
   },
 );
+
+// Automatic art belongs to the detail reveal, even below the mobile viewport.
+for (const { viewport, interaction } of [
+  { viewport: { width: 1280, height: 900 }, interaction: "cancel" },
+  { viewport: { width: 1280, height: 900 }, interaction: "replay" },
+  { viewport: { width: 390, height: 500 }, interaction: "none" },
+]) {
+  await withPage(
+    {
+      route: "/tests/hero/",
+      clock: true,
+      viewport,
+      recordAnimationEvents: true,
+    },
+    async (page) => {
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() =>
+        customElements.whenDefined("home-hero-animation"),
+      );
+      await page.clock.runFor(1);
+      const artState = () =>
+        page.locator(".hero-art").evaluate((art) => {
+          const flourish = art.querySelector(".hero-flourish");
+          const dash = getComputedStyle(flourish).strokeDasharray;
+          // A solid stroke and a dash covering the whole path render identically.
+          const length =
+            Number(flourish.getAttribute("pathLength")) ||
+            flourish.getTotalLength();
+          return {
+            opacity: getComputedStyle(art).opacity,
+            plant: getComputedStyle(art.querySelector(".hero-plant")).transform,
+            flourish:
+              dash === "none" ? 1 : Math.min(1, parseFloat(dash) / length),
+          };
+        });
+      const rest = await artState();
+      assert.equal(rest.opacity, "1", "art stays at rest before text reveal");
+      let revealing = false;
+      for (let frame = 0; frame < 250; frame++) {
+        await page.clock.runFor(16);
+        if ((await presentation(page, ".eyebrow")).visibility === "visible") {
+          revealing = true;
+          break;
+        }
+        assert.deepEqual(
+          await artState(),
+          rest,
+          "art waits through handwriting and underline",
+        );
+      }
+      assert.ok(revealing, "text reveal starts");
+      if (viewport.width === 390) {
+        const box = await page.locator(".hero-replay").boundingBox();
+        assert.ok(
+          box.y >= viewport.height,
+          "illustration is below the viewport",
+        );
+      }
+      await page.clock.runFor(250);
+      assert.ok(
+        (await presentation(page, ".eyebrow")).opacity > 0,
+        "text is revealing",
+      );
+      assert.ok(
+        Number((await artState()).opacity) < 1,
+        "art animates alongside the text",
+      );
+      await page.clock.runFor(650);
+      const moving = await artState();
+      assert.notEqual(
+        moving.plant,
+        rest.plant,
+        "plant continues after the text fade",
+      );
+      assert.notEqual(
+        moving.flourish,
+        rest.flourish,
+        "accents draw during automatic playback",
+      );
+      if (viewport.width === 1280) {
+        const links = await page
+          .locator(".hero-actions a, .hero-socials a")
+          .evaluateAll((elements) =>
+            elements.map((element) => {
+              element.focus({ preventScroll: true });
+              return {
+                href: element.getAttribute("href"),
+                opacity: Number(
+                  getComputedStyle(element.parentElement).opacity,
+                ),
+                focused: document.activeElement === element,
+              };
+            }),
+          );
+        assert.ok(links.length > 0, "hero has interactive links");
+        for (const link of links) {
+          assert.ok(link.opacity > 0.99, `${link.href} has finished revealing`);
+          assert.equal(
+            link.focused,
+            true,
+            `${link.href} accepts focus while the illustration is still playing`,
+          );
+        }
+        assert.deepEqual(
+          await page.evaluate(() => window.__animationRecords),
+          [],
+          "section completion still waits for the illustration",
+        );
+      }
+      if (interaction === "cancel") {
+        await changeMotionPreference(page, "reduce");
+        assert.deepEqual(
+          await artState(),
+          rest,
+          "preference change cancels automatic playback",
+        );
+        assert.equal(await page.locator(".hero-replay").isDisabled(), true);
+      }
+      if (interaction === "replay") {
+        await page
+          .getByRole("button", { name: "Replay computer and plant animation" })
+          .click();
+        await page.clock.runFor(250);
+        assert.ok(
+          (await presentation(page, ".hero-replay > svg")).opacity < 1,
+          "replay replaces automatic playback",
+        );
+        assert.ok(
+          (await presentation(page, ".hero-description")).opacity > 0.99,
+          "replay does not restart the text reveal",
+        );
+      }
+      await page.clock.runFor(2000);
+      assert.deepEqual(
+        await artState(),
+        rest,
+        "automatic playback returns to rest",
+      );
+      const outcomes = await page.evaluate(() =>
+        window.__animationRecords.map(({ event }) => event.outcome),
+      );
+      assert.deepEqual(
+        outcomes,
+        [interaction === "cancel" ? "cancelled" : "completed"],
+        "replay replacement preserves successful section completion",
+      );
+      await page.locator(".hero-replay").scrollIntoViewIfNeeded();
+      await page.clock.runFor(800);
+      assert.deepEqual(
+        await artState(),
+        rest,
+        "viewport entry does not replay the art",
+      );
+    },
+  );
+}
