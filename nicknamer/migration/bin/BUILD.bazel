@@ -1,3 +1,5 @@
+# gazelle:resolve rust cli @crates//:sea-orm-migration
+
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 
 package(default_visibility = ["//nicknamer"])
@@ -5,6 +7,7 @@ package(default_visibility = ["//nicknamer"])
 rust_binary(
     name = "bin",
     srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
     edition = "2021",
     deps = [
         "//nicknamer/migration/lib",

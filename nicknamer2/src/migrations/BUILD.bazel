@@ -6,7 +6,7 @@ rust_library(
     name = "migrations",
     srcs = ["lib.rs"],
     compile_data = [
-        "//nicknamer2/migrations",  # keep
+        "//nicknamer2/migrations",
     ],
     crate_root = "lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
@@ -17,10 +17,10 @@ rust_test(
     name = "migrations_test",
     timeout = "short",
     compile_data = [
-        "//nicknamer2/migrations",  # keep
+        "//nicknamer2/migrations",
     ],
     crate = ":migrations",
-    data = image_data("postgres_18"),  # keep
+    data = image_data("postgres_18"),
     env = image_env("postgres_18"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -31,7 +31,7 @@ rust_test(
         "requires-network",
     ],
     deps = [
-        "//test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
     ],

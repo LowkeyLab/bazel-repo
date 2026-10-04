@@ -2,41 +2,51 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_shared_library.bzl", "rust_shared_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
-# gazelle:exclude src
-# gazelle:exclude tests
 package(default_visibility = ["//visibility:public"])
 
 rust_library(
     name = "wasm_lib",
-    srcs = glob(["src/**/*.rs"]),  # keep
+    srcs = [
+        "src/annotator.rs",
+        "src/converter.rs",
+        "src/error.rs",
+        "src/lib.rs",
+        "src/model.rs",
+    ],
     crate_name = "pinyin_composer_wasm",
     crate_root = "src/lib.rs",
     deps = [
-        "@crates//:console_error_panic_hook",  # keep
-        "@crates//:pinyin",  # keep
-        "@crates//:pinyinchch",  # keep
-        "@crates//:pinyinchch-model-hmm",  # keep
-        "@crates//:serde",  # keep
-        "@crates//:serde-wasm-bindgen",  # keep
-        "@crates//:wasm-bindgen",  # keep
+        "@crates//:console_error_panic_hook",
+        "@crates//:pinyin",
+        "@crates//:pinyinchch",
+        "@crates//:pinyinchch-model-hmm",
+        "@crates//:serde",
+        "@crates//:serde-wasm-bindgen",
+        "@crates//:wasm-bindgen",
     ],
 )
 
 rust_shared_library(
     name = "wasm_cdylib",
-    srcs = glob(["src/**/*.rs"]),  # keep
+    srcs = [
+        "src/annotator.rs",
+        "src/converter.rs",
+        "src/error.rs",
+        "src/lib.rs",
+        "src/model.rs",
+    ],
     crate_name = "pinyin_composer_wasm",
     crate_root = "src/lib.rs",
     platform = "@rules_rs//rs/platforms:wasm32-unknown-unknown",
     tags = ["no-lint"],
     deps = [
-        "@crates//:console_error_panic_hook",  # keep
-        "@crates//:pinyin",  # keep
-        "@crates//:pinyinchch",  # keep
-        "@crates//:pinyinchch-model-hmm",  # keep
-        "@crates//:serde",  # keep
-        "@crates//:serde-wasm-bindgen",  # keep
-        "@crates//:wasm-bindgen",  # keep
+        "@crates//:console_error_panic_hook",
+        "@crates//:pinyin",
+        "@crates//:pinyinchch",
+        "@crates//:pinyinchch-model-hmm",
+        "@crates//:serde",
+        "@crates//:serde-wasm-bindgen",
+        "@crates//:wasm-bindgen",
     ],
 )
 

@@ -1,13 +1,40 @@
+# gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
+
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 package(default_visibility = ["//prediction_bot:__subpackages__"])
 
-# gazelle:ignore
 rust_library(
     name = "lib",
-    srcs = glob(["src/**/*.rs"]),
+    srcs = [
+        "src/announcements.rs",
+        "src/announcements/persistence.rs",
+        "src/announcements/render.rs",
+        "src/announcements/tests.rs",
+        "src/announcements/worker.rs",
+        "src/audit.rs",
+        "src/audit/logging.rs",
+        "src/audit_tests.rs",
+        "src/discord.rs",
+        "src/discord/announcements.rs",
+        "src/discord/bet.rs",
+        "src/discord/bet/handler.rs",
+        "src/discord/bet/tests.rs",
+        "src/discord/resolve.rs",
+        "src/discord/resolve_tests.rs",
+        "src/discord/transport.rs",
+        "src/discord_tests.rs",
+        "src/discord_ui.rs",
+        "src/domain.rs",
+        "src/domain_tests.rs",
+        "src/events.rs",
+        "src/lib.rs",
+        "src/odds.rs",
+        "src/store.rs",
+        "src/types.rs",
+    ],
     compile_data = [
         "//prediction_bot/migrations:001_event_store.sql",
         "//prediction_bot/migrations:002_application_login.sql",
@@ -25,7 +52,8 @@ rust_library(
         "@crates//:sqlx",
         "@crates//:thiserror",
         "@crates//:tokio",
-        "@crates//:tracing",
+        # Used inside the emit! macro body, which Gazelle does not expand.
+        "@crates//:tracing",  # keep
         "@crates//:uuid",
     ],
 )
@@ -73,7 +101,7 @@ rust_test(
     size = "medium",
     srcs = ["tests/store_test.rs"],
     crate_root = "tests/store_test.rs",
-    data = image_data("postgres_18"),  # keep
+    data = image_data("postgres_18"),
     env = image_env("postgres_18"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -85,7 +113,7 @@ rust_test(
     ],
     deps = [
         ":lib",
-        "//test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",
         "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:serenity",
@@ -104,7 +132,7 @@ rust_test(
         "tests/support/announcements.rs",
     ],
     crate_root = "tests/announcements_test.rs",
-    data = image_data("postgres_18"),  # keep
+    data = image_data("postgres_18"),
     env = image_env("postgres_18"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -116,7 +144,7 @@ rust_test(
     ],
     deps = [
         ":lib",
-        "//test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",
         "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:serenity",
@@ -133,7 +161,14 @@ rust_test(
     crate = ":lib",
     deps = [
         "@crates//:googletest",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:serenity",
+        "@crates//:sqlx",
+        "@crates//:tokio",
+        "@crates//:tracing",
         "@crates//:tracing-subscriber",
+        "@crates//:uuid",
         "@crates//:wiremock",
     ],
 )

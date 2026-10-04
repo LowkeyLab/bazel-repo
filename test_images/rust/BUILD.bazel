@@ -4,7 +4,6 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 # gazelle:resolve rust futures_util @crates//:futures-util-0.3.34
 # gazelle:resolve rust tokio_util @crates//:tokio-util-0.7.19
-# gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 rust_library(
     name = "test_images",
     testonly = True,
@@ -16,7 +15,7 @@ rust_library(
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
         "@crates//:tokio-util-0.7.19",
-        "@rules_rust//rust/runfiles",
+        "@rules_rust//tools/runfiles",
     ],
 )
 

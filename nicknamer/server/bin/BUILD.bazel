@@ -7,9 +7,9 @@ package(default_visibility = ["//nicknamer"])
 rust_binary(
     name = "bin",
     srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
     deps = [
         "//nicknamer/server/lib",
-        "@crates//:anyhow",
         "@crates//:opentelemetry-appender-tracing",
         "@crates//:tokio",
         "@crates//:tracing",

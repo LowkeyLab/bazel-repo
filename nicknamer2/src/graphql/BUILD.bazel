@@ -108,7 +108,7 @@ rust_test(
     timeout = "moderate",
     srcs = ["tests.rs"],
     crate_root = "tests.rs",
-    data = image_data("postgres_18"),  # keep
+    data = image_data("postgres_18"),
     env = image_env("postgres_18"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -129,7 +129,7 @@ rust_test(
         "//nicknamer2/src/name:name_repo",
         "//nicknamer2/src/name:name_service",
         "//nicknamer2/src/server",
-        "//test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",
         "@crates//:axum",
         "@crates//:base64",
         "@crates//:chrono",
