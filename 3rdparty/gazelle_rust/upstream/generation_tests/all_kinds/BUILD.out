@@ -1,0 +1,47 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
+load("@rules_rs//rs:rust_shared_library.bzl", "rust_shared_library")
+load("@rules_rs//rs:rust_static_library.bzl", "rust_static_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_binary(
+    name = "binary",
+    srcs = ["binary.rs"],
+    deps = [":lib"],
+)
+
+rust_proc_macro(
+    name = "dummy_proc_macro",
+    srcs = ["dummy_proc_macro.rs"],
+    deps = [":lib"],
+)
+
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)
+
+rust_library(
+    name = "lib2",
+    srcs = ["lib2.rs"],
+    deps = [":lib"],
+)
+
+rust_shared_library(
+    name = "shared_lib",
+    srcs = ["shared_lib.rs"],
+    deps = [":lib"],
+)
+
+rust_static_library(
+    name = "static_lib",
+    srcs = ["static_lib.rs"],
+    deps = [":lib"],
+)
+
+rust_test(
+    name = "test",
+    srcs = ["test.rs"],
+    deps = [":lib"],
+)

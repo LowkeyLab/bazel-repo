@@ -1,0 +1,32 @@
+diff --git a/cmd/gazelle/fix-update.go b/cmd/gazelle/fix-update.go
+index d99141f..4a3e637 100644
+--- cmd/gazelle/fix-update.go
++++ cmd/gazelle/fix-update.go
+@@ -451,6 +451,12 @@ func runFixUpdate(wd string, cmd command, args []string) (err error) {
+ 		}
+ 	}
+ 
++	for _, lang := range languages {
++		if finishable, ok := lang.(language.ResolveFinishableLanguage); ok {
++			finishable.DoneResolving(c)
++		}
++	}
++
+ 	// Emit merged files.
+ 	var exit error
+ 	for _, v := range visits {
+diff --git a/language/lang.go b/language/lang.go
+index c835f74..aca40e8 100644
+--- language/lang.go
++++ language/lang.go
+@@ -98,6 +98,10 @@ type Language interface {
+ 	Fix(c *config.Config, f *rule.File)
+ }
+ 
++type ResolveFinishableLanguage interface {
++	DoneResolving(c *config.Config)
++}
++
+ // FinishableLanguage allows a Language to be notified when Generate is finished
+ // being called.
+ type FinishableLanguage interface {

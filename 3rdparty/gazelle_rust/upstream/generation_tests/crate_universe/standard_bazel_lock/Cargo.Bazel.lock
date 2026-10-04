@@ -1,0 +1,229 @@
+{
+  "checksum": "6c35dbc235a6e9962547e9e1e5677f7177bf9846f370020654f9b372ee1501f2",
+  "crates": {
+    "direct-cargo-bazel-deps 0.0.1": {
+      "name": "direct-cargo-bazel-deps",
+      "version": "0.0.1",
+      "package_url": null,
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "direct_cargo_bazel_deps",
+            "crate_root": ".direct_cargo_bazel_deps.rs",
+            "srcs": {
+              "allow_empty": false,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "direct_cargo_bazel_deps",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "serde 1.0.151",
+              "target": "serde"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.0.1"
+      },
+      "license": null,
+      "license_ids": [],
+      "license_file": null
+    },
+    "serde 1.0.151": {
+      "name": "serde",
+      "version": "1.0.151",
+      "package_url": "https://github.com/serde-rs/serde",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/serde/1.0.151/download",
+          "sha256": "97fed41fc1a24994d044e6db6935e69511a1153b52c15eb42493b26fa87feba0"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "serde",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "allow_empty": false,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs",
+            "srcs": {
+              "allow_empty": false,
+              "include": [
+                "**/*.rs"
+              ]
+            }
+          }
+        }
+      ],
+      "library_target_name": "serde",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": {
+          "common": [
+            "default",
+            "std"
+          ],
+          "selects": {}
+        },
+        "deps": {
+          "common": [
+            {
+              "id": "serde 1.0.151",
+              "target": "build_script_build"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2015",
+        "version": "1.0.151"
+      },
+      "build_script_attrs": {
+        "data_glob": [
+          "**"
+        ]
+      },
+      "license": "MIT OR Apache-2.0",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "license_file": "LICENSE-APACHE"
+    }
+  },
+  "binary_crates": [],
+  "workspace_members": {
+    "direct-cargo-bazel-deps 0.0.1": ""
+  },
+  "conditions": {
+    "aarch64-apple-darwin": [
+      "aarch64-apple-darwin"
+    ],
+    "aarch64-apple-ios": [
+      "aarch64-apple-ios"
+    ],
+    "aarch64-apple-ios-sim": [
+      "aarch64-apple-ios-sim"
+    ],
+    "aarch64-fuchsia": [
+      "aarch64-fuchsia"
+    ],
+    "aarch64-linux-android": [
+      "aarch64-linux-android"
+    ],
+    "aarch64-pc-windows-msvc": [
+      "aarch64-pc-windows-msvc"
+    ],
+    "aarch64-unknown-linux-gnu": [
+      "aarch64-unknown-linux-gnu"
+    ],
+    "aarch64-unknown-nixos-gnu": [
+      "aarch64-unknown-nixos-gnu"
+    ],
+    "aarch64-unknown-nto-qnx710": [
+      "aarch64-unknown-nto-qnx710"
+    ],
+    "arm-unknown-linux-gnueabi": [
+      "arm-unknown-linux-gnueabi"
+    ],
+    "armv7-linux-androideabi": [
+      "armv7-linux-androideabi"
+    ],
+    "armv7-unknown-linux-gnueabi": [
+      "armv7-unknown-linux-gnueabi"
+    ],
+    "i686-apple-darwin": [
+      "i686-apple-darwin"
+    ],
+    "i686-linux-android": [
+      "i686-linux-android"
+    ],
+    "i686-pc-windows-msvc": [
+      "i686-pc-windows-msvc"
+    ],
+    "i686-unknown-freebsd": [
+      "i686-unknown-freebsd"
+    ],
+    "i686-unknown-linux-gnu": [
+      "i686-unknown-linux-gnu"
+    ],
+    "powerpc-unknown-linux-gnu": [
+      "powerpc-unknown-linux-gnu"
+    ],
+    "riscv32imc-unknown-none-elf": [
+      "riscv32imc-unknown-none-elf"
+    ],
+    "riscv64gc-unknown-none-elf": [
+      "riscv64gc-unknown-none-elf"
+    ],
+    "s390x-unknown-linux-gnu": [
+      "s390x-unknown-linux-gnu"
+    ],
+    "thumbv7em-none-eabi": [
+      "thumbv7em-none-eabi"
+    ],
+    "thumbv8m.main-none-eabi": [
+      "thumbv8m.main-none-eabi"
+    ],
+    "wasm32-unknown-unknown": [
+      "wasm32-unknown-unknown"
+    ],
+    "wasm32-wasi": [
+      "wasm32-wasi"
+    ],
+    "x86_64-apple-darwin": [
+      "x86_64-apple-darwin"
+    ],
+    "x86_64-apple-ios": [
+      "x86_64-apple-ios"
+    ],
+    "x86_64-fuchsia": [
+      "x86_64-fuchsia"
+    ],
+    "x86_64-linux-android": [
+      "x86_64-linux-android"
+    ],
+    "x86_64-pc-windows-msvc": [
+      "x86_64-pc-windows-msvc"
+    ],
+    "x86_64-unknown-freebsd": [
+      "x86_64-unknown-freebsd"
+    ],
+    "x86_64-unknown-linux-gnu": [
+      "x86_64-unknown-linux-gnu"
+    ],
+    "x86_64-unknown-nixos-gnu": [
+      "x86_64-unknown-nixos-gnu"
+    ],
+    "x86_64-unknown-none": [
+      "x86_64-unknown-none"
+    ]
+  },
+  "direct_deps": [
+    "serde 1.0.151"
+  ],
+  "direct_dev_deps": []
+}

@@ -1,0 +1,6 @@
+/bazel-*
+/build
+/macro/target
+/gazelle_rust_parser/target
+/target
+rust-project.json

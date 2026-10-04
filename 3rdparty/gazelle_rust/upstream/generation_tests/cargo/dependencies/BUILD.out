@@ -1,0 +1,32 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+# gazelle:rust_mode generate_from_cargo
+
+rust_library(
+    name = "dependencies_lib",
+    srcs = ["src/lib.rs"],
+    compile_data = ["Cargo.toml"],
+    crate_name = "dependencies",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+)
+
+rust_binary(
+    name = "dependencies",
+    srcs = ["src/main.rs"],
+    compile_data = ["Cargo.toml"],
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [":dependencies_lib"],
+)
+
+rust_test(
+    name = "integration_test",
+    srcs = ["tests/integration_test.rs"],
+    compile_data = ["Cargo.toml"],
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [":dependencies_lib"],
+)

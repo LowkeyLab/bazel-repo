@@ -1,0 +1,12 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+# gazelle:rust_mode generate_from_cargo
+
+rust_library(
+    name = "default_features",
+    srcs = ["src/lib.rs"],
+    compile_data = ["Cargo.toml"],
+    crate_features = ["foo"],
+    edition = "2024",
+    visibility = ["//visibility:public"],
+)

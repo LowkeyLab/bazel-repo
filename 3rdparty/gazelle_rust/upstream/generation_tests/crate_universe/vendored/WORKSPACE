@@ -1,0 +1,34 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+local_repository(
+    name = "gazelle_rust",
+    path = "../../..",
+)
+
+load("@gazelle_rust//:deps_versions.bzl", "versions")
+
+http_archive(
+    name = "rules_rust",
+    sha256 = versions.RULES_RUST_SHA256,
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_rust/releases/download/{0}/rules_rust-v{0}.tar.gz".format(versions.RULES_RUST_VERSION),
+        "https://github.com/bazelbuild/rules_rust/releases/download/{0}/rules_rust-v{0}.tar.gz".format(versions.RULES_RUST_VERSION),
+    ],
+)
+
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+
+rules_rust_dependencies()
+
+rust_register_toolchains(
+    edition = "2021",
+    versions = [versions.RUST_VERSION],
+)
+
+load("@gazelle_rust//:deps1.bzl", "gazelle_rust_dependencies1")
+
+gazelle_rust_dependencies1()
+
+load("@gazelle_rust//:deps2.bzl", "gazelle_rust_dependencies2")
+
+gazelle_rust_dependencies2()

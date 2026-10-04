@@ -1,0 +1,217 @@
+#![deny(unused_must_use)]
+
+use std::error::Error;
+use std::io::{Read, Write};
+use std::path::PathBuf;
+
+use clap::Parser;
+use prost::Message;
+
+use messages_proto::{
+    CargoCrateInfo, CargoTomlRequest, CargoTomlResponse, DependencyAlias, Hints,
+    LockfileCratesRequest, LockfileCratesResponse, Request, RustImportsRequest,
+    RustImportsResponse, lockfile_crates_request, request,
+};
+
+#[derive(clap::Parser)]
+enum Args {
+    OneShot { path: PathBuf },
+    StreamProto,
+}
+
+fn handle_rust_imports_request(
+    request: RustImportsRequest,
+) -> Result<RustImportsResponse, Box<dyn Error>> {
+    let rust_imports = gazelle_rust_parser::parse_imports(
+        PathBuf::from(request.absolute_path),
+        PathBuf::from(request.relative_path),
+        &request.enabled_features,
+    );
+
+    let mut response = RustImportsResponse::default();
+    match rust_imports {
+        Ok(rust_imports) => {
+            let hints = Hints {
+                has_main: rust_imports.hints.has_main,
+                has_test: rust_imports.hints.has_test,
+                has_proc_macro: rust_imports.hints.has_proc_macro,
+            };
+
+            response.success = true;
+            response.hints = Some(hints);
+            response.imports = rust_imports.imports;
+            response.test_imports = rust_imports.test_imports;
+            response.extern_mods = rust_imports.extern_mods;
+            response.test_extern_mods = rust_imports.test_extern_mods;
+            response.compile_data = rust_imports.compile_data;
+        }
+        Err(err) => {
+            // Don't crash gazelle if we encounter an error, instead bubble it up so that we can
+            // report it and keep going.
+            // TODO: It's possible that some errors here actually should be fatal.
+            response.success = false;
+            response.error_msg = err.to_string();
+        }
+    }
+
+    Ok(response)
+}
+
+fn handle_lockfile_crates_request(
+    request: LockfileCratesRequest,
+) -> Result<LockfileCratesResponse, Box<dyn Error>> {
+    let crates = match request.lockfile {
+        Some(lockfile_crates_request::Lockfile::LockfilePath(path)) => {
+            lockfile_crates::get_bazel_lockfile_crates(PathBuf::from(path))?
+        }
+        Some(lockfile_crates_request::Lockfile::CargoLockfilePath(path)) => {
+            lockfile_crates::get_cargo_lockfile_crates(PathBuf::from(path))?
+        }
+        None => return Err("No lockfile path provided".into()),
+    };
+
+    Ok(LockfileCratesResponse { crates })
+}
+
+fn build_crate_info(product: cargo_toml::Product) -> CargoCrateInfo {
+    let mut crate_info = CargoCrateInfo::default();
+
+    if let Some(name) = product.name {
+        crate_info.name = name;
+    }
+    if let Some(path) = product.path {
+        let normalized_path = path.strip_prefix("./").unwrap_or(&path).to_string();
+        crate_info.srcs = vec![normalized_path];
+    }
+    crate_info.proc_macro = product.proc_macro;
+
+    crate_info
+}
+
+fn handle_cargo_toml_request(
+    request: CargoTomlRequest,
+) -> Result<CargoTomlResponse, Box<dyn Error>> {
+    let mut manifest = cargo_toml::Manifest::from_path(&request.file_path)?;
+    manifest.complete_from_path(&PathBuf::from(&request.file_path))?;
+
+    let mut response = CargoTomlResponse {
+        success: true,
+        ..Default::default()
+    };
+
+    if let Some(ref package) = manifest.package {
+        response.name = package.name.clone();
+        response.edition = match package.edition {
+            cargo_toml::Inheritable::Set(edition) => edition.to_string(),
+            cargo_toml::Inheritable::Inherited => String::new(),
+        };
+        let feature_resolver = cargo_toml::features::Resolver::new();
+        let features_hmap = feature_resolver.parse(&manifest).features;
+        let default_features_set = features_hmap
+            .get("default")
+            .map(|f| f.enables_features.clone())
+            .unwrap_or_default();
+        let default_features: Vec<String> =
+            default_features_set.iter().map(|x| x.to_string()).collect();
+        let non_default_features: Vec<String> = features_hmap
+            .values()
+            .map(|feature| feature.key)
+            .filter(|k| !default_features_set.contains(k))
+            .map(|x| x.to_string())
+            .collect();
+        response.default_features = default_features;
+        response.non_default_features = non_default_features;
+    }
+
+    response.library = manifest.lib.map(build_crate_info);
+    response.binaries = manifest.bin.into_iter().map(build_crate_info).collect();
+    response.tests = manifest.test.into_iter().map(build_crate_info).collect();
+    response.benches = manifest.bench.into_iter().map(build_crate_info).collect();
+    response.examples = manifest.example.into_iter().map(build_crate_info).collect();
+
+    // Extract dependency aliases where local_name != package_name
+    response.dependency_aliases = extract_dependency_aliases(&manifest.dependencies);
+
+    Ok(response)
+}
+
+/// Extracts dependency aliases from a dependency map.
+/// Returns aliases for dependencies where the local name (key) differs from the package name.
+fn extract_dependency_aliases(deps: &cargo_toml::DepsSet) -> Vec<DependencyAlias> {
+    deps.iter()
+        .filter_map(|(local_name, dep)| {
+            let package_name = match dep {
+                cargo_toml::Dependency::Detailed(details) => details.package.as_ref(),
+                // Inherited dependencies don't support package renaming - they inherit from workspace
+                cargo_toml::Dependency::Inherited(_) => None,
+                cargo_toml::Dependency::Simple(_) => None,
+            };
+            package_name.map(|pkg| DependencyAlias {
+                local_name: local_name.clone(),
+                package_name: pkg.clone(),
+            })
+        })
+        .collect()
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+
+    match args {
+        Args::OneShot { path } => {
+            let mut rust_imports = gazelle_rust_parser::parse_imports(path, PathBuf::new(), &[])?;
+            rust_imports.imports.sort();
+
+            println!("Imports:");
+            for import in rust_imports.imports {
+                println!("  {}", import);
+            }
+        }
+        Args::StreamProto => {
+            let mut stdin = std::io::stdin();
+            let mut stdout = std::io::stdout();
+
+            let mut buf: Vec<u8> = vec![0; 1024];
+            const SF32: usize = std::mem::size_of::<u32>();
+
+            loop {
+                match stdin.read_exact(&mut buf[..SF32]) {
+                    Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        // EOF: parent process finished
+                        break;
+                    }
+                    res => res?,
+                }
+                let size = i32::from_le_bytes(buf[..SF32].try_into()?) as usize;
+                if size > buf.len() {
+                    // grow buffer as needed
+                    buf = vec![0; size];
+                }
+
+                stdin.read_exact(&mut buf[..size])?;
+                let request = Request::decode(&buf[..size])?;
+
+                if let Some(kind) = request.kind {
+                    let response_bytes: Vec<u8> = match kind {
+                        request::Kind::RustImports(request) => {
+                            handle_rust_imports_request(request)?.encode_to_vec()
+                        }
+                        request::Kind::LockfileCrates(request) => {
+                            handle_lockfile_crates_request(request)?.encode_to_vec()
+                        }
+                        request::Kind::CargoToml(request) => {
+                            handle_cargo_toml_request(request)?.encode_to_vec()
+                        }
+                    };
+
+                    let size_bytes = (response_bytes.len() as u32).to_le_bytes();
+                    stdout.write_all(&size_bytes)?;
+                    stdout.write_all(&response_bytes)?;
+                    stdout.flush()?;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

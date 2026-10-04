@@ -1,0 +1,12 @@
+load("@rules_rs//rs:cargo_build_script.bzl", "cargo_build_script")
+
+# gazelle:rust_mode generate_from_cargo
+
+cargo_build_script(
+    name = "build_script",
+    srcs = ["build.rs"],
+    compile_data = ["Cargo.toml"],
+    crate_root = "build.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+)

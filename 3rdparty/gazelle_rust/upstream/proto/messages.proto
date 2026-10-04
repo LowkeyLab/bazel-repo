@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+message Request {
+    oneof kind {
+        RustImportsRequest rust_imports = 1;
+        LockfileCratesRequest lockfile_crates = 2;
+        CargoTomlRequest cargo_toml = 3;
+    }
+}
+
+message RustImportsRequest {
+    string absolute_path = 1;
+    string relative_path = 2;
+    repeated string enabled_features = 3;
+}
+
+/** Extra information about the source file, used to infer rule kind (e.g. binary vs. library) when
+    creating new targets and to manage crate test targets. */
+message Hints {
+    /** Has a main function in the top-level scope. */
+    bool has_main = 1;
+    /** Has at least one #[test] function. */
+    bool has_test = 2;
+    /** Has at least one #[proc_macro] function. */
+    bool has_proc_macro = 3;
+}
+
+// If successful, success = true and hints, imports, and test_imports are set.
+// If there is an unrecoverable error, success = false and error_msg is the error message.
+message RustImportsResponse {
+    Hints hints = 1;
+    repeated string imports = 2;
+    repeated string test_imports = 3;
+    repeated string extern_mods = 4;
+    repeated string test_extern_mods = 5;
+    repeated string compile_data = 6;
+    bool success = 7;
+    string error_msg = 8;
+}
+
+message LockfileCratesRequest {
+    oneof lockfile {
+        string lockfile_path = 1;
+        string cargo_lockfile_path = 2;
+    }
+}
+
+message PackageDependency {
+    string name = 1;
+    string version = 2;
+}
+
+message Package {
+    string name = 1;
+    string crate_name = 2;
+    bool proc_macro = 3;
+    string version = 4;
+    bool workspace_member = 5;
+    repeated PackageDependency dependencies = 6;
+}
+
+message LockfileCratesResponse {
+    repeated Package crates = 1;
+}
+
+message CargoTomlRequest {
+    string file_path = 1;
+}
+
+message CargoCrateInfo {
+    string name = 1;
+    repeated string srcs = 2;
+    bool proc_macro = 3;
+}
+
+/** Represents a dependency alias where the local name differs from the package name.
+    e.g., `local_name = { package = "package_name", ... }` in Cargo.toml */
+message DependencyAlias {
+    string local_name = 1;      // key in Cargo.toml (alias used in code)
+    string package_name = 2;    // actual package name
+}
+
+message CargoTomlResponse {
+    string name = 1;
+    string edition = 2;
+    CargoCrateInfo library = 3;
+    repeated CargoCrateInfo binaries = 4;
+    repeated CargoCrateInfo tests = 5;
+    repeated CargoCrateInfo benches = 6;
+    repeated CargoCrateInfo examples = 7;
+    repeated string default_features = 8;
+    repeated string non_default_features = 9;
+    repeated DependencyAlias dependency_aliases = 10;
+    bool success = 11;
+    string error_msg = 12;
+}

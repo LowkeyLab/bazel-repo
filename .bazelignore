@@ -4,3 +4,4 @@ target
 .claude
 .direnv
 .local
+3rdparty/gazelle_rust/upstream
