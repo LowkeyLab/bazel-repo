@@ -329,3 +329,20 @@ cd predix && sqlc generate
 - ❌ Forgetting to run `aspect format --scope=all` before committing
 - ❌ Hardcoding secrets instead of using environment variables
 - ❌ Creating new directories without understanding the project structure
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues. Before issue-tracker operations, read
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. Before triaging issues, read
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a multi-context layout. Before exploring domain concepts or architectural
+decisions, read `docs/agents/domain.md`.
