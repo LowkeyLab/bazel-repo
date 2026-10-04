@@ -81,7 +81,7 @@ for destination in /blog/ /about/; do
 done
 
 home="$(<"${dist}/index.html")"
-[[ "${home}" == *'id="featured-heading"'* ]] || fail "missing Things I've worked on section"
+[[ "${home}" == *'id="featured-heading">Featured writing</h2>'* ]] || fail "missing Featured writing heading"
 [[ "${home}" == *'id="recent-heading"'* ]] || fail "missing Recent writing section for current content fixture"
 featured="${home#*'id="featured-heading"'}"
 featured="${featured%%'id="recent-heading"'*}"
@@ -100,13 +100,13 @@ count_entry_links() {
 }
 
 [[ "$(count_entry_links "${featured}")" -eq 3 ]] || fail "featured section must contain three article links"
-for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
+for slug in building-jvm-rpc-tooling mindreadr the-future-is-remote; do
 	[[ "${featured}" == *"href=\"/blog/${slug}/\""* ]] || fail "missing featured article ${slug}"
 done
 
 recent_count="$(count_entry_links "${recent_before_all}")"
 [[ "${recent_count}" -ge 1 && "${recent_count}" -le 3 ]] || fail "recent section must contain one to three entries before All writing"
-for slug in building-jvm-rpc-tooling mindreadr prototyping-a-flink-pipeline; do
+for slug in building-jvm-rpc-tooling mindreadr the-future-is-remote; do
 	[[ "${recent}" != *"href=\"/blog/${slug}/\""* ]] || fail "featured article ${slug} repeated in recent writing"
 done
 [[ -f "${dist}/about/index.html" ]] || fail "missing About page"

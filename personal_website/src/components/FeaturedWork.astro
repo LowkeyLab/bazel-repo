@@ -15,7 +15,7 @@ const { posts, headingId = "featured-heading", writingDuration = 1200 } = Astro.
 <featured-work-animation data-writing-duration={writingDuration}>
   <AnimationBootstrap />
   <section class="home-section" aria-labelledby={headingId}>
-    <h2 id={headingId}>Things I've worked on</h2>
+    <h2 id={headingId}>Featured writing</h2>
     <PostList posts={posts} ariaLabel="Featured writing" headingLevel="h3" notebook />
   </section>
 </featured-work-animation>
