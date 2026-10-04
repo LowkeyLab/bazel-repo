@@ -1,0 +1,813 @@
+package rust_language
+
+import (
+	"log"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/label"
+	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/rule"
+
+	pb "github.com/calsign/gazelle_rust/proto"
+)
+
+// getCommonPrefix returns the common directory prefix of all source files.
+// For example, if all files are under "src/", it returns "src".
+// If files are in multiple top-level directories, returns "".
+func getCommonPrefix(srcs []string) string {
+	if len(srcs) == 0 {
+		return ""
+	}
+
+	// Get the directory of the first source file
+	firstDir := filepath.Dir(srcs[0])
+	if firstDir == "." {
+		return ""
+	}
+
+	// Get the top-level directory (first component)
+	parts := strings.Split(firstDir, string(filepath.Separator))
+	if len(parts) == 0 {
+		return ""
+	}
+	prefix := parts[0]
+
+	// Check if all other files share this prefix
+	for _, src := range srcs[1:] {
+		dir := filepath.Dir(src)
+		if dir == "." || !strings.HasPrefix(dir, prefix+string(filepath.Separator)) && dir != prefix {
+			// Files are in different top-level directories or in current directory
+			return ""
+		}
+	}
+
+	return prefix
+}
+
+// createGlobExpr creates a Bazel glob expression for the given source files.
+// Returns the glob expression as a rule.GlobValue.
+// If hasMainRs is true, excludes the top-level main.rs file since that should only
+// appear in rust_binary targets.
+func createGlobExpr(srcs []string, hasMainRs bool) rule.GlobValue {
+	prefix := getCommonPrefix(srcs)
+	var pattern string
+
+	if prefix != "" {
+		pattern = prefix + "/**/*.rs"
+	} else {
+		pattern = "**/*.rs"
+	}
+
+	globValue := rule.GlobValue{
+		Patterns: []string{pattern},
+	}
+
+	if hasMainRs {
+		var excludePattern string
+		if prefix != "" {
+			excludePattern = prefix + "/main.rs"
+		} else {
+			excludePattern = "main.rs"
+		}
+		globValue.Excludes = []string{excludePattern}
+	}
+
+	return globValue
+}
+
+func (l *rustLang) isTestDir(dirname *string) bool {
+	return dirname != nil && (*dirname == "test" || *dirname == "tests")
+}
+
+func (l *rustLang) isTestFilename(filename string) bool {
+	return strings.HasSuffix(filename, "_test.rs") || strings.HasPrefix(filename, "test_")
+}
+
+// Infer the default kind for a new target (e.g. rust_library, rust_binary).
+func (l *rustLang) inferRuleKind(filename string, dirname *string,
+	response *pb.RustImportsResponse) string {
+
+	if response.Hints.HasProcMacro {
+		// only proc-macro crates are allowed to have #[proc_macro] functions
+		return "rust_proc_macro"
+	} else if response.Hints.HasMain {
+		// while not necessarily true, having a top-level main function is a strong
+		// indicator that this is a binary
+		return "rust_binary"
+	} else if filename == "main.rs" {
+		return "rust_binary"
+	} else if filename == "lib.rs" {
+		return "rust_library"
+	} else if response.Hints.HasTest && (l.isTestDir(dirname) || l.isTestFilename(filename)) {
+		// assume that sources with tests in a test/tests directory are integration tests
+		// assume that sources with tests with test-like names are integration tests
+		return "rust_test"
+	} else {
+		return "rust_library"
+	}
+}
+
+type discoveredModule struct {
+	response *pb.RustImportsResponse
+	testOnly bool
+}
+
+type RuleData struct {
+	rule    *rule.Rule
+	modules []discoveredModule
+	// if a test crate referring to another crate, that crate; otherwise, nil
+	testedCrate *rule.Rule
+	// the build script of this crate, if any
+	buildScript *label.Label
+	// name of the parent crate
+	parentCrateName string
+	// dependency aliases: maps package_name -> local_name for renamed dependencies
+	// e.g., { "integrations_http_signatures": "signatures" }
+	aliases map[string]string
+}
+
+func getTestCrate(rule *rule.Rule, repo string, pkg string) string {
+	crateName := rule.AttrString("crate")
+	if crateName != "" {
+		label, err := label.Parse(crateName)
+		if err == nil {
+			rel := label.Rel(repo, pkg)
+			if rel.Relative {
+				return label.Name
+			}
+		}
+	}
+	return ""
+}
+
+// If there is already a rule with the requested name, we want to be able to fall back to a fresh
+// name, by adding an "_rs" suffix. It's possible (although unlikely) that a rule with that suffixed
+// name also exists, in which case we fail and return nil.
+func freshRuleName(request string, existingRuleNames map[string]bool) *string {
+	if _, ok := existingRuleNames[request]; ok {
+		// need to pick a new name
+		suffixedName := request + "_rs"
+		if _, ok := existingRuleNames[suffixedName]; ok {
+			// give up
+			return nil
+		} else {
+			return &suffixedName
+		}
+	} else {
+		// we can use the request
+		return &request
+	}
+}
+
+var ruleCloneAttrs = []string{"srcs", "crate"}
+
+// It's nice to be able to re-use existing Rules so that we can resolve them but preserve the
+// grouping of srcs, which is not something Gazelle handles natively. By making a new rule with the
+// attrs that we want to preserve (e.g., srcs), we preserve the existing groupings. If we were to
+// reuse the existing rule without cloning it, certain things like #keep comments stop working.
+func CloneRule(oldRule *rule.Rule) *rule.Rule {
+	newRule := rule.NewRule(oldRule.Kind(), oldRule.Name())
+	for _, attr := range ruleCloneAttrs {
+		if val := oldRule.Attr(attr); val != nil {
+			newRule.SetAttr(attr, val)
+		}
+	}
+	return newRule
+}
+
+func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	cfg := l.GetConfig(args.Config)
+	switch cfg.Mode {
+	case modePureBazel:
+		return l.generateRulesPureBazel(args)
+	case modeGenerateFromCargo:
+		return l.generateRulesFromCargo(args)
+	default:
+		log.Panicf("unrecognized mode")
+		return language.GenerateResult{}
+	}
+}
+
+func (l *rustLang) generateRulesPureBazel(args language.GenerateArgs) language.GenerateResult {
+	result := language.GenerateResult{}
+
+	filesInExistingRules := map[string]bool{}
+	existingRuleNames := map[string]bool{}
+
+	var dirname *string
+	if args.Rel == "" {
+		dirname = nil
+	} else {
+		base := path.Base(args.Rel)
+		dirname = &base
+	}
+
+	// list of all non-rust_test rules; these may generate additional crate test targets
+	nonTestRules := []RuleData{}
+	// map of crate test rules; key is the non-rust_test rule name that each one refers to
+	testRules := make(map[string]*rule.Rule)
+
+	addRule := func(rule *rule.Rule, modules []discoveredModule) {
+		ruleData := RuleData{
+			rule:        rule,
+			modules:     modules,
+			testedCrate: nil,
+		}
+
+		result.Gen = append(result.Gen, rule)
+		result.Imports = append(result.Imports, ruleData)
+
+		if rule.Kind() == "rust_test" {
+			if crateName := getTestCrate(rule, args.Config.RepoName, args.Rel); crateName != "" {
+				if _, ok := testRules[crateName]; ok {
+					l.Log(args.Config, logWarn, args.File, "found multiple crate test rules for %s\n", crateName)
+				}
+				testRules[crateName] = rule
+			}
+		} else {
+			nonTestRules = append(nonTestRules, ruleData)
+		}
+	}
+
+	if args.File != nil {
+		for _, existingRule := range args.File.Rules {
+			existingRuleNames[existingRule.Name()] = true
+
+			unmappedKind := l.GetMappedKindInverse(args.Config, existingRule.Kind())
+
+			if SliceContains(commonDefs, unmappedKind) {
+				rule := CloneRule(existingRule)
+
+				// NOTE: Gazelle expects us to create rules using the un-mapped kinds. Since we are
+				// re-creating an existing rule, the associated kind is the mapped one, and we need to
+				// reset it. It is probably a bug that Gazelle does not already handle this for us.
+				rule.SetKind(unmappedKind)
+
+				modules := []discoveredModule{}
+
+				enabled_features := []string{}
+				for _, feature := range rule.AttrStrings("crate_features") {
+					enabled_features = append(enabled_features, feature)
+				}
+
+				for _, file := range rule.AttrStrings("srcs") {
+					filesInExistingRules[file] = true
+
+					if strings.HasSuffix(file, ".rs") {
+						response := l.parseFile(args.Config, file, enabled_features, &args)
+						if response != nil {
+							modules = append(modules, discoveredModule{response: response})
+						}
+					}
+				}
+
+				addRule(rule, modules)
+			}
+		}
+	}
+
+	for _, file := range args.RegularFiles {
+		if !filesInExistingRules[file] && strings.HasSuffix(file, ".rs") {
+			response := l.parseFile(args.Config, file, []string{}, &args)
+			if response == nil {
+				continue
+			}
+
+			inferredKind := l.inferRuleKind(file, dirname, response)
+
+			ruleName := freshRuleName(strings.TrimSuffix(file, ".rs"), existingRuleNames)
+			if ruleName == nil {
+				l.Log(args.Config, logWarn, args.File, "could not find a suitable rule name, all candidates already taken")
+				continue
+			}
+
+			rule := rule.NewRule(inferredKind, *ruleName)
+			rule.SetAttr("srcs", []string{file})
+
+			modules := []discoveredModule{{response: response}}
+
+			addRule(rule, modules)
+		}
+	}
+
+	for _, ruleData := range nonTestRules {
+		hasTest := false
+		for _, module := range ruleData.modules {
+			if module.response.Hints.HasTest {
+				hasTest = true
+			}
+		}
+
+		existingTestRule := testRules[ruleData.rule.Name()]
+
+		if hasTest {
+			// create a corresponding test crate target
+			var testRule *rule.Rule
+			if existingTestRule == nil {
+				testRuleName := freshRuleName(ruleData.rule.Name()+"_test", existingRuleNames)
+				if testRuleName == nil {
+					l.Log(args.Config, logWarn, args.File, "could not find a suitable test rule name, all candidates already taken")
+					continue
+				}
+
+				testRule = rule.NewRule("rust_test", *testRuleName)
+				testRule.SetAttr("crate", ":"+ruleData.rule.Name())
+			} else {
+				testRule = CloneRule(existingTestRule)
+			}
+
+			result.Gen = append(result.Gen, testRule)
+			result.Imports = append(result.Imports, RuleData{
+				rule:        testRule,
+				modules:     ruleData.modules,
+				testedCrate: ruleData.rule,
+			})
+		} else {
+			// TODO: remove test target if we no longer have any tests
+		}
+	}
+
+	return result
+}
+
+func (l *rustLang) parseFile(c *config.Config, file string, enabledFeatures []string, args *language.GenerateArgs) *pb.RustImportsResponse {
+	request := &pb.RustImportsRequest{
+		AbsolutePath:    path.Join(args.Dir, file),
+		RelativePath:    file,
+		EnabledFeatures: enabledFeatures,
+	}
+
+	response, err := l.Parser.Parse(request)
+	if err != nil {
+		l.Log(c, logFatal, file, "failed to parse %s: %v", file, err)
+	}
+	if !response.Success {
+		// TODO: It's debatable whether this should be a warning or a fatal error. Having a warning
+		// is probably the least surprising, although it could be frustrating to have a bunch of new
+		// gazelle errors if there's a parse error in a library that many things depend on.
+		l.Log(c, logWarn, file, "failed to parse %s: %s", file, response.ErrorMsg)
+		return nil
+	}
+	return response
+}
+
+func (l *rustLang) generateRulesFromCargo(args language.GenerateArgs) language.GenerateResult {
+	result := language.GenerateResult{}
+	cfg := l.GetConfig(args.Config)
+
+	hasBuildScript := false
+	parentCrateName := ""
+	parentCrateEdition := ""
+	var enabledFeatures []string = []string{}
+	for _, src := range args.RegularFiles {
+		if src == "build.rs" {
+			hasBuildScript = true
+		}
+	}
+
+	// dependency aliases extracted from Cargo.toml (package_name -> local_name)
+	dependencyAliases := make(map[string]string)
+
+	for _, file := range args.RegularFiles {
+		if file == "Cargo.toml" {
+			if response := l.parseCargoToml(args.Config, file, &args); response != nil {
+				parentCrateName = response.Name
+				parentCrateEdition = response.Edition
+				for _, feature := range response.DefaultFeatures {
+					if isEnabled, ok := cfg.EnabledFeatures[feature]; ok {
+						if isEnabled {
+							enabledFeatures = append(enabledFeatures, feature)
+						}
+					} else {
+						if cfg.DefaultFeatures {
+							enabledFeatures = append(enabledFeatures, feature)
+						}
+					}
+				}
+				for _, feature := range response.NonDefaultFeatures {
+					if isEnabled, ok := cfg.EnabledFeatures[feature]; ok {
+						if isEnabled {
+							enabledFeatures = append(enabledFeatures, feature)
+						}
+					}
+				}
+				sort.Strings(enabledFeatures)
+
+				// Extract dependency aliases from Cargo.toml
+				for _, alias := range response.DependencyAliases {
+					dependencyAliases[alias.PackageName] = alias.LocalName
+				}
+
+				// Determine if there are binaries (which would have main.rs files)
+				hasMainRs := len(response.Binaries) > 0
+
+				// Check if we're generating any Rust targets that use lint_config
+				// Note: cargo_build_script does not use lint_config, so we exclude it
+				hasAnyRustTargets := response.Library != nil ||
+					len(response.Binaries) > 0 ||
+					len(response.Tests) > 0 ||
+					len(response.Benches) > 0 ||
+					len(response.Examples) > 0
+
+				// Generate extract_cargo_lints target only if we're generating Rust targets that use it
+				if cfg.ExtractCargoLints && hasAnyRustTargets {
+					lintsRule := rule.NewRule("extract_cargo_lints", "workspace_lints")
+					lintsRule.SetAttr("manifest", "Cargo.toml")
+					lintsRule.SetAttr("workspace", "//:Cargo.toml")
+					result.Gen = append(result.Gen, lintsRule)
+					result.Imports = append(result.Imports, RuleData{
+						rule:            lintsRule,
+						modules:         []discoveredModule{},
+						testedCrate:     nil,
+						buildScript:     nil,
+						parentCrateName: parentCrateName,
+						aliases:         dependencyAliases,
+					})
+				}
+
+				if response.Library != nil {
+					// if there is a main.rs next to lib.rs, they will both have the same crate
+					// name; need to give the library a different name
+					suffix := ""
+					for _, binary := range response.Binaries {
+						if binary.Name == response.Library.Name {
+							suffix = "_lib"
+							break
+						}
+					}
+
+					kind := "rust_library"
+					if response.Library.ProcMacro {
+						kind = "rust_proc_macro"
+					}
+
+					l.generateCargoRule(args.Config, &args, response.Library, kind, suffix, []string{}, hasBuildScript, hasMainRs, parentCrateName, parentCrateEdition, enabledFeatures, dependencyAliases, &result)
+				}
+				for _, binary := range response.Binaries {
+					l.generateCargoRule(args.Config, &args, binary, "rust_binary", "", []string{}, hasBuildScript, false, parentCrateName, parentCrateEdition, enabledFeatures, dependencyAliases, &result)
+				}
+				for _, test := range response.Tests {
+					l.generateCargoRule(args.Config, &args, test, "rust_test", "", []string{}, hasBuildScript, false, parentCrateName, parentCrateEdition, enabledFeatures, dependencyAliases, &result)
+				}
+				for _, bench := range response.Benches {
+					l.generateCargoRule(args.Config, &args, bench, "rust_binary", "", []string{"bench"}, hasBuildScript, false, parentCrateName, parentCrateEdition, enabledFeatures, dependencyAliases, &result)
+				}
+				for _, example := range response.Examples {
+					l.generateCargoRule(args.Config, &args, example, "rust_binary", "", []string{"example"}, hasBuildScript, false, parentCrateName, parentCrateEdition, enabledFeatures, dependencyAliases, &result)
+				}
+			}
+		}
+	}
+
+	if hasBuildScript {
+		l.generateBuildScript(args.Config, &args, parentCrateName, parentCrateEdition, enabledFeatures, dependencyAliases, &result)
+	}
+
+	existingRuleNames := make(map[string]bool)
+	for _, imp := range result.Imports {
+		ruleData := imp.(RuleData)
+		existingRuleNames[ruleData.rule.Name()] = true
+	}
+
+	for _, imp := range result.Imports {
+		ruleData := imp.(RuleData)
+		if ruleData.rule.Kind() != "rust_test" {
+			hasTest := false
+			for _, module := range ruleData.modules {
+				if module.response.Hints.HasTest {
+					hasTest = true
+				}
+			}
+
+			if hasTest {
+				testRuleName := freshRuleName(ruleData.rule.Name()+"_test", existingRuleNames)
+				if testRuleName == nil {
+					l.Log(args.Config, logWarn, args.File, "could not find a suitable test rule name, all candidates already taken")
+					continue
+				}
+
+				testRule := rule.NewRule("rust_test", *testRuleName)
+				testRule.SetAttr("crate", ":"+ruleData.rule.Name())
+				testRule.SetAttr("compile_data", []string{"Cargo.toml"})
+				if len(enabledFeatures) > 0 {
+					testRule.SetAttr("crate_features", enabledFeatures)
+				}
+				if parentCrateEdition != "" && parentCrateEdition != cfg.DefaultEdition {
+					testRule.SetAttr("edition", parentCrateEdition)
+				}
+
+				if cfg.ExtractCargoLints {
+					testRule.SetAttr("lint_config", ":workspace_lints")
+				}
+
+				result.Gen = append(result.Gen, testRule)
+				result.Imports = append(result.Imports, RuleData{
+					rule:            testRule,
+					modules:         ruleData.modules,
+					testedCrate:     ruleData.rule,
+					parentCrateName: parentCrateName,
+					aliases:         dependencyAliases,
+				})
+			}
+		}
+	}
+
+	// If srcs_glob is enabled, we need to clear the srcs attribute from existing rules
+	// to avoid merge conflicts when replacing explicit file lists with glob expressions.
+	if cfg.SrcsGlob && args.File != nil {
+		generatedRuleNames := make(map[string]bool)
+		for _, r := range result.Gen {
+			generatedRuleNames[r.Name()] = true
+		}
+
+		for _, existingRule := range args.File.Rules {
+			if generatedRuleNames[existingRule.Name()] {
+				// Remove the srcs attribute so our glob can replace it without conflict
+				existingRule.DelAttr("srcs")
+			}
+		}
+	}
+
+	return result
+}
+
+func (l *rustLang) generateCargoRule(c *config.Config, args *language.GenerateArgs,
+	crateInfo *pb.CargoCrateInfo, kind string, suffix string, tags []string,
+	hasBuildScript bool, hasMainRs bool, parentCrateName string, parentCrateEdition string,
+	enabledFeatures []string, dependencyAliases map[string]string, result *language.GenerateResult) {
+
+	targetName := crateInfo.Name + suffix
+	crateName := crateInfo.Name
+
+	var crateRoot *string = nil
+	if len(crateInfo.Srcs) == 1 {
+		onlySrc := crateInfo.Srcs[0]
+		onlySrcFilename := filepath.Base(onlySrc)
+		// handle cases where we need to specify the crate root manually
+		if !(kind == "rust_library" && onlySrcFilename == "lib.rs") &&
+			!((kind == "rust_binary" || kind == "rust_test") && onlySrcFilename == "main.rs") {
+			crateRoot = &onlySrc
+		}
+	}
+
+	// traverse all files we know about to determine the full module structure
+	roots := []string{}
+	for _, src := range crateInfo.Srcs {
+		// It is possible for declared files to be absent if they are
+		// supposed to be produced by the build script of the crate.
+		if fileExists(src, args) {
+			roots = append(roots, src)
+		}
+	}
+	modules := l.discoverModules(c, roots, enabledFeatures, args)
+
+	srcs := []string{}
+	compile_data := map[string]bool{"Cargo.toml": true}
+	discovered := []discoveredModule{}
+
+	for src, module := range modules {
+		response := module.response
+		srcs = append(srcs, src)
+		for _, f := range response.CompileData {
+			compile_data[f] = true
+		}
+		if response != nil {
+			discovered = append(discovered, module)
+		}
+	}
+
+	newRule := rule.NewRule(kind, targetName)
+
+	if len(srcs) > 0 {
+		cfg := l.GetConfig(args.Config)
+		// Only use glob for rust_library targets (including rust_proc_macro)
+		if cfg.SrcsGlob && (kind == "rust_library" || kind == "rust_proc_macro") {
+			// Use glob expression instead of listing files explicitly
+			newRule.SetAttr("srcs", createGlobExpr(srcs, hasMainRs))
+		} else {
+			newRule.SetAttr("srcs", srcs)
+		}
+	}
+	newRule.SetAttr("visibility", []string{"//visibility:public"})
+	newRule.SetAttr("compile_data", setToSortedVector(compile_data))
+
+	if targetName != crateName {
+		newRule.SetAttr("crate_name", crateName)
+	}
+
+	cfg := l.GetConfig(args.Config)
+	if parentCrateEdition != "" && parentCrateEdition != cfg.DefaultEdition {
+		newRule.SetAttr("edition", parentCrateEdition)
+	}
+
+	if len(tags) != 0 {
+		newRule.SetAttr("tags", tags)
+	}
+
+	if crateRoot != nil && len(srcs) > 1 {
+		newRule.SetAttr("crate_root", *crateRoot)
+	}
+	if len(enabledFeatures) > 0 {
+		newRule.SetAttr("crate_features", enabledFeatures)
+	}
+
+	if cfg.ExtractCargoLints {
+		newRule.SetAttr("lint_config", ":workspace_lints")
+	}
+
+	var buildScript *label.Label = nil
+	if hasBuildScript && (kind == "rust_library" || kind == "rust_binary") {
+		build_script_label, err := label.Parse(":build_script")
+		if err != nil {
+			l.Log(c, logFatal, "build.rs", "bad build script label: %v\n", err)
+		}
+		buildScript = &build_script_label
+	}
+
+	result.Gen = append(result.Gen, newRule)
+	result.Imports = append(result.Imports, RuleData{
+		rule:            newRule,
+		modules:         discovered,
+		testedCrate:     nil,
+		buildScript:     buildScript,
+		parentCrateName: parentCrateName,
+		aliases:         dependencyAliases,
+	})
+}
+
+func (l *rustLang) generateBuildScript(c *config.Config, args *language.GenerateArgs,
+	parentCrateName string, parentCrateEdition string, enabledFeatures []string,
+	dependencyAliases map[string]string, result *language.GenerateResult) {
+	modules := l.discoverModules(c, []string{"build.rs"}, enabledFeatures, args)
+
+	srcs := []string{}
+	compile_data := map[string]bool{"Cargo.toml": true}
+	discovered := []discoveredModule{}
+
+	for src, module := range modules {
+		srcs = append(srcs, src)
+		if module.response != nil {
+			for _, f := range module.response.CompileData {
+				compile_data[f] = true
+			}
+			discovered = append(discovered, module)
+		}
+	}
+
+	newRule := rule.NewRule("cargo_build_script", "build_script")
+	newRule.SetAttr("srcs", srcs)
+	newRule.SetAttr("visibility", []string{"//visibility:public"})
+	newRule.SetAttr("compile_data", setToSortedVector(compile_data))
+	newRule.SetAttr("crate_root", "build.rs")
+
+	cfg := l.GetConfig(args.Config)
+	if parentCrateEdition != "" && parentCrateEdition != cfg.DefaultEdition {
+		newRule.SetAttr("edition", parentCrateEdition)
+	}
+
+	if len(enabledFeatures) > 0 {
+		newRule.SetAttr("crate_features", enabledFeatures)
+	}
+
+	result.Gen = append(result.Gen, newRule)
+	result.Imports = append(result.Imports, RuleData{
+		rule:            newRule,
+		modules:         discovered,
+		testedCrate:     nil,
+		parentCrateName: parentCrateName,
+		aliases:         dependencyAliases,
+	})
+}
+
+// discoverModules parses the given root files and every mod reachable from them, returning each
+// parser response along with whether its file is reachable only from tests.
+func (l *rustLang) discoverModules(c *config.Config, roots []string, enabledFeatures []string,
+	args *language.GenerateArgs) map[string]discoveredModule {
+
+	type pendingModule struct {
+		file      string
+		isModRoot bool
+	}
+
+	modules := map[string]discoveredModule{}
+
+	rootModules := []pendingModule{}
+	for _, root := range roots {
+		rootModules = append(rootModules, pendingModule{file: root, isModRoot: true})
+	}
+
+	walk := func(queue []pendingModule, deferred *[]pendingModule) {
+		testOnly := deferred == nil
+
+		for len(queue) > 0 {
+			current := queue[0]
+			queue = queue[1:]
+			file := current.file
+
+			if _, ok := modules[file]; ok {
+				continue
+			}
+			response := l.parseFile(c, file, enabledFeatures, args)
+			modules[file] = discoveredModule{response: response, testOnly: testOnly}
+			if response == nil {
+				continue
+			}
+
+			dirname := filepath.Dir(file)
+			currentModName := strings.TrimSuffix(filepath.Base(file), ".rs")
+
+			for _, mod := range declaredMods(response) {
+				externMod := mod.name
+				var externModPath string
+				var childIsModRoot bool
+
+				if current.isModRoot {
+					// first check for an adjacent file
+					externModPath = filepath.Join(dirname, externMod+".rs")
+					childIsModRoot = false
+
+					// then check for an equivalent mod.rs
+					if !fileExists(externModPath, args) {
+						externModPath = filepath.Join(dirname, externMod, "mod.rs")
+						childIsModRoot = true
+					}
+				} else {
+					// look in the subdirectory for the current module
+					externModPath = filepath.Join(dirname, currentModName, externMod+".rs")
+					childIsModRoot = false
+				}
+
+				if !fileExists(externModPath, args) {
+					l.Log(c, logWarn, file, "could not find file for mod %s", externMod)
+					continue
+				}
+
+				child := pendingModule{file: externModPath, isModRoot: childIsModRoot}
+				if mod.isTestOnly && deferred != nil {
+					*deferred = append(*deferred, child)
+				} else {
+					queue = append(queue, child)
+				}
+			}
+		}
+	}
+
+	// Test-only modules wait until everything reachable outside tests has been parsed, so a file
+	// reachable through both kinds of path is classified as an ordinary module.
+	deferred := []pendingModule{}
+	walk(rootModules, &deferred)
+	walk(deferred, nil)
+
+	return modules
+}
+
+func (l *rustLang) parseCargoToml(c *config.Config, file string, args *language.GenerateArgs) *pb.CargoTomlResponse {
+	request := &pb.CargoTomlRequest{FilePath: path.Join(args.Dir, file)}
+	response, err := l.Parser.ParseCargoToml(request)
+	if err != nil {
+		l.Log(c, logFatal, file, "failed to parse Cargo.toml: %v", err)
+	}
+	if !response.Success {
+		l.Log(c, logWarn, file, "failed to parse Cargo.toml: %s", response.ErrorMsg)
+		return nil
+	}
+	return response
+}
+
+// declaredMod is a mod defined in another file, paired with whether its declaration sat behind
+// #[cfg(test)].
+type declaredMod struct {
+	name       string
+	isTestOnly bool
+}
+
+func declaredMods(response *pb.RustImportsResponse) []declaredMod {
+	mods := make([]declaredMod, 0, len(response.ExternMods)+len(response.TestExternMods))
+	for _, name := range response.ExternMods {
+		mods = append(mods, declaredMod{name: name, isTestOnly: false})
+	}
+	for _, name := range response.TestExternMods {
+		mods = append(mods, declaredMod{name: name, isTestOnly: true})
+	}
+	return mods
+}
+
+func fileExists(path string, args *language.GenerateArgs) bool {
+	fullPath := filepath.Join(args.Dir, path)
+	_, err := os.Stat(fullPath)
+	return err == nil
+}
+
+func setToSortedVector(src map[string]bool) []string {
+	result := []string{}
+	for key := range src {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
+}

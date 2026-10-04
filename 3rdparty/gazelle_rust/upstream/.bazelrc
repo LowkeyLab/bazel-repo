@@ -1,0 +1,29 @@
+# Best practice options for Bazel
+common --sandbox_default_allow_network=false
+common --incompatible_strict_action_env
+common --incompatible_disallow_empty_glob=true
+
+# Prevent incompatible versions of MODULE.bazel and MODULE.bazel.lock from being committed.
+# If you update MODULE.bazel, always re-run `bazel mod deps --lockfile_mode=update` and commit
+# the resulting MODULE.bazel.lock alongside your MODULE.bazel changes.
+common --lockfile_mode=error
+
+test --test_verbose_timeout_warnings
+# End of best practice options for Bazel
+
+test --test_output=errors
+
+# rustfmt aspect
+build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
+build:rustfmt --output_groups=+rustfmt_checks
+
+# clippy aspect
+build:clippy --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect
+build:clippy --output_groups=+clippy_checks
+
+build:check --config=rustfmt
+
+# always run clippy
+build --config=clippy
+
+build:ci --keep_going --experimental_scale_timeouts=3 --config=check

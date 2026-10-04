@@ -1,1 +1,1 @@
-exports_files(["rules_rs_loads.patch"])
+exports_files(["README.md"])

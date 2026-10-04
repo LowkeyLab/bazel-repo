@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "a",
+    "b",
+    "c",
+]
+
+[workspace.dependencies]
+strum = "0.27"

@@ -1,0 +1,20 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+# gazelle:rust_feature foo false
+
+rust_library(
+    name = "a_lib",
+    srcs = ["src/lib.rs"],
+    compile_data = ["Cargo.toml"],
+    crate_name = "a",
+    visibility = ["//visibility:public"],
+    deps = ["@crates//:strum-0.24.1"],
+)
+
+rust_binary(
+    name = "a",
+    srcs = ["src/main.rs"],
+    compile_data = ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+    deps = [":a_lib"],
+)

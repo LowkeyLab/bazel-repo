@@ -1,0 +1,256 @@
+use std::collections::HashSet;
+use std::error::Error;
+use std::path::PathBuf;
+
+struct TestCase {
+    filename: &'static str,
+    enabled_features: Vec<&'static str>,
+    expected_imports: Vec<&'static str>,
+    expected_test_imports: Vec<&'static str>,
+    expected_extern_mods: Vec<&'static str>,
+    expected_test_extern_mods: Vec<&'static str>,
+    expected_compile_data: Vec<&'static str>,
+}
+
+lazy_static::lazy_static! {
+    static ref TEST_CASES: Vec<TestCase> = vec![
+        TestCase {
+            filename: "simple.rs",
+            enabled_features: vec![],
+            expected_imports: vec![
+                "gazelle",
+                "test_extern_crate_1",
+                "test_use_1",
+                "test_use_2",
+                "test_use_3",
+                "test_use_4",
+                "test_use_5",
+                "test_use_6",
+                "test_use_7",
+                "test_duplicate",
+                "test_inner_1",
+                "test_args_1",
+                "test_ret_1",
+                "test_inner_2",
+                "test_inner_mod_2",
+                "test_inner_mod_3",
+                "test_derive_1",
+                "test_attribute_1",
+                "test_same_name",
+                "test_cfg_attr_derive",
+                "test_cfg_attr_macro",
+                "test_cfg_attr_macro_on_impl",
+                "test_cfg_attr_macro_on_fn",
+                "test_bare_use_group1",
+                "test_bare_use_group2",
+                "type",
+            ],
+            expected_test_imports: vec![],
+            expected_extern_mods: vec!["extern_mod"],
+            expected_test_extern_mods: vec![],
+            expected_compile_data: vec![
+                "file1.txt",
+                "file2.txt",
+            ],
+        },
+        TestCase {
+            filename: "test_only.rs",
+            enabled_features: vec![],
+            expected_imports: vec![
+                "a",
+                "x",
+            ],
+            expected_test_imports: vec![
+                "b",
+                "c",
+                "d",
+                "e",
+                "f",
+            ],
+            expected_extern_mods: vec![],
+            expected_test_extern_mods: vec!["test_extern_mod"],
+            expected_compile_data: vec![],
+        },
+        TestCase {
+            filename: "early_mod.rs",
+            enabled_features: vec![],
+            expected_imports: vec!["ee"],
+            expected_test_imports: vec![],
+            expected_extern_mods: vec![],
+            expected_test_extern_mods: vec![],
+            expected_compile_data: vec![],
+        },
+        TestCase {
+            filename: "features.rs",
+            enabled_features: vec!["bar"],
+            expected_imports: vec![
+                "bar",
+                "baz",
+                "qux",
+                "test_extern_crate_2",
+                "test_extern_crate_3",
+            ],
+            expected_test_imports: vec![],
+            expected_extern_mods: vec![
+                "extern_mod_2",
+            ],
+            expected_test_extern_mods: vec![],
+            expected_compile_data: vec![],
+        },
+        TestCase {
+            filename: "macros.rs",
+            enabled_features: vec![],
+            expected_imports: vec![
+                "foo1",
+                "foo2",
+                "bar1",
+                "bar2",
+                "nested1",
+                "nested2",
+            ],
+            expected_test_imports: vec![],
+            expected_extern_mods: vec![],
+            expected_test_extern_mods: vec![],
+            expected_compile_data: vec![
+                "file1.txt",
+                "file2.txt",
+                "file3.txt",
+                "file4.txt",
+                "file5.txt",
+                "file6.txt",
+                "file7.txt",
+            ],
+        },
+        TestCase {
+            filename: "alternative_test_attributes.rs",
+            enabled_features: vec![],
+            expected_imports: vec![],
+            expected_test_imports: vec![
+                "tokio",
+                "async_std",
+                "actix_rt",
+                "custom_framework",
+                "tokio_dep",
+                "async_std_dep",
+                "actix_dep",
+                "regular_dep",
+                "custom_dep",
+                "tokio_flavor_dep",
+                "tokio_multi_args_dep",
+                "async_std_timeout_dep",
+            ],
+            expected_extern_mods: vec![],
+            expected_test_extern_mods: vec![],
+            expected_compile_data: vec![],
+        },
+        TestCase {
+            filename: "provides.rs",
+            enabled_features: vec![],
+            expected_imports: vec!["gazelle"],
+            expected_test_imports: vec![],
+            expected_extern_mods: vec![],
+            expected_test_extern_mods: vec![],
+            expected_compile_data: vec![],
+        },
+    ];
+}
+
+fn assert_eq_vecs(actual: &[String], expected: &[String], msg: &str) {
+    let actual_set: HashSet<_> = actual.iter().collect();
+    let expected_set: HashSet<_> = expected.iter().collect();
+    if actual_set != expected_set {
+        let mut only_actual: Vec<_> = actual_set.difference(&expected_set).collect();
+        only_actual.sort();
+        let mut only_expected: Vec<_> = expected_set.difference(&actual_set).collect();
+        only_expected.sort();
+
+        if !only_actual.is_empty() {
+            println!("Only in actual:");
+            for item in only_actual {
+                println!("  {}", item);
+            }
+        }
+        if !only_expected.is_empty() {
+            println!("Only in expected:");
+            for item in only_expected {
+                println!("  {}", item);
+            }
+        }
+        panic!("vecs differ: {msg}");
+    }
+}
+
+#[test]
+fn parse_test() -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "bazel")]
+    let dir = {
+        let r = runfiles::Runfiles::create().unwrap();
+        r.rlocation("_main/gazelle_rust_parser/test_data/").unwrap()
+    };
+    #[cfg(not(feature = "bazel"))]
+    let dir = {
+        let mut d = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"));
+        d.push("test_data");
+        d
+    };
+
+    for test_case in &*TEST_CASES {
+        let mut file = dir.clone();
+        file.push(test_case.filename);
+        let enabled_features: Vec<String> = test_case
+            .enabled_features
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let rust_imports =
+            gazelle_rust_parser::parse_imports(file, PathBuf::new(), &enabled_features)?;
+        assert_eq_vecs(
+            &rust_imports.imports,
+            &test_case
+                .expected_imports
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            "imports",
+        );
+        assert_eq_vecs(
+            &rust_imports.test_imports,
+            &test_case
+                .expected_test_imports
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            "test_imports",
+        );
+        assert_eq_vecs(
+            &rust_imports.extern_mods,
+            &test_case
+                .expected_extern_mods
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            "extern_modes",
+        );
+        assert_eq_vecs(
+            &rust_imports.test_extern_mods,
+            &test_case
+                .expected_test_extern_mods
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            "test_extern_mods",
+        );
+        assert_eq_vecs(
+            &rust_imports.compile_data,
+            &test_case
+                .expected_compile_data
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            "compile_data",
+        );
+    }
+
+    Ok(())
+}

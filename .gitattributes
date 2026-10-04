@@ -1,1 +1,6 @@
 pnpm-lock.yaml linguist-generated=true
+
+# Preserve vendored source and intentionally incomplete parser fixtures.
+3rdparty/gazelle_rust/upstream/** rules-lint-ignored
+# Patch context whitespace is part of the upstream patch format.
+3rdparty/gazelle_rust/upstream/patches/*.patch -whitespace
