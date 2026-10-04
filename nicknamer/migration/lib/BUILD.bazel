@@ -1,13 +1,21 @@
+# async_trait is re-exported by sea_orm_migration::prelude.
+# gazelle:rust_ignore_import async_trait
+
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 package(default_visibility = ["//nicknamer"])
 
 rust_library(
     name = "lib",
-    srcs = glob(["src/**/*.rs"]),
-    crate_name = "migration",
-    deps = [
-        "@crates//:sea-orm-migration",
-        "@crates//:tokio",
+    srcs = [
+        "src/lib.rs",
+        "src/m20220101_000001_create_user_table.rs",
+        "src/m20250618_072946_rename_table_name.rs",
+        "src/m20250622_231317_add_index.rs",
+        "src/m20250706_102217_add_name_by_server.rs",
+        "src/m20250715_180325_update_unique_column.rs",
     ],
+    crate_name = "migration",
+    crate_root = "src/lib.rs",
+    deps = ["@crates//:sea-orm-migration"],
 )

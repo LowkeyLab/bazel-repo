@@ -19,8 +19,6 @@ test_suite(
     ],
 )
 
-COMMON_SRCS = glob(["common/**"])
-
 COMMON_DATA = glob(["snapshots/**/*.snap"]) + image_data("postgres_18")
 
 COMMON_ENV = image_env("postgres_18") | {
@@ -42,28 +40,14 @@ COMMON_TAGS = [
     "requires-network",
 ]
 
-COMMON_DEPS = [
-    "//test_images/rust:test_images",
-    "//nicknamer/migration/lib",
-    "//nicknamer/server/lib",
-    "@crates//:anyhow",
-    "@crates//:askama",
-    "@crates//:axum",
-    "@crates//:insta",
-    "@crates//:sea-orm",
-    "@crates//:serde",
-    "@crates//:serde_json",
-    "@crates//:serde_yaml",  # keep
-    "@crates//:testcontainers-modules",
-    "@crates//:tokio",
-    "@crates//:tower",
-    "@crates//:tracing-subscriber",
-]
-
 rust_test(
     name = "auth_endpoints_tests",
     size = "small",
-    srcs = ["auth_endpoints_tests.rs"] + COMMON_SRCS,
+    srcs = [
+        "auth_endpoints_tests.rs",
+        "common/mod.rs",
+        "common/observations.rs",
+    ],
     crate_name = "tests_auth_endpoints_tests_test",
     crate_root = "auth_endpoints_tests.rs",
     data = COMMON_DATA,
@@ -71,13 +55,32 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS + ["@crates//:googletest"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:askama",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:insta",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
 )
 
 rust_test(
     name = "name_service_tests",
     size = "small",
-    srcs = ["name_service_tests.rs"] + COMMON_SRCS,
+    srcs = [
+        "common/mod.rs",
+        "common/observations.rs",
+        "name_service_tests.rs",
+    ],
     crate_name = "tests_name_service_tests_test",
     crate_root = "name_service_tests.rs",
     data = COMMON_DATA,
@@ -85,13 +88,31 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS + ["@crates//:googletest"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:serde_yaml",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tracing-subscriber",
+    ],
 )
 
 rust_test(
     name = "names_endpoints_tests",
     size = "small",
-    srcs = ["names_endpoints_tests.rs"] + COMMON_SRCS,
+    srcs = [
+        "common/mod.rs",
+        "common/observations.rs",
+        "names_endpoints_tests.rs",
+    ],
     crate_name = "tests_names_endpoints_tests_test",
     crate_root = "names_endpoints_tests.rs",
     data = COMMON_DATA,
@@ -99,13 +120,32 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS,
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:insta",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:serde_yaml",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+        "@crates//:tracing-subscriber",
+    ],
 )
 
 rust_test(
     name = "observations_service_tests",
     size = "small",
-    srcs = ["observations_service_tests.rs"] + COMMON_SRCS,
+    srcs = [
+        "common/mod.rs",
+        "common/observations.rs",
+        "observations_service_tests.rs",
+    ],
     crate_name = "tests_observations_service_tests_test",
     crate_root = "observations_service_tests.rs",
     data = COMMON_DATA,
@@ -113,7 +153,20 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS + ["@crates//:googletest"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
 )
 
 rust_test(
@@ -131,7 +184,11 @@ rust_test(
 rust_test(
     name = "web_endpoints_tests",
     size = "small",
-    srcs = ["web_endpoints_tests.rs"] + COMMON_SRCS,
+    srcs = [
+        "common/mod.rs",
+        "common/observations.rs",
+        "web_endpoints_tests.rs",
+    ],
     crate_name = "tests_web_endpoints_tests_test",
     crate_root = "web_endpoints_tests.rs",
     data = COMMON_DATA,
@@ -139,13 +196,32 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS + ["@crates//:googletest"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:askama",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:insta",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
 )
 
 rust_test(
     name = "observations_app_tests",
     size = "small",
-    srcs = ["observations_app_tests.rs"] + COMMON_SRCS,
+    srcs = [
+        "common/mod.rs",
+        "common/observations.rs",
+        "observations_app_tests.rs",
+    ],
     crate_name = "tests_observations_app_tests_test",
     crate_root = "observations_app_tests.rs",
     data = COMMON_DATA,
@@ -153,7 +229,20 @@ rust_test(
     exec_properties = COMMON_EXEC_PROPERTIES,
     rustc_env = COMMON_RUSTC_ENV,
     tags = COMMON_TAGS,
-    deps = COMMON_DEPS + ["@crates//:googletest"],
+    deps = [
+        "//nicknamer/migration/lib",
+        "//nicknamer/server/lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:googletest",
+        "@crates//:sea-orm",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
 )
 
 rust_test(

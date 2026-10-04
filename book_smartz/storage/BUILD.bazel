@@ -4,7 +4,6 @@ load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 package(default_visibility = ["//visibility:public"])
 
-# gazelle:ignore
 rust_library(
     name = "lib",
     srcs = [
@@ -21,6 +20,7 @@ rust_library(
     ],
     compile_data = ["//book_smartz/migrations:001_initial.sql"],
     crate_name = "book_smartz_storage",
+    crate_root = "lib.rs",
     deps = [
         "//book_smartz/domain:lib",
         "@crates//:serde_json",
@@ -48,7 +48,7 @@ rust_test(
     ],
     compile_data = ["tests/fixtures/ranking-history-v1.json"],
     crate_root = "tests/mod.rs",
-    data = image_data("postgres_18"),  # keep
+    data = image_data("postgres_18"),
     env = image_env("postgres_18"),
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -61,13 +61,12 @@ rust_test(
     deps = [
         ":lib",
         "//book_smartz/domain:lib",
-        "//test_images/rust:test_images",  # keep
+        "//test_images/rust:test_images",
         "@crates//:chrono",
         "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:testcontainers-modules",
-        "@crates//:thiserror",
         "@crates//:tokio",
         "@crates//:tracing",
         "@crates//:tracing-subscriber",
@@ -80,9 +79,7 @@ rust_test(
     size = "small",
     crate = ":lib",
     deps = [
-        ":lib",
         "@crates//:googletest",
-        "@crates//:thiserror",
         "@crates//:tracing",
         "@crates//:tracing-subscriber",
         "@crates//:uuid",

@@ -98,8 +98,9 @@ labels and crate names were preserved, so dependent-label rewrites were not
 needed. The Nicknamer2 single-file targets are intentional separately imported
 crates, not redundant module targets. Existing grouped crates in Hearthstone,
 Kafka Calculator, Book Smartz, Prediction Bot, and Nicknamer retain their crate
-boundaries. No nested application BUILD file was removed and existing Gazelle
-exclusions remain in place.
+boundaries. No nested application BUILD file was removed. The subsequent
+[#1960 cleanup](workarounds.md) removes redundant application exclusions and
+records the narrow dependency configuration that remains necessary.
 
 The exact source moves are recorded in [the migration inventory](migration.md).
 Legacy generator fixtures now configure intentional roots explicitly and use
@@ -130,7 +131,8 @@ output wholesale when adapting load statements.
 
 Before changing generation behavior, compare application BUILD output against
 the existing generator using identical inputs, and confirm a second generation
-run changes no files. Preserve current application exclusions.
+run changes no files. Consult [the workaround inventory](workarounds.md) before
+removing dependency overrides or protected attributes.
 
 ## Baseline validation
 

@@ -1,9 +1,10 @@
+# gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
+
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
-# gazelle:ignore
 rust_library(
     name = "lib",
     srcs = [
@@ -19,6 +20,7 @@ rust_library(
         "projection.rs",
     ],
     crate_name = "book_smartz_domain",
+    crate_root = "lib.rs",
     deps = [
         "@crates//:chrono",
         "@crates//:cloudevents-sdk",
@@ -37,6 +39,7 @@ rust_test(
     deps = [
         "@crates//:chrono",
         "@crates//:googletest",
+        "@crates//:serde_json",
         "@crates//:uuid",
     ],
 )

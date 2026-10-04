@@ -7,8 +7,10 @@ rust_binary(
     name = "bin",
     srcs = [
         "src/health.rs",
+        "src/health_tests.rs",
         "src/main.rs",
     ],
+    crate_root = "src/main.rs",
     visibility = ["//visibility:public"],
     deps = [
         "//prediction_bot/lib",
@@ -55,14 +57,9 @@ oci_load(
 rust_test(
     name = "health_test",
     size = "small",
-    srcs = [
-        "src/health.rs",
-        "src/health_tests.rs",
-    ],
-    crate_root = "src/health.rs",
+    crate = ":bin",
     deps = [
         "@crates//:anyhow",
-        "@crates//:axum",
         "@crates//:googletest",
         "@crates//:reqwest",
         "@crates//:tokio",

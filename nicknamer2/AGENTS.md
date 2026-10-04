@@ -37,7 +37,7 @@ aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 - **DI via GraphQL context**: `Context` holds `Arc<Service<Repo>>` (names), `Arc<ServerService<ServerRepo>>` (servers), `Arc<dyn AuthService>`, optional auth token
 - **Pool sharing**: when multiple repos use the same `PgPool`, use `pool.clone()` (it's an `Arc` internally)
 - **Unit tests**: in-source `#[cfg(test)]` modules
-- **Migrations**: `sqlx::migrate!()` macro in `src/migrations/lib.rs`, SQL files in `nicknamer2/migrations/`. Bazel `compile_data` with `# keep` comment required for the migrations filegroup.
+- **Migrations**: `sqlx::migrate!()` macro in `src/migrations/lib.rs`, SQL files in `nicknamer2/migrations/`. Retain the migrations filegroup in Bazel `compile_data`; Gazelle preserves this attribute without a `# keep` comment.
 - **Integration tests**: spin up PostgreSQL via `testcontainers`, tagged `requires-network`
 
 ## E2E Testing with Casdoor
