@@ -1,0 +1,22 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "shared_lib",
+    srcs = [
+        "src/helper.rs",
+        "src/lib.rs",
+    ],
+    crate_name = "shared",
+    crate_root = "src/lib.rs",
+)
+
+rust_binary(
+    name = "shared",
+    srcs = [
+        "src/helper.rs",
+        "src/main.rs",
+    ],
+    crate_root = "src/main.rs",
+    deps = [":shared_lib"],
+)

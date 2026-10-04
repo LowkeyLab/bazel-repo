@@ -20,8 +20,8 @@ func getCrateName(r *rule.Rule) string {
 }
 
 func (l *rustLang) Imports(c *config.Config, r *rule.Rule,
-	f *rule.File) []resolve.ImportSpec {
-
+	f *rule.File,
+) []resolve.ImportSpec {
 	// return nil by default
 	var specs []resolve.ImportSpec
 
@@ -64,19 +64,34 @@ func (*rustLang) Embeds(r *rule.Rule, from label.Label) []label.Label {
 }
 
 func (*rustLang) CrossResolve(c *config.Config, ix *resolve.RuleIndex,
-	spec resolve.ImportSpec, lang string) []resolve.FindResult {
-
+	spec resolve.ImportSpec, lang string,
+) []resolve.FindResult {
 	return []resolve.FindResult{}
 }
 
 func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex,
-	rc *repo.RemoteCache, r *rule.Rule, ruleData interface{}, from label.Label) {
-
+	rc *repo.RemoteCache, r *rule.Rule, ruleData interface{}, from label.Label,
+) {
 	cfg := l.GetConfig(c)
 
 	if SliceContains(resolvableDefs, r.Kind()) {
 		ruleData := ruleData.(RuleData)
 		deps := map[label.Label]bool{}
+		// Build scripts are declared dependencies, not Rust source imports.
+		// Absence from the generation registry cannot justify pruning a dependency
+		// in an ignored/excluded package or an external repository we do not manage.
+		for _, dependency := range r.AttrStrings("deps") {
+			if parsed, err := label.Parse(dependency); err == nil {
+				absolute := parsed.Abs(from.Repo, from.Pkg)
+				_, managed := l.Plans[absolute.Pkg]
+				if absolute.Repo != from.Repo {
+					managed = cfg.CratesPrefix != "" && strings.HasPrefix(absolute.String(), cfg.CratesPrefix)
+				}
+				if !managed || l.BuildScripts[absolute] {
+					deps[absolute] = true
+				}
+			}
+		}
 		procMacroDeps := map[label.Label]bool{}
 		// aliases map: label -> local_name (for renamed dependencies)
 		aliases := map[label.Label]string{}
@@ -212,7 +227,8 @@ func maybeSetAliases(r *rule.Rule, aliases map[label.Label]string, from label.La
 }
 
 func (l *rustLang) resolveCrateVersion(cfg *rustConfig, c *config.Config,
-	parentCrateName string, crateToResolve string, from label.Label) string {
+	parentCrateName string, crateToResolve string, from label.Label,
+) string {
 	if parentCrateName == "" {
 		l.Log(c, logFatal, from, "unable to infer the parent crate name while resolving the version of %s", crateToResolve)
 	}
@@ -228,7 +244,8 @@ func (l *rustLang) resolveCrateVersion(cfg *rustConfig, c *config.Config,
 }
 
 func (l *rustLang) resolveCrate(cfg *rustConfig, c *config.Config, ix *resolve.RuleIndex,
-	lang string, imp string, parentCrateName string, from label.Label) (*label.Label, bool) {
+	lang string, imp string, parentCrateName string, from label.Label,
+) (*label.Label, bool) {
 	spec := resolve.ImportSpec{
 		Lang: lang,
 		Imp:  imp,

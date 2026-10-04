@@ -1,2 +1,7 @@
 # gazelle:rust_cargo_lockfile Cargo.lock
 # gazelle:rust_crates_prefix @crates//:
+
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)

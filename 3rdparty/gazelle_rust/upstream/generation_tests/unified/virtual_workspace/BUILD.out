@@ -1,0 +1,14 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "virtual_workspace",
+    srcs = ["src/lib.rs"],
+    crate_root = "src/lib.rs",
+)
+
+rust_test(
+    name = "check",
+    srcs = ["tests/check.rs"],
+    crate_root = "tests/check.rs",
+)

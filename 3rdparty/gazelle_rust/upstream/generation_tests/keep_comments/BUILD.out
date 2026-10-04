@@ -2,12 +2,14 @@ load("@rules_rust//rust:defs.bzl", "rust_library")
 
 rust_library(
     name = "lib1",
-    srcs = ["lib1.rs"],
+    srcs = ["lib1/lib.rs"],
+    crate_root = "lib1/lib.rs",
 )
 
 rust_library(
     name = "lib2",
-    srcs = ["lib2.rs"],
+    srcs = ["lib2/lib.rs"],
+    crate_root = "lib2/lib.rs",
     deps = [
         ":kept_dep",  # keep
         ":lib1",
@@ -16,14 +18,15 @@ rust_library(
 
 rust_library(
     name = "lib3",
-    srcs = ["lib3.rs"],
+    srcs = ["lib3/lib.rs"],
+    crate_root = "lib3/lib.rs",
     deps = [":lib2"],  # keep
 )
 
 # keep
 rust_library(
     name = "lib4",
-    srcs = ["lib4.rs"],
+    srcs = ["lib4/lib.rs"],
     deps = [
         ":lib1",
         ":lib2",

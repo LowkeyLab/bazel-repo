@@ -2,6 +2,7 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 rust_library(
     name = "pkg2",
-    srcs = ["pkg2.rs"],
+    srcs = ["pkg2/lib.rs"],
+    crate_root = "pkg2/lib.rs",
     deps = ["//pkg1"],
 )

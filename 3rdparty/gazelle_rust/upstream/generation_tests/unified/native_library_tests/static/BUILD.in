@@ -1,0 +1,7 @@
+load("@rules_rs//rs:rust_static_library.bzl", "rust_static_library")
+
+rust_static_library(
+    name = "static",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+)

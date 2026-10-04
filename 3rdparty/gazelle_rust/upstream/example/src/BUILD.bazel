@@ -1,8 +1,7 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
-# Sample library. As new rust source files are added, rust_library targets will be created for them
-# automatically. You can regroup source files into different targets, or change the rule to
-# rust_binary or rust_test, and gazelle_rust will respect those changes.
+# Sample library. Module declarations determine source membership.
+# Existing target names, kinds, and user configuration are preserved.
 rust_library(
     name = "lib",
     srcs = [

@@ -1,0 +1,12 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "test_only_parent_alias",
+    srcs = [
+        "src/child.rs",
+        "src/lib.rs",
+        "src/local.rs",
+    ],
+    crate_root = "src/lib.rs",
+    deps = ["//external:serde"],
+)

@@ -1,0 +1,7 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+
+rust_binary(
+    name = "binary",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+)

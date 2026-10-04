@@ -1,0 +1,19 @@
+rust_proc_macro(
+    name = "another_proc_macro",
+    srcs = ["another_proc_macro/lib.rs"],
+)
+
+rust_library(
+    name = "common_lib",
+    srcs = ["common_lib/lib.rs"],
+)
+
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)
+
+rust_proc_macro(
+    name = "some_proc_macro",
+    srcs = ["some_proc_macro/lib.rs"],
+)

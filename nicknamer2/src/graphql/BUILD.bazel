@@ -4,7 +4,8 @@ load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "graphql_context",
-    srcs = ["context.rs"],
+    srcs = ["context/lib.rs"],
+    crate_root = "context/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "//nicknamer2/src/auth:auth_claims",
@@ -18,7 +19,8 @@ rust_library(
 
 rust_library(
     name = "graphql_relay",
-    srcs = ["relay.rs"],
+    srcs = ["relay/lib.rs"],
+    crate_root = "relay/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "//nicknamer2/src/name",
@@ -37,7 +39,8 @@ rust_test(
 
 rust_library(
     name = "graphql_model",
-    srcs = ["model.rs"],
+    srcs = ["model/lib.rs"],
+    crate_root = "model/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":graphql_context",
@@ -51,7 +54,8 @@ rust_library(
 
 rust_library(
     name = "graphql_query",
-    srcs = ["query.rs"],
+    srcs = ["query/lib.rs"],
+    crate_root = "query/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":graphql_context",
@@ -64,7 +68,8 @@ rust_library(
 
 rust_library(
     name = "graphql_mutation",
-    srcs = ["mutation.rs"],
+    srcs = ["mutation/lib.rs"],
+    crate_root = "mutation/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":graphql_context",
@@ -76,7 +81,8 @@ rust_library(
 
 rust_library(
     name = "graphql_schema",
-    srcs = ["schema.rs"],
+    srcs = ["schema/lib.rs"],
+    crate_root = "schema/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":graphql_context",
@@ -88,7 +94,8 @@ rust_library(
 
 rust_library(
     name = "graphql",
-    srcs = ["mod.rs"],
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":graphql_context",
@@ -100,6 +107,7 @@ rust_test(
     name = "graphql_integration_test",
     timeout = "moderate",
     srcs = ["tests.rs"],
+    crate_root = "tests.rs",
     data = image_data("postgres_18"),  # keep
     env = image_env("postgres_18"),
     exec_properties = {

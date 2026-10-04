@@ -1,0 +1,4 @@
+rust_library(
+    name = "pure_bazel_a",
+    srcs = ["pure_bazel_a/lib.rs"],
+)

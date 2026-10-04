@@ -4,6 +4,7 @@ rust_library(
     name = "nested_package",
     srcs = ["src/lib.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/lib.rs",
     visibility = ["//visibility:public"],
     deps = [
         "//a:a_lib",

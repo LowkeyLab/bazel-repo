@@ -1,0 +1,7 @@
+load("@rules_rs//rs:rust_shared_library.bzl", "rust_shared_library")
+
+rust_shared_library(
+    name = "shared",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+)

@@ -2,7 +2,8 @@ load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
 rust_library(
     name = "lockfile_crates",
-    srcs = ["lockfile_crates.rs"],
+    srcs = ["lockfile_crates/lib.rs"],
+    crate_root = "lockfile_crates/lib.rs",
     visibility = [":__subpackages__"],
     deps = [
         "//proto:messages_rust_proto",

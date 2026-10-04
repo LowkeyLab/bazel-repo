@@ -1,0 +1,7 @@
+load("//:custom.bzl", "custom_build_script")
+
+# gazelle:map_kind cargo_build_script custom_build_script //:custom.bzl
+custom_build_script(
+    name = "generate",
+    srcs = ["build.rs"],
+)

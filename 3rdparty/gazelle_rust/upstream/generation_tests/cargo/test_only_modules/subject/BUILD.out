@@ -8,6 +8,7 @@ rust_library(
         "src/tests.rs",
     ],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )

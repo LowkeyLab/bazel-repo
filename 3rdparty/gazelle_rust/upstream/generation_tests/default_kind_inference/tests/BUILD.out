@@ -4,9 +4,11 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 rust_test(
     name = "foobar",
     srcs = ["foobar.rs"],
+    crate_root = "foobar.rs",
 )
 
 rust_library(
     name = "helper",
-    srcs = ["helper.rs"],
+    srcs = ["helper/lib.rs"],
+    crate_root = "helper/lib.rs",
 )

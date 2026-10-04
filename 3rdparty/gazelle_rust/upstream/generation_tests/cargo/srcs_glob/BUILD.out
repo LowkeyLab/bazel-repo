@@ -1,17 +1,15 @@
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
-# gazelle:rust_mode generate_from_cargo
-# gazelle:rust_srcs_glob true
-
 rust_library(
     name = "srcs_glob_lib",
-    srcs = glob(
-        ["src/**/*.rs"],
-        exclude = ["src/main.rs"],
-    ),
+    srcs = [
+        "src/lib.rs",
+        "src/utils.rs",
+    ],
     compile_data = ["Cargo.toml"],
     crate_name = "srcs_glob",
+    crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
@@ -20,6 +18,7 @@ rust_binary(
     name = "srcs_glob",
     srcs = ["src/main.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/main.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":srcs_glob_lib"],

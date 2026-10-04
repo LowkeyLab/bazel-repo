@@ -15,5 +15,6 @@ rust_prost_library(
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     deps = [":foo_rust_proto"],
 )

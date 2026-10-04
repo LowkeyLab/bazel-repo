@@ -1,0 +1,12 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "scoped_imports",
+    srcs = [
+        "src/lib.rs",
+        "src/nested.rs",
+        "src/nested/serde.rs",
+    ],
+    crate_root = "src/lib.rs",
+    deps = ["//external:serde"],
+)

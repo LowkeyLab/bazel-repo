@@ -2,5 +2,11 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 rust_library(
     name = "a",
-    srcs = ["a.rs"],
+    srcs = ["a/lib.rs"],
+    crate_root = "a/lib.rs",
+)
+
+rust_library(
+    name = "b",
+    srcs = ["b/lib.rs"],
 )

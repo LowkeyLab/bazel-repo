@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -18,15 +19,6 @@ var (
 
 // Available directives
 var (
-	// Mode to operate in. Currently supported modes:
-	//  - pure_bazel (default): read sources to generate build files
-	//  - generate_from_cargo: read Cargo.toml files for crate structure; read sources for
-	//    dependencies
-	modeDirective string = "rust_mode"
-
-	modePureBazel         string = "pure_bazel"
-	modeGenerateFromCargo string = "generate_from_cargo"
-
 	// Path to Cargo.Bazel.lock.
 	// Use either rust_lockfile or rust_cargo_lockfile, not both.
 	// Must also specify rust_crates_prefix.
@@ -46,34 +38,28 @@ var (
 	allowUnusedCrateDirective string = "rust_allow_unused_crate"
 
 	// Enable or disable Cargo features when new generating new targets in
-	// generate_from_cargo mode.
+	// Cargo packages.
 	rustFeatureDirective string = "rust_feature"
 
 	// Enable or disable default Cargo features when generating new targets
-	// in generate_from_cargo mode.
+	// from Cargo manifests.
 	defaultFeaturesDirective string = "rust_default_features"
 
 	// Set the default edition.
 	defaultEditionDirective string = "rust_default_edition"
-
-	// Enable glob pattern for srcs attribute instead of listing files explicitly.
-	// When enabled, generates srcs = glob(["<src_dir>/**/*.rs"]) for rust_library
-	// and rust_proc_macro targets. rust_binary and cargo_build_script targets
-	// continue to list files explicitly.
-	srcsGlobDirective string = "rust_srcs_glob"
 
 	// Ignore a specific import when resolving dependencies.
 	// usage: # gazelle:rust_ignore_import <import name>
 	ignoreImportDirective string = "rust_ignore_import"
 
 	// Extract cargo lints from Cargo.toml files.
-	// When enabled in generate_from_cargo mode, creates extract_cargo_lints targets
+	// When enabled for Cargo packages, creates extract_cargo_lints targets
 	// and adds lint_config attributes to all generated targets.
 	extractCargoLintsDirective string = "rust_extract_cargo_lints"
 )
 
 type rustConfig struct {
-	Mode               string
+	Exclusions         []string
 	LockfileCrates     *LockfileCrates
 	CratesPrefix       string
 	ProcMacroOverrides map[string]bool
@@ -81,16 +67,20 @@ type rustConfig struct {
 	EnabledFeatures    map[string]bool
 	DefaultFeatures    bool
 	DefaultEdition     string
-	SrcsGlob           bool
 	IgnoredImports     map[string]bool
 	ExtractCargoLints  bool
 }
 
 func (cfg *rustConfig) Clone() *rustConfig {
 	copy := *cfg
+	copy.Exclusions = append([]string{}, cfg.Exclusions...)
 	// TODO(will): intentionally don't clone LockfileCrates because we want it to persist across
 	// directories, but this breaks the ability to have multiple different sets of crates in one
 	// repo
+	copy.EnabledFeatures = make(map[string]bool)
+	for k, v := range cfg.EnabledFeatures {
+		copy.EnabledFeatures[k] = v
+	}
 	copy.ProcMacroOverrides = make(map[string]bool)
 	for k, v := range cfg.ProcMacroOverrides {
 		copy.ProcMacroOverrides[k] = v
@@ -111,6 +101,9 @@ type scopedCrateSet struct {
 }
 
 type rustLang struct {
+	BuildScripts map[label.Label]bool
+	Plans        map[string][]*cratePlan
+	Owners       map[string][]string
 	Parser       *Parser
 	AllCrateSets []scopedCrateSet
 }
@@ -125,8 +118,10 @@ func NewLanguage() language.Language {
 func (*rustLang) Name() string { return langName }
 
 var (
-	commonDefs []string = []string{"rust_library", "rust_binary", "rust_test",
-		"rust_proc_macro", "rust_shared_library", "rust_static_library"}
+	commonDefs []string = []string{
+		"rust_library", "rust_binary", "rust_test",
+		"rust_proc_macro", "rust_shared_library", "rust_static_library",
+	}
 	protoDefs      []string = []string{"rust_proto_library", "rust_grpc_library"}
 	prostDefs      []string = []string{"rust_prost_library"}
 	cargoDefs      []string = []string{"cargo_build_script"}
@@ -220,10 +215,12 @@ func (l *rustLang) CheckFlags(fs *flag.FlagSet, c *config.Config) error {
 }
 
 func (*rustLang) KnownDirectives() []string {
-	return []string{modeDirective, lockfileDirective, cargoLockfileDirective,
+	return []string{
+		lockfileDirective, cargoLockfileDirective,
 		cratesPrefixDirective, procMacroOverrideDirective, allowUnusedCrateDirective,
 		rustFeatureDirective, defaultFeaturesDirective, defaultEditionDirective,
-		srcsGlobDirective, ignoreImportDirective, extractCargoLintsDirective}
+		ignoreImportDirective, extractCargoLintsDirective,
+	}
 }
 
 func (l *rustLang) GetConfig(c *config.Config) *rustConfig {
@@ -232,7 +229,8 @@ func (l *rustLang) GetConfig(c *config.Config) *rustConfig {
 }
 
 func (l *rustLang) HandleBooleanDirective(c *config.Config,
-	directiveKey string, directiveValue string, from *rule.File) (string, bool) {
+	directiveKey string, directiveValue string, from *rule.File,
+) (string, bool) {
 	split := strings.Split(directiveValue, " ")
 	if len(split) != 2 || (split[1] != "true" && split[1] != "false") {
 		l.Log(c, logFatal, from, "bad %s, should be gazelle:%s <crate> <true|false>",
@@ -250,7 +248,6 @@ func (l *rustLang) Configure(c *config.Config, rel string, from *rule.File) {
 	var cfg *rustConfig
 	if _, ok := c.Exts[l.Name()]; !ok {
 		cfg = &rustConfig{
-			Mode:               modePureBazel,
 			LockfileCrates:     EmptyLockfileCrates(),
 			CratesPrefix:       "",
 			ProcMacroOverrides: make(map[string]bool),
@@ -258,7 +255,6 @@ func (l *rustLang) Configure(c *config.Config, rel string, from *rule.File) {
 			EnabledFeatures:    make(map[string]bool),
 			DefaultFeatures:    true, // enable default features by default
 			DefaultEdition:     "",
-			SrcsGlob:           false,
 			IgnoredImports:     make(map[string]bool),
 			ExtractCargoLints:  false,
 		}
@@ -293,12 +289,8 @@ func (l *rustLang) Configure(c *config.Config, rel string, from *rule.File) {
 
 	if from != nil {
 		for _, directive := range from.Directives {
-			if directive.Key == modeDirective {
-				if directive.Value != modePureBazel && directive.Value != modeGenerateFromCargo {
-					l.Log(c, logFatal, from, "bad %s: %s, valid options are %v", modeDirective,
-						directive.Value, []string{modePureBazel, modeGenerateFromCargo})
-				}
-				cfg.Mode = directive.Value
+			if directive.Key == "exclude" {
+				cfg.Exclusions = append(cfg.Exclusions, path.Join(rel, directive.Value))
 			} else if directive.Key == lockfileDirective {
 				addCrateSet(directive, false)
 			} else if directive.Key == cargoLockfileDirective {
@@ -320,13 +312,6 @@ func (l *rustLang) Configure(c *config.Config, rel string, from *rule.File) {
 				cfg.DefaultFeatures = value
 			} else if directive.Key == defaultEditionDirective {
 				cfg.DefaultEdition = directive.Value
-			} else if directive.Key == srcsGlobDirective {
-				value, err := strconv.ParseBool(directive.Value)
-				if err != nil {
-					l.Log(c, logFatal, from, "bad %s, should be gazelle:%s <true|false>",
-						directive.Key, directive.Key)
-				}
-				cfg.SrcsGlob = value
 			} else if directive.Key == ignoreImportDirective {
 				cfg.IgnoredImports[directive.Value] = true
 			} else if directive.Key == extractCargoLintsDirective {
@@ -343,6 +328,7 @@ func (l *rustLang) Configure(c *config.Config, rel string, from *rule.File) {
 	for k, v := range c.KindMap {
 		cfg.KindMapInverse[v.KindName] = k
 	}
+	l.prepareCrates(c, rel, from)
 }
 
 func (l *rustLang) DoneResolving(c *config.Config) {

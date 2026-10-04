@@ -6,5 +6,6 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     deps = ["@crates//:serde"],
 )

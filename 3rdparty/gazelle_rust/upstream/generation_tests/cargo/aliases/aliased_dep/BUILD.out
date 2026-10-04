@@ -7,6 +7,7 @@ rust_library(
         "//external_crate": "local_alias",
     },
     compile_data = ["Cargo.toml"],
+    crate_root = "src/lib.rs",
     visibility = ["//visibility:public"],
     deps = ["//external_crate"],
 )

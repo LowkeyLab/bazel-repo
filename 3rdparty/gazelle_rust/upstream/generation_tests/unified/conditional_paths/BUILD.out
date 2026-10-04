@@ -1,0 +1,31 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "conditional_paths",
+    srcs = [
+        "inline/prod.rs",
+        "lib.rs",
+        "nested.rs",
+        "other_outer.rs",
+        "other_scope/other_only.rs",
+        "portable.rs",
+        "prod_impl.rs",
+        "selected.rs",
+        "shared.rs",
+        "shared_other.rs",
+        "shared_unix.rs",
+        "test_impl.rs",
+        "unix.rs",
+        "unix_outer.rs",
+        "unix_scope/unix_only.rs",
+    ],
+    crate_features = ["selected"],
+    crate_root = "lib.rs",
+)
+
+rust_test(
+    name = "conditional_paths_test",
+    crate = ":conditional_paths",
+    deps = ["//helper"],
+)

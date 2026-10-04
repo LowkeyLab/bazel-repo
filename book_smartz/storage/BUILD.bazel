@@ -91,8 +91,8 @@ rust_test(
 
 rust_library(
     name = "usage",
-    srcs = ["usage.rs"],
-    crate_root = "usage.rs",
+    srcs = ["usage/lib.rs"],
+    crate_root = "usage/lib.rs",
     deps = [
         ":lib",
         "//book_smartz/domain:lib",

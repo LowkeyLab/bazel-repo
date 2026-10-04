@@ -1,0 +1,15 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("//:custom.bzl", "custom_test")
+
+# gazelle:map_kind rust_test custom_test //:custom.bzl
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+)
+
+custom_test(
+    name = "unit",
+    crate = ":lib",
+    deps = ["//helper"],
+)

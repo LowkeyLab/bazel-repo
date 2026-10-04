@@ -1,0 +1,1 @@
+gazelle: src/lib.rs: module both: expected exactly one source among [src/both.rs src/both/mod.rs], found 2; configure #[path] or fix the module files

@@ -4,12 +4,12 @@
 
 custom_rust_library(
     name = "existing_lib",
-    srcs = ["existing_lib.rs"],
+    srcs = ["existing_lib/lib.rs"],
 )
 
 custom_rust_binary(
     name = "existing_bin",
-    srcs = ["existing_bin.rs"],
+    srcs = ["existing_bin/main.rs"],
 )
 
 custom_rust_test(
@@ -20,4 +20,19 @@ custom_rust_test(
 custom_rust_test(
     name = "existing_lib_test",
     crate = ":existing_lib",
+)
+
+custom_rust_binary(
+    name = "new_bin",
+    srcs = ["new_bin/main.rs"],
+)
+
+custom_rust_library(
+    name = "new_lib",
+    srcs = ["new_lib/lib.rs"],
+)
+
+custom_rust_test(
+    name = "new_test",
+    srcs = ["new_test.rs"],
 )

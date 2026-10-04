@@ -6,7 +6,7 @@ authentication. Reader UUIDs identify streams; the caller enforces access contro
 
 The caller constructs a PostgreSQL pool, configures its limits, supplies an observer
 before the first operation, explicitly migrates, and owns pool shutdown. See
-[the compiled usage example](usage.rs) (`//book_smartz/storage:usage`) for the complete
+[the compiled usage example](usage/lib.rs) (`//book_smartz/storage:usage`) for the complete
 sequence, including acquisition, statement and lock timeouts and an async-scoped
 tracing subscriber. Supply the URL through caller configuration; the crate does
 not read environment variables. Ordinary operations never migrate. Migration

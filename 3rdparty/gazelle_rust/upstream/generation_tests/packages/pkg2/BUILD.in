@@ -1,0 +1,4 @@
+rust_library(
+    name = "pkg2",
+    srcs = ["pkg2/lib.rs"],
+)

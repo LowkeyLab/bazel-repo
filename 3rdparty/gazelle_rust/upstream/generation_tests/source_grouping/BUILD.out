@@ -7,9 +7,11 @@ rust_library(
         "b.rs",
         "lib.rs",
     ],
+    crate_root = "lib.rs",
 )
 
 rust_library(
     name = "other",
-    srcs = ["other.rs"],
+    srcs = ["other/lib.rs"],
+    crate_root = "other/lib.rs",
 )

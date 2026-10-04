@@ -10,6 +10,7 @@ rust_library(
     name = "wasm_lib",
     srcs = glob(["src/**/*.rs"]),  # keep
     crate_name = "pinyin_composer_wasm",
+    crate_root = "src/lib.rs",
     deps = [
         "@crates//:console_error_panic_hook",  # keep
         "@crates//:pinyin",  # keep
@@ -59,4 +60,9 @@ rust_test(
     crate_name = "pinyin_composer_wasm_tests",
     crate_root = "tests/conversion_tests.rs",
     deps = [":wasm_lib"],
+)
+
+rust_test(
+    name = "wasm_lib_test",
+    crate = ":wasm_lib",
 )

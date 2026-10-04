@@ -4,7 +4,8 @@ load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "discord_server",
-    srcs = ["server.rs"],
+    srcs = ["server/lib.rs"],
+    crate_root = "server/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "//nicknamer2/src/name",
@@ -20,7 +21,8 @@ rust_test(
 
 rust_library(
     name = "discord_server_repo",
-    srcs = ["repo.rs"],
+    srcs = ["repo/lib.rs"],
+    crate_root = "repo/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":discord_server",
@@ -54,7 +56,8 @@ rust_test(
 
 rust_library(
     name = "discord_server_service",
-    srcs = ["service.rs"],
+    srcs = ["service/lib.rs"],
+    crate_root = "service/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":discord_server",

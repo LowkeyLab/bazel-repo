@@ -4,3 +4,11 @@ pnpm-lock.yaml linguist-generated=true
 3rdparty/gazelle_rust/upstream/** rules-lint-ignored
 # Patch context whitespace is part of the upstream patch format.
 3rdparty/gazelle_rust/upstream/patches/*.patch -whitespace
+
+# Maintained generator/parser entry points use repository formatting.
+3rdparty/gazelle_rust/upstream/rust_language/generate.go -rules-lint-ignored
+3rdparty/gazelle_rust/upstream/rust_language/lang.go -rules-lint-ignored
+3rdparty/gazelle_rust/upstream/rust_language/resolve.go -rules-lint-ignored
+3rdparty/gazelle_rust/upstream/gazelle_rust_parser/src/lib.rs -rules-lint-ignored
+3rdparty/gazelle_rust/upstream/gazelle_rust_parser/tests/parse_test.rs -rules-lint-ignored
+3rdparty/gazelle_rust/upstream/rust_parser/main.rs -rules-lint-ignored

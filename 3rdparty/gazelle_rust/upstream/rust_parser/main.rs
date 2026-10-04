@@ -22,10 +22,14 @@ enum Args {
 fn handle_rust_imports_request(
     request: RustImportsRequest,
 ) -> Result<RustImportsResponse, Box<dyn Error>> {
-    let rust_imports = gazelle_rust_parser::parse_imports(
+    let rust_imports = gazelle_rust_parser::parse_imports_with_parent(
         PathBuf::from(request.absolute_path),
         PathBuf::from(request.relative_path),
         &request.enabled_features,
+        &request.parent_names,
+        &request.test_parent_names,
+        &request.cfg_options,
+        request.cfg_test,
     );
 
     let mut response = RustImportsResponse::default();
@@ -37,8 +41,23 @@ fn handle_rust_imports_request(
                 has_proc_macro: rust_imports.hints.has_proc_macro,
             };
 
+            response.modules = rust_imports
+                .modules
+                .into_iter()
+                .map(|module| messages_proto::ModuleDeclaration {
+                    name: module.name,
+                    inline_path: module.inline_path,
+                    inline_path_from_file: module.inline_path_from_file,
+                    path: module.path,
+                    test_only: module.test_only,
+                    cfg_options: module.cfg_options,
+                    cfg_test: module.cfg_test,
+                })
+                .collect();
             response.success = true;
             response.hints = Some(hints);
+            response.provided_names = rust_imports.provided_names;
+            response.test_provided_names = rust_imports.test_provided_names;
             response.imports = rust_imports.imports;
             response.test_imports = rust_imports.test_imports;
             response.extern_mods = rust_imports.extern_mods;
@@ -199,9 +218,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                         request::Kind::LockfileCrates(request) => {
                             handle_lockfile_crates_request(request)?.encode_to_vec()
                         }
-                        request::Kind::CargoToml(request) => {
-                            handle_cargo_toml_request(request)?.encode_to_vec()
-                        }
+                        request::Kind::CargoToml(request) => handle_cargo_toml_request(request)
+                            .unwrap_or_else(|error| CargoTomlResponse {
+                                error_msg: error.to_string(),
+                                ..Default::default()
+                            })
+                            .encode_to_vec(),
                     };
 
                     let size_bytes = (response_bytes.len() as u32).to_le_bytes();

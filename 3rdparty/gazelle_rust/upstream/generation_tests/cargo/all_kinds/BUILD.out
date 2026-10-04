@@ -2,13 +2,12 @@ load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
-# gazelle:rust_mode generate_from_cargo
-
 rust_library(
     name = "all_kinds_lib",
     srcs = ["src/lib.rs"],
     compile_data = ["Cargo.toml"],
     crate_name = "all_kinds",
+    crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
@@ -17,14 +16,16 @@ rust_binary(
     name = "all_kinds",
     srcs = ["src/main.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/main.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
 
 rust_binary(
     name = "another_executable",
-    srcs = ["src/bin/another_executable.rs"],
+    srcs = ["src/bin/another_executable/main.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/bin/another_executable/main.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
@@ -36,14 +37,16 @@ rust_binary(
         "src/bin/multi_file_executable/some_module.rs",
     ],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/bin/multi_file_executable/main.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
 
 rust_binary(
     name = "named_executable",
-    srcs = ["src/bin/named_executable.rs"],
+    srcs = ["src/bin/named_executable/main.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/bin/named_executable/main.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
@@ -55,6 +58,7 @@ rust_test(
         "tests/multi_file_test/test_module.rs",
     ],
     compile_data = ["Cargo.toml"],
+    crate_root = "tests/multi_file_test/main.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
@@ -63,14 +67,16 @@ rust_test(
     name = "some_integration_test",
     srcs = ["tests/some_integration_test.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "tests/some_integration_test.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
 )
 
 rust_binary(
     name = "large_input",
-    srcs = ["benches/large_input.rs"],
+    srcs = ["benches/large_input/main.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "benches/large_input/main.rs",
     edition = "2021",
     tags = ["bench"],
     visibility = ["//visibility:public"],
@@ -83,6 +89,7 @@ rust_binary(
         "benches/multi_file_bench/main.rs",
     ],
     compile_data = ["Cargo.toml"],
+    crate_root = "benches/multi_file_bench/main.rs",
     edition = "2021",
     tags = ["bench"],
     visibility = ["//visibility:public"],
@@ -95,6 +102,7 @@ rust_binary(
         "examples/multi_file_example/main.rs",
     ],
     compile_data = ["Cargo.toml"],
+    crate_root = "examples/multi_file_example/main.rs",
     edition = "2021",
     tags = ["example"],
     visibility = ["//visibility:public"],
@@ -102,8 +110,9 @@ rust_binary(
 
 rust_binary(
     name = "simple",
-    srcs = ["examples/simple.rs"],
+    srcs = ["examples/simple/main.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "examples/simple/main.rs",
     edition = "2021",
     tags = ["example"],
     visibility = ["//visibility:public"],

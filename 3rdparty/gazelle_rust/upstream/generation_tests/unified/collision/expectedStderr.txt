@@ -1,0 +1,1 @@
+gazelle: %WORKSPACEPATH%/BUILD.bazel: Rust target name collision collides; configure an explicit crate_root and unique name for src/lib.rs

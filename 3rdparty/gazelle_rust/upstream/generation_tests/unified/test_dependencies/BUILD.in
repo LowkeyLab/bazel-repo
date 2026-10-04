@@ -1,0 +1,14 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "subject",
+    srcs = [
+        "src/lib.rs",
+        "stale.rs",
+    ],
+    crate_features = ["extra"],
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:private"],
+)

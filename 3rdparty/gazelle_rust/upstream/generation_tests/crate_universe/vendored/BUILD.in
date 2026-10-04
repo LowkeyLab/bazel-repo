@@ -5,3 +5,8 @@ exports_files(
     srcs = ["Cargo.lock"],
     visibility = ["//visibility:public"],
 )
+
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)

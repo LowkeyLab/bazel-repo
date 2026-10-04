@@ -4,10 +4,11 @@ load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "migrations",
-    srcs = ["migrations.rs"],
+    srcs = ["lib.rs"],
     compile_data = [
         "//nicknamer2/migrations",  # keep
     ],
+    crate_root = "lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = ["@crates//:sqlx"],
 )

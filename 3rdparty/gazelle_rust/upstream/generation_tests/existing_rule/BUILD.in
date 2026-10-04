@@ -4,3 +4,8 @@ cc_library(
     name = "foobar",
     srcs = ["foobar.cc"],
 )
+
+rust_library(
+    name = "foobar_rs",
+    srcs = ["foobar/lib.rs"],
+)
