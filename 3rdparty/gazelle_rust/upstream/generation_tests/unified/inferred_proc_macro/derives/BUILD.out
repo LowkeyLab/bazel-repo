@@ -1,0 +1,7 @@
+load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
+
+rust_proc_macro(
+    name = "derives",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+)

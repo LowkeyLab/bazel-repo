@@ -27,6 +27,7 @@ fn handle_rust_imports_request(
         PathBuf::from(request.relative_path),
         &request.enabled_features,
         &request.parent_names,
+        &request.test_parent_names,
     );
 
     let mut response = RustImportsResponse::default();
@@ -52,6 +53,7 @@ fn handle_rust_imports_request(
             response.success = true;
             response.hints = Some(hints);
             response.provided_names = rust_imports.provided_names;
+            response.test_provided_names = rust_imports.test_provided_names;
             response.imports = rust_imports.imports;
             response.test_imports = rust_imports.test_imports;
             response.extern_mods = rust_imports.extern_mods;

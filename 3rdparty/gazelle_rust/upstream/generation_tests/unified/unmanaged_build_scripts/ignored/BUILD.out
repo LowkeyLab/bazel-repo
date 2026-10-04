@@ -1,0 +1,7 @@
+load("@rules_rs//rs:cargo_build_script.bzl", "cargo_build_script")
+
+# gazelle:ignore
+cargo_build_script(
+    name = "generate",
+    srcs = ["build.rs"],
+)

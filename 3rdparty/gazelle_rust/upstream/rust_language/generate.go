@@ -63,8 +63,8 @@ func CloneRule(old *rule.Rule) *rule.Rule {
 }
 
 func (l *rustLang) existingRoot(args language.GenerateArgs, r *rule.Rule) string {
+	kind := l.GetMappedKindInverse(args.Config, r.Kind())
 	if root := r.AttrString("crate_root"); root != "" {
-		kind := l.GetMappedKindInverse(args.Config, r.Kind())
 		if kind != "rust_test" && kind != "cargo_build_script" && filepath.Base(root) != "lib.rs" && filepath.Base(root) != "main.rs" {
 			l.Log(args.Config, logErr, args.File, "target %s: library/binary crate roots must be lib.rs or main.rs; move %s and update crate_root", r.Name(), root)
 			return ""
@@ -73,13 +73,15 @@ func (l *rustLang) existingRoot(args language.GenerateArgs, r *rule.Rule) string
 	}
 	srcs := r.AttrStrings("srcs")
 	if len(srcs) == 1 && strings.HasSuffix(srcs[0], ".rs") {
-		if l.GetMappedKindInverse(args.Config, r.Kind()) == "rust_test" || r.Kind() == "cargo_build_script" || filepath.Base(srcs[0]) == "lib.rs" || filepath.Base(srcs[0]) == "main.rs" {
+		if kind == "rust_test" || kind == "cargo_build_script" || filepath.Base(srcs[0]) == "lib.rs" || filepath.Base(srcs[0]) == "main.rs" {
 			return srcs[0]
 		}
 	}
 	basename := "lib.rs"
-	if l.GetMappedKindInverse(args.Config, r.Kind()) == "rust_binary" || r.Kind() == "cargo_build_script" {
+	if kind == "rust_binary" {
 		basename = "main.rs"
+	} else if kind == "cargo_build_script" {
+		basename = "build.rs"
 	}
 	candidates := []string{}
 	for _, src := range srcs {
@@ -105,11 +107,16 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 	if l.Plans == nil {
 		l.Plans = make(map[string][]*cratePlan)
 		l.Owners = make(map[string][]string)
-		l.BuildScripts = make(map[string]bool)
+		l.BuildScripts = make(map[label.Label]bool)
 	}
 	args := language.GenerateArgs{Config: c, Rel: rel, Dir: filepath.Join(c.RepoRoot, rel), File: f}
 	cfg := l.GetConfig(c)
 	if f != nil {
+		for _, r := range f.Rules {
+			if l.GetMappedKindInverse(c, r.Kind()) == "cargo_build_script" {
+				l.BuildScripts[label.New(c.RepoName, rel, r.Name())] = true
+			}
+		}
 		for _, directive := range f.Directives {
 			if directive.Key == "ignore" {
 				return
@@ -123,9 +130,6 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 		for _, r := range f.Rules {
 			existingNames[r.Name()] = r
 			kind := l.GetMappedKindInverse(c, r.Kind())
-			if kind == "cargo_build_script" {
-				l.BuildScripts[rel+":"+r.Name()] = true
-			}
 			if !SliceContains(resolvableDefs, kind) || r.AttrString("crate") != "" {
 				continue
 			}
@@ -289,6 +293,14 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 	// Explicit roots are all traversed independently, even when they share files.
 	for _, plan := range plans {
 		plan.modules = l.discoverModules(c, []string{plan.root}, plan.features, &args)
+		if plan.existing == nil && !plan.manifest && plan.target.Kind() == "rust_library" {
+			for _, module := range plan.modules {
+				if !module.testOnly && module.response.GetHints().GetHasProcMacro() {
+					plan.target.SetKind("rust_proc_macro")
+					break
+				}
+			}
+		}
 		for src := range plan.modules {
 			key := filepath.Join(rel, src)
 			l.Owners[key] = append(l.Owners[key], rel+":"+plan.target.Name())
@@ -305,7 +317,7 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 			if configuredRoots[root] || l.crossesPackage(args, root) || l.excluded(cfg, filepath.Join(rel, root)) {
 				continue
 			}
-			response := l.parseFile(c, root, nil, &args, nil)
+			response := l.parseFile(c, root, nil, &args, nil, nil)
 			if response == nil || (!response.GetHints().GetHasTest() && !response.GetHints().GetHasMain()) {
 				continue
 			}
@@ -477,12 +489,13 @@ func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateRe
 	return result
 }
 
-func (l *rustLang) parseFile(c *config.Config, file string, enabledFeatures []string, args *language.GenerateArgs, parentNames []string) *pb.RustImportsResponse {
+func (l *rustLang) parseFile(c *config.Config, file string, enabledFeatures []string, args *language.GenerateArgs, parentNames, testParentNames []string) *pb.RustImportsResponse {
 	request := &pb.RustImportsRequest{
 		AbsolutePath:    path.Join(args.Dir, file),
 		RelativePath:    file,
 		EnabledFeatures: enabledFeatures,
 		ParentNames:     parentNames,
+		TestParentNames: testParentNames,
 	}
 
 	response, err := l.Parser.Parse(request)
@@ -505,10 +518,11 @@ func (l *rustLang) discoverModules(c *config.Config, roots []string, features []
 	args *language.GenerateArgs,
 ) map[string]discoveredModule {
 	type pending struct {
-		parentNames []string
-		file        string
-		root        bool
-		testOnly    bool
+		parentNames     []string
+		testParentNames []string
+		file            string
+		root            bool
+		testOnly        bool
 	}
 	queue := []pending{}
 	for _, root := range roots {
@@ -532,7 +546,7 @@ func (l *rustLang) discoverModules(c *config.Config, roots []string, features []
 		}
 		key := filepath.Join(args.Rel, current.file)
 		l.Owners[key] = append(l.Owners[key], args.Rel+":"+roots[0])
-		response := l.parseFile(c, current.file, features, args, current.parentNames)
+		response := l.parseFile(c, current.file, features, args, current.parentNames, current.testParentNames)
 		if response == nil {
 			return nil
 		}
@@ -567,11 +581,12 @@ func (l *rustLang) discoverModules(c *config.Config, roots []string, features []
 				l.Log(c, logErr, current.file, "module %s: expected exactly one source among %v, found %d; configure #[path] or fix the module files", declaration.Name, candidates, len(found))
 				return nil
 			}
-			var parentNames []string
+			var parentNames, testParentNames []string
 			if len(declaration.InlinePath) == 0 {
 				parentNames = response.ProvidedNames
+				testParentNames = response.TestProvidedNames
 			}
-			queue = append(queue, pending{file: found[0], testOnly: current.testOnly || declaration.TestOnly, parentNames: parentNames})
+			queue = append(queue, pending{file: found[0], testOnly: current.testOnly || declaration.TestOnly, parentNames: parentNames, testParentNames: testParentNames})
 		}
 	}
 	return modules

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
@@ -100,7 +101,7 @@ type scopedCrateSet struct {
 }
 
 type rustLang struct {
-	BuildScripts map[string]bool
+	BuildScripts map[label.Label]bool
 	Plans        map[string][]*cratePlan
 	Owners       map[string][]string
 	Parser       *Parser

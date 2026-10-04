@@ -23,6 +23,7 @@ pub struct ModuleDeclaration {
 
 pub struct RustImports {
     pub provided_names: Vec<String>,
+    pub test_provided_names: Vec<String>,
     pub modules: Vec<ModuleDeclaration>,
     pub hints: Hints,
     pub imports: Vec<String>,
@@ -44,7 +45,7 @@ pub fn parse_imports(
     relative_path: PathBuf,
     enabled_features: &[String],
 ) -> Result<RustImports, Box<dyn Error>> {
-    parse_imports_with_parent(absolute_path, relative_path, enabled_features, &[])
+    parse_imports_with_parent(absolute_path, relative_path, enabled_features, &[], &[])
 }
 
 pub fn parse_imports_with_parent(
@@ -52,6 +53,7 @@ pub fn parse_imports_with_parent(
     relative_path: PathBuf,
     enabled_features: &[String],
     parent_names: &[String],
+    test_parent_names: &[String],
 ) -> Result<RustImports, Box<dyn Error>> {
     // TODO: stream from the file instead of loading it all into memory?
     let mut file = match File::open(&absolute_path) {
@@ -68,7 +70,13 @@ pub fn parse_imports_with_parent(
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
 
-    parse_imports_with_context(&contents, enabled_features, relative_path, parent_names)
+    parse_imports_with_context(
+        &contents,
+        enabled_features,
+        relative_path,
+        parent_names,
+        test_parent_names,
+    )
 }
 
 pub fn parse_imports_from_str(
@@ -76,7 +84,7 @@ pub fn parse_imports_from_str(
     enabled_features: &[String],
     path: PathBuf,
 ) -> Result<RustImports, Box<dyn Error>> {
-    parse_imports_with_context(contents, enabled_features, path, &[])
+    parse_imports_with_context(contents, enabled_features, path, &[], &[])
 }
 
 fn parse_imports_with_context(
@@ -84,8 +92,26 @@ fn parse_imports_with_context(
     enabled_features: &[String],
     path: PathBuf,
     parent_names: &[String],
+    test_parent_names: &[String],
 ) -> Result<RustImports, Box<dyn Error>> {
     let ast = parse_file(contents)?;
+    // Evaluate root bindings in both configurations. A cfg(test) module or
+    // use binding must never suppress an external production import in a child.
+    let provided_names = |test| {
+        let mut bindings = AstVisitor::new(enabled_features, path.clone());
+        bindings.cfg_test = Some(test);
+        bindings.visit_file(&ast);
+        bindings
+            .mod_stack
+            .back()
+            .unwrap()
+            .mods
+            .iter()
+            .map(Ident::to_string)
+            .collect()
+    };
+    let production_bindings = provided_names(false);
+    let test_bindings = provided_names(true);
     let mut visitor = AstVisitor::new(enabled_features, path);
     // Imports are order independent, and a parent glob applies only in this
     // module (including its function/block scopes), never its child modules.
@@ -103,9 +129,11 @@ fn parse_imports_with_context(
                 _ => false,
             }
         {
-            visitor
-                .test_parent_names
-                .extend(parent_names.iter().cloned());
+            if visitor.cfg_enabled_for(&item.attrs, true) {
+                visitor
+                    .test_parent_names
+                    .extend(test_parent_names.iter().cloned());
+            }
             if visitor.cfg_enabled_for(&item.attrs, false) {
                 visitor.parent_names.extend(parent_names.iter().cloned());
             }
@@ -125,7 +153,8 @@ fn parse_imports_with_context(
         .retain(|test_import| !import_set.contains(test_import));
 
     Ok(RustImports {
-        provided_names: root_scope.mods.iter().map(Ident::to_string).collect(),
+        provided_names: production_bindings,
+        test_provided_names: test_bindings,
         modules: visitor.modules,
         hints: visitor.hints,
         imports: filter_imports(root_scope.imports),
@@ -250,6 +279,7 @@ impl Scope<'_> {
 
 #[derive(Debug, Clone)]
 struct AstVisitor<'ast> {
+    cfg_test: Option<bool>,
     parent_names: HashSet<String>,
     test_parent_names: HashSet<String>,
     modules: Vec<ModuleDeclaration>,
@@ -288,6 +318,7 @@ impl AstVisitor<'_> {
         let containing_dir = path.parent().unwrap_or_else(|| Path::new("")).to_path_buf();
 
         Self {
+            cfg_test: None,
             parent_names: HashSet::new(),
             test_parent_names: HashSet::new(),
             modules: Vec::new(),
@@ -369,7 +400,10 @@ impl DirectiveSet {
 
 impl<'ast> AstVisitor<'ast> {
     fn cfg_enabled(&self, attrs: &[syn::Attribute]) -> bool {
-        self.cfg_enabled_for(attrs, false) || self.cfg_enabled_for(attrs, true)
+        match self.cfg_test {
+            Some(test) => self.cfg_enabled_for(attrs, test),
+            None => self.cfg_enabled_for(attrs, false) || self.cfg_enabled_for(attrs, true),
+        }
     }
 
     fn cfg_enabled_for(&self, attrs: &[syn::Attribute], test: bool) -> bool {
@@ -838,7 +872,9 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
                             self.hints.has_test = true;
                             is_test_only = true;
                         } else if let Some(ident) = path.get_ident()
-                            && (ident == "proc_macro" || ident == "proc_macro_attribute")
+                            && (ident == "proc_macro"
+                                || ident == "proc_macro_attribute"
+                                || ident == "proc_macro_derive")
                         {
                             self.hints.has_proc_macro = true;
                         }

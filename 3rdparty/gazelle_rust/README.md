@@ -47,6 +47,8 @@ not become targets. Other Gazelle language plugins still run in owned directorie
 Cargo manifests are optional. Existing BUILD targets supply names, kinds,
 features, edition, and other user configuration. Without manifests, `src/lib.rs`
 and `src/main.rs` (or adjacent `lib.rs`/`main.rs`) establish conventional roots.
+Without an explicit kind, a library root declaring function-like, attribute, or
+derive procedural macros generates a `rust_proc_macro` rule.
 Generated names use the package directory basename, replacing hyphens with
 underscores for crate names. When library and binary coexist, the library target
 gets `_lib` and retains the unsuffixed crate name. Collisions require an explicit
@@ -56,6 +58,10 @@ Explicit `crate_root` wins; otherwise a single matching `lib.rs`/`main.rs` sourc
 identifies the root. Multiple candidates require configuration. Unprotected
 `srcs` are refreshed from the graph, and `# keep` remains authoritative. Existing
 source globs are not a discovery boundary; generated source lists are explicit.
+
+Configured dependencies on build scripts remain intact. Dependencies outside
+managed packages or the configured external-crate prefix are retained
+conservatively because discovery cannot establish their target kind.
 
 Unit-test targets refer to their crate via `crate`; dependencies used only by
 unit tests stay on that test target. Dedicated integration runners use Cargo
@@ -123,7 +129,7 @@ remote generator, allowing only the root exclusion and the parent package's
 patch-to-README export change. Application BUILD output is unchanged. A second
 root Gazelle run must leave the complete tracked source tree unchanged.
 
-The recursive focused suite contains 52 enabled generation fixture targets, one parser test target,
+The recursive focused suite contains 57 enabled generation fixture targets, one parser test target,
 and one Go format test target. Root `//...` checks intentionally do not include
 these external-module tests. Run both the focused commands above and the required
 repository-wide format, build, test, and lint checks when changing the integration.

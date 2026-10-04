@@ -1,0 +1,12 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "consumer",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+    proc_macro_deps = [
+        "//attributes",
+        "//derives",
+        "//macros",
+    ],
+)

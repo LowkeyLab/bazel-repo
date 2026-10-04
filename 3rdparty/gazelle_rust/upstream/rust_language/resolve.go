@@ -78,10 +78,16 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex,
 		ruleData := ruleData.(RuleData)
 		deps := map[label.Label]bool{}
 		// Build scripts are declared dependencies, not Rust source imports.
+		// Absence from the generation registry cannot justify pruning a dependency
+		// in an ignored/excluded package or an external repository we do not manage.
 		for _, dependency := range r.AttrStrings("deps") {
 			if parsed, err := label.Parse(dependency); err == nil {
 				absolute := parsed.Abs(from.Repo, from.Pkg)
-				if absolute.Repo == from.Repo && l.BuildScripts[absolute.Pkg+":"+absolute.Name] {
+				_, managed := l.Plans[absolute.Pkg]
+				if absolute.Repo != from.Repo {
+					managed = cfg.CratesPrefix != "" && strings.HasPrefix(absolute.String(), cfg.CratesPrefix)
+				}
+				if !managed || l.BuildScripts[absolute] {
 					deps[absolute] = true
 				}
 			}
