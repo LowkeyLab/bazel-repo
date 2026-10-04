@@ -1,0 +1,15 @@
+load("@rules_rs//rs:cargo_build_script.bzl", "cargo_build_script")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+cargo_build_script(
+    name = "generate",
+    srcs = ["build.rs"],
+    crate_root = "build.rs",
+)
+
+rust_library(
+    name = "configured",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+    deps = [":generate"],
+)

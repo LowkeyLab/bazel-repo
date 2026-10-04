@@ -1,0 +1,9 @@
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)
+
+rust_binary(
+    name = "main",
+    srcs = ["main.rs"],
+)

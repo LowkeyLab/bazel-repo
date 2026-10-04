@@ -1,0 +1,1 @@
+gazelle: nested/mod.rs: Rust module crosses a nested BUILD boundary; move the BUILD boundary or explicitly export and configure the source

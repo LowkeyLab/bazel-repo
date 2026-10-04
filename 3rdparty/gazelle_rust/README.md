@@ -30,9 +30,65 @@ Additional test integration adaptations:
 The root `.gitattributes` preserves whitespace in upstream patch files because
 patch context contains significant leading spaces and tabs.
 
-This baseline retains the upstream generation modes and application behavior.
-Unified crate discovery is tracked separately in
-[#1957](https://github.com/LowkeyLab/bazel-repo/issues/1957).
+The maintained implementation uses one crate-discovery pipeline, tracked in
+[#1957](https://github.com/LowkeyLab/bazel-repo/issues/1957), against
+[#1955](https://github.com/LowkeyLab/bazel-repo/issues/1955). The maintainer's
+subsequent instruction requires library/binary roots named `lib.rs`/`main.rs`,
+superseding the specification's arbitrary-filename root requirement. Integration
+runners retain standard Rust test layouts; build scripts retain `build.rs`.
+
+## Crate discovery
+
+Configuration/root planning runs before Gazelle visits children. Each root is
+traversed independently through Rust module declarations; ownership is shared
+when multiple crates compile the same file. Ordinary unreferenced sources do
+not become targets. Other Gazelle language plugins still run in owned directories.
+
+Cargo manifests are optional. Existing BUILD targets supply names, kinds,
+features, edition, and other user configuration. Without manifests, `src/lib.rs`
+and `src/main.rs` (or adjacent `lib.rs`/`main.rs`) establish conventional roots.
+Generated names use the package directory basename, replacing hyphens with
+underscores for crate names. When library and binary coexist, the library target
+gets `_lib` and retains the unsuffixed crate name. Collisions require an explicit
+unique target name; there is no automatic `_rs` renaming.
+
+Explicit `crate_root` wins; otherwise a single matching `lib.rs`/`main.rs` source
+identifies the root. Multiple candidates require configuration. Unprotected
+`srcs` are refreshed from the graph, and `# keep` remains authoritative. Existing
+source globs are not a discovery boundary; generated source lists are explicit.
+
+Unit-test targets refer to their crate via `crate`; dependencies used only by
+unit tests stay on that test target. Dedicated integration runners use Cargo
+manifest targets, explicit Bazel test roots, or `tests/*.rs` and
+`tests/<name>/main.rs` containing tests/a main function. Candidate files owned
+by another runner are support modules. Build scripts use `build.rs`.
+
+Module traversal supports both external layouts, nested/inline modules, literal
+`#[path]`, configured feature conditions, and test-only modules. Missing or
+ambiguous modules invalidate the crate's generation; an existing rule is left
+intact. Nested BUILD boundary crossings require layout/configuration repair,
+rather than generating illegal parent-package paths. Exclusions suppress
+inferred roots; explicitly configured crates still traverse their declarations,
+including modules deliberately excluded from independent Gazelle discovery.
+
+This is source-level discovery, not Cargo or rustc equivalence. Macro-generated
+module declarations and generated crate roots need explicit build configuration.
+The parser does not execute build scripts or expand Rust macros.
+
+## Application migration
+
+Twenty custom library/binary root files moved to conventional names. Target
+labels and crate names were preserved, so dependent-label rewrites were not
+needed. The Nicknamer2 single-file targets are intentional separately imported
+crates, not redundant module targets. Existing grouped crates in Hearthstone,
+Kafka Calculator, Book Smartz, Prediction Bot, and Nicknamer retain their crate
+boundaries. No nested application BUILD file was removed and existing Gazelle
+exclusions remain in place.
+
+The exact source moves are recorded in [the migration inventory](migration.md).
+Legacy generator fixtures now configure intentional roots explicitly and use
+conventional filenames; resolver, alias, procedural-macro, and keep-comment
+coverage remains enabled. New `unified/` fixtures exercise crate discovery.
 
 ## Development
 
@@ -45,9 +101,10 @@ nix develop --command aspect test @gazelle_rust//gazelle_rust_parser/tests:parse
 nix develop --command aspect test @gazelle_rust//rust_language:gofmt_test
 ```
 
-The root `.gitattributes` marks the vendored tree `rules-lint-ignored` to
-preserve upstream formatting and deliberately incomplete Rust fixtures. Use
-the upstream Go format test above for maintained Go source.
+The root `.gitattributes` preserves formatting of vendored fixtures, including
+deliberately incomplete Rust syntax. Maintained generator/parser entry points
+are explicit exceptions and use the repository formatter. The upstream Go
+format test above also checks maintained Go source.
 
 Root Gazelle excludes `upstream/`, so it cannot rewrite the maintained plugin or
 its generation fixtures. `.bazelignore` also keeps nested packages out of root
@@ -66,7 +123,7 @@ remote generator, allowing only the root exclusion and the parent package's
 patch-to-README export change. Application BUILD output is unchanged. A second
 root Gazelle run must leave the complete tracked source tree unchanged.
 
-The recursive focused suite contains 40 enabled generation fixture targets, one parser test target,
+The recursive focused suite contains 52 enabled generation fixture targets, one parser test target,
 and one Go format test target. Root `//...` checks intentionally do not include
 these external-module tests. Run both the focused commands above and the required
 repository-wide format, build, test, and lint checks when changing the integration.

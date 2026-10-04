@@ -12,6 +12,7 @@ message RustImportsRequest {
     string absolute_path = 1;
     string relative_path = 2;
     repeated string enabled_features = 3;
+    repeated string parent_names = 4;
 }
 
 /** Extra information about the source file, used to infer rule kind (e.g. binary vs. library) when
@@ -23,11 +24,22 @@ message Hints {
     bool has_test = 2;
     /** Has at least one #[proc_macro] function. */
     bool has_proc_macro = 3;
+    reserved 4;
 }
 
 // If successful, success = true and hints, imports, and test_imports are set.
 // If there is an unrecoverable error, success = false and error_msg is the error message.
+message ModuleDeclaration {
+    string name = 1;
+    repeated string inline_path = 2;
+    optional string path = 3;
+    bool test_only = 4;
+    bool inline_path_from_file = 5;
+}
+
 message RustImportsResponse {
+    repeated ModuleDeclaration modules = 9;
+    repeated string provided_names = 10;
     Hints hints = 1;
     repeated string imports = 2;
     repeated string test_imports = 3;

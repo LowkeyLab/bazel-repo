@@ -1,0 +1,38 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "subject",
+    srcs = [
+        "src/extra.rs",
+        "src/lib.rs",
+        "src/unit.rs",
+    ],
+    crate_features = ["extra"],
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:private"],
+)
+
+rust_test(
+    name = "check",
+    srcs = [
+        "tests/check.rs",
+        "tests/support.rs",
+    ],
+    crate_root = "tests/check.rs",
+    deps = ["//integration_helper"],
+)
+
+rust_test(
+    name = "runner",
+    srcs = ["tests/runner/main.rs"],
+    crate_root = "tests/runner/main.rs",
+)
+
+rust_test(
+    name = "subject_test",
+    crate = ":subject",
+    deps = ["//dev_helper"],
+)

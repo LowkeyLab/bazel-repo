@@ -1,7 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
-# gazelle:rust_mode generate_from_cargo
-
 rust_library(
     name = "update_rule_lib",
     srcs = ["src/lib.rs"],

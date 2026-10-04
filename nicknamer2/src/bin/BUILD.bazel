@@ -5,6 +5,7 @@ load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 rust_binary(
     name = "nicknamer2",
     srcs = ["main.rs"],
+    crate_root = "main.rs",
     visibility = ["//visibility:public"],
     deps = [
         "//nicknamer2/src/auth",

@@ -37,7 +37,7 @@ changes to the parser.
 
 Generation tests validate the end-to-end functionality of running gazelle\_rust on a real workspace.
 Please add or update generation tests if you are changing the language plugin. Generation tests
-specific to the `generate_from_cargo` mode are located in the `cargo` subdirectory. Please see the
+using Cargo manifests are located in the `cargo` subdirectory. Please see the
 docs for
 [`gazelle_generation_test`](https://github.com/bazel-contrib/bazel-gazelle/blob/master/reference.md#gazelle_generation_test)
 for more information about how to use generation tests.

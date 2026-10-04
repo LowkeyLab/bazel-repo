@@ -12,7 +12,18 @@ use syn::parse_file;
 use syn::punctuated::Punctuated;
 use syn::visit::{self, Visit};
 
+#[derive(Debug, Clone)]
+pub struct ModuleDeclaration {
+    pub name: String,
+    pub inline_path: Vec<String>,
+    pub inline_path_from_file: bool,
+    pub path: Option<String>,
+    pub test_only: bool,
+}
+
 pub struct RustImports {
+    pub provided_names: Vec<String>,
+    pub modules: Vec<ModuleDeclaration>,
     pub hints: Hints,
     pub imports: Vec<String>,
     pub test_imports: Vec<String>,
@@ -33,6 +44,15 @@ pub fn parse_imports(
     relative_path: PathBuf,
     enabled_features: &[String],
 ) -> Result<RustImports, Box<dyn Error>> {
+    parse_imports_with_parent(absolute_path, relative_path, enabled_features, &[])
+}
+
+pub fn parse_imports_with_parent(
+    absolute_path: PathBuf,
+    relative_path: PathBuf,
+    enabled_features: &[String],
+    parent_names: &[String],
+) -> Result<RustImports, Box<dyn Error>> {
     // TODO: stream from the file instead of loading it all into memory?
     let mut file = match File::open(&absolute_path) {
         Err(err) => {
@@ -48,7 +68,7 @@ pub fn parse_imports(
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
 
-    parse_imports_from_str(&contents, enabled_features, relative_path)
+    parse_imports_with_context(&contents, enabled_features, relative_path, parent_names)
 }
 
 pub fn parse_imports_from_str(
@@ -56,8 +76,41 @@ pub fn parse_imports_from_str(
     enabled_features: &[String],
     path: PathBuf,
 ) -> Result<RustImports, Box<dyn Error>> {
+    parse_imports_with_context(contents, enabled_features, path, &[])
+}
+
+fn parse_imports_with_context(
+    contents: &str,
+    enabled_features: &[String],
+    path: PathBuf,
+    parent_names: &[String],
+) -> Result<RustImports, Box<dyn Error>> {
     let ast = parse_file(contents)?;
     let mut visitor = AstVisitor::new(enabled_features, path);
+    // Imports are order independent, and a parent glob applies only in this
+    // module (including its function/block scopes), never its child modules.
+    for item in &ast.items {
+        if let syn::Item::Use(item) = item
+            && visitor.cfg_enabled(&item.attrs)
+            && let syn::UseTree::Path(path) = &item.tree
+            && path.ident == "super"
+            && match &*path.tree {
+                syn::UseTree::Glob(_) => true,
+                syn::UseTree::Group(group) => group
+                    .items
+                    .iter()
+                    .any(|item| matches!(item, syn::UseTree::Glob(_))),
+                _ => false,
+            }
+        {
+            visitor
+                .test_parent_names
+                .extend(parent_names.iter().cloned());
+            if visitor.cfg_enabled_for(&item.attrs, false) {
+                visitor.parent_names.extend(parent_names.iter().cloned());
+            }
+        }
+    }
     visitor.visit_file(&ast);
 
     let mut root_scope = visitor.mod_stack.pop_back().expect("no root scope");
@@ -72,6 +125,8 @@ pub fn parse_imports_from_str(
         .retain(|test_import| !import_set.contains(test_import));
 
     Ok(RustImports {
+        provided_names: root_scope.mods.iter().map(Ident::to_string).collect(),
+        modules: visitor.modules,
         hints: visitor.hints,
         imports: filter_imports(root_scope.imports),
         test_imports: filter_imports(root_scope.test_imports),
@@ -195,6 +250,11 @@ impl Scope<'_> {
 
 #[derive(Debug, Clone)]
 struct AstVisitor<'ast> {
+    parent_names: HashSet<String>,
+    test_parent_names: HashSet<String>,
+    modules: Vec<ModuleDeclaration>,
+    inline_path: Vec<String>,
+    inline_path_from_file: bool,
     /// The relative path from the root of Bazel package to the directory that contains the file we
     /// are parsing. This is used to resolve location of files that are included with include_str!
     /// and include_bytes!.
@@ -228,6 +288,11 @@ impl AstVisitor<'_> {
         let containing_dir = path.parent().unwrap_or_else(|| Path::new("")).to_path_buf();
 
         Self {
+            parent_names: HashSet::new(),
+            test_parent_names: HashSet::new(),
+            modules: Vec::new(),
+            inline_path: Vec::new(),
+            inline_path_from_file: false,
             containing_dir,
             mod_stack,
             scope_mods: HashSet::default(),
@@ -304,61 +369,58 @@ impl DirectiveSet {
 
 impl<'ast> AstVisitor<'ast> {
     fn cfg_enabled(&self, attrs: &[syn::Attribute]) -> bool {
-        for attr in attrs {
+        self.cfg_enabled_for(attrs, false) || self.cfg_enabled_for(attrs, true)
+    }
+
+    fn cfg_enabled_for(&self, attrs: &[syn::Attribute], test: bool) -> bool {
+        attrs.iter().all(|attr| {
             if let syn::Meta::List(list) = &attr.meta
                 && list.path.is_ident("cfg")
                 && let Ok(meta) = attr.parse_args::<syn::Meta>()
-                && !self.eval_cfg_meta(&meta)
             {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn eval_cfg_meta(&self, meta: &syn::Meta) -> bool {
-        match meta {
-            syn::Meta::Path(path) => {
-                if let Some(ident) = path.get_ident() {
-                    ident == "test"
-                } else {
-                    true
-                }
-            }
-
-            syn::Meta::NameValue(nv) => {
-                if nv.path.is_ident("feature")
-                    && let syn::Expr::Lit(expr_lit) = &nv.value
-                    && let syn::Lit::Str(lit) = &expr_lit.lit
-                {
-                    return self.enabled_features.contains(lit.value().as_str());
-                }
+                self.eval_cfg_meta(&meta, test).unwrap_or(true)
+            } else {
                 true
             }
+        })
+    }
 
-            syn::Meta::List(list) => {
-                if list.path.is_ident("any") {
-                    list.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
-                        .map(|args| args.iter().any(|m| self.eval_cfg_meta(m)))
-                        .unwrap_or(true)
-                } else if list.path.is_ident("all") {
-                    list.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
-                        .map(|args| args.iter().all(|m| self.eval_cfg_meta(m)))
-                        .unwrap_or(true)
-                } else if list.path.is_ident("not") {
-                    list.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
-                        .map(|args| {
-                            if args.len() == 1 {
-                                !self.eval_cfg_meta(&args[0])
-                            } else {
-                                true
-                            }
-                        })
-                        .unwrap_or(true)
+    // Unknown platform predicates remain possible in both branches. Gazelle
+    // knows selected features, but does not evaluate the Rust target platform.
+    fn eval_cfg_meta(&self, meta: &syn::Meta, test: bool) -> Option<bool> {
+        match meta {
+            syn::Meta::Path(path) if path.is_ident("test") => Some(test),
+            syn::Meta::NameValue(value) if value.path.is_ident("feature") => {
+                if let syn::Expr::Lit(literal) = &value.value
+                    && let syn::Lit::Str(feature) = &literal.lit
+                {
+                    Some(self.enabled_features.contains(&feature.value()))
                 } else {
-                    true
+                    None
                 }
             }
+            syn::Meta::List(list) => {
+                let args = list
+                    .parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
+                    .ok()?;
+                if list.path.is_ident("not") && args.len() == 1 {
+                    return self.eval_cfg_meta(&args[0], test).map(|enabled| !enabled);
+                }
+                let all = list.path.is_ident("all");
+                if !all && !list.path.is_ident("any") {
+                    return None;
+                }
+                let mut unknown = false;
+                for arg in args {
+                    match self.eval_cfg_meta(&arg, test) {
+                        Some(value) if value != all => return Some(value),
+                        None => unknown = true,
+                        _ => {}
+                    }
+                }
+                if unknown { None } else { Some(all) }
+            }
+            _ => None,
         }
     }
 
@@ -370,6 +432,14 @@ impl<'ast> AstVisitor<'ast> {
             return;
         }
 
+        let parent_names = if self.is_test_only_scope() {
+            &self.test_parent_names
+        } else {
+            &self.parent_names
+        };
+        if self.inline_path.is_empty() && parent_names.contains(&ident.to_string()) {
+            return;
+        }
         if !self.scope_mods.contains(&ident) && !self.is_ignored_scope() {
             if self.is_test_only_scope() {
                 self.mod_stack.back_mut().unwrap().test_imports.push(ident);
@@ -629,7 +699,6 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
         if !self.cfg_enabled(&node.attrs) {
             return;
         }
-
         let directives = self.parse_directives(&node.attrs);
 
         let mut imports = HashSet::new();
@@ -700,38 +769,54 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
             return;
         }
 
-        let mut is_test_only = false;
+        let is_test_only = !self.cfg_enabled_for(&node.attrs, false);
 
-        // parse #[cfg(test)]
-        for attr in &node.attrs {
-            if let syn::Meta::List(list) = &attr.meta
-                && let Some(ident) = list.path.get_ident()
-                && ident == "cfg"
-                && let Ok(nested) =
-                    attr.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
-                && nested.len() == 1
-                && let syn::Meta::Path(path) = &nested[0]
-                && let Some(ident) = path.get_ident()
-                && ident == "test"
+        let custom_path = node.attrs.iter().find_map(|attr| {
+            if let syn::Meta::NameValue(value) = &attr.meta
+                && value.path.is_ident("path")
+                && let syn::Expr::Lit(literal) = &value.value
+                && let syn::Lit::Str(path) = &literal.lit
             {
-                is_test_only = true;
-            }
-        }
-
-        if self.is_root_scope() && node.content.is_none() {
-            let extern_mod = node.ident.unraw().to_string();
-
-            // this mod is defined in a different file
-            if is_test_only {
-                self.test_extern_mods.insert(extern_mod);
+                Some(path.value())
             } else {
-                self.extern_mods.insert(extern_mod);
+                None
+            }
+        });
+        if node.content.is_none() {
+            let name = node.ident.unraw().to_string();
+            let test_only = is_test_only || self.is_test_only_scope();
+            self.modules.push(ModuleDeclaration {
+                name: name.clone(),
+                inline_path: self.inline_path.clone(),
+                inline_path_from_file: self.inline_path_from_file,
+                path: custom_path.clone(),
+                test_only,
+            });
+            // Retain the original public parser fields for callers using bare root modules.
+            if self.is_root_scope() {
+                if test_only {
+                    self.test_extern_mods.insert(name);
+                } else {
+                    self.extern_mods.insert(name);
+                }
             }
         }
 
         self.add_mod(&node.ident);
         self.push_scope(is_test_only, false);
+        let previous_path_base = self.inline_path_from_file;
+        if node.content.is_some() {
+            if self.inline_path.is_empty() && custom_path.is_some() {
+                self.inline_path_from_file = true;
+            }
+            self.inline_path
+                .push(custom_path.unwrap_or_else(|| node.ident.unraw().to_string()));
+        }
         visit::visit_item_mod(self, node);
+        if node.content.is_some() {
+            self.inline_path.pop();
+        }
+        self.inline_path_from_file = previous_path_base;
         self.pop_scope();
     }
 
@@ -740,7 +825,7 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
             return;
         }
 
-        let mut is_test_only = false;
+        let mut is_test_only = !self.cfg_enabled_for(&node.attrs, false);
 
         if self.is_root_scope() && node.sig.ident == "main" {
             // main function in the top-level scope

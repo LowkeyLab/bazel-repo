@@ -4,10 +4,12 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
 )
 
 rust_binary(
     name = "main",
     srcs = ["main.rs"],
+    crate_root = "main.rs",
     deps = [":lib"],
 )

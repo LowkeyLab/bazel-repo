@@ -3,24 +3,28 @@ load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
 
 rust_proc_macro(
     name = "another_proc_macro",
-    srcs = ["another_proc_macro.rs"],
+    srcs = ["another_proc_macro/lib.rs"],
+    crate_root = "another_proc_macro/lib.rs",
     proc_macro_deps = [":some_proc_macro"],
 )
 
 rust_library(
     name = "common_lib",
-    srcs = ["common_lib.rs"],
+    srcs = ["common_lib/lib.rs"],
+    crate_root = "common_lib/lib.rs",
 )
 
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     proc_macro_deps = [":some_proc_macro"],
     deps = [":common_lib"],
 )
 
 rust_proc_macro(
     name = "some_proc_macro",
-    srcs = ["some_proc_macro.rs"],
+    srcs = ["some_proc_macro/lib.rs"],
+    crate_root = "some_proc_macro/lib.rs",
     deps = [":common_lib"],
 )

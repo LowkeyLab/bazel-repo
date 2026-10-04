@@ -7,41 +7,48 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 rust_binary(
     name = "binary",
-    srcs = ["binary.rs"],
+    srcs = ["binary/main.rs"],
+    crate_root = "binary/main.rs",
     deps = [":lib"],
 )
 
 rust_proc_macro(
     name = "dummy_proc_macro",
-    srcs = ["dummy_proc_macro.rs"],
+    srcs = ["dummy_proc_macro/lib.rs"],
+    crate_root = "dummy_proc_macro/lib.rs",
     deps = [":lib"],
 )
 
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
 )
 
 rust_library(
     name = "lib2",
-    srcs = ["lib2.rs"],
+    srcs = ["lib2/lib.rs"],
+    crate_root = "lib2/lib.rs",
     deps = [":lib"],
 )
 
 rust_shared_library(
     name = "shared_lib",
-    srcs = ["shared_lib.rs"],
+    srcs = ["shared_lib/lib.rs"],
+    crate_root = "shared_lib/lib.rs",
     deps = [":lib"],
 )
 
 rust_static_library(
     name = "static_lib",
-    srcs = ["static_lib.rs"],
+    srcs = ["static_lib/lib.rs"],
+    crate_root = "static_lib/lib.rs",
     deps = [":lib"],
 )
 
 rust_test(
     name = "test",
     srcs = ["test.rs"],
+    crate_root = "test.rs",
     deps = [":lib"],
 )

@@ -13,6 +13,7 @@ rust_library(
         "value.rs",
     ],
     crate_name = "kafka_calculator_core",
+    crate_root = "lib.rs",
     deps = [
         "@crates//:rust_decimal",
         "@crates//:thiserror",

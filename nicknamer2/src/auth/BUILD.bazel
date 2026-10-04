@@ -2,7 +2,8 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 rust_library(
     name = "auth_claims",
-    srcs = ["claims.rs"],
+    srcs = ["claims/lib.rs"],
+    crate_root = "claims/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "@crates//:serde",
@@ -12,7 +13,8 @@ rust_library(
 
 rust_library(
     name = "auth",
-    srcs = ["auth.rs"],
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":auth_claims",

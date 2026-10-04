@@ -8,5 +8,6 @@ cc_library(
 
 rust_library(
     name = "foobar_rs",
-    srcs = ["foobar.rs"],
+    srcs = ["foobar/lib.rs"],
+    crate_root = "foobar/lib.rs",
 )

@@ -1,0 +1,17 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+
+rust_library(
+    name = "module_paths",
+    srcs = [
+        "src/directory/child.rs",
+        "src/directory/mod.rs",
+        "src/flat.rs",
+        "src/flat/child/mod.rs",
+        "src/inline/external.rs",
+        "src/lib.rs",
+        "src/nested/lib.rs",
+        "src/relocated/deep.rs",
+        "src/renamed.rs",
+    ],
+    crate_root = "src/lib.rs",
+)

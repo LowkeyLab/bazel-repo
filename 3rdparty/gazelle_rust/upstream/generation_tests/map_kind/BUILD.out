@@ -6,18 +6,21 @@ load("//:macros.bzl", "custom_rust_binary", "custom_rust_library", "custom_rust_
 
 custom_rust_library(
     name = "existing_lib",
-    srcs = ["existing_lib.rs"],
+    srcs = ["existing_lib/lib.rs"],
+    crate_root = "existing_lib/lib.rs",
 )
 
 custom_rust_binary(
     name = "existing_bin",
-    srcs = ["existing_bin.rs"],
+    srcs = ["existing_bin/main.rs"],
+    crate_root = "existing_bin/main.rs",
     deps = [":existing_lib"],
 )
 
 custom_rust_test(
     name = "existing_test",
     srcs = ["existing_test.rs"],
+    crate_root = "existing_test.rs",
     deps = [":existing_lib"],
 )
 
@@ -28,18 +31,21 @@ custom_rust_test(
 
 custom_rust_binary(
     name = "new_bin",
-    srcs = ["new_bin.rs"],
+    srcs = ["new_bin/main.rs"],
+    crate_root = "new_bin/main.rs",
     deps = [":new_lib"],
 )
 
 custom_rust_library(
     name = "new_lib",
-    srcs = ["new_lib.rs"],
+    srcs = ["new_lib/lib.rs"],
+    crate_root = "new_lib/lib.rs",
 )
 
 custom_rust_test(
     name = "new_test",
     srcs = ["new_test.rs"],
+    crate_root = "new_test.rs",
     deps = [":new_lib"],
 )
 

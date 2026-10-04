@@ -11,5 +11,5 @@ rust_library(
 
 rust_library(
     name = "other",
-    srcs = ["other.rs"],
+    srcs = ["other/lib.rs"],
 )

@@ -1,0 +1,14 @@
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+)
+
+rust_library(
+    name = "non_test_lib",
+    srcs = ["non_test_lib/lib.rs"],
+)
+
+rust_library(
+    name = "test_lib",
+    srcs = ["test_lib/lib.rs"],
+)

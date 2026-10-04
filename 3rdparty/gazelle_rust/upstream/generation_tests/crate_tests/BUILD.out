@@ -4,17 +4,20 @@ load("@rules_rs//rs:rust_test.bzl", "rust_test")
 rust_library(
     name = "lib",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     deps = [":non_test_lib"],
 )
 
 rust_library(
     name = "non_test_lib",
-    srcs = ["non_test_lib.rs"],
+    srcs = ["non_test_lib/lib.rs"],
+    crate_root = "non_test_lib/lib.rs",
 )
 
 rust_library(
     name = "test_lib",
-    srcs = ["test_lib.rs"],
+    srcs = ["test_lib/lib.rs"],
+    crate_root = "test_lib/lib.rs",
 )
 
 rust_test(

@@ -177,10 +177,6 @@ def write_build(args: argparse.Namespace) -> None:
         if not args.skip_crate_universe:
             build.write(
                 """
-# Tell gazelle_rust to generate from Cargo.toml files rather than the
-# default "pure-bazel" mode.
-# gazelle:rust_mode generate_from_cargo
-
 # Tell gazelle_rust where we get our external crates from.
 # gazelle:rust_lockfile cargo-bazel-lock.json
 # gazelle:rust_crates_prefix @crates//:

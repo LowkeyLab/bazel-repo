@@ -4,5 +4,6 @@ rust_library(
     name = "external_crate",
     srcs = ["src/lib.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/lib.rs",
     visibility = ["//visibility:public"],
 )

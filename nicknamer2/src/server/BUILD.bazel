@@ -2,7 +2,8 @@ load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 rust_library(
     name = "server",
-    srcs = ["server.rs"],
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         "//nicknamer2/src/auth:auth_claims",

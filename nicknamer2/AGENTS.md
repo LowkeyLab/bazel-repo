@@ -28,7 +28,7 @@ aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 
 ## Patterns
 
-- **Layered architecture**: `server.rs` (Axum) → `graphql/` (Juniper) → `{name,discord_server}/service.rs` → `{name,discord_server}/repo.rs` (sqlx) → PostgreSQL
+- **Layered architecture**: `server/lib.rs` (Axum) → `graphql/` (Juniper) → `{name,discord_server}/service/lib.rs` → `{name,discord_server}/repo/lib.rs` (sqlx) → PostgreSQL
 - **Modules**: `name/` (nicknames) and `discord_server/` (servers) — both follow domain → repo → service layering. `server/` is the Axum HTTP server (not a domain module).
 - **Trait-based repositories**: `NameCreator`, `NameReader`, `NameUpdater`, `NameDeleter`, `NameCounter`; `ServerCreator`, `ServerReader` — enables testability
 - **DAO pattern**: `NameDAO`, `ServerDAO` (sqlx `FromRow`) convert to domain models via `From`
@@ -37,7 +37,7 @@ aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 - **DI via GraphQL context**: `Context` holds `Arc<Service<Repo>>` (names), `Arc<ServerService<ServerRepo>>` (servers), `Arc<dyn AuthService>`, optional auth token
 - **Pool sharing**: when multiple repos use the same `PgPool`, use `pool.clone()` (it's an `Arc` internally)
 - **Unit tests**: in-source `#[cfg(test)]` modules
-- **Migrations**: `sqlx::migrate!()` macro in `src/migrations/migrations.rs`, SQL files in `nicknamer2/migrations/`. Bazel `compile_data` with `# keep` comment required for the migrations filegroup.
+- **Migrations**: `sqlx::migrate!()` macro in `src/migrations/lib.rs`, SQL files in `nicknamer2/migrations/`. Bazel `compile_data` with `# keep` comment required for the migrations filegroup.
 - **Integration tests**: spin up PostgreSQL via `testcontainers`, tagged `requires-network`
 
 ## E2E Testing with Casdoor

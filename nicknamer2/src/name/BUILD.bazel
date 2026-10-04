@@ -4,14 +4,16 @@ load("//tools/test_images:defs.bzl", "image_data", "image_env")
 
 rust_library(
     name = "name",
-    srcs = ["name.rs"],
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = ["@crates//:chrono"],
 )
 
 rust_library(
     name = "name_repo",
-    srcs = ["repo.rs"],
+    srcs = ["repo/lib.rs"],
+    crate_root = "repo/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":name",
@@ -22,7 +24,8 @@ rust_library(
 
 rust_library(
     name = "name_service",
-    srcs = ["service.rs"],
+    srcs = ["service/lib.rs"],
+    crate_root = "service/lib.rs",
     visibility = ["//nicknamer2:__subpackages__"],
     deps = [
         ":name",

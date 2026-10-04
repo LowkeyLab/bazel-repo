@@ -1,11 +1,11 @@
 load("@rules_rs//rs:cargo_build_script.bzl", "cargo_build_script")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
-# gazelle:rust_mode generate_from_cargo
-
 rust_library(
     name = "example",
+    srcs = ["src/lib.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = [":build_script"],

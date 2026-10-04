@@ -1,11 +1,10 @@
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
-# gazelle:rust_mode generate_from_cargo
-
 rust_library(
     name = "cargo_b",
     srcs = ["src/lib.rs"],
     compile_data = ["Cargo.toml"],
+    crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
     deps = ["//cargo_a"],

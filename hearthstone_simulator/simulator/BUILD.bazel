@@ -40,6 +40,16 @@ rust_library(
         "simulation_player.rs",  # keep
         "simulation_resolution_validation.rs",  # keep
         "simulation_snapshot.rs",  # keep
+        "simulation_test_support.rs",
+        "simulation_tests_actions.rs",
+        "simulation_tests_api.rs",
+        "simulation_tests_auras.rs",
+        "simulation_tests_effects.rs",
+        "simulation_tests_events.rs",
+        "simulation_tests_health.rs",
+        "simulation_tests_hero.rs",
+        "simulation_tests_movement.rs",
+        "simulation_tests_temporal.rs",
         "trigger.rs",
         "weapon.rs",  # keep
         "zone.rs",
@@ -58,6 +68,7 @@ rust_library(
         "simulation_tests_temporal.rs",  # keep
     ],
     crate_name = "hearthstone_simulator",
+    crate_root = "lib.rs",
     rustc_env = {"CARGO_MANIFEST_DIR": "."},
     deps = [
         "//hearthstone_simulator/core",
@@ -69,5 +80,8 @@ rust_test(
     name = "simulator_test",
     size = "small",
     crate = ":simulator",
-    deps = ["@crates//:googletest"],
+    deps = [
+        "//hearthstone_simulator/core",
+        "@crates//:googletest",
+    ],
 )

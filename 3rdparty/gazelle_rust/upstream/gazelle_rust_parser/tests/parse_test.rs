@@ -58,6 +58,8 @@ lazy_static::lazy_static! {
             enabled_features: vec![],
             expected_imports: vec![
                 "a",
+                // Unknown platform cfg predicates remain possible during source discovery.
+                "n",
                 "x",
             ],
             expected_test_imports: vec![
