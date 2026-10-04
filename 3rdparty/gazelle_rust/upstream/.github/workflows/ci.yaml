@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: bazel cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cache/bazelisk
@@ -35,10 +35,10 @@ jobs:
           key: ${{ runner.os }}-${{ github.ref }}
 
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2
 
       - name: tmate debugging
-        uses: mxschmitt/action-tmate@v3
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3
         with:
           limit-access-to-actor: true
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tmate_debug && always() }}
