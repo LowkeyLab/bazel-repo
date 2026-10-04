@@ -81,7 +81,7 @@ for destination in /blog/ /about/; do
 done
 
 home="$(<"${dist}/index.html")"
-[[ "${home}" == *'id="featured-heading"'* ]] || fail "missing featured writing section"
+[[ "${home}" == *'id="featured-heading"'* ]] || fail "missing Featured writing section"
 [[ "${home}" == *'id="recent-heading"'* ]] || fail "missing Recent writing section for current content fixture"
 featured="${home#*'id="featured-heading"'}"
 featured="${featured%%'id="recent-heading"'*}"
