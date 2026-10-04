@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
-import { presentation, withPage } from "./harness.mjs";
+import type { Page } from "playwright";
+import { presentation, withPage } from "./harness.js";
 
 const root = "recent-writing-animation";
 
-async function entryStates(page) {
-  return page.locator(`${root} .entry-link`).evaluateAll((entries) =>
-    entries.map((entry) => ({
-      opacity: Number(getComputedStyle(entry).opacity),
-      visibility: getComputedStyle(entry).visibility,
-      inert: entry.inert,
-    })),
-  );
+async function entryStates(page: Page) {
+  return page
+    .locator(`${root} .entry-link`)
+    .evaluateAll((entries: HTMLElement[]) =>
+      entries.map((entry) => ({
+        opacity: Number(getComputedStyle(entry).opacity),
+        visibility: getComputedStyle(entry).visibility,
+        inert: entry.inert,
+      })),
+    );
 }
 
 await withPage(
@@ -67,7 +70,10 @@ await withPage(
       (await presentation(page, `${root} .all-writing`)).visibility,
       "hidden",
     );
-    assert.equal(await allWriting.evaluate((link) => link.inert), true);
+    assert.equal(
+      await allWriting.evaluate((link: HTMLElement) => link.inert),
+      true,
+    );
 
     let stagger;
     for (let step = 0; step < 80; step++) {
@@ -79,6 +85,7 @@ await withPage(
       )
         break;
     }
+    assert.ok(stagger, "entry reveal was sampled");
     assert.ok(
       stagger[0].opacity > stagger[1].opacity &&
         stagger[1].opacity >= stagger[2].opacity,
@@ -114,7 +121,10 @@ await withPage(
     assert.ok(
       (await presentation(page, `${root} .all-writing`)).opacity > 0.99,
     );
-    assert.equal(await allWriting.evaluate((link) => link.inert), false);
+    assert.equal(
+      await allWriting.evaluate((link: HTMLElement) => link.inert),
+      false,
+    );
     await entries.last().focus();
     await page.keyboard.press("Tab");
     assert.equal(

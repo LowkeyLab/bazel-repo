@@ -1,4 +1,5 @@
 load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("//personal_website/bzl:ts.bzl", "personal_website_ts_library", "personal_website_ts_test_sources")
 
 test_suite(
     name = "tests",
@@ -14,11 +15,10 @@ js_test(
     name = "homepage_test",
     size = "large",
     data = [
-        "harness.mjs",
-        "//:node_modules/playwright",
+        ":browser_test",
         "//personal_website:build",
     ],
-    entry_point = "homepage.test.mjs",
+    entry_point = "homepage.test.js",
     env = {
         "SITE_DIR": "$(rootpath //personal_website:build)",
     },
@@ -31,12 +31,10 @@ js_test(
     name = "hero_test",
     size = "small",
     data = [
-        "harness.mjs",
-        "//:node_modules/playwright",
-        "//:node_modules/sharp",
+        ":browser_test",
         "//personal_website/tests:fixtures_build",
     ],
-    entry_point = "hero.test.mjs",
+    entry_point = "hero.test.js",
     env = {
         "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
     },
@@ -49,11 +47,10 @@ js_test(
     name = "featured_work_test",
     size = "small",
     data = [
-        "harness.mjs",
-        "//:node_modules/playwright",
+        ":browser_test",
         "//personal_website/tests:fixtures_build",
     ],
-    entry_point = "featured-work.test.mjs",
+    entry_point = "featured-work.test.js",
     env = {
         "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
     },
@@ -66,15 +63,44 @@ js_test(
     name = "recent_writing_test",
     size = "small",
     data = [
-        "harness.mjs",
-        "//:node_modules/playwright",
+        ":browser_test",
         "//personal_website/tests:fixtures_build",
     ],
-    entry_point = "recent-writing.test.mjs",
+    entry_point = "recent-writing.test.js",
     env = {
         "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
     },
     exec_properties = {
         "container-image": "docker://mcr.microsoft.com/playwright@sha256:bc6ab0d6d44ff4826e4cb8c1e6d801e185bfc42bb0753f8e2a30efc70db054c7",
     },
+)
+
+personal_website_ts_library(
+    name = "browser",
+    testonly = True,
+    srcs = ["harness.ts"],
+    tsconfig_types = ["node"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:node_modules/@types/node",
+        "//:node_modules/playwright",
+        "//personal_website/src/utils",
+    ],
+)
+
+personal_website_ts_test_sources(
+    name = "browser_test",
+    srcs = [
+        "featured-work.test.ts",
+        "hero.test.ts",
+        "homepage.test.ts",
+        "recent-writing.test.ts",
+    ],
+    tsconfig_types = ["node"],
+    deps = [
+        ":browser",
+        "//:node_modules/@types/node",
+        "//:node_modules/playwright",
+        "//:node_modules/sharp",
+    ],
 )

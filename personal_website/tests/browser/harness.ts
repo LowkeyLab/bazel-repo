@@ -2,9 +2,60 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname, relative, sep, join } from "node:path";
-import { chromium } from "playwright";
+import {
+  chromium,
+  type BrowserContext,
+  type BrowserContextOptions,
+  type Page,
+} from "playwright";
+import type { SectionAnimationSettled } from "../../src/utils/animation-observation.js";
 
-function runfile(value) {
+interface PageOptions {
+  route: string;
+  viewport?: BrowserContextOptions["viewport"];
+  reducedMotion?: BrowserContextOptions["reducedMotion"];
+  javaScriptEnabled?: boolean;
+  hasTouch?: boolean;
+  fontMode?: "blocked" | "held" | "delayed";
+  holdAnimationModules?: boolean;
+  blockAnimationModule?: boolean;
+  clock?: boolean;
+  trackPending?: boolean;
+  initialPaintSelector?: string;
+  recordAnimationEvents?: boolean;
+  throwAnimationListener?: boolean;
+}
+
+interface PageControls {
+  releaseFonts: () => void;
+  releaseModules: () => void;
+}
+
+export interface HeroObservation {
+  root: Element | null;
+  roots: number;
+  writingStarts: number;
+  reveals: number;
+  regressions: number;
+  writing: boolean;
+  revealed: boolean;
+  stopped: boolean;
+}
+
+declare global {
+  interface Window {
+    __pendingStartedAt?: number;
+    __initialPaintSamples: { opacity: number; visibility: string }[];
+    __animationRecords: {
+      level: "debug" | "warn";
+      event: SectionAnimationSettled;
+    }[];
+    __heroObservation?: HeroObservation;
+    __motionPreferenceChanged?: Promise<void>;
+  }
+}
+
+function runfile(value: string | undefined) {
   assert.ok(value, "missing declared Bazel runfile");
   return resolve(
     process.env.RUNFILES_DIR ?? process.cwd(),
@@ -14,7 +65,7 @@ function runfile(value) {
 }
 
 const fixtures = runfile(process.env.SITE_DIR ?? process.env.FIXTURE_DIR);
-const contentTypes = {
+const contentTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -28,6 +79,7 @@ const contentTypes = {
 function server() {
   return createServer(async (request, response) => {
     try {
+      assert.ok(request.url, "request URL is required");
       const pathname = new URL(request.url, "http://localhost").pathname;
       const target = resolve(
         fixtures,
@@ -52,7 +104,10 @@ function server() {
   });
 }
 
-export async function withPage(options, run) {
+export async function withPage(
+  options: PageOptions,
+  run: (page: Page, controls: PageControls) => Promise<void>,
+) {
   const http = server();
   const browser = await chromium.launch({
     headless: true,
@@ -61,17 +116,24 @@ export async function withPage(options, run) {
       : {}),
     args: ["--no-sandbox"],
   });
-  let context;
-  let page;
-  let releaseFonts;
-  let releaseModules;
-  const fontsHeld = new Promise((resolve) => (releaseFonts = resolve));
-  const modulesHeld = new Promise((resolve) => (releaseModules = resolve));
+  let context: BrowserContext | undefined;
+  let page: Page | undefined;
+  let releaseFonts!: () => void;
+  let releaseModules!: () => void;
+  const fontsHeld = new Promise<void>((resolve) => (releaseFonts = resolve));
+  const modulesHeld = new Promise<void>(
+    (resolve) => (releaseModules = resolve),
+  );
   try {
-    await new Promise((done, fail) =>
+    await new Promise<void>((done, fail) =>
       http.once("error", fail).listen(0, "127.0.0.1", done),
     );
-    const port = http.address().port;
+    const address = http.address();
+    assert.ok(
+      address && typeof address === "object",
+      "server must listen on TCP",
+    );
+    const port = address.port;
     context = await browser.newContext({
       viewport: options.viewport ?? { width: 1280, height: 900 },
       reducedMotion: options.reducedMotion ?? "no-preference",
@@ -81,12 +143,12 @@ export async function withPage(options, run) {
     });
     // Fault cases delay/block the actual embedded production bytes by exposing
     // them at a test-server URL. Normal tests leave the stylesheet untouched.
-    const embeddedFonts = new Map();
+    const embeddedFonts = new Map<string, Buffer>();
     await context.route("**/__font_fault/*", async (route) => {
       if (options.fontMode === "blocked") return route.abort();
       if (options.fontMode === "held") await fontsHeld;
       if (options.fontMode === "delayed")
-        await new Promise((resolve) => setTimeout(resolve, 2600));
+        await new Promise<void>((resolve) => setTimeout(resolve, 2600));
       const name = new URL(route.request().url()).pathname;
       const body = embeddedFonts.get(name);
       assert.ok(body, "fault injection must serve a real production font");
@@ -131,7 +193,8 @@ export async function withPage(options, run) {
             changes.some(
               (change) =>
                 change.type === "attributes" &&
-                change.target.matches?.(
+                change.target instanceof Element &&
+                change.target.matches(
                   "home-hero-animation[data-animation-pending]",
                 ),
             )
@@ -166,7 +229,7 @@ export async function withPage(options, run) {
     if (options.recordAnimationEvents) {
       await page.addInitScript((throwListener) => {
         window.__animationRecords = [];
-        for (const level of ["debug", "warn"]) {
+        for (const level of ["debug", "warn"] as const) {
           const original = console[level].bind(console);
           console[level] = (...args) => {
             const event = args.find(
@@ -180,7 +243,7 @@ export async function withPage(options, run) {
         }
       }, options.throwAnimationListener);
     }
-    const errors = [];
+    const errors: Error[] = [];
     page.on("pageerror", (error) => errors.push(error));
     page.on("console", (message) => {
       if (
@@ -226,11 +289,11 @@ export async function withPage(options, run) {
     await context?.tracing.stop().catch(() => {});
     await context?.close();
     await browser.close();
-    await new Promise((done) => http.close(done));
+    await new Promise<void>((done) => http.close(() => done()));
   }
 }
 
-export async function presentation(page, selector) {
+export async function presentation(page: Page, selector: string) {
   return page.locator(selector).evaluate((element) => {
     const style = getComputedStyle(element);
     const box = element.getBoundingClientRect();

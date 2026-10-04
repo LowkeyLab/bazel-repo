@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { presentation, withPage } from "./harness.mjs";
+import type { Page } from "playwright";
+import { presentation, withPage, type HeroObservation } from "./harness.js";
 
 const sections = [
   {
@@ -19,7 +20,7 @@ const sections = [
   },
 ];
 
-async function visible(page, section) {
+async function visible(page: Page, section: (typeof sections)[number]) {
   return page
     .locator(`${section.root} ${section.detail}`)
     .first()
@@ -29,7 +30,7 @@ async function visible(page, section) {
     });
 }
 
-async function writing(page, section) {
+async function writing(page: Page, section: (typeof sections)[number]) {
   assert.ok(
     await page
       .locator(`${section.root} ${section.heading} .handwriting-overlay`)
@@ -39,7 +40,7 @@ async function writing(page, section) {
   assert.equal(await visible(page, section), false);
 }
 
-async function readable(page) {
+async function readable(page: Page) {
   for (const [root, selector] of [
     ["home-hero-animation", "[data-animation-detail]"],
     ["featured-work-animation", ".entry-link"],
@@ -47,7 +48,7 @@ async function readable(page) {
   ]) {
     const details = await page
       .locator(`${root} ${selector}`)
-      .evaluateAll((elements) =>
+      .evaluateAll((elements: HTMLElement[]) =>
         elements.map((element) => {
           const style = getComputedStyle(element);
           return {
@@ -91,7 +92,7 @@ async function readable(page) {
     .locator(
       "home-hero-animation a[href], featured-work-animation a[href], recent-writing-animation a[href]",
     )
-    .evaluateAll((links) =>
+    .evaluateAll((links: HTMLAnchorElement[]) =>
       links.map((link) => {
         link.focus({ preventScroll: true });
         return {
@@ -110,10 +111,10 @@ async function readable(page) {
   }
 }
 
-async function observeHeroReveals(page) {
+async function observeHeroReveals(page: Page) {
   await page.evaluate(() => {
     if (window.__heroObservation) window.__heroObservation.stopped = true;
-    const observation = {
+    const observation: HeroObservation = {
       root: null,
       roots: 0,
       writingStarts: 0,
@@ -138,6 +139,7 @@ async function observeHeroReveals(page) {
           root.querySelector("#intro-heading .handwriting-overlay"),
         );
         const detail = root.querySelector(".hero-actions");
+        if (!detail) throw new Error("hero actions must exist");
         const style = getComputedStyle(detail);
         const revealed =
           style.visibility === "visible" && Number(style.opacity) > 0.99;
@@ -153,15 +155,17 @@ async function observeHeroReveals(page) {
   });
 }
 
-async function observedHero(page) {
+async function observedHero(page: Page) {
   return page.evaluate(() => {
+    if (!window.__heroObservation)
+      throw new Error("hero observation must be started");
     const { roots, writingStarts, reveals, regressions } =
       window.__heroObservation;
     return { roots, writingStarts, reveals, regressions };
   });
 }
 
-async function heroCompleted(page) {
+async function heroCompleted(page: Page) {
   await page.waitForFunction(
     () => {
       const detail = document.querySelector(
@@ -176,7 +180,7 @@ async function heroCompleted(page) {
   );
 }
 
-async function noHorizontalOverflow(page, label) {
+async function noHorizontalOverflow(page: Page, label: string) {
   const widths = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,
     viewport: document.documentElement.clientWidth,
@@ -187,7 +191,7 @@ async function noHorizontalOverflow(page, label) {
   );
 }
 
-async function staticHeroArtwork(page) {
+async function staticHeroArtwork(page: Page) {
   const artwork = await page
     .locator(".hero-art, .hero-flourish, .hero-plant, .hero-code")
     .evaluateAll((elements) =>
@@ -264,7 +268,7 @@ for (const holdAnimationModules of [false, true]) {
     );
   } catch (error) {
     expiryFailures.push(
-      `late module=${holdAnimationModules}: ${error.message}`,
+      `late module=${holdAnimationModules}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -437,8 +441,8 @@ console.log("navigation_disposes_pending_work: delayed font passed");
 for (const options of [
   { blockAnimationModule: true },
   { javaScriptEnabled: false },
-  { reducedMotion: "reduce" },
-  { fontMode: "blocked" },
+  { reducedMotion: "reduce" as const },
+  { fontMode: "blocked" as const },
 ]) {
   await withPage(
     {
@@ -466,6 +470,7 @@ for (const options of [
           null,
           { timeout: 2300 },
         );
+        assert.ok(typeof startedAt === "number");
         const elapsed = await page.evaluate(
           (start) => performance.now() - start,
           startedAt,
@@ -568,6 +573,7 @@ await withPage({ route: "/", reducedMotion: "reduce" }, async (page) => {
       const list = document.querySelector(
         'section[aria-label="Recent writing"]',
       );
+      if (!list) throw new Error("recent writing section must exist");
       return (
         !list.contains(link) &&
         Boolean(
@@ -583,9 +589,10 @@ await withPage({ route: "/", reducedMotion: "reduce" }, async (page) => {
   // hidden, so clicking its zero-sized input would not model a user action.
   const toggle = page.getByRole("checkbox", { name: "Use dark theme" });
   const initialDark = await toggle.isChecked();
-  async function assertTheme(dark) {
+  async function assertTheme(dark: boolean) {
     await page.waitForFunction((expectedDark) => {
-      const checkbox = document.querySelector("#theme-toggle");
+      const checkbox =
+        document.querySelector<HTMLInputElement>("#theme-toggle");
       return (
         checkbox?.checked === expectedDark &&
         document.documentElement.dataset.theme ===

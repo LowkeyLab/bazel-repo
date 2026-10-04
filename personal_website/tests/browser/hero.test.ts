@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
-import { presentation, withPage } from "./harness.mjs";
+import type { Page } from "playwright";
+import { presentation, withPage } from "./harness.js";
 
 // Revealing the same HTML must preserve the final glyphs and layout, including
 // mobile line wrapping. Mask compositing differs by up to two colour levels
@@ -92,7 +93,7 @@ for (const viewport of [
   );
 }
 
-async function tabStops(page, steps) {
+async function tabStops(page: Page, steps: number) {
   const stops = [];
   for (let index = 0; index < steps; index++) {
     await page.keyboard.press("Tab");
@@ -257,7 +258,7 @@ await withPage(
       "completed underline remains visible",
     );
     const headingEnd = await presentation(page, "h1");
-    for (const dimension of ["x", "y", "width", "height"]) {
+    for (const dimension of ["x", "y", "width", "height"] as const) {
       assert.ok(
         Math.abs(headingEnd.box[dimension] - headingStart.box[dimension]) < 1,
         `heading retains its ${dimension} bound`,
@@ -299,9 +300,9 @@ await withPage(
 );
 
 for (const options of [
-  { reducedMotion: "reduce" },
+  { reducedMotion: "reduce" as const },
   { javaScriptEnabled: false },
-  { fontMode: "blocked" },
+  { fontMode: "blocked" as const },
 ]) {
   await withPage({ route: "/tests/hero/", ...options }, async (page) => {
     await page.waitForTimeout(100);
@@ -352,6 +353,7 @@ await withPage(
   async (page, { releaseModules }) => {
     await page.locator("h1").waitFor({ state: "attached" });
     await page.locator("h1").evaluate((heading) => {
+      if (!heading.firstChild) throw new Error("heading must contain text");
       heading.firstChild.textContent = "Unsupported XYZ ";
     });
     await page.evaluate(() => document.fonts.ready);
@@ -390,6 +392,7 @@ await withPage(
     const records = await page.evaluate(() => window.__animationRecords);
     assert.equal(records.length, 1);
     assert.equal(records[0].level, "warn");
+    assert.ok("reason" in records[0].event);
     assert.equal(records[0].event.reason, "watchdog_expired");
     assert.equal(
       (await presentation(page, ".hero-actions")).visibility,
@@ -402,10 +405,13 @@ await withPage(
 for (const [reason, change] of [
   [
     "preference",
-    async (page) => page.emulateMedia({ reducedMotion: "reduce" }),
+    async (page: Page) => page.emulateMedia({ reducedMotion: "reduce" }),
   ],
-  ["resize", async (page) => page.setViewportSize({ width: 900, height: 800 })],
-]) {
+  [
+    "resize",
+    async (page: Page) => page.setViewportSize({ width: 900, height: 800 }),
+  ],
+] as const) {
   await withPage(
     { route: "/tests/hero/", recordAnimationEvents: true },
     async (page) => {
@@ -452,6 +458,7 @@ for (const [reason, change] of [
       assert.equal(records.length, 1);
       assert.equal(records[0].level, "debug");
       assert.equal(records[0].event.outcome, "cancelled");
+      assert.ok("reason" in records[0].event);
       assert.equal(records[0].event.reason, reason);
     },
   );
@@ -472,6 +479,7 @@ await withPage(
     );
     const records = await page.evaluate(() => window.__animationRecords);
     assert.equal(records.length, 1);
+    assert.ok("reason" in records[0].event);
     assert.equal(records[0].event.reason, "disconnection");
     assert.equal(records[0].level, "debug");
   },
@@ -549,7 +557,9 @@ await withPage(
     assert.equal(records.length, 4);
     assert.equal(new Set(records.map(({ event }) => event.runId)).size, 4);
     assert.deepEqual(
-      records.map(({ event }) => event.reason ?? event.outcome).sort(),
+      records
+        .map(({ event }) => ("reason" in event ? event.reason : event.outcome))
+        .sort(),
       ["completed", "completed", "exception", "initialization_unavailable"],
     );
     for (const { event, level } of records) {
@@ -587,6 +597,7 @@ await withPage(
     assert.equal(records[0].level, "warn");
     assert.equal(records[0].event.type, "SectionAnimationSettled");
     assert.equal(records[0].event.outcome, "fallback");
+    assert.ok("reason" in records[0].event);
     assert.equal(records[0].event.reason, "font_unavailable");
     assert.equal(
       (await presentation(page, ".hero-actions")).visibility,
@@ -634,6 +645,7 @@ for (const held of ["holdAnimationModules", "fontMode"]) {
       );
       const records = await page.evaluate(() => window.__animationRecords);
       assert.equal(records.length, 1);
+      assert.ok("reason" in records[0].event);
       assert.equal(records[0].event.reason, "watchdog_expired");
       releaseFonts();
       releaseModules();
@@ -699,10 +711,13 @@ await withPage(
 
 // Media-query events use Chromium's rendering cycle, not the mocked animation
 // clock. Subscribe before emulation so assertions cannot outrun event delivery.
-async function changeMotionPreference(page, reducedMotion) {
+async function changeMotionPreference(
+  page: Page,
+  reducedMotion: "reduce" | "no-preference",
+) {
   await page.evaluate((preference) => {
     const media = matchMedia("(prefers-reduced-motion: reduce)");
-    window.__motionPreferenceChanged = new Promise((resolve) => {
+    window.__motionPreferenceChanged = new Promise<void>((resolve) => {
       if (media.matches === (preference === "reduce")) resolve();
       else media.addEventListener("change", () => resolve(), { once: true });
     });
@@ -798,7 +813,7 @@ await withPage(
       "motion preference cancels an active replay",
     );
     assert.equal(await button.isDisabled(), true);
-    await button.evaluate((element) => element.click());
+    await button.evaluate((element: HTMLButtonElement) => element.click());
     await page.clock.runFor(250);
     assert.equal(
       await art.evaluate((el) => getComputedStyle(el).opacity),
@@ -813,8 +828,9 @@ await withPage(
         Number(rest),
     );
     assert.equal(
-      await button.evaluate((element) => {
+      await button.evaluate((element: HTMLButtonElement) => {
         const root = element.closest("home-hero-animation");
+        if (!root) throw new Error("replay button must belong to the hero");
         root.remove();
         return element.disabled;
       }),
@@ -845,7 +861,12 @@ for (const { viewport, interaction } of [
       await page.clock.runFor(1);
       const artState = () =>
         page.locator(".hero-art").evaluate((art) => {
-          const flourish = art.querySelector(".hero-flourish");
+          const flourish =
+            art.querySelector<SVGGeometryElement>(".hero-flourish");
+          const code = art.querySelector(".hero-code");
+          const plant = art.querySelector(".hero-plant");
+          if (!flourish || !code || !plant)
+            throw new Error("hero artwork must be complete");
           const dash = getComputedStyle(flourish).strokeDasharray;
           // A solid stroke and a dash covering the whole path render identically.
           const length =
@@ -854,8 +875,8 @@ for (const { viewport, interaction } of [
           return {
             opacity: getComputedStyle(art).opacity,
             transform: getComputedStyle(art).transform,
-            code: getComputedStyle(art.querySelector(".hero-code")).opacity,
-            plant: getComputedStyle(art.querySelector(".hero-plant")).transform,
+            code: getComputedStyle(code).opacity,
+            plant: getComputedStyle(plant).transform,
             flourish:
               dash === "none" ? 1 : Math.min(1, parseFloat(dash) / length),
           };
@@ -885,6 +906,7 @@ for (const { viewport, interaction } of [
       assert.ok(revealing, "text reveal starts");
       if (viewport.width === 390) {
         const box = await page.locator(".hero-replay").boundingBox();
+        assert.ok(box, "replay button has a bounding box");
         assert.ok(
           box.y >= viewport.height,
           "illustration is below the viewport",
@@ -928,6 +950,8 @@ for (const { viewport, interaction } of [
           .evaluateAll((elements) =>
             elements.map((element) => {
               element.focus({ preventScroll: true });
+              if (!element.parentElement)
+                throw new Error("hero link must have a parent");
               return {
                 href: element.getAttribute("href"),
                 opacity: Number(
