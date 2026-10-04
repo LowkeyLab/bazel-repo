@@ -4,6 +4,7 @@ import type { AnimationRun } from "./section-animation";
 // Pen routes in each glyph's ink bounds. The mask reveals the original HTML text;
 // these broad strokes are guides, not replacement letterforms.
 const penRoutes: Record<string, string> = {
+  F: "M.3 0 .05 1 M.3 .1 1 0 M.2 .5 .8 .4",
   H: "M.3 0 .05 1 M1 0 .7 1 M.15 .55 .85 .4",
   I: "M.8 0 .2 1",
   T: "M0 .15 1 .05 M.6 .1 .35 1",
