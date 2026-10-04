@@ -41,7 +41,7 @@ Run commands from the monorepo root:
 ```sh
 nix develop --command bazel run //:gazelle
 nix develop --command aspect build //:gazelle_bin @gazelle_rust//rust_parser:rust_parser
-nix develop --command aspect test @gazelle_rust//gazelle_rust_parser/tests:parse_test @gazelle_rust//generation_tests:all
+nix develop --command aspect test @gazelle_rust//gazelle_rust_parser/tests:parse_test @gazelle_rust//generation_tests/...
 nix develop --command aspect test @gazelle_rust//rust_language:gofmt_test
 ```
 
@@ -66,7 +66,13 @@ remote generator, allowing only the root exclusion and the parent package's
 patch-to-README export change. Application BUILD output is unchanged. A second
 root Gazelle run must leave the complete tracked source tree unchanged.
 
-The focused suite contains 36 generation fixture targets, one parser test target,
+The recursive focused suite contains 40 enabled generation fixture targets, one parser test target,
 and one Go format test target. Root `//...` checks intentionally do not include
 these external-module tests. Run both the focused commands above and the required
 repository-wide format, build, test, and lint checks when changing the integration.
+
+The recursive pattern includes the separate `generation_tests/crate_universe`
+package and its four enabled dependency-resolution fixtures. Upstream marks
+`standard_unused_crates` manual because unused-crate detection with Cargo.lock
+is unsupported; that existing exclusion is preserved. No additional tests are
+disabled locally.
