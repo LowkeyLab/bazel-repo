@@ -1,0 +1,2 @@
+gazelle: lib.rs: ambiguous conventional Rust roots [lib.rs src/lib.rs]; configure crate_root explicitly
+gazelle: main.rs: ambiguous conventional Rust roots [main.rs src/main.rs]; configure crate_root explicitly

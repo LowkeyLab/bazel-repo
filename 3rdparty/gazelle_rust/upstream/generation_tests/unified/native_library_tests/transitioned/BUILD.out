@@ -1,0 +1,24 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_shared_library.bzl", "rust_shared_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_library(
+    name = "native",
+    srcs = ["lib.rs"],
+    crate_name = "common",
+    crate_root = "lib.rs",
+)
+
+rust_shared_library(
+    name = "wasm",
+    srcs = ["lib.rs"],
+    crate_name = "common",
+    crate_root = "lib.rs",
+    platform = "@rules_rs//rs/platforms:wasm32-unknown-unknown",
+)
+
+rust_test(
+    name = "native_test",
+    crate = ":native",
+    deps = ["//helper"],
+)

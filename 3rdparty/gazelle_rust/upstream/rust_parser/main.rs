@@ -28,6 +28,8 @@ fn handle_rust_imports_request(
         &request.enabled_features,
         &request.parent_names,
         &request.test_parent_names,
+        &request.cfg_options,
+        request.cfg_test,
     );
 
     let mut response = RustImportsResponse::default();
@@ -48,6 +50,8 @@ fn handle_rust_imports_request(
                     inline_path_from_file: module.inline_path_from_file,
                     path: module.path,
                     test_only: module.test_only,
+                    cfg_options: module.cfg_options,
+                    cfg_test: module.cfg_test,
                 })
                 .collect();
             response.success = true;

@@ -1,6 +1,6 @@
 #![deny(unused_must_use)]
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::fs::File;
 use std::io::Read;
@@ -19,6 +19,8 @@ pub struct ModuleDeclaration {
     pub inline_path_from_file: bool,
     pub path: Option<String>,
     pub test_only: bool,
+    pub cfg_options: HashMap<String, bool>,
+    pub cfg_test: Option<bool>,
 }
 
 pub struct RustImports {
@@ -45,7 +47,15 @@ pub fn parse_imports(
     relative_path: PathBuf,
     enabled_features: &[String],
 ) -> Result<RustImports, Box<dyn Error>> {
-    parse_imports_with_parent(absolute_path, relative_path, enabled_features, &[], &[])
+    parse_imports_with_parent(
+        absolute_path,
+        relative_path,
+        enabled_features,
+        &[],
+        &[],
+        &HashMap::new(),
+        None,
+    )
 }
 
 pub fn parse_imports_with_parent(
@@ -54,6 +64,8 @@ pub fn parse_imports_with_parent(
     enabled_features: &[String],
     parent_names: &[String],
     test_parent_names: &[String],
+    cfg_options: &HashMap<String, bool>,
+    cfg_test: Option<bool>,
 ) -> Result<RustImports, Box<dyn Error>> {
     // TODO: stream from the file instead of loading it all into memory?
     let mut file = match File::open(&absolute_path) {
@@ -76,6 +88,8 @@ pub fn parse_imports_with_parent(
         relative_path,
         parent_names,
         test_parent_names,
+        cfg_options,
+        cfg_test,
     )
 }
 
@@ -84,7 +98,15 @@ pub fn parse_imports_from_str(
     enabled_features: &[String],
     path: PathBuf,
 ) -> Result<RustImports, Box<dyn Error>> {
-    parse_imports_with_context(contents, enabled_features, path, &[], &[])
+    parse_imports_with_context(
+        contents,
+        enabled_features,
+        path,
+        &[],
+        &[],
+        &HashMap::new(),
+        None,
+    )
 }
 
 fn parse_imports_with_context(
@@ -93,6 +115,8 @@ fn parse_imports_with_context(
     path: PathBuf,
     parent_names: &[String],
     test_parent_names: &[String],
+    cfg_options: &HashMap<String, bool>,
+    cfg_test: Option<bool>,
 ) -> Result<RustImports, Box<dyn Error>> {
     let ast = parse_file(contents)?;
     // Evaluate root bindings in both configurations. A cfg(test) module or
@@ -100,6 +124,7 @@ fn parse_imports_with_context(
     let provided_names = |test| {
         let mut bindings = AstVisitor::new(enabled_features, path.clone());
         bindings.cfg_test = Some(test);
+        bindings.cfg_known = cfg_options.clone();
         bindings.visit_file(&ast);
         bindings
             .mod_stack
@@ -113,6 +138,8 @@ fn parse_imports_with_context(
     let production_bindings = provided_names(false);
     let test_bindings = provided_names(true);
     let mut visitor = AstVisitor::new(enabled_features, path);
+    visitor.cfg_test = cfg_test;
+    visitor.cfg_known = cfg_options.clone();
     // Imports are order independent, and a parent glob applies only in this
     // module (including its function/block scopes), never its child modules.
     for item in &ast.items {
@@ -280,6 +307,7 @@ impl Scope<'_> {
 #[derive(Debug, Clone)]
 struct AstVisitor<'ast> {
     cfg_test: Option<bool>,
+    cfg_known: HashMap<String, bool>,
     parent_names: HashSet<String>,
     test_parent_names: HashSet<String>,
     modules: Vec<ModuleDeclaration>,
@@ -319,6 +347,7 @@ impl AstVisitor<'_> {
 
         Self {
             cfg_test: None,
+            cfg_known: HashMap::new(),
             parent_names: HashSet::new(),
             test_parent_names: HashSet::new(),
             modules: Vec::new(),
@@ -407,55 +436,162 @@ impl<'ast> AstVisitor<'ast> {
     }
 
     fn cfg_enabled_for(&self, attrs: &[syn::Attribute], test: bool) -> bool {
-        attrs.iter().all(|attr| {
-            if let syn::Meta::List(list) = &attr.meta
-                && list.path.is_ident("cfg")
-                && let Ok(meta) = attr.parse_args::<syn::Meta>()
-            {
-                self.eval_cfg_meta(&meta, test).unwrap_or(true)
-            } else {
-                true
-            }
-        })
+        !self.effective_attributes(attrs, test).is_empty()
     }
 
-    // Unknown platform predicates remain possible in both branches. Gazelle
-    // knows selected features, but does not evaluate the Rust target platform.
-    fn eval_cfg_meta(&self, meta: &syn::Meta, test: bool) -> Option<bool> {
-        match meta {
-            syn::Meta::Path(path) if path.is_ident("test") => Some(test),
-            syn::Meta::NameValue(value) if value.path.is_ident("feature") => {
-                if let syn::Expr::Lit(literal) = &value.value
-                    && let syn::Lit::Str(feature) = &literal.lit
-                {
-                    Some(self.enabled_features.contains(&feature.value()))
-                } else {
-                    None
-                }
-            }
-            syn::Meta::List(list) => {
-                let args = list
-                    .parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
-                    .ok()?;
-                if list.path.is_ident("not") && args.len() == 1 {
-                    return self.eval_cfg_meta(&args[0], test).map(|enabled| !enabled);
-                }
-                let all = list.path.is_ident("all");
-                if !all && !list.path.is_ident("any") {
-                    return None;
-                }
-                let mut unknown = false;
-                for arg in args {
-                    match self.eval_cfg_meta(&arg, test) {
-                        Some(value) if value != all => return Some(value),
-                        None => unknown = true,
-                        _ => {}
+    // Expand cfg_attr separately for production and test configurations. Unknown
+    // platform predicates branch with shared assumptions, so `unix` and
+    // `not(unix)` cannot both select (or both omit) a module path.
+    fn effective_attributes(
+        &self,
+        attrs: &[syn::Attribute],
+        test: bool,
+    ) -> Vec<(Vec<syn::Meta>, HashMap<String, bool>)> {
+        self.expand_attributes(
+            attrs.iter().rev().map(|attr| attr.meta.clone()).collect(),
+            Vec::new(),
+            test,
+            self.cfg_known.clone(),
+        )
+    }
+
+    fn expand_attributes(
+        &self,
+        mut pending: Vec<syn::Meta>,
+        mut result: Vec<syn::Meta>,
+        test: bool,
+        known: HashMap<String, bool>,
+    ) -> Vec<(Vec<syn::Meta>, HashMap<String, bool>)> {
+        let Some(meta) = pending.pop() else {
+            return vec![(result, known)];
+        };
+        if let syn::Meta::List(list) = &meta {
+            let conditional = if list.path.is_ident("cfg") {
+                list.parse_args::<syn::Expr>()
+                    .ok()
+                    .map(|predicate| (predicate, None))
+            } else if list.path.is_ident("cfg_attr") {
+                list.parse_args_with(|input: syn::parse::ParseStream<'_>| {
+                    let predicate: syn::Expr = input.parse()?;
+                    input.parse::<syn::Token![,]>()?;
+                    let attributes =
+                        Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated(input)?;
+                    Ok((predicate, Some(attributes)))
+                })
+                .ok()
+            } else {
+                None
+            };
+            if let Some((predicate, attributes)) = conditional {
+                let mut results = Vec::new();
+                for (enabled, assumptions) in self.cfg_cases(&predicate, test, known) {
+                    let mut remaining = pending.clone();
+                    if let Some(attributes) = &attributes {
+                        if enabled {
+                            remaining.extend(attributes.iter().rev().cloned());
+                        }
+                    } else if !enabled {
+                        continue;
                     }
+                    results.extend(self.expand_attributes(
+                        remaining,
+                        result.clone(),
+                        test,
+                        assumptions,
+                    ));
                 }
-                if unknown { None } else { Some(all) }
+                return results;
             }
-            _ => None,
         }
+        result.push(meta);
+        self.expand_attributes(pending, result, test, known)
+    }
+
+    fn cfg_cases(
+        &self,
+        predicate: &syn::Expr,
+        test: bool,
+        known: HashMap<String, bool>,
+    ) -> Vec<(bool, HashMap<String, bool>)> {
+        match self.eval_cfg(predicate, test, &known) {
+            Ok(value) => vec![(value, known)],
+            Err(key) => {
+                let mut cases = Vec::new();
+                for value in [false, true] {
+                    let mut assumptions = known.clone();
+                    assumptions.insert(key.clone(), value);
+                    cases.extend(self.cfg_cases(predicate, test, assumptions));
+                }
+                cases
+            }
+        }
+    }
+
+    // Expr supports boolean literals as well as the ordinary cfg grammar.
+    // Return an unknown predicate's stable key so expansion can branch on it.
+    fn eval_cfg(
+        &self,
+        expr: &syn::Expr,
+        test: bool,
+        known: &HashMap<String, bool>,
+    ) -> Result<bool, String> {
+        let key = match expr {
+            syn::Expr::Lit(literal) if let syn::Lit::Bool(value) = &literal.lit => {
+                return Ok(value.value);
+            }
+            syn::Expr::Path(path) => {
+                if path.path.is_ident("test") {
+                    return Ok(test);
+                }
+                path.path
+                    .segments
+                    .iter()
+                    .map(|segment| segment.ident.to_string())
+                    .collect::<Vec<_>>()
+                    .join("::")
+            }
+            syn::Expr::Assign(assign)
+                if let syn::Expr::Path(path) = &*assign.left
+                    && let syn::Expr::Lit(literal) = &*assign.right
+                    && let syn::Lit::Str(value) = &literal.lit =>
+            {
+                if path.path.is_ident("feature") {
+                    return Ok(self.enabled_features.contains(&value.value()));
+                }
+                format!(
+                    "{}={}",
+                    path.path
+                        .segments
+                        .iter()
+                        .map(|segment| segment.ident.to_string())
+                        .collect::<Vec<_>>()
+                        .join("::"),
+                    value.value()
+                )
+            }
+            syn::Expr::Call(call) if let syn::Expr::Path(path) = &*call.func => {
+                if path.path.is_ident("not") && call.args.len() == 1 {
+                    return self
+                        .eval_cfg(&call.args[0], test, known)
+                        .map(|value| !value);
+                }
+                let all = path.path.is_ident("all");
+                if all || path.path.is_ident("any") {
+                    let mut unknown = None;
+                    for arg in &call.args {
+                        match self.eval_cfg(arg, test, known) {
+                            Ok(value) if value != all => return Ok(value),
+                            Err(key) => unknown = Some(key),
+                            _ => {}
+                        }
+                    }
+                    return unknown.map_or(Ok(all), Err);
+                }
+                format!("{expr:?}")
+            }
+            _ => format!("{expr:?}"),
+        };
+        known.get(&key).copied().ok_or(key)
     }
 
     fn add_import<I: Into<Ident<'ast>>>(&mut self, ident: I) {
@@ -803,55 +939,75 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
             return;
         }
 
-        let is_test_only = !self.cfg_enabled_for(&node.attrs, false);
-
-        let custom_path = node.attrs.iter().find_map(|attr| {
-            if let syn::Meta::NameValue(value) = &attr.meta
-                && value.path.is_ident("path")
-                && let syn::Expr::Lit(literal) = &value.value
-                && let syn::Lit::Str(path) = &literal.lit
-            {
-                Some(path.value())
-            } else {
-                None
+        let mut branches = Vec::new();
+        for test in [false, true] {
+            if self.cfg_test.is_some_and(|configured| configured != test) {
+                continue;
             }
-        });
-        if node.content.is_none() {
-            let name = node.ident.unraw().to_string();
-            let test_only = is_test_only || self.is_test_only_scope();
-            self.modules.push(ModuleDeclaration {
-                name: name.clone(),
-                inline_path: self.inline_path.clone(),
-                inline_path_from_file: self.inline_path_from_file,
-                path: custom_path.clone(),
-                test_only,
-            });
-            // Retain the original public parser fields for callers using bare root modules.
-            if self.is_root_scope() {
-                if test_only {
-                    self.test_extern_mods.insert(name);
-                } else {
-                    self.extern_mods.insert(name);
+            for (attributes, known) in self.effective_attributes(&node.attrs, test) {
+                let path = attributes.iter().find_map(|meta| {
+                    if let syn::Meta::NameValue(value) = meta
+                        && value.path.is_ident("path")
+                        && let syn::Expr::Lit(literal) = &value.value
+                        && let syn::Lit::Str(path) = &literal.lit
+                    {
+                        Some(path.value())
+                    } else {
+                        None
+                    }
+                });
+                branches.push((path, test, known));
+            }
+        }
+        self.add_mod(&node.ident);
+        for (custom_path, test, known) in &branches {
+            let is_test_only = *test
+                && !branches
+                    .iter()
+                    .any(|(path, test, _)| !test && path == custom_path);
+            if node.content.is_none() {
+                let name = node.ident.unraw().to_string();
+                let test_only = is_test_only || self.is_test_only_scope();
+                self.modules.push(ModuleDeclaration {
+                    name: name.clone(),
+                    inline_path: self.inline_path.clone(),
+                    inline_path_from_file: self.inline_path_from_file,
+                    path: custom_path.clone(),
+                    test_only,
+                    cfg_options: known.clone(),
+                    cfg_test: Some(*test),
+                });
+                if self.is_root_scope() {
+                    if test_only {
+                        self.test_extern_mods.insert(name);
+                    } else {
+                        self.extern_mods.insert(name);
+                    }
                 }
             }
-        }
-
-        self.add_mod(&node.ident);
-        self.push_scope(is_test_only, false);
-        let previous_path_base = self.inline_path_from_file;
-        if node.content.is_some() {
-            if self.inline_path.is_empty() && custom_path.is_some() {
-                self.inline_path_from_file = true;
+            self.push_scope(is_test_only, false);
+            let previous_test = self.cfg_test.replace(*test);
+            let previous_known = std::mem::replace(&mut self.cfg_known, known.clone());
+            let previous_path_base = self.inline_path_from_file;
+            if node.content.is_some() {
+                if self.inline_path.is_empty() && custom_path.is_some() {
+                    self.inline_path_from_file = true;
+                }
+                self.inline_path.push(
+                    custom_path
+                        .clone()
+                        .unwrap_or_else(|| node.ident.unraw().to_string()),
+                );
             }
-            self.inline_path
-                .push(custom_path.unwrap_or_else(|| node.ident.unraw().to_string()));
+            visit::visit_item_mod(self, node);
+            if node.content.is_some() {
+                self.inline_path.pop();
+            }
+            self.inline_path_from_file = previous_path_base;
+            self.cfg_test = previous_test;
+            self.cfg_known = previous_known;
+            self.pop_scope();
         }
-        visit::visit_item_mod(self, node);
-        if node.content.is_some() {
-            self.inline_path.pop();
-        }
-        self.inline_path_from_file = previous_path_base;
-        self.pop_scope();
     }
 
     fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {

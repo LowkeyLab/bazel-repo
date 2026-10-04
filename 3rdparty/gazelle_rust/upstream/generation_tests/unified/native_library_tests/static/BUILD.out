@@ -1,0 +1,14 @@
+load("@rules_rs//rs:rust_static_library.bzl", "rust_static_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_static_library(
+    name = "static",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+)
+
+rust_test(
+    name = "static_test",
+    crate = ":static",
+    deps = ["//helper"],
+)

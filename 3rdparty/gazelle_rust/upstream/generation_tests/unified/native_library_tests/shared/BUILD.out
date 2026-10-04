@@ -1,0 +1,14 @@
+load("@rules_rs//rs:rust_shared_library.bzl", "rust_shared_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_shared_library(
+    name = "shared",
+    srcs = ["lib.rs"],
+    crate_root = "lib.rs",
+)
+
+rust_test(
+    name = "shared_test",
+    crate = ":shared",
+    deps = ["//helper"],
+)

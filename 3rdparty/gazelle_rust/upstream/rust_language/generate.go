@@ -1,6 +1,7 @@
 package rust_language
 
 import (
+	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
@@ -175,110 +176,132 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 		configuredRoots[filepath.Clean(root)] = true
 		return plan
 	}
-	if fileExists("Cargo.toml", &args) {
-		manifest := l.parseCargoToml(c, "Cargo.toml", &args)
-		if manifest != nil {
-			features := map[string]bool{}
-			if cfg.DefaultFeatures {
-				for _, feature := range manifest.DefaultFeatures {
-					features[feature] = true
-				}
+	var manifest *pb.CargoTomlResponse
+	hasManifest := fileExists("Cargo.toml", &args)
+	if hasManifest {
+		manifest = l.parseCargoToml(c, "Cargo.toml", &args)
+	}
+	useConventions := !hasManifest || (manifest != nil && manifest.Name == "")
+	if manifest != nil && manifest.Name != "" {
+		features := map[string]bool{}
+		if cfg.DefaultFeatures {
+			for _, feature := range manifest.DefaultFeatures {
+				features[feature] = true
 			}
-			for _, feature := range append(manifest.DefaultFeatures, manifest.NonDefaultFeatures...) {
-				if enabled, ok := cfg.EnabledFeatures[feature]; ok {
-					features[feature] = enabled
-				}
+		}
+		for _, feature := range append(manifest.DefaultFeatures, manifest.NonDefaultFeatures...) {
+			if enabled, ok := cfg.EnabledFeatures[feature]; ok {
+				features[feature] = enabled
 			}
-			enabled := []string{}
-			for feature, on := range features {
-				if on {
-					enabled = append(enabled, feature)
-				}
+		}
+		enabled := []string{}
+		for feature, on := range features {
+			if on {
+				enabled = append(enabled, feature)
 			}
-			sort.Strings(enabled)
-			aliases := map[string]string{}
-			for _, alias := range manifest.DependencyAliases {
-				aliases[alias.PackageName] = alias.LocalName
+		}
+		sort.Strings(enabled)
+		aliases := map[string]string{}
+		for _, alias := range manifest.DependencyAliases {
+			aliases[alias.PackageName] = alias.LocalName
+		}
+		addCargo := func(info *pb.CargoCrateInfo, kind, suffix string) {
+			if info == nil || len(info.Srcs) != 1 {
+				return
 			}
-			addCargo := func(info *pb.CargoCrateInfo, kind, suffix string) {
-				if info == nil || len(info.Srcs) != 1 {
-					return
-				}
-				if info.ProcMacro {
-					kind = "rust_proc_macro"
-				}
-				if kind != "rust_test" && filepath.Base(info.Srcs[0]) != "lib.rs" && filepath.Base(info.Srcs[0]) != "main.rs" {
-					l.Log(c, logErr, f, "Cargo target %s: library/binary crate roots must be lib.rs or main.rs; update path %s", info.Name, info.Srcs[0])
-					return
-				}
-				if !fileExists(info.Srcs[0], &args) {
-					l.Log(c, logErr, f, "Cargo target %s: root %s does not exist", info.Name, info.Srcs[0])
-					return
-				}
-				if plan := add(info.Srcs[0], info.Name+suffix, kind, strings.ReplaceAll(info.Name, "-", "_")); plan != nil {
-					plan.target.SetAttr("visibility", []string{"//visibility:public"})
-				}
+			if info.ProcMacro {
+				kind = "rust_proc_macro"
 			}
-			suffix := ""
-			if manifest.Library != nil {
-				for _, bin := range manifest.Binaries {
-					if bin.Name == manifest.Library.Name {
-						suffix = "_lib"
-					}
-				}
+			if kind != "rust_test" && filepath.Base(info.Srcs[0]) != "lib.rs" && filepath.Base(info.Srcs[0]) != "main.rs" {
+				l.Log(c, logErr, f, "Cargo target %s: library/binary crate roots must be lib.rs or main.rs; update path %s", info.Name, info.Srcs[0])
+				return
 			}
-			addCargo(manifest.Library, "rust_library", suffix)
+			if !fileExists(info.Srcs[0], &args) {
+				l.Log(c, logErr, f, "Cargo target %s: root %s does not exist", info.Name, info.Srcs[0])
+				return
+			}
+			if plan := add(info.Srcs[0], info.Name+suffix, kind, strings.ReplaceAll(info.Name, "-", "_")); plan != nil {
+				plan.target.SetAttr("visibility", []string{"//visibility:public"})
+			}
+		}
+		suffix := ""
+		if manifest.Library != nil {
 			for _, bin := range manifest.Binaries {
-				addCargo(bin, "rust_binary", "")
+				if bin.Name == manifest.Library.Name {
+					suffix = "_lib"
+				}
 			}
-			for _, test := range manifest.Tests {
-				addCargo(test, "rust_test", "")
+		}
+		addCargo(manifest.Library, "rust_library", suffix)
+		for _, bin := range manifest.Binaries {
+			addCargo(bin, "rust_binary", "")
+		}
+		for _, test := range manifest.Tests {
+			addCargo(test, "rust_test", "")
+		}
+		for _, bench := range manifest.Benches {
+			addCargo(bench, "rust_binary", "")
+		}
+		for _, example := range manifest.Examples {
+			addCargo(example, "rust_binary", "")
+		}
+		if fileExists("build.rs", &args) {
+			if plan := add("build.rs", "build_script", "cargo_build_script", "build_script"); plan != nil {
+				plan.target.SetAttr("visibility", []string{"//visibility:public"})
+			}
+		}
+		for _, plan := range plans {
+			if cfg.ExtractCargoLints && plan.target.Kind() != "cargo_build_script" && plan.target.Attr("lint_config") == nil {
+				plan.target.SetAttr("lint_config", ":workspace_lints")
 			}
 			for _, bench := range manifest.Benches {
-				addCargo(bench, "rust_binary", "")
+				if len(bench.Srcs) == 1 && bench.Srcs[0] == plan.root && plan.target.Attr("tags") == nil {
+					plan.target.SetAttr("tags", []string{"bench"})
+				}
 			}
 			for _, example := range manifest.Examples {
-				addCargo(example, "rust_binary", "")
-			}
-			if fileExists("build.rs", &args) {
-				if plan := add("build.rs", "build_script", "cargo_build_script", "build_script"); plan != nil {
-					plan.target.SetAttr("visibility", []string{"//visibility:public"})
+				if len(example.Srcs) == 1 && example.Srcs[0] == plan.root && plan.target.Attr("tags") == nil {
+					plan.target.SetAttr("tags", []string{"example"})
 				}
 			}
-			for _, plan := range plans {
-				if cfg.ExtractCargoLints && plan.target.Kind() != "cargo_build_script" && plan.target.Attr("lint_config") == nil {
-					plan.target.SetAttr("lint_config", ":workspace_lints")
-				}
-				for _, bench := range manifest.Benches {
-					if len(bench.Srcs) == 1 && bench.Srcs[0] == plan.root && plan.target.Attr("tags") == nil {
-						plan.target.SetAttr("tags", []string{"bench"})
-					}
-				}
-				for _, example := range manifest.Examples {
-					if len(example.Srcs) == 1 && example.Srcs[0] == plan.root && plan.target.Attr("tags") == nil {
-						plan.target.SetAttr("tags", []string{"example"})
-					}
-				}
-				plan.manifest = true
-				plan.parent = manifest.Name
-				plan.aliases = aliases
-				plan.edition = manifest.Edition
-				if plan.existing == nil {
-					plan.features = enabled
-				}
+			plan.manifest = true
+			plan.parent = manifest.Name
+			plan.aliases = aliases
+			plan.edition = manifest.Edition
+			if plan.existing == nil {
+				plan.features = enabled
 			}
 		}
-	} else {
+	} else if useConventions {
 		name := filepath.Base(args.Dir)
-		libRoot, binRoot := "src/lib.rs", "src/main.rs"
-		if fileExists("lib.rs", &args) {
-			libRoot = "lib.rs"
+		// An explicit root selects the intended crate when both layouts exist.
+		// Reserve alternatives so child discovery cannot silently reinterpret them.
+		conventionalRoot := func(basename string) string {
+			candidates := []string{}
+			configured := false
+			for _, root := range []string{basename, "src/" + basename} {
+				if !fileExists(root, &args) || l.crossesPackage(args, root) || l.excluded(cfg, filepath.Join(rel, root)) || len(l.Owners[filepath.Join(rel, root)]) > 0 {
+					continue
+				}
+				candidates = append(candidates, root)
+				configured = configured || configuredRoots[root]
+			}
+			if len(candidates) > 1 {
+				for _, root := range candidates {
+					l.Owners[filepath.Join(rel, root)] = append(l.Owners[filepath.Join(rel, root)], rel+":explicit-root-required")
+				}
+				if !configured {
+					l.Log(c, logErr, basename, "ambiguous conventional Rust roots %v; configure crate_root explicitly", candidates)
+				}
+				return ""
+			}
+			if len(candidates) == 1 {
+				return candidates[0]
+			}
+			return ""
 		}
-		if fileExists("main.rs", &args) {
-			binRoot = "main.rs"
-		}
-		hasLib := fileExists(libRoot, &args)
-		hasBin := fileExists(binRoot, &args)
+		libRoot, binRoot := conventionalRoot("lib.rs"), conventionalRoot("main.rs")
+		hasLib, hasBin := libRoot != "", binRoot != ""
 		if hasLib {
 			libName := name
 			if hasBin {
@@ -308,7 +331,7 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 	}
 	// Cargo supplies its own test targets. Without a manifest, test runners must
 	// contain tests or a main function; files already owned by a crate are support.
-	if !fileExists("Cargo.toml", &args) {
+	if useConventions {
 		candidates, _ := filepath.Glob(filepath.Join(args.Dir, "tests", "*.rs"))
 		nested, _ := filepath.Glob(filepath.Join(args.Dir, "tests", "*", "main.rs"))
 		candidates = append(candidates, nested...)
@@ -317,7 +340,7 @@ func (l *rustLang) prepareCrates(c *config.Config, rel string, f *rule.File) {
 			if configuredRoots[root] || l.crossesPackage(args, root) || l.excluded(cfg, filepath.Join(rel, root)) {
 				continue
 			}
-			response := l.parseFile(c, root, nil, &args, nil, nil)
+			response := l.parseFile(c, root, nil, &args, nil, nil, nil, nil)
 			if response == nil || (!response.GetHints().GetHasTest() && !response.GetHints().GetHasMain()) {
 				continue
 			}
@@ -449,10 +472,22 @@ func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateRe
 		}
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, metadata)
-		if r.Kind() != "rust_library" && r.Kind() != "rust_binary" && r.Kind() != "rust_proc_macro" {
+		if !SliceContains(commonDefs, r.Kind()) || r.Kind() == "rust_test" {
 			continue
 		}
 		existingTest := tests[r.Name()]
+		if existingTest == nil && r.Attr("platform") != nil && hasTest {
+			companion := false
+			for _, candidate := range l.Plans[args.Rel] {
+				if candidate.root == plan.root && candidate.target.Attr("platform") == nil && candidate.target.Kind() == "rust_library" && getCrateName(candidate.target) == getCrateName(r) && strings.Join(candidate.features, "\x00") == strings.Join(plan.features, "\x00") {
+					companion = true
+				}
+			}
+			if !companion {
+				l.Log(args.Config, logWarn, args.File, "target %s: unit tests for a platform-transitioned crate require an explicitly configured native test crate", r.Name())
+			}
+			continue
+		}
 		if !hasTest && existingTest == nil {
 			continue
 		}
@@ -489,13 +524,15 @@ func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateRe
 	return result
 }
 
-func (l *rustLang) parseFile(c *config.Config, file string, enabledFeatures []string, args *language.GenerateArgs, parentNames, testParentNames []string) *pb.RustImportsResponse {
+func (l *rustLang) parseFile(c *config.Config, file string, enabledFeatures []string, args *language.GenerateArgs, parentNames, testParentNames []string, cfgOptions map[string]bool, cfgTest *bool) *pb.RustImportsResponse {
 	request := &pb.RustImportsRequest{
 		AbsolutePath:    path.Join(args.Dir, file),
 		RelativePath:    file,
 		EnabledFeatures: enabledFeatures,
 		ParentNames:     parentNames,
 		TestParentNames: testParentNames,
+		CfgOptions:      cfgOptions,
+		CfgTest:         cfgTest,
 	}
 
 	response, err := l.Parser.Parse(request)
@@ -523,19 +560,26 @@ func (l *rustLang) discoverModules(c *config.Config, roots []string, features []
 		file            string
 		root            bool
 		testOnly        bool
+		cfgOptions      map[string]bool
+		cfgTest         *bool
 	}
 	queue := []pending{}
 	for _, root := range roots {
 		queue = append(queue, pending{file: root, root: true})
 	}
 	modules := map[string]discoveredModule{}
+	visited := map[string]bool{}
 	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
 		current.file = filepath.Clean(current.file)
-		if old, ok := modules[current.file]; ok && (!old.testOnly || current.testOnly) {
+		sort.Strings(current.parentNames)
+		sort.Strings(current.testParentNames)
+		context, _ := json.Marshal([]interface{}{current.file, current.root, current.testOnly, current.cfgOptions, current.cfgTest, current.parentNames, current.testParentNames})
+		if visited[string(context)] {
 			continue
 		}
+		visited[string(context)] = true
 		if l.crossesPackage(*args, current.file) {
 			l.Log(c, logErr, current.file, "Rust module crosses a nested BUILD boundary; move the BUILD boundary or explicitly export and configure the source")
 			return nil
@@ -546,11 +590,33 @@ func (l *rustLang) discoverModules(c *config.Config, roots []string, features []
 		}
 		key := filepath.Join(args.Rel, current.file)
 		l.Owners[key] = append(l.Owners[key], args.Rel+":"+roots[0])
-		response := l.parseFile(c, current.file, features, args, current.parentNames, current.testParentNames)
+		response := l.parseFile(c, current.file, features, args, current.parentNames, current.testParentNames, current.cfgOptions, current.cfgTest)
 		if response == nil {
 			return nil
 		}
-		modules[current.file] = discoveredModule{response: response, testOnly: current.testOnly}
+		if old, exists := modules[current.file]; exists {
+			if old.testOnly && !current.testOnly {
+				response.TestImports = append(response.TestImports, old.response.Imports...)
+				response.TestImports = append(response.TestImports, old.response.TestImports...)
+				response.CompileData = append(response.CompileData, old.response.CompileData...)
+				response.Hints.HasTest = response.Hints.HasTest || old.response.GetHints().GetHasTest()
+				modules[current.file] = discoveredModule{response: response}
+			} else {
+				if current.testOnly && !old.testOnly {
+					old.response.TestImports = append(old.response.TestImports, response.Imports...)
+				} else {
+					old.response.Imports = append(old.response.Imports, response.Imports...)
+				}
+				old.response.TestImports = append(old.response.TestImports, response.TestImports...)
+				old.response.CompileData = append(old.response.CompileData, response.CompileData...)
+				old.response.Hints.HasTest = old.response.Hints.HasTest || response.GetHints().GetHasTest()
+				if !current.testOnly {
+					old.response.Hints.HasProcMacro = old.response.Hints.HasProcMacro || response.GetHints().GetHasProcMacro()
+				}
+			}
+		} else {
+			modules[current.file] = discoveredModule{response: response, testOnly: current.testOnly}
+		}
 		dir := filepath.Dir(current.file)
 		moduleDir := dir
 		if !current.root && filepath.Base(current.file) != "mod.rs" {
@@ -586,7 +652,22 @@ func (l *rustLang) discoverModules(c *config.Config, roots []string, features []
 				parentNames = response.ProvidedNames
 				testParentNames = response.TestProvidedNames
 			}
-			queue = append(queue, pending{file: found[0], testOnly: current.testOnly || declaration.TestOnly, parentNames: parentNames, testParentNames: testParentNames})
+			queue = append(queue, pending{file: found[0], testOnly: current.testOnly || declaration.TestOnly || declaration.GetCfgTest(), parentNames: parentNames, testParentNames: testParentNames, cfgOptions: declaration.CfgOptions, cfgTest: declaration.CfgTest})
+		}
+	}
+	for _, module := range modules {
+		if !module.testOnly {
+			production := map[string]bool{}
+			for _, imp := range module.response.Imports {
+				production[imp] = true
+			}
+			tests := []string{}
+			for _, imp := range module.response.TestImports {
+				if !production[imp] {
+					tests = append(tests, imp)
+				}
+			}
+			module.response.TestImports = tests
 		}
 	}
 	return modules

@@ -44,7 +44,10 @@ traversed independently through Rust module declarations; ownership is shared
 when multiple crates compile the same file. Ordinary unreferenced sources do
 not become targets. Other Gazelle language plugins still run in owned directories.
 
-Cargo manifests are optional. Existing BUILD targets supply names, kinds,
+Cargo manifests are optional. Virtual workspace manifests do not replace Bazel
+crate discovery. Competing adjacent and `src/` roots require explicit root
+configuration; Gazelle does not silently choose a layout.
+Existing BUILD targets supply names, kinds,
 features, edition, and other user configuration. Without manifests, `src/lib.rs`
 and `src/main.rs` (or adjacent `lib.rs`/`main.rs`) establish conventional roots.
 Without an explicit kind, a library root declaring function-like, attribute, or
@@ -64,13 +67,20 @@ managed packages or the configured external-crate prefix are retained
 conservatively because discovery cannot establish their target kind.
 
 Unit-test targets refer to their crate via `crate`; dependencies used only by
-unit tests stay on that test target. Dedicated integration runners use Cargo
+unit tests stay on that test target. Native shared/static libraries also receive
+unit-test targets. A platform-transitioned library uses a native library companion
+with the same root, crate name, and features for unit tests. Without a companion
+or an explicitly configured test, Gazelle diagnoses the native test crate needed
+instead of generating a host harness against foreign-target dependencies.
+Dedicated integration runners use Cargo
 manifest targets, explicit Bazel test roots, or `tests/*.rs` and
 `tests/<name>/main.rs` containing tests/a main function. Candidate files owned
 by another runner are support modules. Build scripts use `build.rs`.
 
 Module traversal supports both external layouts, nested/inline modules, literal
-`#[path]`, configured feature conditions, and test-only modules. Missing or
+`#[path]`, nested `cfg_attr` path selection, boolean predicates, configured
+features, and test-only modules. Unknown platform choices retain possible paths
+and carry their conditions through inline and external module traversal. Missing or
 ambiguous modules invalidate the crate's generation; an existing rule is left
 intact. Nested BUILD boundary crossings require layout/configuration repair,
 rather than generating illegal parent-package paths. Exclusions suppress
@@ -129,7 +139,7 @@ remote generator, allowing only the root exclusion and the parent package's
 patch-to-README export change. Application BUILD output is unchanged. A second
 root Gazelle run must leave the complete tracked source tree unchanged.
 
-The recursive focused suite contains 57 enabled generation fixture targets, one parser test target,
+The recursive focused suite contains 63 enabled generation fixture targets, one parser test target,
 and one Go format test target. Root `//...` checks intentionally do not include
 these external-module tests. Run both the focused commands above and the required
 repository-wide format, build, test, and lint checks when changing the integration.
