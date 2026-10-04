@@ -4,7 +4,6 @@ description: "Taking a Flink proof of concept from business logic to dummy traff
 publishDate: 2026-10-01
 tags: ["flink", "kotlin", "kubernetes", "developer-experience"]
 type: work
-featured: true
 context: Bloomberg
 draft: false
 ---

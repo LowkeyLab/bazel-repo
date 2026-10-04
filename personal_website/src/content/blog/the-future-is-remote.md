@@ -4,6 +4,7 @@ description: "Your laptop should not be your build infrastructure."
 publishDate: 2026-09-28
 tags: ["build-tools", "bazel", "remote-execution", "developer-experience"]
 type: essay
+featured: true
 draft: false
 ---
 
