@@ -1,20 +1,23 @@
 import assert from "node:assert/strict";
-import { presentation, withPage } from "./harness.mjs";
+import type { Page } from "playwright";
+import { presentation, withPage } from "./harness.js";
 
 async function entryStates(
-  page,
+  page: Page,
   root = "featured-work-animation:first-of-type",
 ) {
-  return page.locator(`${root} .entry-link`).evaluateAll((entries) =>
-    entries.map((entry) => {
-      const style = getComputedStyle(entry);
-      return {
-        opacity: Number(style.opacity),
-        visibility: style.visibility,
-        inert: entry.inert,
-      };
-    }),
-  );
+  return page
+    .locator(`${root} .entry-link`)
+    .evaluateAll((entries: HTMLElement[]) =>
+      entries.map((entry) => {
+        const style = getComputedStyle(entry);
+        return {
+          opacity: Number(style.opacity),
+          visibility: style.visibility,
+          inert: entry.inert,
+        };
+      }),
+    );
 }
 
 await withPage(

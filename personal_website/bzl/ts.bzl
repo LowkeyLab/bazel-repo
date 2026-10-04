@@ -32,3 +32,7 @@ def personal_website_ts_config(name, srcs, tsconfig_types = None, **kwargs):
         tsconfig = "//personal_website:tsconfig",
         **kwargs
     )
+
+def personal_website_ts_test_sources(name, **kwargs):
+    """Compiles Gazelle-discovered tests for the individual js_test runners."""
+    personal_website_ts_library(name = name, testonly = True, **kwargs)

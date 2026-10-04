@@ -8,6 +8,12 @@ Font provenance is recorded in `src/assets/fonts/README.md`; the SIL Open Font L
 
 Run the four browser targets with `nix develop --command aspect test //personal_website/tests/browser:tests`. The homepage target serves the normal production build while the three component targets serve the separate fixture build. Every target starts its own loopback server, so an already running preview is unnecessary. For a local Chromium smoke run use `nix develop --command aspect test //personal_website/tests/browser:tests --strategy=TestRunner=local --test_env=CHROMIUM_EXECUTABLE`; the Nix shell supplies the executable path. The normal command uses the declared remote browser image.
 
+## TypeScript and Bazel targets
+
+The tests and shared `harness.ts` are strictly type-checked and compiled by Bazel. `gazelle_ts` discovers their sources and imports through the `ts_test` mapping in `tests/BUILD.bazel`, generating `personal_website_ts_test_sources` compilation targets and the harness library. The existing `js_test` targets run the emitted `.test.js` files and retain their fixture data, environment, and pinned browser image.
+
+After editing a TypeScript source, run `nix develop --command bazel run //:gazelle` to update its BUILD dependencies. Run all migrated tests, including blog selection, with `nix develop --command aspect test //personal_website/tests/...`.
+
 ## Local animation diagnostics
 
 Animation controllers emit a structured `SectionAnimationSettled` record after

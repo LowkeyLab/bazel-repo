@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import { homePosts, publishedPosts } from "../src/utils/blog.js";
 
-function post(id, date, { featured = false, draft = false } = {}) {
-  return { id, data: { publishDate: new Date(date), featured, draft } };
+type BlogPost = Parameters<typeof publishedPosts>[0][number];
+
+function post(
+  id: string,
+  date: string,
+  { featured = false, draft = false } = {},
+): BlogPost {
+  return {
+    id,
+    data: {
+      title: id,
+      description: "Test article",
+      tags: [],
+      publishDate: new Date(date),
+      featured,
+      draft,
+    },
+  };
 }
 const posts = [
   post("old", "2026-01-01"),
@@ -16,7 +32,7 @@ const posts = [
   post("featured-draft", "2027-01-01", { featured: true, draft: true }),
   post("featured-alpha", "2026-03-01", { featured: true }),
 ];
-const ids = (entries) => entries.map((entry) => entry.id);
+const ids = (entries: BlogPost[]) => entries.map((entry) => entry.id);
 for (const input of [posts, [...posts].reverse()]) {
   assert.deepEqual(ids(publishedPosts(input)), [
     "featured-new",
