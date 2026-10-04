@@ -17,6 +17,19 @@ The former `rules_rs_loads.patch` is incorporated directly:
   `cargo_build_script`, retaining the other upstream load families.
 - `gazelle_rust_parser/src/BUILD.bazel` explicitly sets edition `2024`.
 
+Additional test integration adaptations:
+
+- `upstream/BUILD.bazel` explicitly includes `@gazelle//language/defaults` in
+  the Rust-only fixture generator, avoiding a repository-relative implicit
+  label in the current Gazelle macro.
+- `gazelle_rust_parser/tests/parse_test.rs` resolves fixture data with the
+  repository-aware runfiles macro, so it works as an external module.
+- Generation goldens use rules_rs for newly generated loads. Existing loads,
+  rule attributes, dependency labels, and diagnostic expectations are retained.
+
+The root `.gitattributes` preserves whitespace in upstream patch files because
+patch context contains significant leading spaces and tabs.
+
 This baseline retains the upstream generation modes and application behavior.
 Unified crate discovery is tracked separately in
 [#1957](https://github.com/LowkeyLab/bazel-repo/issues/1957).
@@ -45,3 +58,15 @@ output wholesale when adapting load statements.
 Before changing generation behavior, compare application BUILD output against
 the existing generator using identical inputs, and confirm a second generation
 run changes no files. Preserve current application exclusions.
+
+## Baseline validation
+
+The stage-1 verification compared 106 existing BUILD files against the patched
+remote generator, allowing only the root exclusion and the parent package's
+patch-to-README export change. Application BUILD output is unchanged. A second
+root Gazelle run must leave the complete tracked source tree unchanged.
+
+The focused suite contains 36 generation fixture targets, one parser test target,
+and one Go format test target. Root `//...` checks intentionally do not include
+these external-module tests. Run both the focused commands above and the required
+repository-wide format, build, test, and lint checks when changing the integration.

@@ -1,4 +1,5 @@
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_proc_macro")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
 
 rust_proc_macro(
     name = "another_proc_macro",

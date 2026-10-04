@@ -185,7 +185,11 @@ fn parse_test() -> Result<(), Box<dyn Error>> {
     #[cfg(feature = "bazel")]
     let dir = {
         let r = runfiles::Runfiles::create().unwrap();
-        r.rlocation("_main/gazelle_rust_parser/test_data/").unwrap()
+        runfiles::rlocation!(r, "gazelle_rust/gazelle_rust_parser/test_data/simple.rs")
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf()
     };
     #[cfg(not(feature = "bazel"))]
     let dir = {

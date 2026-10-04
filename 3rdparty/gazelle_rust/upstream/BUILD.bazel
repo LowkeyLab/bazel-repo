@@ -17,6 +17,7 @@ exports_files(
 gazelle_binary(
     name = "gazelle_bin",
     languages = [
+        "@gazelle//language/defaults",
         "//rust_language",
     ],
     visibility = ["//visibility:public"],
