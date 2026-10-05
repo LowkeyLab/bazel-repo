@@ -2423,7 +2423,7 @@ fn supplied_resolver_arguments_only_open_confirmation() {
     assert_that!(
         action,
         matches_pattern!(Action::ResolverAdd {
-            user_id: eq(&UserId(30)),
+            user_id: eq(&Some(UserId(30))),
             ..
         })
     );
@@ -2556,7 +2556,7 @@ fn real_resolver_slash_payload_and_registered_user_option_open_confirmation() {
     assert_that!(
         action,
         matches_pattern!(Action::ResolverAdd {
-            user_id: eq(&UserId(2)),
+            user_id: eq(&Some(UserId(2))),
             ..
         })
     );
@@ -2575,4 +2575,18 @@ fn real_resolver_slash_payload_and_registered_user_option_open_confirmation() {
         .find(|option| option["name"] == "user")
         .unwrap();
     assert_that!(user["type"].as_u64(), eq(Some(6)));
+}
+
+#[googletest::test]
+fn resolver_add_accepts_each_optional_argument_combination() {
+    for options in [
+        vec![],
+        vec![text("market", "78e82954-4c67-4e0d-8c80-8ab95a527ae5")],
+        vec![InputOption {
+            name: "user".into(),
+            value: InputValue::User(UserId(30)),
+        }],
+    ] {
+        assert_that!(parse(&input("resolver.add", options)).is_ok(), eq(true));
+    }
 }

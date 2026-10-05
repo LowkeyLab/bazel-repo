@@ -1843,3 +1843,6 @@ async fn resolver_cloud_event_contract_rejects_corrupt_metadata_and_payloads() {
         );
     }
 }
+
+#[path = "support/resolver_add.rs"]
+mod guided_resolver_add;

@@ -71,14 +71,21 @@ pub(crate) enum Action {
     Write(Command),
     CreateForm,
     ResolveForm,
-    ResolverAdd { id: MarketId, user_id: UserId },
+    ResolverAdd {
+        id: Option<MarketId>,
+        user_id: Option<UserId>,
+    },
     BetForm,
     Help,
     Balance,
     Leaderboard,
     List,
-    Show { id: MarketId },
-    AnnouncementsSet { channel_id: ChannelId },
+    Show {
+        id: MarketId,
+    },
+    AnnouncementsSet {
+        channel_id: ChannelId,
+    },
     AnnouncementsStatus,
     AnnouncementsDisable,
 }
@@ -174,16 +181,24 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
     };
     let action = match input.subcommand.as_str() {
         "resolver.add" => {
-            exact(input, &["market", "user"])?;
-            let id = text(input, "market")?.to_owned().into();
+            let fields: Vec<_> = ["market", "user"]
+                .into_iter()
+                .filter(|field| input.options.iter().any(|option| option.name == *field))
+                .collect();
+            exact(input, &fields)?;
+            let id = fields
+                .contains(&"market")
+                .then(|| text(input, "market").map(|id| id.to_owned().into()))
+                .transpose()?;
             let user_id = input
                 .options
                 .iter()
-                .find_map(|option| match (&*option.name, &option.value) {
-                    ("user", InputValue::User(user)) if user.0 != 0 => Some(*user),
-                    _ => None,
+                .find(|option| option.name == "user")
+                .map(|option| match option.value {
+                    InputValue::User(user) if user.0 != 0 => Ok(user),
+                    _ => Err("Choose a valid person."),
                 })
-                .ok_or("Choose a valid person.")?;
+                .transpose()?;
             Action::ResolverAdd { id, user_id }
         }
         "help" => {
@@ -592,8 +607,8 @@ fn market_command() -> CreateCommand {
             )
             .add_sub_option(
                 CreateCommandOption::new(SubCommand, "add", "Add an additional resolver")
-                    .add_sub_option(required(Text, "market", "Market ID"))
-                    .add_sub_option(required(
+                    .add_sub_option(CreateCommandOption::new(Text, "market", "Market ID"))
+                    .add_sub_option(CreateCommandOption::new(
                         CommandOptionType::User,
                         "user",
                         "Person to assign",
@@ -926,7 +941,7 @@ impl Handler {
                         .await
                         {
                             Ok(view) => {
-                                match resolvers::confirmation(&view, guild, actor, &id, user_id) {
+                                match resolvers::start(&view, guild, actor, id.as_ref(), user_id) {
                                     Ok(panel) => panel.edit(),
                                     Err(message) => reply(message),
                                 }
