@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -121,6 +121,16 @@ pub enum Command {
         id: MarketId,
         outcome: OutcomeIndex,
     },
+    AddResolver {
+        id: MarketId,
+        #[serde(with = "snowflake")]
+        user_id: UserId,
+    },
+    RemoveResolver {
+        id: MarketId,
+        #[serde(with = "snowflake")]
+        user_id: UserId,
+    },
     Cancel {
         id: MarketId,
     },
@@ -154,6 +164,8 @@ pub struct Market {
     pub status: Status,
     pub bets: Vec<Bet>,
     pub total_staked: Points,
+    #[serde(default)]
+    pub resolvers: BTreeSet<UserId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -243,6 +255,22 @@ pub enum Event {
         payouts: Vec<Allocation>,
         refunded: bool,
     },
+    MarketResolverAdded {
+        id: MarketId,
+        #[serde(with = "snowflake")]
+        user_id: UserId,
+        #[serde(with = "snowflake")]
+        added_by: UserId,
+        added_at: i64,
+    },
+    MarketResolverRemoved {
+        id: MarketId,
+        #[serde(with = "snowflake")]
+        user_id: UserId,
+        #[serde(with = "snowflake")]
+        removed_by: UserId,
+        removed_at: i64,
+    },
     MarketCancelled {
         id: MarketId,
         #[serde(with = "snowflake")]
@@ -263,6 +291,8 @@ impl Event {
             Self::MarketCreated { .. } => "market.created",
             Self::BetPlaced { .. } => "bet.placed",
             Self::MarketResolved { .. } => "market.resolved",
+            Self::MarketResolverAdded { .. } => "market.resolver.added",
+            Self::MarketResolverRemoved { .. } => "market.resolver.removed",
             Self::MarketCancelled { .. } => "market.cancelled",
         }
     }
@@ -278,6 +308,8 @@ impl Event {
             Self::MarketCreated { id, .. }
             | Self::BetPlaced { id, .. }
             | Self::MarketResolved { id, .. }
+            | Self::MarketResolverAdded { id, .. }
+            | Self::MarketResolverRemoved { id, .. }
             | Self::MarketCancelled { id, .. } => format!("markets/{id}"),
         }
     }
@@ -291,6 +323,8 @@ pub struct Decision {
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum DomainError {
+    #[error("fresh membership evidence is required")]
+    MembershipRequired,
     #[error("invalid operation: {0}")]
     Invalid(&'static str),
     #[error("arithmetic overflow")]
@@ -429,6 +463,29 @@ pub fn decide(
     now: i64,
     defaults: Policy,
 ) -> Result<Decision, DomainError> {
+    decide_with_membership(state, actor, command, now, defaults, None)
+}
+
+/// Execution-time evidence provided by a trusted membership capability, never client input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MembershipEvidence {
+    Present { user_id: UserId, bot: bool },
+    Absent { user_id: UserId },
+    Unavailable,
+}
+
+/// Decide a command with fresh external membership evidence.
+///
+/// # Errors
+/// Rejects invalid commands, missing evidence, or ineligible targets.
+pub fn decide_with_membership(
+    state: &State,
+    actor: Actor,
+    command: &Command,
+    now: i64,
+    defaults: Policy,
+    membership: Option<MembershipEvidence>,
+) -> Result<Decision, DomainError> {
     match command {
         Command::Join => decide_join(state, actor, now, defaults),
 
@@ -484,43 +541,175 @@ pub fn decide(
             )
         }
         Command::Resolve { id, outcome } => {
-            if actor.bot || actor.user_id == UserId(0) {
-                return Err(DomainError::Invalid("market creator or moderator required"));
-            }
-            let market = state
-                .markets
-                .get(id)
-                .ok_or(DomainError::Invalid("unknown market"))?;
-            if !actor.moderator && actor.user_id != market.creator {
-                return Err(DomainError::Invalid("market creator or moderator required"));
-            }
-            if market.status != Status::Open || now < market.closes_at {
-                return Err(DomainError::Invalid("market is not ready to resolve"));
-            }
-            if outcome.0 >= market.options.len() {
-                return Err(DomainError::Invalid("invalid outcome"));
-            }
-            let (payouts, refunded) = payouts(market, *outcome)?;
-            finish(
-                state,
-                vec![Event::MarketResolved {
-                    id: id.clone(),
-                    outcome: *outcome,
-                    resolver: actor.user_id,
-                    settled_at: now,
-                    payouts,
-                    refunded,
-                }],
-                if refunded {
-                    "Market resolved; stakes refunded."
-                } else {
-                    "Market resolved."
-                }
-                .to_owned(),
-            )
+            decide_resolve(state, actor, id, *outcome, now, membership)
+        }
+        Command::AddResolver { id, user_id } => {
+            decide_add_resolver(state, actor, id, *user_id, now, membership)
+        }
+        Command::RemoveResolver { id, user_id } => {
+            decide_remove_resolver(state, actor, id, *user_id, now)
         }
         Command::Cancel { id } => decide_cancel(state, actor, id, now),
     }
+}
+
+fn decide_resolve(
+    state: &State,
+    actor: Actor,
+    id: &MarketId,
+    outcome: OutcomeIndex,
+    now: i64,
+    membership: Option<MembershipEvidence>,
+) -> Result<Decision, DomainError> {
+    if actor.bot || actor.user_id == UserId(0) {
+        return Err(DomainError::Invalid("market creator or moderator required"));
+    }
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if !actor.moderator && actor.user_id != market.creator {
+        if !market.resolvers.contains(&actor.user_id) {
+            return Err(DomainError::Invalid("market creator or moderator required"));
+        }
+        match membership {
+            Some(MembershipEvidence::Present { user_id, bot }) if user_id == actor.user_id => {
+                if bot {
+                    return Err(DomainError::Invalid("resolver must be human"));
+                }
+            }
+            Some(MembershipEvidence::Absent { user_id }) if user_id == actor.user_id => {
+                return Err(DomainError::Invalid(
+                    "resolver is no longer a server member",
+                ));
+            }
+            _ => return Err(DomainError::MembershipRequired),
+        }
+        if !state.accounts.contains_key(&actor.user_id) {
+            return Err(DomainError::Invalid("resolver not enrolled"));
+        }
+    }
+    if market.status != Status::Open || now < market.closes_at {
+        return Err(DomainError::Invalid("market is not ready to resolve"));
+    }
+    if outcome.0 >= market.options.len() {
+        return Err(DomainError::Invalid("invalid outcome"));
+    }
+    let (payouts, refunded) = payouts(market, outcome)?;
+    finish(
+        state,
+        vec![Event::MarketResolved {
+            id: id.clone(),
+            outcome,
+            resolver: actor.user_id,
+            settled_at: now,
+            payouts,
+            refunded,
+        }],
+        if refunded {
+            "Market resolved; stakes refunded."
+        } else {
+            "Market resolved."
+        }
+        .to_owned(),
+    )
+}
+
+fn decide_add_resolver(
+    state: &State,
+    actor: Actor,
+    id: &MarketId,
+    user_id: UserId,
+    now: i64,
+    membership: Option<MembershipEvidence>,
+) -> Result<Decision, DomainError> {
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if actor.bot || actor.user_id.0 == 0 || (!actor.moderator && actor.user_id != market.creator) {
+        return Err(DomainError::Invalid("market creator or moderator required"));
+    }
+    if market.status != Status::Open {
+        return Err(DomainError::Invalid("market already terminal"));
+    }
+    match membership {
+        Some(MembershipEvidence::Present {
+            user_id: verified,
+            bot,
+        }) if verified == user_id => {
+            if bot || user_id.0 == 0 {
+                return Err(DomainError::Invalid("resolver must be human"));
+            }
+        }
+        Some(MembershipEvidence::Absent { user_id: verified }) if verified == user_id => {
+            return Err(DomainError::Invalid(
+                "resolver is no longer a server member",
+            ));
+        }
+        _ => return Err(DomainError::MembershipRequired),
+    }
+    if !state.accounts.contains_key(&user_id) {
+        return Err(DomainError::Invalid("resolver not enrolled"));
+    }
+    if market.resolvers.contains(&user_id) {
+        return finish(
+            state,
+            vec![],
+            format!("<@{user_id}> is already an additional resolver for market {id}."),
+        );
+    }
+    finish(
+        state,
+        vec![Event::MarketResolverAdded {
+            id: id.clone(),
+            user_id,
+            added_by: actor.user_id,
+            added_at: now,
+        }],
+        format!("Added <@{user_id}> as an additional resolver for market {id}."),
+    )
+}
+
+fn decide_remove_resolver(
+    state: &State,
+    actor: Actor,
+    id: &MarketId,
+    user_id: UserId,
+    now: i64,
+) -> Result<Decision, DomainError> {
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if actor.bot || actor.user_id.0 == 0 || (!actor.moderator && actor.user_id != market.creator) {
+        return Err(DomainError::Invalid("market creator or moderator required"));
+    }
+    if market.status != Status::Open {
+        return Err(DomainError::Invalid("market already terminal"));
+    }
+    if user_id.0 == 0 {
+        return Err(DomainError::Invalid("invalid resolver"));
+    }
+    let authority =
+        " Separate authority as the market creator or a current moderator remains unchanged.";
+    if !market.resolvers.contains(&user_id) {
+        return finish(
+            state,
+            vec![],
+            format!("<@{user_id}> is not an additional resolver for market {id}.{authority}"),
+        );
+    }
+    finish(
+        state,
+        vec![Event::MarketResolverRemoved {
+            id: id.clone(),
+            user_id,
+            removed_by: actor.user_id,
+            removed_at: now,
+        }],
+        format!("Removed <@{user_id}> as an additional resolver for market {id}.{authority}"),
+    )
 }
 
 fn recorded_allocations(
@@ -659,6 +848,46 @@ fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
             *refunded,
         )?,
 
+        Event::MarketResolverAdded {
+            id,
+            user_id,
+            added_by,
+            added_at,
+        } => {
+            let market = state
+                .markets
+                .get_mut(id)
+                .ok_or(DomainError::Invalid("unknown market"))?;
+            if user_id.0 == 0
+                || added_by.0 == 0
+                || market.status != Status::Open
+                || *added_at < market.created_at
+                || !market.resolvers.insert(*user_id)
+            {
+                return Err(DomainError::Invalid(
+                    "invalid resolver assignment transition",
+                ));
+            }
+        }
+        Event::MarketResolverRemoved {
+            id,
+            user_id,
+            removed_by,
+            removed_at,
+        } => {
+            let market = state
+                .markets
+                .get_mut(id)
+                .ok_or(DomainError::Invalid("unknown market"))?;
+            if user_id.0 == 0
+                || removed_by.0 == 0
+                || market.status != Status::Open
+                || *removed_at < market.created_at
+                || !market.resolvers.remove(user_id)
+            {
+                return Err(DomainError::Invalid("invalid resolver removal transition"));
+            }
+        }
         Event::MarketCancelled {
             id,
             moderator,
@@ -971,6 +1200,7 @@ fn apply_market_creation(
             status: Status::Open,
             bets: Vec::new(),
             total_staked: Points(0),
+            resolvers: BTreeSet::new(),
         },
     );
     Ok(())

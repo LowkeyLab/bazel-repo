@@ -24,6 +24,12 @@ rust_library(
         "src/discord/bet/tests.rs",
         "src/discord/resolve.rs",
         "src/discord/resolve_tests.rs",
+        "src/discord/resolvers.rs",
+        "src/discord/resolvers/add.rs",
+        "src/discord/resolvers/list.rs",
+        "src/discord/resolvers/list_tests.rs",
+        "src/discord/resolvers/remove.rs",
+        "src/discord/resolvers/remove_guided.rs",
         "src/discord/transport.rs",
         "src/discord_tests.rs",
         "src/discord_ui.rs",
@@ -99,7 +105,11 @@ rust_test(
 rust_test(
     name = "store_test",
     size = "medium",
-    srcs = ["tests/store_test.rs"],
+    srcs = [
+        "tests/resolver_remove_guided.rs",
+        "tests/store_test.rs",
+        "tests/support/resolver_add.rs",
+    ],
     crate_root = "tests/store_test.rs",
     data = image_data("postgres_18"),
     env = image_env("postgres_18"),
@@ -121,6 +131,7 @@ rust_test(
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
         "@crates//:uuid",
+        "@crates//:wiremock",
     ],
 )
 

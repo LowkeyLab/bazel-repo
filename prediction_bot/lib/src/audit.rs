@@ -138,6 +138,8 @@ impl Failure {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rejection {
+    NotMember,
+    NotHuman,
     InsufficientPoints,
     NotEnrolled,
     MarketUnavailable,
@@ -148,6 +150,8 @@ pub enum Rejection {
 impl Rejection {
     const fn as_str(self) -> &'static str {
         match self {
+            Self::NotMember => "not_member",
+            Self::NotHuman => "not_human",
             Self::InsufficientPoints => "insufficient_points",
             Self::NotEnrolled => "not_enrolled",
             Self::MarketUnavailable => "market_unavailable",
@@ -166,6 +170,8 @@ pub enum Outcome {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandKind {
+    AddResolver,
+    RemoveResolver,
     Join,
     Create,
     Bet,
@@ -177,6 +183,8 @@ pub enum CommandKind {
 impl CommandKind {
     const fn as_str(self) -> &'static str {
         match self {
+            Self::AddResolver => "resolver_add",
+            Self::RemoveResolver => "resolver_remove",
             Self::Join => "join",
             Self::Create => "create",
             Self::Bet => "bet",
@@ -190,6 +198,8 @@ impl CommandKind {
 impl From<&Command> for CommandKind {
     fn from(command: &Command) -> Self {
         match command {
+            Command::AddResolver { .. } => Self::AddResolver,
+            Command::RemoveResolver { .. } => Self::RemoveResolver,
             Command::Join => Self::Join,
             Command::Create { .. } => Self::Create,
             Command::Bet { .. } => Self::Bet,
@@ -340,7 +350,11 @@ pub fn canonical_command_key(key: &str) -> Option<String> {
 fn rejection(reason: &str) -> Rejection {
     match reason {
         "insufficient points" => Rejection::InsufficientPoints,
-        "member not enrolled" | "grant to unknown member" => Rejection::NotEnrolled,
+        "resolver is no longer a server member" => Rejection::NotMember,
+        "resolver must be human" => Rejection::NotHuman,
+        "resolver not enrolled" | "member not enrolled" | "grant to unknown member" => {
+            Rejection::NotEnrolled
+        }
         "unknown market"
         | "market is not open for betting"
         | "market is not ready to resolve"
@@ -401,8 +415,11 @@ pub fn store_outcome(stage: Stage, error: &StoreError) -> Outcome {
         StoreError::Domain(DomainError::Invalid(reason)) if stage == Stage::Decide => {
             Outcome::Rejected(rejection(reason))
         }
-        StoreError::Domain(DomainError::Invalid(_)) => {
+        StoreError::Domain(DomainError::Invalid(_)) | StoreError::History(_) => {
             Outcome::Failed(Failure::category(FailureCategory::History))
+        }
+        StoreError::Domain(DomainError::MembershipRequired) | StoreError::MembershipUnavailable => {
+            Outcome::Failed(Failure::category(FailureCategory::Discord))
         }
         StoreError::Domain(DomainError::Overflow) => {
             Outcome::Failed(Failure::category(FailureCategory::Overflow))
@@ -410,7 +427,6 @@ pub fn store_outcome(stage: Stage, error: &StoreError) -> Outcome {
         StoreError::Database(error) => Outcome::Failed(database_failure(error)),
         StoreError::Migration(_) => Outcome::Failed(Failure::category(FailureCategory::Database)),
         StoreError::Metadata(_) => Outcome::Failed(Failure::category(FailureCategory::Metadata)),
-        StoreError::History(_) => Outcome::Failed(Failure::category(FailureCategory::History)),
         StoreError::Configuration(_) => {
             Outcome::Failed(Failure::category(FailureCategory::Configuration))
         }

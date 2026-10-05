@@ -35,6 +35,7 @@ use uuid::Uuid;
 mod announcements;
 mod bet;
 mod resolve;
+pub mod resolvers;
 pub mod transport;
 #[path = "discord_ui.rs"]
 mod ui;
@@ -63,19 +64,34 @@ pub(crate) enum InputValue {
     String(String),
     Integer(i64),
     Channel(ChannelId),
+    User(UserId),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
     Write(Command),
     CreateForm,
     ResolveForm,
+    ResolverAdd {
+        id: Option<MarketId>,
+        user_id: Option<UserId>,
+    },
+    ResolverRemove {
+        id: Option<MarketId>,
+        user_id: Option<UserId>,
+    },
+    ResolverList,
+
     BetForm,
     Help,
     Balance,
     Leaderboard,
     List,
-    Show { id: MarketId },
-    AnnouncementsSet { channel_id: ChannelId },
+    Show {
+        id: MarketId,
+    },
+    AnnouncementsSet {
+        channel_id: ChannelId,
+    },
     AnnouncementsStatus,
     AnnouncementsDisable,
 }
@@ -97,7 +113,7 @@ fn text<'a>(input: &'a Input, field: &str) -> Result<&'a str, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match &o.value {
             InputValue::String(s) => Some(s.as_str()),
-            InputValue::Integer(_) | InputValue::Channel(_) => None,
+            InputValue::Integer(_) | InputValue::Channel(_) | InputValue::User(_) => None,
         })
         .ok_or("Enter a text value.")
 }
@@ -108,7 +124,7 @@ fn integer(input: &Input, field: &str) -> Result<i64, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match o.value {
             InputValue::Integer(i) => Some(i),
-            InputValue::String(_) | InputValue::Channel(_) => None,
+            InputValue::String(_) | InputValue::Channel(_) | InputValue::User(_) => None,
         })
         .ok_or("Enter a whole number.")
 }
@@ -119,7 +135,10 @@ fn channel_id(input: &Input, field: &str) -> Result<ChannelId, &'static str> {
         .find(|option| option.name == field)
         .and_then(|option| match option.value {
             InputValue::Channel(id) if id.0 != 0 => Some(id),
-            InputValue::Channel(_) | InputValue::String(_) | InputValue::Integer(_) => None,
+            InputValue::Channel(_)
+            | InputValue::String(_)
+            | InputValue::Integer(_)
+            | InputValue::User(_) => None,
         })
         .ok_or("Choose a server text channel.")
 }
@@ -167,6 +186,35 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
         bot: input.bot,
     };
     let action = match input.subcommand.as_str() {
+        "resolver.add" => {
+            let fields: Vec<_> = ["market", "user"]
+                .into_iter()
+                .filter(|field| input.options.iter().any(|option| option.name == *field))
+                .collect();
+            exact(input, &fields)?;
+            let id = fields
+                .contains(&"market")
+                .then(|| text(input, "market").map(|id| id.to_owned().into()))
+                .transpose()?;
+            let user_id = input
+                .options
+                .iter()
+                .find(|option| option.name == "user")
+                .map(|option| match option.value {
+                    InputValue::User(user) if user.0 != 0 => Ok(user),
+                    _ => Err("Choose a valid person."),
+                })
+                .transpose()?;
+            Action::ResolverAdd { id, user_id }
+        }
+        "resolver.remove" => {
+            let (id, user_id) = resolvers::remove_guided::options(input)?;
+            Action::ResolverRemove { id, user_id }
+        }
+        "resolver.list" => {
+            exact(input, &[])?;
+            Action::ResolverList
+        }
         "help" => {
             exact(input, &[])?;
             Action::Help
@@ -288,16 +336,21 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
     let (subcommand, fields) = match &root.value {
         CommandDataOptionValue::SubCommand(fields) => (root.name.clone(), fields),
         CommandDataOptionValue::SubCommandGroup(commands)
-            if root.name == "announcements" && commands.len() == 1 =>
+            if matches!(root.name.as_str(), "announcements" | "resolver")
+                && commands.len() == 1 =>
         {
             let command = &commands[0];
-            if !matches!(command.name.as_str(), "set" | "status" | "disable") {
+            if !(root.name == "announcements"
+                && matches!(command.name.as_str(), "set" | "status" | "disable")
+                || root.name == "resolver"
+                    && matches!(command.name.as_str(), "add" | "remove" | "list"))
+            {
                 return Err("Invalid market command.");
             }
             let CommandDataOptionValue::SubCommand(fields) = &command.value else {
                 return Err("Invalid market command.");
             };
-            (format!("announcements.{}", command.name), fields)
+            (format!("{}.{}", root.name, command.name), fields)
         }
         _ => return Err("Invalid market command."),
     };
@@ -307,6 +360,7 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
             let value = match &field.value {
                 CommandDataOptionValue::String(s) => InputValue::String(s.clone()),
                 CommandDataOptionValue::Integer(i) => InputValue::Integer(*i),
+                CommandDataOptionValue::User(id) => InputValue::User(UserId(id.get())),
                 CommandDataOptionValue::Channel(id) => InputValue::Channel(ChannelId(id.get())),
                 _ => return Err("Invalid command options."),
             };
@@ -337,6 +391,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market bet` — choose a market and outcome, enter a stake, then confirm your bet.
 • `/market bet id outcome amount` — place a bet directly using a market ID, outcome number, and stake.
 • `/market list` and `/market show id` — view markets and their outcomes.
+• `/market resolver list` — inspect recorded assignments for any market, including completed markets.
 • `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
 
@@ -441,6 +496,9 @@ fn safe_error(error: &StoreError) -> String {
         StoreError::Domain(DomainError::Invalid(reason)) => {
             format!("Cannot complete command: {reason}.")
         }
+        StoreError::MembershipUnavailable => {
+            "I could not verify server membership. Please try again.".to_owned()
+        }
         StoreError::Domain(DomainError::Overflow) => {
             "Cannot complete command: point total is too large.".to_owned()
         }
@@ -503,7 +561,10 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::ResolveForm => "Choose a closed market to resolve.".to_owned(),
         Action::BetForm => "Choose an open market to bet on.".to_owned(),
-        Action::Write(_)
+        Action::ResolverList => "Choose a market to inspect resolver assignments.".to_owned(),
+        Action::ResolverAdd { .. }
+        | Action::ResolverRemove { .. }
+        | Action::Write(_)
         | Action::AnnouncementsSet { .. }
         | Action::AnnouncementsStatus
         | Action::AnnouncementsDisable => "Invalid query.".to_owned(),
@@ -543,6 +604,35 @@ fn render_market(id: &MarketId, market: &Market, now: i64) -> String {
             odds.chance()
         );
     }
+    let assignments = market
+        .resolvers
+        .iter()
+        .take(10)
+        .map(|user| format!("<@{user}>"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(
+        out,
+        "Explicit resolver assignments: {}",
+        if assignments.is_empty() {
+            "None"
+        } else {
+            &assignments
+        }
+    );
+    if market.resolvers.len() > 10 {
+        let _ = writeln!(
+            out,
+            "Showing 10 of {} assignments. Use /market resolver list to inspect every assignment.",
+            market.resolvers.len()
+        );
+    }
+    let _ = writeln!(
+        out,
+        "Independent authority: creator <@{}> and current moderators (Administrator or Manage Guild).",
+        market.creator
+    );
+    out.push_str("Assignments require current membership and enrollment for use; this list does not verify eligibility. Removing an assignment cannot revoke independent authority.\n");
     if let Status::Resolved { outcome, .. } = market.status {
         let _ = writeln!(out, "Winning outcome: {}", outcome.0 + 1);
     }
@@ -558,6 +648,36 @@ fn market_command() -> CreateCommand {
         |kind, name, description| CreateCommandOption::new(kind, name, description).required(true);
     CreateCommand::new("market")
         .description("Play-point prediction markets in this server")
+        .add_option(
+            CreateCommandOption::new(
+                SubCommandGroup,
+                "resolver",
+                "Manage additional market resolvers",
+            )
+            .add_sub_option(CreateCommandOption::new(
+                SubCommand,
+                "list",
+                "Inspect recorded resolver assignments for any market",
+            ))
+            .add_sub_option(
+                CreateCommandOption::new(SubCommand, "add", "Add an additional resolver")
+                    .add_sub_option(CreateCommandOption::new(Text, "market", "Market ID"))
+                    .add_sub_option(CreateCommandOption::new(
+                        CommandOptionType::User,
+                        "user",
+                        "Person to assign",
+                    )),
+            )
+            .add_sub_option(
+                CreateCommandOption::new(SubCommand, "remove", "Remove an additional resolver")
+                    .add_sub_option(CreateCommandOption::new(Text, "market", "Market ID"))
+                    .add_sub_option(CreateCommandOption::new(
+                        CommandOptionType::User,
+                        "user",
+                        "Person to remove",
+                    )),
+            ),
+        )
         .add_option(CreateCommandOption::new(
             SubCommand,
             "help",
@@ -628,7 +748,7 @@ fn market_command() -> CreateCommand {
             CreateCommandOption::new(
                 SubCommand,
                 "resolve",
-                "Settle a closed market; creator, Administrator, or Manage Guild required",
+                "Resolve after close (creator, eligible additional resolver, or moderator)",
             )
             .add_sub_option(CreateCommandOption::new(
                 Text,
@@ -774,6 +894,47 @@ async fn execute_request(
     }
 }
 
+/// Evidence from the current authenticated guild interaction, never from a saved prompt.
+struct InteractionMember<'a>(Option<&'a serenity::all::Member>);
+
+#[serenity::async_trait]
+impl resolvers::MembershipVerifier for InteractionMember<'_> {
+    async fn verify(&self, guild: GuildId, user: UserId) -> crate::domain::MembershipEvidence {
+        match self.0 {
+            Some(member) if member.guild_id.get() == guild.0 && member.user.id.get() == user.0 => {
+                crate::domain::MembershipEvidence::Present {
+                    user_id: user,
+                    bot: member.user.bot,
+                }
+            }
+            _ => crate::domain::MembershipEvidence::Unavailable,
+        }
+    }
+}
+
+async fn execute_member_request(
+    store: &Store,
+    guild: GuildId,
+    actor: Actor,
+    request: &Command,
+    interaction_id: u64,
+    member: Option<&serenity::all::Member>,
+) -> EditInteractionResponse {
+    if matches!(request, Command::Resolve { .. }) {
+        resolvers::execute_request(
+            store,
+            &InteractionMember(member),
+            guild,
+            actor,
+            request,
+            interaction_id,
+        )
+        .await
+    } else {
+        execute_request(store, guild, actor, request, interaction_id).await
+    }
+}
+
 async fn read_query<F>(
     audit: &dyn AuditListener,
     guild: GuildId,
@@ -870,8 +1031,60 @@ impl Handler {
                 match from_discord(&command).and_then(|input| parse(&input)) {
                     Ok((_, _, Action::Help)) => reply(HELP),
                     Ok((guild, actor, Action::Write(request))) => {
-                        execute_request(&self.store, guild, actor, &request, command.id.get()).await
+                        execute_member_request(
+                            &self.store,
+                            guild,
+                            actor,
+                            &request,
+                            command.id.get(),
+                            command.member.as_deref(),
+                        )
+                        .await
                     }
+                    Ok((guild, actor, Action::ResolverAdd { id, user_id })) => {
+                        match read_query(
+                            self.store.audit().as_ref(),
+                            guild,
+                            command.id.get(),
+                            QueryKind::Component,
+                            self.store.view(guild),
+                            None,
+                        )
+                        .await
+                        {
+                            Ok(view) => {
+                                match resolvers::start(&view, guild, actor, id.as_ref(), user_id) {
+                                    Ok(panel) => panel.edit(),
+                                    Err(message) => reply(message),
+                                }
+                            }
+                            Err(message) => reply(&message),
+                        }
+                    }
+                    Ok((guild, actor, Action::ResolverRemove { id, user_id })) => match read_query(
+                        self.store.audit().as_ref(),
+                        guild,
+                        command.id.get(),
+                        QueryKind::Component,
+                        self.store.view(guild),
+                        None,
+                    )
+                    .await
+                    {
+                        Ok(view) => {
+                            match resolvers::remove_guided::start(
+                                &view,
+                                guild,
+                                actor,
+                                id.as_ref(),
+                                user_id,
+                            ) {
+                                Ok(panel) => panel.edit(),
+                                Err(message) => reply(message),
+                            }
+                        }
+                        Err(message) => reply(&message),
+                    },
                     Ok((guild, actor, Action::AnnouncementsSet { channel_id })) => {
                         let key = format!("discord:{}", command.id.get());
                         match self
@@ -943,7 +1156,7 @@ impl Handler {
                         let kind = match query {
                             Action::Balance => QueryKind::Balance,
                             Action::Leaderboard => QueryKind::Leaderboard,
-                            Action::List => QueryKind::List,
+                            Action::List | Action::ResolverList => QueryKind::List,
                             Action::Show { .. } => QueryKind::Show,
                             _ => QueryKind::Component,
                         };
@@ -982,6 +1195,19 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if resolvers::remove_guided::is_control(&component.data.custom_id) {
+            resolvers::remove_guided::handle_component(&self.store, http, &component).await;
+            return;
+        }
+        if resolvers::list::is_control(&component.data.custom_id) {
+            resolvers::list::handle_component(&self.store, http, &component).await;
+
+            return;
+        }
+        if resolvers::is_control(&component.data.custom_id) {
+            resolvers::handle_component(&self.store, http, &component).await;
+            return;
+        }
         if bet::is_control(&component.data.custom_id) {
             self.handle_bet_component(http, &component).await;
             return;
@@ -1084,12 +1310,13 @@ impl Handler {
             || async {
                 let result = match action {
                     Ok(resolve::Action::Confirm(command)) => {
-                        return execute_request(
+                        return execute_member_request(
                             &self.store,
                             guild,
                             actor,
                             &command,
                             component.id.get(),
+                            component.member.as_ref(),
                         )
                         .await
                         .embeds(vec![])
