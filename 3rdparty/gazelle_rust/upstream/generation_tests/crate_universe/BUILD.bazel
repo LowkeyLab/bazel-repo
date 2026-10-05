@@ -1,10 +1,4 @@
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//generation_tests:generation_tests.bzl", "generation_tests")
-
-sh_binary(
-    name = "repin",
-    srcs = ["repin.sh"],
-)
+load("//3rdparty/gazelle_rust/upstream/generation_tests:generation_tests.bzl", "generation_tests")
 
 # FIXME The detection of unused crates currently cannot work when Cargo lock
 # is used as is the case for this repository. In order to avoid complaints

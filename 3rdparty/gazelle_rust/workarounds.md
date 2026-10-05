@@ -27,7 +27,7 @@ after unified crate discovery landed in `fc8321f8` (#1961, implementing #1957).
 | Prediction Bot library                     | `@crates//:tracing` with `# keep`                                                 | `audit/logging.rs` references it inside `macro_rules! emit`. The parser does not expand macro bodies; removing this dependency caused E0433 in the library build. General macro dependency discovery is outside this cleanup.           |
 | Rust test images                           | Versioned `futures_util` and `tokio_util` resolve mappings                        | Automatic resolution chooses nonexistent unversioned labels; preserve the existing `futures-util-0.3.34` and `tokio-util-0.7.19` labels.                                                                                                |
 | Root                                       | `gazelle:rust_cargo_lockfile Cargo.lock`; `gazelle:rust_crates_prefix @crates//:` | These select the repository's dependency inventory and label namespace, rather than suppress generation.                                                                                                                                |
-| Root                                       | `gazelle:exclude 3rdparty/gazelle_rust/upstream`                                  | The maintained nested module and its deliberately hand-authored fixtures must not be regenerated as application packages. Their parser/generation/format tests run explicitly.                                                          |
+| Gazelle Rust                               | `gazelle:exclude generation_tests` and parser `test_data`                         | Golden workspaces and malformed parser samples remain data. Issue #1969 removed the root subtree exclusion; maintained packages and tests now participate in root recursive checks.                                                     |
 
 No application Rust package exclusions or whole-package ignores remain.
 The root exclusions for `githooks`, `tools`, Angular, and Kotlin projects,
@@ -38,6 +38,9 @@ and snapshot globs remain intentional non-Rust build inputs. Generated
 needed.
 
 ## Validation
+
+Historical #1960 validation, before the #1969 integration. Use the current
+[maintenance commands](README.md#development) for root package labels.
 
 Verified on 2026-10-05 through the repository Nix/Bazel environment:
 

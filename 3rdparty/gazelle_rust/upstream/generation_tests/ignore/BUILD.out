@@ -4,5 +4,5 @@ rust_library(
     name = "lib",
     srcs = ["lib.rs"],
     crate_root = "lib.rs",
-    proc_macro_deps = ["@gazelle_rust//macro"],
+    proc_macro_deps = ["//3rdparty/gazelle_rust/upstream/macro"],
 )

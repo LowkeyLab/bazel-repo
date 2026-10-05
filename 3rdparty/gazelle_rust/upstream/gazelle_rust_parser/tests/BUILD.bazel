@@ -1,13 +1,12 @@
-load("@rules_rust//rust:defs.bzl", "rust_test")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 rust_test(
     name = "parse_test",
     srcs = ["parse_test.rs"],
-    crate_features = ["bazel"],
-    data = ["//gazelle_rust_parser:test_data"],
+    crate_root = "parse_test.rs",
+    data = ["//3rdparty/gazelle_rust/upstream/gazelle_rust_parser:test_data"],
     deps = [
-        "//gazelle_rust_parser/src:gazelle_rust_parser",
-        "@gazelle_rust_crates//:lazy_static",
+        "//3rdparty/gazelle_rust/upstream/gazelle_rust_parser/src:gazelle_rust_parser",
         "@rules_rust//tools/runfiles",
     ],
 )

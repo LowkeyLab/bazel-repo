@@ -1,3 +1,8 @@
 load(":generation_tests.bzl", "generation_tests")
 
+exports_files(
+    ["coverage_test.go"],
+    visibility = ["//3rdparty/gazelle_rust/upstream/generation_tests:__subpackages__"],
+)
+
 generation_tests(disabled_tests = [])

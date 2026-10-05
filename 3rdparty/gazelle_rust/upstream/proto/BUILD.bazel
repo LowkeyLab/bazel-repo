@@ -3,9 +3,16 @@ load("@rules_go//proto:def.bzl", "go_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 
+# This protocol is used only by the Go generator and Rust parser.
+# gazelle:java_generate_proto false
+# gazelle:proto_strip_import_prefix /3rdparty/gazelle_rust/upstream/proto
+# gazelle:proto_import_prefix gazelle/rust/v1
+
 proto_library(
     name = "messages_proto",
     srcs = ["messages.proto"],
+    import_prefix = "gazelle/rust/v1",
+    strip_import_prefix = "/3rdparty/gazelle_rust/upstream/proto",
     visibility = ["//visibility:public"],
 )
 

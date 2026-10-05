@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package gazelle.rust.v1;
+
 message Request {
     oneof kind {
         RustImportsRequest rust_imports = 1;

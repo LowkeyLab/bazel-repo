@@ -57,7 +57,7 @@ func (l *rustLang) NewLockfileCrates(c *config.Config, lockfilePath string, carg
 		l.Log(c, logFatal, lockfilePath, "failed to parse lockfile crates: %v", err)
 	}
 
-	var requestedVersions = make(map[string](map[string]bool))
+	requestedVersions := make(map[string](map[string]bool))
 
 	for _, crate := range response.Crates {
 		is_proc_macro := crate.ProcMacro
@@ -81,7 +81,7 @@ func (l *rustLang) NewLockfileCrates(c *config.Config, lockfilePath string, carg
 		lockfileCrates.Crates[spec] = crate.Name
 
 		if crate.WorkspaceMember {
-			var dependencies = make(map[string]string)
+			dependencies := make(map[string]string)
 			for _, dep := range crate.Dependencies {
 				dependencies[dep.Name] = dep.Version
 				if _, ok := requestedVersions[dep.Name]; !ok {
