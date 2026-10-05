@@ -1107,3 +1107,153 @@ fn announcement_channel_ids_require_canonical_positive_decimal_strings() {
         err(anything())
     );
 }
+
+#[googletest::test]
+fn resolver_add_records_assignment_without_changing_market_economics() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    execute(&mut state, member(2), &Command::Join, 1_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into();
+    execute(
+        &mut state,
+        member(2),
+        &Command::Bet {
+            id: id.clone(),
+            outcome: OutcomeIndex(0),
+            amount: Points(10),
+        },
+        1_500,
+    );
+    let command = Command::AddResolver {
+        id,
+        user_id: UserId(2),
+    };
+    let decision = decide_with_membership(
+        &state,
+        member(1),
+        &command,
+        2_100,
+        DEFAULTS,
+        Some(MembershipEvidence::Present {
+            user_id: UserId(2),
+            bot: false,
+        }),
+    )
+    .unwrap();
+    assert_that!(decision.events.len(), eq(1));
+    let before = state.clone();
+    apply(&mut state, &decision.events[0]).unwrap();
+    assert_that!(state.accounts, eq(&before.accounts));
+    let mut expected = before.markets.values().next().unwrap().clone();
+    expected.resolvers.insert(UserId(2));
+    assert_that!(state.markets.values().next().unwrap(), eq(&expected));
+    let duplicate = decide_with_membership(
+        &state,
+        member(1),
+        &command,
+        2_101,
+        DEFAULTS,
+        Some(MembershipEvidence::Present {
+            user_id: UserId(2),
+            bot: false,
+        }),
+    )
+    .unwrap();
+    assert_that!(duplicate.events, is_empty());
+}
+
+#[googletest::test]
+fn resolver_assignment_enforces_current_authority_eligibility_and_lifecycle() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    execute(&mut state, member(2), &Command::Join, 1_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into();
+    let command = Command::AddResolver {
+        id: id.clone(),
+        user_id: UserId(2),
+    };
+    let present = Some(MembershipEvidence::Present {
+        user_id: UserId(2),
+        bot: false,
+    });
+    for now in [1_001, 2_001] {
+        for actor in [member(1), moderator(3)] {
+            assert_that!(
+                decide_with_membership(&state, actor, &command, now, DEFAULTS, present).is_ok(),
+                eq(true)
+            );
+        }
+    }
+    for actor in [
+        member(2),
+        Actor {
+            bot: true,
+            ..moderator(3)
+        },
+        moderator(0),
+    ] {
+        assert_that!(
+            decide_with_membership(&state, actor, &command, 1_001, DEFAULTS, present),
+            err(eq(&DomainError::Invalid(
+                "market creator or moderator required"
+            )))
+        );
+    }
+    for (evidence, expected) in [
+        (None, DomainError::MembershipRequired),
+        (
+            Some(MembershipEvidence::Unavailable),
+            DomainError::MembershipRequired,
+        ),
+        (
+            Some(MembershipEvidence::Present {
+                user_id: UserId(3),
+                bot: false,
+            }),
+            DomainError::MembershipRequired,
+        ),
+        (
+            Some(MembershipEvidence::Present {
+                user_id: UserId(2),
+                bot: true,
+            }),
+            DomainError::Invalid("resolver must be human"),
+        ),
+        (
+            Some(MembershipEvidence::Absent { user_id: UserId(2) }),
+            DomainError::Invalid("resolver is no longer a server member"),
+        ),
+    ] {
+        assert_that!(
+            decide_with_membership(&state, member(1), &command, 1_001, DEFAULTS, evidence),
+            err(eq(&expected))
+        );
+    }
+    state.accounts.remove(&UserId(2));
+    assert_that!(
+        decide_with_membership(&state, member(1), &command, 1_001, DEFAULTS, present),
+        err(eq(&DomainError::Invalid("resolver not enrolled")))
+    );
+    // Replay uses recorded facts, not present enrollment or role facts.
+    let event = Event::MarketResolverAdded {
+        id: id.clone(),
+        user_id: UserId(2),
+        added_by: UserId(3),
+        added_at: 1_001,
+    };
+    apply(&mut state, &event).unwrap();
+    assert_that!(apply(&mut state, &event), err(anything()));
+    for status in [
+        Status::Cancelled,
+        Status::Resolved {
+            outcome: OutcomeIndex(0),
+            refunded: true,
+        },
+    ] {
+        state.markets.get_mut(&id).unwrap().status = status;
+        assert_that!(
+            decide_with_membership(&state, member(1), &command, 2_001, DEFAULTS, present),
+            err(eq(&DomainError::Invalid("market already terminal")))
+        );
+    }
+}
