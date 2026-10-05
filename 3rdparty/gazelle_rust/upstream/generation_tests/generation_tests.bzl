@@ -15,6 +15,7 @@ def generation_tests(disabled_tests):
 
         gazelle_generation_test(
             name = dir,
+            srcs = [Label(":coverage_test.go")],
             gazelle_binary = "//3rdparty/gazelle_rust/upstream:gazelle_bin",
             test_data = native.glob([dir + "/**"]),
             tags = tags,

@@ -4,6 +4,7 @@ pnpm-lock.yaml linguist-generated=true
 3rdparty/gazelle_rust/upstream/generation_tests/** rules-lint-ignored
 3rdparty/gazelle_rust/upstream/generation_tests/BUILD.bazel -rules-lint-ignored
 3rdparty/gazelle_rust/upstream/generation_tests/generation_tests.bzl -rules-lint-ignored
+3rdparty/gazelle_rust/upstream/generation_tests/coverage_test.go -rules-lint-ignored
 3rdparty/gazelle_rust/upstream/generation_tests/crate_universe/BUILD.bazel -rules-lint-ignored
 3rdparty/gazelle_rust/upstream/gazelle_rust_parser/test_data/** rules-lint-ignored
 # Patch context whitespace is part of the upstream patch format.
