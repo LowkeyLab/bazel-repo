@@ -16,6 +16,9 @@ use serenity::{
     http::{Http, HttpError},
 };
 
+mod add;
+pub(super) use add::start;
+
 /// Verify present human/bot membership, confirmed absence, or inability to verify.
 /// Implementations must obtain fresh evidence for the supplied guild and user.
 #[serenity::async_trait]
@@ -47,7 +50,7 @@ impl MembershipVerifier for Http {
 pub(super) mod remove;
 
 pub(super) fn is_control(custom_id: &str) -> bool {
-    matches!(custom_id.split(':').nth(3), Some("a" | "d"))
+    matches!(custom_id.split(':').nth(3), Some("a" | "d")) || add::is_control(custom_id)
 }
 
 pub(super) fn confirmation(
@@ -174,6 +177,10 @@ pub async fn execute_interaction(
 }
 
 pub(super) async fn handle_component(store: &Store, http: &Http, component: &ComponentInteraction) {
+    if add::is_control(&component.data.custom_id) {
+        add::handle_component(store, http, component).await;
+        return;
+    }
     let actor = Actor {
         user_id: UserId(component.user.id.get()),
         bot: component.user.bot,
