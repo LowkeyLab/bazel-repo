@@ -124,7 +124,7 @@ pub(super) fn parse(
     Ok(Command::AddResolver { id, user_id })
 }
 
-async fn execute_request(
+pub(super) async fn execute_request(
     store: &Store,
     verifier: &dyn MembershipVerifier,
     guild: GuildId,
@@ -135,6 +135,7 @@ async fn execute_request(
     let verification = async {
         match command {
             Command::AddResolver { user_id, .. } => verifier.verify(guild, *user_id).await,
+            Command::Resolve { .. } => verifier.verify(guild, actor.user_id).await,
             _ => MembershipEvidence::Unavailable,
         }
     };
@@ -155,7 +156,7 @@ async fn execute_request(
     .components(vec![])
 }
 
-/// Execute a confirmed resolver change through the real store and private deferred response.
+/// Execute a resolver change or settlement through the real store and private deferred response.
 pub async fn execute_interaction(
     transport: &dyn InteractionTransport,
     store: &Store,
