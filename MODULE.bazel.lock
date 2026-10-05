@@ -1105,7 +1105,7 @@
         {
           "importpath": "google.golang.org/protobuf",
           "sha256": "a75c105a852fbd8da8d8cfac09c2eab9a206cfd27ed37c973737e23f632ca96e",
-          "version": "v1.36.11"
+          "version": "v1.36.12"
         },
         {
           "importpath": "dario.cat/mergo",
@@ -1991,6 +1991,11 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "google.golang.org/protobuf",
+          "sha256": "a75c105a852fbd8da8d8cfac09c2eab9a206cfd27ed37c973737e23f632ca96e",
+          "version": "v1.36.11"
         },
         {
           "importpath": "github.com/bazelbuild/bazel-gazelle",
