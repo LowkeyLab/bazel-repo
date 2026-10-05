@@ -1,11 +1,8 @@
 //! Read-only, private browsing of recorded resolver assignments.
 use super::super::{
-    deferred_response, read_query, rejected, reply,
-    transport::SerenityTransport,
     truncate_to,
     ui::{self, Panel},
 };
-use crate::audit::QueryKind;
 use crate::{
     domain::{Actor, Market, Status},
     store::{Store, View},
@@ -232,45 +229,8 @@ pub(in crate::discord) async fn handle_component(
         &component.data.custom_id,
         &component.data.kind,
     );
-    let transport = if action.is_ok() {
-        SerenityTransport::ComponentUpdate(component, http)
-    } else {
-        SerenityTransport::Component(component, http)
-    };
-    deferred_response(
-        &transport,
-        store.audit().as_ref(),
-        component.guild_id.map(|id| GuildId(id.get())),
-        component.id.get(),
-        || async {
-            let result = match action {
-                Ok(action) => match read_query(
-                    store.audit().as_ref(),
-                    guild,
-                    component.id.get(),
-                    QueryKind::Component,
-                    store.view(guild),
-                    None,
-                )
-                .await
-                {
-                    Ok(view) => panel(&view, guild, actor, chrono::Utc::now().timestamp(), action),
-                    Err(message) => return reply(&message).embeds(vec![]).components(vec![]),
-                },
-                Err(message) => Err(message),
-            };
-            match result {
-                Ok(panel) => panel.edit(),
-                Err(message) => {
-                    rejected(
-                        store.audit().as_ref(),
-                        component.guild_id.map(|id| GuildId(id.get())),
-                        component.id.get(),
-                    );
-                    reply(message).embeds(vec![]).components(vec![])
-                }
-            }
-        },
-    )
+    super::read_navigation(store, http, component, guild, action, |view, action| {
+        panel(view, guild, actor, chrono::Utc::now().timestamp(), action)
+    })
     .await;
 }

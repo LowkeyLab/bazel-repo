@@ -1,8 +1,6 @@
 //! Read-only addition navigation. Final confirmation keeps the receipt-first write path.
-use super::{confirmation, deferred_response, reply, truncate_to, ui};
+use super::{compact_market_id, confirmation, expand_market_id, read_navigation, truncate_to, ui};
 use crate::{
-    audit::QueryKind,
-    discord::{read_query, rejected, transport::SerenityTransport},
     domain::{Actor, Market, Status},
     store::{Store, View},
     types::{GuildId, MarketId, UserId},
@@ -44,28 +42,6 @@ fn market<'a>(view: &'a View, actor: Actor, id: &MarketId) -> Result<&'a Market,
     Ok(market)
 }
 
-fn compact(id: &MarketId) -> Result<String, &'static str> {
-    let compact = id.0.replace('-', "");
-    uuid::Uuid::parse_str(&id.0).map_err(|_| "Invalid market ID.")?;
-    if compact.len() != 32 {
-        return Err("Invalid market ID.");
-    }
-    Ok(compact)
-}
-fn expand(id: &str) -> Result<MarketId, &'static str> {
-    if id.len() != 32 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err("Invalid market ID.");
-    }
-    Ok(format!(
-        "{}-{}-{}-{}-{}",
-        &id[..8],
-        &id[8..12],
-        &id[12..16],
-        &id[16..20],
-        &id[20..]
-    )
-    .into())
-}
 fn user(value: &str) -> Result<Option<UserId>, &'static str> {
     match value {
         "0" => Ok(None),
@@ -92,7 +68,7 @@ fn people(
     selected: Option<UserId>,
 ) -> Result<ui::Panel, &'static str> {
     let market = market(view, actor, id)?;
-    let compact = compact(id)?;
+    let compact = compact_market_id(&id.0)?;
     let prefix = ui::prefix(guild, actor);
     Ok(ui::Panel {
         content: "Choose a person to add as an additional resolver.".into(),
@@ -198,7 +174,11 @@ pub(in crate::discord) fn start(
             let mut panel = confirmation(view, guild, actor, id, selected)?;
             if let Some(CreateActionRow::Buttons(buttons)) = panel.components.first_mut() {
                 buttons.push(button(
-                    format!("{}:b:{}:{selected}", ui::prefix(guild, actor), compact(id)?),
+                    format!(
+                        "{}:b:{}:{selected}",
+                        ui::prefix(guild, actor),
+                        compact_market_id(&id.0)?
+                    ),
                     "Back",
                 ));
             }
@@ -236,13 +216,16 @@ fn selection(
             if selected.get() == 0 {
                 return Err("Choose a valid person.");
             }
-            Ok(Action::Market(expand(id)?, Some(UserId(selected.get()))))
+            Ok(Action::Market(
+                expand_market_id(id)?,
+                Some(UserId(selected.get())),
+            ))
         }
         (["b", id, selected], ComponentInteractionDataKind::Button) => {
-            Ok(Action::People(expand(id)?, user(selected)?))
+            Ok(Action::People(expand_market_id(id)?, user(selected)?))
         }
         (["v", id, selected], ComponentInteractionDataKind::Button) => {
-            Ok(Action::BackMarkets(expand(id)?, user(selected)?))
+            Ok(Action::BackMarkets(expand_market_id(id)?, user(selected)?))
         }
         (["p", page, selected], ComponentInteractionDataKind::Button) => Ok(Action::Page(
             page.parse().map_err(|_| INVALID)?,
@@ -288,45 +271,8 @@ pub(super) async fn handle_component(store: &Store, http: &Http, component: &Com
         &component.data.custom_id,
         &component.data.kind,
     );
-    let transport = if selection.is_ok() {
-        SerenityTransport::ComponentUpdate(component, http)
-    } else {
-        SerenityTransport::Component(component, http)
-    };
-    deferred_response(
-        &transport,
-        store.audit().as_ref(),
-        component.guild_id.map(|id| GuildId(id.get())),
-        component.id.get(),
-        || async {
-            let result = match selection {
-                Ok(action) => match read_query(
-                    store.audit().as_ref(),
-                    guild,
-                    component.id.get(),
-                    QueryKind::Component,
-                    store.view(guild),
-                    None,
-                )
-                .await
-                {
-                    Ok(view) => navigate(&view, guild, actor, action),
-                    Err(message) => return reply(&message).embeds(vec![]).components(vec![]),
-                },
-                Err(message) => Err(message),
-            };
-            match result {
-                Ok(panel) => panel.edit(),
-                Err(message) => {
-                    rejected(
-                        store.audit().as_ref(),
-                        component.guild_id.map(|id| GuildId(id.get())),
-                        component.id.get(),
-                    );
-                    reply(message).embeds(vec![]).components(vec![])
-                }
-            }
-        },
-    )
+    read_navigation(store, http, component, guild, selection, |view, action| {
+        navigate(view, guild, actor, action)
+    })
     .await;
 }

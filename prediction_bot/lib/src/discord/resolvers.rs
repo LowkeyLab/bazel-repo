@@ -1,11 +1,12 @@
 //! Resolver management UI and the external membership capability.
 pub(super) mod list;
 use super::{
-    deferred_response, reply, safe_error,
+    deferred_response, read_query, rejected, reply, safe_error,
     transport::{InteractionTransport, SerenityTransport},
     truncate_to, ui,
 };
 use crate::{
+    audit::QueryKind,
     domain::{Actor, Command, MembershipEvidence, Status},
     store::{Store, View},
     types::{GuildId, MarketId, UserId},
@@ -54,6 +55,30 @@ pub(super) fn is_control(custom_id: &str) -> bool {
     matches!(custom_id.split(':').nth(3), Some("a" | "d")) || add::is_control(custom_id)
 }
 
+// Keep UUID spelling intact: parsing and reformatting a UUID would lowercase historical IDs.
+fn compact_market_id(id: &str) -> Result<String, &'static str> {
+    if id.len() != 36 {
+        return Err("Invalid market ID.");
+    }
+    uuid::Uuid::parse_str(id).map_err(|_| "Invalid market ID.")?;
+    Ok(id.replace('-', ""))
+}
+
+fn expand_market_id(id: &str) -> Result<MarketId, &'static str> {
+    if id.len() != 32 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("Invalid market ID.");
+    }
+    Ok(format!(
+        "{}-{}-{}-{}-{}",
+        &id[..8],
+        &id[8..12],
+        &id[12..16],
+        &id[16..20],
+        &id[20..]
+    )
+    .into())
+}
+
 pub(super) fn confirmation(
     view: &View,
     guild: GuildId,
@@ -75,8 +100,7 @@ pub(super) fn confirmation(
     if user.0 == 0 {
         return Err("Choose a valid person.");
     }
-    uuid::Uuid::parse_str(&id.0).map_err(|_| "Invalid market ID.")?;
-    let compact = id.0.replace('-', "");
+    let compact = compact_market_id(&id.0)?;
     let control = format!("{}:a:{compact}:{user}", ui::prefix(guild, actor));
     Ok(ui::Panel {
         content: format!(
@@ -104,19 +128,7 @@ pub(super) fn parse(
     let (["a", id, user], ComponentInteractionDataKind::Button) = (parts.as_slice(), kind) else {
         return Err("Invalid resolver confirmation. Run /market resolver add again.");
     };
-    if id.len() != 32 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Invalid market ID.");
-    }
-    // Preserve the exact stored UUID spelling, including historical uppercase IDs.
-    let id = format!(
-        "{}-{}-{}-{}-{}",
-        &id[..8],
-        &id[8..12],
-        &id[12..16],
-        &id[16..20],
-        &id[20..]
-    )
-    .into();
+    let id = expand_market_id(id)?;
     let user_id = user
         .parse::<UserId>()
         .ok()
@@ -222,6 +234,57 @@ pub(super) async fn handle_component(store: &Store, http: &Http, component: &Com
                         component.id.get(),
                     );
                     reply(message)
+                }
+            }
+        },
+    )
+    .await;
+}
+
+async fn read_navigation<A>(
+    store: &Store,
+    http: &Http,
+    component: &ComponentInteraction,
+    guild: GuildId,
+    action: Result<A, &'static str>,
+    render: impl FnOnce(&View, A) -> Result<ui::Panel, &'static str>,
+) {
+    let transport = if action.is_ok() {
+        SerenityTransport::ComponentUpdate(component, http)
+    } else {
+        SerenityTransport::Component(component, http)
+    };
+    deferred_response(
+        &transport,
+        store.audit().as_ref(),
+        component.guild_id.map(|id| GuildId(id.get())),
+        component.id.get(),
+        || async {
+            let result = match action {
+                Ok(action) => match read_query(
+                    store.audit().as_ref(),
+                    guild,
+                    component.id.get(),
+                    QueryKind::Component,
+                    store.view(guild),
+                    None,
+                )
+                .await
+                {
+                    Ok(view) => render(&view, action),
+                    Err(message) => return reply(&message).embeds(vec![]).components(vec![]),
+                },
+                Err(message) => Err(message),
+            };
+            match result {
+                Ok(panel) => panel.edit(),
+                Err(message) => {
+                    rejected(
+                        store.audit().as_ref(),
+                        component.guild_id.map(|id| GuildId(id.get())),
+                        component.id.get(),
+                    );
+                    reply(message).embeds(vec![]).components(vec![])
                 }
             }
         },
