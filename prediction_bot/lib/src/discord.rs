@@ -746,7 +746,7 @@ fn market_command() -> CreateCommand {
             CreateCommandOption::new(
                 SubCommand,
                 "resolve",
-                "Settle a closed market; creator, Administrator, or Manage Guild required",
+                "Resolve after close (creator, eligible additional resolver, or moderator)",
             )
             .add_sub_option(CreateCommandOption::new(
                 Text,

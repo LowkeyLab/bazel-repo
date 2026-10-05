@@ -26,8 +26,7 @@ pub(in crate::discord) fn confirmation(
     if user.0 == 0 {
         return Err("Choose a valid person.");
     }
-    uuid::Uuid::parse_str(&id.0).map_err(|_| "Invalid market ID.")?;
-    let compact = id.0.replace('-', "");
+    let compact = super::compact_market_id(&id.0)?;
     let control = format!("{}:d:{compact}:{user}", ui::prefix(guild, actor));
     Ok(ui::Panel {
         content: format!(
@@ -52,19 +51,7 @@ pub(in crate::discord) fn parse(
     let (["d", id, user], ComponentInteractionDataKind::Button) = (parts.as_slice(), kind) else {
         return Err("Invalid resolver confirmation. Run /market resolver remove again.");
     };
-    if id.len() != 32 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Invalid market ID.");
-    }
-    // Preserve the exact stored UUID spelling, including historical uppercase IDs.
-    let id = format!(
-        "{}-{}-{}-{}-{}",
-        &id[..8],
-        &id[8..12],
-        &id[12..16],
-        &id[16..20],
-        &id[20..]
-    )
-    .into();
+    let id = super::expand_market_id(id)?;
     let user_id = user
         .parse::<UserId>()
         .ok()

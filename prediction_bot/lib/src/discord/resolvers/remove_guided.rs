@@ -18,7 +18,7 @@ pub(in crate::discord) fn options(
     for option in &input.options {
         match (option.name.as_str(), &option.value) {
             ("market", InputValue::String(id)) if market.is_none() => {
-                compact(id)?;
+                super::compact_market_id(id)?;
                 market = Some(id.clone().into());
             }
             ("user", InputValue::User(id)) if user.is_none() && id.0 != 0 => user = Some(*id),
@@ -54,28 +54,6 @@ pub(in crate::discord) fn is_control(id: &str) -> bool {
         id.split(':').nth(3),
         Some("rm" | "rp" | "ru" | "rq" | "r" | "s")
     )
-}
-
-fn compact(id: &str) -> Result<String, &'static str> {
-    if id.len() != 36 || uuid::Uuid::parse_str(id).is_err() {
-        return Err("Invalid market ID.");
-    }
-    Ok(id.replace('-', ""))
-}
-
-fn expanded(id: &str) -> Result<MarketId, &'static str> {
-    if id.len() != 32 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Invalid market ID.");
-    }
-    Ok(format!(
-        "{}-{}-{}-{}-{}",
-        &id[..8],
-        &id[8..12],
-        &id[12..16],
-        &id[16..20],
-        &id[20..]
-    )
-    .into())
 }
 
 fn user(value: &str) -> Result<UserId, &'static str> {
@@ -115,25 +93,25 @@ pub(in crate::discord) fn parse(
         (["s", id, target], ComponentInteractionDataKind::Button) => Ok(Action::Markets {
             page: 0,
             user: optional_user(target)?,
-            selected: Some(expanded(id)?),
+            selected: Some(super::expand_market_id(id)?),
         }),
         (["rm", target], ComponentInteractionDataKind::StringSelect { values }) => {
             let [id] = values.as_slice() else {
                 return Err("Choose exactly one market.");
             };
-            compact(id)?;
+            super::compact_market_id(id)?;
             Ok(Action::Market {
                 id: id.clone().into(),
                 user: optional_user(target)?,
             })
         }
         (["rq", id, index], ComponentInteractionDataKind::Button) => Ok(Action::Assignments {
-            id: expanded(id)?,
+            id: super::expand_market_id(id)?,
             page: page(index)?,
             selected: None,
         }),
         (["r", id, target], ComponentInteractionDataKind::Button) => Ok(Action::Assignments {
-            id: expanded(id)?,
+            id: super::expand_market_id(id)?,
             page: 0,
             selected: Some(user(target)?),
         }),
@@ -142,7 +120,7 @@ pub(in crate::discord) fn parse(
                 return Err("Choose exactly one assignment.");
             };
             Ok(Action::Confirmation {
-                id: expanded(id)?,
+                id: super::expand_market_id(id)?,
                 user: user(target)?,
             })
         }
@@ -253,7 +231,7 @@ fn assignments(
     if market.status != Status::Open {
         return Err("This market is completed; its resolvers cannot be changed.");
     }
-    let compact = compact(&id.0)?;
+    let compact = super::compact_market_id(&id.0)?;
     let prefix = ui::prefix(guild, actor);
     let position = selected.and_then(|user| {
         market
@@ -356,7 +334,11 @@ pub(in crate::discord) fn panel(
         | Action::Confirmation { id, user } => {
             let mut panel = remove::confirmation(view, guild, actor, id, *user)?;
             panel.components.push(CreateActionRow::Buttons(vec![button(
-                format!("{}:r:{}:{user}", ui::prefix(guild, actor), compact(&id.0)?),
+                format!(
+                    "{}:r:{}:{user}",
+                    ui::prefix(guild, actor),
+                    super::compact_market_id(&id.0)?
+                ),
                 "Back to assignments",
             )]));
             Ok(panel)
@@ -369,10 +351,6 @@ pub(in crate::discord) async fn handle_component(
     http: &serenity::http::Http,
     component: &serenity::all::ComponentInteraction,
 ) {
-    use crate::audit::QueryKind;
-    use crate::discord::{
-        deferred_response, read_query, rejected, reply, transport::SerenityTransport,
-    };
     use serenity::all::Permissions;
     let actor = Actor {
         user_id: UserId(component.user.id.get()),
@@ -394,45 +372,8 @@ pub(in crate::discord) async fn handle_component(
         &component.data.custom_id,
         &component.data.kind,
     );
-    let transport = if action.is_ok() {
-        SerenityTransport::ComponentUpdate(component, http)
-    } else {
-        SerenityTransport::Component(component, http)
-    };
-    deferred_response(
-        &transport,
-        store.audit().as_ref(),
-        component.guild_id.map(|id| GuildId(id.get())),
-        component.id.get(),
-        || async {
-            let result = match action {
-                Ok(action) => match read_query(
-                    store.audit().as_ref(),
-                    guild,
-                    component.id.get(),
-                    QueryKind::Component,
-                    store.view(guild),
-                    None,
-                )
-                .await
-                {
-                    Ok(view) => panel(&view, guild, actor, &action),
-                    Err(message) => return reply(&message).embeds(vec![]).components(vec![]),
-                },
-                Err(message) => Err(message),
-            };
-            match result {
-                Ok(panel) => panel.edit(),
-                Err(message) => {
-                    rejected(
-                        store.audit().as_ref(),
-                        component.guild_id.map(|id| GuildId(id.get())),
-                        component.id.get(),
-                    );
-                    reply(message).embeds(vec![]).components(vec![])
-                }
-            }
-        },
-    )
+    super::read_navigation(store, http, component, guild, action, |view, action| {
+        panel(view, guild, actor, &action)
+    })
     .await;
 }
