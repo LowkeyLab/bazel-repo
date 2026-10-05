@@ -1330,3 +1330,516 @@ async fn event_append_and_deferred_commit_failures_leave_no_partial_events_or_re
         assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(3));
     }
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn resolver_addition_recovers_before_verification_and_replays_after_restart() {
+    use prediction_bot::domain::MembershipEvidence;
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    store
+        .execute_at(guild, "discord:join1", player(1), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(guild, "discord:join2", player(2), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(guild, "discord:create", player(1), &create(id), 1000)
+        .await
+        .unwrap();
+    let command = Command::AddResolver {
+        id: id.into(),
+        user_id: UserId(2),
+    };
+    let before = store.view(guild).await.unwrap().revision;
+    let result = store
+        .execute_with_membership_at(guild, "discord:add", player(1), &command, 2100, async {
+            MembershipEvidence::Present {
+                user_id: UserId(2),
+                bot: false,
+            }
+        })
+        .await
+        .unwrap();
+    let revision = store.view(guild).await.unwrap().revision;
+    assert_that!(revision, eq(before.next().unwrap()));
+    let recovered = store
+        .execute_with_membership_at(guild, "discord:add", player(1), &command, 2200, async {
+            panic!("recovery must not verify membership")
+        })
+        .await
+        .unwrap();
+    assert_that!(recovered, eq(&result));
+    let duplicate = store
+        .execute_with_membership_at(
+            guild,
+            "discord:duplicate",
+            player(1),
+            &command,
+            2200,
+            async {
+                MembershipEvidence::Present {
+                    user_id: UserId(2),
+                    bot: false,
+                }
+            },
+        )
+        .await
+        .unwrap();
+    assert_that!(duplicate, contains_substring("already"));
+    assert_that!(store.view(guild).await.unwrap().revision, eq(revision));
+    let restarted = Store::new(
+        store.pool.clone(),
+        42.into(),
+        Policy {
+            amount: Points(100),
+            interval: 86400,
+        },
+    );
+    let replayed = restarted.view(guild).await.unwrap();
+    assert_that!(
+        replayed.state.markets[id].resolvers.contains(&UserId(2)),
+        eq(true)
+    );
+}
+
+struct ControlledMembership(Mutex<prediction_bot::domain::MembershipEvidence>);
+#[serenity::async_trait]
+impl prediction_bot::discord::resolvers::MembershipVerifier for ControlledMembership {
+    async fn verify(
+        &self,
+        guild: GuildId,
+        user: UserId,
+    ) -> prediction_bot::domain::MembershipEvidence {
+        assert_that!(guild, eq(GuildId(1)));
+        assert_that!(user, eq(UserId(2)));
+        *self.0.lock().unwrap()
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn confirmed_resolver_addition_distinguishes_rejection_failure_and_lost_response() {
+    use prediction_bot::{
+        audit::{CommandKind, FailureCategory},
+        discord::resolvers::execute_interaction,
+        domain::MembershipEvidence,
+    };
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    store
+        .execute_at(guild, "discord:1", player(1), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(guild, "discord:2", player(2), &Command::Join, 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(guild, "discord:3", player(1), &create(id), 1000)
+        .await
+        .unwrap();
+    let command = Command::AddResolver {
+        id: id.into(),
+        user_id: UserId(2),
+    };
+    store
+        .configure_announcements(
+            guild,
+            "discord:configure",
+            Actor {
+                moderator: true,
+                ..player(1)
+            },
+            ConfigurationChange::Set {
+                channel_id: ChannelId(99),
+            },
+        )
+        .await
+        .unwrap();
+    let jobs_before: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM prediction_announcement_outbox")
+            .fetch_one(&store.pool)
+            .await
+            .unwrap();
+    let revision = store.view(guild).await.unwrap().revision;
+    let transport = TestTransport::default();
+    let verifier = ControlledMembership(Mutex::new(MembershipEvidence::Unavailable));
+    recorder.0.lock().unwrap().clear();
+    for (evidence, outcome, stage, text) in [
+        (
+            MembershipEvidence::Unavailable,
+            Outcome::Failed(prediction_bot::audit::Failure {
+                category: FailureCategory::Discord,
+                sqlstate: None,
+                http_status: None,
+                discord_code: None,
+            }),
+            Stage::Validate,
+            "try again",
+        ),
+        (
+            MembershipEvidence::Absent { user_id: UserId(2) },
+            Outcome::Rejected(Rejection::NotMember),
+            Stage::Decide,
+            "no longer a server member",
+        ),
+        (
+            MembershipEvidence::Present {
+                user_id: UserId(2),
+                bot: true,
+            },
+            Outcome::Rejected(Rejection::NotHuman),
+            Stage::Decide,
+            "human",
+        ),
+    ] {
+        *verifier.0.lock().unwrap() = evidence;
+        execute_interaction(&transport, &store, &verifier, guild, player(1), &command, 4).await;
+        assert_that!(store.view(guild).await.unwrap().revision, eq(revision));
+        let receipt_count: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM prediction_commands WHERE command_key = 'discord:4'",
+        )
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+        assert_that!(receipt_count, eq(0));
+        let response =
+            serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap();
+        assert_that!(
+            response["content"].as_str().unwrap(),
+            contains_substring(text)
+        );
+        let events = recorder.0.lock().unwrap();
+        let completed: Vec<_> = events
+            .iter()
+            .filter(|event| matches!(event, AuditEvent::CommandCompleted { .. }))
+            .collect();
+        assert_that!(
+            *completed.last().unwrap(),
+            matches_pattern!(AuditEvent::CommandCompleted {
+                guild: eq(&guild),
+                key: some(eq("discord:4")),
+                command: eq(&CommandKind::AddResolver),
+                outcome: eq(&outcome),
+                stage: eq(&stage),
+                ..
+            })
+        );
+    }
+    *verifier.0.lock().unwrap() = MembershipEvidence::Present {
+        user_id: UserId(2),
+        bot: false,
+    };
+    execute_interaction(&transport, &store, &verifier, guild, player(1), &command, 4).await;
+    let original = serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap();
+    assert_that!(
+        original["content"].as_str().unwrap(),
+        contains_substring("Added")
+    );
+    assert_that!(
+        store.view(guild).await.unwrap().state.markets[id]
+            .resolvers
+            .contains(&UserId(2)),
+        eq(true)
+    );
+    *verifier.0.lock().unwrap() = MembershipEvidence::Unavailable;
+    execute_interaction(&transport, &store, &verifier, guild, player(1), &command, 4).await;
+    assert_that!(
+        serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap(),
+        eq(&original)
+    );
+    assert_that!(
+        store.view(guild).await.unwrap().revision,
+        eq(revision.next().unwrap())
+    );
+    let jobs: i64 = sqlx::query_scalar("SELECT count(*) FROM prediction_announcement_outbox")
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+    assert_that!(jobs, eq(jobs_before));
+    let events = recorder.0.lock().unwrap();
+    assert_that!(
+        events
+            .iter()
+            .filter(|e| matches!(
+                e,
+                AuditEvent::CommandCompleted {
+                    outcome: Outcome::Succeeded,
+                    ..
+                }
+            ))
+            .count(),
+        eq(2)
+    );
+    assert_that!(
+        events.iter().any(|e| matches!(
+            e,
+            AuditEvent::InteractionCompleted {
+                stage: Stage::Deliver,
+                outcome: Outcome::Failed(_),
+                ..
+            }
+        )),
+        eq(true)
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn resolver_concurrency_rollback_isolation_and_terminal_receipt_recovery() {
+    use prediction_bot::domain::MembershipEvidence;
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    for user in 1..=3 {
+        store
+            .execute_at(
+                guild,
+                &format!("discord:join{user}"),
+                player(user),
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(guild, "discord:create", player(1), &create(id), 1000)
+        .await
+        .unwrap();
+    let add = Command::AddResolver {
+        id: id.into(),
+        user_id: UserId(2),
+    };
+    let add3 = Command::AddResolver {
+        id: id.into(),
+        user_id: UserId(3),
+    };
+    let present = || async {
+        MembershipEvidence::Present {
+            user_id: UserId(2),
+            bot: false,
+        }
+    };
+    let manager = Actor {
+        moderator: true,
+        ..player(3)
+    };
+    let before = store.view(guild).await.unwrap().revision;
+    sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_resolver CHECK (command_key <> 'discord:rollback')").execute(&store.pool).await.unwrap();
+    assert_that!(
+        store
+            .execute_with_membership_at(guild, "discord:rollback", manager, &add, 1001, present())
+            .await,
+        err(anything())
+    );
+    assert_that!(store.view(guild).await.unwrap().revision, eq(before));
+    assert_that!(
+        store.view(guild).await.unwrap().state.markets[id].resolvers,
+        is_empty()
+    );
+    sqlx::query("ALTER TABLE prediction_commands DROP CONSTRAINT reject_resolver")
+        .execute(&store.pool)
+        .await
+        .unwrap();
+    let (first, duplicate, distinct) = tokio::join!(
+        store.execute_with_membership_at(guild, "discord:add", manager, &add, 1001, present()),
+        store.execute_with_membership_at(
+            guild,
+            "discord:duplicate",
+            manager,
+            &add,
+            1001,
+            present()
+        ),
+        store.execute_with_membership_at(guild, "discord:distinct", manager, &add3, 1001, async {
+            MembershipEvidence::Present {
+                user_id: UserId(3),
+                bot: false,
+            }
+        }),
+    );
+    let original = first.unwrap();
+    duplicate.unwrap();
+    distinct.unwrap();
+    let current = store.view(guild).await.unwrap();
+    assert_that!(current.revision.0, eq(before.0 + 2));
+    assert_that!(
+        current.state.markets[id]
+            .resolvers
+            .iter()
+            .copied()
+            .collect::<Vec<_>>(),
+        elements_are![eq(&UserId(2)), eq(&UserId(3))]
+    );
+    let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM prediction_commands WHERE command_key IN ('discord:add','discord:duplicate','discord:distinct')").fetch_one(&store.pool).await.unwrap();
+    assert_that!(receipts, eq(3));
+    assert_that!(
+        store
+            .execute_with_membership_at(guild, "discord:add", player(1), &add, 1002, async {
+                panic!("cross actor receipt may not verify")
+            })
+            .await,
+        err(anything())
+    );
+    assert_that!(
+        store
+            .execute_with_membership_at(GuildId(2), "discord:add", manager, &add, 1002, present())
+            .await,
+        err(anything())
+    );
+    assert_that!(
+        store
+            .execute_with_membership_at(guild, "discord:fresh", player(3), &add, 1002, present())
+            .await,
+        err(anything())
+    );
+    assert_that!(
+        store
+            .execute_with_membership_at(guild, "discord:absent", manager, &add, 1002, async {
+                MembershipEvidence::Absent { user_id: UserId(2) }
+            })
+            .await,
+        err(anything())
+    );
+    store
+        .execute_at(
+            guild,
+            "discord:cancel",
+            manager,
+            &Command::Cancel { id: id.into() },
+            1003,
+        )
+        .await
+        .unwrap();
+    let final_revision = store.view(guild).await.unwrap().revision;
+    assert_that!(
+        store
+            .execute_with_membership_at(guild, "discord:terminal", manager, &add, 1004, present())
+            .await,
+        err(anything())
+    );
+    let recovered = store
+        .execute_with_membership_at(guild, "discord:add", player(3), &add, 1004, async {
+            panic!("committed response precedes permission, terminality, and membership")
+        })
+        .await
+        .unwrap();
+    assert_that!(recovered, eq(&original));
+    assert_that!(
+        store.view(guild).await.unwrap().revision,
+        eq(final_revision)
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn resolver_cloud_event_contract_rejects_corrupt_metadata_and_payloads() {
+    use prediction_bot::domain::MembershipEvidence;
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    for user in [1, 2] {
+        store
+            .execute_at(
+                guild,
+                &format!("discord:join{user}"),
+                player(user),
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(guild, "discord:create", player(1), &create(id), 1000)
+        .await
+        .unwrap();
+    store
+        .execute_with_membership_at(
+            guild,
+            "discord:add",
+            player(1),
+            &Command::AddResolver {
+                id: id.into(),
+                user_id: UserId(2),
+            },
+            1001,
+            async {
+                MembershipEvidence::Present {
+                    user_id: UserId(2),
+                    bot: false,
+                }
+            },
+        )
+        .await
+        .unwrap();
+    let original: serde_json::Value =
+        sqlx::query_scalar("SELECT event FROM prediction_events WHERE command_key='discord:add'")
+            .fetch_one(&store.pool)
+            .await
+            .unwrap();
+    assert_that!(
+        original["type"].as_str().unwrap(),
+        eq("io.lowkeylab.predictionbot.market.resolver.added.v1")
+    );
+    assert_that!(
+        original["dataschema"].as_str().unwrap(),
+        eq("urn:lowkeylab:prediction-bot:schema:market-resolver-added:v1")
+    );
+    assert_that!(
+        original["subject"].as_str().unwrap(),
+        eq("markets/78e82954-4c67-4e0d-8c80-8ab95a527ae5")
+    );
+    assert_that!(
+        original["data"],
+        eq(
+            &serde_json::json!({"kind":"market_resolver_added", "id":id, "user_id":"2", "added_by":"1", "added_at":1001})
+        )
+    );
+    for (pointer, bad) in [
+        (
+            "/type",
+            serde_json::json!("io.lowkeylab.predictionbot.market.resolver.added.v2"),
+        ),
+        ("/dataschema", serde_json::json!("urn:unsupported")),
+        ("/subject", serde_json::json!("markets/another")),
+        ("/time", serde_json::json!("1970-01-01T00:16:42Z")),
+        ("/data/added_by", serde_json::json!("3")),
+        ("/data/added_at", serde_json::json!(1002)),
+        ("/data/user_id", serde_json::json!(2)),
+        ("/data/user_id", serde_json::json!("0")),
+        ("/data/user_id", serde_json::json!("02")),
+        ("/data/id", serde_json::json!("missing")),
+    ] {
+        let mut corrupt = original.clone();
+        *corrupt.pointer_mut(pointer).unwrap() = bad;
+        sqlx::query("UPDATE prediction_events SET event=$1 WHERE command_key='discord:add'")
+            .bind(corrupt)
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        assert_that!(
+            store.view(guild).await,
+            err(anything()),
+            "corrupt {pointer}"
+        );
+        sqlx::query("UPDATE prediction_events SET event=$1 WHERE command_key='discord:add'")
+            .bind(&original)
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        assert_that!(
+            store.view(guild).await.unwrap().state.markets[id]
+                .resolvers
+                .contains(&UserId(2)),
+            eq(true)
+        );
+    }
+}

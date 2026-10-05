@@ -300,6 +300,7 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
                 amount: Points(25),
             }],
             total_staked: Points(25),
+            resolvers: Default::default(),
         },
     );
     let view = View {
@@ -416,6 +417,7 @@ fn list_keeps_ten_ids_when_questions_use_long_emoji_text() {
                 status: Status::Open,
                 bets: vec![],
                 total_staked: Points(0),
+                resolvers: Default::default(),
             },
         );
     }
@@ -570,6 +572,7 @@ fn ui_view() -> crate::store::View {
             status: Status::Open,
             bets: vec![],
             total_staked: Points(0),
+            resolvers: Default::default(),
         },
     );
     crate::store::View {
@@ -2265,6 +2268,7 @@ fn market_cards_show_stake_weighted_percentages() {
             created_at: 1000,
             status: Status::Open,
             total_staked: Points(stakes.iter().map(|(_, amount)| amount).sum()),
+            resolvers: Default::default(),
             bets: stakes
                 .into_iter()
                 .map(|(outcome, amount)| Bet {
@@ -2401,4 +2405,174 @@ fn unavailable_market_cards_do_not_advertise_betting() {
             not(contains_substring("/market bet"))
         );
     }
+}
+
+#[googletest::test]
+fn supplied_resolver_arguments_only_open_confirmation() {
+    let request = input(
+        "resolver.add",
+        vec![
+            text("market", "78e82954-4c67-4e0d-8c80-8ab95a527ae5"),
+            InputOption {
+                name: "user".into(),
+                value: InputValue::User(UserId(30)),
+            },
+        ],
+    );
+    let (_, _, action) = parse(&request).unwrap();
+    assert_that!(
+        action,
+        matches_pattern!(Action::ResolverAdd {
+            user_id: eq(&UserId(30)),
+            ..
+        })
+    );
+}
+
+#[googletest::test]
+fn resolver_confirmation_binds_market_target_guild_actor_and_button() {
+    use crate::domain::{Actor, Market, State, Status};
+    use crate::store::View;
+    use serenity::all::ComponentInteractionDataKind;
+    let guild = GuildId(u64::MAX);
+    let actor = Actor {
+        user_id: UserId(u64::MAX),
+        moderator: false,
+        bot: false,
+    };
+    let id: crate::types::MarketId = "78E82954-4C67-4E0D-8C80-8AB95A527AE5".into();
+    let mut view = View {
+        revision: EventRevision(1),
+        state: State::default(),
+    };
+    view.state.markets.insert(
+        id.clone(),
+        Market {
+            creator: actor.user_id,
+            question: "Who wins?".into(),
+            options: vec!["A".into(), "B".into()],
+            closes_at: 2_000,
+            created_at: 1_000,
+            status: Status::Open,
+            bets: vec![],
+            total_staked: Points(0),
+            resolvers: Default::default(),
+        },
+    );
+    let panel = super::resolvers::confirmation(&view, guild, actor, &id, UserId(u64::MAX)).unwrap();
+    let wire = serde_json::to_value(panel.message()).unwrap();
+    assert_that!(wire["flags"].as_u64().unwrap() & 64, eq(64));
+    assert_that!(
+        wire["content"].as_str().unwrap(),
+        contains_substring("Add <@18446744073709551615>")
+    );
+    let control = wire["components"][0]["components"][0]["custom_id"]
+        .as_str()
+        .unwrap();
+    assert_that!(control.len(), le(100));
+    assert_that!(
+        super::resolvers::parse(guild, actor, control, &ComponentInteractionDataKind::Button)
+            .unwrap(),
+        eq(&Command::AddResolver {
+            id,
+            user_id: UserId(u64::MAX)
+        })
+    );
+    assert_that!(
+        super::resolvers::parse(
+            GuildId(1),
+            actor,
+            control,
+            &ComponentInteractionDataKind::Button
+        ),
+        err(anything())
+    );
+    assert_that!(
+        super::resolvers::parse(
+            guild,
+            Actor {
+                user_id: UserId(1),
+                ..actor
+            },
+            control,
+            &ComponentInteractionDataKind::Button
+        ),
+        err(anything())
+    );
+    assert_that!(
+        super::resolvers::parse(
+            guild,
+            actor,
+            control,
+            &ComponentInteractionDataKind::StringSelect {
+                values: vec!["injected".into()]
+            }
+        ),
+        err(anything())
+    );
+    assert_that!(
+        view.state.markets.values().next().unwrap().resolvers,
+        is_empty()
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn membership_http_adapter_distinguishes_absence_from_unavailable() {
+    use super::resolvers::MembershipVerifier;
+    use crate::domain::MembershipEvidence;
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    for (status, code, expected) in [
+        (
+            404,
+            10007,
+            MembershipEvidence::Absent { user_id: UserId(2) },
+        ),
+        (404, 10004, MembershipEvidence::Unavailable),
+        (403, 50001, MembershipEvidence::Unavailable),
+    ] {
+        server.reset().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v10/guilds/1/members/2"))
+            .respond_with(
+                ResponseTemplate::new(status)
+                    .set_body_json(serde_json::json!({"code": code, "message": "test"})),
+            )
+            .mount(&server)
+            .await;
+        assert_that!(http.verify(GuildId(1), UserId(2)).await, eq(expected));
+    }
+}
+
+#[googletest::test]
+fn real_resolver_slash_payload_and_registered_user_option_open_confirmation() {
+    let data = serde_json::json!({"id":"42","name":"market","type":1,"options":[{"name":"resolver","type":2,"options":[{"name":"add","type":1,"options":[{"name":"market","type":3,"value":"78e82954-4c67-4e0d-8c80-8ab95a527ae5"},{"name":"user","type":6,"value":"2"}]}]}]});
+    let command: serenity::all::CommandInteraction =
+        serde_json::from_value(interaction_json(123, data)).unwrap();
+    let input = super::from_discord(&command).unwrap();
+    let (_, actor, action) = parse(&input).unwrap();
+    assert_that!(actor.user_id, eq(UserId(7)));
+    assert_that!(
+        action,
+        matches_pattern!(Action::ResolverAdd {
+            user_id: eq(&UserId(2)),
+            ..
+        })
+    );
+    let registered = serde_json::to_value(super::market_command()).unwrap();
+    let resolver = registered["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "resolver")
+        .unwrap();
+    assert_that!(resolver["type"].as_u64(), eq(Some(2)));
+    let user = resolver["options"][0]["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "user")
+        .unwrap();
+    assert_that!(user["type"].as_u64(), eq(Some(6)));
 }

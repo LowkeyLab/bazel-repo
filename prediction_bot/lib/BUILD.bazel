@@ -24,6 +24,7 @@ rust_library(
         "src/discord/bet/tests.rs",
         "src/discord/resolve.rs",
         "src/discord/resolve_tests.rs",
+        "src/discord/resolvers.rs",
         "src/discord/transport.rs",
         "src/discord_tests.rs",
         "src/discord_ui.rs",

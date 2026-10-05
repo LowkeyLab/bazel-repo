@@ -30,5 +30,9 @@
   "io.lowkeylab.predictionbot.announcements.enabled.v1": {
     "dataschema": "urn:lowkeylab:prediction-bot:schema:announcements-enabled:v1",
     "file": "announcements-enabled-v1.json"
+  },
+  "io.lowkeylab.predictionbot.market.resolver.added.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:market-resolver-added:v1",
+    "file": "market-resolver-added-v1.json"
   }
 }

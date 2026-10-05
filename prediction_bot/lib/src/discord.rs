@@ -35,6 +35,7 @@ use uuid::Uuid;
 mod announcements;
 mod bet;
 mod resolve;
+pub mod resolvers;
 pub mod transport;
 #[path = "discord_ui.rs"]
 mod ui;
@@ -63,12 +64,14 @@ pub(crate) enum InputValue {
     String(String),
     Integer(i64),
     Channel(ChannelId),
+    User(UserId),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
     Write(Command),
     CreateForm,
     ResolveForm,
+    ResolverAdd { id: MarketId, user_id: UserId },
     BetForm,
     Help,
     Balance,
@@ -97,7 +100,7 @@ fn text<'a>(input: &'a Input, field: &str) -> Result<&'a str, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match &o.value {
             InputValue::String(s) => Some(s.as_str()),
-            InputValue::Integer(_) | InputValue::Channel(_) => None,
+            InputValue::Integer(_) | InputValue::Channel(_) | InputValue::User(_) => None,
         })
         .ok_or("Enter a text value.")
 }
@@ -108,7 +111,7 @@ fn integer(input: &Input, field: &str) -> Result<i64, &'static str> {
         .find(|o| o.name == field)
         .and_then(|o| match o.value {
             InputValue::Integer(i) => Some(i),
-            InputValue::String(_) | InputValue::Channel(_) => None,
+            InputValue::String(_) | InputValue::Channel(_) | InputValue::User(_) => None,
         })
         .ok_or("Enter a whole number.")
 }
@@ -119,7 +122,10 @@ fn channel_id(input: &Input, field: &str) -> Result<ChannelId, &'static str> {
         .find(|option| option.name == field)
         .and_then(|option| match option.value {
             InputValue::Channel(id) if id.0 != 0 => Some(id),
-            InputValue::Channel(_) | InputValue::String(_) | InputValue::Integer(_) => None,
+            InputValue::Channel(_)
+            | InputValue::String(_)
+            | InputValue::Integer(_)
+            | InputValue::User(_) => None,
         })
         .ok_or("Choose a server text channel.")
 }
@@ -167,6 +173,19 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
         bot: input.bot,
     };
     let action = match input.subcommand.as_str() {
+        "resolver.add" => {
+            exact(input, &["market", "user"])?;
+            let id = text(input, "market")?.to_owned().into();
+            let user_id = input
+                .options
+                .iter()
+                .find_map(|option| match (&*option.name, &option.value) {
+                    ("user", InputValue::User(user)) if user.0 != 0 => Some(*user),
+                    _ => None,
+                })
+                .ok_or("Choose a valid person.")?;
+            Action::ResolverAdd { id, user_id }
+        }
         "help" => {
             exact(input, &[])?;
             Action::Help
@@ -288,16 +307,20 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
     let (subcommand, fields) = match &root.value {
         CommandDataOptionValue::SubCommand(fields) => (root.name.clone(), fields),
         CommandDataOptionValue::SubCommandGroup(commands)
-            if root.name == "announcements" && commands.len() == 1 =>
+            if matches!(root.name.as_str(), "announcements" | "resolver")
+                && commands.len() == 1 =>
         {
             let command = &commands[0];
-            if !matches!(command.name.as_str(), "set" | "status" | "disable") {
+            if !(root.name == "announcements"
+                && matches!(command.name.as_str(), "set" | "status" | "disable")
+                || root.name == "resolver" && command.name == "add")
+            {
                 return Err("Invalid market command.");
             }
             let CommandDataOptionValue::SubCommand(fields) = &command.value else {
                 return Err("Invalid market command.");
             };
-            (format!("announcements.{}", command.name), fields)
+            (format!("{}.{}", root.name, command.name), fields)
         }
         _ => return Err("Invalid market command."),
     };
@@ -307,6 +330,7 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
             let value = match &field.value {
                 CommandDataOptionValue::String(s) => InputValue::String(s.clone()),
                 CommandDataOptionValue::Integer(i) => InputValue::Integer(*i),
+                CommandDataOptionValue::User(id) => InputValue::User(UserId(id.get())),
                 CommandDataOptionValue::Channel(id) => InputValue::Channel(ChannelId(id.get())),
                 _ => return Err("Invalid command options."),
             };
@@ -441,6 +465,9 @@ fn safe_error(error: &StoreError) -> String {
         StoreError::Domain(DomainError::Invalid(reason)) => {
             format!("Cannot complete command: {reason}.")
         }
+        StoreError::MembershipUnavailable => {
+            "I could not verify server membership. Please try again.".to_owned()
+        }
         StoreError::Domain(DomainError::Overflow) => {
             "Cannot complete command: point total is too large.".to_owned()
         }
@@ -501,7 +528,8 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::ResolveForm => "Choose a closed market to resolve.".to_owned(),
         Action::BetForm => "Choose an open market to bet on.".to_owned(),
-        Action::Write(_)
+        Action::ResolverAdd { .. }
+        | Action::Write(_)
         | Action::AnnouncementsSet { .. }
         | Action::AnnouncementsStatus
         | Action::AnnouncementsDisable => "Invalid query.".to_owned(),
@@ -556,6 +584,22 @@ fn market_command() -> CreateCommand {
         |kind, name, description| CreateCommandOption::new(kind, name, description).required(true);
     CreateCommand::new("market")
         .description("Play-point prediction markets in this server")
+        .add_option(
+            CreateCommandOption::new(
+                SubCommandGroup,
+                "resolver",
+                "Manage additional market resolvers",
+            )
+            .add_sub_option(
+                CreateCommandOption::new(SubCommand, "add", "Add an additional resolver")
+                    .add_sub_option(required(Text, "market", "Market ID"))
+                    .add_sub_option(required(
+                        CommandOptionType::User,
+                        "user",
+                        "Person to assign",
+                    )),
+            ),
+        )
         .add_option(CreateCommandOption::new(
             SubCommand,
             "help",
@@ -870,6 +914,26 @@ impl Handler {
                     Ok((guild, actor, Action::Write(request))) => {
                         execute_request(&self.store, guild, actor, &request, command.id.get()).await
                     }
+                    Ok((guild, actor, Action::ResolverAdd { id, user_id })) => {
+                        match read_query(
+                            self.store.audit().as_ref(),
+                            guild,
+                            command.id.get(),
+                            QueryKind::Component,
+                            self.store.view(guild),
+                            None,
+                        )
+                        .await
+                        {
+                            Ok(view) => {
+                                match resolvers::confirmation(&view, guild, actor, &id, user_id) {
+                                    Ok(panel) => panel.edit(),
+                                    Err(message) => reply(message),
+                                }
+                            }
+                            Err(message) => reply(&message),
+                        }
+                    }
                     Ok((guild, actor, Action::AnnouncementsSet { channel_id })) => {
                         let key = format!("discord:{}", command.id.get());
                         match self
@@ -980,6 +1044,10 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if resolvers::is_control(&component.data.custom_id) {
+            resolvers::handle_component(&self.store, http, &component).await;
+            return;
+        }
         if bet::is_control(&component.data.custom_id) {
             self.handle_bet_component(http, &component).await;
             return;

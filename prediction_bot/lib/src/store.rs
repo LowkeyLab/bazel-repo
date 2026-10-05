@@ -18,13 +18,17 @@ use crate::audit::{
     AuditEvent, CommandKind, Outcome, SharedAudit, Stage, canonical_command_key, logging_listener,
     store_outcome,
 };
-use crate::domain::{self, Actor, Command, DomainError, Event, GrantReason, Policy, State};
+use crate::domain::{
+    self, Actor, Command, DomainError, Event, GrantReason, MembershipEvidence, Policy, State,
+};
 use crate::events::{CloudEvent, Context, EventError};
 use crate::odds::OutcomeOdds;
 use crate::types::{ApplicationId, EventRevision, GuildId, UserId};
 
 #[derive(Debug, Error)]
 pub enum StoreError {
+    #[error("membership could not be verified; please try again")]
+    MembershipUnavailable,
     #[error("database operation failed")]
     Database(#[from] sqlx::Error),
     #[error("database migration failed")]
@@ -248,8 +252,10 @@ impl Store {
         command: &Command,
         verification: impl Future<Output = Result<(), StoreError>>,
     ) -> Result<String, StoreError> {
-        self.execute_inner(guild, key, actor, command, None, verification)
-            .await
+        self.execute_inner(guild, key, actor, command, None, async {
+            verification.await.map(|()| None)
+        })
+        .await
     }
 
     /// Deterministic application-time variant of [`Self::execute_with_verification`].
@@ -266,8 +272,49 @@ impl Store {
         now: i64,
         verification: impl Future<Output = Result<(), StoreError>>,
     ) -> Result<String, StoreError> {
-        self.execute_inner(guild, key, actor, command, Some(now), verification)
-            .await
+        self.execute_inner(guild, key, actor, command, Some(now), async {
+            verification.await.map(|()| None)
+        })
+        .await
+    }
+
+    /// Execute with fresh trusted membership evidence after receipt recovery.
+    /// The capability must verify this guild and the command target, not a cached prompt selection.
+    ///
+    /// # Errors
+    /// Returns command, verification, history, or database errors.
+    pub async fn execute_with_membership(
+        &self,
+        guild: GuildId,
+        key: &str,
+        actor: Actor,
+        command: &Command,
+        verification: impl Future<Output = MembershipEvidence>,
+    ) -> Result<String, StoreError> {
+        self.execute_inner(guild, key, actor, command, None, async {
+            Ok(Some(verification.await))
+        })
+        .await
+    }
+
+    /// Deterministic application-time variant of membership execution.
+    ///
+    /// # Errors
+    /// Returns the same errors as [`Self::execute_with_membership`].
+    #[allow(clippy::too_many_arguments)]
+    pub async fn execute_with_membership_at(
+        &self,
+        guild: GuildId,
+        key: &str,
+        actor: Actor,
+        command: &Command,
+        now: i64,
+        verification: impl Future<Output = MembershipEvidence>,
+    ) -> Result<String, StoreError> {
+        self.execute_inner(guild, key, actor, command, Some(now), async {
+            Ok(Some(verification.await))
+        })
+        .await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -278,7 +325,7 @@ impl Store {
         actor: Actor,
         command: &Command,
         now: Option<i64>,
-        verification: impl Future<Output = Result<(), StoreError>>,
+        verification: impl Future<Output = Result<Option<MembershipEvidence>, StoreError>>,
     ) -> Result<String, StoreError> {
         let started = Instant::now();
         let audit_key = canonical_command_key(key);
@@ -319,11 +366,21 @@ impl Store {
                     stage: Stage::Refresh,
                 });
             }
-            let mut verification_error = verification.await.err();
+            let verification = verification.await;
+            let membership = verification.as_ref().ok().copied().flatten();
+            let mut verification_error = verification.err();
             let mut attempt = 0;
             loop {
                 let result = self
-                    .transact(guild, key, actor, command, now, &mut verification_error)
+                    .transact(
+                        guild,
+                        key,
+                        actor,
+                        command,
+                        now,
+                        membership,
+                        &mut verification_error,
+                    )
                     .await;
                 if let Err(TransactionFailure {
                     error: StoreError::Database(sqlx::Error::Database(error)),
@@ -357,6 +414,31 @@ impl Store {
             .map_err(|failure| failure.error)
     }
 
+    fn decide(
+        &self,
+        state: &State,
+        actor: Actor,
+        command: &Command,
+        accepted_at: i64,
+        membership: Option<MembershipEvidence>,
+    ) -> Result<domain::Decision, TransactionFailure> {
+        let decision = domain::decide_with_membership(
+            state,
+            actor,
+            command,
+            accepted_at,
+            self.defaults,
+            membership,
+        );
+        if matches!(&decision, Err(DomainError::MembershipRequired)) {
+            return Err(TransactionFailure {
+                stage: Stage::Validate,
+                error: StoreError::MembershipUnavailable,
+            });
+        }
+        at_stage(Stage::Decide, decision)
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn transact(
         &self,
@@ -365,6 +447,7 @@ impl Store {
         actor: Actor,
         command: &Command,
         time: Option<i64>,
+        membership: Option<MembershipEvidence>,
         verification_error: &mut Option<StoreError>,
     ) -> Result<TransactionSuccess, TransactionFailure> {
         let mut tx = at_stage(Stage::Acquire, self.pool.begin().await)?;
@@ -390,10 +473,7 @@ impl Store {
         let mut view = at_stage(Stage::Replay, self.load(&mut tx, guild).await)?;
         // Capture production time only after acquiring the guild lock.
         let accepted_at = time.unwrap_or_else(|| chrono::Utc::now().timestamp());
-        let decision = at_stage(
-            Stage::Decide,
-            domain::decide(&view.state, actor, command, accepted_at, self.defaults),
-        )?;
+        let decision = self.decide(&view.state, actor, command, accepted_at, membership)?;
         // A clock rollback can make a discovered grant premature. Keep its key
         // retryable until a grant actually advances the schedule.
         if matches!(command, Command::Grant { .. }) && decision.events.is_empty() {
@@ -699,6 +779,7 @@ fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> 
         } => UserId(0),
         Event::MarketCreated { creator, .. } => *creator,
         Event::MarketResolved { resolver, .. } => *resolver,
+        Event::MarketResolverAdded { added_by, .. } => *added_by,
         Event::AnnouncementsEnabled { moderator, .. }
         | Event::MarketCancelled { moderator, .. } => *moderator,
     };
@@ -719,6 +800,7 @@ fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError
             accepted_at: time, ..
         } => *time == accepted_at,
         Event::MarketResolved { settled_at, .. } => *settled_at == accepted_at,
+        Event::MarketResolverAdded { added_at, .. } => *added_at == accepted_at,
         Event::MarketCancelled { cancelled_at, .. } => *cancelled_at == accepted_at,
     };
     if !matches {
