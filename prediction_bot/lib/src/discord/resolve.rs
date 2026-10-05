@@ -95,10 +95,13 @@ pub(super) fn parse(
     }
 }
 
-fn eligible(market: &Market, actor: Actor, now: i64) -> bool {
+fn eligible(view: &View, market: &Market, actor: Actor, now: i64) -> bool {
     !actor.bot
         && actor.user_id.0 != 0
-        && (actor.moderator || market.creator == actor.user_id)
+        && (actor.moderator
+            || market.creator == actor.user_id
+            || (market.resolvers.contains(&actor.user_id)
+                && view.state.accounts.contains_key(&actor.user_id)))
         && market.status == Status::Open
         && now >= market.closes_at
 }
@@ -114,7 +117,7 @@ pub(super) fn picker(view: &View, actor: Actor, guild: GuildId, now: i64, page: 
         .state
         .markets
         .iter()
-        .filter(|(_, market)| eligible(market, actor, now))
+        .filter(|(_, market)| eligible(view, market, actor, now))
         .collect();
     markets.sort_by(|(ida, a), (idb, b)| a.closes_at.cmp(&b.closes_at).then_with(|| ida.cmp(idb)));
     let mut panel = Panel {
@@ -181,7 +184,7 @@ pub(super) fn panel(
         .markets
         .get(id)
         .ok_or("This market no longer exists. Run /market resolve again.")?;
-    if !eligible(market, actor, now) {
+    if !eligible(view, market, actor, now) {
         return Err(
             "This market is no longer eligible for you to resolve. Run /market resolve again.",
         );
@@ -190,7 +193,7 @@ pub(super) fn panel(
         .state
         .markets
         .values()
-        .filter(|market| eligible(market, actor, now))
+        .filter(|market| eligible(view, market, actor, now))
         .count();
     let page = page.min(eligible_count.saturating_sub(1) / PAGE_SIZE);
     let prefix = ui::prefix(guild, actor);

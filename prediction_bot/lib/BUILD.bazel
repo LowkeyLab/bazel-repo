@@ -122,6 +122,7 @@ rust_test(
         "@crates//:testcontainers-modules",
         "@crates//:tokio",
         "@crates//:uuid",
+        "@crates//:wiremock",
     ],
 )
 

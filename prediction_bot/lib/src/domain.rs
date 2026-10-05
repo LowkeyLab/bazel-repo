@@ -534,7 +534,27 @@ pub fn decide_with_membership(
                 .get(id)
                 .ok_or(DomainError::Invalid("unknown market"))?;
             if !actor.moderator && actor.user_id != market.creator {
-                return Err(DomainError::Invalid("market creator or moderator required"));
+                if !market.resolvers.contains(&actor.user_id) {
+                    return Err(DomainError::Invalid("market creator or moderator required"));
+                }
+                match membership {
+                    Some(MembershipEvidence::Present { user_id, bot })
+                        if user_id == actor.user_id =>
+                    {
+                        if bot {
+                            return Err(DomainError::Invalid("resolver must be human"));
+                        }
+                    }
+                    Some(MembershipEvidence::Absent { user_id }) if user_id == actor.user_id => {
+                        return Err(DomainError::Invalid(
+                            "resolver is no longer a server member",
+                        ));
+                    }
+                    _ => return Err(DomainError::MembershipRequired),
+                }
+                if !state.accounts.contains_key(&actor.user_id) {
+                    return Err(DomainError::Invalid("resolver not enrolled"));
+                }
             }
             if market.status != Status::Open || now < market.closes_at {
                 return Err(DomainError::Invalid("market is not ready to resolve"));

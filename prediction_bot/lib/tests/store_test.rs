@@ -1843,3 +1843,615 @@ async fn resolver_cloud_event_contract_rejects_corrupt_metadata_and_payloads() {
         );
     }
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn assigned_settlement_checks_fresh_membership_and_recovers_lost_response() {
+    use prediction_bot::{discord::resolvers::execute_interaction, domain::MembershipEvidence};
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    for user in 1..=2 {
+        store
+            .execute_at(
+                guild,
+                &format!("discord:join{user}"),
+                player(user),
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(guild, "discord:create", player(1), &create(id), 1000)
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            guild,
+            "discord:bet",
+            player(2),
+            &Command::Bet {
+                id: id.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(25),
+            },
+            1500,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_with_membership_at(
+            guild,
+            "discord:add",
+            player(1),
+            &Command::AddResolver {
+                id: id.into(),
+                user_id: UserId(2),
+            },
+            1501,
+            async {
+                MembershipEvidence::Present {
+                    user_id: UserId(2),
+                    bot: false,
+                }
+            },
+        )
+        .await
+        .unwrap();
+    let before = store.view(guild).await.unwrap();
+    let command = Command::Resolve {
+        id: id.into(),
+        outcome: OutcomeIndex(0),
+    };
+    let transport = TestTransport::default();
+    let verifier = ControlledMembership(Mutex::new(MembershipEvidence::Unavailable));
+    recorder.0.lock().unwrap().clear();
+    for (evidence, text) in [
+        (MembershipEvidence::Unavailable, "try again"),
+        (
+            MembershipEvidence::Absent { user_id: UserId(2) },
+            "no longer a server member",
+        ),
+        (
+            MembershipEvidence::Present {
+                user_id: UserId(2),
+                bot: true,
+            },
+            "human",
+        ),
+    ] {
+        *verifier.0.lock().unwrap() = evidence;
+        execute_interaction(
+            &transport,
+            &store,
+            &verifier,
+            guild,
+            player(2),
+            &command,
+            1988,
+        )
+        .await;
+        assert_that!(store.view(guild).await.unwrap().state, eq(&before.state));
+        assert_that!(serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap()["content"].as_str().unwrap(), contains_substring(text));
+        let receipts: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM prediction_commands WHERE command_key='discord:1988'",
+        )
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+        assert_that!(receipts, eq(0));
+    }
+    *verifier.0.lock().unwrap() = MembershipEvidence::Present {
+        user_id: UserId(2),
+        bot: false,
+    };
+    execute_interaction(
+        &transport,
+        &store,
+        &verifier,
+        guild,
+        player(2),
+        &command,
+        1988,
+    )
+    .await;
+    let original = serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap();
+    assert_that!(original["content"], eq("Market resolved."));
+    let settled = store.view(guild).await.unwrap();
+    assert_that!(settled.revision.0, eq(before.revision.0 + 1));
+    assert_that!(settled.state.accounts[&UserId(2)].balance, eq(Points(100)));
+    for evidence in [
+        MembershipEvidence::Unavailable,
+        MembershipEvidence::Absent { user_id: UserId(2) },
+    ] {
+        *verifier.0.lock().unwrap() = evidence;
+        execute_interaction(
+            &transport,
+            &store,
+            &verifier,
+            guild,
+            player(2),
+            &command,
+            1988,
+        )
+        .await;
+        assert_that!(
+            serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap(),
+            eq(&original)
+        );
+        assert_that!(
+            store.view(guild).await.unwrap().revision,
+            eq(settled.revision)
+        );
+    }
+    let events = recorder.0.lock().unwrap();
+    let completed: Vec<_> = events
+        .iter()
+        .filter_map(|event| match event {
+            AuditEvent::CommandCompleted {
+                guild,
+                key,
+                command,
+                outcome,
+                stage,
+                ..
+            } => {
+                assert_that!(*guild, eq(GuildId(1)));
+                assert_that!(key.as_deref(), eq(Some("discord:1988")));
+                assert_that!(*command, eq(prediction_bot::audit::CommandKind::Resolve));
+                Some((*stage, outcome.clone()))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_that!(
+        completed,
+        eq(&vec![
+            (
+                Stage::Validate,
+                Outcome::Failed(prediction_bot::audit::Failure {
+                    category: prediction_bot::audit::FailureCategory::Discord,
+                    sqlstate: None,
+                    http_status: None,
+                    discord_code: None
+                })
+            ),
+            (Stage::Decide, Outcome::Rejected(Rejection::NotMember)),
+            (Stage::Decide, Outcome::Rejected(Rejection::NotHuman)),
+            (Stage::Commit, Outcome::Succeeded),
+            (Stage::Refresh, Outcome::Succeeded),
+            (Stage::Refresh, Outcome::Succeeded),
+        ])
+    );
+    assert_that!(
+        events
+            .iter()
+            .filter(|e| matches!(
+                e,
+                AuditEvent::InteractionCompleted {
+                    guild: Some(GuildId(1)),
+                    interaction_id: 1988,
+                    stage: Stage::Deliver,
+                    outcome: Outcome::Failed(_),
+                    ..
+                }
+            ))
+            .count(),
+        eq(6)
+    );
+}
+
+async fn assigned_settlement_market(store: &Store, id: &str) {
+    use prediction_bot::domain::MembershipEvidence;
+    for user in 1..=2 {
+        store
+            .execute_at(
+                GuildId(1),
+                &format!("discord:join{user}:{id}"),
+                player(user),
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(
+            GuildId(1),
+            &format!("discord:create:{id}"),
+            player(1),
+            &create(id),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            GuildId(1),
+            &format!("discord:bet:{id}"),
+            player(2),
+            &Command::Bet {
+                id: id.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(25),
+            },
+            1500,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_with_membership_at(
+            GuildId(1),
+            &format!("discord:add:{id}"),
+            player(1),
+            &Command::AddResolver {
+                id: id.into(),
+                user_id: UserId(2),
+            },
+            1501,
+            async {
+                MembershipEvidence::Present {
+                    user_id: UserId(2),
+                    bot: false,
+                }
+            },
+        )
+        .await
+        .unwrap();
+}
+
+fn settlement_interaction(id: u64, data: serde_json::Value, member: bool) -> serde_json::Value {
+    let user =
+        serde_json::json!({"id":"2", "username":"resolver", "discriminator":"0", "avatar":null});
+    let mut value = serde_json::json!({
+        "id":id.to_string(), "application_id":"42", "guild_id":"1", "channel_id":"20",
+        "token":"test-interaction-token", "version":1, "locale":"en-US", "entitlements":[],
+        "attachment_size_limit":1000, "data":data, "user":user,
+        "message":serenity::all::Message::default()
+    });
+    if member {
+        value["member"] = serde_json::json!({"user":user, "roles":[], "joined_at":"2026-01-01T00:00:00Z", "deaf":false, "mute":false, "permissions":"0", "flags":0});
+    }
+    value
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn direct_and_guided_gateway_settlement_use_current_authenticated_membership() {
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
+    let (_container, store) = fixture().await;
+    let first = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    let second = "78e82954-4c67-4e0d-8c80-8ab95a527ae6";
+    for id in [first, second] {
+        assigned_settlement_market(&store, id).await;
+    }
+    let initial_revision = store.view(GuildId(1)).await.unwrap().revision;
+    let server = MockServer::start().await;
+    let http = serenity::http::HttpBuilder::new("test-token")
+        .application_id(42.into())
+        .proxy(server.uri())
+        .ratelimiter_disabled(true)
+        .build();
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .mount(&server)
+        .await;
+    let slash = |options| serde_json::json!({"id":"1", "name":"market", "type":1, "options":[{"name":"resolve", "type":1, "options":options}]});
+    let direct = slash(
+        serde_json::json!([{"name":"id", "type":3, "value":first}, {"name":"outcome", "type":4, "value":1}]),
+    );
+    // A missing guild Member must not turn arbitrary guild/user fields into trusted evidence.
+    handle_interaction(
+        store.clone(),
+        &http,
+        UserId(99),
+        Interaction::Command(
+            serde_json::from_value(settlement_interaction(100, direct.clone(), false)).unwrap(),
+        ),
+    )
+    .await;
+    assert_that!(
+        store.view(GuildId(1)).await.unwrap().revision,
+        eq(initial_revision)
+    );
+    let last_edit = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.method.as_str() == "PATCH")
+        .last()
+        .unwrap()
+        .body_json::<serde_json::Value>()
+        .unwrap();
+    assert_that!(
+        last_edit["content"].as_str().unwrap(),
+        contains_substring("try again")
+    );
+    handle_interaction(
+        store.clone(),
+        &http,
+        UserId(99),
+        Interaction::Command(
+            serde_json::from_value(settlement_interaction(100, direct, true)).unwrap(),
+        ),
+    )
+    .await;
+    handle_interaction(
+        store.clone(),
+        &http,
+        UserId(99),
+        Interaction::Command(
+            serde_json::from_value(settlement_interaction(
+                101,
+                slash(serde_json::json!([])),
+                true,
+            ))
+            .unwrap(),
+        ),
+    )
+    .await;
+    for (interaction_id, custom_id, component_type, values) in [
+        (102, "pm:1:2:resolve:m:0".to_owned(), 3, vec![second]),
+        (103, format!("pm:1:2:resolve:o:{second}:0"), 3, vec!["0"]),
+        (104, format!("pm:1:2:resolve:c:{second}:0"), 2, vec![]),
+    ] {
+        let data = serde_json::json!({"custom_id":custom_id, "component_type":component_type, "values":values});
+        handle_interaction(
+            store.clone(),
+            &http,
+            UserId(99),
+            Interaction::Component(
+                serde_json::from_value(settlement_interaction(interaction_id, data, true)).unwrap(),
+            ),
+        )
+        .await;
+        if interaction_id < 104 {
+            assert_that!(
+                store.view(GuildId(1)).await.unwrap().revision.0,
+                eq(initial_revision.0 + 1)
+            );
+        }
+    }
+    // Redelivery recovers before fresh member evidence, even after departure.
+    let confirmation =
+        serde_json::json!({"custom_id":format!("pm:1:2:resolve:c:{second}:0"), "component_type":2});
+    handle_interaction(
+        store.clone(),
+        &http,
+        UserId(99),
+        Interaction::Component(
+            serde_json::from_value(settlement_interaction(104, confirmation, false)).unwrap(),
+        ),
+    )
+    .await;
+    let view = store.view(GuildId(1)).await.unwrap();
+    assert_that!(view.revision.0, eq(initial_revision.0 + 2));
+    assert_that!(view.state.accounts[&UserId(2)].balance, eq(Points(100)));
+    for id in [first, second] {
+        assert_that!(
+            view.state.markets[id].status,
+            eq(&prediction_bot::domain::Status::Resolved {
+                outcome: OutcomeIndex(0),
+                refunded: false
+            })
+        );
+        assert_that!(
+            view.state.markets[id].resolvers.contains(&UserId(2)),
+            eq(true)
+        );
+    }
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(
+        requests.iter().any(|r| r.method.as_str() == "GET"),
+        eq(false)
+    );
+    let edits: Vec<serde_json::Value> = requests
+        .iter()
+        .filter(|r| r.method.as_str() == "PATCH")
+        .map(|r| r.body_json().unwrap())
+        .collect();
+    assert_that!(edits[1]["content"], eq("Market resolved."));
+    assert_that!(
+        edits[2]["components"][0]["components"][0]["options"][0]["value"],
+        eq(second)
+    );
+    assert_that!(
+        edits[4]["content"].as_str().unwrap(),
+        contains_substring("Confirm resolution")
+    );
+    assert_that!(edits[5]["content"], eq("Market resolved."));
+    assert_that!(edits[6], eq(&edits[5]));
+    for edit in &edits {
+        assert_that!(
+            edit["allowed_mentions"]["parse"],
+            eq(&serde_json::json!([]))
+        );
+    }
+    let acknowledgements: Vec<serde_json::Value> = requests
+        .iter()
+        .filter(|r| r.method.as_str() == "POST")
+        .map(|r| r.body_json().unwrap())
+        .collect();
+    for acknowledgement in &acknowledgements[..3] {
+        assert_that!(acknowledgement["data"]["flags"], eq(64));
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn assigned_settlement_rolls_back_and_competing_duplicate_deliveries_pay_once() {
+    use prediction_bot::domain::{MembershipEvidence, Status};
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    assigned_settlement_market(&store, id).await;
+    store
+        .execute_at(
+            guild,
+            "discord:otherbet",
+            player(1),
+            &Command::Bet {
+                id: id.into(),
+                outcome: OutcomeIndex(1),
+                amount: Points(25),
+            },
+            1502,
+        )
+        .await
+        .unwrap();
+    let before = store.view(guild).await.unwrap();
+    let command = Command::Resolve {
+        id: id.into(),
+        outcome: OutcomeIndex(0),
+    };
+    let present = || async {
+        MembershipEvidence::Present {
+            user_id: UserId(2),
+            bot: false,
+        }
+    };
+    sqlx::query("ALTER TABLE prediction_commands ADD CONSTRAINT reject_settlement CHECK (command_key <> 'discord:rollback-settlement')").execute(&store.pool).await.unwrap();
+    assert_that!(
+        store
+            .execute_with_membership_at(
+                guild,
+                "discord:rollback-settlement",
+                player(2),
+                &command,
+                2000,
+                present()
+            )
+            .await,
+        err(anything())
+    );
+    assert_that!(
+        store.view(guild).await.unwrap().revision,
+        eq(before.revision)
+    );
+    assert_that!(store.view(guild).await.unwrap().state, eq(&before.state));
+    sqlx::query("ALTER TABLE prediction_commands DROP CONSTRAINT reject_settlement")
+        .execute(&store.pool)
+        .await
+        .unwrap();
+    let barrier = Arc::new(tokio::sync::Barrier::new(4));
+    let mut tasks = vec![];
+    for (key, outcome) in [
+        ("discord:race-a", 0),
+        ("discord:race-a", 0),
+        ("discord:race-b", 1),
+    ] {
+        let store = store.clone();
+        let barrier = barrier.clone();
+        tasks.push(tokio::spawn(async move {
+            let command = Command::Resolve {
+                id: id.into(),
+                outcome: OutcomeIndex(outcome),
+            };
+            let result = store
+                .execute_with_membership_at(guild, key, player(2), &command, 2000, async {
+                    barrier.wait().await;
+                    MembershipEvidence::Present {
+                        user_id: UserId(2),
+                        bot: false,
+                    }
+                })
+                .await;
+            (key, command, result)
+        }));
+    }
+    barrier.wait().await;
+    let mut results = vec![];
+    for task in tasks {
+        results.push(task.await.unwrap());
+    }
+    let (key, command, response) = results
+        .iter()
+        .find(|(_, _, result)| result.is_ok())
+        .unwrap();
+    let settled = store.view(guild).await.unwrap();
+    assert_that!(settled.revision.0, eq(before.revision.0 + 1));
+    let expected = if *key == "discord:race-a" {
+        (0, 75, 125, 2)
+    } else {
+        (1, 125, 75, 1)
+    };
+    assert_that!(
+        results
+            .iter()
+            .filter(|(_, _, result)| result.is_ok())
+            .count(),
+        eq(expected.3)
+    );
+    assert_that!(
+        settled.state.markets[id].status,
+        eq(&Status::Resolved {
+            outcome: OutcomeIndex(expected.0),
+            refunded: false
+        })
+    );
+    assert_that!(
+        settled.state.accounts[&UserId(1)].balance,
+        eq(Points(expected.1))
+    );
+    assert_that!(
+        settled.state.accounts[&UserId(2)].balance,
+        eq(Points(expected.2))
+    );
+    assert_that!(
+        settled.state.markets[id].resolvers,
+        eq(&before.state.markets[id].resolvers)
+    );
+    let receipts:i64 = sqlx::query_scalar("SELECT count(*) FROM prediction_commands WHERE command_key IN ('discord:race-a','discord:race-b','discord:rollback-settlement')").fetch_one(&store.pool).await.unwrap();
+    assert_that!(receipts, eq(1));
+    let events:Vec<serde_json::Value> = sqlx::query_scalar("SELECT event FROM prediction_events WHERE command_key IN ('discord:race-a','discord:race-b','discord:rollback-settlement')").fetch_all(&store.pool).await.unwrap();
+    assert_that!(events.len(), eq(1));
+    assert_that!(events[0]["data"]["resolver"], eq("2"));
+    let restarted = Store::new(
+        store.pool.clone(),
+        42.into(),
+        Policy {
+            amount: Points(100),
+            interval: 86400,
+        },
+    );
+    assert_that!(
+        restarted.view(guild).await.unwrap().state,
+        eq(&settled.state)
+    );
+    let recovered = restarted
+        .execute_with_membership_at(guild, key, player(2), command, 3000, async {
+            panic!("receipt recovery must not poll membership")
+        })
+        .await
+        .unwrap();
+    assert_that!(&recovered, eq(response.as_ref().unwrap()));
+    assert_that!(
+        restarted
+            .execute_with_membership_at(guild, key, player(1), command, 3000, async {
+                panic!("cross-actor recovery must not poll membership")
+            })
+            .await,
+        err(anything())
+    );
+    assert_that!(
+        restarted
+            .execute_with_membership_at(GuildId(2), key, player(2), command, 3000, present())
+            .await,
+        err(anything())
+    );
+    assert_that!(
+        restarted.view(guild).await.unwrap().revision,
+        eq(settled.revision)
+    );
+    assert_that!(restarted.view(GuildId(2)).await.unwrap().revision.0, eq(0));
+}

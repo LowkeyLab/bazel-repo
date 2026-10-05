@@ -816,6 +816,47 @@ async fn execute_request(
     }
 }
 
+/// Evidence from the current authenticated guild interaction, never from a saved prompt.
+struct InteractionMember<'a>(Option<&'a serenity::all::Member>);
+
+#[serenity::async_trait]
+impl resolvers::MembershipVerifier for InteractionMember<'_> {
+    async fn verify(&self, guild: GuildId, user: UserId) -> crate::domain::MembershipEvidence {
+        match self.0 {
+            Some(member) if member.guild_id.get() == guild.0 && member.user.id.get() == user.0 => {
+                crate::domain::MembershipEvidence::Present {
+                    user_id: user,
+                    bot: member.user.bot,
+                }
+            }
+            _ => crate::domain::MembershipEvidence::Unavailable,
+        }
+    }
+}
+
+async fn execute_member_request(
+    store: &Store,
+    guild: GuildId,
+    actor: Actor,
+    request: &Command,
+    interaction_id: u64,
+    member: Option<&serenity::all::Member>,
+) -> EditInteractionResponse {
+    if matches!(request, Command::Resolve { .. }) {
+        resolvers::execute_request(
+            store,
+            &InteractionMember(member),
+            guild,
+            actor,
+            request,
+            interaction_id,
+        )
+        .await
+    } else {
+        execute_request(store, guild, actor, request, interaction_id).await
+    }
+}
+
 async fn read_query<F>(
     audit: &dyn AuditListener,
     guild: GuildId,
@@ -912,7 +953,15 @@ impl Handler {
                 match from_discord(&command).and_then(|input| parse(&input)) {
                     Ok((_, _, Action::Help)) => reply(HELP),
                     Ok((guild, actor, Action::Write(request))) => {
-                        execute_request(&self.store, guild, actor, &request, command.id.get()).await
+                        execute_member_request(
+                            &self.store,
+                            guild,
+                            actor,
+                            &request,
+                            command.id.get(),
+                            command.member.as_deref(),
+                        )
+                        .await
                     }
                     Ok((guild, actor, Action::ResolverAdd { id, user_id })) => {
                         match read_query(
@@ -1150,12 +1199,13 @@ impl Handler {
             || async {
                 let result = match action {
                     Ok(resolve::Action::Confirm(command)) => {
-                        return execute_request(
+                        return execute_member_request(
                             &self.store,
                             guild,
                             actor,
                             &command,
                             component.id.get(),
+                            component.member.as_ref(),
                         )
                         .await
                         .embeds(vec![])

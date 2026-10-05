@@ -1257,3 +1257,176 @@ fn resolver_assignment_enforces_current_authority_eligibility_and_lifecycle() {
         );
     }
 }
+
+#[googletest::test]
+fn assigned_enrolled_human_can_settle_independently_after_role_loss() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    execute(&mut state, member(2), &Command::Join, 1_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into();
+    let evidence = Some(MembershipEvidence::Present {
+        user_id: UserId(2),
+        bot: false,
+    });
+    let add = decide_with_membership(
+        &state,
+        member(1),
+        &Command::AddResolver {
+            id: id.clone(),
+            user_id: UserId(2),
+        },
+        1_001,
+        DEFAULTS,
+        evidence,
+    )
+    .unwrap();
+    apply(&mut state, &add.events[0]).unwrap();
+    let decision = decide_with_membership(
+        &state,
+        member(2),
+        &Command::Resolve {
+            id: id.clone(),
+            outcome: OutcomeIndex(0),
+        },
+        2_000,
+        DEFAULTS,
+        evidence,
+    )
+    .unwrap();
+    assert_that!(
+        decision.events,
+        eq(&vec![Event::MarketResolved {
+            id,
+            outcome: OutcomeIndex(0),
+            resolver: UserId(2),
+            settled_at: 2_000,
+            payouts: vec![],
+            refunded: true
+        }])
+    );
+}
+
+#[googletest::test]
+fn assignment_settlement_keeps_membership_enrollment_and_implicit_authority_independent() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    execute(&mut state, member(2), &Command::Join, 1_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into();
+    let present = Some(MembershipEvidence::Present {
+        user_id: UserId(2),
+        bot: false,
+    });
+    let add = decide_with_membership(
+        &state,
+        member(1),
+        &Command::AddResolver {
+            id: id.clone(),
+            user_id: UserId(2),
+        },
+        1001,
+        DEFAULTS,
+        present,
+    )
+    .unwrap();
+    apply(&mut state, &add.events[0]).unwrap();
+    let resolve = Command::Resolve {
+        id: id.clone(),
+        outcome: OutcomeIndex(0),
+    };
+    for (evidence, expected) in [
+        (None, DomainError::MembershipRequired),
+        (
+            Some(MembershipEvidence::Unavailable),
+            DomainError::MembershipRequired,
+        ),
+        (
+            Some(MembershipEvidence::Present {
+                user_id: UserId(1),
+                bot: false,
+            }),
+            DomainError::MembershipRequired,
+        ),
+        (
+            Some(MembershipEvidence::Absent { user_id: UserId(2) }),
+            DomainError::Invalid("resolver is no longer a server member"),
+        ),
+        (
+            Some(MembershipEvidence::Present {
+                user_id: UserId(2),
+                bot: true,
+            }),
+            DomainError::Invalid("resolver must be human"),
+        ),
+    ] {
+        assert_that!(
+            decide_with_membership(&state, member(2), &resolve, 2000, DEFAULTS, evidence),
+            err(eq(&expected))
+        );
+        for actor in [member(1), moderator(3)] {
+            assert_that!(
+                decide_with_membership(&state, actor, &resolve, 2000, DEFAULTS, evidence).is_ok(),
+                eq(true)
+            );
+        }
+    }
+    assert_that!(
+        decide_with_membership(&state, member(2), &resolve, 1999, DEFAULTS, present),
+        err(eq(&DomainError::Invalid("market is not ready to resolve")))
+    );
+    for actor in [
+        Actor {
+            bot: true,
+            ..member(2)
+        },
+        Actor {
+            bot: true,
+            ..moderator(3)
+        },
+        moderator(0),
+    ] {
+        assert_that!(
+            decide_with_membership(&state, actor, &resolve, 2000, DEFAULTS, present),
+            err(anything())
+        );
+    }
+    for command in [
+        Command::Cancel { id: id.clone() },
+        Command::AddResolver {
+            id: id.clone(),
+            user_id: UserId(2),
+        },
+    ] {
+        assert_that!(
+            decide_with_membership(&state, member(2), &command, 2000, DEFAULTS, present),
+            err(anything())
+        );
+    }
+    state.accounts.remove(&UserId(2));
+    assert_that!(
+        decide_with_membership(&state, member(2), &resolve, 2000, DEFAULTS, present),
+        err(eq(&DomainError::Invalid("resolver not enrolled")))
+    );
+    assert_that!(
+        decide_with_membership(&state, moderator(2), &resolve, 2000, DEFAULTS, None).is_ok(),
+        eq(true)
+    );
+    assert_that!(state.markets[&id].resolvers.contains(&UserId(2)), eq(true));
+    execute(&mut state, member(2), &Command::Join, 2000);
+    assert_that!(
+        decide_with_membership(&state, member(2), &resolve, 2000, DEFAULTS, present).is_ok(),
+        eq(true)
+    );
+    for status in [
+        Status::Cancelled,
+        Status::Resolved {
+            outcome: OutcomeIndex(0),
+            refunded: false,
+        },
+    ] {
+        state.markets.get_mut(&id).unwrap().status = status;
+        assert_that!(
+            decide_with_membership(&state, member(2), &resolve, 2000, DEFAULTS, present),
+            err(eq(&DomainError::Invalid("market is not ready to resolve")))
+        );
+    }
+}
