@@ -1,4 +1,5 @@
 //! Resolver management UI and the external membership capability.
+pub(super) mod list;
 use super::{
     deferred_response, reply, safe_error,
     transport::{InteractionTransport, SerenityTransport},

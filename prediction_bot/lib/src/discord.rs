@@ -79,6 +79,7 @@ pub(crate) enum Action {
         id: MarketId,
         user_id: UserId,
     },
+    ResolverList,
     BetForm,
     Help,
     Balance,
@@ -218,6 +219,10 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
                 .ok_or("Choose a valid person.")?;
             Action::ResolverRemove { id, user_id }
         }
+        "resolver.list" => {
+            exact(input, &[])?;
+            Action::ResolverList
+        }
         "help" => {
             exact(input, &[])?;
             Action::Help
@@ -345,7 +350,8 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
             let command = &commands[0];
             if !(root.name == "announcements"
                 && matches!(command.name.as_str(), "set" | "status" | "disable")
-                || root.name == "resolver" && matches!(command.name.as_str(), "add" | "remove"))
+                || root.name == "resolver"
+                    && matches!(command.name.as_str(), "add" | "remove" | "list"))
             {
                 return Err("Invalid market command.");
             }
@@ -393,6 +399,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market bet` — choose a market and outcome, enter a stake, then confirm your bet.
 • `/market bet id outcome amount` — place a bet directly using a market ID, outcome number, and stake.
 • `/market list` and `/market show id` — view markets and their outcomes.
+• `/market resolver list` — inspect recorded assignments for any market, including completed markets.
 • `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
 
@@ -560,6 +567,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         Action::CreateForm => "Choose an outcome preset to create a market.".to_owned(),
         Action::ResolveForm => "Choose a closed market to resolve.".to_owned(),
         Action::BetForm => "Choose an open market to bet on.".to_owned(),
+        Action::ResolverList => "Choose a market to inspect resolver assignments.".to_owned(),
         Action::ResolverAdd { .. }
         | Action::ResolverRemove { .. }
         | Action::Write(_)
@@ -602,6 +610,35 @@ fn render_market(id: &MarketId, market: &Market, now: i64) -> String {
             odds.chance()
         );
     }
+    let assignments = market
+        .resolvers
+        .iter()
+        .take(10)
+        .map(|user| format!("<@{user}>"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(
+        out,
+        "Explicit resolver assignments: {}",
+        if assignments.is_empty() {
+            "None"
+        } else {
+            &assignments
+        }
+    );
+    if market.resolvers.len() > 10 {
+        let _ = writeln!(
+            out,
+            "Showing 10 of {} assignments. Use /market resolver list to inspect every assignment.",
+            market.resolvers.len()
+        );
+    }
+    let _ = writeln!(
+        out,
+        "Independent authority: creator <@{}> and current moderators (Administrator or Manage Guild).",
+        market.creator
+    );
+    out.push_str("Assignments require current membership and enrollment for use; this list does not verify eligibility. Removing an assignment cannot revoke independent authority.\n");
     if let Status::Resolved { outcome, .. } = market.status {
         let _ = writeln!(out, "Winning outcome: {}", outcome.0 + 1);
     }
@@ -623,6 +660,11 @@ fn market_command() -> CreateCommand {
                 "resolver",
                 "Manage additional market resolvers",
             )
+            .add_sub_option(CreateCommandOption::new(
+                SubCommand,
+                "list",
+                "Inspect recorded resolver assignments for any market",
+            ))
             .add_sub_option(
                 CreateCommandOption::new(SubCommand, "add", "Add an additional resolver")
                     .add_sub_option(CreateCommandOption::new(Text, "market", "Market ID"))
@@ -1066,7 +1108,7 @@ impl Handler {
                         let kind = match query {
                             Action::Balance => QueryKind::Balance,
                             Action::Leaderboard => QueryKind::Leaderboard,
-                            Action::List => QueryKind::List,
+                            Action::List | Action::ResolverList => QueryKind::List,
                             Action::Show { .. } => QueryKind::Show,
                             _ => QueryKind::Component,
                         };
@@ -1105,6 +1147,10 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if resolvers::list::is_control(&component.data.custom_id) {
+            resolvers::list::handle_component(&self.store, http, &component).await;
+            return;
+        }
         if resolvers::is_control(&component.data.custom_id) {
             resolvers::handle_component(&self.store, http, &component).await;
             return;

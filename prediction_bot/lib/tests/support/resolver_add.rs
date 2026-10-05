@@ -19,21 +19,21 @@ use wiremock::{
 
 const MARKET: &str = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
 
-fn interaction(id: u64, data: Value) -> Value {
+fn interaction(id: u64, data: &Value) -> Value {
     json!({"id":id.to_string(),"application_id":"42","guild_id":"1","channel_id":"20",
         "token":"test-token","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":1000,
         "data":data,"user":{"id":"1","username":"manager","discriminator":"0","avatar":null},
         "message":serenity::all::Message::default()})
 }
-fn slash(id: u64, options: Value) -> Interaction {
-    Interaction::Command(serde_json::from_value(interaction(id, json!({"id":"42","name":"market","type":1,
+fn slash(id: u64, options: &Value) -> Interaction {
+    Interaction::Command(serde_json::from_value(interaction(id, &json!({"id":"42","name":"market","type":1,
         "options":[{"name":"resolver","type":2,"options":[{"name":"add","type":1,"options":options}]}]}))).unwrap())
 }
-fn component(id: u64, custom_id: &str, kind: u8, values: Value) -> Interaction {
+fn component(id: u64, custom_id: &str, kind: u8, values: &Value) -> Interaction {
     Interaction::Component(
         serde_json::from_value(interaction(
             id,
-            json!({"custom_id":custom_id,"component_type":kind,"values":values}),
+            &json!({"custom_id":custom_id,"component_type":kind,"values":values}),
         ))
         .unwrap(),
     )
@@ -115,7 +115,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
             .unwrap();
     let before = store.view(1.into()).await.unwrap().revision;
     let (server, http) = server().await;
-    handle_interaction(store.clone(), &http, UserId(99), slash(700, json!([]))).await;
+    handle_interaction(store.clone(), &http, UserId(99), slash(700, &json!([]))).await;
     let markets = panel(&server).await;
     assert_that!(
         markets["content"].as_str().unwrap(),
@@ -125,7 +125,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         store.clone(),
         &http,
         UserId(99),
-        component(701, control(&markets, 0, 0), 3, json!([MARKET])),
+        component(701, control(&markets, 0, 0), 3, &json!([MARKET])),
     )
     .await;
     let people = panel(&server).await;
@@ -137,7 +137,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         store.clone(),
         &http,
         UserId(99),
-        component(702, control(&people, 0, 0), 5, json!(["2"])),
+        component(702, control(&people, 0, 0), 5, &json!(["2"])),
     )
     .await;
     let confirmation = panel(&server).await;
@@ -176,7 +176,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         store.clone(),
         &http,
         UserId(99),
-        component(703, confirm, 2, json!([])),
+        component(703, confirm, 2, &json!([])),
     )
     .await;
     assert_that!(
@@ -207,7 +207,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         store.clone(),
         &http,
         UserId(99),
-        component(703, confirm, 2, json!([])),
+        component(703, confirm, 2, &json!([])),
     )
     .await;
     let original = panel(&server).await;
@@ -266,7 +266,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         store.clone(),
         &http,
         UserId(99),
-        component(703, confirm, 2, json!([])),
+        component(703, confirm, 2, &json!([])),
     )
     .await;
     assert_that!(panel(&server).await, eq(&original));
@@ -275,7 +275,7 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         store.clone(),
         &http,
         UserId(99),
-        component(704, control(&people, 0, 0), 5, json!(["2"])),
+        component(704, control(&people, 0, 0), 5, &json!(["2"])),
     )
     .await;
     assert_that!(
@@ -283,22 +283,23 @@ async fn guided_add_confirms_only_at_execution_and_recovers_after_delivery_failu
         contains_substring("completed")
     );
     drop(no_verification);
-    let events = recorder.0.lock().unwrap();
-    assert_that!(
-        events
-            .iter()
-            .filter(|event| matches!(
-                event,
-                AuditEvent::CommandCompleted {
-                    command: CommandKind::AddResolver,
-                    outcome: Outcome::Succeeded,
-                    ..
-                }
-            ))
-            .count(),
-        eq(2)
-    );
-    drop(events);
+    {
+        let events = recorder.0.lock().unwrap();
+        assert_that!(
+            events
+                .iter()
+                .filter(|event| matches!(
+                    event,
+                    AuditEvent::CommandCompleted {
+                        command: CommandKind::AddResolver,
+                        outcome: Outcome::Succeeded,
+                        ..
+                    }
+                ))
+                .count(),
+            eq(2)
+        );
+    }
     let requests = server.received_requests().await.unwrap();
     for request in requests.iter().filter(|request| request.method == "POST") {
         assert_that!(
@@ -377,7 +378,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        slash(710, json!([{"name":"user","type":6,"value":"2"}])),
+        slash(710, &json!([{"name":"user","type":6,"value":"2"}])),
     )
     .await;
     let first = panel(&server).await;
@@ -392,7 +393,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(711, button(&first, "Next"), 2, json!([])),
+        component(711, button(&first, "Next"), 2, &json!([])),
     )
     .await;
     let last = panel(&server).await;
@@ -411,7 +412,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(712, control(&last, 0, 0), 3, json!([ids[26]])),
+        component(712, control(&last, 0, 0), 3, &json!([ids[26]])),
     )
     .await;
     let confirmation = panel(&server).await;
@@ -423,7 +424,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(713, button(&confirmation, "Back"), 2, json!([])),
+        component(713, button(&confirmation, "Back"), 2, &json!([])),
     )
     .await;
     let people = panel(&server).await;
@@ -439,7 +440,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(714, button(&people, "Back to markets"), 2, json!([])),
+        component(714, button(&people, "Back to markets"), 2, &json!([])),
     )
     .await;
     let retained = panel(&server).await;
@@ -455,7 +456,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(715, control(&retained, 0, 0), 3, json!([ids[25]])),
+        component(715, control(&retained, 0, 0), 3, &json!([ids[25]])),
     )
     .await;
     assert_that!(
@@ -486,7 +487,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(716, button(&first, "Next"), 2, json!([])),
+        component(716, button(&first, "Next"), 2, &json!([])),
     )
     .await;
     let refreshed = panel(&server).await;
@@ -505,7 +506,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        component(717, control(&last, 0, 0), 3, json!([ids[26]])),
+        component(717, control(&last, 0, 0), 3, &json!([ids[26]])),
     )
     .await;
     assert_that!(
@@ -516,7 +517,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         store.clone(),
         &http,
         UserId(99),
-        slash(718, json!([{"name":"market","type":3,"value":ids[0]}])),
+        slash(718, &json!([{"name":"market","type":3,"value":ids[0]}])),
     )
     .await;
     assert_that!(
@@ -529,7 +530,7 @@ async fn guided_add_shortcuts_paginate_and_keep_choices_on_back() {
         UserId(99),
         slash(
             719,
-            json!([{"name":"market","type":3,"value":ids[0]},{"name":"user","type":6,"value":"2"}]),
+            &json!([{"name":"market","type":3,"value":ids[0]},{"name":"user","type":6,"value":"2"}]),
         ),
     )
     .await;
@@ -556,7 +557,7 @@ async fn guided_add_rejects_foreign_invalid_and_stale_controls_privately() {
     let (server, http) = server().await;
     let mut opening = slash(
         720,
-        json!([{"name":"market","type":3,"value":MARKET},{"name":"user","type":6,"value":"2"}]),
+        &json!([{"name":"market","type":3,"value":MARKET},{"name":"user","type":6,"value":"2"}]),
     );
     if let Interaction::Command(command) = &mut opening {
         let mut member = serenity::all::Member::default();
@@ -572,7 +573,7 @@ async fn guided_add_rejects_foreign_invalid_and_stale_controls_privately() {
         store.clone(),
         &http,
         UserId(99),
-        component(721, button(&confirmation, "Back"), 2, json!([])),
+        component(721, button(&confirmation, "Back"), 2, &json!([])),
     )
     .await;
     assert_that!(
@@ -587,7 +588,7 @@ async fn guided_add_rejects_foreign_invalid_and_stale_controls_privately() {
             722,
             button(&confirmation, "Confirm add resolver"),
             2,
-            json!([]),
+            &json!([]),
         ),
     )
     .await;
@@ -596,29 +597,39 @@ async fn guided_add_rejects_foreign_invalid_and_stale_controls_privately() {
         contains_substring("creator or moderator required")
     );
     for (index, (id, kind, values, message)) in [
-        ("pm:1:9:m:0", 3, json!([MARKET]), "another member or server"),
-        ("pm:9:1:m:0", 3, json!([MARKET]), "another member or server"),
-        ("pm:1:1:m:0", 2, json!([]), "invalid"),
-        ("pm:1:1:m:0", 3, json!([]), "exactly one market"),
+        (
+            "pm:1:9:m:0",
+            3,
+            &json!([MARKET]),
+            "another member or server",
+        ),
+        (
+            "pm:9:1:m:0",
+            3,
+            &json!([MARKET]),
+            "another member or server",
+        ),
+        ("pm:1:1:m:0", 2, &json!([]), "invalid"),
+        ("pm:1:1:m:0", 3, &json!([]), "exactly one market"),
         (
             "pm:1:1:m:0",
             3,
-            json!([MARKET, MARKET]),
+            &json!([MARKET, MARKET]),
             "exactly one market",
         ),
-        ("pm:1:1:p:invalid:0", 2, json!([]), "invalid"),
-        ("pm:1:1:m:invalid", 3, json!([MARKET]), "valid person"),
-        ("pm:1:1:u:invalid", 5, json!(["2"]), "Invalid market ID"),
+        ("pm:1:1:p:invalid:0", 2, &json!([]), "invalid"),
+        ("pm:1:1:m:invalid", 3, &json!([MARKET]), "valid person"),
+        ("pm:1:1:u:invalid", 5, &json!(["2"]), "Invalid market ID"),
         (
             "pm:1:1:u:78e829544c674e0d8c808ab95a527ae5",
             5,
-            json!([]),
+            &json!([]),
             "exactly one person",
         ),
         (
             "pm:1:1:u:78e829544c674e0d8c808ab95a527ae5",
             5,
-            json!(["2", "3"]),
+            &json!(["2", "3"]),
             "exactly one person",
         ),
     ]
@@ -656,7 +667,7 @@ async fn guided_add_rejects_foreign_invalid_and_stale_controls_privately() {
             741,
             "pm:1:1:m:0",
             3,
-            json!(["00000000-0000-4000-8000-000000000099"]),
+            &json!(["00000000-0000-4000-8000-000000000099"]),
         ),
     )
     .await;
@@ -664,7 +675,7 @@ async fn guided_add_rejects_foreign_invalid_and_stale_controls_privately() {
         panel(&server).await["content"].as_str().unwrap(),
         contains_substring("no longer exists")
     );
-    handle_interaction(store.clone(), &http, UserId(99), slash(742, json!([]))).await;
+    handle_interaction(store.clone(), &http, UserId(99), slash(742, &json!([]))).await;
     assert_that!(
         panel(&server).await["content"].as_str().unwrap(),
         contains_substring("No markets")
@@ -730,7 +741,7 @@ async fn guided_add_maximum_ids_preserve_historical_uuid_spelling_through_back()
         .await
         .unwrap();
     let (server, http) = server().await;
-    handle_interaction(store.clone(),&http,UserId(99),maximum_scope(slash(750,json!([{"name":"market","type":3,"value":id},{"name":"user","type":6,"value":u64::MAX.to_string()}])))).await;
+    handle_interaction(store.clone(),&http,UserId(99),maximum_scope(slash(750,&json!([{"name":"market","type":3,"value":id},{"name":"user","type":6,"value":u64::MAX.to_string()}])))).await;
     let confirmation = panel(&server).await;
     assert_that!(button(&confirmation, "Confirm add resolver").len(), eq(100));
     assert_that!(button(&confirmation, "Back").len(), eq(100));
@@ -738,7 +749,7 @@ async fn guided_add_maximum_ids_preserve_historical_uuid_spelling_through_back()
         store.clone(),
         &http,
         UserId(99),
-        maximum_scope(component(751, button(&confirmation, "Back"), 2, json!([]))),
+        maximum_scope(component(751, button(&confirmation, "Back"), 2, &json!([]))),
     )
     .await;
     let people = panel(&server).await;
@@ -755,7 +766,7 @@ async fn guided_add_maximum_ids_preserve_historical_uuid_spelling_through_back()
             752,
             button(&people, "Back to markets"),
             2,
-            json!([]),
+            &json!([]),
         )),
     )
     .await;
@@ -768,7 +779,7 @@ async fn guided_add_maximum_ids_preserve_historical_uuid_spelling_through_back()
         store.clone(),
         &http,
         UserId(99),
-        maximum_scope(component(753, control(&markets, 0, 0), 3, json!([id]))),
+        maximum_scope(component(753, control(&markets, 0, 0), 3, &json!([id]))),
     )
     .await;
     assert_that!(
