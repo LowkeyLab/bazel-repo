@@ -44,8 +44,10 @@ impl MembershipVerifier for Http {
     }
 }
 
+pub(super) mod remove;
+
 pub(super) fn is_control(custom_id: &str) -> bool {
-    custom_id.split(':').nth(3) == Some("a")
+    matches!(custom_id.split(':').nth(3), Some("a" | "d"))
 }
 
 pub(super) fn confirmation(
@@ -91,6 +93,9 @@ pub(super) fn parse(
     custom_id: &str,
     kind: &ComponentInteractionDataKind,
 ) -> Result<Command, &'static str> {
+    if custom_id.split(':').nth(3) == Some("d") {
+        return remove::parse(guild, actor, custom_id, kind);
+    }
     let parts = ui::scope(guild, actor, custom_id)?;
     let (["a", id, user], ComponentInteractionDataKind::Button) = (parts.as_slice(), kind) else {
         return Err("Invalid resolver confirmation. Run /market resolver add again.");

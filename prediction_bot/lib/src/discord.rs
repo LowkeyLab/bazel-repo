@@ -73,6 +73,7 @@ pub(crate) enum Action {
     ResolveForm,
     ResolverAdd { id: MarketId, user_id: UserId },
     ResolverList,
+    ResolverRemove { id: MarketId, user_id: UserId },
     BetForm,
     Help,
     Balance,
@@ -178,7 +179,7 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
             exact(input, &[])?;
             Action::ResolverList
         }
-        "resolver.add" => {
+        "resolver.add" | "resolver.remove" => {
             exact(input, &["market", "user"])?;
             let id = text(input, "market")?.to_owned().into();
             let user_id = input
@@ -189,7 +190,11 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
                     _ => None,
                 })
                 .ok_or("Choose a valid person.")?;
-            Action::ResolverAdd { id, user_id }
+            if input.subcommand == "resolver.remove" {
+                Action::ResolverRemove { id, user_id }
+            } else {
+                Action::ResolverAdd { id, user_id }
+            }
         }
         "help" => {
             exact(input, &[])?;
@@ -318,7 +323,8 @@ fn from_discord(command: &CommandInteraction) -> Result<Input, &'static str> {
             let command = &commands[0];
             if !(root.name == "announcements"
                 && matches!(command.name.as_str(), "set" | "status" | "disable")
-                || root.name == "resolver" && matches!(command.name.as_str(), "add" | "list"))
+                || root.name == "resolver"
+                    && matches!(command.name.as_str(), "add" | "remove" | "list"))
             {
                 return Err("Invalid market command.");
             }
@@ -536,6 +542,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         Action::BetForm => "Choose an open market to bet on.".to_owned(),
         Action::ResolverList => "Choose a market to inspect resolver assignments.".to_owned(),
         Action::ResolverAdd { .. }
+        | Action::ResolverRemove { .. }
         | Action::Write(_)
         | Action::AnnouncementsSet { .. }
         | Action::AnnouncementsStatus
@@ -638,6 +645,15 @@ fn market_command() -> CreateCommand {
                         CommandOptionType::User,
                         "user",
                         "Person to assign",
+                    )),
+            )
+            .add_sub_option(
+                CreateCommandOption::new(SubCommand, "remove", "Remove an additional resolver")
+                    .add_sub_option(required(Text, "market", "Market ID"))
+                    .add_sub_option(required(
+                        CommandOptionType::User,
+                        "user",
+                        "Person to remove",
                     )),
             ),
         )
@@ -975,6 +991,25 @@ impl Handler {
                             Err(message) => reply(&message),
                         }
                     }
+                    Ok((guild, actor, Action::ResolverRemove { id, user_id })) => match read_query(
+                        self.store.audit().as_ref(),
+                        guild,
+                        command.id.get(),
+                        QueryKind::Component,
+                        self.store.view(guild),
+                        None,
+                    )
+                    .await
+                    {
+                        Ok(view) => {
+                            match resolvers::remove::confirmation(&view, guild, actor, &id, user_id)
+                            {
+                                Ok(panel) => panel.edit(),
+                                Err(message) => reply(message),
+                            }
+                        }
+                        Err(message) => reply(&message),
+                    },
                     Ok((guild, actor, Action::AnnouncementsSet { channel_id })) => {
                         let key = format!("discord:{}", command.id.get());
                         match self

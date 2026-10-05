@@ -27,6 +27,7 @@ rust_library(
         "src/discord/resolvers.rs",
         "src/discord/resolvers/list.rs",
         "src/discord/resolvers/list_tests.rs",
+        "src/discord/resolvers/remove.rs",
         "src/discord/transport.rs",
         "src/discord_tests.rs",
         "src/discord_ui.rs",
