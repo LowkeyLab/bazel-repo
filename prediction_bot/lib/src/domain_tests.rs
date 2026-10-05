@@ -1430,3 +1430,144 @@ fn assignment_settlement_keeps_membership_enrollment_and_implicit_authority_inde
         );
     }
 }
+
+#[googletest::test]
+fn removal_needs_no_target_eligibility_and_preserves_market_economics() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into();
+    apply(
+        &mut state,
+        &Event::MarketResolverAdded {
+            id: id.clone(),
+            user_id: UserId(2),
+            added_by: UserId(1),
+            added_at: 1_001,
+        },
+    )
+    .unwrap();
+    let before = state.clone();
+    let command = Command::RemoveResolver {
+        id: id.clone(),
+        user_id: UserId(2),
+    };
+    let decision = execute(&mut state, member(1), &command, 2_100);
+    assert_that!(
+        decision.events,
+        eq(&vec![Event::MarketResolverRemoved {
+            id: id.clone(),
+            user_id: UserId(2),
+            removed_by: UserId(1),
+            removed_at: 2_100
+        }])
+    );
+    let mut expected = before;
+    expected.markets.get_mut(&id).unwrap().resolvers.clear();
+    assert_that!(state, eq(&expected));
+    assert_that!(
+        execute(&mut state, member(1), &command, 2_101).events,
+        is_empty()
+    );
+    assert_that!(
+        decide(&state, member(2), &command, 2_102, DEFAULTS),
+        err(anything())
+    );
+}
+
+#[googletest::test]
+fn removal_checks_current_manager_and_terminal_state_even_for_missing_assignments() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into();
+    let command = Command::RemoveResolver {
+        id: id.clone(),
+        user_id: UserId(1),
+    };
+    for now in [1_001, 2_001] {
+        for actor in [member(1), moderator(3)] {
+            assert_that!(
+                decide(&state, actor, &command, now, DEFAULTS).is_ok(),
+                eq(true)
+            );
+        }
+    }
+    apply(
+        &mut state,
+        &Event::MarketResolverAdded {
+            id: id.clone(),
+            user_id: UserId(1),
+            added_by: UserId(1),
+            added_at: 1_001,
+        },
+    )
+    .unwrap();
+    execute(&mut state, member(1), &command, 1_002);
+    assert_that!(state.markets[&id].creator, eq(UserId(1)));
+    for actor in [
+        member(2),
+        Actor {
+            bot: true,
+            ..moderator(3)
+        },
+        moderator(0),
+    ] {
+        assert_that!(
+            decide(&state, actor, &command, 2_001, DEFAULTS),
+            err(anything())
+        );
+    }
+    for status in [
+        Status::Cancelled,
+        Status::Resolved {
+            outcome: OutcomeIndex(0),
+            refunded: true,
+        },
+    ] {
+        state.markets.get_mut(&id).unwrap().status = status;
+        assert_that!(
+            decide(&state, member(1), &command, 2_001, DEFAULTS),
+            err(eq(&DomainError::Invalid("market already terminal")))
+        );
+    }
+}
+
+#[googletest::test]
+fn removal_replay_rejects_corrupt_transitions_atomically() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    let id: MarketId = "78e82954-4c67-4e0d-8c80-8ab95a527ae5".into();
+    apply(
+        &mut state,
+        &Event::MarketResolverAdded {
+            id: id.clone(),
+            user_id: UserId(2),
+            added_by: UserId(1),
+            added_at: 1_001,
+        },
+    )
+    .unwrap();
+    for (target, manager, time) in [(0, 1, 1002), (2, 0, 1002), (2, 1, 999), (3, 1, 1002)] {
+        let before = state.clone();
+        assert_that!(
+            apply(
+                &mut state,
+                &Event::MarketResolverRemoved {
+                    id: id.clone(),
+                    user_id: UserId(target),
+                    removed_by: UserId(manager),
+                    removed_at: time
+                }
+            ),
+            err(anything())
+        );
+        assert_that!(state, eq(&before));
+    }
+    let removed = Event::MarketResolverRemoved {
+        id,
+        user_id: UserId(2),
+        removed_by: UserId(99),
+        removed_at: 2_100,
+    };
+    apply(&mut state, &removed).unwrap();
+    assert_that!(apply(&mut state, &removed), err(anything()));
+}

@@ -780,6 +780,7 @@ fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> 
         Event::MarketCreated { creator, .. } => *creator,
         Event::MarketResolved { resolver, .. } => *resolver,
         Event::MarketResolverAdded { added_by, .. } => *added_by,
+        Event::MarketResolverRemoved { removed_by, .. } => *removed_by,
         Event::AnnouncementsEnabled { moderator, .. }
         | Event::MarketCancelled { moderator, .. } => *moderator,
     };
@@ -801,6 +802,7 @@ fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError
         } => *time == accepted_at,
         Event::MarketResolved { settled_at, .. } => *settled_at == accepted_at,
         Event::MarketResolverAdded { added_at, .. } => *added_at == accepted_at,
+        Event::MarketResolverRemoved { removed_at, .. } => *removed_at == accepted_at,
         Event::MarketCancelled { cancelled_at, .. } => *cancelled_at == accepted_at,
     };
     if !matches {
