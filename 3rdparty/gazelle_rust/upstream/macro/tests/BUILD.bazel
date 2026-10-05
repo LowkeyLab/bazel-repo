@@ -1,7 +1,8 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
-rust_library(
+rust_test(
     name = "ignore_test",
     srcs = ["ignore_test.rs"],
-    proc_macro_deps = ["//macro/src:gazelle"],
+    crate_root = "ignore_test.rs",
+    proc_macro_deps = ["//3rdparty/gazelle_rust/upstream/macro/src:gazelle"],
 )

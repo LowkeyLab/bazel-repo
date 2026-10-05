@@ -1,64 +1,18 @@
-load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle", "gazelle_binary")
-load("@rules_go//go:def.bzl", "nogo")
+load("@gazelle//:def.bzl", "gazelle_binary")
 
-# gazelle:exclude build
-# gazelle:exclude example
 # gazelle:exclude generation_tests
 
-# gazelle:rust_cargo_lockfile Cargo.lock
-# gazelle:rust_crates_prefix @gazelle_rust_crates//:
+# gazelle:prefix github.com/calsign/gazelle_rust
+# gazelle:resolve rust prost @rules_rs//rs/private/prost:prost
+# gazelle:resolve rust messages_proto //3rdparty/gazelle_rust/upstream/proto:messages_rust_proto
+# gazelle:resolve go github.com/calsign/gazelle_rust/proto //3rdparty/gazelle_rust/upstream/proto:messages_go
 
-exports_files(
-    srcs = ["cargo.lock"],
-    visibility = ["//visibility:public"],
-)
-
-# intended for users that just want rust
+# Fixtures deliberately use only Rust, not the root multi-language generator.
 gazelle_binary(
     name = "gazelle_bin",
     languages = [
         "@gazelle//language/defaults",
-        "//rust_language",
+        "//3rdparty/gazelle_rust/upstream/rust_language",
     ],
-    visibility = ["//visibility:public"],
-)
-
-# used by this project, which uses both rust and go
-gazelle_binary(
-    name = "gazelle_bin_with_go",
-    languages = DEFAULT_LANGUAGES + [
-        "//rust_language",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-gazelle(
-    name = "gazelle",
-    gazelle = ":gazelle_bin_with_go",
-)
-
-# gazelle:prefix github.com/calsign/gazelle_rust
-gazelle(name = "gazelle_bootstrap")
-
-gazelle(
-    name = "gazelle_update_repos",
-    args = [
-        "-from_file=go.mod",
-        "-to_macro=go_deps.bzl%go_dependencies",
-        "-prune",
-    ],
-    command = "update-repos",
-)
-
-# NOTE: need to use the version of prost from rules_rust so that it matches
-# gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
-
-# NOTE: use cargo_bazel to parse the lockfile
-# gazelle:resolve rust cargo_bazel @rules_rust//crate_universe:cargo_bazel
-
-# NOTE: would like to use more checks, but the full suite doesn't succeed on some external libraries
-nogo(
-    name = "nogo",
-    vet = True,
     visibility = ["//visibility:public"],
 )

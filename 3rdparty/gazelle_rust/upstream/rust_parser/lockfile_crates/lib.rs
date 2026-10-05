@@ -1,13 +1,20 @@
 #![deny(unused_must_use)]
 
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::Path;
 
 use cargo_bazel::api::lockfile::CargoBazelLockfile;
-use messages_proto::{Package, PackageDependency};
+use messages_proto::gazelle::rust::v1::{Package, PackageDependency};
 
-pub fn get_bazel_lockfile_crates(lockfile_path: PathBuf) -> Result<Vec<Package>, Box<dyn Error>> {
-    let context = match cargo_bazel::api::lockfile::parse(&lockfile_path) {
+/// Reads direct dependencies from a Cargo Bazel lockfile.
+///
+/// # Errors
+/// Returns errors reported by the lockfile reader. A malformed lockfile exits the parser.
+///
+/// # Panics
+/// Panics if the lockfile references a crate absent from its crate table.
+pub fn get_bazel_lockfile_crates(lockfile_path: &Path) -> Result<Vec<Package>, Box<dyn Error>> {
+    let context = match cargo_bazel::api::lockfile::parse(lockfile_path) {
         Err(err) => {
             eprintln!(
                 "Could not parse lockfile {}: {}",
@@ -22,14 +29,14 @@ pub fn get_bazel_lockfile_crates(lockfile_path: PathBuf) -> Result<Vec<Package>,
     let mut crates = Vec::new();
 
     let mut add_crate = |id: &_, is_proc_macro| {
-        let crate_ = context.crate_info(id).expect("missing crate");
+        let dependency = context.crate_info(id).expect("missing crate");
 
-        if let Some(library_target_name) = &crate_.library_target_name() {
+        if let Some(library_target_name) = &dependency.library_target_name() {
             let package = Package {
-                name: crate_.name().to_string(),
+                name: dependency.name().to_string(),
                 crate_name: library_target_name.to_string(),
                 proc_macro: is_proc_macro,
-                version: crate_.version().to_string(),
+                version: dependency.version().to_string(),
                 workspace_member: false,
                 dependencies: Vec::new(),
             };
@@ -63,16 +70,19 @@ pub fn get_bazel_lockfile_crates(lockfile_path: PathBuf) -> Result<Vec<Package>,
     Ok(crates)
 }
 
+#[must_use]
 pub fn is_workspace_target(name: &str) -> bool {
     name == "direct-cargo-bazel-deps"
 }
 
-/// Cargo lockfiles don't indicate whether a crate is a proc_macro, so we guess. If a crate depends
-/// on proc_macro or proc_macro2, it is almost certainly a proc_macro.
+/// Cargo lockfiles don't indicate whether a crate is a `proc_macro`, so we guess. If a crate depends
+/// on `proc_macro` or `proc_macro2`, it is almost certainly a `proc_macro`.
+#[must_use]
 pub fn is_proc_macro_dep(name: &str) -> bool {
     name == "proc-macro" || name == "proc-macro2"
 }
 
+#[must_use]
 pub fn make_package_dependency(dep: &cargo_lock::Dependency) -> PackageDependency {
     PackageDependency {
         name: dep.name.as_str().to_string(),
@@ -80,8 +90,12 @@ pub fn make_package_dependency(dep: &cargo_lock::Dependency) -> PackageDependenc
     }
 }
 
-pub fn get_cargo_lockfile_crates(lockfile_path: PathBuf) -> Result<Vec<Package>, Box<dyn Error>> {
-    let lockfile = match cargo_lock::Lockfile::load(&lockfile_path) {
+/// Reads packages from a Cargo lockfile.
+///
+/// # Errors
+/// Returns errors reported by the lockfile reader. A malformed lockfile exits the parser.
+pub fn get_cargo_lockfile_crates(lockfile_path: &Path) -> Result<Vec<Package>, Box<dyn Error>> {
+    let lockfile = match cargo_lock::Lockfile::load(lockfile_path) {
         Err(err) => {
             eprintln!(
                 "Could not load cargo lockfile {}: {}",

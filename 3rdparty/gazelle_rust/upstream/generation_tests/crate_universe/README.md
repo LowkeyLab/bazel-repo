@@ -1,13 +1,13 @@
+# Crate-universe fixtures
 
-Tests that crate_universe dependencies are handled correctly. Each subdirectory is a different test.
+Each subdirectory is a golden workspace testing dependency resolution. Its
+manifests, workspace files, and lockfiles are test data, not standalone supported
+builds. Run these fixtures from the monorepo root:
 
-To repin the lockfiles (or vendored targets) for one of these tests, run:
-
-```bash
-bazel run //generation_tests/crate_universe:repin -- <test directory name>
+```sh
+nix develop --command aspect test //3rdparty/gazelle_rust/upstream/generation_tests/crate_universe/...
 ```
 
-Or run with no argument to repin all.
-
-Warning: Use the update script at your own risk! It probably only works on Linux, and it is not
-tested for things like paths containing spaces.
+Preserve the historical lockfile formats and expected rules. Change a fixture only
+when deliberately testing a changed contract; do not repin the suite wholesale.
+The unsupported unused-crate case remains explicitly manual.

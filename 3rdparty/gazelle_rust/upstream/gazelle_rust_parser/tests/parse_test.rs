@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::Path;
+use std::sync::LazyLock;
 
 struct TestCase {
     filename: &'static str,
@@ -12,8 +13,8 @@ struct TestCase {
     expected_compile_data: Vec<&'static str>,
 }
 
-lazy_static::lazy_static! {
-    static ref TEST_CASES: Vec<TestCase> = vec![
+static TEST_CASES: LazyLock<Vec<TestCase>> = LazyLock::new(|| {
+    vec![
         TestCase {
             filename: "simple.rs",
             enabled_features: vec![],
@@ -48,10 +49,7 @@ lazy_static::lazy_static! {
             expected_test_imports: vec![],
             expected_extern_mods: vec!["extern_mod"],
             expected_test_extern_mods: vec![],
-            expected_compile_data: vec![
-                "file1.txt",
-                "file2.txt",
-            ],
+            expected_compile_data: vec!["file1.txt", "file2.txt"],
         },
         TestCase {
             filename: "test_only.rs",
@@ -59,16 +57,9 @@ lazy_static::lazy_static! {
             expected_imports: vec![
                 "a",
                 // Unknown platform cfg predicates remain possible during source discovery.
-                "n",
-                "x",
+                "n", "x",
             ],
-            expected_test_imports: vec![
-                "b",
-                "c",
-                "d",
-                "e",
-                "f",
-            ],
+            expected_test_imports: vec!["b", "c", "d", "e", "f"],
             expected_extern_mods: vec![],
             expected_test_extern_mods: vec!["test_extern_mod"],
             expected_compile_data: vec![],
@@ -93,23 +84,14 @@ lazy_static::lazy_static! {
                 "test_extern_crate_3",
             ],
             expected_test_imports: vec![],
-            expected_extern_mods: vec![
-                "extern_mod_2",
-            ],
+            expected_extern_mods: vec!["extern_mod_2"],
             expected_test_extern_mods: vec![],
             expected_compile_data: vec![],
         },
         TestCase {
             filename: "macros.rs",
             enabled_features: vec![],
-            expected_imports: vec![
-                "foo1",
-                "foo2",
-                "bar1",
-                "bar2",
-                "nested1",
-                "nested2",
-            ],
+            expected_imports: vec!["foo1", "foo2", "bar1", "bar2", "nested1", "nested2"],
             expected_test_imports: vec![],
             expected_extern_mods: vec![],
             expected_test_extern_mods: vec![],
@@ -154,8 +136,8 @@ lazy_static::lazy_static! {
             expected_test_extern_mods: vec![],
             expected_compile_data: vec![],
         },
-    ];
-}
+    ]
+});
 
 fn assert_eq_vecs(actual: &[String], expected: &[String], msg: &str) {
     let actual_set: HashSet<_> = actual.iter().collect();
@@ -169,13 +151,13 @@ fn assert_eq_vecs(actual: &[String], expected: &[String], msg: &str) {
         if !only_actual.is_empty() {
             println!("Only in actual:");
             for item in only_actual {
-                println!("  {}", item);
+                println!("  {item}");
             }
         }
         if !only_expected.is_empty() {
             println!("Only in expected:");
             for item in only_expected {
-                println!("  {}", item);
+                println!("  {item}");
             }
         }
         panic!("vecs differ: {msg}");
@@ -184,20 +166,16 @@ fn assert_eq_vecs(actual: &[String], expected: &[String], msg: &str) {
 
 #[test]
 fn parse_test() -> Result<(), Box<dyn Error>> {
-    #[cfg(feature = "bazel")]
     let dir = {
         let r = runfiles::Runfiles::create().unwrap();
-        runfiles::rlocation!(r, "gazelle_rust/gazelle_rust_parser/test_data/simple.rs")
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_path_buf()
-    };
-    #[cfg(not(feature = "bazel"))]
-    let dir = {
-        let mut d = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"));
-        d.push("test_data");
-        d
+        runfiles::rlocation!(
+            r,
+            "_main/3rdparty/gazelle_rust/upstream/gazelle_rust_parser/test_data/simple.rs"
+        )
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf()
     };
 
     for test_case in &*TEST_CASES {
@@ -206,17 +184,17 @@ fn parse_test() -> Result<(), Box<dyn Error>> {
         let enabled_features: Vec<String> = test_case
             .enabled_features
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         let rust_imports =
-            gazelle_rust_parser::parse_imports(file, PathBuf::new(), &enabled_features)?;
+            gazelle_rust_parser::parse_imports(&file, Path::new(""), &enabled_features)?;
         assert_eq_vecs(
             &rust_imports.imports,
             &test_case
                 .expected_imports
                 .iter()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>(),
             "imports",
         );
@@ -225,7 +203,7 @@ fn parse_test() -> Result<(), Box<dyn Error>> {
             &test_case
                 .expected_test_imports
                 .iter()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>(),
             "test_imports",
         );
@@ -234,7 +212,7 @@ fn parse_test() -> Result<(), Box<dyn Error>> {
             &test_case
                 .expected_extern_mods
                 .iter()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>(),
             "extern_modes",
         );
@@ -243,7 +221,7 @@ fn parse_test() -> Result<(), Box<dyn Error>> {
             &test_case
                 .expected_test_extern_mods
                 .iter()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>(),
             "test_extern_mods",
         );
@@ -252,7 +230,7 @@ fn parse_test() -> Result<(), Box<dyn Error>> {
             &test_case
                 .expected_compile_data
                 .iter()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>(),
             "compile_data",
         );

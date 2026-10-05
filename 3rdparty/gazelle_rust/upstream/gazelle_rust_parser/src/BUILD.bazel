@@ -1,15 +1,16 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 rust_library(
     name = "gazelle_rust_parser",
     srcs = ["lib.rs"],
+    crate_root = "lib.rs",
     edition = "2024",
     visibility = [
-        "//gazelle_rust_parser:__subpackages__",
-        "//rust_parser:__subpackages__",
+        "//3rdparty/gazelle_rust/upstream/gazelle_rust_parser:__subpackages__",
+        "//3rdparty/gazelle_rust/upstream/rust_parser:__subpackages__",
     ],
     deps = [
-        "@gazelle_rust_crates//:proc-macro2",
-        "@gazelle_rust_crates//:syn",
+        "@crates//:proc-macro2",
+        "@crates//:syn",
     ],
 )

@@ -50,6 +50,6 @@ var Provided = map[string]map[string]label.Label{
 		"runfiles": label.New("rules_rust", "tools/runfiles", "runfiles"),
 	},
 	procMacroLangName: {
-		"gazelle": label.New("gazelle_rust", "macro", "macro"),
+		"gazelle": label.New("", "3rdparty/gazelle_rust/upstream/macro", "macro"),
 	},
 }

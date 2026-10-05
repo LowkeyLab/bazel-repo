@@ -28,4 +28,5 @@ Integration runners and build scripts retain Rust conventions. Target labels rem
 
 The maintained parser helper also moved from `upstream/rust_parser/lockfile_crates.rs`
 to `upstream/rust_parser/lockfile_crates/lib.rs`, preserving
-`@gazelle_rust//rust_parser:lockfile_crates`.
+`@gazelle_rust//rust_parser:lockfile_crates` at that stage. Issue #1969 subsequently
+migrated this label to `//3rdparty/gazelle_rust/upstream/rust_parser:lockfile_crates`.

@@ -1,4 +1,5 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
 
 rust_library(
     name = "lockfile_crates",
@@ -6,22 +7,23 @@ rust_library(
     crate_root = "lockfile_crates/lib.rs",
     visibility = [":__subpackages__"],
     deps = [
-        "//proto:messages_rust_proto",
-        "@gazelle_rust_crates//:cargo-lock",
-        "@rules_rust//crate_universe:cargo_bazel",
+        "//3rdparty/gazelle_rust/upstream/proto:messages_rust_proto",
+        "@crates//:cargo-bazel",
+        "@crates//:cargo-lock",
     ],
 )
 
 rust_binary(
     name = "rust_parser",
     srcs = ["main.rs"],
+    crate_root = "main.rs",
     visibility = ["//visibility:public"],
     deps = [
         ":lockfile_crates",
-        "//gazelle_rust_parser/src:gazelle_rust_parser",
-        "//proto:messages_rust_proto",
-        "@gazelle_rust_crates//:cargo_toml",
-        "@gazelle_rust_crates//:clap",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
+        "//3rdparty/gazelle_rust/upstream/gazelle_rust_parser/src:gazelle_rust_parser",
+        "//3rdparty/gazelle_rust/upstream/proto:messages_rust_proto",
+        "@crates//:cargo_toml",
+        "@crates//:clap",
+        "@rules_rs//rs/private/prost",
     ],
 )

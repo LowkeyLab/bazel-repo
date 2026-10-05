@@ -2,12 +2,12 @@
 
 use std::error::Error;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use prost::Message;
 
-use messages_proto::{
+use messages_proto::gazelle::rust::v1::{
     CargoCrateInfo, CargoTomlRequest, CargoTomlResponse, DependencyAlias, Hints,
     LockfileCratesRequest, LockfileCratesResponse, Request, RustImportsRequest,
     RustImportsResponse, lockfile_crates_request, request,
@@ -19,12 +19,10 @@ enum Args {
     StreamProto,
 }
 
-fn handle_rust_imports_request(
-    request: RustImportsRequest,
-) -> Result<RustImportsResponse, Box<dyn Error>> {
+fn handle_rust_imports_request(request: &RustImportsRequest) -> RustImportsResponse {
     let rust_imports = gazelle_rust_parser::parse_imports_with_parent(
-        PathBuf::from(request.absolute_path),
-        PathBuf::from(request.relative_path),
+        Path::new(&request.absolute_path),
+        Path::new(&request.relative_path),
         &request.enabled_features,
         &request.parent_names,
         &request.test_parent_names,
@@ -44,15 +42,17 @@ fn handle_rust_imports_request(
             response.modules = rust_imports
                 .modules
                 .into_iter()
-                .map(|module| messages_proto::ModuleDeclaration {
-                    name: module.name,
-                    inline_path: module.inline_path,
-                    inline_path_from_file: module.inline_path_from_file,
-                    path: module.path,
-                    test_only: module.test_only,
-                    cfg_options: module.cfg_options,
-                    cfg_test: module.cfg_test,
-                })
+                .map(
+                    |module| messages_proto::gazelle::rust::v1::ModuleDeclaration {
+                        name: module.name,
+                        inline_path: module.inline_path,
+                        inline_path_from_file: module.inline_path_from_file,
+                        path: module.path,
+                        test_only: module.test_only,
+                        cfg_options: module.cfg_options,
+                        cfg_test: module.cfg_test,
+                    },
+                )
                 .collect();
             response.success = true;
             response.hints = Some(hints);
@@ -73,7 +73,7 @@ fn handle_rust_imports_request(
         }
     }
 
-    Ok(response)
+    response
 }
 
 fn handle_lockfile_crates_request(
@@ -81,10 +81,10 @@ fn handle_lockfile_crates_request(
 ) -> Result<LockfileCratesResponse, Box<dyn Error>> {
     let crates = match request.lockfile {
         Some(lockfile_crates_request::Lockfile::LockfilePath(path)) => {
-            lockfile_crates::get_bazel_lockfile_crates(PathBuf::from(path))?
+            lockfile_crates::get_bazel_lockfile_crates(Path::new(&path))?
         }
         Some(lockfile_crates_request::Lockfile::CargoLockfilePath(path)) => {
-            lockfile_crates::get_cargo_lockfile_crates(PathBuf::from(path))?
+            lockfile_crates::get_cargo_lockfile_crates(Path::new(&path))?
         }
         None => return Err("No lockfile path provided".into()),
     };
@@ -108,7 +108,7 @@ fn build_crate_info(product: cargo_toml::Product) -> CargoCrateInfo {
 }
 
 fn handle_cargo_toml_request(
-    request: CargoTomlRequest,
+    request: &CargoTomlRequest,
 ) -> Result<CargoTomlResponse, Box<dyn Error>> {
     let mut manifest = cargo_toml::Manifest::from_path(&request.file_path)?;
     manifest.complete_from_path(&PathBuf::from(&request.file_path))?;
@@ -119,7 +119,7 @@ fn handle_cargo_toml_request(
     };
 
     if let Some(ref package) = manifest.package {
-        response.name = package.name.clone();
+        response.name.clone_from(&package.name);
         response.edition = match package.edition {
             cargo_toml::Inheritable::Set(edition) => edition.to_string(),
             cargo_toml::Inheritable::Inherited => String::new(),
@@ -130,13 +130,15 @@ fn handle_cargo_toml_request(
             .get("default")
             .map(|f| f.enables_features.clone())
             .unwrap_or_default();
-        let default_features: Vec<String> =
-            default_features_set.iter().map(|x| x.to_string()).collect();
+        let default_features: Vec<String> = default_features_set
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         let non_default_features: Vec<String> = features_hmap
             .values()
             .map(|feature| feature.key)
             .filter(|k| !default_features_set.contains(k))
-            .map(|x| x.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         response.default_features = default_features;
         response.non_default_features = non_default_features;
@@ -162,8 +164,7 @@ fn extract_dependency_aliases(deps: &cargo_toml::DepsSet) -> Vec<DependencyAlias
             let package_name = match dep {
                 cargo_toml::Dependency::Detailed(details) => details.package.as_ref(),
                 // Inherited dependencies don't support package renaming - they inherit from workspace
-                cargo_toml::Dependency::Inherited(_) => None,
-                cargo_toml::Dependency::Simple(_) => None,
+                cargo_toml::Dependency::Inherited(_) | cargo_toml::Dependency::Simple(_) => None,
             };
             package_name.map(|pkg| DependencyAlias {
                 local_name: local_name.clone(),
@@ -178,20 +179,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match args {
         Args::OneShot { path } => {
-            let mut rust_imports = gazelle_rust_parser::parse_imports(path, PathBuf::new(), &[])?;
+            let mut rust_imports = gazelle_rust_parser::parse_imports(&path, Path::new(""), &[])?;
             rust_imports.imports.sort();
 
             println!("Imports:");
             for import in rust_imports.imports {
-                println!("  {}", import);
+                println!("  {import}");
             }
         }
         Args::StreamProto => {
+            const SF32: usize = std::mem::size_of::<u32>();
             let mut stdin = std::io::stdin();
             let mut stdout = std::io::stdout();
 
             let mut buf: Vec<u8> = vec![0; 1024];
-            const SF32: usize = std::mem::size_of::<u32>();
 
             loop {
                 match stdin.read_exact(&mut buf[..SF32]) {
@@ -201,7 +202,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                     res => res?,
                 }
-                let size = i32::from_le_bytes(buf[..SF32].try_into()?) as usize;
+                let size = usize::try_from(u32::from_le_bytes(buf[..SF32].try_into()?))?;
                 if size > buf.len() {
                     // grow buffer as needed
                     buf = vec![0; size];
@@ -213,12 +214,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let Some(kind) = request.kind {
                     let response_bytes: Vec<u8> = match kind {
                         request::Kind::RustImports(request) => {
-                            handle_rust_imports_request(request)?.encode_to_vec()
+                            handle_rust_imports_request(&request).encode_to_vec()
                         }
                         request::Kind::LockfileCrates(request) => {
                             handle_lockfile_crates_request(request)?.encode_to_vec()
                         }
-                        request::Kind::CargoToml(request) => handle_cargo_toml_request(request)
+                        request::Kind::CargoToml(request) => handle_cargo_toml_request(&request)
                             .unwrap_or_else(|error| CargoTomlResponse {
                                 error_msg: error.to_string(),
                                 ..Default::default()
@@ -226,7 +227,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .encode_to_vec(),
                     };
 
-                    let size_bytes = (response_bytes.len() as u32).to_le_bytes();
+                    let size_bytes = u32::try_from(response_bytes.len())?.to_le_bytes();
                     stdout.write_all(&size_bytes)?;
                     stdout.write_all(&response_bytes)?;
                     stdout.flush()?;

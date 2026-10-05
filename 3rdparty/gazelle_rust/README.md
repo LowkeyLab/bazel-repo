@@ -1,13 +1,32 @@
 # Locally maintained Gazelle Rust
 
-The `upstream/` directory is a nested Bazel module copied from
+The `upstream/` directory contains ordinary monorepo packages copied from
 [Calsign/gazelle_rust](https://github.com/Calsign/gazelle_rust) at commit
 `747482bfad721b0fe7198c94491d76c32b263ac0`. Its tracked source tree was obtained
 with `git archive`; its licence remains at `upstream/LICENSE`.
 
-The root `MODULE.bazel` selects this source with `local_path_override`.
-Go import paths and internal labels remain upstream-compatible. The parser and
-protobuf code still build with upstream's internal rules_rust configuration.
+## Integration decision
+
+[Issue #1969](https://github.com/LowkeyLab/bazel-repo/issues/1969) supersedes the
+nested-module and independent-toolchain boundary in the
+[baseline design](../../docs/superpowers/specs/2026-10-04-gazelle-rust-local-baseline-design.md).
+Generator, parser, generated protobuf bindings, attribute macros, and enabled
+tests belong to the root build graph. Rust uses the root `rules_rs` toolchain,
+including its provider-compatible Prost bridge; Go uses the root SDK and Nogo.
+Cargo dependencies live in the root manifest and lockfile, including the existing
+`cargo-bazel` 0.18.0 lockfile API. Prost's compiler plugins and matching runtime
+come from the pinned root rules' shared Prost configuration. Generated bindings
+compile with that shared Rust toolchain; Buf checks the maintained schema.
+Clippy checks maintained Rust libraries, binaries, tests, and procedural macros.
+The internal protocol's `gazelle.rust.v1` package and virtual import prefix satisfy
+Buf's standard checks without changing field numbers or the binary wire format.
+
+Go import paths and source directories retain their upstream names. Standalone
+builds, releases, and example maintenance are retired. The removed example's
+module traversal, library/binary dependencies, unit tests, integration tests,
+and derive-macro dependencies are covered by the existing generation fixtures
+(`unified/nested`, `unified/lib_bin`, `crate_tests`, and `cargo/dependencies`).
+Its arithmetic and fixed greeting assertions did not add generator behavior.
 
 ## Local adaptations
 
@@ -23,7 +42,7 @@ Additional test integration adaptations:
   the Rust-only fixture generator, avoiding a repository-relative implicit
   label in the current Gazelle macro.
 - `gazelle_rust_parser/tests/parse_test.rs` resolves fixture data with the
-  repository-aware runfiles macro, so it works as an external module.
+  repository-aware runfiles macro, so it works under root package labels.
 - Generation goldens use rules_rs for newly generated loads. Existing loads,
   rule attributes, dependency labels, and diagnostic expectations are retained.
 
@@ -109,45 +128,38 @@ coverage remains enabled. New `unified/` fixtures exercise crate discovery.
 
 ## Development
 
-Run commands from the monorepo root:
+Run all commands from the monorepo root:
 
 ```sh
 nix develop --command bazel run //:gazelle
-nix develop --command aspect build //:gazelle_bin @gazelle_rust//rust_parser:rust_parser
-nix develop --command aspect test @gazelle_rust//gazelle_rust_parser/tests:parse_test @gazelle_rust//generation_tests/...
-nix develop --command aspect test @gazelle_rust//rust_language:gofmt_test
+nix develop --command aspect format --scope=all
+nix develop --command aspect test //3rdparty/gazelle_rust/upstream/generation_tests/... //3rdparty/gazelle_rust/upstream/gazelle_rust_parser/tests:parse_test //3rdparty/gazelle_rust/upstream/macro/tests:ignore_test
+nix develop --command aspect build //...
+nix develop --command aspect test //...
+nix develop --command aspect lint
+git diff --check
 ```
 
-The root `.gitattributes` preserves formatting of vendored fixtures, including
-deliberately incomplete Rust syntax. Maintained generator/parser entry points
-are explicit exceptions and use the repository formatter. The upstream Go
-format test above also checks maintained Go source.
+Root recursive checks discover the maintained packages and enabled tests.
+The fixture binary remains Rust-only; the application generator retains all its
+language plugins. The original unsupported `standard_unused_crates` fixture
+remains manual. The attribute test compiles the existing annotated import as a
+Rust test target, so recursive tests exercise that contract too.
 
-Root Gazelle excludes `upstream/`, so it cannot rewrite the maintained plugin or
-its generation fixtures. `.bazelignore` also keeps nested packages out of root
-`//...` traversal. Run the explicit external targets above to exercise the local
-module. Do not run Gazelle over its fixture directories or replace their expected
-output wholesale when adapting load statements.
+Root Gazelle excludes generation fixture workspaces and malformed parser samples,
+which remain data. Narrow `.gitattributes` protections keep those inputs, golden
+outputs, and significant patch whitespace unchanged by formatting. Maintained
+Go, Rust, Starlark, and documentation use normal repository formatting.
 
-Before changing generation behavior, compare application BUILD output against
-the existing generator using identical inputs, and confirm a second generation
-run changes no files. Consult [the workaround inventory](workarounds.md) before
-removing dependency overrides or protected attributes.
+Before changing generation behavior, compare application BUILD content and file
+membership against the existing generator on identical inputs. Run generation
+again and require no further changes. Inspect fixture changes explicitly; never
+regenerate golden output wholesale to hide behavior drift. Consult
+[the workaround inventory](workarounds.md) before removing dependency overrides.
 
-## Baseline validation
+## Validation history
 
-The stage-1 verification compared 106 existing BUILD files against the patched
-remote generator, allowing only the root exclusion and the parent package's
-patch-to-README export change. Application BUILD output is unchanged. A second
-root Gazelle run must leave the complete tracked source tree unchanged.
-
-The recursive focused suite contains 63 enabled generation fixture targets, one parser test target,
-and one Go format test target. Root `//...` checks intentionally do not include
-these external-module tests. Run both the focused commands above and the required
-repository-wide format, build, test, and lint checks when changing the integration.
-
-The recursive pattern includes the separate `generation_tests/crate_universe`
-package and its four enabled dependency-resolution fixtures. Upstream marks
-`standard_unused_crates` manual because unused-crate detection with Cargo.lock
-is unsupported; that existing exclusion is preserved. No additional tests are
-disabled locally.
+The stage-1 baseline compared 106 BUILD files against the patched remote
+generator. Before the #1969 migration, root generation left a clean checkout
+unchanged and all 63 enabled generation fixtures plus the parser target passed.
+The separate Go formatting test is replaced by root formatting and Nogo.

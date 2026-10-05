@@ -24,7 +24,7 @@ type Parser struct {
 }
 
 func NewParser() *Parser {
-	path, err := bazel.Runfile("rust_parser/rust_parser")
+	path, err := bazel.Runfile("3rdparty/gazelle_rust/upstream/rust_parser/rust_parser")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,8 +47,10 @@ func NewParser() *Parser {
 	}
 }
 
-var buf []byte = make([]byte, 1024)
-var sf32 int = protowire.SizeFixed32()
+var (
+	buf  []byte = make([]byte, 1024)
+	sf32 int    = protowire.SizeFixed32()
+)
 
 func (p *Parser) WriteRequest(request *pb.Request) error {
 	size := p.marshalOptions.Size(request)
@@ -99,7 +101,8 @@ func ReadResponse[M proto.Message](p *Parser, response M) error {
 
 func (p *Parser) Parse(request *pb.RustImportsRequest) (*pb.RustImportsResponse, error) {
 	if err := p.WriteRequest(&pb.Request{
-		Kind: &pb.Request_RustImports{RustImports: request}}); err != nil {
+		Kind: &pb.Request_RustImports{RustImports: request},
+	}); err != nil {
 		return nil, err
 	}
 	response := &pb.RustImportsResponse{}
@@ -111,7 +114,8 @@ func (p *Parser) Parse(request *pb.RustImportsRequest) (*pb.RustImportsResponse,
 
 func (p *Parser) GetLockfileCrates(request *pb.LockfileCratesRequest) (*pb.LockfileCratesResponse, error) {
 	if err := p.WriteRequest(&pb.Request{
-		Kind: &pb.Request_LockfileCrates{LockfileCrates: request}}); err != nil {
+		Kind: &pb.Request_LockfileCrates{LockfileCrates: request},
+	}); err != nil {
 		return nil, err
 	}
 	response := &pb.LockfileCratesResponse{}
@@ -123,7 +127,8 @@ func (p *Parser) GetLockfileCrates(request *pb.LockfileCratesRequest) (*pb.Lockf
 
 func (p *Parser) ParseCargoToml(request *pb.CargoTomlRequest) (*pb.CargoTomlResponse, error) {
 	if err := p.WriteRequest(&pb.Request{
-		Kind: &pb.Request_CargoToml{CargoToml: request}}); err != nil {
+		Kind: &pb.Request_CargoToml{CargoToml: request},
+	}); err != nil {
 		return nil, err
 	}
 	response := &pb.CargoTomlResponse{}

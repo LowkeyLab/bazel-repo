@@ -1,5 +1,4 @@
 load("@rules_go//go:def.bzl", "go_library")
-load("//util:gofmt.bzl", "gofmt_test")
 
 go_library(
     name = "rust_language",
@@ -12,11 +11,11 @@ go_library(
         "resolve.go",
         "utils.go",
     ],
-    data = ["//rust_parser"],
+    data = ["//3rdparty/gazelle_rust/upstream/rust_parser"],
     importpath = "github.com/calsign/gazelle_rust/rust_language",
     visibility = ["//visibility:public"],
     deps = [
-        "//proto:messages_go",
+        "//3rdparty/gazelle_rust/upstream/proto:messages_go",
         "@gazelle//config",
         "@gazelle//label",
         "@gazelle//language",
@@ -27,9 +26,4 @@ go_library(
         "@org_golang_google_protobuf//proto",
         "@rules_go//go/tools/bazel",
     ],
-)
-
-gofmt_test(
-    name = "gofmt_test",
-    srcs = glob(["*.go"]),
 )

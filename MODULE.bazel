@@ -154,14 +154,6 @@ git_override(
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
 )
 
-# rules_cc 0.2.25 removed grep-includes; rules_rust_prost 0.71.0 still
-# declares it as an unused aspect input through gazelle_rust.
-single_version_override(
-    module_name = "rules_rust_prost",
-    patch_strip = 1,
-    patches = ["//3rdparty:rules_rust_prost_grep_includes.patch"],
-)
-
 # Rust 1.96 emits LLVM raw profile version 10, but LLVM 23 expects version 11.
 # Keep the coverage tools on LLVM 22 until the Rust toolchains use LLVM 23.
 llvm = use_extension("@llvm//extensions:llvm.bzl", "llvm")
@@ -190,6 +182,11 @@ rules_rust_bindgen = use_extension("@rules_rs//rs:rules_rust_bindgen.bzl", "rule
 use_repo(rules_rust_bindgen, "rules_rust_bindgen")
 
 register_toolchains("@rules_rust_bindgen//:all")
+
+rules_rust_prost = use_extension("@rules_rs//rs:rules_rust_prost.bzl", "rules_rust_prost")
+use_repo(rules_rust_prost, "rules_rust_prost")
+
+register_toolchains("@rules_rust_prost//:default_prost_toolchain")
 
 rules_rust_wasm_bindgen = use_extension("@rules_rs//rs:rules_rust_wasm_bindgen.bzl", "rules_rust_wasm_bindgen")
 use_repo(rules_rust_wasm_bindgen, "rules_rust_wasm_bindgen")
@@ -296,12 +293,6 @@ git_override(
     module_name = "gazelle_ts",
     commit = "6f2e0d93e4e4d216e843afd417008bbc087b4736",
     remote = "https://github.com/hermeticbuild/gazelle_ts.git",
-)
-
-bazel_dep(name = "gazelle_rust", dev_dependency = True)
-local_path_override(
-    module_name = "gazelle_rust",
-    path = "3rdparty/gazelle_rust/upstream",
 )
 
 # Pin rules_angular to upstream HEAD, preserving the local compatibility patch.
@@ -639,6 +630,7 @@ go_sdk.nogo(nogo = "//tools/lint:nogo")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+use_repo(go_deps, "org_golang_google_protobuf")
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this

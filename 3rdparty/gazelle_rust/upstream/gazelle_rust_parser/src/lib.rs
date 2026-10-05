@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::fs::File;
+use std::hash::BuildHasher;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -42,9 +43,13 @@ pub struct Hints {
     pub has_proc_macro: bool,
 }
 
+/// Extracts Rust imports and module declarations.
+///
+/// # Errors
+/// Returns source reading or Rust syntax errors.
 pub fn parse_imports(
-    absolute_path: PathBuf,
-    relative_path: PathBuf,
+    absolute_path: &Path,
+    relative_path: &Path,
     enabled_features: &[String],
 ) -> Result<RustImports, Box<dyn Error>> {
     parse_imports_with_parent(
@@ -58,17 +63,21 @@ pub fn parse_imports(
     )
 }
 
-pub fn parse_imports_with_parent(
-    absolute_path: PathBuf,
-    relative_path: PathBuf,
+/// Extracts imports with the parent module and conditional configuration.
+///
+/// # Errors
+/// Returns source reading or Rust syntax errors.
+pub fn parse_imports_with_parent<S: BuildHasher>(
+    absolute_path: &Path,
+    relative_path: &Path,
     enabled_features: &[String],
     parent_names: &[String],
     test_parent_names: &[String],
-    cfg_options: &HashMap<String, bool>,
+    cfg_options: &HashMap<String, bool, S>,
     cfg_test: Option<bool>,
 ) -> Result<RustImports, Box<dyn Error>> {
     // TODO: stream from the file instead of loading it all into memory?
-    let mut file = match File::open(&absolute_path) {
+    let mut file = match File::open(absolute_path) {
         Err(err) => {
             eprintln!(
                 "Could not open file {}: {}",
@@ -93,10 +102,14 @@ pub fn parse_imports_with_parent(
     )
 }
 
+/// Extracts Rust imports and module declarations.
+///
+/// # Errors
+/// Returns source reading or Rust syntax errors.
 pub fn parse_imports_from_str(
     contents: &str,
     enabled_features: &[String],
-    path: PathBuf,
+    path: &Path,
 ) -> Result<RustImports, Box<dyn Error>> {
     parse_imports_with_context(
         contents,
@@ -109,22 +122,25 @@ pub fn parse_imports_from_str(
     )
 }
 
-fn parse_imports_with_context(
+fn parse_imports_with_context<S: BuildHasher>(
     contents: &str,
     enabled_features: &[String],
-    path: PathBuf,
+    path: &Path,
     parent_names: &[String],
     test_parent_names: &[String],
-    cfg_options: &HashMap<String, bool>,
+    cfg_options: &HashMap<String, bool, S>,
     cfg_test: Option<bool>,
 ) -> Result<RustImports, Box<dyn Error>> {
     let ast = parse_file(contents)?;
     // Evaluate root bindings in both configurations. A cfg(test) module or
     // use binding must never suppress an external production import in a child.
     let provided_names = |test| {
-        let mut bindings = AstVisitor::new(enabled_features, path.clone());
+        let mut bindings = AstVisitor::new(enabled_features, path);
         bindings.cfg_test = Some(test);
-        bindings.cfg_known = cfg_options.clone();
+        bindings.cfg_known = cfg_options
+            .iter()
+            .map(|(key, value)| (key.clone(), *value))
+            .collect();
         bindings.visit_file(&ast);
         bindings
             .mod_stack
@@ -139,7 +155,10 @@ fn parse_imports_with_context(
     let test_bindings = provided_names(true);
     let mut visitor = AstVisitor::new(enabled_features, path);
     visitor.cfg_test = cfg_test;
-    visitor.cfg_known = cfg_options.clone();
+    visitor.cfg_known = cfg_options
+        .iter()
+        .map(|(key, value)| (key.clone(), *value))
+        .collect();
     // Imports are order independent, and a parent glob applies only in this
     // module (including its function/block scopes), never its child modules.
     for item in &ast.items {
@@ -199,7 +218,7 @@ fn filter_imports(imports: Vec<Ident>) -> Vec<String> {
             let s = ident.to_string();
             // uppercase is structs
             // TODO: don't store all the structs! seems wasteful
-            if s.chars().next().map(|c| c.is_lowercase()).unwrap_or(false) {
+            if s.chars().next().is_some_and(char::is_lowercase) {
                 Some(s)
             } else {
                 None
@@ -283,7 +302,7 @@ struct Scope<'ast> {
     mods: HashSet<Ident<'ast>>,
     /// whether this scope is behind #[test] or #[cfg(test)]
     is_test_only: bool,
-    /// whether this scope is behind #[gazelle::ignore]
+    /// whether this scope is behind #[`gazelle::ignore`]
     // TODO: this is not currently used, but we could support #[gazelle::ignore] on things like
     // functions and blocks in the future
     is_ignored: bool,
@@ -314,8 +333,8 @@ struct AstVisitor<'ast> {
     inline_path: Vec<String>,
     inline_path_from_file: bool,
     /// The relative path from the root of Bazel package to the directory that contains the file we
-    /// are parsing. This is used to resolve location of files that are included with include_str!
-    /// and include_bytes!.
+    /// are parsing. This is used to resolve location of files that are included with `include_str`!
+    /// and `include_bytes`!.
     containing_dir: PathBuf,
     /// stack of mods in scope
     mod_stack: VecDeque<Scope<'ast>>,
@@ -332,14 +351,14 @@ struct AstVisitor<'ast> {
     mod_denylist: HashSet<Ident<'ast>>,
     /// Enabled features
     enabled_features: HashSet<String>,
-    /// Files that are included via include_str! and include_bytes! macros.
+    /// Files that are included via `include_str`! and `include_bytes`! macros.
     compile_data: HashSet<String>,
     /// Keep track of whether we're currently inside a use tree to handle aliases correctly.
     inside_use_tree: bool,
 }
 
 impl AstVisitor<'_> {
-    fn new(enabled_features: &[String], path: PathBuf) -> Self {
+    fn new(enabled_features: &[String], path: &Path) -> Self {
         let mut mod_stack = VecDeque::new();
         mod_stack.push_back(Scope::default());
 
@@ -380,8 +399,7 @@ impl<'ast> Directive {
         assert_eq!(
             path.segments.len(),
             2,
-            "invalid gazelle directive: {:?}",
-            path
+            "invalid gazelle directive: {path:?}"
         );
         assert_eq!(path.segments[0].ident, "gazelle");
         let ident = &path.segments[1].ident;
@@ -403,7 +421,7 @@ impl<'ast> Directive {
 
             Self::Provides(provides)
         } else {
-            panic!("unexpected gazelle directive: {}", ident);
+            panic!("unexpected gazelle directive: {ident}");
         }
     }
 }
@@ -708,11 +726,11 @@ impl<'ast> AstVisitor<'ast> {
                     }
                 }
             }
-            _ => (),
+            syn::Meta::NameValue(_) => (),
         }
     }
 
-    fn parse_directives(&self, attrs: &'ast Vec<syn::Attribute>) -> DirectiveSet {
+    fn parse_directives(attrs: &'ast Vec<syn::Attribute>) -> DirectiveSet {
         let mut directives = DirectiveSet::default();
         for attr in attrs {
             if attr
@@ -769,7 +787,7 @@ impl<'ast> AstVisitor<'ast> {
         } else {
             // The token stream does not start with an identifier: the parseable part probably comes
             // later. Strip everything until we hit an identifier and try again.
-            self.visit_macro_tokens(remove_prefix_until_ident(tokens))
+            self.visit_macro_tokens(remove_prefix_until_ident(tokens));
         }
     }
 
@@ -817,8 +835,8 @@ impl<'ast> AstVisitor<'ast> {
 ///
 /// Recognizes:
 /// - Standard: #[test]
-/// - Async/custom test frameworks: any attribute ending in ::test
-///   (e.g., #[tokio::test], #[async_std::test], #[custom::framework::test])
+/// - Async/custom test frameworks: any attribute ending in `::test`
+///   (e.g., #[`tokio::test`], #[`async_std::test`], #[`custom::framework::test`])
 fn is_test_attribute(path: &syn::Path) -> bool {
     // Single segment: #[test]
     if let Some(ident) = path.get_ident() {
@@ -869,7 +887,7 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
         if !self.cfg_enabled(&node.attrs) {
             return;
         }
-        let directives = self.parse_directives(&node.attrs);
+        let directives = Self::parse_directives(&node.attrs);
 
         let mut imports = HashSet::new();
 
@@ -918,7 +936,7 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
             return;
         }
 
-        let directives = self.parse_directives(&node.attrs);
+        let directives = Self::parse_directives(&node.attrs);
         if !directives.should_ignore {
             self.add_import(&node.ident);
         }
@@ -1035,7 +1053,7 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
                             self.hints.has_proc_macro = true;
                         }
                     }
-                    _ => {}
+                    syn::Meta::NameValue(_) => {}
                 }
             }
         }
@@ -1067,7 +1085,7 @@ impl<'ast> Visit<'ast> for AstVisitor<'ast> {
             return;
         }
 
-        let directives = self.parse_directives(&node.attrs);
+        let directives = Self::parse_directives(&node.attrs);
 
         if let Some(macro_ident) = node.mac.path.get_ident()
             && macro_ident == "macro_rules"
