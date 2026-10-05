@@ -15,7 +15,7 @@
       }
     },
     {
-      "matchManagers": ["cargo", "gomod"],
+      "matchManagers": ["cargo"],
       "postUpgradeTasks": {
         "commands": [
           "bazel mod deps --lockfile_mode=update --config=ci-remote"
@@ -23,7 +23,18 @@
         "fileFilters": ["MODULE.bazel.lock"],
         "executionMode": "update"
       }
+    },
+    {
+      "matchManagers": ["gomod"],
+      "skipArtifactsUpdate": true,
+      "postUpgradeTasks": {
+        "commands": [
+          "bazel run @rules_go//go --config=ci-remote -- mod download all",
+          "bazel mod deps --lockfile_mode=update --config=ci-remote"
+        ],
+        "fileFilters": ["go.mod", "go.sum", "MODULE.bazel.lock"],
+        "executionMode": "branch"
+      }
     }
-  ],
-  "postUpdateOptions": ["gomodTidy"]
+  ]
 }
