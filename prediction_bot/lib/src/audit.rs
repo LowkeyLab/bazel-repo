@@ -171,6 +171,7 @@ pub enum Outcome {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandKind {
     AddResolver,
+    RemoveResolver,
     Join,
     Create,
     Bet,
@@ -183,6 +184,7 @@ impl CommandKind {
     const fn as_str(self) -> &'static str {
         match self {
             Self::AddResolver => "resolver_add",
+            Self::RemoveResolver => "resolver_remove",
             Self::Join => "join",
             Self::Create => "create",
             Self::Bet => "bet",
@@ -197,6 +199,7 @@ impl From<&Command> for CommandKind {
     fn from(command: &Command) -> Self {
         match command {
             Command::AddResolver { .. } => Self::AddResolver,
+            Command::RemoveResolver { .. } => Self::RemoveResolver,
             Command::Join => Self::Join,
             Command::Create { .. } => Self::Create,
             Command::Bet { .. } => Self::Bet,

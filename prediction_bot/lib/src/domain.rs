@@ -126,6 +126,11 @@ pub enum Command {
         #[serde(with = "snowflake")]
         user_id: UserId,
     },
+    RemoveResolver {
+        id: MarketId,
+        #[serde(with = "snowflake")]
+        user_id: UserId,
+    },
     Cancel {
         id: MarketId,
     },
@@ -258,6 +263,14 @@ pub enum Event {
         added_by: UserId,
         added_at: i64,
     },
+    MarketResolverRemoved {
+        id: MarketId,
+        #[serde(with = "snowflake")]
+        user_id: UserId,
+        #[serde(with = "snowflake")]
+        removed_by: UserId,
+        removed_at: i64,
+    },
     MarketCancelled {
         id: MarketId,
         #[serde(with = "snowflake")]
@@ -279,6 +292,7 @@ impl Event {
             Self::BetPlaced { .. } => "bet.placed",
             Self::MarketResolved { .. } => "market.resolved",
             Self::MarketResolverAdded { .. } => "market.resolver.added",
+            Self::MarketResolverRemoved { .. } => "market.resolver.removed",
             Self::MarketCancelled { .. } => "market.cancelled",
         }
     }
@@ -295,6 +309,7 @@ impl Event {
             | Self::BetPlaced { id, .. }
             | Self::MarketResolved { id, .. }
             | Self::MarketResolverAdded { id, .. }
+            | Self::MarketResolverRemoved { id, .. }
             | Self::MarketCancelled { id, .. } => format!("markets/{id}"),
         }
     }
@@ -564,6 +579,9 @@ pub fn decide_with_membership(
         Command::AddResolver { id, user_id } => {
             decide_add_resolver(state, actor, id, *user_id, now, membership)
         }
+        Command::RemoveResolver { id, user_id } => {
+            decide_remove_resolver(state, actor, id, *user_id, now)
+        }
         Command::Cancel { id } => decide_cancel(state, actor, id, now),
     }
 }
@@ -621,6 +639,47 @@ fn decide_add_resolver(
             added_at: now,
         }],
         format!("Added <@{user_id}> as an additional resolver for market {id}."),
+    )
+}
+
+fn decide_remove_resolver(
+    state: &State,
+    actor: Actor,
+    id: &MarketId,
+    user_id: UserId,
+    now: i64,
+) -> Result<Decision, DomainError> {
+    let market = state
+        .markets
+        .get(id)
+        .ok_or(DomainError::Invalid("unknown market"))?;
+    if actor.bot || actor.user_id.0 == 0 || (!actor.moderator && actor.user_id != market.creator) {
+        return Err(DomainError::Invalid("market creator or moderator required"));
+    }
+    if market.status != Status::Open {
+        return Err(DomainError::Invalid("market already terminal"));
+    }
+    if user_id.0 == 0 {
+        return Err(DomainError::Invalid("invalid resolver"));
+    }
+    let authority =
+        " Separate authority as the market creator or a current moderator remains unchanged.";
+    if !market.resolvers.contains(&user_id) {
+        return finish(
+            state,
+            vec![],
+            format!("<@{user_id}> is not an additional resolver for market {id}.{authority}"),
+        );
+    }
+    finish(
+        state,
+        vec![Event::MarketResolverRemoved {
+            id: id.clone(),
+            user_id,
+            removed_by: actor.user_id,
+            removed_at: now,
+        }],
+        format!("Removed <@{user_id}> as an additional resolver for market {id}.{authority}"),
     )
 }
 
@@ -779,6 +838,25 @@ fn apply_inner(state: &mut State, event: &Event) -> Result<(), DomainError> {
                 return Err(DomainError::Invalid(
                     "invalid resolver assignment transition",
                 ));
+            }
+        }
+        Event::MarketResolverRemoved {
+            id,
+            user_id,
+            removed_by,
+            removed_at,
+        } => {
+            let market = state
+                .markets
+                .get_mut(id)
+                .ok_or(DomainError::Invalid("unknown market"))?;
+            if user_id.0 == 0
+                || removed_by.0 == 0
+                || market.status != Status::Open
+                || *removed_at < market.created_at
+                || !market.resolvers.remove(user_id)
+            {
+                return Err(DomainError::Invalid("invalid resolver removal transition"));
             }
         }
         Event::MarketCancelled {

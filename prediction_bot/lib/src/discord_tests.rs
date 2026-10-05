@@ -2576,3 +2576,123 @@ fn real_resolver_slash_payload_and_registered_user_option_open_confirmation() {
         .unwrap();
     assert_that!(user["type"].as_u64(), eq(Some(6)));
 }
+
+#[googletest::test]
+fn remove_resolver_slash_payload_opens_confirmation() {
+    let data = serde_json::json!({"id":"42","name":"market","type":1,"options":[{"name":"resolver","type":2,"options":[{"name":"remove","type":1,"options":[{"name":"market","type":3,"value":"78e82954-4c67-4e0d-8c80-8ab95a527ae5"},{"name":"user","type":6,"value":"2"}]}]}]});
+    let command: serenity::all::CommandInteraction =
+        serde_json::from_value(interaction_json(123, data)).unwrap();
+    let input = super::from_discord(&command).unwrap();
+    let (_, actor, action) = parse(&input).unwrap();
+    assert_that!(actor.user_id, eq(UserId(7)));
+    assert_that!(
+        action,
+        matches_pattern!(Action::ResolverRemove {
+            user_id: eq(&UserId(2)),
+            ..
+        })
+    );
+    let registered = serde_json::to_value(super::market_command()).unwrap();
+    let resolver = registered["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "resolver")
+        .unwrap();
+    assert_that!(resolver["type"].as_u64(), eq(Some(2)));
+    let user = resolver["options"][1]["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "user")
+        .unwrap();
+    assert_that!(user["type"].as_u64(), eq(Some(6)));
+}
+
+#[googletest::test]
+fn removal_confirmation_binds_market_target_guild_actor_and_button() {
+    use crate::domain::{Actor, Market, State, Status};
+    use crate::store::View;
+    use serenity::all::ComponentInteractionDataKind;
+    let guild = GuildId(u64::MAX);
+    let actor = Actor {
+        user_id: UserId(u64::MAX),
+        moderator: false,
+        bot: false,
+    };
+    let id: crate::types::MarketId = "78E82954-4C67-4E0D-8C80-8AB95A527AE5".into();
+    let mut view = View {
+        revision: EventRevision(1),
+        state: State::default(),
+    };
+    view.state.markets.insert(
+        id.clone(),
+        Market {
+            creator: actor.user_id,
+            question: "Who wins?".into(),
+            options: vec!["A".into(), "B".into()],
+            closes_at: 2_000,
+            created_at: 1_000,
+            status: Status::Open,
+            bets: vec![],
+            total_staked: Points(0),
+            resolvers: Default::default(),
+        },
+    );
+    let panel =
+        super::resolvers::remove::confirmation(&view, guild, actor, &id, UserId(u64::MAX)).unwrap();
+    let wire = serde_json::to_value(panel.message()).unwrap();
+    assert_that!(wire["flags"].as_u64().unwrap() & 64, eq(64));
+    assert_that!(
+        wire["content"].as_str().unwrap(),
+        contains_substring("Remove <@18446744073709551615>")
+    );
+    let control = wire["components"][0]["components"][0]["custom_id"]
+        .as_str()
+        .unwrap();
+    assert_that!(control.len(), le(100));
+    assert_that!(
+        super::resolvers::parse(guild, actor, control, &ComponentInteractionDataKind::Button)
+            .unwrap(),
+        eq(&Command::RemoveResolver {
+            id,
+            user_id: UserId(u64::MAX)
+        })
+    );
+    assert_that!(
+        super::resolvers::parse(
+            GuildId(1),
+            actor,
+            control,
+            &ComponentInteractionDataKind::Button
+        ),
+        err(anything())
+    );
+    assert_that!(
+        super::resolvers::parse(
+            guild,
+            Actor {
+                user_id: UserId(1),
+                ..actor
+            },
+            control,
+            &ComponentInteractionDataKind::Button
+        ),
+        err(anything())
+    );
+    assert_that!(
+        super::resolvers::parse(
+            guild,
+            actor,
+            control,
+            &ComponentInteractionDataKind::StringSelect {
+                values: vec!["injected".into()]
+            }
+        ),
+        err(anything())
+    );
+    assert_that!(
+        view.state.markets.values().next().unwrap().resolvers,
+        is_empty()
+    );
+}
