@@ -18,7 +18,7 @@ mod support;
 
 use support::{admin, fixture};
 
-fn member() -> Actor {
+const fn member() -> Actor {
     Actor {
         user_id: UserId(8),
         moderator: false,
@@ -1584,7 +1584,10 @@ impl prediction_bot::audit::AuditListener for WorkerAudit {
     }
 }
 impl WorkerAudit {
-    async fn wait_for(&self, predicate: impl Fn(&prediction_bot::audit::AuditEvent) -> bool) {
+    async fn wait_for(
+        &self,
+        predicate: impl Fn(&prediction_bot::audit::AuditEvent) -> bool + Send + Sync,
+    ) {
         tokio::time::timeout(std::time::Duration::from_secs(5), async {
             loop {
                 let changed = self.changed.notified();
@@ -1751,6 +1754,7 @@ async fn worker_reports_safe_attempt_failure_and_acknowledgement_persistence_fai
                 eq(true)
             );
             assert_that!(format!("{events:?}"), not(contains_substring("sentinel")));
+            drop(events);
         }
         assert_that!(
             store

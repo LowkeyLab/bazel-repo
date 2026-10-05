@@ -1,6 +1,6 @@
 use bevy::prelude::World;
 
-pub(crate) use hearthstone_simulator_core::{DefeatedHeroes, PendingDeaths};
+pub use hearthstone_simulator_core::{DefeatedHeroes, PendingDeaths};
 
 use crate::{
     CanonicalTrace, Controller, CurrentStats, Damage, DeathEventCache, DeathRecord, EntityKind,
@@ -10,7 +10,7 @@ use crate::{
     zone::{move_entity_with_request, semantic_zone_position},
 };
 
-pub(crate) fn create_deaths(world: &mut World) {
+pub fn create_deaths(world: &mut World) {
     let mortally_wounded = world
         .iter_entities()
         .filter_map(|entity| {
@@ -104,7 +104,7 @@ pub(crate) fn create_deaths(world: &mut World) {
     world.resource_mut::<PendingDeaths>().0.extend(records);
 }
 
-pub(crate) fn record_full_zone_death(
+pub fn record_full_zone_death(
     world: &mut World,
     id: GameEntityId,
     remembered_zone_position: usize,
@@ -148,7 +148,7 @@ pub(crate) fn record_full_zone_death(
     world.resource_mut::<PendingDeaths>().0.push(record);
 }
 
-pub(crate) fn take_pending_deaths(world: &mut World) -> Vec<DeathRecord> {
+pub fn take_pending_deaths(world: &mut World) -> Vec<DeathRecord> {
     let mut deaths = std::mem::take(&mut world.resource_mut::<PendingDeaths>().0);
     // Full-zone deaths are recorded immediately while ordinary mortality is collected later at
     // the boundary. Death Event order is nevertheless global order of play, not creation order.
@@ -161,7 +161,7 @@ pub(crate) fn take_pending_deaths(world: &mut World) -> Vec<DeathRecord> {
     deaths
 }
 
-pub(crate) fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {
+pub fn is_mortally_wounded(world: &World, id: GameEntityId) -> bool {
     game_entity(world, id).is_some_and(|entity| {
         if world.get::<EntityKind>(entity) == Some(&EntityKind::Weapon) {
             return world

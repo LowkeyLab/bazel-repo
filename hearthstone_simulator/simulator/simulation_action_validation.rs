@@ -286,14 +286,13 @@ fn validate_target(
             None => Ok(()),
             Some(_) => Err(SimulationError::UnexpectedTarget(card)),
         },
-        TargetRequirement::Required(filter) => match target {
-            None => Err(SimulationError::MissingTarget(card)),
-            Some(target) => validate_supplied_target(world, player, card, target, filter),
-        },
-        TargetRequirement::Optional(filter) => match target {
-            None => Ok(()),
-            Some(target) => validate_supplied_target(world, player, card, target, filter),
-        },
+        TargetRequirement::Required(filter) => target
+            .map_or(Err(SimulationError::MissingTarget(card)), |target| {
+                validate_supplied_target(world, player, card, target, filter)
+            }),
+        TargetRequirement::Optional(filter) => target.map_or(Ok(()), |target| {
+            validate_supplied_target(world, player, card, target, filter)
+        }),
         TargetRequirement::RequiredIfAvailable(filter) => match target {
             None if eligible_targets(world, player, filter).is_empty() => Ok(()),
             None => Err(SimulationError::MissingTarget(card)),

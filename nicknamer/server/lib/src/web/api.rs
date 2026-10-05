@@ -1,4 +1,4 @@
-pub(crate) mod v1 {
+pub mod v1 {
     use std::sync::Arc;
 
     use crate::{
@@ -32,7 +32,7 @@ pub(crate) mod v1 {
         }
 
         /// Create a new error response with both error code and custom message
-        pub fn new_with_message(error: String, message: String) -> Self {
+        pub const fn new_with_message(error: String, message: String) -> Self {
             Self { error, message }
         }
     }
@@ -80,7 +80,7 @@ pub(crate) mod v1 {
         name_state: Arc<NameState>,
     ) -> axum::Router {
         let login_router = auth::api::v1::create_api_router(auth_state.clone());
-        let names_router = crate::name::api::v1::create_api_router(name_state.clone());
+        let names_router = crate::name::api::v1::create_api_router(name_state);
         let protected_routes = names_router
             .layer(ServiceBuilder::new().layer(from_fn(auth::api::v1::require_auth_middleware)));
         let public_routes = login_router;

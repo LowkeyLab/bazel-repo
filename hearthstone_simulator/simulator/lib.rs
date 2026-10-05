@@ -14,7 +14,7 @@ mod weapon;
 mod zone;
 
 mod entity {
-    pub(crate) use hearthstone_simulator_core::{
+    pub use hearthstone_simulator_core::{
         GameEntityIndex, NextGameEntityId, PlayOrderCounter, allocate_game_id, allocate_play_order,
         game_entity,
     };

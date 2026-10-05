@@ -47,7 +47,7 @@ impl RelayId {
     }
 
     /// Decode a Relay global ID and extract components
-    pub fn decode(encoded: &ID) -> Result<RelayId> {
+    pub fn decode(encoded: &ID) -> Result<Self> {
         let encoded_str: &str = encoded;
         let bytes = BASE64
             .decode(encoded_str)
@@ -66,7 +66,7 @@ impl RelayId {
                     .parse::<u64>()
                     .context("Invalid server ID format")?;
 
-                Ok(RelayId {
+                Ok(Self {
                     type_name: "Name".to_string(),
                     raw_id: RawId::Name {
                         discord_id,
@@ -79,7 +79,7 @@ impl RelayId {
                     .parse::<u64>()
                     .context("Invalid server ID format")?;
 
-                Ok(RelayId {
+                Ok(Self {
                     type_name: "Server".to_string(),
                     raw_id: RawId::Server { discord_server },
                 })
@@ -118,7 +118,7 @@ pub struct Cursor {
 
 impl Cursor {
     /// Create a new cursor from a discord_id value
-    pub fn new(discord_id: DiscordId) -> Self {
+    pub const fn new(discord_id: DiscordId) -> Self {
         Self {
             discord_id: discord_id.0,
         }
@@ -139,13 +139,13 @@ impl Cursor {
 
         let json_str = String::from_utf8(bytes).context("Invalid UTF-8 in cursor")?;
 
-        let cursor: Cursor = serde_json::from_str(&json_str).context("Invalid JSON in cursor")?;
+        let cursor: Self = serde_json::from_str(&json_str).context("Invalid JSON in cursor")?;
 
         Ok(cursor)
     }
 
     /// Get the discord_id value for use in SQL queries
-    pub fn discord_id_value(&self) -> DiscordId {
+    pub const fn discord_id_value(&self) -> DiscordId {
         DiscordId(self.discord_id)
     }
 }
@@ -160,7 +160,7 @@ pub struct ServerCursor {
 
 impl ServerCursor {
     /// Create a new server cursor from a server_id value
-    pub fn new(server_id: u64) -> Self {
+    pub const fn new(server_id: u64) -> Self {
         Self { server_id }
     }
 
@@ -179,14 +179,14 @@ impl ServerCursor {
 
         let json_str = String::from_utf8(bytes).context("Invalid UTF-8 in server cursor")?;
 
-        let cursor: ServerCursor =
+        let cursor: Self =
             serde_json::from_str(&json_str).context("Invalid JSON in server cursor")?;
 
         Ok(cursor)
     }
 
     /// Get the server_id value for use in SQL queries
-    pub fn server_id_value(&self) -> u64 {
+    pub const fn server_id_value(&self) -> u64 {
         self.server_id
     }
 }

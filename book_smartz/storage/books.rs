@@ -77,7 +77,7 @@ async fn register(pool: &PgPool, book: &Book) -> Result<Registration, StoreError
     Ok(result)
 }
 
-fn registration_outcome(result: &Result<Registration, StoreError>) -> Outcome {
+const fn registration_outcome(result: &Result<Registration, StoreError>) -> Outcome {
     match result {
         Ok(Registration::Created) => Outcome::Created,
         Ok(Registration::AlreadyPresent) => Outcome::AlreadyPresent,
@@ -89,7 +89,7 @@ fn registration_outcome(result: &Result<Registration, StoreError>) -> Outcome {
     }
 }
 
-fn lookup_outcome(result: &Result<Option<Book>, StoreError>) -> Outcome {
+const fn lookup_outcome(result: &Result<Option<Book>, StoreError>) -> Outcome {
     match result {
         Ok(Some(_)) => Outcome::Found,
         Ok(None) => Outcome::Absent,

@@ -69,7 +69,7 @@ pub struct CurrentUser {
 impl CurrentUser {
     /// Creates a new `CurrentUser` instance.
     #[must_use]
-    pub fn new(username: String) -> Self {
+    pub const fn new(username: String) -> Self {
         Self { username }
     }
 }

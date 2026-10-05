@@ -24,11 +24,11 @@ impl Edge {
         }
     }
 
-    pub fn source(&self) -> &NodeId {
+    pub const fn source(&self) -> &NodeId {
         &self.source
     }
 
-    pub fn target(&self) -> &NodeId {
+    pub const fn target(&self) -> &NodeId {
         &self.target
     }
 
@@ -46,7 +46,7 @@ pub struct GraphDefinition {
 }
 
 impl GraphDefinition {
-    pub fn new(nodes: Vec<AnyNode>, citations: Vec<Citation>, outputs: Vec<NodeId>) -> Self {
+    pub const fn new(nodes: Vec<AnyNode>, citations: Vec<Citation>, outputs: Vec<NodeId>) -> Self {
         Self {
             nodes,
             citations,

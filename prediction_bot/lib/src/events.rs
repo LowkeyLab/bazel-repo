@@ -12,7 +12,7 @@ use crate::types::{ApplicationId, EventRevision, GuildId};
 #[error("invalid event metadata: {0}")]
 pub struct EventError(pub &'static str);
 
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(transparent)]
 pub struct CloudEvent(Event);
 

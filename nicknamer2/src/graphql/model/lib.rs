@@ -35,7 +35,7 @@ impl NameEdge {
     }
 
     /// The Name node
-    fn node(&self) -> &Name {
+    const fn node(&self) -> &Name {
         &self.node
     }
 }
@@ -51,12 +51,12 @@ pub struct PageInfo {
 #[graphql_object(context = Context)]
 impl PageInfo {
     /// Whether there are more items when paginating forwards
-    fn has_next_page(&self) -> bool {
+    const fn has_next_page(&self) -> bool {
         self.has_next_page
     }
 
     /// Whether there are more items when paginating backwards
-    fn has_previous_page(&self) -> bool {
+    const fn has_previous_page(&self) -> bool {
         self.has_previous_page
     }
 
@@ -86,12 +86,12 @@ impl NameConnection {
     }
 
     /// Information about pagination
-    fn page_info(&self) -> &PageInfo {
+    const fn page_info(&self) -> &PageInfo {
         &self.page_info
     }
 
     /// The total number of names in this server
-    fn total_count(&self) -> i32 {
+    const fn total_count(&self) -> i32 {
         self.total_count
     }
 }
@@ -115,12 +115,12 @@ impl Server {
     }
 
     /// When the server was created
-    fn created_at(&self) -> DateTime<Utc> {
+    const fn created_at(&self) -> DateTime<Utc> {
         self.created_at
     }
 
     /// When the server was last updated
-    fn updated_at(&self) -> DateTime<Utc> {
+    const fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at
     }
 
@@ -212,7 +212,7 @@ impl ServerEdge {
     }
 
     /// The Server node
-    fn node(&self) -> &Server {
+    const fn node(&self) -> &Server {
         &self.node
     }
 }
@@ -232,12 +232,12 @@ impl ServerConnection {
     }
 
     /// Information about pagination
-    fn page_info(&self) -> &PageInfo {
+    const fn page_info(&self) -> &PageInfo {
         &self.page_info
     }
 
     /// The total number of servers
-    fn total_count(&self) -> i32 {
+    const fn total_count(&self) -> i32 {
         self.total_count
     }
 }
@@ -263,11 +263,11 @@ impl Name {
         &self.name
     }
 
-    fn created_at(&self) -> DateTime<Utc> {
+    const fn created_at(&self) -> DateTime<Utc> {
         self.created_at
     }
 
-    fn updated_at(&self) -> DateTime<Utc> {
+    const fn updated_at(&self) -> DateTime<Utc> {
         self.updated_at
     }
 }

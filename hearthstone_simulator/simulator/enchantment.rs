@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub(crate) use hearthstone_simulator_core::{AttachedTo, StatModifier};
+pub use hearthstone_simulator_core::{AttachedTo, StatModifier};
 
 use crate::{
     AttachedEnchantments, AttackAuraCache, AuraModifier, BaseKeywords, BaseStats, Controller,
@@ -16,7 +16,7 @@ use super::simulation::card_runtime::CardRuntime;
 #[cfg(test)]
 use crate::Keyword;
 
-pub(crate) fn assert_enchantment_invariants(world: &World) -> Result<(), String> {
+pub fn assert_enchantment_invariants(world: &World) -> Result<(), String> {
     for entity in world
         .iter_entities()
         .filter(|entity| entity.get::<EntityKind>() == Some(&EntityKind::Enchantment))
@@ -35,7 +35,7 @@ pub(crate) fn assert_enchantment_invariants(world: &World) -> Result<(), String>
     Ok(())
 }
 
-pub(crate) fn spawn_attached_enchantment(
+pub fn spawn_attached_enchantment(
     world: &mut World,
     controller: PlayerId,
     target: GameEntityId,
@@ -68,7 +68,7 @@ pub(crate) fn spawn_attached_enchantment(
     Ok((id, entity))
 }
 
-pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {
+pub fn recalculate_keywords(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {
         return;
     };
@@ -113,7 +113,7 @@ pub(crate) fn recalculate_keywords(world: &mut World, target: GameEntityId) {
     world.entity_mut(entity).insert(Keywords(keywords));
 }
 
-pub(crate) fn recalculate_cost(world: &mut World, target: GameEntityId) {
+pub fn recalculate_cost(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {
         return;
     };
@@ -156,7 +156,7 @@ pub(crate) fn recalculate_cost(world: &mut World, target: GameEntityId) {
         .cost = cost;
 }
 
-pub(crate) fn recalculate_stats(world: &mut World, target: GameEntityId) {
+pub fn recalculate_stats(world: &mut World, target: GameEntityId) {
     let Some(entity) = game_entity(world, target) else {
         return;
     };

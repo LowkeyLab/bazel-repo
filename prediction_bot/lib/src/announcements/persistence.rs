@@ -9,7 +9,7 @@ use crate::{
     store::{Store, StoreError},
 };
 
-pub(crate) async fn enqueue(
+pub async fn enqueue(
     tx: &mut sqlx::PgConnection,
     guild: GuildId,
     revision: EventRevision,
@@ -153,7 +153,7 @@ fn event_snapshot(
     Ok(Some(snapshot))
 }
 
-fn validate_administrator(guild: GuildId, actor: Actor) -> Result<(), StoreError> {
+const fn validate_administrator(guild: GuildId, actor: Actor) -> Result<(), StoreError> {
     if guild.0 == 0 || actor.user_id.0 == 0 || !actor.moderator || actor.bot {
         return Err(StoreError::Configuration(
             "announcement configuration requires a guild administrator",
@@ -423,7 +423,7 @@ impl Store {
     }
 }
 
-pub(crate) async fn next_due(
+pub async fn next_due(
     store: &Store,
     now: i64,
     limit: i64,
@@ -465,7 +465,7 @@ pub(crate) async fn next_due(
         .collect()
 }
 
-pub(crate) async fn still_eligible(
+pub async fn still_eligible(
     store: &Store,
     item: &super::PendingAnnouncement,
 ) -> Result<bool, StoreError> {
@@ -481,7 +481,7 @@ pub(crate) async fn still_eligible(
         .bind(item.configuration_version.0).fetch_one(&store.pool).await?)
 }
 
-pub(crate) async fn finish_attempt(
+pub async fn finish_attempt(
     store: &Store,
     item: &super::PendingAnnouncement,
     outcome: &super::worker::AttemptOutcome,

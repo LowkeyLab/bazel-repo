@@ -20,7 +20,7 @@ pub struct ExactDecimal(Decimal);
 
 impl ExactDecimal {
     /// Creates an exact decimal after enforcing the calculator's non-negative domain.
-    pub fn new(value: Decimal) -> Result<Self, ValueError> {
+    pub const fn new(value: Decimal) -> Result<Self, ValueError> {
         if value.is_sign_negative() {
             return Err(ValueError::NegativeDecimal { value });
         }
@@ -29,7 +29,7 @@ impl ExactDecimal {
     }
 
     /// Returns the underlying exact decimal.
-    pub fn value(self) -> Decimal {
+    pub const fn value(self) -> Decimal {
         self.0
     }
 }
@@ -69,15 +69,15 @@ pub struct DataSize {
 }
 
 impl DataSize {
-    pub fn new(amount: ExactDecimal, unit: DataUnit) -> Self {
+    pub const fn new(amount: ExactDecimal, unit: DataUnit) -> Self {
         Self { amount, unit }
     }
 
-    pub fn amount(self) -> ExactDecimal {
+    pub const fn amount(self) -> ExactDecimal {
         self.amount
     }
 
-    pub fn unit(self) -> DataUnit {
+    pub const fn unit(self) -> DataUnit {
         self.unit
     }
 }
@@ -102,7 +102,7 @@ pub enum Value {
 
 impl Value {
     /// Returns the static category of this value.
-    pub fn value_type(self) -> ValueType {
+    pub const fn value_type(self) -> ValueType {
         match self {
             Self::Scalar(_) => ValueType::Scalar,
             Self::Ratio(_) => ValueType::Ratio,

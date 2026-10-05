@@ -603,18 +603,18 @@ async fn can_bulk_create_names_with_same_discord_id_different_servers() {
     assert_eq!(all_names.len(), 4); // 2 per server
 
     // Check names in server1
-    let server1_names: Vec<_> = all_names
+    let server1_count = all_names
         .iter()
         .filter(|name| name.server_id() == server1_id)
-        .collect();
-    assert_eq!(server1_names.len(), 2);
+        .count();
+    assert_eq!(server1_count, 2);
 
     // Check names in server2
-    let server2_names: Vec<_> = all_names
+    let server2_count = all_names
         .iter()
         .filter(|name| name.server_id() == server2_id)
-        .collect();
-    assert_eq!(server2_names.len(), 2);
+        .count();
+    assert_eq!(server2_count, 2);
 }
 
 #[tokio::test]

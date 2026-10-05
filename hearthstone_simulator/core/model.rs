@@ -95,7 +95,7 @@ impl Card {
     }
 
     #[must_use]
-    pub fn with_targeting(mut self, targeting: TargetRequirement) -> Self {
+    pub const fn with_targeting(mut self, targeting: TargetRequirement) -> Self {
         self.targeting = targeting;
         self
     }

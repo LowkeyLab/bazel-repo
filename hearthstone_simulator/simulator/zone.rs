@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub(crate) use hearthstone_simulator_core::{
+pub use hearthstone_simulator_core::{
     ZoneError, ZoneIndex, ZoneMoveOutcome, ZoneMoveRequest, ZoneMovementKind,
 };
 
@@ -13,7 +13,7 @@ use crate::{
     entity::{allocate_play_order, game_entity},
 };
 
-pub(crate) fn zone_limit(ruleset: &Ruleset, zone: Zone) -> Option<usize> {
+pub const fn zone_limit(ruleset: &Ruleset, zone: Zone) -> Option<usize> {
     match zone {
         Zone::Deck => Some(ruleset.deck_limit),
         Zone::Hand => Some(ruleset.hand_limit),
@@ -22,7 +22,7 @@ pub(crate) fn zone_limit(ruleset: &Ruleset, zone: Zone) -> Option<usize> {
     }
 }
 
-pub(crate) fn board_entities(world: &World, player: PlayerId) -> Vec<GameEntityId> {
+pub fn board_entities(world: &World, player: PlayerId) -> Vec<GameEntityId> {
     world
         .resource::<ZoneIndex>()
         .entities(player, Zone::Play)
@@ -36,7 +36,7 @@ pub(crate) fn board_entities(world: &World, player: PlayerId) -> Vec<GameEntityI
         .collect()
 }
 
-pub(crate) fn board_is_full(world: &World, player: PlayerId) -> bool {
+pub fn board_is_full(world: &World, player: PlayerId) -> bool {
     board_entities(world, player).len() >= world.resource::<Ruleset>().board_limit
 }
 
@@ -47,7 +47,7 @@ const fn is_board_entity(kind: EntityKind) -> bool {
     )
 }
 
-pub(crate) fn validate_generation_capacity(
+pub fn validate_generation_capacity(
     world: &World,
     player: PlayerId,
     zone: Zone,
@@ -60,7 +60,7 @@ pub(crate) fn validate_generation_capacity(
     Ok(())
 }
 
-pub(crate) fn validate_board_position(
+pub fn validate_board_position(
     world: &World,
     player: PlayerId,
     position: Option<usize>,
@@ -78,7 +78,7 @@ pub(crate) fn validate_board_position(
     Ok(())
 }
 
-pub(crate) fn resolve_generation_position(
+pub fn resolve_generation_position(
     world: &World,
     player: PlayerId,
     zone: Zone,
@@ -99,7 +99,7 @@ pub(crate) fn resolve_generation_position(
     )))
 }
 
-pub(crate) fn validate_zone_position(
+pub fn validate_zone_position(
     world: &World,
     player: PlayerId,
     zone: Zone,
@@ -118,7 +118,7 @@ pub(crate) fn validate_zone_position(
     Ok(())
 }
 
-pub(crate) fn insert_into_zone(
+pub fn insert_into_zone(
     world: &mut World,
     id: GameEntityId,
     player: PlayerId,
@@ -150,7 +150,7 @@ fn insert_into_zone_unchecked(
     refresh_positions(world, player, zone);
 }
 
-pub(crate) fn move_entity(
+pub fn move_entity(
     world: &mut World,
     id: GameEntityId,
     destination: Zone,
@@ -173,7 +173,7 @@ pub(crate) fn move_entity(
     )
 }
 
-pub(crate) fn move_entity_with_request(
+pub fn move_entity_with_request(
     world: &mut World,
     request: ZoneMoveRequest,
 ) -> Result<ZoneMoveOutcome, ZoneError> {
@@ -349,7 +349,7 @@ fn count_kind(world: &World, entries: &[GameEntityId], kind: EntityKind) -> usiz
         .count()
 }
 
-pub(crate) fn semantic_zone_position(
+pub fn semantic_zone_position(
     world: &World,
     id: GameEntityId,
     player: PlayerId,
@@ -622,7 +622,7 @@ fn refresh_positions(world: &mut World, player: PlayerId, zone: Zone) {
     }
 }
 
-pub(crate) fn assert_zone_invariants(world: &World) -> Result<(), String> {
+pub fn assert_zone_invariants(world: &World) -> Result<(), String> {
     let index = world.resource::<ZoneIndex>();
     for ((player, zone), entries) in &index.0 {
         for (position, id) in entries.iter().enumerate() {

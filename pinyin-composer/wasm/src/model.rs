@@ -19,7 +19,7 @@ pub struct ConversionResult {
     pub candidates: Vec<Candidate>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnotationResult {
     pub hanzi: String,

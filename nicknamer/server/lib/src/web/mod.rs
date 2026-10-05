@@ -162,10 +162,7 @@ fn create_web_handler(auth_state: Arc<AuthState>, name_state: Arc<NameState>) ->
             axum::routing::get(call_to_action_handler),
         )
         .merge(login_router)
-        .layer(
-            ServiceBuilder::new()
-                .layer(from_fn_with_state(auth_state.clone(), auth_user_middleware)),
-        );
+        .layer(ServiceBuilder::new().layer(from_fn_with_state(auth_state, auth_user_middleware)));
 
     Router::new()
         .merge(protected_routes)
@@ -209,7 +206,7 @@ pub async fn call_to_action_handler(
     current_user: Option<Extension<CurrentUser>>,
 ) -> Result<Html<String>, WebError> {
     let template = match current_user {
-        Some(Extension(user)) => CallToActionTemplate::new(Some(user.username.clone())),
+        Some(Extension(user)) => CallToActionTemplate::new(Some(user.username)),
         None => CallToActionTemplate::new(None),
     };
     template.render().map(Html).map_err(WebError::from)
@@ -220,7 +217,7 @@ pub async fn call_to_action_handler(
 struct IndexTemplate;
 
 impl IndexTemplate {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -232,7 +229,7 @@ struct CallToActionTemplate {
 }
 
 impl CallToActionTemplate {
-    pub fn new(username: Option<String>) -> Self {
+    pub const fn new(username: Option<String>) -> Self {
         Self { username }
     }
 }

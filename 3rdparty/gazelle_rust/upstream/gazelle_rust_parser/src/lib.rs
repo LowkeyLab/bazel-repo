@@ -272,7 +272,7 @@ impl std::hash::Hash for Ident<'_> {
 }
 
 impl Ident<'_> {
-    fn as_ref(&self) -> &syn::Ident {
+    const fn as_ref(&self) -> &syn::Ident {
         match self {
             Self::Ref(ident) => ident,
             Self::Owned(ident) => ident,
@@ -447,10 +447,10 @@ impl DirectiveSet {
 
 impl<'ast> AstVisitor<'ast> {
     fn cfg_enabled(&self, attrs: &[syn::Attribute]) -> bool {
-        match self.cfg_test {
-            Some(test) => self.cfg_enabled_for(attrs, test),
-            None => self.cfg_enabled_for(attrs, false) || self.cfg_enabled_for(attrs, true),
-        }
+        self.cfg_test.map_or_else(
+            || self.cfg_enabled_for(attrs, false) || self.cfg_enabled_for(attrs, true),
+            |test| self.cfg_enabled_for(attrs, test),
+        )
     }
 
     fn cfg_enabled_for(&self, attrs: &[syn::Attribute], test: bool) -> bool {

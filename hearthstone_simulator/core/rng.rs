@@ -40,7 +40,7 @@ impl DeterministicRng {
         })
     }
 
-    pub fn next_u64(&mut self) -> u64 {
+    pub const fn next_u64(&mut self) -> u64 {
         // SplitMix64 is specified here rather than delegated to a library so dependency upgrades
         // cannot alter replay behavior.
         self.state = self.state.wrapping_add(0x9e37_79b9_7f4a_7c15);

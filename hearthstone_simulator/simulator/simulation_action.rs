@@ -59,8 +59,7 @@ pub(super) fn submit_choice(app: &mut App, option: ChoiceId) -> Result<(), Simul
     resolve_to_pause(app.world_mut())
 }
 
-pub(super) fn legal_actions(world: &mut World) -> Vec<GameAction> {
-    let world: &World = world;
+pub(super) fn legal_actions(world: &World) -> Vec<GameAction> {
     let game = world.resource::<GameState>();
     if game.status != SimulationStatus::AwaitingAction || game.outcome.is_some() {
         return Vec::new();
@@ -1023,7 +1022,7 @@ fn play_weapon(
     let mut operations = vec![ResolutionOp::PrepareEvent(EventContext {
         kind: EventKind::CardPlayed,
         targets: target.into_iter().collect(),
-        ..event.clone()
+        ..event
     })];
     operations.extend(
         runtime

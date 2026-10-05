@@ -8,7 +8,7 @@ use crate::{
     zone::{ZoneIndex, move_entity, move_entity_with_request},
 };
 
-pub(crate) fn validate_card(card: &Card) -> Result<(), SimulationError> {
+pub fn validate_card(card: &Card) -> Result<(), SimulationError> {
     if card.kind == EntityKind::Weapon && card.durability <= 0 {
         return Err(SimulationError::Invariant(
             "weapon base durability must be positive".into(),
@@ -17,7 +17,7 @@ pub(crate) fn validate_card(card: &Card) -> Result<(), SimulationError> {
     Ok(())
 }
 
-pub(crate) fn active(world: &World, player: PlayerId) -> Option<GameEntityId> {
+pub fn active(world: &World, player: PlayerId) -> Option<GameEntityId> {
     let id = *world
         .get_resource::<WeaponEquipment>()?
         .active
@@ -29,7 +29,7 @@ pub(crate) fn active(world: &World, player: PlayerId) -> Option<GameEntityId> {
     .then_some(id)
 }
 
-pub(crate) fn effective_attack(world: &World, entity: Entity) -> i32 {
+pub fn effective_attack(world: &World, entity: Entity) -> i32 {
     let own = world
         .get::<CurrentStats>(entity)
         .map_or(0, |stats| stats.attack);
@@ -42,7 +42,7 @@ pub(crate) fn effective_attack(world: &World, entity: Entity) -> i32 {
 }
 
 // Attack contribution and durability payment share the live Hero/controller decision.
-pub(crate) fn attack_weapon(world: &World, entity: Entity) -> Option<(PlayerId, GameEntityId)> {
+pub fn attack_weapon(world: &World, entity: Entity) -> Option<(PlayerId, GameEntityId)> {
     if world.get::<EntityKind>(entity) != Some(&EntityKind::Hero) {
         return None;
     }
@@ -53,14 +53,14 @@ pub(crate) fn attack_weapon(world: &World, entity: Entity) -> Option<(PlayerId, 
     active(world, controller).map(|weapon| (controller, weapon))
 }
 
-pub(crate) fn grants_windfury(world: &World, entity: Entity) -> bool {
+pub fn grants_windfury(world: &World, entity: Entity) -> bool {
     attack_weapon(world, entity)
         .and_then(|(_, weapon)| game_entity(world, weapon))
         .is_some_and(|weapon| crate::aura::has_keyword(world, weapon, Keyword::Windfury))
 }
 
 // Movement never promotes an older, superseded weapon back into the active slot.
-pub(crate) fn track_entry(world: &mut World, id: GameEntityId) {
+pub fn track_entry(world: &mut World, id: GameEntityId) {
     let Some(entity) = game_entity(world, id) else {
         return;
     };
@@ -81,7 +81,7 @@ pub(crate) fn track_entry(world: &mut World, id: GameEntityId) {
     }
 }
 
-pub(crate) fn begin_equip(
+pub fn begin_equip(
     world: &mut World,
     player: PlayerId,
     weapon: GameEntityId,
@@ -129,7 +129,7 @@ pub(crate) fn begin_equip(
     Ok(())
 }
 
-pub(crate) fn finish_equip(world: &mut World, weapon: GameEntityId) -> Result<(), SimulationError> {
+pub fn finish_equip(world: &mut World, weapon: GameEntityId) -> Result<(), SimulationError> {
     let previous = world
         .resource_mut::<WeaponEquipment>()
         .pending
@@ -148,7 +148,7 @@ pub(crate) fn finish_equip(world: &mut World, weapon: GameEntityId) -> Result<()
     Ok(())
 }
 
-pub(crate) fn consume_durability(world: &mut World, player: PlayerId, weapon: GameEntityId) {
+pub fn consume_durability(world: &mut World, player: PlayerId, weapon: GameEntityId) {
     if active(world, player) != Some(weapon) {
         return;
     }
@@ -171,7 +171,7 @@ pub(crate) fn consume_durability(world: &mut World, player: PlayerId, weapon: Ga
         });
 }
 
-pub(crate) fn assert_invariants(world: &World) -> Result<(), String> {
+pub fn assert_invariants(world: &World) -> Result<(), String> {
     let equipment = world.resource::<WeaponEquipment>();
     for (player, id) in &equipment.active {
         if active(world, *player) != Some(*id) {
@@ -241,7 +241,7 @@ pub(crate) fn assert_invariants(world: &World) -> Result<(), String> {
 
 // A failed sequence preserves gameplay mutations but must release its replacement scopes.
 // Retire superseded sources without running additional effects after the failure.
-pub(crate) fn abandon_equips(world: &mut World) {
+pub fn abandon_equips(world: &mut World) {
     let pending = std::mem::take(&mut world.resource_mut::<WeaponEquipment>().pending);
     for old in pending.values().flatten() {
         let Some(entity) = game_entity(world, *old) else {

@@ -42,12 +42,14 @@ impl RequestWork {
         }
         state.1 += 1;
         self.0.active.send_replace(state.1);
+        drop(state);
         Some(WorkGuard(self.clone()))
     }
     fn track(&self) -> WorkGuard {
         let mut state = self.0.state.lock().unwrap();
         state.1 += 1;
         self.0.active.send_replace(state.1);
+        drop(state);
         WorkGuard(self.clone())
     }
     pub(crate) async fn cancelled(&self) {

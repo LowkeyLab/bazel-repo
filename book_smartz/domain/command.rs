@@ -163,7 +163,7 @@ impl Ranking {
     }
 
     #[must_use]
-    pub fn projection(&self) -> &RankingProjection {
+    pub const fn projection(&self) -> &RankingProjection {
         &self.projection
     }
 }

@@ -142,7 +142,7 @@ pub struct Citation {
 }
 
 impl Citation {
-    pub fn new(id: CitationId, title: String, url: String, summary: String) -> Self {
+    pub const fn new(id: CitationId, title: String, url: String, summary: String) -> Self {
         Self {
             id,
             title,
@@ -151,7 +151,7 @@ impl Citation {
         }
     }
 
-    pub fn id(&self) -> &CitationId {
+    pub const fn id(&self) -> &CitationId {
         &self.id
     }
 
@@ -176,11 +176,11 @@ pub struct CitationClaim {
 }
 
 impl CitationClaim {
-    pub fn new(citation_id: CitationId, claim: String) -> Self {
+    pub const fn new(citation_id: CitationId, claim: String) -> Self {
         Self { citation_id, claim }
     }
 
-    pub fn citation_id(&self) -> &CitationId {
+    pub const fn citation_id(&self) -> &CitationId {
         &self.citation_id
     }
 
@@ -198,7 +198,11 @@ pub struct NodeMetadata {
 }
 
 impl NodeMetadata {
-    pub fn new(label: String, description: String, citation_claims: Vec<CitationClaim>) -> Self {
+    pub const fn new(
+        label: String,
+        description: String,
+        citation_claims: Vec<CitationClaim>,
+    ) -> Self {
         Self {
             label,
             description,
@@ -241,7 +245,7 @@ pub struct Constant {
 }
 
 impl Constant {
-    pub fn new(value: Value, origin: ConstantOrigin, rationale: String) -> Self {
+    pub const fn new(value: Value, origin: ConstantOrigin, rationale: String) -> Self {
         Self {
             value,
             origin,
@@ -249,11 +253,11 @@ impl Constant {
         }
     }
 
-    pub fn value(&self) -> Value {
+    pub const fn value(&self) -> Value {
         self.value
     }
 
-    pub fn origin(&self) -> ConstantOrigin {
+    pub const fn origin(&self) -> ConstantOrigin {
         self.origin
     }
 
@@ -269,11 +273,11 @@ pub struct Derived {
 }
 
 impl Derived {
-    pub fn new(expression: AnyExpression) -> Self {
+    pub const fn new(expression: AnyExpression) -> Self {
         Self { expression }
     }
 
-    pub fn expression(&self) -> &AnyExpression {
+    pub const fn expression(&self) -> &AnyExpression {
         &self.expression
     }
 }
@@ -289,7 +293,7 @@ pub enum InputConstraint {
 
 impl InputConstraint {
     /// Returns the bound value used by this constraint.
-    pub fn value(self) -> Value {
+    pub const fn value(self) -> Value {
         match self {
             Self::MinimumInclusive(value)
             | Self::MinimumExclusive(value)
@@ -360,11 +364,11 @@ impl Input {
         })
     }
 
-    pub fn value_type(&self) -> ValueType {
+    pub const fn value_type(&self) -> ValueType {
         self.value_type
     }
 
-    pub fn default(&self) -> Option<Value> {
+    pub const fn default(&self) -> Option<Value> {
         self.default
     }
 
@@ -399,7 +403,7 @@ pub struct Setting {
 }
 
 impl Setting {
-    pub fn new(
+    pub const fn new(
         key: String,
         scope: SettingScope,
         unit: SettingUnit,
@@ -417,15 +421,15 @@ impl Setting {
         &self.key
     }
 
-    pub fn scope(&self) -> SettingScope {
+    pub const fn scope(&self) -> SettingScope {
         self.scope
     }
 
-    pub fn unit(&self) -> SettingUnit {
+    pub const fn unit(&self) -> SettingUnit {
         self.unit
     }
 
-    pub fn expression(&self) -> &AnyExpression {
+    pub const fn expression(&self) -> &AnyExpression {
         &self.expression
     }
 }
@@ -458,7 +462,7 @@ pub struct Comparison {
 }
 
 impl Comparison {
-    pub fn new(left: Operand, operator: ComparisonOperator, right: Operand) -> Self {
+    pub const fn new(left: Operand, operator: ComparisonOperator, right: Operand) -> Self {
         Self {
             left,
             operator,
@@ -466,15 +470,15 @@ impl Comparison {
         }
     }
 
-    pub fn left(&self) -> &Operand {
+    pub const fn left(&self) -> &Operand {
         &self.left
     }
 
-    pub fn operator(&self) -> ComparisonOperator {
+    pub const fn operator(&self) -> ComparisonOperator {
         self.operator
     }
 
-    pub fn right(&self) -> &Operand {
+    pub const fn right(&self) -> &Operand {
         &self.right
     }
 }
@@ -494,18 +498,18 @@ pub struct Finding {
 }
 
 impl Finding {
-    pub fn new(severity: FindingSeverity, condition: FindingCondition) -> Self {
+    pub const fn new(severity: FindingSeverity, condition: FindingCondition) -> Self {
         Self {
             severity,
             condition,
         }
     }
 
-    pub fn severity(&self) -> FindingSeverity {
+    pub const fn severity(&self) -> FindingSeverity {
         self.severity
     }
 
-    pub fn condition(&self) -> &FindingCondition {
+    pub const fn condition(&self) -> &FindingCondition {
         &self.condition
     }
 }
@@ -552,15 +556,15 @@ impl<T: NodeTypeMetadata> Node<T> {
         }
     }
 
-    pub fn id(&self) -> &NodeId {
+    pub const fn id(&self) -> &NodeId {
         &self.id
     }
 
-    pub fn metadata(&self) -> &NodeMetadata {
+    pub const fn metadata(&self) -> &NodeMetadata {
         &self.metadata
     }
 
-    pub fn node_type(&self) -> &T {
+    pub const fn node_type(&self) -> &T {
         &self.node_type
     }
 }
@@ -576,7 +580,7 @@ pub enum AnyNode {
 }
 
 impl AnyNode {
-    pub fn id(&self) -> &NodeId {
+    pub const fn id(&self) -> &NodeId {
         match self {
             Self::Input(node) => node.id(),
             Self::Constant(node) => node.id(),
@@ -586,7 +590,7 @@ impl AnyNode {
         }
     }
 
-    pub fn metadata(&self) -> &NodeMetadata {
+    pub const fn metadata(&self) -> &NodeMetadata {
         match self {
             Self::Input(node) => node.metadata(),
             Self::Constant(node) => node.metadata(),

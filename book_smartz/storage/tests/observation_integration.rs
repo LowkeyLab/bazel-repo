@@ -157,6 +157,7 @@ async fn public_composition_observes_first_operation_and_committed_activity() {
         .map(|s| Value::Text(s.into()))
         .to_vec())
     );
+    drop(records);
 }
 
 #[googletest::test]
@@ -235,4 +236,5 @@ async fn tracing_failure_record_excludes_retained_database_secrets() {
             }
         }
     }
+    drop(records);
 }

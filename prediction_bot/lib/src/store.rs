@@ -626,7 +626,7 @@ fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> 
     Ok(())
 }
 
-fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError> {
+const fn validate_event_time(event: &Event, accepted_at: i64) -> Result<(), StoreError> {
     let matches = match event {
         Event::AnnouncementsEnabled { enabled_at, .. } => *enabled_at == accepted_at,
         Event::GuildEconomyInitialized { .. } => true,

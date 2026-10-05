@@ -107,6 +107,7 @@ fn bulk_counts_and_correlation_reach_subscriber_as_typed_fields() {
         eq(false)
     );
     assert_that!(fields.contains_key("fields"), eq(false));
+    drop(records);
 }
 
 #[googletest::test]
@@ -133,6 +134,7 @@ fn read_filter_and_count_remain_typed_without_optional_error_fields() {
     assert_that!(fields.get("result_count"), some(eq(&Value::Count(7))));
     assert_that!(fields.contains_key("category"), eq(false));
     assert_that!(fields.contains_key("request_id"), eq(false));
+    drop(records);
 }
 
 struct FailingListener;

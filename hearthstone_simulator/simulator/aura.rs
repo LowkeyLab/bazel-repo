@@ -10,13 +10,13 @@ use crate::{
     enchantment::recalculate_stats, entity::game_entity,
 };
 
-pub(crate) fn refresh_health_attack_auras(world: &mut World) {
+pub fn refresh_health_attack_auras(world: &mut World) {
     let discovered = discover_aura_applications(world, None);
     replace_category(world, AuraCategory::Health, &discovered);
     replace_category(world, AuraCategory::Attack, &discovered);
 }
 
-pub(crate) fn refresh_post_death_auras(world: &mut World) {
+pub fn refresh_post_death_auras(world: &mut World) {
     let discovered = discover_aura_applications(world, None);
     // Health is deliberately not refreshed after Death Creation. Attack and Other effects from
     // removed providers cease before Death Event work begins.
@@ -24,14 +24,14 @@ pub(crate) fn refresh_post_death_auras(world: &mut World) {
     replace_category(world, AuraCategory::Other, &discovered);
 }
 
-pub(crate) fn refresh_all_auras(world: &mut World) {
+pub fn refresh_all_auras(world: &mut World) {
     let discovered = discover_aura_applications(world, None);
     replace_category(world, AuraCategory::Health, &discovered);
     replace_category(world, AuraCategory::Attack, &discovered);
     replace_category(world, AuraCategory::Other, &discovered);
 }
 
-pub(crate) fn refresh_played_provider(world: &mut World, provider: GameEntityId) {
+pub fn refresh_played_provider(world: &mut World, provider: GameEntityId) {
     let discovered = discover_aura_applications(world, Some(provider));
     for category in [
         AuraCategory::Health,
@@ -43,7 +43,7 @@ pub(crate) fn refresh_played_provider(world: &mut World, provider: GameEntityId)
 }
 
 #[must_use]
-pub(crate) fn current_spell_damage(world: &World, player: PlayerId) -> i32 {
+pub fn current_spell_damage(world: &World, player: PlayerId) -> i32 {
     let mut providers = world
         .iter_entities()
         .filter_map(|entity| {
@@ -88,7 +88,7 @@ fn continuous_source_is_active(world: &World, source: Entity) -> bool {
 }
 
 #[must_use]
-pub(crate) fn has_keyword(world: &World, target: Entity, keyword: Keyword) -> bool {
+pub fn has_keyword(world: &World, target: Entity, keyword: Keyword) -> bool {
     world
         .get::<Keywords>(target)
         .is_some_and(|keywords| keywords.0.contains(&keyword))
@@ -102,7 +102,7 @@ pub(crate) fn has_keyword(world: &World, target: Entity, keyword: Keyword) -> bo
 }
 
 #[must_use]
-pub(crate) fn hero_power_damage_bonus(world: &World, player: PlayerId) -> i32 {
+pub fn hero_power_damage_bonus(world: &World, player: PlayerId) -> i32 {
     world
         .iter_entities()
         .find(|entity| {

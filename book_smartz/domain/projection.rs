@@ -15,12 +15,12 @@ pub struct RankingEntry {
 
 impl RankingEntry {
     #[must_use]
-    pub fn book_id(&self) -> BookId {
+    pub const fn book_id(&self) -> BookId {
         self.book_id
     }
 
     #[must_use]
-    pub fn added_at(&self) -> DateTime<Utc> {
+    pub const fn added_at(&self) -> DateTime<Utc> {
         self.added_at
     }
 }
@@ -38,27 +38,27 @@ pub struct PlacementSession {
 
 impl PlacementSession {
     #[must_use]
-    pub fn candidate(&self) -> BookId {
+    pub const fn candidate(&self) -> BookId {
         self.candidate
     }
 
     #[must_use]
-    pub fn bounds(&self) -> (usize, usize) {
+    pub const fn bounds(&self) -> (usize, usize) {
         (self.lo, self.hi)
     }
 
     #[must_use]
-    pub fn is_paused(&self) -> bool {
+    pub const fn is_paused(&self) -> bool {
         self.paused
     }
 
     #[must_use]
-    pub fn started_at(&self) -> DateTime<Utc> {
+    pub const fn started_at(&self) -> DateTime<Utc> {
         self.started_at
     }
 
     #[must_use]
-    pub fn last_activity_at(&self) -> DateTime<Utc> {
+    pub const fn last_activity_at(&self) -> DateTime<Utc> {
         self.last_activity_at
     }
 }
@@ -220,12 +220,12 @@ impl RankingProjection {
     }
 
     #[must_use]
-    pub fn reader_id(&self) -> ReaderId {
+    pub const fn reader_id(&self) -> ReaderId {
         self.reader_id
     }
 
     #[must_use]
-    pub fn revision(&self) -> u64 {
+    pub const fn revision(&self) -> u64 {
         self.revision
     }
 
@@ -235,7 +235,7 @@ impl RankingProjection {
     }
 
     #[must_use]
-    pub fn pending(&self) -> Option<&PlacementSession> {
+    pub const fn pending(&self) -> Option<&PlacementSession> {
         self.pending.as_ref()
     }
 

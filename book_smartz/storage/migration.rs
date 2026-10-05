@@ -4,7 +4,7 @@ use sqlx::{
     migrate::{Migration, MigrationType, Migrator},
 };
 
-pub(crate) async fn migrate(pool: &PgPool) -> Result<(), StoreError> {
+pub async fn migrate(pool: &PgPool) -> Result<(), StoreError> {
     let mut connection = pool.acquire().await?;
     // The migration search path and SQLx session lock never return to the pool.
     connection.close_on_drop();

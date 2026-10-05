@@ -10,11 +10,11 @@ pub struct Operand {
 }
 
 impl Operand {
-    pub fn new(node_id: NodeId, role: String) -> Self {
+    pub const fn new(node_id: NodeId, role: String) -> Self {
         Self { node_id, role }
     }
 
-    pub fn node_id(&self) -> &NodeId {
+    pub const fn node_id(&self) -> &NodeId {
         &self.node_id
     }
 
@@ -178,7 +178,7 @@ impl Expression<Reference> {
     }
 
     /// Returns the source category unchanged.
-    pub fn result_type(&self, source_type: ValueType) -> ValueType {
+    pub const fn result_type(&self, source_type: ValueType) -> ValueType {
         source_type
     }
 }
@@ -351,7 +351,7 @@ impl Expression<ConvertDataSize> {
         &self.operands[0]
     }
 
-    pub fn target_unit(&self) -> DataUnit {
+    pub const fn target_unit(&self) -> DataUnit {
         self.operation.target_unit
     }
 
@@ -368,7 +368,7 @@ impl Expression<ConvertDataSize> {
 }
 
 impl<K> Expression<K> {
-    fn from_operation(operands: Vec<Operand>, operation: K) -> Self {
+    const fn from_operation(operands: Vec<Operand>, operation: K) -> Self {
         Self {
             operands,
             operation,
@@ -398,7 +398,7 @@ fn homogeneous_result_type(
     Ok(expected)
 }
 
-fn ensure_resolved_type_count(
+const fn ensure_resolved_type_count(
     operation: &'static str,
     expected: usize,
     actual: usize,

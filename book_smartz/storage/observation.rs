@@ -79,7 +79,7 @@ pub trait Observer: Send + Sync {
 
 pub type SharedObserver = Arc<dyn Observer>;
 
-pub(crate) fn dispatch(observer: &SharedObserver, observation: &Observation) {
+pub fn dispatch(observer: &SharedObserver, observation: &Observation) {
     dispatch_with_fallback(observer, observation, |message| {
         use std::io::Write;
         let _ = std::io::stderr().write_all(message);

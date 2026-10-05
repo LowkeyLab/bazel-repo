@@ -3,7 +3,7 @@ use crate::{CanonicalTrace, DeterministicRng, GameEntityId, TraceEntry};
 #[cfg(test)]
 use crate::{RNG_ALGORITHM_VERSION, RngSnapshot};
 
-pub(crate) fn choose_game_entity(
+pub fn choose_game_entity(
     world: &mut bevy::prelude::World,
     mut candidates: Vec<GameEntityId>,
 ) -> Option<GameEntityId> {

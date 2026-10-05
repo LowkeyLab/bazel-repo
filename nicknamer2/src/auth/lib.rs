@@ -31,10 +31,10 @@ impl JwksValidator {
         client_id: &str,
         jwks_url: Option<&str>,
     ) -> anyhow::Result<Self> {
-        let jwks_url = match jwks_url {
-            Some(url) => url.to_string(),
-            None => format!("{}/.well-known/jwks", issuer_url.trim_end_matches('/')),
-        };
+        let jwks_url = jwks_url.map_or_else(
+            || format!("{}/.well-known/jwks", issuer_url.trim_end_matches('/')),
+            std::string::ToString::to_string,
+        );
         let client = reqwest::Client::new();
 
         let mut validation = Validation::new(Algorithm::RS256);
@@ -103,6 +103,7 @@ impl JwksValidator {
                 AuthError::InvalidToken
             })?;
 
+        drop(keys);
         Ok(token_data.claims)
     }
 
@@ -115,13 +116,10 @@ impl JwksValidator {
     pub async fn validate_token_with_refresh(&self, token: &str) -> Result<Claims, AuthError> {
         // Pre-check: does the token's kid exist in our cache?
         let kid_missing = match decode_header(token) {
-            Ok(header) => match header.kid.as_deref() {
-                Some(kid) => {
-                    let keys = self.keys.read().unwrap();
-                    !keys.iter().any(|e| e.kid == kid)
-                }
-                None => false, // No kid in token — let validate_token handle the error
-            },
+            Ok(header) => header.kid.as_deref().is_some_and(|kid| {
+                let keys = self.keys.read().unwrap();
+                !keys.iter().any(|e| e.kid == kid)
+            }),
             Err(_) => false, // Malformed header — let validate_token handle the error
         };
 

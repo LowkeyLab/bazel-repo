@@ -36,13 +36,13 @@ pub struct CloudEventDocument {
 
 impl CloudEventDocument {
     #[must_use]
-    pub fn event(&self) -> &RankingEvent {
+    pub const fn event(&self) -> &RankingEvent {
         &self.event
     }
 
     /// Returns the validated SDK envelope, including optional context.
     #[must_use]
-    pub fn cloud_event(&self) -> &Event {
+    pub const fn cloud_event(&self) -> &Event {
         &self.envelope
     }
 }
@@ -196,7 +196,7 @@ fn validate_trace_context(extensions: &Map<String, Value>) -> Result<(), CodecEr
     Ok(())
 }
 
-fn event_type(kind: &EventKind) -> &'static str {
+const fn event_type(kind: &EventKind) -> &'static str {
     match kind {
         EventKind::PlacementStarted => "bookranking.placement.started.v1",
         EventKind::ComparisonAnswered { .. } => "bookranking.comparison.answered.v1",
@@ -261,6 +261,7 @@ pub fn encode_event(event: &RankingEvent) -> Result<String, CodecError> {
 }
 
 /// Creates an SDK event with the ranking profile and sequence extension.
+///
 /// Callers may attach W3C trace context using the SDK's extension methods.
 /// Convert back with `CloudEventDocument::try_from` to validate the profile.
 ///

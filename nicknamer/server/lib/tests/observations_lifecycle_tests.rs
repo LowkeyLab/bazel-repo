@@ -669,6 +669,7 @@ impl ObservationListener for BlockingCompletionRecorder {
             while !*released {
                 released = changed.wait(released).unwrap();
             }
+            drop(released);
         }
         self.entries
             .lock()

@@ -56,7 +56,7 @@ pub struct ReplayError {
 }
 
 impl ReplayError {
-    pub(crate) fn new(attempted_sequence: u64, reason: ReplayErrorReason) -> Self {
+    pub(crate) const fn new(attempted_sequence: u64, reason: ReplayErrorReason) -> Self {
         Self {
             attempted_sequence,
             reason,
@@ -64,12 +64,12 @@ impl ReplayError {
     }
 
     #[must_use]
-    pub fn attempted_sequence(&self) -> u64 {
+    pub const fn attempted_sequence(&self) -> u64 {
         self.attempted_sequence
     }
 
     #[must_use]
-    pub fn reason(&self) -> &ReplayErrorReason {
+    pub const fn reason(&self) -> &ReplayErrorReason {
         &self.reason
     }
 }
