@@ -2695,7 +2695,7 @@ fn remove_resolver_slash_payload_opens_confirmation() {
     assert_that!(
         action,
         matches_pattern!(Action::ResolverRemove {
-            user_id: eq(&UserId(2)),
+            user_id: some(eq(&UserId(2))),
             ..
         })
     );
@@ -2752,8 +2752,14 @@ fn removal_confirmation_binds_market_target_guild_actor_and_button() {
             resolvers: Default::default(),
         },
     );
-    let panel =
-        super::resolvers::remove::confirmation(&view, guild, actor, &id, UserId(u64::MAX)).unwrap();
+    let panel = super::resolvers::remove_guided::start(
+        &view,
+        guild,
+        actor,
+        Some(&id),
+        Some(UserId(u64::MAX)),
+    )
+    .unwrap();
     let wire = serde_json::to_value(panel.message()).unwrap();
     assert_that!(wire["flags"].as_u64().unwrap() & 64, eq(64));
     assert_that!(
@@ -2804,8 +2810,78 @@ fn removal_confirmation_binds_market_target_guild_actor_and_button() {
         ),
         err(anything())
     );
+    // Both Back stages retain the exact market/target spelling within Discord's limit.
+    let mut back_wire = wire.clone();
+    for _ in 0..2 {
+        let back = back_wire["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|row| row["components"].as_array().unwrap())
+            .find(|control| {
+                control["label"]
+                    .as_str()
+                    .is_some_and(|label| label.starts_with("Back"))
+            })
+            .unwrap()["custom_id"]
+            .as_str()
+            .unwrap();
+        assert_that!(back.len(), le(100));
+        let action = super::resolvers::remove_guided::parse(
+            guild,
+            actor,
+            back,
+            &ComponentInteractionDataKind::Button,
+        )
+        .unwrap();
+        back_wire = serde_json::to_value(
+            super::resolvers::remove_guided::panel(&view, guild, actor, &action)
+                .unwrap()
+                .message(),
+        )
+        .unwrap();
+    }
+    assert_that!(
+        back_wire["content"].as_str().unwrap(),
+        contains_substring("<@18446744073709551615>")
+    );
+    assert_that!(
+        back_wire["components"][0]["components"][0]["options"][0]["value"],
+        eq("78E82954-4C67-4E0D-8C80-8AB95A527AE5")
+    );
     assert_that!(
         view.state.markets.values().next().unwrap().resolvers,
         is_empty()
+    );
+}
+
+#[googletest::test]
+fn removal_accepts_each_optional_selection_combination() {
+    for options in [
+        vec![],
+        vec![text("market", "78e82954-4c67-4e0d-8c80-8ab95a527ae5")],
+        vec![InputOption {
+            name: "user".into(),
+            value: InputValue::User(UserId(2)),
+        }],
+        vec![
+            text("market", "78e82954-4c67-4e0d-8c80-8ab95a527ae5"),
+            InputOption {
+                name: "user".into(),
+                value: InputValue::User(UserId(2)),
+            },
+        ],
+    ] {
+        assert_that!(parse(&input("resolver.remove", options)), ok(anything()));
+    }
+    let registered = serde_json::to_value(super::market_command()).unwrap();
+    let remove = &registered["options"][0]["options"][1];
+    assert_that!(
+        remove["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|option| option["required"] != true),
+        eq(true)
     );
 }

@@ -3325,6 +3325,7 @@ async fn removal_duplicate_and_add_order_follow_postgres_lock_commit_order() {
     }
 }
 
+mod resolver_remove_guided;
 #[googletest::test]
 #[tokio::test]
 async fn removal_and_assigned_settlement_obey_both_postgres_commit_orders() {
