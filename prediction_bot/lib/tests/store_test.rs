@@ -2381,3 +2381,5 @@ async fn removal_duplicate_and_add_order_follow_postgres_lock_commit_order() {
         );
     }
 }
+
+mod resolver_remove_guided;

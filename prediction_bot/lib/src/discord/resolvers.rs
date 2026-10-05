@@ -44,6 +44,7 @@ impl MembershipVerifier for Http {
 }
 
 pub(super) mod remove;
+pub(super) mod remove_guided;
 
 pub(super) fn is_control(custom_id: &str) -> bool {
     matches!(custom_id.split(':').nth(3), Some("a" | "d"))

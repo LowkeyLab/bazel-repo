@@ -71,15 +71,25 @@ pub(crate) enum Action {
     Write(Command),
     CreateForm,
     ResolveForm,
-    ResolverAdd { id: MarketId, user_id: UserId },
-    ResolverRemove { id: MarketId, user_id: UserId },
+    ResolverAdd {
+        id: MarketId,
+        user_id: UserId,
+    },
+    ResolverRemove {
+        id: Option<MarketId>,
+        user_id: Option<UserId>,
+    },
     BetForm,
     Help,
     Balance,
     Leaderboard,
     List,
-    Show { id: MarketId },
-    AnnouncementsSet { channel_id: ChannelId },
+    Show {
+        id: MarketId,
+    },
+    AnnouncementsSet {
+        channel_id: ChannelId,
+    },
     AnnouncementsStatus,
     AnnouncementsDisable,
 }
@@ -174,7 +184,11 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
         bot: input.bot,
     };
     let action = match input.subcommand.as_str() {
-        "resolver.add" | "resolver.remove" => {
+        "resolver.remove" => {
+            let (id, user_id) = resolvers::remove_guided::options(input)?;
+            Action::ResolverRemove { id, user_id }
+        }
+        "resolver.add" => {
             exact(input, &["market", "user"])?;
             let id = text(input, "market")?.to_owned().into();
             let user_id = input
@@ -185,11 +199,7 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
                     _ => None,
                 })
                 .ok_or("Choose a valid person.")?;
-            if input.subcommand == "resolver.remove" {
-                Action::ResolverRemove { id, user_id }
-            } else {
-                Action::ResolverAdd { id, user_id }
-            }
+            Action::ResolverAdd { id, user_id }
         }
         "help" => {
             exact(input, &[])?;
@@ -607,8 +617,8 @@ fn market_command() -> CreateCommand {
             )
             .add_sub_option(
                 CreateCommandOption::new(SubCommand, "remove", "Remove an additional resolver")
-                    .add_sub_option(required(Text, "market", "Market ID"))
-                    .add_sub_option(required(
+                    .add_sub_option(CreateCommandOption::new(Text, "market", "Market ID"))
+                    .add_sub_option(CreateCommandOption::new(
                         CommandOptionType::User,
                         "user",
                         "Person to remove",
@@ -960,8 +970,13 @@ impl Handler {
                     .await
                     {
                         Ok(view) => {
-                            match resolvers::remove::confirmation(&view, guild, actor, &id, user_id)
-                            {
+                            match resolvers::remove_guided::start(
+                                &view,
+                                guild,
+                                actor,
+                                id.as_ref(),
+                                user_id,
+                            ) {
                                 Ok(panel) => panel.edit(),
                                 Err(message) => reply(message),
                             }
@@ -1078,6 +1093,10 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if resolvers::remove_guided::is_control(&component.data.custom_id) {
+            resolvers::remove_guided::handle_component(&self.store, http, &component).await;
+            return;
+        }
         if resolvers::is_control(&component.data.custom_id) {
             resolvers::handle_component(&self.store, http, &component).await;
             return;
