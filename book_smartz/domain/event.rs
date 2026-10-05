@@ -10,7 +10,7 @@ impl Sequence {
     ///
     /// # Errors
     /// Returns `InvalidSequence` for zero.
-    pub fn new(value: u64) -> Result<Self, DomainError> {
+    pub const fn new(value: u64) -> Result<Self, DomainError> {
         if value == 0 {
             return Err(DomainError::InvalidSequence);
         }
@@ -18,7 +18,7 @@ impl Sequence {
     }
 
     #[must_use]
-    pub fn value(&self) -> u64 {
+    pub const fn value(&self) -> u64 {
         self.0
     }
 
@@ -69,7 +69,7 @@ pub struct RankingEvent {
 
 impl RankingEvent {
     #[must_use]
-    pub fn new(metadata: EventMetadata, candidate: BookId, kind: EventKind) -> Self {
+    pub const fn new(metadata: EventMetadata, candidate: BookId, kind: EventKind) -> Self {
         Self {
             metadata,
             candidate,
@@ -78,17 +78,17 @@ impl RankingEvent {
     }
 
     #[must_use]
-    pub fn metadata(&self) -> &EventMetadata {
+    pub const fn metadata(&self) -> &EventMetadata {
         &self.metadata
     }
 
     #[must_use]
-    pub fn candidate(&self) -> BookId {
+    pub const fn candidate(&self) -> BookId {
         self.candidate
     }
 
     #[must_use]
-    pub fn kind(&self) -> &EventKind {
+    pub const fn kind(&self) -> &EventKind {
         &self.kind
     }
 }

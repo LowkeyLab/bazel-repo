@@ -9,12 +9,12 @@ pub struct BookId(Uuid);
 
 impl BookId {
     #[must_use]
-    pub fn new(value: Uuid) -> Self {
+    pub const fn new(value: Uuid) -> Self {
         Self(value)
     }
 
     #[must_use]
-    pub fn as_uuid(&self) -> &Uuid {
+    pub const fn as_uuid(&self) -> &Uuid {
         &self.0
     }
 }
@@ -24,12 +24,12 @@ pub struct ReaderId(Uuid);
 
 impl ReaderId {
     #[must_use]
-    pub fn new(value: Uuid) -> Self {
+    pub const fn new(value: Uuid) -> Self {
         Self(value)
     }
 
     #[must_use]
-    pub fn as_uuid(&self) -> &Uuid {
+    pub const fn as_uuid(&self) -> &Uuid {
         &self.0
     }
 }
@@ -39,12 +39,12 @@ pub struct EventId(Uuid);
 
 impl EventId {
     #[must_use]
-    pub fn new(value: Uuid) -> Self {
+    pub const fn new(value: Uuid) -> Self {
         Self(value)
     }
 
     #[must_use]
-    pub fn as_uuid(&self) -> &Uuid {
+    pub const fn as_uuid(&self) -> &Uuid {
         &self.0
     }
 }
@@ -85,17 +85,17 @@ pub struct Book {
 
 impl Book {
     #[must_use]
-    pub fn new(id: BookId, work_id: OpenLibraryWorkId) -> Self {
+    pub const fn new(id: BookId, work_id: OpenLibraryWorkId) -> Self {
         Self { id, work_id }
     }
 
     #[must_use]
-    pub fn id(&self) -> BookId {
+    pub const fn id(&self) -> BookId {
         self.id
     }
 
     #[must_use]
-    pub fn work_id(&self) -> &OpenLibraryWorkId {
+    pub const fn work_id(&self) -> &OpenLibraryWorkId {
         &self.work_id
     }
 }

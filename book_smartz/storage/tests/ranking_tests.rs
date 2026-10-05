@@ -19,7 +19,7 @@ fn book(id: u128) -> Book {
     )
 }
 
-fn reader(id: u128) -> ReaderId {
+const fn reader(id: u128) -> ReaderId {
     ReaderId::new(Uuid::from_u128(id))
 }
 

@@ -20,7 +20,7 @@ pub struct Name {
 
 impl Name {
     #[must_use]
-    pub fn new(id: u32, discord_id: u64, name: String, server_id: String) -> Self {
+    pub const fn new(id: u32, discord_id: u64, name: String, server_id: String) -> Self {
         Self {
             id,
             discord_id,
@@ -31,7 +31,7 @@ impl Name {
 
     /// Returns the Discord ID of the name.
     #[must_use]
-    pub fn discord_id(&self) -> u64 {
+    pub const fn discord_id(&self) -> u64 {
         self.discord_id
     }
 
@@ -49,7 +49,7 @@ impl Name {
 
     /// Returns the ID of the name.
     #[must_use]
-    pub fn id(&self) -> u32 {
+    pub const fn id(&self) -> u32 {
         self.id
     }
 }
@@ -83,7 +83,7 @@ pub struct NameService<'a> {
 // IDs retain their unsigned bit patterns in the signed database columns.
 impl From<name::Model> for Name {
     fn from(model: name::Model) -> Self {
-        Name::new(
+        Self::new(
             model.id.cast_unsigned(),
             model.discord_id.cast_unsigned(),
             model.name,
@@ -115,19 +115,15 @@ impl NameService<'_> {
 
     /// Supplies request correlation for facts produced by this service.
     #[must_use]
-    pub fn with_context(mut self, context: ObservationContext) -> Self {
+    pub const fn with_context(mut self, context: ObservationContext) -> Self {
         self.context = Some(context);
         self
     }
 
     fn context(&self, parent: Option<&ObservationContext>) -> ObservationContext {
-        if let Some(parent) = parent {
-            ObservationContext::child_of(parent)
-        } else if let Some(context) = &self.context {
-            ObservationContext::child_of(context)
-        } else {
-            ObservationContext::new()
-        }
+        parent
+            .or(self.context.as_ref())
+            .map_or_else(ObservationContext::new, ObservationContext::child_of)
     }
 
     fn record(&self, mut context: ObservationContext, fact: Fact) {
@@ -169,7 +165,7 @@ impl NameService<'_> {
         );
     }
 
-    fn category(error: &NameServiceError) -> FailureCategory {
+    const fn category(error: &NameServiceError) -> FailureCategory {
         match error {
             NameServiceError::DuplicateEntryError(..) => FailureCategory::Duplicate,
             NameServiceError::NameNotFound(..)
@@ -741,7 +737,7 @@ impl NameService<'_> {
     }
 }
 
-fn bulk_outcome(succeeded: u64, failed: u64) -> BulkOutcome {
+const fn bulk_outcome(succeeded: u64, failed: u64) -> BulkOutcome {
     if failed == 0 {
         BulkOutcome::Succeeded
     } else if succeeded > 0 {

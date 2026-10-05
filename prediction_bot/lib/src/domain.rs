@@ -254,7 +254,7 @@ pub enum Event {
 
 impl Event {
     #[must_use]
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         match self {
             Self::AnnouncementsEnabled { .. } => "announcements.enabled",
             Self::GuildEconomyInitialized { .. } => "economy.initialized",
@@ -554,7 +554,7 @@ fn credit_allocations(
     Ok(())
 }
 
-fn validate_announcement_activation(
+const fn validate_announcement_activation(
     channel: ChannelId,
     moderator: UserId,
 ) -> Result<(), DomainError> {

@@ -18,7 +18,7 @@ struct NameDAO {
 
 impl From<NameDAO> for Name {
     fn from(dao: NameDAO) -> Self {
-        Name {
+        Self {
             id: NameId {
                 discord_id: DiscordId(dao.discord_id as u64),
                 discord_server: DiscordServerId(dao.discord_server as u64),
@@ -99,7 +99,7 @@ pub struct Repo {
 }
 
 impl Repo {
-    pub fn new(pool: PgPool) -> Self {
+    pub const fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
@@ -226,32 +226,35 @@ impl NameReader for Repo {
         limit: i64,
         cursor: Option<DiscordId>,
     ) -> anyhow::Result<Vec<Name>> {
-        let query = if let Some(last_discord_id) = cursor {
-            sqlx::query_as::<_, NameDAO>(
-                r#"
-                SELECT id, discord_id, discord_server, name, created_at, updated_at
-                FROM names
-                WHERE discord_server = $1 AND discord_id > $2
-                ORDER BY discord_id ASC
-                LIMIT $3
-                "#,
-            )
-            .bind(discord_server.0 as i64)
-            .bind(last_discord_id.0 as i64)
-            .bind(limit)
-        } else {
-            sqlx::query_as::<_, NameDAO>(
-                r#"
+        let query = cursor.map_or_else(
+            || {
+                sqlx::query_as::<_, NameDAO>(
+                    r#"
                 SELECT id, discord_id, discord_server, name, created_at, updated_at
                 FROM names
                 WHERE discord_server = $1
                 ORDER BY discord_id ASC
                 LIMIT $2
                 "#,
-            )
-            .bind(discord_server.0 as i64)
-            .bind(limit)
-        };
+                )
+                .bind(discord_server.0 as i64)
+                .bind(limit)
+            },
+            |last_discord_id| {
+                sqlx::query_as::<_, NameDAO>(
+                    r#"
+                SELECT id, discord_id, discord_server, name, created_at, updated_at
+                FROM names
+                WHERE discord_server = $1 AND discord_id > $2
+                ORDER BY discord_id ASC
+                LIMIT $3
+                "#,
+                )
+                .bind(discord_server.0 as i64)
+                .bind(last_discord_id.0 as i64)
+                .bind(limit)
+            },
+        );
 
         let daos = query.fetch_all(&self.pool).await?;
         Ok(daos.into_iter().map(Into::into).collect())

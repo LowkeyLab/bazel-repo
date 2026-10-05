@@ -46,8 +46,7 @@ fn title_case_first_syllable(syllables: &[String]) -> Vec<String> {
 
 fn title_case_first(value: &str) -> String {
     let mut characters = value.chars();
-    match characters.next() {
-        Some(first) => first.to_uppercase().chain(characters).collect(),
-        None => String::new(),
-    }
+    characters.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(characters).collect()
+    })
 }

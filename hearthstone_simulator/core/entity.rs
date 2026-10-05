@@ -187,7 +187,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn available_resources(&self) -> i32 {
+    pub const fn available_resources(&self) -> i32 {
         self.maximum_resources + self.temporary_resources
             - self.used_resources
             - self.locked_overload
@@ -225,7 +225,7 @@ pub fn allocate_play_order(world: &mut World) -> PlayOrder {
     order
 }
 
-pub(crate) fn index_game_entity_hook(mut world: DeferredWorld, context: HookContext) {
+pub fn index_game_entity_hook(mut world: DeferredWorld, context: HookContext) {
     let id = *world
         .get::<GameEntityId>(context.entity)
         .expect("GameEntityId exists during its add hook");
@@ -239,7 +239,7 @@ pub(crate) fn index_game_entity_hook(mut world: DeferredWorld, context: HookCont
     );
 }
 
-pub(crate) fn unindex_game_entity_hook(mut world: DeferredWorld, context: HookContext) {
+pub fn unindex_game_entity_hook(mut world: DeferredWorld, context: HookContext) {
     let id = *world
         .get::<GameEntityId>(context.entity)
         .expect("GameEntityId exists during its remove hook");

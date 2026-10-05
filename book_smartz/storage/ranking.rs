@@ -163,7 +163,7 @@ async fn execute_in_transaction(
     })
 }
 
-fn command_outcome(result: &Result<CommandResult, StoreError>) -> Outcome {
+const fn command_outcome(result: &Result<CommandResult, StoreError>) -> Outcome {
     match result {
         Ok(_) => Outcome::Committed,
         Err(StoreError::Domain(error)) => Outcome::Rejected(match error {

@@ -38,7 +38,7 @@ impl StoreError {
     }
 
     #[must_use]
-    pub fn failure(&self) -> Failure {
+    pub const fn failure(&self) -> Failure {
         match self {
             Self::Identity(_) | Self::Domain(_) => Failure::Rejected,
             Self::CorruptHistory(_) => Failure::CorruptHistory,

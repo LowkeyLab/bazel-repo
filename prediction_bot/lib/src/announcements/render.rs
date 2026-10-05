@@ -5,7 +5,7 @@ use super::SnapshotV1;
 const CONTENT_LIMIT: usize = 2_000;
 const TRUNCATION_MARKER: &str = "…";
 
-pub(crate) fn render(snapshot: &SnapshotV1) -> CreateMessage {
+pub fn render(snapshot: &SnapshotV1) -> CreateMessage {
     let mut content = render_content(snapshot, usize::MAX);
     if utf16_len(&content) > CONTENT_LIMIT {
         let fixed_units = utf16_len(&render_content(snapshot, 0));
@@ -124,10 +124,10 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
         ),
     };
 
-    let prefix = match id {
-        Some(id) => format!("{heading}\nMarket ID: `{}`", escape_markdown(&id.0)),
-        None => heading.to_owned(),
-    };
+    let prefix = id.map_or_else(
+        || heading.to_owned(),
+        |id| format!("{heading}\nMarket ID: `{}`", escape_markdown(&id.0)),
+    );
     format!("{prefix}\n{details}")
 }
 

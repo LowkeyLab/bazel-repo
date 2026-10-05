@@ -22,7 +22,7 @@ pub enum DomainNotice {
 
 impl DomainNotice {
     #[must_use]
-    pub fn metadata(&self) -> &EventMetadata {
+    pub const fn metadata(&self) -> &EventMetadata {
         match self {
             Self::BookRanked { metadata, .. }
             | Self::PlacementAutomaticallyPaused { metadata, .. } => metadata,
@@ -30,7 +30,7 @@ impl DomainNotice {
     }
 
     #[must_use]
-    pub fn candidate(&self) -> crate::BookId {
+    pub const fn candidate(&self) -> crate::BookId {
         match self {
             Self::BookRanked { candidate, .. }
             | Self::PlacementAutomaticallyPaused { candidate, .. } => *candidate,

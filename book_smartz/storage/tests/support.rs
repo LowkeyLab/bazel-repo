@@ -31,7 +31,7 @@ impl Fixture {
         }
     }
 
-    pub fn pool(&self) -> &PgPool {
+    pub const fn pool(&self) -> &PgPool {
         &self.pool
     }
     pub fn store(&self, observer: SharedObserver) -> Store {

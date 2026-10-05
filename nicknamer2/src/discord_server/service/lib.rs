@@ -9,11 +9,15 @@ where
     repo: T,
 }
 
+#[expect(
+    clippy::future_not_send,
+    reason = "Generic repositories may be thread-local; concrete Sync repositories produce Send service futures"
+)]
 impl<T> Service<T>
 where
     T: ServerCreator + ServerReader,
 {
-    pub fn new(repo: T) -> Self {
+    pub const fn new(repo: T) -> Self {
         Self { repo }
     }
 

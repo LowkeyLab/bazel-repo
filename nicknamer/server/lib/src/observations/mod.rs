@@ -55,7 +55,7 @@ impl std::fmt::Display for OperationId {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObservationContext {
     pub occurred_at: DateTime<Utc>,
     pub request_id: Option<RequestId>,
@@ -94,7 +94,7 @@ impl ObservationContext {
     }
 
     #[must_use]
-    pub fn with_duration(mut self, duration: Duration) -> Self {
+    pub const fn with_duration(mut self, duration: Duration) -> Self {
         self.duration = Some(duration);
         self
     }
@@ -106,7 +106,7 @@ impl Default for ObservationContext {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Observation {
     pub context: ObservationContext,
     pub fact: Fact,
@@ -227,7 +227,7 @@ pub enum FailureCategory {
     Internal,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Fact {
     StartupStageFinished {
         stage: StartupStage,

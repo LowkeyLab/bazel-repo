@@ -28,7 +28,7 @@ impl Name {
     /// Creates a new Name instance.
     pub fn new(discord_id: DiscordId, discord_server: DiscordServerId, name: String) -> Self {
         let now = Utc::now();
-        Name {
+        Self {
             id: NameId {
                 discord_id,
                 discord_server,

@@ -14,7 +14,7 @@ impl Server {
     /// Creates a new Server instance.
     pub fn new(id: DiscordServerId, display_name: String) -> Self {
         let now = Utc::now();
-        Server {
+        Self {
             id,
             display_name,
             created_at: now,

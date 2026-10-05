@@ -33,7 +33,7 @@ impl CreateNamePayload {
     }
 
     /// The newly created name.
-    fn name(&self) -> &Name {
+    const fn name(&self) -> &Name {
         &self.name
     }
 }
@@ -107,7 +107,7 @@ impl CreateServerPayload {
     }
 
     /// The newly created server.
-    fn server(&self) -> &graphql_model::Server {
+    const fn server(&self) -> &graphql_model::Server {
         &self.server
     }
 }

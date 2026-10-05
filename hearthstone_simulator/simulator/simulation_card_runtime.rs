@@ -13,7 +13,7 @@ use crate::{
 use super::error::SimulationError;
 
 #[derive(Component, Clone, Debug, Eq, PartialEq)]
-pub(crate) struct CardRuntime {
+pub struct CardRuntime {
     pub(crate) base_cost: i32,
     pub(crate) cost: i32,
     pub(crate) program: Vec<Effect>,

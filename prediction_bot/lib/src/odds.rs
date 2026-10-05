@@ -51,7 +51,7 @@ impl OutcomeOdds {
     }
 
     /// Compare displayed percentages for the same outcome before and after a bet.
-    pub(crate) fn with_previous(mut self, previous: &Self) -> Self {
+    pub(crate) const fn with_previous(mut self, previous: &Self) -> Self {
         self.unchanged = matches!(
             (previous.tenths_percent, self.tenths_percent),
             (Some(before), Some(after)) if before == after
@@ -64,7 +64,7 @@ impl OutcomeOdds {
         self
     }
 
-    pub(crate) fn movement_indicator(&self) -> &'static str {
+    pub(crate) const fn movement_indicator(&self) -> &'static str {
         match self.movement {
             Some(Movement::Up) => " 🟢 ⬆️",
             Some(Movement::Down) => " 🔴 ⬇️",

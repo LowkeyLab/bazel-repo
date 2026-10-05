@@ -23,7 +23,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AttemptOutcome {
+pub enum AttemptOutcome {
     Delivered {
         message_id: u64,
     },
@@ -36,14 +36,14 @@ pub(crate) enum AttemptOutcome {
     },
 }
 
-pub(crate) fn retry_at(now: i64, failures: i64, provider_delay: Option<i64>) -> i64 {
+pub fn retry_at(now: i64, failures: i64, provider_delay: Option<i64>) -> i64 {
     let exponent = u32::try_from(failures.saturating_sub(1).clamp(0, 6)).unwrap_or(6);
     let local_delay = 5_i64.saturating_mul(1_i64 << exponent).min(300);
     let delay = local_delay.max(provider_delay.unwrap_or(0).max(0));
     now.saturating_add(delay)
 }
 
-pub(crate) fn classify_delivery_failure(error: &serenity::Error) -> AttemptOutcome {
+pub fn classify_delivery_failure(error: &serenity::Error) -> AttemptOutcome {
     match error {
         serenity::Error::Http(HttpError::UnsuccessfulRequest(response)) => {
             classify_http_failure(response.status_code.as_u16(), response.error.code)
@@ -74,7 +74,7 @@ pub(crate) fn classify_delivery_failure(error: &serenity::Error) -> AttemptOutco
     }
 }
 
-pub(crate) fn classify_http_failure(status: u16, discord_code: isize) -> AttemptOutcome {
+pub fn classify_http_failure(status: u16, discord_code: isize) -> AttemptOutcome {
     if status == 401 {
         // Credential repair is global; it must not require each guild to reconfigure.
         return retry("discord_authentication");
@@ -99,19 +99,19 @@ pub(crate) fn classify_http_failure(status: u16, discord_code: isize) -> Attempt
     )
 }
 
-fn retry(reason: &'static str) -> AttemptOutcome {
+const fn retry(reason: &'static str) -> AttemptOutcome {
     AttemptOutcome::Retry {
         reason,
         provider_delay: None,
     }
 }
 
-fn pause(reason: &'static str) -> AttemptOutcome {
+const fn pause(reason: &'static str) -> AttemptOutcome {
     AttemptOutcome::Pause { reason }
 }
 
-pub(crate) const SHUTDOWN_GRACE: Duration = Duration::from_secs(15);
-pub(crate) type ShutdownDeadline = Arc<OnceLock<Instant>>;
+pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(15);
+pub type ShutdownDeadline = Arc<OnceLock<Instant>>;
 type Attempts = JoinSet<Result<(), StoreError>>;
 
 fn attempt_event(
@@ -255,7 +255,9 @@ fn worker_failure(store: &Store, stage: Stage, error: &StoreError) {
         });
 }
 
-/// Poll immediately, then one second after each completed batch. The gateway owns
+/// Poll immediately, then one second after each completed batch.
+///
+/// The gateway owns
 /// the single-scheduler invariant. Shutdown stops discovery and grants in-flight
 /// attempts up to fifteen seconds to record acknowledgement before aborting them.
 #[must_use]
@@ -268,7 +270,7 @@ pub fn start_announcement_worker(
     start_announcement_worker_with_deadline(store, http, clock, shutdown, Arc::new(OnceLock::new()))
 }
 
-pub(crate) fn start_announcement_worker_with_deadline(
+pub fn start_announcement_worker_with_deadline(
     store: Arc<Store>,
     http: Arc<serenity::http::Http>,
     clock: Clock,

@@ -82,7 +82,7 @@ pub enum Effect {
     },
     DrawThen {
         player: PlayerSelector,
-        effects: Vec<Effect>,
+        effects: Vec<Self>,
         policy: DrawContinuationPolicy,
     },
     Move {
@@ -152,7 +152,7 @@ pub enum Effect {
         board_index: Option<usize>,
     },
     Native(NativeEffectId),
-    Sequence(Vec<Effect>),
+    Sequence(Vec<Self>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -169,7 +169,7 @@ pub enum Selector {
     EnemyCharacters,
     AllCharacters,
     InZone { player: PlayerSelector, zone: Zone },
-    Random(Box<Selector>),
+    Random(Box<Self>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

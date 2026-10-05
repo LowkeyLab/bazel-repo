@@ -18,7 +18,7 @@ pub struct CostModifier {
 
 impl CostModifier {
     #[must_use]
-    pub fn apply(self, cost: i32) -> i32 {
+    pub const fn apply(self, cost: i32) -> i32 {
         match self.operation {
             CostOperation::Set => self.value,
             CostOperation::Add => cost.saturating_add(self.value),

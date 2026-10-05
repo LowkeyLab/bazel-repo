@@ -18,12 +18,12 @@ pub mod config {
                 .add_source(config::Environment::default())
                 .build()?;
 
-            let config: Config = settings.try_deserialize()?;
+            let config: Self = settings.try_deserialize()?;
             Ok(config)
         }
     }
 
-    fn default_port() -> u16 {
+    const fn default_port() -> u16 {
         8080
     }
 }

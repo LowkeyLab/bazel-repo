@@ -72,7 +72,7 @@ ktlint = lint_ktlint_aspect(
 clippy = lint_clippy_aspect(
     config = Label("//:.clippy.toml"),
     rule_kinds = ["rust_binary", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_test"],
-    clippy_flags = ["-Wclippy::pedantic"],
+    clippy_flags = ["-Wclippy::pedantic", "-Wclippy::nursery"],
 )
 
 # General

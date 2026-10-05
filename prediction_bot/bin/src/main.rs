@@ -50,7 +50,7 @@ struct BootstrapFailure {
     outcome: Outcome,
 }
 
-fn failure(category: FailureCategory) -> Outcome {
+const fn failure(category: FailureCategory) -> Outcome {
     Outcome::Failed(Failure {
         category,
         sqlstate: None,

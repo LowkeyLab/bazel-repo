@@ -18,7 +18,7 @@ struct ServerDAO {
 
 impl From<ServerDAO> for Server {
     fn from(dao: ServerDAO) -> Self {
-        Server {
+        Self {
             id: DiscordServerId(dao.discord_server as u64),
             display_name: dao.display_name,
             created_at: dao.created_at,
@@ -54,7 +54,7 @@ pub struct Repo {
 }
 
 impl Repo {
-    pub fn new(pool: PgPool) -> Self {
+    pub const fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }

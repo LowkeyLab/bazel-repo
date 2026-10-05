@@ -383,7 +383,7 @@ fn truncate_to(content: &str, limit: usize) -> String {
 fn truncate(content: &str) -> String {
     truncate_to(content, 2_000)
 }
-fn recoverable_defer_code(code: isize) -> bool {
+const fn recoverable_defer_code(code: isize) -> bool {
     code == 40_060
 }
 
@@ -450,13 +450,15 @@ fn safe_error(error: &StoreError) -> String {
 fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String {
     let state = &view.state;
     match action {
-        Action::Balance => match state.accounts.get(&actor.user_id) {
-            Some(account) => format!(
-                "Available: {} points. Next grant: <t:{}:f>.",
-                account.balance, account.next_grant
-            ),
-            None => "You are not enrolled. Use /market join first.".to_owned(),
-        },
+        Action::Balance => state.accounts.get(&actor.user_id).map_or_else(
+            || "You are not enrolled. Use /market join first.".to_owned(),
+            |account| {
+                format!(
+                    "Available: {} points. Next grant: <t:{}:f>.",
+                    account.balance, account.next_grant
+                )
+            },
+        ),
         Action::Leaderboard => {
             let mut accounts: Vec<_> = state.accounts.iter().collect();
             accounts.sort_by(|(ua, a), (ub, b)| b.balance.cmp(&a.balance).then_with(|| ua.cmp(ub)));
@@ -695,7 +697,7 @@ fn delivery_outcome(result: &serenity::Result<()>) -> Outcome {
         Err(error) => Outcome::Failed(discord_failure(error)),
     }
 }
-fn category_failure(category: FailureCategory) -> Outcome {
+const fn category_failure(category: FailureCategory) -> Outcome {
     Outcome::Failed(Failure {
         category,
         sqlstate: None,
@@ -801,10 +803,10 @@ where
         stage: Stage::Query,
         elapsed: started.elapsed(),
     });
-    match result {
-        Ok(result) => result.map_err(|error| safe_error(&error)),
-        Err(_) => Err("Loading took too long. Please select the option again.".to_owned()),
-    }
+    result.map_or_else(
+        |_| Err("Loading took too long. Please select the option again.".to_owned()),
+        |result| result.map_err(|error| safe_error(&error)),
+    )
 }
 
 fn rejected(audit: &dyn AuditListener, guild: Option<GuildId>, interaction_id: u64) {

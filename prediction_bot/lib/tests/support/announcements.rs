@@ -42,7 +42,7 @@ pub async fn fixture() -> (ContainerAsync<Postgres>, Arc<Store>, PgPool) {
     (container, Arc::new(store), owner)
 }
 
-pub fn admin() -> Actor {
+pub const fn admin() -> Actor {
     Actor {
         user_id: UserId(7),
         moderator: true,

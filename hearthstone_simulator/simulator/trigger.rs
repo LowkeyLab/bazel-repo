@@ -1,6 +1,6 @@
 use bevy::prelude::{Entity, World};
 
-pub(crate) use hearthstone_simulator_core::ConditionTiming;
+pub use hearthstone_simulator_core::ConditionTiming;
 
 use crate::{
     AttachedTo, Controller, DominantPlayer, EntityKind, EventContext, EventId, EventKind,
@@ -12,7 +12,7 @@ use crate::{
 #[cfg(test)]
 use crate::{TimedCondition, TriggerDefinition, WoundedTargetPolicy};
 
-pub(crate) fn collect_trigger_seeds(world: &World, event: &EventContext) -> Vec<TriggerSeed> {
+pub fn collect_trigger_seeds(world: &World, event: &EventContext) -> Vec<TriggerSeed> {
     let mut seeds = Vec::new();
     for entity in world.iter_entities() {
         let (Some(source), Some(triggers), Some(zone), Some(controller)) = (
@@ -49,7 +49,7 @@ pub(crate) fn collect_trigger_seeds(world: &World, event: &EventContext) -> Vec<
     seeds
 }
 
-pub(crate) fn collect_trigger_candidates(
+pub fn collect_trigger_candidates(
     world: &World,
     event_id: EventId,
     event: &EventContext,
@@ -89,7 +89,7 @@ pub(crate) fn collect_trigger_candidates(
     candidates
 }
 
-pub(crate) fn trigger_is_eligible(
+pub fn trigger_is_eligible(
     world: &World,
     candidate: &TriggerCandidate,
     event: &EventContext,

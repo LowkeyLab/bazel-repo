@@ -14,7 +14,7 @@ pub enum Severity {
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FieldValue {
     Text(&'static str),
     Identifier(String),
@@ -35,7 +35,7 @@ impl From<u64> for FieldValue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructuredRecord {
     pub severity: Severity,
     pub event: &'static str,
@@ -417,7 +417,7 @@ fn severity_for_outcome(outcome: Outcome) -> Severity {
 macro_rules! labels {
     ($type:ty { $($variant:ident => $text:literal),+ $(,)? }) => {
         impl $type {
-            pub fn label(self) -> &'static str {
+            pub const fn label(self) -> &'static str {
                 match self { $(Self::$variant => $text),+ }
             }
         }
@@ -442,7 +442,7 @@ labels!(ShutdownOutcome { Drained => "drained", TimedOut => "timed_out", Failed 
 labels!(FailureCategory { Duplicate => "duplicate", MissingEntry => "missing_entry", NoRowsAffected => "no_rows_affected", MalformedInput => "malformed_input", Database => "database", Serialization => "serialization", Template => "template", Token => "token", Configuration => "configuration", Bind => "bind", InvalidCredentials => "invalid_credentials", Internal => "internal" });
 
 impl FailureCategory {
-    fn count_field(self) -> &'static str {
+    const fn count_field(self) -> &'static str {
         match self {
             Self::Duplicate => "duplicate_count",
             Self::MissingEntry => "missing_entry_count",

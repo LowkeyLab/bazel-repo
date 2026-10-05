@@ -72,7 +72,7 @@ enum NameError {
 impl axum::response::IntoResponse for NameError {
     fn into_response(self) -> axum::response::Response {
         let (status_code, user_facing_error_message) = match self {
-            NameError::DuplicateEntry => (
+            Self::DuplicateEntry => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "A name entry already exists for this Discord ID and Server ID combination. Please use a different combination.",
             ),
@@ -104,7 +104,7 @@ impl axum::response::IntoResponse for NameError {
 struct NamesTemplate {}
 
 impl NamesTemplate {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {}
     }
 }
@@ -120,7 +120,7 @@ struct NamesTableTemplate {
 }
 
 impl NamesTableTemplate {
-    pub fn new(names: Vec<Name>) -> Self {
+    pub const fn new(names: Vec<Name>) -> Self {
         Self { names }
     }
 }
@@ -132,7 +132,7 @@ struct ErrorMessageTemplate {
 }
 
 impl ErrorMessageTemplate {
-    pub fn new(message: String) -> Self {
+    pub const fn new(message: String) -> Self {
         Self { message }
     }
 }
@@ -144,7 +144,7 @@ struct EditNameFormTemplate {
 }
 
 impl EditNameFormTemplate {
-    pub fn new(name: Name) -> Self {
+    pub const fn new(name: Name) -> Self {
         Self { name }
     }
 }
@@ -156,7 +156,7 @@ struct NameRowTemplate {
 }
 
 impl NameRowTemplate {
-    pub fn new(name: Name) -> Self {
+    pub const fn new(name: Name) -> Self {
         Self { name }
     }
 }
@@ -176,7 +176,7 @@ struct BulkAddSuccessTemplate {
 }
 
 impl BulkAddSuccessTemplate {
-    pub fn new(
+    pub const fn new(
         created_count: usize,
         skipped_count: usize,
         errors: Vec<String>,
@@ -204,7 +204,7 @@ struct BulkDeleteTableTemplate {
 }
 
 impl BulkDeleteTableTemplate {
-    pub fn new(names: Vec<Name>) -> Self {
+    pub const fn new(names: Vec<Name>) -> Self {
         Self { names }
     }
 }
@@ -287,7 +287,7 @@ async fn bulk_delete_names_handler(
         .with_context(crate::observations::http::current_context());
 
     // Parse query parameters manually to handle multiple values with the same key
-    let selected_ids: Vec<u32> = if let Some(query_str) = query {
+    let selected_ids: Vec<u32> = query.map_or_else(Vec::new, |query_str| {
         query_str
             .split('&')
             .filter_map(|pair| {
@@ -299,9 +299,7 @@ async fn bulk_delete_names_handler(
                 }
             })
             .collect()
-    } else {
-        Vec::new()
-    };
+    });
 
     if selected_ids.is_empty() {
         // No names selected for deletion, just return the current table
@@ -468,7 +466,7 @@ async fn bulk_delete_names_delete_handler(
         .with_context(crate::observations::http::current_context());
 
     // Parse query parameters manually to handle multiple values with the same key
-    let selected_ids: Vec<u32> = if let Some(query_str) = query {
+    let selected_ids: Vec<u32> = query.map_or_else(Vec::new, |query_str| {
         query_str
             .split('&')
             .filter_map(|pair| {
@@ -480,9 +478,7 @@ async fn bulk_delete_names_delete_handler(
                 }
             })
             .collect()
-    } else {
-        Vec::new()
-    };
+    });
 
     // Perform the deletion if any IDs are selected
     if !selected_ids.is_empty() {
@@ -551,5 +547,5 @@ pub fn create_name_router(state: Arc<NameState>) -> Router {
         )
         .route("/names/{id}/edit", get(edit_name_handler))
         .route("/names/table", get(names_table_handler))
-        .with_state(state.clone())
+        .with_state(state)
 }

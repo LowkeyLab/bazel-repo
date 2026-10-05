@@ -35,7 +35,7 @@ mod action;
 #[path = "simulation_action_validation.rs"]
 mod action_validation;
 #[path = "simulation_card_runtime.rs"]
-pub(crate) mod card_runtime;
+pub mod card_runtime;
 #[path = "simulation_checkpoint.rs"]
 mod checkpoint;
 #[path = "simulation_effect_executor.rs"]
@@ -190,8 +190,8 @@ impl Simulation {
         submit_action(&mut self.app, action)
     }
 
-    pub fn legal_actions(&mut self) -> Vec<GameAction> {
-        legal_actions(self.app.world_mut())
+    pub fn legal_actions(&self) -> Vec<GameAction> {
+        legal_actions(self.app.world())
     }
 
     /// Returns the choice that suspended resolution, if any.

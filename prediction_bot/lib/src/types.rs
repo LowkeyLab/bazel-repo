@@ -1,4 +1,6 @@
-//! Semantic values used throughout the bot. Wrappers distinguish identities and
+//! Semantic values used throughout the bot.
+//!
+//! Wrappers distinguish identities and
 //! units; command and event validation retain responsibility for valid values.
 //! Serde is transparent here. Boundary-specific Discord string encodings remain
 //! on the event fields, while announcement snapshots retain numeric IDs.

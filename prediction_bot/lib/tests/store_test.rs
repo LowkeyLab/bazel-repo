@@ -150,11 +150,10 @@ async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_c
         store.execute_at(1.into(), "discord:4", player(7), &bet, 1100)
     );
     assert_that!(a.is_ok(), ne(b.is_ok()));
-    let (key, original) = if let Ok(receipt) = a {
-        ("discord:3", receipt)
-    } else {
-        ("discord:4", b.unwrap())
-    };
+    let (key, original) = a.map_or_else(
+        |_| ("discord:4", b.unwrap()),
+        |receipt| ("discord:3", receipt),
+    );
     assert_that!(original, contains_substring("Yes"));
     assert_that!(original, contains_substring("80 points"));
     assert_that!(original, contains_substring("20 points"));
@@ -396,6 +395,7 @@ async fn rejected_bet_emits_one_expected_outcome_without_changing_balance() {
         commands,
         eq(&vec![&Outcome::Rejected(Rejection::InsufficientPoints)])
     );
+    drop(events);
 }
 
 #[googletest::test]
@@ -961,6 +961,7 @@ async fn committed_bet_and_failed_delivery_have_matching_audit_correlation() {
     for edit in edits.iter() {
         assert_that!(serde_json::to_value(edit).unwrap()["content"], eq(&receipt));
     }
+    drop(edits);
     let events = recorder.0.lock().unwrap();
     assert_that!(events.iter().filter(|event| matches!(event, AuditEvent::CommandCompleted { key: Some(key), outcome: Outcome::Succeeded, .. } if key == "discord:123")).count(), eq(2));
     assert_that!(

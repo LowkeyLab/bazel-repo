@@ -3,7 +3,7 @@ use bevy::{
     prelude::*,
 };
 
-pub(crate) use hearthstone_simulator_core::ResolutionError;
+pub use hearthstone_simulator_core::ResolutionError;
 
 use crate::{
     DrawOutcome, DrawResultSlot, DrawResultSlotId, EventId, EventSlotId, PreparedEventSlot,
@@ -35,7 +35,7 @@ pub enum PhaseBoundarySet {
 #[derive(Clone, Debug, Default, Resource)]
 pub struct CurrentResolutionOp(pub Option<StackedResolutionOp>);
 
-pub(crate) fn configure_resolution(app: &mut App) {
+pub fn configure_resolution(app: &mut App) {
     app.init_schedule(ResolveFrame)
         .init_schedule(ResolvePhaseBoundary)
         .configure_sets(
@@ -78,7 +78,7 @@ pub(crate) fn configure_resolution(app: &mut App) {
     });
 }
 
-pub(crate) fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
+pub fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
     let budget = world.resource::<Ruleset>().resolution_budget;
     let mut work = world.resource_mut::<ResolutionWork>();
     if work.sequence_active
@@ -98,11 +98,11 @@ pub(crate) fn begin_sequence(world: &mut World) -> Result<(), ResolutionError> {
     Ok(())
 }
 
-pub(crate) fn finish_sequence(world: &mut World) {
+pub fn finish_sequence(world: &mut World) {
     world.resource_mut::<ResolutionWork>().sequence_active = false;
 }
 
-pub(crate) fn abandon_sequence(world: &mut World) {
+pub fn abandon_sequence(world: &mut World) {
     let mut work = world.resource_mut::<ResolutionWork>();
     work.stack.clear();
     work.events.clear();
@@ -116,7 +116,7 @@ pub(crate) fn abandon_sequence(world: &mut World) {
     work.remaining_budget = 0;
 }
 
-pub(crate) fn push_resolution_op(world: &mut World, operation: ResolutionOp) -> ResolutionId {
+pub fn push_resolution_op(world: &mut World, operation: ResolutionOp) -> ResolutionId {
     let mut work = world.resource_mut::<ResolutionWork>();
     let id = ResolutionId(work.next_resolution_id);
     work.next_resolution_id = work
@@ -127,10 +127,14 @@ pub(crate) fn push_resolution_op(world: &mut World, operation: ResolutionOp) -> 
     id
 }
 
-pub(crate) fn push_resolution_ops(
+pub fn push_resolution_ops(
     world: &mut World,
     operations_in_execution_order: impl IntoIterator<Item = ResolutionOp>,
 ) {
+    #[expect(
+        clippy::needless_collect,
+        reason = "Reversing an arbitrary IntoIterator requires materialization because it need not be double-ended"
+    )]
     let operations = operations_in_execution_order
         .into_iter()
         .collect::<Vec<_>>();
@@ -139,7 +143,7 @@ pub(crate) fn push_resolution_ops(
     }
 }
 
-pub(crate) fn open_play_scope(
+pub fn open_play_scope(
     world: &mut World,
     subject: crate::GameEntityId,
     original_after_play: Vec<crate::TriggerSeed>,
@@ -158,7 +162,7 @@ pub(crate) fn open_play_scope(
     scope
 }
 
-pub(crate) fn validate_play_scope(
+pub fn validate_play_scope(
     world: &World,
     scope: ResolutionId,
     subject: crate::GameEntityId,
@@ -175,14 +179,11 @@ pub(crate) fn validate_play_scope(
     Ok(())
 }
 
-pub(crate) fn pop_resolution_op(world: &mut World) -> Option<StackedResolutionOp> {
+pub fn pop_resolution_op(world: &mut World) -> Option<StackedResolutionOp> {
     world.resource_mut::<ResolutionWork>().stack.pop()
 }
 
-pub(crate) fn consume_budget(
-    world: &mut World,
-    operation: ResolutionId,
-) -> Result<(), ResolutionError> {
+pub fn consume_budget(world: &mut World, operation: ResolutionId) -> Result<(), ResolutionError> {
     let mut work = world.resource_mut::<ResolutionWork>();
     if work.remaining_budget == 0 {
         return Err(ResolutionError::BudgetExhausted {
@@ -193,7 +194,7 @@ pub(crate) fn consume_budget(
     Ok(())
 }
 
-pub(crate) fn allocate_event_id(world: &mut World) -> EventId {
+pub fn allocate_event_id(world: &mut World) -> EventId {
     let mut work = world.resource_mut::<ResolutionWork>();
     let id = EventId(work.next_event_id);
     work.next_event_id = work
@@ -203,7 +204,7 @@ pub(crate) fn allocate_event_id(world: &mut World) -> EventId {
     id
 }
 
-pub(crate) fn allocate_event_slot(world: &mut World) -> EventSlotId {
+pub fn allocate_event_slot(world: &mut World) -> EventSlotId {
     let mut work = world.resource_mut::<ResolutionWork>();
     let id = EventSlotId(work.next_event_slot_id);
     work.next_event_slot_id = work
@@ -215,7 +216,7 @@ pub(crate) fn allocate_event_slot(world: &mut World) -> EventSlotId {
     id
 }
 
-pub(crate) fn allocate_draw_result_slot(world: &mut World) -> DrawResultSlotId {
+pub fn allocate_draw_result_slot(world: &mut World) -> DrawResultSlotId {
     let mut work = world.resource_mut::<ResolutionWork>();
     let id = DrawResultSlotId(work.next_draw_result_slot_id);
     work.next_draw_result_slot_id = work
@@ -227,7 +228,7 @@ pub(crate) fn allocate_draw_result_slot(world: &mut World) -> DrawResultSlotId {
     id
 }
 
-pub(crate) fn fill_draw_result_slot(
+pub fn fill_draw_result_slot(
     world: &mut World,
     slot: DrawResultSlotId,
     outcome: DrawOutcome,
@@ -244,7 +245,7 @@ pub(crate) fn fill_draw_result_slot(
     Ok(())
 }
 
-pub(crate) fn take_draw_result(
+pub fn take_draw_result(
     world: &mut World,
     slot: DrawResultSlotId,
 ) -> Result<DrawOutcome, ResolutionError> {
@@ -257,11 +258,11 @@ pub(crate) fn take_draw_result(
         .ok_or(ResolutionError::EmptyDrawResultSlot(slot))
 }
 
-pub(crate) fn resolution_is_active(world: &World) -> bool {
+pub fn resolution_is_active(world: &World) -> bool {
     world.resource::<ResolutionWork>().sequence_active
 }
 
-pub(crate) fn validate_durability_payers(work: &ResolutionWork) -> Result<(), String> {
+pub fn validate_durability_payers(work: &ResolutionWork) -> Result<(), String> {
     let mut payers = work.durability_payers.clone();
     for stacked in &work.stack {
         match &stacked.operation {
@@ -286,7 +287,7 @@ pub(crate) fn validate_durability_payers(work: &ResolutionWork) -> Result<(), St
     Ok(())
 }
 
-pub(crate) fn assert_resolution_invariants(world: &World) -> Result<(), String> {
+pub fn assert_resolution_invariants(world: &World) -> Result<(), String> {
     let work = world.resource::<ResolutionWork>();
     validate_durability_payers(work)?;
     if !work.sequence_active {
