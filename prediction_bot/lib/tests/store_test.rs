@@ -2993,3 +2993,386 @@ async fn removal_duplicate_and_add_order_follow_postgres_lock_commit_order() {
         );
     }
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn removal_and_assigned_settlement_obey_both_postgres_commit_orders() {
+    use prediction_bot::domain::{MembershipEvidence, Status};
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    for (remove_first, id) in [
+        (true, "78e82954-4c67-4e0d-8c80-8ab95a527ae5"),
+        (false, "78e82954-4c67-4e0d-8c80-8ab95a527ae6"),
+    ] {
+        assigned_settlement_market(&store, id).await;
+        let before = store.view(guild).await.unwrap();
+        let remove = Command::RemoveResolver {
+            id: id.into(),
+            user_id: UserId(2),
+        };
+        let settle = Command::Resolve {
+            id: id.into(),
+            outcome: OutcomeIndex(0),
+        };
+        let commands = if remove_first {
+            [(player(1), remove.clone()), (player(2), settle.clone())]
+        } else {
+            [(player(2), settle.clone()), (player(1), remove.clone())]
+        };
+        let mut lock = store.pool.begin().await.unwrap();
+        sqlx::query("SELECT pg_advisory_xact_lock(1::bigint)")
+            .execute(&mut *lock)
+            .await
+            .unwrap();
+        let mut tasks = vec![];
+        for (index, (actor, command)) in commands.into_iter().enumerate() {
+            let task_store = store.clone();
+            tasks.push(tokio::spawn(async move {
+                task_store
+                    .execute_with_membership_at(
+                        guild,
+                        &format!("discord:remove-settle-{remove_first}-{index}"),
+                        actor,
+                        &command,
+                        2000,
+                        async {
+                            MembershipEvidence::Present {
+                                user_id: UserId(2),
+                                bot: false,
+                            }
+                        },
+                    )
+                    .await
+            }));
+            await_removal_lock_waiters(&store, i64::try_from(index + 1).unwrap()).await;
+        }
+        lock.commit().await.unwrap();
+        let mut results = vec![];
+        for task in tasks {
+            results.push(task.await.unwrap());
+        }
+        assert_that!(results[0].is_ok(), eq(true));
+        assert_that!(results[1].is_err(), eq(true));
+        let after = store.view(guild).await.unwrap();
+        assert_that!(after.revision.0, eq(before.revision.0 + 1));
+        assert_that!(
+            after.state.markets[id].resolvers.contains(&UserId(2)),
+            eq(!remove_first)
+        );
+        assert_that!(
+            after.state.markets[id].status,
+            eq(&if remove_first {
+                Status::Open
+            } else {
+                Status::Resolved {
+                    outcome: OutcomeIndex(0),
+                    refunded: false,
+                }
+            })
+        );
+        assert_that!(
+            after.state.accounts[&UserId(2)].balance.0,
+            eq(before.state.accounts[&UserId(2)].balance.0 + if remove_first { 0 } else { 25 })
+        );
+        let keys = vec![
+            format!("discord:remove-settle-{remove_first}-0"),
+            format!("discord:remove-settle-{remove_first}-1"),
+        ];
+        let receipts: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM prediction_commands WHERE command_key = ANY($1)",
+        )
+        .bind(&keys)
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+        assert_that!(receipts, eq(1));
+        let events: Vec<serde_json::Value> =
+            sqlx::query_scalar("SELECT event FROM prediction_events WHERE command_key = ANY($1)")
+                .bind(&keys)
+                .fetch_all(&store.pool)
+                .await
+                .unwrap();
+        assert_that!(events.len(), eq(1));
+        assert_that!(
+            events[0]["data"]["kind"],
+            eq(if remove_first {
+                "market_resolver_removed"
+            } else {
+                "market_resolved"
+            })
+        );
+        if remove_first {
+            // Rejoining does not resurrect the removed assignment, even on a new delivery.
+            assert_that!(
+                store
+                    .execute_with_membership_at(
+                        guild,
+                        "discord:rejoined-removed",
+                        player(2),
+                        &settle,
+                        2001,
+                        async {
+                            MembershipEvidence::Present {
+                                user_id: UserId(2),
+                                bot: false,
+                            }
+                        }
+                    )
+                    .await,
+                err(anything())
+            );
+            assert_that!(
+                store.view(guild).await.unwrap().revision,
+                eq(after.revision)
+            );
+            // The removed person can still use independent current moderator authority.
+            store
+                .execute_at(
+                    guild,
+                    "discord:implicit-after-removal",
+                    Actor {
+                        moderator: true,
+                        ..player(2)
+                    },
+                    &settle,
+                    2001,
+                )
+                .await
+                .unwrap();
+            assert_that!(
+                store.view(guild).await.unwrap().state.markets[id].resolvers,
+                is_empty()
+            );
+        }
+        let final_view = store.view(guild).await.unwrap();
+        assert_that!(
+            final_view.state.accounts[&UserId(2)].balance,
+            eq(Points(100))
+        );
+        let settlements:i64 = sqlx::query_scalar("SELECT count(*) FROM prediction_events WHERE event->'data'->>'id'=$1 AND event->'data'->>'kind'='market_resolved'").bind(id).fetch_one(&store.pool).await.unwrap();
+        assert_that!(settlements, eq(1));
+    }
+}
+
+struct MembershipOutage;
+#[serenity::async_trait]
+impl prediction_bot::discord::resolvers::MembershipVerifier for MembershipOutage {
+    async fn verify(&self, _: GuildId, _: UserId) -> prediction_bot::domain::MembershipEvidence {
+        prediction_bot::domain::MembershipEvidence::Unavailable
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn creator_after_self_removal_and_unenrolled_moderator_settle_during_membership_outage() {
+    use prediction_bot::{discord::resolvers::execute_interaction, domain::MembershipEvidence};
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    for (creator, id) in [
+        (true, "78e82954-4c67-4e0d-8c80-8ab95a527ae5"),
+        (false, "78e82954-4c67-4e0d-8c80-8ab95a527ae6"),
+    ] {
+        assigned_settlement_market(&store, id).await;
+        if creator {
+            store
+                .execute_with_membership_at(
+                    guild,
+                    "discord:assign-creator",
+                    player(1),
+                    &Command::AddResolver {
+                        id: id.into(),
+                        user_id: UserId(1),
+                    },
+                    1502,
+                    async {
+                        MembershipEvidence::Present {
+                            user_id: UserId(1),
+                            bot: false,
+                        }
+                    },
+                )
+                .await
+                .unwrap();
+            store
+                .execute_at(
+                    guild,
+                    "discord:remove-creator",
+                    player(1),
+                    &Command::RemoveResolver {
+                        id: id.into(),
+                        user_id: UserId(1),
+                    },
+                    1503,
+                )
+                .await
+                .unwrap();
+        }
+        let before = store.view(guild).await.unwrap();
+        assert_that!(before.state.accounts.contains_key(&UserId(3)), eq(false));
+        let actor = if creator {
+            player(1)
+        } else {
+            Actor {
+                moderator: true,
+                ..player(3)
+            }
+        };
+        let transport = TestTransport::default();
+        execute_interaction(
+            &transport,
+            &store,
+            &MembershipOutage,
+            guild,
+            actor,
+            &Command::Resolve {
+                id: id.into(),
+                outcome: OutcomeIndex(0),
+            },
+            if creator { 19881 } else { 19882 },
+        )
+        .await;
+        assert_that!(
+            serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap()["content"],
+            eq("Market resolved.")
+        );
+        let after = store.view(guild).await.unwrap();
+        assert_that!(after.revision.0, eq(before.revision.0 + 1));
+        assert_that!(after.state.accounts[&UserId(2)].balance, eq(Points(100)));
+        assert_that!(
+            after.state.markets[id].resolvers.contains(&actor.user_id),
+            eq(false)
+        );
+        execute_interaction(
+            &transport,
+            &store,
+            &MembershipOutage,
+            guild,
+            Actor {
+                moderator: false,
+                ..actor
+            },
+            &Command::Resolve {
+                id: id.into(),
+                outcome: OutcomeIndex(0),
+            },
+            if creator { 19881 } else { 19882 },
+        )
+        .await;
+        assert_that!(
+            serde_json::to_value(transport.edits.lock().unwrap().last().unwrap()).unwrap()["content"],
+            eq("Market resolved.")
+        );
+        assert_that!(
+            store.view(guild).await.unwrap().revision,
+            eq(after.revision)
+        );
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn stale_guided_settlement_confirmation_cannot_use_revoked_assignment_after_rejoin() {
+    use prediction_bot::discord::handle_interaction;
+    use serenity::all::Interaction;
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::method};
+    let (_container, store) = fixture().await;
+    let guild = GuildId(1);
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    assigned_settlement_market(&store, id).await;
+    let before = store.view(guild).await.unwrap();
+    let server = MockServer::start().await;
+    let http = serenity::http::HttpBuilder::new("test-token")
+        .application_id(42.into())
+        .proxy(server.uri())
+        .ratelimiter_disabled(true)
+        .build();
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .mount(&server)
+        .await;
+    let select = serde_json::json!({"custom_id":format!("pm:1:2:resolve:o:{id}:0"), "component_type":3, "values":["0"]});
+    handle_interaction(
+        store.clone(),
+        &http,
+        UserId(99),
+        Interaction::Component(
+            serde_json::from_value(settlement_interaction(201, select, true)).unwrap(),
+        ),
+    )
+    .await;
+    let prompts: Vec<serde_json::Value> = server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|r| r.method.as_str() == "PATCH")
+        .map(|r| r.body_json().unwrap())
+        .collect();
+    assert_that!(
+        prompts[0]["content"].as_str().unwrap(),
+        contains_substring("Confirm resolution")
+    );
+    let custom_id = prompts[0]["components"][0]["components"][0]["custom_id"]
+        .as_str()
+        .unwrap();
+    assert_that!(
+        store.view(guild).await.unwrap().revision,
+        eq(before.revision)
+    );
+    store
+        .execute_at(
+            guild,
+            "discord:revoke-prompt",
+            player(1),
+            &Command::RemoveResolver {
+                id: id.into(),
+                user_id: UserId(2),
+            },
+            1600,
+        )
+        .await
+        .unwrap();
+    let removed = store.view(guild).await.unwrap();
+    let confirm = serde_json::json!({"custom_id":custom_id, "component_type":2});
+    // A fresh authenticated member (including a rejoin) still has no assignment.
+    handle_interaction(
+        store.clone(),
+        &http,
+        UserId(99),
+        Interaction::Component(
+            serde_json::from_value(settlement_interaction(202, confirm, true)).unwrap(),
+        ),
+    )
+    .await;
+    assert_that!(store.view(guild).await.unwrap().state, eq(&removed.state));
+    assert_that!(
+        store.view(guild).await.unwrap().revision,
+        eq(removed.revision)
+    );
+    let receipts:i64 = sqlx::query_scalar("SELECT count(*) FROM prediction_commands WHERE command_key IN ('discord:201','discord:202')").fetch_one(&store.pool).await.unwrap();
+    assert_that!(receipts, eq(0));
+    let settled: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM prediction_events WHERE event->'data'->>'kind'='market_resolved'",
+    )
+    .fetch_one(&store.pool)
+    .await
+    .unwrap();
+    assert_that!(settled, eq(0));
+    assert_that!(removed.state.accounts[&UserId(2)].balance, eq(Points(75)));
+    let responses: Vec<serde_json::Value> = server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|r| r.method.as_str() == "PATCH")
+        .map(|r| r.body_json().unwrap())
+        .collect();
+    assert_that!(
+        responses[1]["content"].as_str().unwrap(),
+        contains_substring("required")
+    );
+}
