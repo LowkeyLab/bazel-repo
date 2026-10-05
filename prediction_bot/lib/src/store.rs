@@ -1,5 +1,6 @@
 //! Commands append individual events atomically; queries expose immutable replayed views.
 use std::collections::{HashMap, HashSet};
+use std::future::{Future, ready};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -212,7 +213,8 @@ impl Store {
         actor: Actor,
         command: &Command,
     ) -> Result<String, StoreError> {
-        self.execute_inner(guild, key, actor, command, None).await
+        self.execute_with_verification(guild, key, actor, command, ready(Ok(())))
+            .await
     }
 
     /// Explicit application time boundary for deterministic tests and simulations.
@@ -227,10 +229,48 @@ impl Store {
         command: &Command,
         now: i64,
     ) -> Result<String, StoreError> {
-        self.execute_inner(guild, key, actor, command, Some(now))
+        self.execute_with_verification_at(guild, key, actor, command, now, ready(Ok(())))
             .await
     }
 
+    /// Execute trusted application verification only for a fresh command, without holding
+    /// a database transaction. Receipts and current state are checked again under the guild
+    /// lock afterward, including when verification fails. Construct verification lazily:
+    /// an already-spawned task cannot be prevented from running during receipt recovery.
+    ///
+    /// # Errors
+    /// Returns verification errors or the same errors as [`Self::execute`].
+    pub async fn execute_with_verification(
+        &self,
+        guild: GuildId,
+        key: &str,
+        actor: Actor,
+        command: &Command,
+        verification: impl Future<Output = Result<(), StoreError>>,
+    ) -> Result<String, StoreError> {
+        self.execute_inner(guild, key, actor, command, None, verification)
+            .await
+    }
+
+    /// Deterministic application-time variant of [`Self::execute_with_verification`].
+    ///
+    /// # Errors
+    /// Returns the same errors as [`Self::execute_with_verification`].
+    #[allow(clippy::too_many_arguments)]
+    pub async fn execute_with_verification_at(
+        &self,
+        guild: GuildId,
+        key: &str,
+        actor: Actor,
+        command: &Command,
+        now: i64,
+        verification: impl Future<Output = Result<(), StoreError>>,
+    ) -> Result<String, StoreError> {
+        self.execute_inner(guild, key, actor, command, Some(now), verification)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
     async fn execute_inner(
         &self,
         guild: GuildId,
@@ -238,6 +278,7 @@ impl Store {
         actor: Actor,
         command: &Command,
         now: Option<i64>,
+        verification: impl Future<Output = Result<(), StoreError>>,
     ) -> Result<String, StoreError> {
         let started = Instant::now();
         let audit_key = canonical_command_key(key);
@@ -262,21 +303,43 @@ impl Store {
             return Err(error);
         }
 
-        let mut attempt = 0;
-        let result = loop {
-            let result = self.transact(guild, key, actor, command, now).await;
-            if let Err(TransactionFailure {
-                error: StoreError::Database(sqlx::Error::Database(error)),
-                ..
-            }) = &result
-                && matches!(error.code().as_deref(), Some("40001" | "40P01" | "23505"))
-                && attempt < 2
-            {
-                attempt += 1;
-                continue;
+        let result = async {
+            // Release the preflight connection before polling any external capability.
+            let receipt = {
+                let mut connection = at_stage(Stage::Acquire, self.pool.acquire().await)?;
+                at_stage(
+                    Stage::Replay,
+                    receipt(&mut connection, guild, key, actor.user_id).await,
+                )?
+            };
+            if let Some(response) = receipt {
+                at_stage(Stage::Refresh, self.view(guild).await)?;
+                return Ok(TransactionSuccess {
+                    response,
+                    stage: Stage::Refresh,
+                });
             }
-            break result;
-        };
+            let mut verification_error = verification.await.err();
+            let mut attempt = 0;
+            loop {
+                let result = self
+                    .transact(guild, key, actor, command, now, &mut verification_error)
+                    .await;
+                if let Err(TransactionFailure {
+                    error: StoreError::Database(sqlx::Error::Database(error)),
+                    stage,
+                }) = &result
+                    && *stage != Stage::Validate
+                    && matches!(error.code().as_deref(), Some("40001" | "40P01" | "23505"))
+                    && attempt < 2
+                {
+                    attempt += 1;
+                    continue;
+                }
+                break result;
+            }
+        }
+        .await;
         let (stage, outcome) = match &result {
             Ok(success) => (success.stage, Outcome::Succeeded),
             Err(failure) => (failure.stage, store_outcome(failure.stage, &failure.error)),
@@ -294,6 +357,7 @@ impl Store {
             .map_err(|failure| failure.error)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn transact(
         &self,
         guild: GuildId,
@@ -301,41 +365,26 @@ impl Store {
         actor: Actor,
         command: &Command,
         time: Option<i64>,
+        verification_error: &mut Option<StoreError>,
     ) -> Result<TransactionSuccess, TransactionFailure> {
         let mut tx = at_stage(Stage::Acquire, self.pool.begin().await)?;
-        at_stage(
-            Stage::Acquire,
-            sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
-                .execute(&mut *tx)
-                .await,
-        )?;
-        at_stage(
-            Stage::Acquire,
-            sqlx::query("SELECT pg_advisory_xact_lock($1)")
-                .bind(i64::from_ne_bytes(guild.0.to_ne_bytes()))
-                .execute(&mut *tx)
-                .await,
-        )?;
+        at_stage(Stage::Acquire, lock_guild(&mut tx, guild).await)?;
         let receipt = at_stage(
             Stage::Replay,
-            sqlx::query("SELECT actor_id, response FROM prediction_commands WHERE guild_id=$1 AND command_key=$2")
-                .bind(guild.to_string()).bind(key).fetch_optional(&mut *tx).await,
+            receipt(&mut tx, guild, key, actor.user_id).await,
         )?;
-        if let Some(receipt) = receipt {
-            if at_stage(Stage::Replay, receipt.try_get::<String, _>("actor_id"))?
-                != actor.user_id.to_string()
-            {
-                return Err(TransactionFailure {
-                    stage: Stage::Replay,
-                    error: StoreError::History("command actor mismatch"),
-                });
-            }
-            let response: String = at_stage(Stage::Replay, receipt.try_get("response"))?;
+        if let Some(response) = receipt {
             at_stage(Stage::Commit, tx.commit().await)?;
             at_stage(Stage::Refresh, self.view(guild).await)?;
             return Ok(TransactionSuccess {
                 response,
                 stage: Stage::Refresh,
+            });
+        }
+        if let Some(error) = verification_error.take() {
+            return Err(TransactionFailure {
+                stage: Stage::Validate,
+                error,
             });
         }
         let mut view = at_stage(Stage::Replay, self.load(&mut tx, guild).await)?;
@@ -593,6 +642,39 @@ impl Store {
         }
         Ok(())
     }
+}
+
+async fn lock_guild(connection: &mut PgConnection, guild: GuildId) -> Result<(), sqlx::Error> {
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        .execute(&mut *connection)
+        .await?;
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(i64::from_ne_bytes(guild.0.to_ne_bytes()))
+        .execute(connection)
+        .await?;
+    Ok(())
+}
+
+async fn receipt(
+    connection: &mut PgConnection,
+    guild: GuildId,
+    key: &str,
+    actor: UserId,
+) -> Result<Option<String>, StoreError> {
+    let row = sqlx::query(
+        "SELECT actor_id, response FROM prediction_commands WHERE guild_id=$1 AND command_key=$2",
+    )
+    .bind(guild.to_string())
+    .bind(key)
+    .fetch_optional(connection)
+    .await?;
+    row.map(|row| {
+        if row.try_get::<String, _>("actor_id")? != actor.to_string() {
+            return Err(StoreError::History("command actor mismatch"));
+        }
+        Ok(row.try_get("response")?)
+    })
+    .transpose()
 }
 
 fn validate_event_actor(event: &Event, actor: UserId) -> Result<(), StoreError> {

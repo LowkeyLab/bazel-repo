@@ -1022,3 +1022,311 @@ async fn failed_acknowledgement_prevents_mutation_and_reports_safe_failure() {
         }])
     );
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn recovered_receipt_skips_verification_and_rejects_other_actors() {
+    let (_container, store) = fixture().await;
+    let original = store
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let recovered = store
+        .execute_with_verification_at(
+            1.into(),
+            "discord:1",
+            player(7),
+            &Command::Join,
+            2000,
+            async { panic!("committed receipts must not depend on external verification") },
+        )
+        .await
+        .unwrap();
+    assert_that!(recovered, eq(&original));
+    assert_that!(
+        store
+            .execute_with_verification_at(
+                1.into(),
+                "discord:1",
+                player(8),
+                &Command::Join,
+                2000,
+                async { panic!("actor mismatch must be rejected before verification") }
+            )
+            .await,
+        err(matches_pattern!(StoreError::History(eq(
+            &"command actor mismatch"
+        ))))
+    );
+    assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(3));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn receipt_committed_during_verification_wins_even_when_verification_fails() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    let response = store
+        .execute_with_verification_at(
+            1.into(),
+            "discord:1",
+            player(7),
+            &Command::Join,
+            2000,
+            Box::pin(async {
+                // Awaiting the competing command makes the interleaving deterministic and
+                // proves verification holds neither the guild lock nor a transaction.
+                store
+                    .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+                    .await
+                    .unwrap();
+                Err(StoreError::Configuration("verification unavailable"))
+            }),
+        )
+        .await
+        .unwrap();
+    assert_that!(response, eq("Enrolled with 100 points."));
+    assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(3));
+    let accepted_at: i64 = sqlx::query_scalar("SELECT accepted_at FROM prediction_commands WHERE guild_id='1' AND command_key='discord:1'").fetch_one(&store.pool).await.unwrap();
+    assert_that!(accepted_at, eq(1000));
+    assert_that!(
+        recorder.0.lock().unwrap().as_slice(),
+        elements_are![
+            matches_pattern!(AuditEvent::CommandCompleted {
+                outcome: eq(&Outcome::Succeeded),
+                stage: eq(&Stage::Commit),
+                ..
+            }),
+            matches_pattern!(AuditEvent::CommandCompleted {
+                outcome: eq(&Outcome::Succeeded),
+                stage: eq(&Stage::Refresh),
+                ..
+            }),
+        ]
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn command_uses_state_committed_during_verification_instead_of_cached_state() {
+    let (_container, store) = fixture().await;
+    store
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let market = uuid::Uuid::new_v4().to_string();
+    store
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
+        .await
+        .unwrap();
+    let before = store.view(1.into()).await.unwrap();
+    let bet = Command::Bet {
+        id: market.clone().into(),
+        outcome: OutcomeIndex(0),
+        amount: Points(80),
+    };
+    let result = store
+        .execute_with_verification_at(
+            1.into(),
+            "discord:3",
+            player(7),
+            &bet,
+            1100,
+            Box::pin(async {
+                store
+                    .execute_at(
+                        1.into(),
+                        "discord:4",
+                        Actor {
+                            moderator: true,
+                            ..player(8)
+                        },
+                        &Command::Cancel {
+                            id: market.clone().into(),
+                        },
+                        1100,
+                    )
+                    .await
+                    .unwrap();
+                Ok(())
+            }),
+        )
+        .await;
+    assert_that!(
+        result,
+        err(matches_pattern!(StoreError::Domain(anything())))
+    );
+    let after = store.view(1.into()).await.unwrap();
+    assert_that!(after.revision.0, eq(before.revision.0 + 1));
+    assert_that!(after.state.accounts[&UserId(7)].balance.0, eq(100));
+    assert_that!(after.state.markets[market.as_str()].bets, is_empty());
+    let receipt_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM prediction_commands WHERE command_key='discord:3'",
+    )
+    .fetch_one(&store.pool)
+    .await
+    .unwrap();
+    assert_that!(receipt_count, eq(0));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn verification_failure_is_retryable_and_cannot_recover_another_guilds_receipt() {
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit).await;
+    store
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    recorder.0.lock().unwrap().clear();
+    assert_that!(
+        store
+            .execute_with_verification_at(
+                2.into(),
+                "discord:1",
+                player(7),
+                &Command::Join,
+                1000,
+                async { Err(StoreError::Configuration("verification unavailable")) }
+            )
+            .await,
+        err(matches_pattern!(StoreError::Configuration(anything())))
+    );
+    assert_that!(store.view(2.into()).await.unwrap().revision.0, eq(0));
+    let receipt_count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM prediction_commands WHERE guild_id='2'")
+            .fetch_one(&store.pool)
+            .await
+            .unwrap();
+    assert_that!(receipt_count, eq(0));
+    assert_that!(
+        store
+            .execute_with_verification_at(
+                2.into(),
+                "discord:1",
+                player(7),
+                &Command::Join,
+                2000,
+                async { Ok(()) }
+            )
+            .await
+            .unwrap(),
+        eq("Enrolled with 100 points.")
+    );
+    assert_that!(store.view(2.into()).await.unwrap().revision.0, eq(3));
+    assert_that!(
+        recorder.0.lock().unwrap().as_slice(),
+        elements_are![
+            matches_pattern!(AuditEvent::CommandCompleted {
+                guild: eq(&GuildId(2)),
+                outcome: matches_pattern!(Outcome::Failed(anything())),
+                ..
+            }),
+            matches_pattern!(AuditEvent::CommandCompleted {
+                guild: eq(&GuildId(2)),
+                outcome: eq(&Outcome::Succeeded),
+                ..
+            }),
+        ]
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn receipt_recovery_preserves_success_after_moderator_permission_loss_and_terminality() {
+    let (_container, store) = fixture().await;
+    store
+        .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+        .await
+        .unwrap();
+    let market = uuid::Uuid::new_v4().to_string();
+    store
+        .execute_at(1.into(), "discord:2", player(7), &create(&market), 1000)
+        .await
+        .unwrap();
+    let cancel = Command::Cancel { id: market.into() };
+    let original = store
+        .execute_at(
+            1.into(),
+            "discord:3",
+            Actor {
+                moderator: true,
+                ..player(8)
+            },
+            &cancel,
+            1100,
+        )
+        .await
+        .unwrap();
+    let revision = store.view(1.into()).await.unwrap().revision;
+    assert_that!(
+        store
+            .execute_with_verification_at(1.into(), "discord:3", player(8), &cancel, 2100, async {
+                panic!("historical response recovery must not need current permissions")
+            })
+            .await
+            .unwrap(),
+        eq(&original)
+    );
+    assert_that!(
+        store
+            .execute_at(1.into(), "discord:4", player(8), &cancel, 2100)
+            .await,
+        err(anything())
+    );
+    assert_that!(store.view(1.into()).await.unwrap().revision, eq(revision));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn event_append_and_deferred_commit_failures_leave_no_partial_events_or_receipt() {
+    for fail_at_commit in [false, true] {
+        let (audit, recorder) = recording_fixture();
+        let (_container, store) = fixture_with_audit(audit).await;
+        if fail_at_commit {
+            sqlx::raw_sql("CREATE FUNCTION reject_test_commit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected commit failure'; END $$; CREATE CONSTRAINT TRIGGER reject_test_commit AFTER INSERT ON prediction_commands DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION reject_test_commit();").execute(&store.pool).await.unwrap();
+        } else {
+            sqlx::query("ALTER TABLE prediction_events ADD CONSTRAINT reject_third_event CHECK (revision <> 3)").execute(&store.pool).await.unwrap();
+        }
+        assert_that!(
+            store
+                .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+                .await,
+            err(anything())
+        );
+        assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(0));
+        let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM prediction_commands")
+            .fetch_one(&store.pool)
+            .await
+            .unwrap();
+        assert_that!(receipts, eq(0));
+        assert_that!(
+            recorder.0.lock().unwrap().as_slice(),
+            elements_are![matches_pattern!(AuditEvent::CommandCompleted {
+                outcome: matches_pattern!(Outcome::Failed(anything())),
+                stage: eq(&if fail_at_commit {
+                    Stage::Commit
+                } else {
+                    Stage::Append
+                }),
+                ..
+            })]
+        );
+        if fail_at_commit {
+            sqlx::query("DROP TRIGGER reject_test_commit ON prediction_commands")
+                .execute(&store.pool)
+                .await
+                .unwrap();
+        } else {
+            sqlx::query("ALTER TABLE prediction_events DROP CONSTRAINT reject_third_event")
+                .execute(&store.pool)
+                .await
+                .unwrap();
+        }
+        store
+            .execute_at(1.into(), "discord:1", player(7), &Command::Join, 1000)
+            .await
+            .unwrap();
+        assert_that!(store.view(1.into()).await.unwrap().revision.0, eq(3));
+    }
+}
