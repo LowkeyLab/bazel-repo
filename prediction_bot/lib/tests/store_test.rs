@@ -2109,9 +2109,10 @@ fn settlement_interaction(id: u64, data: serde_json::Value, member: bool) -> ser
     let mut value = serde_json::json!({
         "id":id.to_string(), "application_id":"42", "guild_id":"1", "channel_id":"20",
         "token":"test-interaction-token", "version":1, "locale":"en-US", "entitlements":[],
-        "attachment_size_limit":1000, "data":data, "user":user,
+        "attachment_size_limit":1000, "user":user,
         "message":serenity::all::Message::default()
     });
+    value["data"] = data;
     if member {
         value["member"] = serde_json::json!({"user":user, "roles":[], "joined_at":"2026-01-01T00:00:00Z", "deaf":false, "mute":false, "permissions":"0", "flags":0});
     }
