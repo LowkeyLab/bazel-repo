@@ -1844,6 +1844,333 @@ async fn resolver_cloud_event_contract_rejects_corrupt_metadata_and_payloads() {
     }
 }
 
+fn listing_interaction(id: u64, data: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "id": id.to_string(), "application_id": "42", "guild_id": "1", "channel_id": "20",
+        "token": "list-token", "version": 1, "locale": "en-US", "entitlements": [],
+        "attachment_size_limit": 1000, "data": data,
+        "member": {"permissions": "0", "roles": [], "deaf": false, "mute": false,
+            "flags": 0, "joined_at": null, "premium_since": null,
+            "user": {"id": "99", "username": "reader", "discriminator": "0", "avatar": null}},
+        "user": {"id": "99", "username": "reader", "discriminator": "0", "avatar": null},
+        "message": serenity::all::Message::default()
+    })
+}
+
+async fn listing_http() -> (wiremock::MockServer, serenity::http::Http) {
+    use wiremock::{Mock, ResponseTemplate, matchers::method};
+    let server = wiremock::MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serenity::all::Message::default()))
+        .mount(&server)
+        .await;
+    let http = serenity::http::HttpBuilder::new("test-token")
+        .application_id(42.into())
+        .proxy(server.uri())
+        .ratelimiter_disabled(true)
+        .build();
+    (server, http)
+}
+
+async fn listing_response(server: &wiremock::MockServer) -> serde_json::Value {
+    server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .rev()
+        .find(|r| r.method.as_str() == "PATCH")
+        .unwrap()
+        .body_json()
+        .unwrap()
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn anyone_can_inspect_completed_assignments_after_replay_without_writes_or_membership_calls()
+{
+    use prediction_bot::{discord::handle_interaction, domain::MembershipEvidence};
+    use serde_json::json;
+    use serenity::all::Interaction;
+    let (audit, recorder) = recording_fixture();
+    let (_container, store) = fixture_with_audit(audit.clone()).await;
+    let market = "00000000-0000-4000-8000-000000000001";
+    for user in [7, 8] {
+        store
+            .execute_at(
+                1.into(),
+                &format!("discord:join:{user}"),
+                player(user),
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(1.into(), "discord:create", player(7), &create(market), 1000)
+        .await
+        .unwrap();
+    store
+        .execute_with_membership_at(
+            1.into(),
+            "discord:assign",
+            player(7),
+            &Command::AddResolver {
+                id: market.into(),
+                user_id: 8.into(),
+            },
+            1001,
+            async {
+                MembershipEvidence::Present {
+                    user_id: 8.into(),
+                    bot: false,
+                }
+            },
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            1.into(),
+            "discord:cancel",
+            Actor {
+                moderator: true,
+                ..player(7)
+            },
+            &Command::Cancel { id: market.into() },
+            1002,
+        )
+        .await
+        .unwrap();
+    let old_market = "00000000-0000-4000-8000-000000000002";
+    store
+        .execute_at(
+            1.into(),
+            "discord:old-create",
+            player(7),
+            &create(old_market),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            1.into(),
+            "discord:old-resolve",
+            player(7),
+            &Command::Resolve {
+                id: old_market.into(),
+                outcome: OutcomeIndex(0),
+            },
+            2000,
+        )
+        .await
+        .unwrap();
+    let removed_market = "00000000-0000-4000-8000-000000000003";
+    store
+        .execute_at(
+            1.into(),
+            "discord:removed-create",
+            player(7),
+            &create(removed_market),
+            1000,
+        )
+        .await
+        .unwrap();
+    store
+        .execute_with_membership_at(
+            1.into(),
+            "discord:removed-add",
+            player(7),
+            &Command::AddResolver {
+                id: removed_market.into(),
+                user_id: 8.into(),
+            },
+            1001,
+            async {
+                MembershipEvidence::Present {
+                    user_id: 8.into(),
+                    bot: false,
+                }
+            },
+        )
+        .await
+        .unwrap();
+    store
+        .execute_at(
+            1.into(),
+            "discord:removed-remove",
+            player(7),
+            &Command::RemoveResolver {
+                id: removed_market.into(),
+                user_id: 8.into(),
+            },
+            1002,
+        )
+        .await
+        .unwrap();
+    let before = store.view(1.into()).await.unwrap();
+    let receipts: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM prediction_commands")
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+    let fresh = Arc::new(Store::new_with_audit(
+        store.pool.clone(),
+        42.into(),
+        Policy {
+            amount: Points(100),
+            interval: 86_400,
+        },
+        audit,
+    ));
+    let (server, http) = listing_http().await;
+    // The recorded target has departed. Reads must not consult this live endpoint.
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/api/v10/guilds/1/members/8"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(404)
+                .set_body_json(json!({"code":10007,"message":"Unknown Member"})),
+        )
+        .expect(0)
+        .mount(&server)
+        .await;
+    let slash = Interaction::Command(serde_json::from_value(listing_interaction(9001, &json!({"id":"1", "name":"market", "type":1,
+        "options":[{"name":"resolver", "type":2, "options":[{"name":"list", "type":1, "options":[]}]}]}))).unwrap());
+    handle_interaction(fresh.clone(), &http, 42.into(), slash).await;
+    let picker = listing_response(&server).await;
+    assert_that!(
+        picker["content"].as_str().unwrap(),
+        contains_substring("Choose a market")
+    );
+    let control = picker["components"][0]["components"][0]["custom_id"]
+        .as_str()
+        .unwrap();
+    let select = Interaction::Component(
+        serde_json::from_value(listing_interaction(
+            9002,
+            &json!({"custom_id":control, "component_type":3, "values":[market]}),
+        ))
+        .unwrap(),
+    );
+    handle_interaction(fresh.clone(), &http, 42.into(), select).await;
+    let details = listing_response(&server).await;
+    assert_that!(details.to_string(), contains_substring("<@8>"));
+    assert_that!(details.to_string(), contains_substring("Cancelled"));
+    assert_that!(
+        details.to_string(),
+        contains_substring("Independent authority")
+    );
+    assert_that!(details["allowed_mentions"]["parse"], eq(&json!([])));
+    let selection = Interaction::Component(
+        serde_json::from_value(listing_interaction(
+            9007,
+            &json!({"custom_id":control, "component_type":3, "values":[removed_market]}),
+        ))
+        .unwrap(),
+    );
+    handle_interaction(fresh.clone(), &http, 42.into(), selection).await;
+    let removed = listing_response(&server).await;
+    assert_that!(
+        removed["embeds"][0]["description"].as_str().unwrap(),
+        contains_substring("0 total; page 1 of 1):\nNone")
+    );
+    assert_that!(removed.to_string().contains("<@8>"), eq(false));
+    // Old histories and completed markets are visible to an unenrolled nonmanager.
+    for (interaction, id, expected) in [
+        (9003, old_market, "Explicit resolver assignments: None"),
+        (9004, market, "Explicit resolver assignments: <@8>"),
+    ] {
+        let show = Interaction::Command(serde_json::from_value(listing_interaction(interaction, &json!({"id":"1", "name":"market", "type":1,
+            "options":[{"name":"show", "type":1, "options":[{"name":"id", "type":3, "value":id}]}]}))).unwrap());
+        handle_interaction(fresh.clone(), &http, 42.into(), show).await;
+        assert_that!(
+            listing_response(&server).await.to_string(),
+            contains_substring(expected)
+        );
+    }
+    for (interaction, foreign_guild) in [(9005, true), (9006, false)] {
+        let mut foreign = listing_interaction(
+            interaction,
+            &json!({"custom_id":control, "component_type":3, "values":[market]}),
+        );
+        if foreign_guild {
+            foreign["guild_id"] = json!("2");
+        } else {
+            foreign["user"]["id"] = json!("98");
+            foreign["member"]["user"]["id"] = json!("98");
+        }
+        handle_interaction(
+            fresh.clone(),
+            &http,
+            42.into(),
+            Interaction::Component(serde_json::from_value(foreign).unwrap()),
+        )
+        .await;
+        let denial = listing_response(&server).await;
+        assert_that!(
+            denial["content"].as_str().unwrap(),
+            contains_substring("another member or server")
+        );
+        let requests = server.received_requests().await.unwrap();
+        let ack: serde_json::Value = requests[requests.len() - 2].body_json().unwrap();
+        assert_that!(ack["data"]["flags"], eq(64));
+        assert_that!(denial["components"], eq(&json!([])));
+        assert_that!(recorder.0.lock().unwrap().iter().any(|event| matches!(event, AuditEvent::QueryCompleted { interaction_id, .. } if *interaction_id == interaction)), eq(false));
+    }
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(
+        requests
+            .iter()
+            .filter(|r| r.method.as_str() == "GET")
+            .count(),
+        eq(0)
+    );
+    assert_that!(
+        requests
+            .iter()
+            .all(|request| request.url.path().contains("/interactions/")
+                || request.url.path().contains("/webhooks/")),
+        eq(true)
+    );
+    let ack: serde_json::Value = requests[0].body_json().unwrap();
+    assert_that!(ack["data"]["flags"], eq(64));
+    assert_that!(fresh.view(1.into()).await.unwrap().state, eq(&before.state));
+    assert_that!(
+        fresh.view(1.into()).await.unwrap().revision,
+        eq(before.revision)
+    );
+    assert_that!(
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM prediction_commands")
+            .fetch_one(&store.pool)
+            .await
+            .unwrap(),
+        eq(receipts)
+    );
+    assert_that!(
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM prediction_announcement_outbox")
+            .fetch_one(&store.pool)
+            .await
+            .unwrap(),
+        eq(0)
+    );
+    assert_that!(
+        recorder.0.lock().unwrap().iter().any(|event| matches!(
+            event,
+            AuditEvent::QueryCompleted {
+                interaction_id: 9002,
+                outcome: Outcome::Succeeded,
+                ..
+            }
+        )),
+        eq(true)
+    );
+}
+
 #[googletest::test]
 #[tokio::test]
 async fn removal_recovers_after_terminal_and_permission_loss_without_verification() {
