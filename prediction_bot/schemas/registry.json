@@ -34,5 +34,9 @@
   "io.lowkeylab.predictionbot.market.resolver.added.v1": {
     "dataschema": "urn:lowkeylab:prediction-bot:schema:market-resolver-added:v1",
     "file": "market-resolver-added-v1.json"
+  },
+  "io.lowkeylab.predictionbot.market.resolver.removed.v1": {
+    "dataschema": "urn:lowkeylab:prediction-bot:schema:market-resolver-removed:v1",
+    "file": "market-resolver-removed-v1.json"
   }
 }
