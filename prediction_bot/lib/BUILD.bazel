@@ -25,6 +25,9 @@ rust_library(
         "src/discord/resolve.rs",
         "src/discord/resolve_tests.rs",
         "src/discord/resolvers.rs",
+        "src/discord/resolvers/add.rs",
+        "src/discord/resolvers/list.rs",
+        "src/discord/resolvers/list_tests.rs",
         "src/discord/resolvers/remove.rs",
         "src/discord/resolvers/remove_guided.rs",
         "src/discord/transport.rs",
@@ -105,6 +108,7 @@ rust_test(
     srcs = [
         "tests/resolver_remove_guided.rs",
         "tests/store_test.rs",
+        "tests/support/resolver_add.rs",
     ],
     crate_root = "tests/store_test.rs",
     data = image_data("postgres_18"),

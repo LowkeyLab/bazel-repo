@@ -278,3 +278,69 @@ fn obsolete_page_numbers_cannot_produce_overlong_discord_controls() {
     }
     assert_that!(response["allowed_mentions"]["parse"], eq(&json!([])));
 }
+
+#[googletest::test]
+fn assigned_markets_are_paginated_and_selections_recheck_enrollment_and_assignment() {
+    let mut view = view(26);
+    for market in view.state.markets.values_mut() {
+        market.creator = UserId(7);
+        market.resolvers.insert(actor().user_id);
+    }
+    view.state.accounts.insert(
+        actor().user_id,
+        crate::domain::Account {
+            balance: Points(100),
+            next_grant: 3000,
+        },
+    );
+    let first = json_panel(picker(&view, actor(), u64::MAX.into(), 2000, 0));
+    assert_that!(
+        first["content"].as_str().unwrap(),
+        contains_substring("Page 1 of 2")
+    );
+    let next = click(&first["components"][1]["components"][0], &[]);
+    let second = json_panel(panel(&view, actor(), u64::MAX.into(), 2000, &next).unwrap());
+    let menu = &second["components"][0]["components"][0];
+    let id = menu["options"][0]["value"].as_str().unwrap();
+    let selected = click(menu, &[id]);
+    let outcomes = json_panel(panel(&view, actor(), u64::MAX.into(), 2000, &selected).unwrap());
+    let selected = click(&outcomes["components"][0]["components"][0], &["1"]);
+    assert_that!(
+        panel(&view, actor(), u64::MAX.into(), 2000, &selected).is_ok(),
+        eq(true)
+    );
+    view.state.markets.get_mut(id).unwrap().resolvers.clear();
+    assert_that!(
+        panel(&view, actor(), u64::MAX.into(), 2000, &selected).is_err(),
+        eq(true)
+    );
+    view.state
+        .markets
+        .get_mut(id)
+        .unwrap()
+        .resolvers
+        .insert(actor().user_id);
+    view.state.accounts.clear();
+    assert_that!(
+        panel(&view, actor(), u64::MAX.into(), 2000, &selected).is_err(),
+        eq(true)
+    );
+    assert_that!(
+        json_panel(picker(&view, actor(), u64::MAX.into(), 2000, 0))["components"],
+        eq(&json!([]))
+    );
+    assert_that!(
+        panel(
+            &view,
+            Actor {
+                moderator: true,
+                ..actor()
+            },
+            u64::MAX.into(),
+            2000,
+            &selected
+        )
+        .is_ok(),
+        eq(true)
+    );
+}

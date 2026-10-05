@@ -1,4 +1,5 @@
 //! Resolver management UI and the external membership capability.
+pub(super) mod list;
 use super::{
     deferred_response, reply, safe_error,
     transport::{InteractionTransport, SerenityTransport},
@@ -14,6 +15,9 @@ use serenity::{
     builder::{CreateActionRow, CreateButton, CreateEmbed, EditInteractionResponse},
     http::{Http, HttpError},
 };
+
+mod add;
+pub(super) use add::start;
 
 /// Verify present human/bot membership, confirmed absence, or inability to verify.
 /// Implementations must obtain fresh evidence for the supplied guild and user.
@@ -47,7 +51,7 @@ pub(super) mod remove;
 pub(super) mod remove_guided;
 
 pub(super) fn is_control(custom_id: &str) -> bool {
-    matches!(custom_id.split(':').nth(3), Some("a" | "d"))
+    matches!(custom_id.split(':').nth(3), Some("a" | "d")) || add::is_control(custom_id)
 }
 
 pub(super) fn confirmation(
@@ -121,7 +125,7 @@ pub(super) fn parse(
     Ok(Command::AddResolver { id, user_id })
 }
 
-async fn execute_request(
+pub(super) async fn execute_request(
     store: &Store,
     verifier: &dyn MembershipVerifier,
     guild: GuildId,
@@ -132,6 +136,7 @@ async fn execute_request(
     let verification = async {
         match command {
             Command::AddResolver { user_id, .. } => verifier.verify(guild, *user_id).await,
+            Command::Resolve { .. } => verifier.verify(guild, actor.user_id).await,
             _ => MembershipEvidence::Unavailable,
         }
     };
@@ -152,7 +157,7 @@ async fn execute_request(
     .components(vec![])
 }
 
-/// Execute a confirmed resolver change through the real store and private deferred response.
+/// Execute a resolver change or settlement through the real store and private deferred response.
 pub async fn execute_interaction(
     transport: &dyn InteractionTransport,
     store: &Store,
@@ -173,6 +178,10 @@ pub async fn execute_interaction(
 }
 
 pub(super) async fn handle_component(store: &Store, http: &Http, component: &ComponentInteraction) {
+    if add::is_control(&component.data.custom_id) {
+        add::handle_component(store, http, component).await;
+        return;
+    }
     let actor = Actor {
         user_id: UserId(component.user.id.get()),
         bot: component.user.bot,

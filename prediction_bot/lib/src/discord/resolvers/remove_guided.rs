@@ -179,7 +179,7 @@ fn markets(
         .collect();
     eligible.sort_by_key(|(id, _)| *id);
     let mut panel = ui::Panel {
-        content: "No nonterminal markets are available for you to manage.".into(),
+        content: "No unfinished markets are available for you to manage.".into(),
         embed: None,
         components: vec![],
     };

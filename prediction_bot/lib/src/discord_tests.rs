@@ -2423,7 +2423,7 @@ fn supplied_resolver_arguments_only_open_confirmation() {
     assert_that!(
         action,
         matches_pattern!(Action::ResolverAdd {
-            user_id: eq(&UserId(30)),
+            user_id: eq(&Some(UserId(30))),
             ..
         })
     );
@@ -2556,7 +2556,7 @@ fn real_resolver_slash_payload_and_registered_user_option_open_confirmation() {
     assert_that!(
         action,
         matches_pattern!(Action::ResolverAdd {
-            user_id: eq(&UserId(2)),
+            user_id: eq(&Some(UserId(2))),
             ..
         })
     );
@@ -2568,13 +2568,120 @@ fn real_resolver_slash_payload_and_registered_user_option_open_confirmation() {
         .find(|option| option["name"] == "resolver")
         .unwrap();
     assert_that!(resolver["type"].as_u64(), eq(Some(2)));
-    let user = resolver["options"][0]["options"]
+    assert_that!(
+        resolver["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|option| option["name"] == "list" && option["type"] == 1),
+        eq(true)
+    );
+    let add = resolver["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "add")
+        .unwrap();
+    let user = add["options"]
         .as_array()
         .unwrap()
         .iter()
         .find(|option| option["name"] == "user")
         .unwrap();
     assert_that!(user["type"].as_u64(), eq(Some(6)));
+}
+
+#[googletest::test]
+fn resolver_add_accepts_each_optional_argument_combination() {
+    for options in [
+        vec![],
+        vec![text("market", "78e82954-4c67-4e0d-8c80-8ab95a527ae5")],
+        vec![InputOption {
+            name: "user".into(),
+            value: InputValue::User(UserId(30)),
+        }],
+    ] {
+        assert_that!(parse(&input("resolver.add", options)).is_ok(), eq(true));
+    }
+}
+
+#[googletest::test]
+fn show_distinguishes_explicit_assignments_from_independent_authority() {
+    let market = crate::domain::Market {
+        creator: crate::types::UserId(7),
+        question: "Question?".into(),
+        options: vec!["Yes".into(), "No".into()],
+        closes_at: 100,
+        created_at: 1,
+        status: crate::domain::Status::Cancelled,
+        bets: vec![],
+        total_staked: crate::types::Points(0),
+        resolvers: [crate::types::UserId(42)].into_iter().collect(),
+    };
+    let text = super::render_market(&"market".into(), &market, 200);
+    assert_that!(
+        text.as_str(),
+        contains_substring("Explicit resolver assignments: <@42>")
+    );
+    assert_that!(
+        text.as_str(),
+        contains_substring("Independent authority: creator <@7>")
+    );
+    assert_that!(
+        text.as_str(),
+        contains_substring("current membership and enrollment")
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn resolver_listing_retains_structured_query_and_delivery_failures() {
+    use crate::audit::{AuditEvent, Outcome, QueryKind, Stage};
+    let recorder = std::sync::Arc::new(AuditRecorder::default());
+    let handler = unavailable_handler(recorder.clone()).await;
+    let server = MockServer::start().await;
+    let http = discord_http(&server);
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    Mock::given(method("PATCH"))
+        .respond_with(
+            ResponseTemplate::new(400)
+                .set_body_json(serde_json::json!({"code":10015,"message":"delivery failed"})),
+        )
+        .mount(&server)
+        .await;
+    let command = serde_json::from_value(interaction_json(9900, serde_json::json!({"id":"1", "name":"market", "type":1,
+        "options":[{"name":"resolver", "type":2, "options":[{"name":"list", "type":1, "options":[]}]}]}))).unwrap();
+    handler.handle(&http, command).await;
+    let events = recorder.0.lock().unwrap();
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event,
+            AuditEvent::QueryCompleted {
+                guild: GuildId(10),
+                interaction_id: 9900,
+                query: QueryKind::List,
+                stage: Stage::Query,
+                outcome: Outcome::Failed(_),
+                ..
+            }
+        )),
+        eq(true)
+    );
+    assert_that!(
+        events.iter().any(|event| matches!(
+            event,
+            AuditEvent::InteractionCompleted {
+                interaction_id: 9900,
+                stage: Stage::Deliver,
+                outcome: Outcome::Failed(_),
+                ..
+            }
+        )),
+        eq(true)
+    );
 }
 
 #[googletest::test]
@@ -2600,7 +2707,13 @@ fn remove_resolver_slash_payload_opens_confirmation() {
         .find(|option| option["name"] == "resolver")
         .unwrap();
     assert_that!(resolver["type"].as_u64(), eq(Some(2)));
-    let user = resolver["options"][1]["options"]
+    let remove = resolver["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|option| option["name"] == "remove")
+        .unwrap();
+    let user = remove["options"]
         .as_array()
         .unwrap()
         .iter()
