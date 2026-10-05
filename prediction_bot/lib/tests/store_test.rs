@@ -1515,13 +1515,16 @@ async fn confirmed_resolver_addition_distinguishes_rejection_failure_and_lost_re
             response["content"].as_str().unwrap(),
             contains_substring(text)
         );
-        let events = recorder.0.lock().unwrap();
-        let completed: Vec<_> = events
+        let completed: Vec<_> = recorder
+            .0
+            .lock()
+            .unwrap()
             .iter()
             .filter(|event| matches!(event, AuditEvent::CommandCompleted { .. }))
+            .cloned()
             .collect();
         assert_that!(
-            *completed.last().unwrap(),
+            completed.last().unwrap(),
             matches_pattern!(AuditEvent::CommandCompleted {
                 guild: eq(&guild),
                 key: some(eq("discord:4")),

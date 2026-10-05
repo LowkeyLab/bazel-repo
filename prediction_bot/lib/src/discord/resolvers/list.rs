@@ -69,7 +69,7 @@ fn button(id: String, label: &str) -> CreateButton {
         .style(ButtonStyle::Secondary)
 }
 
-fn status(market: &Market, now: i64) -> &'static str {
+const fn status(market: &Market, now: i64) -> &'static str {
     match market.status {
         Status::Open if now < market.closes_at => "Open",
         Status::Open => "Awaiting settlement",

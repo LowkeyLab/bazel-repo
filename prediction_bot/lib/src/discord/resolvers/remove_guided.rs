@@ -297,18 +297,20 @@ pub(in crate::discord) fn start(
     id: Option<&MarketId>,
     user: Option<UserId>,
 ) -> Result<ui::Panel, &'static str> {
-    match id {
-        Some(id) => panel(
-            view,
-            guild,
-            actor,
-            &Action::Market {
-                id: id.clone(),
-                user,
-            },
-        ),
-        None => Ok(markets(view, guild, actor, 0, user, None)),
-    }
+    id.map_or_else(
+        || Ok(markets(view, guild, actor, 0, user, None)),
+        |id| {
+            panel(
+                view,
+                guild,
+                actor,
+                &Action::Market {
+                    id: id.clone(),
+                    user,
+                },
+            )
+        },
+    )
 }
 
 pub(in crate::discord) fn panel(
