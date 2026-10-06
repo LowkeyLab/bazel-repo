@@ -7,7 +7,7 @@ edition = "2024"
 # Gazelle Rust uses the same lockfile parser API as the former nested module.
 cargo-bazel = "=0.18.0"
 cargo-lock = "11.0.0"
-cargo_toml = { version = "0.22.3", features = ["features"] }
+cargo_toml = { version = "1.0.0", features = ["features"] }
 clap = { version = "4", features = ["derive"] }
 proc-macro2 = "1"
 syn = { version = "2", features = ["full", "visit", "extra-traits"] }
