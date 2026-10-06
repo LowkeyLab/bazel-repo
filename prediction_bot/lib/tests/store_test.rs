@@ -3982,3 +3982,6 @@ async fn stale_guided_settlement_confirmation_cannot_use_revoked_assignment_afte
         contains_substring("required")
     );
 }
+
+#[path = "support/positions.rs"]
+mod positions;

@@ -2892,3 +2892,66 @@ fn removal_accepts_each_optional_selection_combination() {
         eq(true)
     );
 }
+
+#[googletest::test]
+fn positions_registration_has_one_optional_id_and_help_explains_enrollment() {
+    let registration = serde_json::to_value(super::market_command()).unwrap();
+    let positions = registration["options"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|command| command["name"] == "positions")
+        .unwrap();
+    assert_that!(positions["type"].as_u64(), eq(Some(1)));
+    let options = positions["options"].as_array().unwrap();
+    assert_that!(options.len(), eq(1));
+    assert_that!(options[0]["name"].as_str(), eq(Some("id")));
+    assert_that!(options[0]["type"].as_u64(), eq(Some(3)));
+    assert_that!(options[0]["required"].as_bool().unwrap_or(false), eq(false));
+    assert_that!(super::HELP, contains_substring("`/market positions id`"));
+    assert_that!(super::HELP, contains_substring("enrollment required"));
+    assert_that!(super::HELP.encode_utf16().count(), le(2000));
+}
+
+#[googletest::test]
+fn positions_enrollment_is_required_even_for_recorded_creators_resolvers_and_admins() {
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    let mut view = ui_view();
+    view.state.accounts.remove(&UserId(20));
+    let market = view.state.markets.get_mut(id).unwrap();
+    market.status = crate::domain::Status::Resolved {
+        outcome: OutcomeIndex(0),
+        refunded: true,
+    };
+    for (creator, assigned, moderator) in [
+        (true, false, false),
+        (false, true, false),
+        (false, false, true),
+    ] {
+        let market = view.state.markets.get_mut(id).unwrap();
+        market.creator = if creator { UserId(20) } else { UserId(21) };
+        market.resolvers.clear();
+        if assigned {
+            market.resolvers.insert(UserId(20));
+        }
+        let actor = crate::domain::Actor {
+            moderator,
+            ..ui_actor()
+        };
+        let panel = super::ui::query(
+            &view,
+            &Action::Positions {
+                id: Some(id.into()),
+            },
+            actor,
+            GuildId(10),
+            2000,
+        );
+        assert_that!(
+            panel.content,
+            eq("You are not enrolled. Use /market join first.")
+        );
+        assert_that!(panel.embed, none());
+        assert_that!(panel.components, is_empty());
+    }
+}
