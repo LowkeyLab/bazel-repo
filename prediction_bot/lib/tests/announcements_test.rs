@@ -1883,16 +1883,20 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
     let text = movement["content"].as_str().unwrap();
     assert_that!(
         text,
-        contains_substring("Total points staked: 20\nOutcomes:")
+        contains_substring(
+            "Outcomes:\n```\nChoice | Points staked | Implied chance | Movement\n1. Yes |            20 | 100.0%         | ➖ unchanged\n2. No  |             0 | 0.0%           | ➖ unchanged\nTotal  |            20 | -              | -\n```"
+        )
     );
     assert_that!(
         text,
-        contains_substring("Yes — 20 points — 100.0% implied chance ➖ unchanged")
+        contains_substring("1. Yes |            20 | 100.0%         | ➖ unchanged")
     );
     assert_that!(
         text,
-        contains_substring("No — 0 points — 0.0% implied chance ➖ unchanged")
+        contains_substring("2. No  |             0 | 0.0%           | ➖ unchanged")
     );
+    assert_that!(movement["allowed_mentions"]["parse"], eq(&json!([])));
+    assert_that!(movement["allowed_mentions"]["replied_user"], eq(false));
     store.gateway_guard().await.unwrap().close().await.unwrap();
 }
 
@@ -2333,7 +2337,7 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     let failed_body: serde_json::Value = failed_requests[0].body_json().unwrap();
     assert_that!(
         failed_body["content"].as_str().unwrap(),
-        contains_substring("Yes — 13 points — 100.0% implied chance")
+        contains_substring("1. Yes |            13 | 100.0%         |")
     );
     assert_that!(failed_requests.len(), eq(2));
     let first = failed_body["content"].as_str().unwrap();
@@ -2342,7 +2346,7 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     let failed_movement: serde_json::Value = failed_requests[1].body_json().unwrap();
     assert_that!(
         failed_movement["content"].as_str().unwrap(),
-        contains_substring("Yes — 13 points — 25.0% implied chance 🔴 ⬇️")
+        contains_substring("1. Yes |            13 | 25.0%          | 🔴 ⬇️")
     );
     server.reset().await;
     Mock::given(method("POST"))
@@ -2365,13 +2369,13 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     for (request, (expected_count, yes, no)) in requests.iter().zip([
         (
             "2 bets placed",
-            "13 points — 25.0% implied chance 🔴 ⬇️",
-            "39 points — 75.0% implied chance 🟢 ⬆️",
+            "13 | 25.0%          | 🔴 ⬇️",
+            "39 | 75.0%          | 🟢 ⬆️",
         ),
         (
             "3 bets placed",
-            "39 points — 50.0% implied chance 🟢 ⬆️",
-            "39 points — 50.0% implied chance 🔴 ⬇️",
+            "39 | 50.0%          | 🟢 ⬆️",
+            "39 | 50.0%          | 🔴 ⬇️",
         ),
     ]) {
         let body: serde_json::Value = request.body_json().unwrap();
@@ -2380,8 +2384,14 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
         assert_that!(content, contains_substring("Will it rain?"));
         assert_that!(content, contains_substring(FIXTURE_MARKET));
         assert_that!(content, contains_substring(expected_count));
-        assert_that!(content, contains_substring(format!("Yes — {yes}")));
-        assert_that!(content, contains_substring(format!("No — {no}")));
+        assert_that!(
+            content,
+            contains_substring(format!("1. Yes |            {yes}"))
+        );
+        assert_that!(
+            content,
+            contains_substring(format!("2. No  |            {no}"))
+        );
         for private in ["<@7>", "Bettor", "Stake"] {
             assert_that!(content, not(contains_substring(private)));
         }
@@ -2475,7 +2485,7 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
     );
     assert_that!(
         messages[2]["content"].as_str().unwrap(),
-        contains_substring("Yes — 10 points — 100.0% implied chance")
+        contains_substring("1. Yes |            10 | 100.0%         |")
     );
     for message in messages {
         assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
@@ -3189,16 +3199,18 @@ async fn unchanged_odds_and_stakes_survive_store_reconstruction_later_bets_and_r
     let text = original["content"].as_str().unwrap();
     assert_that!(
         text,
-        contains_substring("Total points staked: 20\nOutcomes:")
+        contains_substring(
+            "Outcomes:\n```\nChoice | Points staked | Implied chance | Movement\n1. Yes |            20 | 100.0%         | ➖ unchanged\n2. No  |             0 | 0.0%           | ➖ unchanged\nTotal  |            20 | -              | -\n```"
+        )
     );
     assert_that!(text, contains_substring("Event time: <t:1002:F>"));
     assert_that!(
         text,
-        contains_substring("Yes — 20 points — 100.0% implied chance ➖ unchanged")
+        contains_substring("1. Yes |            20 | 100.0%         | ➖ unchanged")
     );
     assert_that!(
         text,
-        contains_substring("No — 0 points — 0.0% implied chance ➖ unchanged")
+        contains_substring("2. No  |             0 | 0.0%           | ➖ unchanged")
     );
     store
         .execute_at(
@@ -3236,16 +3248,18 @@ async fn unchanged_odds_and_stakes_survive_store_reconstruction_later_bets_and_r
     let text = later["content"].as_str().unwrap();
     assert_that!(
         text,
-        contains_substring("Total points staked: 40\nOutcomes:")
+        contains_substring(
+            "Outcomes:\n```\nChoice | Points staked | Implied chance | Movement\n1. Yes |            20 | 50.0%          | 🔴 ⬇️\n2. No  |            20 | 50.0%          | 🟢 ⬆️\nTotal  |            40 | -              | -\n```"
+        )
     );
     assert_that!(text, contains_substring("Event time: <t:1003:F>"));
     assert_that!(
         text,
-        contains_substring("Yes — 20 points — 50.0% implied chance 🔴 ⬇️")
+        contains_substring("1. Yes |            20 | 50.0%          | 🔴 ⬇️")
     );
     assert_that!(
         text,
-        contains_substring("No — 20 points — 50.0% implied chance 🟢 ⬆️")
+        contains_substring("2. No  |            20 | 50.0%          | 🟢 ⬆️")
     );
 }
 
@@ -3474,9 +3488,9 @@ async fn bet_delivery_captures_each_events_cumulative_stakes() {
     let requests = server.received_requests().await.unwrap();
     assert_that!(requests.len(), eq(3));
     for (index, (request, expected)) in requests.iter().zip([
-        "Total points staked: 13\nOutcomes:\n• Sun — 13 points — 100.0% implied chance\n• Rain — 0 points — 0.0% implied chance\n• Snow — 0 points — 0.0% implied chance",
-        "Total points staked: 52\nOutcomes:\n• Sun — 13 points — 25.0% implied chance 🔴 ⬇️\n• Rain — 39 points — 75.0% implied chance 🟢 ⬆️\n• Snow — 0 points — 0.0% implied chance ➖ unchanged",
-        "Total points staked: 78\nOutcomes:\n• Sun — 39 points — 50.0% implied chance 🟢 ⬆️\n• Rain — 39 points — 50.0% implied chance 🔴 ⬇️\n• Snow — 0 points — 0.0% implied chance ➖ unchanged",
+        "Outcomes:\n```\nChoice  | Points staked | Implied chance | Movement\n1. Sun  |            13 | 100.0%         |\n2. Rain |             0 | 0.0%           |\n3. Snow |             0 | 0.0%           |\nTotal   |            13 | -              | -\n```",
+        "Outcomes:\n```\nChoice  | Points staked | Implied chance | Movement\n1. Sun  |            13 | 25.0%          | 🔴 ⬇️\n2. Rain |            39 | 75.0%          | 🟢 ⬆️\n3. Snow |             0 | 0.0%           | ➖ unchanged\nTotal   |            52 | -              | -\n```",
+        "Outcomes:\n```\nChoice  | Points staked | Implied chance | Movement\n1. Sun  |            39 | 50.0%          | 🟢 ⬆️\n2. Rain |            39 | 50.0%          | 🔴 ⬇️\n3. Snow |             0 | 0.0%           | ➖ unchanged\nTotal   |            78 | -              | -\n```",
     ]).enumerate() {
         let body: serde_json::Value = request.body_json().unwrap();
         assert_that!(body["content"].as_str().unwrap(), contains_substring(expected));
@@ -3574,9 +3588,9 @@ async fn resolution_delivery_retains_historical_stakes_after_settlement() {
         assert_that!(requests.len(), eq(1));
         let message: serde_json::Value = requests[0].body_json().unwrap();
         let expected_stakes = if with_bets {
-            "Total points staked: 78\nOutcomes:\n• Yes — 39 points — 50.0% implied chance\n• No — 39 points — 50.0% implied chance\n• Other — 0 points — 0.0% implied chance"
+            "Outcomes:\n```\nChoice   | Points staked | Implied chance | Movement\n1. Yes   |            39 | 50.0%          |\n2. No    |            39 | 50.0%          |\n3. Other |             0 | 0.0%           |\nTotal    |            78 | -              | -\n```"
         } else {
-            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance\n• Other — 0 points — N/A (no bets) implied chance"
+            "Outcomes:\n```\nChoice   | Points staked | Implied chance | Movement\n1. Yes   |             0 | N/A (no bets)  |\n2. No    |             0 | N/A (no bets)  |\n3. Other |             0 | N/A (no bets)  |\nTotal    |             0 | -              | -\n```"
         };
         let winner_label = if winner == 2 { "Other" } else { "Yes" };
         assert_that!(
@@ -3676,9 +3690,9 @@ async fn cancellation_delivery_retains_historical_stakes_after_refunds() {
         assert_that!(requests.len(), eq(1));
         let message: serde_json::Value = requests[0].body_json().unwrap();
         let expected_stakes = if with_bets {
-            "Total points staked: 78\nOutcomes:\n• Yes — 39 points — 50.0% implied chance\n• No — 39 points — 50.0% implied chance\n• Other — 0 points — 0.0% implied chance"
+            "Outcomes:\n```\nChoice   | Points staked | Implied chance | Movement\n1. Yes   |            39 | 50.0%          |\n2. No    |            39 | 50.0%          |\n3. Other |             0 | 0.0%           |\nTotal    |            78 | -              | -\n```"
         } else {
-            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance\n• Other — 0 points — N/A (no bets) implied chance"
+            "Outcomes:\n```\nChoice   | Points staked | Implied chance | Movement\n1. Yes   |             0 | N/A (no bets)  |\n2. No    |             0 | N/A (no bets)  |\n3. Other |             0 | N/A (no bets)  |\nTotal    |             0 | -              | -\n```"
         };
         assert_that!(
             message["content"].as_str().unwrap(),

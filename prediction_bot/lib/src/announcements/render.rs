@@ -153,6 +153,20 @@ fn render_odds(
     if odds.is_empty() {
         return String::new();
     }
+    if let Some(stakes) = stakes {
+        let table = render_stake_table(
+            odds.iter().map(|outcome| {
+                (
+                    outcome.label.as_str(),
+                    outcome.chance(),
+                    outcome.movement_indicator().trim().to_owned(),
+                )
+            }),
+            stakes,
+            field_limit,
+        );
+        return format!("\nOutcomes:\n{table}");
+    }
     let outcomes = odds
         .iter()
         .enumerate()

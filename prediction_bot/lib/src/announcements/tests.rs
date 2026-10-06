@@ -438,9 +438,9 @@ fn odds_preserve_every_outcome_within_discords_message_limit() {
         let text = content(&payload);
         assert_that!(text.encode_utf16().count(), le(2000));
         for i in 0..10 {
-            assert_that!(text, contains_substring(format!("• {i}")));
+            assert_that!(text, contains_substring(format!("{}. {i}", i + 1)));
         }
-        assert_that!(text.matches("10.0% implied chance").count(), eq(10));
+        assert_that!(text.matches("10.0%").count(), eq(10));
         assert_that!(
             text,
             contains_substring(format!("Event time: <t:{}:F>", i64::MAX))
@@ -649,11 +649,12 @@ fn exact_saved_stakes_render_with_separators_and_existing_movement() {
         let snapshot = serde_json::from_value(serde_json::json!({kind: {
             "id": "rain-1", "question": "Rain?", "occurred_at": 1000,
             "bet_count": 2, "winner": "Yes", "refunded": false,
-            "stakes": {"total": 1000, "outcomes": [600, 400, 0]},
+            "stakes": {"total": 1000, "outcomes": [600, 277, 123, 0]},
             "odds": [
                 {"label": "Yes", "tenths_percent": 600, "movement": "up"},
-                {"label": "No", "tenths_percent": 400, "movement": "down"},
-                {"label": "Other", "tenths_percent": 0, "unchanged": true}
+                {"label": "No", "tenths_percent": 277, "movement": "down"},
+                {"label": "Other", "tenths_percent": 123, "unchanged": true},
+                {"label": "Legacy", "tenths_percent": 0}
             ]
         }}))
         .unwrap();
@@ -661,7 +662,7 @@ fn exact_saved_stakes_render_with_separators_and_existing_movement() {
         assert_that!(
             content(&message),
             contains_substring(
-                "Total points staked: 1,000\nOutcomes:\n• Yes — 600 points — 60.0% implied chance 🟢 ⬆️\n• No — 400 points — 40.0% implied chance 🔴 ⬇️\n• Other — 0 points — 0.0% implied chance ➖ unchanged"
+                "Outcomes:\n```\nChoice    | Points staked | Implied chance | Movement\n1. Yes    |           600 | 60.0%          | 🟢 ⬆️\n2. No     |           277 | 27.7%          | 🔴 ⬇️\n3. Other  |           123 | 12.3%          | ➖ unchanged\n4. Legacy |             0 | 0.0%           |\nTotal     |         1,000 | -              | -\n```"
             )
         );
         assert_mentions_disabled(&message);
@@ -697,26 +698,12 @@ fn saved_stakes_preserve_exact_maximum_amount_with_all_supported_outcomes() {
                 let text = content(&message);
                 assert_that!(text.encode_utf16().count(), le(2000));
                 for index in 0..count {
-                    let prefix = if kind == "Created" {
-                        format!("{}. {index}", index + 1)
-                    } else {
-                        format!("• {index}")
-                    };
+                    let prefix = format!("{}. {index}", index + 1);
                     assert_that!(text, contains_substring(prefix));
                 }
                 if kind != "Created" {
-                    assert_that!(
-                        text,
-                        contains_substring(
-                            "Total points staked: 9,223,372,036,854,775,807\nOutcomes:"
-                        )
-                    );
-                    assert_that!(
-                        text,
-                        contains_substring(
-                            "9,223,372,036,854,775,807 points — 100.0% implied chance ➖ unchanged"
-                        )
-                    );
+                    assert_that!(text, contains_substring("Outcomes:\n```"));
+                    assert_that!(text.matches("9,223,372,036,854,775,807").count(), eq(2));
                 }
                 assert_mentions_disabled(&message);
             }
@@ -836,4 +823,93 @@ fn creation_table_budget_includes_padding_and_all_original_event_details() {
     );
     assert_that!(text, ends_with("Event time: <t:9223372036854775807:F>"));
     assert_mentions_disabled(&message);
+}
+
+#[googletest::test]
+fn recorded_bet_and_settlement_tables_keep_safe_unicode_labels() {
+    for kind in ["BetPlaced", "Resolved", "Cancelled"] {
+        let snapshot = serde_json::from_value(serde_json::json!({kind: {
+            "id": "safe-table", "question": "Unicode?", "occurred_at": 1000,
+            "bet_count": 0, "winner": "茶🔮e\u{301}", "refunded": true,
+            "stakes": {"total": 0, "outcomes": [0, 0]},
+            "odds": [
+                {"label": "茶🔮e\u{301}", "tenths_percent": null},
+                {"label": "👩‍💻\r\t```|\u{202e}\u{0}", "tenths_percent": null}
+            ]
+        }}))
+        .unwrap();
+        let message = payload(snapshot);
+        let text = content(&message);
+        assert_that!(
+            text,
+            contains_substring("1. 茶🔮e\u{301}    |             0 | N/A (no bets)  |")
+        );
+        assert_that!(
+            text,
+            contains_substring("2. 👩‍💻  ˋˋˋ¦ |             0 | N/A (no bets)  |")
+        );
+        assert_that!(text.matches("```").count(), eq(2));
+        assert_that!(text.contains('\u{202e}'), eq(false));
+        assert_that!(text.contains('\u{0}'), eq(false));
+        assert_mentions_disabled(&message);
+    }
+}
+
+#[googletest::test]
+fn maximum_bet_and_settlement_tables_budget_unicode_padding_without_losing_amounts() {
+    let mut options = vec!["a".repeat(80)];
+    options.extend((1..10).map(|index| {
+        format!(
+            "{index}{}",
+            "a\u{1d165}\u{1d165}\u{1d165}\u{1d165}\u{1d165}".repeat(13)
+        )
+    }));
+    for kind in ["BetPlaced", "Resolved", "Cancelled"] {
+        let snapshot = serde_json::from_value(serde_json::json!({kind: {
+            "id": "12345678-1234-1234-1234-123456789abc",
+            "question": "🔮".repeat(200), "occurred_at": i64::MAX,
+            "bet_count": usize::MAX, "winner": "🔮".repeat(80), "refunded": true,
+            "stakes": {"total": i64::MAX, "outcomes": [i64::MAX, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
+            "odds": options.iter().enumerate().map(|(index, label)| serde_json::json!({
+                "label": label, "tenths_percent": if index == 0 {1000} else {0}, "unchanged": true
+            })).collect::<Vec<_>>()
+        }}))
+        .unwrap();
+        let message = payload(snapshot);
+        let text = content(&message);
+        assert_that!(text.encode_utf16().count(), le(2000), "{text}");
+        let table = text.split("```").nth(1).unwrap();
+        assert_that!(
+            table.lines().filter(|line| line.contains(" | ")).count(),
+            eq(12)
+        );
+        for number in 1..=10 {
+            assert_that!(table, contains_substring(format!("\n{number}. ")));
+        }
+        assert_that!(table.matches("9,223,372,036,854,775,807").count(), eq(2));
+        assert_that!(
+            table
+                .lines()
+                .filter(|line| line
+                    .split(" | ")
+                    .nth(1)
+                    .is_some_and(|cell| cell.trim() == "0"))
+                .count(),
+            eq(9)
+        );
+        assert_that!(
+            text,
+            contains_substring("Market ID: `12345678-1234-1234-1234-123456789abc`")
+        );
+        assert_that!(text, ends_with("Event time: <t:9223372036854775807:F>"));
+        if kind == "Resolved" {
+            assert_that!(text, contains_substring("Winning outcome: 🔮"));
+        }
+        if kind != "BetPlaced" {
+            assert_that!(text, contains_substring("Stakes refunded: yes"));
+        } else {
+            assert_that!(text, contains_substring("18446744073709551615 bets placed"));
+        }
+        assert_mentions_disabled(&message);
+    }
 }
