@@ -736,3 +736,6 @@ async fn positions_query_and_delivery_failures_are_private_structured_and_read_o
     );
     assert_that!(persisted(&witness).await, eq(&saved));
 }
+
+#[path = "positions_picker.rs"]
+mod picker;

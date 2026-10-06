@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use serenity::{
     all::{ButtonStyle, ComponentInteraction, ComponentInteractionDataKind},
-    builder::{CreateActionRow, CreateButton, CreateEmbed},
+    builder::{CreateActionRow, CreateButton, CreateEmbed, CreateSelectMenuOption},
     http::Http,
 };
 
@@ -22,7 +22,7 @@ const INVALID: &str = "This positions control is invalid. Run /market positions 
 const UNENROLLED: &str = "You are not enrolled. Use /market join first.";
 
 pub(super) fn is_control(id: &str) -> bool {
-    id.split(':').nth(3) == Some("ps")
+    matches!(id.split(':').nth(3), Some("pp" | "pk" | "ps"))
 }
 fn message(content: &str) -> Panel {
     Panel {
@@ -40,10 +40,75 @@ pub(super) fn enrolled(view: &View, actor: Actor) -> Result<(), &'static str> {
 }
 pub(super) fn start(view: &View, guild: GuildId, actor: Actor, id: Option<&MarketId>) -> Panel {
     let result = enrolled(view, actor).and_then(|()| {
-        id.ok_or("Supply a resolved market ID with /market positions id.")
-            .and_then(|id| market(view, guild, actor, id, 0))
+        id.map_or_else(
+            || picker(view, guild, actor, 0),
+            |id| market(view, guild, actor, id, 0),
+        )
     });
     result.unwrap_or_else(message)
+}
+
+const MARKET_PAGE_SIZE: usize = 25;
+
+fn picker(
+    view: &View,
+    guild: GuildId,
+    actor: Actor,
+    requested_page: usize,
+) -> Result<Panel, &'static str> {
+    enrolled(view, actor)?;
+    let markets: Vec<_> = view
+        .state
+        .markets
+        .iter()
+        .filter(|(_, market)| matches!(market.status, Status::Resolved { .. }))
+        .collect();
+    if markets.is_empty() {
+        return Ok(message("No resolved markets exist in this server yet."));
+    }
+    let last = (markets.len() - 1) / MARKET_PAGE_SIZE;
+    let page = requested_page.min(last);
+    let prefix = ui::prefix(guild, actor);
+    let options = markets
+        .into_iter()
+        .skip(page * MARKET_PAGE_SIZE)
+        .take(MARKET_PAGE_SIZE)
+        .map(|(id, market)| {
+            CreateSelectMenuOption::new(truncate_to(&market.question, 100), id.to_string())
+        })
+        .collect();
+    let mut components = vec![ui::menu(
+        format!("{prefix}:pk"),
+        "Choose a resolved market",
+        options,
+    )];
+    let mut buttons = vec![];
+    if page > 0 {
+        buttons.push(
+            CreateButton::new(format!("{prefix}:pp:{}", page - 1))
+                .label("Previous markets")
+                .style(ButtonStyle::Secondary),
+        );
+    }
+    if page < last {
+        buttons.push(
+            CreateButton::new(format!("{prefix}:pp:{}", page + 1))
+                .label("Next markets")
+                .style(ButtonStyle::Secondary),
+        );
+    }
+    if !buttons.is_empty() {
+        components.push(CreateActionRow::Buttons(buttons));
+    }
+    Ok(Panel {
+        content: format!(
+            "Choose a resolved market to inspect its recorded positions. Page {} of {}.",
+            page + 1,
+            last + 1
+        ),
+        embed: None,
+        components,
+    })
 }
 
 struct Position {
@@ -160,6 +225,19 @@ pub(super) fn market(
             );
         }
     }
+    let market_page = view
+        .state
+        .markets
+        .iter()
+        .filter(|(_, market)| matches!(market.status, Status::Resolved { .. }))
+        .position(|(key, _)| key == id)
+        .unwrap_or(0)
+        / MARKET_PAGE_SIZE;
+    buttons.push(
+        CreateButton::new(format!("{prefix}:pp:{market_page}"))
+            .label("Back to markets")
+            .style(ButtonStyle::Secondary),
+    );
     Ok(Panel {
         content: "Recorded positions and settlement results.".into(),
         embed: Some(
@@ -167,12 +245,13 @@ pub(super) fn market(
                 .title(truncate_to(&market.question, 256))
                 .description(description),
         ),
-        components: if buttons.is_empty() {
-            vec![]
-        } else {
-            vec![CreateActionRow::Buttons(buttons)]
-        },
+        components: vec![CreateActionRow::Buttons(buttons)],
     })
+}
+
+enum Navigation {
+    Picker(usize),
+    Market { id: MarketId, page: usize },
 }
 
 pub(super) async fn handle_component(store: &Store, http: &Http, component: &ComponentInteraction) {
@@ -185,16 +264,37 @@ pub(super) async fn handle_component(store: &Store, http: &Http, component: &Com
         moderator: false,
     };
     let action = ui::scope(guild, actor, &component.data.custom_id).and_then(|parts| {
-        match (parts.as_slice(), &component.data.kind) {
-            (["ps", id, page], ComponentInteractionDataKind::Button) => page
+        let page = |value: &str| {
+            value
                 .parse::<u32>()
-                .map(|page| (MarketId::from(*id), page as usize))
-                .map_err(|_| INVALID),
+                .map(|page| page as usize)
+                .map_err(|_| INVALID)
+        };
+        match (parts.as_slice(), &component.data.kind) {
+            (["pp", value], ComponentInteractionDataKind::Button) => {
+                Ok(Navigation::Picker(page(value)?))
+            }
+            (["pk"], ComponentInteractionDataKind::StringSelect { values }) => {
+                let [id] = values.as_slice() else {
+                    return Err("Choose exactly one market.");
+                };
+                Ok(Navigation::Market {
+                    id: MarketId::from(id.as_str()),
+                    page: 0,
+                })
+            }
+            (["ps", id, value], ComponentInteractionDataKind::Button) => Ok(Navigation::Market {
+                id: MarketId::from(*id),
+                page: page(value)?,
+            }),
             _ => Err(INVALID),
         }
     });
-    super::resolvers::read_navigation(store, http, component, guild, action, |view, (id, page)| {
-        market(view, guild, actor, &id, page)
+    super::resolvers::read_navigation(store, http, component, guild, action, |view, action| {
+        match action {
+            Navigation::Picker(page) => picker(view, guild, actor, page),
+            Navigation::Market { id, page } => market(view, guild, actor, &id, page),
+        }
     })
     .await;
 }

@@ -406,7 +406,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market bet` — choose a market and outcome, enter a stake, then confirm your bet.
 • `/market bet id outcome amount` — place a bet directly using a market ID, outcome number, and stake.
 • `/market list` and `/market show id` — view markets and their outcomes.
-• `/market positions id` — inspect resolved bettor stakes, payouts and net results; enrollment required.
+• `/market positions` — discover resolved markets; `/market positions id` — inspect recorded stakes, payouts and net results; enrollment required.
 • `/market resolver list` — inspect recorded assignments for any market, including completed markets.
 • `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
@@ -741,9 +741,13 @@ fn market_command() -> CreateCommand {
             CreateCommandOption::new(
                 SubCommand,
                 "positions",
-                "Inspect resolved positions; enrollment required",
+                "Browse resolved positions; enrollment required",
             )
-            .add_sub_option(CreateCommandOption::new(Text, "id", "Resolved market ID")),
+            .add_sub_option(CreateCommandOption::new(
+                Text,
+                "id",
+                "Resolved market ID; omit to browse",
+            )),
         )
         .add_option(
             CreateCommandOption::new(SubCommand, "show", "Inspect a market")
