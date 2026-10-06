@@ -300,6 +300,7 @@ fn query_outputs_are_scoped_ranked_and_bounded() {
                 amount: Points(25),
             }],
             total_staked: Points(25),
+            payouts: Vec::new(),
             resolvers: Default::default(),
         },
     );
@@ -417,6 +418,7 @@ fn list_keeps_ten_ids_when_questions_use_long_emoji_text() {
                 status: Status::Open,
                 bets: vec![],
                 total_staked: Points(0),
+                payouts: Vec::new(),
                 resolvers: Default::default(),
             },
         );
@@ -572,6 +574,7 @@ fn ui_view() -> crate::store::View {
             status: Status::Open,
             bets: vec![],
             total_staked: Points(0),
+            payouts: Vec::new(),
             resolvers: Default::default(),
         },
     );
@@ -2268,6 +2271,7 @@ fn market_cards_show_stake_weighted_percentages() {
             created_at: 1000,
             status: Status::Open,
             total_staked: Points(stakes.iter().map(|(_, amount)| amount).sum()),
+            payouts: Vec::new(),
             resolvers: Default::default(),
             bets: stakes
                 .into_iter()
@@ -2456,6 +2460,7 @@ fn resolver_confirmation_binds_market_target_guild_actor_and_button() {
             status: Status::Open,
             bets: vec![],
             total_staked: Points(0),
+            payouts: Vec::new(),
             resolvers: Default::default(),
         },
     );
@@ -2616,6 +2621,7 @@ fn show_distinguishes_explicit_assignments_from_independent_authority() {
         status: crate::domain::Status::Cancelled,
         bets: vec![],
         total_staked: crate::types::Points(0),
+        payouts: Vec::new(),
         resolvers: [crate::types::UserId(42)].into_iter().collect(),
     };
     let text = super::render_market(&"market".into(), &market, 200);
@@ -2749,6 +2755,7 @@ fn removal_confirmation_binds_market_target_guild_actor_and_button() {
             status: Status::Open,
             bets: vec![],
             total_staked: Points(0),
+            payouts: Vec::new(),
             resolvers: Default::default(),
         },
     );

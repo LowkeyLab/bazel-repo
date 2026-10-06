@@ -333,6 +333,13 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
     );
     assert_that!(no_winner.accounts[&UserId(2)].balance.0, eq(100));
     assert_that!(
+        no_winner.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].payouts,
+        eq(&vec![Allocation {
+            user_id: UserId(2),
+            amount: Points(7)
+        }])
+    );
+    assert_that!(
         no_winner.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
         eq(&Status::Resolved {
             outcome: OutcomeIndex(1),
@@ -366,6 +373,31 @@ fn no_winner_resolution_and_cancellation_refund_stakes() {
         cancelled.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].status,
         eq(&Status::Cancelled)
     );
+}
+
+#[googletest::test]
+fn resolved_market_without_bets_retains_empty_recorded_refunds() {
+    let mut state = State::default();
+    market(&mut state, 2_000);
+    execute(
+        &mut state,
+        member(1),
+        &Command::Resolve {
+            id: "78e82954-4c67-4e0d-8c80-8ab95a527ae5".to_owned().into(),
+            outcome: OutcomeIndex(1),
+        },
+        2_000,
+    );
+    let market = &state.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"];
+    assert_that!(market.payouts, is_empty());
+    assert_that!(
+        market.status,
+        eq(&Status::Resolved {
+            outcome: OutcomeIndex(1),
+            refunded: true,
+        })
+    );
+    assert_that!(state.accounts[&UserId(1)].balance, eq(Points(100)));
 }
 
 #[googletest::test]
@@ -537,6 +569,19 @@ fn history_replays_identically_and_uses_recorded_allocations() {
         apply(&mut replayed, event).unwrap();
     }
     assert_that!(replayed, eq(&state));
+    assert_that!(
+        replayed.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].payouts,
+        eq(&vec![
+            Allocation {
+                user_id: UserId(2),
+                amount: Points(2)
+            },
+            Allocation {
+                user_id: UserId(3),
+                amount: Points(3)
+            },
+        ])
+    );
     if let Event::MarketResolved { payouts, .. } = history.last_mut().unwrap() {
         *payouts = vec![
             Allocation {
@@ -561,6 +606,19 @@ fn history_replays_identically_and_uses_recorded_allocations() {
             altered.accounts[&UserId(3)].balance.0
         ),
         eq((102, 100))
+    );
+    assert_that!(
+        altered.markets["78e82954-4c67-4e0d-8c80-8ab95a527ae5"].payouts,
+        eq(&vec![
+            Allocation {
+                user_id: UserId(2),
+                amount: Points(3)
+            },
+            Allocation {
+                user_id: UserId(3),
+                amount: Points(2)
+            },
+        ])
     );
 }
 

@@ -129,6 +129,276 @@ async fn enrollment_events_are_individually_revisioned_and_replay_after_restart(
 
 #[googletest::test]
 #[tokio::test]
+async fn settlement_views_preserve_recorded_payouts_refunds_and_empty_results_after_restart() {
+    use prediction_bot::domain::{Allocation, Status};
+    let (_container, store) = fixture().await;
+    // Keep the fixture writer's append-only revision cache separate from the
+    // reader of the installed historical event stream.
+    let reader = Store::new(
+        store.pool.clone(),
+        42.into(),
+        Policy {
+            amount: Points(100),
+            interval: 86_400,
+        },
+    );
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    let cases = [
+        (
+            GuildId(1),
+            vec![(2, 0, 1), (3, 0, 2), (4, 1, 2)],
+            false,
+            vec![
+                Allocation {
+                    user_id: UserId(3),
+                    amount: Points(2),
+                },
+                Allocation {
+                    user_id: UserId(2),
+                    amount: Points(3),
+                },
+            ],
+        ),
+        (
+            GuildId(2),
+            vec![(2, 1, 7), (3, 1, 5)],
+            true,
+            vec![
+                Allocation {
+                    user_id: UserId(2),
+                    amount: Points(7),
+                },
+                Allocation {
+                    user_id: UserId(3),
+                    amount: Points(5),
+                },
+            ],
+        ),
+        (GuildId(3), vec![], true, vec![]),
+    ];
+    for (guild, bets, refunded, expected) in &cases {
+        for user in [1, 2, 3, 4] {
+            store
+                .execute_at(
+                    *guild,
+                    &format!("discord:join{user}"),
+                    player(user),
+                    &Command::Join,
+                    1000,
+                )
+                .await
+                .unwrap();
+        }
+        store
+            .execute_at(*guild, "discord:create", player(1), &create(id), 1000)
+            .await
+            .unwrap();
+        for (user, outcome, amount) in bets {
+            store
+                .execute_at(
+                    *guild,
+                    &format!("discord:bet{user}"),
+                    player(*user),
+                    &Command::Bet {
+                        id: id.into(),
+                        outcome: OutcomeIndex(*outcome),
+                        amount: Points(*amount),
+                    },
+                    1500,
+                )
+                .await
+                .unwrap();
+        }
+        store
+            .execute_at(
+                *guild,
+                "discord:resolve",
+                player(1),
+                &Command::Resolve {
+                    id: id.into(),
+                    outcome: OutcomeIndex(0),
+                },
+                2000,
+            )
+            .await
+            .unwrap();
+        if *guild == GuildId(1) {
+            let current = store.view(*guild).await.unwrap();
+            assert_that!(
+                current.state.markets[id].payouts,
+                eq(&vec![
+                    Allocation {
+                        user_id: UserId(2),
+                        amount: Points(2)
+                    },
+                    Allocation {
+                        user_id: UserId(3),
+                        amount: Points(3)
+                    },
+                ])
+            );
+            // Test-only historical fixture: the unchanged v1 settlement schema allows
+            // a valid allocation different from today's algorithm, in recorded order.
+            sqlx::query("UPDATE prediction_events SET event=jsonb_set(event,'{data,payouts}',$1) WHERE guild_id=$2 AND command_key='discord:resolve'")
+                .bind(serde_json::to_value(expected).unwrap()).bind(guild.to_string())
+                .execute(&store.pool).await.unwrap();
+        }
+        let view = reader.view(*guild).await.unwrap();
+        assert_that!(view.state.markets[id].payouts, eq(expected));
+        assert_that!(
+            view.state.markets[id].status,
+            eq(&Status::Resolved {
+                outcome: OutcomeIndex(0),
+                refunded: *refunded,
+            })
+        );
+        let balances = if *guild == GuildId(1) {
+            (102, 100, 98)
+        } else {
+            (100, 100, 100)
+        };
+        assert_that!(
+            (
+                view.state.accounts[&UserId(2)].balance.0,
+                view.state.accounts[&UserId(3)].balance.0,
+                view.state.accounts[&UserId(4)].balance.0
+            ),
+            eq(balances)
+        );
+    }
+    let persisted_sql = "SELECT jsonb_build_object(
+        'events', (SELECT jsonb_agg(to_jsonb(e) ORDER BY guild_id, revision) FROM prediction_events e),
+        'receipts', (SELECT jsonb_agg(to_jsonb(c) ORDER BY guild_id, command_key) FROM prediction_commands c),
+        'announcements', (SELECT jsonb_agg(to_jsonb(a) ORDER BY guild_id, revision) FROM prediction_announcement_outbox a))";
+    let persisted: serde_json::Value = sqlx::query_scalar(persisted_sql)
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+    let fresh = Store::new(
+        store.pool.clone(),
+        42.into(),
+        Policy {
+            amount: Points(999),
+            interval: 1,
+        },
+    );
+    for (guild, _, _, expected) in &cases {
+        let before = reader.view(*guild).await.unwrap();
+        for _ in 0..2 {
+            let after = fresh.view(*guild).await.unwrap();
+            assert_that!(after.state.markets[id].payouts, eq(expected));
+            assert_that!(after.state, eq(&before.state));
+            assert_that!(after.revision, eq(before.revision));
+        }
+    }
+    assert_that!(
+        sqlx::query_scalar::<_, serde_json::Value>(persisted_sql)
+            .fetch_one(&store.pool)
+            .await
+            .unwrap(),
+        eq(&persisted)
+    );
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn settlement_view_rejects_corrupt_recorded_allocations_without_changing_prior_view() {
+    let (_container, store) = fixture().await;
+    let id = "78e82954-4c67-4e0d-8c80-8ab95a527ae5";
+    for user in [1, 2, 3] {
+        store
+            .execute_at(
+                1.into(),
+                &format!("discord:join{user}"),
+                player(user),
+                &Command::Join,
+                1000,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(1.into(), "discord:create", player(1), &create(id), 1000)
+        .await
+        .unwrap();
+    for (user, outcome) in [(2, 0), (3, 1)] {
+        store
+            .execute_at(
+                1.into(),
+                &format!("discord:bet{user}"),
+                player(user),
+                &Command::Bet {
+                    id: id.into(),
+                    outcome: OutcomeIndex(outcome),
+                    amount: Points(1),
+                },
+                1500,
+            )
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(
+            1.into(),
+            "discord:resolve",
+            player(1),
+            &Command::Resolve {
+                id: id.into(),
+                outcome: OutcomeIndex(0),
+            },
+            2000,
+        )
+        .await
+        .unwrap();
+    let valid = store.view(1.into()).await.unwrap();
+    let original: serde_json::Value = sqlx::query_scalar(
+        "SELECT event FROM prediction_events WHERE command_key='discord:resolve'",
+    )
+    .fetch_one(&store.pool)
+    .await
+    .unwrap();
+    for allocations in [
+        serde_json::json!([{"user_id":"2","amount":1}]),
+        serde_json::json!([{"user_id":"99","amount":2}]),
+        serde_json::json!([{"user_id":"2","amount":1},{"user_id":"2","amount":1}]),
+        serde_json::json!([{"user_id":"3","amount":2}]),
+    ] {
+        let mut corrupt = original.clone();
+        corrupt["data"]["payouts"] = allocations;
+        sqlx::query("UPDATE prediction_events SET event=$1 WHERE command_key='discord:resolve'")
+            .bind(corrupt)
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        assert_that!(store.view(1.into()).await, err(anything()));
+        let fresh = Store::new(
+            store.pool.clone(),
+            42.into(),
+            Policy {
+                amount: Points(100),
+                interval: 86_400,
+            },
+        );
+        assert_that!(fresh.view(1.into()).await, err(anything()));
+        assert_that!(valid.state.accounts[&UserId(2)].balance, eq(Points(101)));
+        assert_that!(
+            valid.state.markets[id].payouts,
+            eq(&vec![prediction_bot::domain::Allocation {
+                user_id: UserId(2),
+                amount: Points(2),
+            }])
+        );
+        sqlx::query("UPDATE prediction_events SET event=$1 WHERE command_key='discord:resolve'")
+            .bind(&original)
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        assert_that!(store.view(1.into()).await.unwrap().state, eq(&valid.state));
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
 async fn concurrent_bets_cannot_overspend_and_duplicate_delivery_cannot_double_charge() {
     let (_container, store) = fixture().await;
     let market = uuid::Uuid::new_v4().to_string();

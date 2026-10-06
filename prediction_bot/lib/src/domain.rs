@@ -164,6 +164,9 @@ pub struct Market {
     pub status: Status,
     pub bets: Vec<Bet>,
     pub total_staked: Points,
+    /// Exact validated allocations recorded by the resolution event, including refunds.
+    #[serde(default)]
+    pub payouts: Vec<Allocation>,
     #[serde(default)]
     pub resolvers: BTreeSet<UserId>,
 }
@@ -1110,7 +1113,9 @@ fn apply_resolution(
         }
     }
     credit_allocations(&mut state.accounts, payouts)?;
-    state.markets.get_mut(id).unwrap().status = Status::Resolved { outcome, refunded };
+    let market = state.markets.get_mut(id).unwrap();
+    market.payouts = payouts.to_vec();
+    market.status = Status::Resolved { outcome, refunded };
     Ok(())
 }
 
@@ -1200,6 +1205,7 @@ fn apply_market_creation(
             status: Status::Open,
             bets: Vec::new(),
             total_staked: Points(0),
+            payouts: Vec::new(),
             resolvers: BTreeSet::new(),
         },
     );
