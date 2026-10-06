@@ -126,7 +126,7 @@ fn event_snapshot(
             ))?;
             (
                 SnapshotV1::Resolved {
-                    stakes: None,
+                    stakes: Some(StakeSummary::for_market(market)),
                     id: id.clone(),
                     question: market.question.clone(),
                     winner: winner.clone(),
@@ -145,7 +145,7 @@ fn event_snapshot(
             ))?;
             (
                 SnapshotV1::Cancelled {
-                    stakes: None,
+                    stakes: Some(StakeSummary::for_market(market)),
                     id: id.clone(),
                     question: market.question.clone(),
                     odds: OutcomeOdds::for_market(market),
