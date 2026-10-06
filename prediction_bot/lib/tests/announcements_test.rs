@@ -1881,11 +1881,15 @@ async fn application_startup_delivers_announcements_under_the_gateway_guard() {
     let text = movement["content"].as_str().unwrap();
     assert_that!(
         text,
-        contains_substring("Yes — 100.0% implied chance ➖ unchanged")
+        contains_substring("Total points staked: 20\nOutcomes:")
     );
     assert_that!(
         text,
-        contains_substring("No — 0.0% implied chance ➖ unchanged")
+        contains_substring("Yes — 20 points — 100.0% implied chance ➖ unchanged")
+    );
+    assert_that!(
+        text,
+        contains_substring("No — 0 points — 0.0% implied chance ➖ unchanged")
     );
     store.gateway_guard().await.unwrap().close().await.unwrap();
 }
@@ -2327,7 +2331,7 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     let failed_body: serde_json::Value = failed_requests[0].body_json().unwrap();
     assert_that!(
         failed_body["content"].as_str().unwrap(),
-        contains_substring("Yes — 100.0% implied chance")
+        contains_substring("Yes — 13 points — 100.0% implied chance")
     );
     assert_that!(failed_requests.len(), eq(2));
     let first = failed_body["content"].as_str().unwrap();
@@ -2336,7 +2340,7 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     let failed_movement: serde_json::Value = failed_requests[1].body_json().unwrap();
     assert_that!(
         failed_movement["content"].as_str().unwrap(),
-        contains_substring("Yes — 25.0% implied chance 🔴 ⬇️")
+        contains_substring("Yes — 13 points — 25.0% implied chance 🔴 ⬇️")
     );
     server.reset().await;
     Mock::given(method("POST"))
@@ -2359,13 +2363,13 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
     for (request, (expected_count, yes, no)) in requests.iter().zip([
         (
             "2 bets placed",
-            "25.0% implied chance 🔴 ⬇️",
-            "75.0% implied chance 🟢 ⬆️",
+            "13 points — 25.0% implied chance 🔴 ⬇️",
+            "39 points — 75.0% implied chance 🟢 ⬆️",
         ),
         (
             "3 bets placed",
-            "50.0% implied chance 🟢 ⬆️",
-            "50.0% implied chance 🔴 ⬇️",
+            "39 points — 50.0% implied chance 🟢 ⬆️",
+            "39 points — 50.0% implied chance 🔴 ⬇️",
         ),
     ]) {
         let body: serde_json::Value = request.body_json().unwrap();
@@ -2376,7 +2380,7 @@ async fn bet_delivery_preserves_event_percentages_through_later_bets_and_retries
         assert_that!(content, contains_substring(expected_count));
         assert_that!(content, contains_substring(format!("Yes — {yes}")));
         assert_that!(content, contains_substring(format!("No — {no}")));
-        for private in ["<@7>", "13", "Bettor", "Stake"] {
+        for private in ["<@7>", "Bettor", "Stake"] {
             assert_that!(content, not(contains_substring(private)));
         }
         assert_that!(body["allowed_mentions"]["parse"], eq(&json!([])));
@@ -2469,7 +2473,7 @@ async fn interaction_join_and_bet_deliver_once_after_redelivery() {
     );
     assert_that!(
         messages[2]["content"].as_str().unwrap(),
-        contains_substring("Yes — 100.0% implied chance")
+        contains_substring("Yes — 10 points — 100.0% implied chance")
     );
     for message in messages {
         assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
@@ -3133,7 +3137,7 @@ async fn bet_widget_confirms_once_per_submission_through_discord() {
 
 #[googletest::test]
 #[tokio::test]
-async fn unchanged_odds_survive_restart_later_bets_and_retry() {
+async fn unchanged_odds_and_stakes_survive_store_reconstruction_later_bets_and_retry() {
     let (_container, store, _owner) = fixture().await;
     store
         .execute_at(10.into(), "discord:join", admin(), &Command::Join, 1000)
@@ -3183,11 +3187,16 @@ async fn unchanged_odds_survive_restart_later_bets_and_retry() {
     let text = original["content"].as_str().unwrap();
     assert_that!(
         text,
-        contains_substring("Yes — 100.0% implied chance ➖ unchanged")
+        contains_substring("Total points staked: 20\nOutcomes:")
+    );
+    assert_that!(text, contains_substring("Event time: <t:1002:F>"));
+    assert_that!(
+        text,
+        contains_substring("Yes — 20 points — 100.0% implied chance ➖ unchanged")
     );
     assert_that!(
         text,
-        contains_substring("No — 0.0% implied chance ➖ unchanged")
+        contains_substring("No — 0 points — 0.0% implied chance ➖ unchanged")
     );
     store
         .execute_at(
@@ -3223,8 +3232,19 @@ async fn unchanged_odds_survive_restart_later_bets_and_retry() {
     assert_that!(retried, eq(&original));
     let later: serde_json::Value = requests[1].body_json().unwrap();
     let text = later["content"].as_str().unwrap();
-    assert_that!(text, contains_substring("Yes — 50.0% implied chance 🔴 ⬇️"));
-    assert_that!(text, contains_substring("No — 50.0% implied chance 🟢 ⬆️"));
+    assert_that!(
+        text,
+        contains_substring("Total points staked: 40\nOutcomes:")
+    );
+    assert_that!(text, contains_substring("Event time: <t:1003:F>"));
+    assert_that!(
+        text,
+        contains_substring("Yes — 20 points — 50.0% implied chance 🔴 ⬇️")
+    );
+    assert_that!(
+        text,
+        contains_substring("No — 20 points — 50.0% implied chance 🟢 ⬆️")
+    );
 }
 
 #[googletest::test]
@@ -3387,4 +3407,77 @@ async fn legacy_queued_payload_delivers_without_inventing_stakes() {
         )
     );
     assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn bet_delivery_captures_each_events_cumulative_stakes() {
+    let (_container, store, _owner) = fixture().await;
+    for (key, actor) in [
+        ("discord:join-admin", admin()),
+        ("discord:join-member", member()),
+    ] {
+        store
+            .execute_at(10.into(), key, actor, &Command::Join, 1000)
+            .await
+            .unwrap();
+    }
+    store
+        .execute_at(
+            10.into(),
+            "discord:create",
+            admin(),
+            &Command::Create {
+                id: FIXTURE_MARKET.into(),
+                question: "Which forecast?".into(),
+                options: vec!["Sun".into(), "Rain".into(), "Snow".into()],
+                closes_at: 2000,
+            },
+            1000,
+        )
+        .await
+        .unwrap();
+    support::existing_destination(&store, 10, 20).await;
+    for (key, actor, outcome, amount, time) in [
+        ("discord:first", admin(), 0, 13, 1001),
+        ("discord:second", member(), 1, 39, 1002),
+        ("discord:third", admin(), 0, 26, 1003),
+    ] {
+        store
+            .execute_at(
+                10.into(),
+                key,
+                actor,
+                &Command::Bet {
+                    id: FIXTURE_MARKET.into(),
+                    outcome: OutcomeIndex(outcome),
+                    amount: Points(amount),
+                },
+                time,
+            )
+            .await
+            .unwrap();
+    }
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .expect(3)
+        .mount(&server)
+        .await;
+    deliver_due(store, Arc::new(discord_http(&server)), clock(3000))
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(3));
+    for (index, (request, expected)) in requests.iter().zip([
+        "Total points staked: 13\nOutcomes:\n• Sun — 13 points — 100.0% implied chance\n• Rain — 0 points — 0.0% implied chance\n• Snow — 0 points — 0.0% implied chance",
+        "Total points staked: 52\nOutcomes:\n• Sun — 13 points — 25.0% implied chance 🔴 ⬇️\n• Rain — 39 points — 75.0% implied chance 🟢 ⬆️\n• Snow — 0 points — 0.0% implied chance ➖ unchanged",
+        "Total points staked: 78\nOutcomes:\n• Sun — 39 points — 50.0% implied chance 🟢 ⬆️\n• Rain — 39 points — 50.0% implied chance 🔴 ⬇️\n• Snow — 0 points — 0.0% implied chance ➖ unchanged",
+    ]).enumerate() {
+        let body: serde_json::Value = request.body_json().unwrap();
+        assert_that!(body["content"].as_str().unwrap(), contains_substring(expected));
+        assert_that!(body["content"].as_str().unwrap(), contains_substring(format!("Event time: <t:{}:F>", 1001 + index)));
+        assert_that!(body["allowed_mentions"]["parse"], eq(&json!([])));
+    }
 }

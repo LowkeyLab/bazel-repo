@@ -73,7 +73,7 @@ fn event_snapshot(
             ))?;
             (
                 SnapshotV1::BetPlaced {
-                    stakes: None,
+                    stakes: Some(StakeSummary::for_market(market)),
                     id: id.clone(),
                     question: market.question.clone(),
                     bet_count: market.bets.len(),
