@@ -1,6 +1,7 @@
 use super::{
-    MARKET, button, denied, fixture, fresh, listing_http, listing_interaction, listing_response,
-    persisted, player, scoped, seed, slash, slash_for,
+    MARKET, button, close_pool_with_witness, denied, fixture, fresh, listing_http,
+    listing_interaction, listing_response, persisted, player, reject_discord_request, scoped, seed,
+    slash, slash_for,
 };
 use googletest::{
     assert_that,
@@ -17,8 +18,9 @@ use serenity::all::Interaction;
 fn selection(id: u64, control: &str, values: Value, guild: u64, user: u64) -> Interaction {
     let mut value = listing_interaction(
         id,
-        &json!({"custom_id":control,"component_type":3,"values":values}),
+        &json!({"custom_id":control,"component_type":3,"values":[]}),
     );
+    value["data"]["values"] = values;
     scoped(&mut value, guild, user);
     Interaction::Component(serde_json::from_value(value).unwrap())
 }
@@ -601,27 +603,14 @@ async fn positions_picker_empty_access_and_stale_controls_are_private_and_read_o
 #[googletest::test]
 #[tokio::test]
 async fn positions_picker_query_and_delivery_failures_are_private_structured_and_read_only() {
-    use prediction_bot::{
-        audit::{AuditEvent, FailureCategory, Outcome, QueryKind, Stage},
-        domain::Policy,
-        store::Store,
-        types::Points,
-    };
-    use wiremock::{Mock, ResponseTemplate, matchers::method};
+    use prediction_bot::audit::{AuditEvent, FailureCategory, Outcome, QueryKind, Stage};
     let (audit, recorder) = super::super::recording_fixture();
     let (_container, store) = super::super::fixture_with_audit(audit).await;
     seed(&store, MARKET, &[]).await;
     let before = store.view(1.into()).await.unwrap();
     let saved = persisted(&store).await;
     let (server, http) = listing_http().await;
-    Mock::given(method("PATCH"))
-        .respond_with(
-            ResponseTemplate::new(403)
-                .set_body_json(json!({"code":50013,"message":"private provider diagnostic"})),
-        )
-        .with_priority(1)
-        .mount(&server)
-        .await;
+    reject_discord_request(&server, "PATCH", "private provider diagnostic").await;
     for (id, query, interaction) in [
         (
             1400,
@@ -645,20 +634,7 @@ async fn positions_picker_query_and_delivery_failures_are_private_structured_and
         assert_that!(events.iter().any(|event| matches!(event, AuditEvent::InteractionCompleted { interaction_id, stage: Stage::Deliver, outcome: Outcome::Failed(failure), .. } if *interaction_id == id && failure.category == FailureCategory::Discord && failure.http_status == Some(403) && failure.discord_code == Some(50013))), eq(true));
     }
     assert_that!(persisted(&store).await, eq(&saved));
-    let witness_pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(1)
-        .connect_with((*store.pool.connect_options()).clone())
-        .await
-        .unwrap();
-    let witness = Store::new(
-        witness_pool,
-        42.into(),
-        Policy {
-            amount: Points(100),
-            interval: 86400,
-        },
-    );
-    store.pool.close().await;
+    let witness = close_pool_with_witness(&store).await;
     let (server, http) = listing_http().await;
     for (id, query, interaction) in [
         (
@@ -686,14 +662,7 @@ async fn positions_picker_query_and_delivery_failures_are_private_structured_and
     assert_that!(after.state, eq(&before.state));
     assert_that!(after.revision, eq(before.revision));
     let (server, http) = listing_http().await;
-    Mock::given(method("POST"))
-        .respond_with(
-            ResponseTemplate::new(403)
-                .set_body_json(json!({"code":50013,"message":"acknowledgement failure"})),
-        )
-        .with_priority(1)
-        .mount(&server)
-        .await;
+    reject_discord_request(&server, "POST", "acknowledgement failure").await;
     for (id, interaction) in [
         (1420, slash_for(1420, Some(1), 99, json!([]), "0")),
         (1421, selection(1421, "pm:1:99:pk", json!([MARKET]), 1, 99)),

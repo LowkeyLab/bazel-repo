@@ -82,6 +82,33 @@ fn fresh(store: &Store) -> Arc<Store> {
         },
     ))
 }
+async fn reject_discord_request(server: &wiremock::MockServer, method: &str, message: &str) {
+    wiremock::Mock::given(wiremock::matchers::method(method))
+        .respond_with(
+            wiremock::ResponseTemplate::new(403)
+                .set_body_json(json!({"code": 50013, "message": message})),
+        )
+        .with_priority(1)
+        .mount(server)
+        .await;
+}
+async fn close_pool_with_witness(store: &Store) -> Store {
+    let witness_pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect_with((*store.pool.connect_options()).clone())
+        .await
+        .unwrap();
+    let witness = Store::new(
+        witness_pool,
+        42.into(),
+        Policy {
+            amount: Points(100),
+            interval: 86400,
+        },
+    );
+    store.pool.close().await;
+    witness
+}
 async fn persisted(store: &Store) -> Value {
     sqlx::query_scalar("SELECT jsonb_build_object('events',(SELECT jsonb_agg(to_jsonb(e) ORDER BY guild_id, revision) FROM prediction_events e),'receipts',(SELECT jsonb_agg(to_jsonb(c) ORDER BY guild_id, command_key) FROM prediction_commands c),'announcements',(SELECT jsonb_agg(to_jsonb(a) ORDER BY guild_id, revision) FROM prediction_announcement_outbox a))").fetch_one(&store.pool).await.unwrap()
 }
@@ -448,8 +475,9 @@ fn slash_for(
 ) -> Interaction {
     let mut value = listing_interaction(
         id,
-        &json!({"id":"42","name":"market","type":1,"options":[{"name":"positions","type":1,"options":options}]}),
+        &json!({"id":"42","name":"market","type":1,"options":[{"name":"positions","type":1,"options":[]}]}),
     );
+    value["data"]["options"][0]["options"] = options;
     scoped(&mut value, guild.unwrap_or(1), user);
     if guild.is_none() {
         value.as_object_mut().unwrap().remove("guild_id");
@@ -566,7 +594,7 @@ async fn positions_require_guild_enrollment_and_revalidate_scope_status_and_cont
             "only for resolved markets",
         ),
         (
-            format!("pm:1:99:ps:missing:0"),
+            "pm:1:99:ps:missing:0".to_owned(),
             1,
             99,
             2,
@@ -629,20 +657,12 @@ async fn positions_require_guild_enrollment_and_revalidate_scope_status_and_cont
 async fn positions_query_and_delivery_failures_are_private_structured_and_read_only() {
     use super::{fixture_with_audit, recording_fixture};
     use prediction_bot::audit::{AuditEvent, FailureCategory, Outcome, QueryKind, Stage};
-    use wiremock::{Mock, ResponseTemplate, matchers::method};
     let (audit, recorder) = recording_fixture();
     let (_container, store) = fixture_with_audit(audit).await;
     seed(&store, MARKET, &[(2, 0, 5), (3, 1, 5)]).await;
     let saved = persisted(&store).await;
     let (server, http) = listing_http().await;
-    Mock::given(method("PATCH"))
-        .respond_with(
-            ResponseTemplate::new(403)
-                .set_body_json(json!({"code":50013,"message":"private provider diagnostic"})),
-        )
-        .with_priority(1)
-        .mount(&server)
-        .await;
+    reject_discord_request(&server, "PATCH", "private provider diagnostic").await;
     recorder.0.lock().unwrap().clear();
     handle_interaction(store.clone(), &http, UserId(99), slash(900, MARKET)).await;
     {
@@ -662,20 +682,7 @@ async fn positions_query_and_delivery_failures_are_private_structured_and_read_o
         assert_that!(events.iter().any(|e|matches!(e,AuditEvent::InteractionCompleted{interaction_id:900,stage:Stage::Deliver,outcome:Outcome::Failed(failure),..} if failure.category==FailureCategory::Discord && failure.http_status==Some(403) && failure.discord_code==Some(50013))),eq(true));
     }
     assert_that!(persisted(&store).await, eq(&saved));
-    let witness_pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(1)
-        .connect_with((*store.pool.connect_options()).clone())
-        .await
-        .unwrap();
-    let witness = Store::new(
-        witness_pool,
-        42.into(),
-        Policy {
-            amount: Points(100),
-            interval: 86400,
-        },
-    );
-    store.pool.close().await;
+    let witness = close_pool_with_witness(&store).await;
     let (server, http) = listing_http().await;
     recorder.0.lock().unwrap().clear();
     handle_interaction(store.clone(), &http, UserId(99), slash(901, MARKET)).await;
@@ -705,14 +712,7 @@ async fn positions_query_and_delivery_failures_are_private_structured_and_read_o
     denied(&server, "temporarily unavailable").await;
     assert_that!(persisted(&witness).await, eq(&saved));
     let (server, http) = listing_http().await;
-    Mock::given(method("POST"))
-        .respond_with(
-            ResponseTemplate::new(403)
-                .set_body_json(json!({"code":50013,"message":"acknowledgement failure"})),
-        )
-        .with_priority(1)
-        .mount(&server)
-        .await;
+    reject_discord_request(&server, "POST", "acknowledgement failure").await;
     recorder.0.lock().unwrap().clear();
     handle_interaction(store.clone(), &http, UserId(99), slash(903, MARKET)).await;
     assert_that!(
