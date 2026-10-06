@@ -1229,8 +1229,8 @@
         },
         {
           "importpath": "github.com/cloudflare/circl",
-          "sha256": "0ae230b3aa8a3da22e98897923d64015417c1fc96b54bb9fbad77b150a10dd06",
-          "version": "v1.6.1"
+          "sha256": "2eeb15c166c5960d63e47e44432e12b93f1ab5ec997d6d61a0deb73d989ab5e5",
+          "version": "v1.6.3"
         },
         {
           "importpath": "github.com/cosiner/argv",
@@ -1991,6 +1991,11 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "github.com/cloudflare/circl",
+          "sha256": "0ae230b3aa8a3da22e98897923d64015417c1fc96b54bb9fbad77b150a10dd06",
+          "version": "v1.6.1"
         },
         {
           "importpath": "github.com/cyphar/filepath-securejoin",
