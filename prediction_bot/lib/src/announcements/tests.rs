@@ -318,7 +318,11 @@ fn maximum_creation_preserves_all_fields_when_user_text_expands() {
         let text = content(&payload);
         assert_that!(text.encode_utf16().count(), le(2000));
         for i in 0..10 {
-            assert_that!(text, contains_substring(format!("• {i}")), "{text}");
+            assert_that!(
+                text,
+                contains_substring(format!("{}. {i}", i + 1)),
+                "{text}"
+            );
         }
         assert_that!(
             text,
@@ -576,7 +580,7 @@ fn unchanged_odds_remain_readable_by_the_previous_snapshot_reader() {
 }
 
 #[googletest::test]
-fn recorded_creation_stakes_render_zero_before_saved_odds() {
+fn recorded_creation_stakes_render_numbered_zero_stake_table() {
     let snapshot = serde_json::from_value(serde_json::json!({"Created": {
         "id": "rain-1", "question": "Will it rain?", "creator": 7,
         "options": ["Yes", "No"], "closes_at": 2000, "occurred_at": 1000,
@@ -587,7 +591,7 @@ fn recorded_creation_stakes_render_zero_before_saved_odds() {
     assert_that!(
         content(&message),
         contains_substring(
-            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance"
+            "Outcomes:\n```\nChoice | Points staked | Implied chance | Movement\n1. Yes |             0 | N/A (no bets)  |\n2. No  |             0 | N/A (no bets)  |\nTotal  |             0 | -              | -\n```"
         )
     );
     assert_mentions_disabled(&message);
@@ -693,7 +697,12 @@ fn saved_stakes_preserve_exact_maximum_amount_with_all_supported_outcomes() {
                 let text = content(&message);
                 assert_that!(text.encode_utf16().count(), le(2000));
                 for index in 0..count {
-                    assert_that!(text, contains_substring(format!("• {index}")));
+                    let prefix = if kind == "Created" {
+                        format!("{}. {index}", index + 1)
+                    } else {
+                        format!("• {index}")
+                    };
+                    assert_that!(text, contains_substring(prefix));
                 }
                 if kind != "Created" {
                     assert_that!(
@@ -713,4 +722,118 @@ fn saved_stakes_preserve_exact_maximum_amount_with_all_supported_outcomes() {
             }
         }
     }
+}
+
+#[googletest::test]
+fn creation_table_keeps_unicode_and_neutralizes_row_and_fence_controls() {
+    let message = payload(SnapshotV1::Created {
+        stakes: Some(super::StakeSummary {
+            total: crate::types::Points(0),
+            outcomes: vec![crate::types::Points(0); 2],
+        }),
+        id: "safe-table".into(),
+        question: "Unicode?".into(),
+        creator: UserId(7),
+        options: vec!["茶🔮e\u{301}".into(), "👩‍💻\n```|\u{202e}\u{0}".into()],
+        closes_at: 2000,
+        occurred_at: 1000,
+    });
+    let text = content(&message);
+    assert_that!(
+        text,
+        contains_substring(
+            "```\nChoice     | Points staked | Implied chance | Movement\n1. 茶🔮e\u{301}   |             0 | N/A (no bets)  |\n2. 👩‍💻 ˋˋˋ¦ |             0 | N/A (no bets)  |\nTotal      |             0 | -              | -\n```"
+        )
+    );
+    assert_that!(text.matches("```").count(), eq(2));
+    assert_that!(text.contains('\u{202e}'), eq(false));
+    assert_that!(text.contains('\u{0}'), eq(false));
+    assert_mentions_disabled(&message);
+}
+
+#[googletest::test]
+fn creation_table_shortens_labels_without_splitting_clusters_or_losing_numbering() {
+    let message = payload(SnapshotV1::Created {
+        stakes: Some(super::StakeSummary {
+            total: crate::types::Points(0),
+            outcomes: vec![crate::types::Points(0); 4],
+        }),
+        id: "short-labels".into(),
+        question: "Which choice?".into(),
+        creator: UserId(7),
+        options: vec![
+            format!("{}yes", "a".repeat(77)),
+            format!("{}no", "a".repeat(78)),
+            format!("{}👩‍💻tail", "a".repeat(30)),
+            "e\u{301}".repeat(40),
+        ],
+        closes_at: 2000,
+        occurred_at: 1000,
+    });
+    let text = content(&message);
+    for prefix in [
+        "1. aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa… |",
+        "2. aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa… |",
+        "3. aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…  |",
+        "4. ééééééééééééééééééééééééééééééé… |",
+    ] {
+        assert_that!(text, contains_substring(prefix));
+    }
+    assert_that!(text.matches("N/A (no bets)").count(), eq(4));
+    assert_mentions_disabled(&message);
+}
+
+#[googletest::test]
+fn creation_table_budget_includes_padding_and_all_original_event_details() {
+    let mut options = vec!["a".repeat(80)];
+    options.extend((1..10).map(|index| {
+        format!(
+            "{index}{}",
+            "a\u{1d165}\u{1d165}\u{1d165}\u{1d165}\u{1d165}".repeat(13)
+        )
+    }));
+    let message = payload(SnapshotV1::Created {
+        stakes: Some(super::StakeSummary {
+            total: crate::types::Points(0),
+            outcomes: vec![crate::types::Points(0); 10],
+        }),
+        id: "12345678-1234-1234-1234-123456789abc".into(),
+        question: "🔮".repeat(200),
+        creator: UserId(u64::MAX),
+        options,
+        closes_at: i64::MAX,
+        occurred_at: i64::MAX,
+    });
+    let text = content(&message);
+    assert_that!(text.encode_utf16().count(), le(2000), "{text}");
+    let table = text.split("```").nth(1).unwrap();
+    assert_that!(
+        table.lines().filter(|line| line.contains(" | ")).count(),
+        eq(12)
+    );
+    for number in 1..=10 {
+        assert_that!(table, contains_substring(format!("\n{number}. ")));
+    }
+    assert_that!(table, contains_substring("\nTotal"));
+    assert_that!(
+        table
+            .lines()
+            .filter(|line| line
+                .split(" | ")
+                .nth(1)
+                .is_some_and(|cell| cell.trim() == "0"))
+            .count(),
+        eq(11)
+    );
+    assert_that!(
+        text,
+        contains_substring("Market ID: `12345678-1234-1234-1234-123456789abc`")
+    );
+    assert_that!(text, contains_substring("Creator: <@18446744073709551615>"));
+    assert_that!(
+        text,
+        contains_substring("Closes: <t:9223372036854775807:F>")
+    );
+    assert_that!(text, ends_with("Event time: <t:9223372036854775807:F>"));
+    assert_mentions_disabled(&message);
 }

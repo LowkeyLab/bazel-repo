@@ -61,6 +61,8 @@ rust_library(
         # Used inside the emit! macro body, which Gazelle does not expand.
         "@crates//:tracing",  # keep
         "@crates//:uuid",
+        "@crates//:unicode-segmentation",
+        "@crates//:unicode-width",
     ],
 )
 

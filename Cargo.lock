@@ -8269,6 +8269,8 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "tracing-subscriber",
+ "unicode-segmentation",
+ "unicode-width",
  "url",
  "utoipa",
  "utoipa-swagger-ui",

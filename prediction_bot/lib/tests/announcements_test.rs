@@ -3361,15 +3361,16 @@ async fn creation_delivery_keeps_zero_stakes_after_later_betting() {
     let message: serde_json::Value = requests[0].body_json().unwrap();
     assert_that!(
         message["content"].as_str().unwrap(),
-        contains_substring(
-            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance"
-        )
+        eq(format!(
+            "📈 Market created\nMarket ID: `{FIXTURE_MARKET}`\nQuestion: Will it rain?\nCreator: <@7>\nOutcomes:\n```\nChoice | Points staked | Implied chance | Movement\n1. Yes |             0 | N/A (no bets)  |\n2. No  |             0 | N/A (no bets)  |\nTotal  |             0 | -              | -\n```\nCloses: <t:2000:F>\nEvent time: <t:1000:F>"
+        ))
     );
     assert_that!(
         message["content"].as_str().unwrap(),
         contains_substring("Event time: <t:1000:F>")
     );
     assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
+    assert_that!(message["allowed_mentions"]["replied_user"], eq(false));
 }
 
 #[googletest::test]
