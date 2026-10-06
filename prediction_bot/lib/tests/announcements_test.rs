@@ -389,6 +389,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
             (
                 4,
                 json!({"Created": {
+                    "stakes": {"total": 0, "outcomes": [0, 0]},
                     "id": RESOLVED_MARKET,
                     "question": "Will it rain?",
                     "creator": 7,
@@ -401,6 +402,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
             (
                 5,
                 json!({"Created": {
+                    "stakes": {"total": 0, "outcomes": [0, 0]},
                     "id": CANCELLED_MARKET,
                     "question": "Will it rain?",
                     "creator": 7,
@@ -3302,4 +3304,87 @@ async fn legacy_betting_interactions_cannot_stake_points() {
         );
         assert_that!(view.state.markets[FIXTURE_MARKET].bets, is_empty());
     }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn creation_delivery_keeps_zero_stakes_after_later_betting() {
+    let (_container, store, _owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    store
+        .execute_at(
+            10.into(),
+            "discord:later-bet",
+            admin(),
+            &Command::Bet {
+                id: FIXTURE_MARKET.into(),
+                outcome: OutcomeIndex(0),
+                amount: Points(10),
+            },
+            1001,
+        )
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(store, Arc::new(discord_http(&server)), clock(1000))
+        .await
+        .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(1));
+    let message: serde_json::Value = requests[0].body_json().unwrap();
+    assert_that!(
+        message["content"].as_str().unwrap(),
+        contains_substring(
+            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance"
+        )
+    );
+    assert_that!(
+        message["content"].as_str().unwrap(),
+        contains_substring("Event time: <t:1000:F>")
+    );
+    assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn legacy_queued_payload_delivers_without_inventing_stakes() {
+    let (_container, store, owner) = fixture().await;
+    queued(&store, 10, 20).await;
+    // Simulate a durable payload queued by the previous release.
+    sqlx::query("UPDATE prediction_announcement_outbox SET snapshot=$1 WHERE guild_id='10'")
+        .bind(sqlx::types::Json(json!({"Created": {
+            "id": FIXTURE_MARKET, "question": "Will it rain?", "creator": 7,
+            "options": ["Yes", "No"], "closes_at": 2000, "occurred_at": 1000
+        }})))
+        .execute(&owner)
+        .await
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v10/channels/20/messages"))
+        .respond_with(delivered())
+        .mount(&server)
+        .await;
+    deliver_due(
+        restart(&store),
+        Arc::new(discord_http(&server)),
+        clock(1000),
+    )
+    .await
+    .unwrap();
+    let requests = server.received_requests().await.unwrap();
+    assert_that!(requests.len(), eq(1));
+    let message: serde_json::Value = requests[0].body_json().unwrap();
+    assert_that!(
+        message["content"].as_str().unwrap(),
+        eq(
+            "📈 Market created\nMarket ID: `00000000-0000-4000-8000-000000000003`\nQuestion: Will it rain?\nCreator: <@7>\nOutcomes:\n• Yes — N/A (no bets) implied chance\n• No — N/A (no bets) implied chance\nCloses: <t:2000:F>\nEvent time: <t:1000:F>"
+        )
+    );
+    assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
 }

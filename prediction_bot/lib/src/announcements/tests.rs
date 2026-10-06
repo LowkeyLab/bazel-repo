@@ -30,6 +30,7 @@ fn assert_mentions_disabled(payload: &Value) {
 #[googletest::test]
 fn creation_renders_saved_details_as_non_pinging_text() {
     let payload = payload(SnapshotV1::Created {
+        stakes: None,
         id: "rain-1".into(),
         question: "Will **rain** ping @everyone?".into(),
         creator: UserId(42),
@@ -56,6 +57,7 @@ fn creation_renders_saved_details_as_non_pinging_text() {
 #[googletest::test]
 fn resolution_distinguishes_a_refund_and_uses_the_original_event_time() {
     let payload = payload(SnapshotV1::Resolved {
+        stakes: None,
         odds: vec![],
         id: "unicode-🔮".into(),
         question: "Café or 茶?".into(),
@@ -80,6 +82,7 @@ fn resolution_distinguishes_a_refund_and_uses_the_original_event_time() {
 #[googletest::test]
 fn cancellation_confirms_refunds_and_escapes_hostile_markdown() {
     let payload = payload(SnapshotV1::Cancelled {
+        stakes: None,
         odds: vec![],
         id: "cancel-1".into(),
         question: "[click](https://example.invalid) # heading".into(),
@@ -101,6 +104,7 @@ fn cancellation_confirms_refunds_and_escapes_hostile_markdown() {
 #[googletest::test]
 fn long_unicode_content_stays_within_discords_utf16_limit() {
     let payload = payload(SnapshotV1::Created {
+        stakes: None,
         id: "kept-id".into(),
         question: "🔮".repeat(1_500),
         creator: UserId(7),
@@ -139,6 +143,7 @@ fn retry_ignores_negative_provider_delays() {
 fn truncation_preserves_a_valid_maximum_length_market_id() {
     let id = "12345678-1234-1234-1234-123456789abc";
     let payload = payload(SnapshotV1::Created {
+        stakes: None,
         id: id.into(),
         question: "🔮".repeat(1_500),
         creator: UserId(7),
@@ -245,6 +250,7 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
     let escaped = r"\<t:0:R\> \<\#123\> \<:coin:456\> \<a:dance:789\> \\\<t:1:F\>";
     let snapshots = [
         SnapshotV1::Created {
+            stakes: None,
             id: "00000000-0000-4000-8000-000000000001".into(),
             question: text.into(),
             creator: UserId(42),
@@ -253,6 +259,7 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
             occurred_at: 1000,
         },
         SnapshotV1::Resolved {
+            stakes: None,
             odds: vec![],
             id: "00000000-0000-4000-8000-000000000001".into(),
             question: text.into(),
@@ -261,6 +268,7 @@ fn saved_discord_syntax_is_escaped_but_announcement_timestamps_remain_active() {
             occurred_at: 1000,
         },
         SnapshotV1::Cancelled {
+            stakes: None,
             odds: vec![],
             id: "00000000-0000-4000-8000-000000000001".into(),
             question: text.into(),
@@ -294,6 +302,10 @@ fn http_request_timeouts_retry_without_pausing_the_guild() {
 fn maximum_creation_preserves_all_fields_when_user_text_expands() {
     for character in ["🔮", "*", "\\"] {
         let payload = payload(SnapshotV1::Created {
+            stakes: Some(super::StakeSummary {
+                total: crate::types::Points(0),
+                outcomes: vec![crate::types::Points(0); 10],
+            }),
             id: "12345678-1234-1234-1234-123456789abc".into(),
             question: character.repeat(200),
             creator: UserId(u64::MAX),
@@ -412,6 +424,7 @@ fn odds_preserve_every_outcome_within_discords_message_limit() {
             "id": "12345678-1234-1234-1234-123456789abc",
             "question": "🔮".repeat(200), "occurred_at": i64::MAX,
             "bet_count": 100, "winner": "*".repeat(80), "refunded": false,
+            "stakes": {"total": 9_223_372_036_854_775_800_i64, "outcomes": vec![922_337_203_685_477_580_i64; 10]},
             "odds": (0..10).map(|i| serde_json::json!({
                 "label": format!("{i}{}", "*".repeat(79)), "tenths_percent": 100, "unchanged": true
             })).collect::<Vec<_>>()
@@ -512,6 +525,7 @@ fn movement_compares_displayed_percentages_without_inventing_a_first_bet_baselin
             .map(|(current, previous)| current.with_previous(previous))
             .collect();
         let message = payload(SnapshotV1::BetPlaced {
+            stakes: None,
             id: "market".into(),
             question: market.question,
             bet_count: market.bets.len(),
@@ -559,4 +573,144 @@ fn unchanged_odds_remain_readable_by_the_previous_snapshot_reader() {
     assert_that!(old_reader.movement.is_none(), eq(true));
     let current_reader: OutcomeOdds = serde_json::from_value(saved).unwrap();
     assert_that!(current_reader.movement_indicator(), eq(" ➖ unchanged"));
+}
+
+#[googletest::test]
+fn recorded_creation_stakes_render_zero_before_saved_odds() {
+    let snapshot = serde_json::from_value(serde_json::json!({"Created": {
+        "id": "rain-1", "question": "Will it rain?", "creator": 7,
+        "options": ["Yes", "No"], "closes_at": 2000, "occurred_at": 1000,
+        "stakes": {"total": 0, "outcomes": [0, 0]}
+    }}))
+    .unwrap();
+    let message = payload(snapshot);
+    assert_that!(
+        content(&message),
+        contains_substring(
+            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance"
+        )
+    );
+    assert_mentions_disabled(&message);
+}
+
+#[googletest::test]
+fn legacy_snapshots_decode_and_preserve_their_messages_without_invented_stakes() {
+    for (kind, heading, details) in [
+        (
+            "Created",
+            "📈 Market created",
+            "Creator: <@7>\nOutcomes:\n• Yes — N/A (no bets) implied chance\n• No — N/A (no bets) implied chance\nCloses: <t:2000:F>",
+        ),
+        ("BetPlaced", "🎲 Another bet", "2 bets placed"),
+        (
+            "Resolved",
+            "✅ Market resolved",
+            "Winning outcome: Yes\nStakes refunded: no",
+        ),
+        ("Cancelled", "🚫 Market cancelled", "Stakes refunded: yes"),
+    ] {
+        for with_odds in [false, true] {
+            let mut fields = serde_json::json!({
+                "id": "rain-1", "question": "Rain?", "creator": 7,
+                "options": ["Yes", "No"], "closes_at": 2000, "occurred_at": 1000,
+                "bet_count": 2, "winner": "Yes", "refunded": false
+            });
+            if with_odds {
+                fields["odds"] = serde_json::json!([
+                    {"label": "Yes", "tenths_percent": 750},
+                    {"label": "No", "tenths_percent": 250}
+                ]);
+            }
+            let snapshot = serde_json::from_value(serde_json::json!({kind: fields})).unwrap();
+            let message = payload(snapshot);
+            let odds = if with_odds && kind != "Created" {
+                "\nOutcomes:\n• Yes — 75.0% implied chance\n• No — 25.0% implied chance"
+            } else {
+                ""
+            };
+            assert_that!(
+                content(&message),
+                eq(format!(
+                    "{heading}\nMarket ID: `rain-1`\nQuestion: Rain?\n{details}{odds}\nEvent time: <t:1000:F>"
+                ))
+            );
+            assert_mentions_disabled(&message);
+        }
+    }
+}
+
+#[googletest::test]
+fn exact_saved_stakes_render_with_separators_and_existing_movement() {
+    for kind in ["BetPlaced", "Resolved", "Cancelled"] {
+        let snapshot = serde_json::from_value(serde_json::json!({kind: {
+            "id": "rain-1", "question": "Rain?", "occurred_at": 1000,
+            "bet_count": 2, "winner": "Yes", "refunded": false,
+            "stakes": {"total": 1000, "outcomes": [600, 400, 0]},
+            "odds": [
+                {"label": "Yes", "tenths_percent": 600, "movement": "up"},
+                {"label": "No", "tenths_percent": 400, "movement": "down"},
+                {"label": "Other", "tenths_percent": 0, "unchanged": true}
+            ]
+        }}))
+        .unwrap();
+        let message = payload(snapshot);
+        assert_that!(
+            content(&message),
+            contains_substring(
+                "Total points staked: 1,000\nOutcomes:\n• Yes — 600 points — 60.0% implied chance 🟢 ⬆️\n• No — 400 points — 40.0% implied chance 🔴 ⬇️\n• Other — 0 points — 0.0% implied chance ➖ unchanged"
+            )
+        );
+        assert_mentions_disabled(&message);
+    }
+}
+
+#[googletest::test]
+fn saved_stakes_preserve_exact_maximum_amount_with_all_supported_outcomes() {
+    for kind in ["Created", "BetPlaced", "Resolved", "Cancelled"] {
+        for count in 2..=10 {
+            for character in ["🔮", "*", "\\"] {
+                let options: Vec<_> = (0..count)
+                    .map(|index| format!("{index}{}", character.repeat(79)))
+                    .collect();
+                let stakes = if kind == "Created" {
+                    vec![0; count]
+                } else {
+                    let mut amounts = vec![0; count];
+                    amounts[0] = i64::MAX;
+                    amounts
+                };
+                let snapshot = serde_json::from_value(serde_json::json!({kind: {
+                    "id": "12345678-1234-1234-1234-123456789abc",
+                    "question": character.repeat(200), "occurred_at": i64::MAX,
+                    "creator": u64::MAX, "closes_at": i64::MAX, "options": options,
+                    "bet_count": 100, "winner": character.repeat(80), "refunded": true,
+                    "stakes": {"total": if kind == "Created" {0} else {i64::MAX}, "outcomes": stakes},
+                    "odds": options.iter().enumerate().map(|(index, label)| serde_json::json!({
+                        "label": label, "tenths_percent": if index == 0 {1000} else {0}, "unchanged": true
+                    })).collect::<Vec<_>>()
+                }})).unwrap();
+                let message = payload(snapshot);
+                let text = content(&message);
+                assert_that!(text.encode_utf16().count(), le(2000));
+                for index in 0..count {
+                    assert_that!(text, contains_substring(format!("• {index}")));
+                }
+                if kind != "Created" {
+                    assert_that!(
+                        text,
+                        contains_substring(
+                            "Total points staked: 9,223,372,036,854,775,807\nOutcomes:"
+                        )
+                    );
+                    assert_that!(
+                        text,
+                        contains_substring(
+                            "9,223,372,036,854,775,807 points — 100.0% implied chance ➖ unchanged"
+                        )
+                    );
+                }
+                assert_mentions_disabled(&message);
+            }
+        }
+    }
 }

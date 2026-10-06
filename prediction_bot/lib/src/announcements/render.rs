@@ -1,6 +1,6 @@
 use serenity::builder::{CreateAllowedMentions, CreateMessage};
 
-use super::SnapshotV1;
+use super::{SnapshotV1, StakeSummary};
 
 const CONTENT_LIMIT: usize = 2_000;
 const TRUNCATION_MARKER: &str = "…";
@@ -29,7 +29,11 @@ pub fn render(snapshot: &SnapshotV1) -> CreateMessage {
 // Rendering empty user fields measures the exact space reserved for labels,
 // every outcome bullet, identifiers, and timestamps before sharing the remainder.
 fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
-    let odds = render_odds(snapshot.odds(), field_limit);
+    let stakes = snapshot.stakes();
+    let total = stakes.map_or_else(String::new, |stakes| {
+        format!("\nTotal points staked: {}", format_points(stakes.total))
+    });
+    let odds = render_odds(snapshot.odds(), stakes, field_limit);
     let (heading, id, details) = match snapshot {
         SnapshotV1::Enabled { .. } => return "Prediction market announcements are enabled! New markets, bets, and results will appear here.".to_owned(),
         SnapshotV1::MemberEnrolled {
@@ -66,22 +70,14 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
             options,
             closes_at,
             occurred_at,
+            ..
         } => {
-            let outcomes = options
-                .iter()
-                .map(|option| {
-                    format!(
-                        "• {} — N/A (no bets) implied chance",
-                        escape_field(option, field_limit)
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
+            let outcomes = render_creation_outcomes(options, stakes, field_limit);
             (
                 "📈 Market created",
                 Some(id),
                 format!(
-                    "Question: {}\nCreator: <@{creator}>\nOutcomes:\n{outcomes}\nCloses: <t:{closes_at}:F>\nEvent time: <t:{occurred_at}:F>",
+                    "Question: {}\nCreator: <@{creator}>{total}\nOutcomes:\n{outcomes}\nCloses: <t:{closes_at}:F>\nEvent time: <t:{occurred_at}:F>",
                     escape_field(question, field_limit),
                 ),
             )
@@ -131,23 +127,32 @@ fn render_content(snapshot: &SnapshotV1, field_limit: usize) -> String {
     format!("{prefix}\n{details}")
 }
 
-fn render_odds(odds: &[crate::odds::OutcomeOdds], field_limit: usize) -> String {
+fn render_odds(
+    odds: &[crate::odds::OutcomeOdds],
+    stakes: Option<&StakeSummary>,
+    field_limit: usize,
+) -> String {
     if odds.is_empty() {
         return String::new();
     }
     let outcomes = odds
         .iter()
-        .map(|outcome| {
+        .enumerate()
+        .map(|(index, outcome)| {
             format!(
-                "• {} — {} implied chance{}",
+                "• {} — {}{} implied chance{}",
                 escape_field(&outcome.label, field_limit),
+                outcome_stake(stakes, index),
                 outcome.chance(),
                 outcome.movement_indicator()
             )
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("\nOutcomes:\n{outcomes}")
+    let total = stakes.map_or_else(String::new, |stakes| {
+        format!("\nTotal points staked: {}", format_points(stakes.total))
+    });
+    format!("{total}\nOutcomes:\n{outcomes}")
 }
 
 fn no_mentions() -> CreateAllowedMentions {
@@ -201,4 +206,43 @@ fn escape_field(text: &str, limit: usize) -> String {
 
 fn utf16_len(text: &str) -> usize {
     text.encode_utf16().count()
+}
+
+fn outcome_stake(stakes: Option<&StakeSummary>, index: usize) -> String {
+    stakes
+        .and_then(|stakes| stakes.outcomes.get(index))
+        .map_or_else(String::new, |amount| {
+            format!("{} points — ", format_points(*amount))
+        })
+}
+
+fn format_points(amount: crate::types::Points) -> String {
+    let digits = amount.0.to_string();
+    let mut formatted = String::new();
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            formatted.push(',');
+        }
+        formatted.push(digit);
+    }
+    formatted
+}
+
+fn render_creation_outcomes(
+    options: &[String],
+    stakes: Option<&StakeSummary>,
+    field_limit: usize,
+) -> String {
+    options
+        .iter()
+        .enumerate()
+        .map(|(index, option)| {
+            format!(
+                "• {} — {}N/A (no bets) implied chance",
+                escape_field(option, field_limit),
+                outcome_stake(stakes, index)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

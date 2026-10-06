@@ -1,5 +1,7 @@
 use crate::odds::OutcomeOdds;
-use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId, MarketId, UserId};
+use crate::types::{
+    ChannelId, ConfigurationVersion, EventRevision, GuildId, MarketId, Points, UserId,
+};
 pub(crate) mod persistence;
 pub(crate) mod render;
 pub(crate) mod worker;
@@ -17,6 +19,8 @@ pub enum SnapshotV1 {
         occurred_at: i64,
     },
     BetPlaced {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stakes: Option<StakeSummary>,
         id: MarketId,
         question: String,
         bet_count: usize,
@@ -25,6 +29,8 @@ pub enum SnapshotV1 {
         occurred_at: i64,
     },
     Created {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stakes: Option<StakeSummary>,
         id: MarketId,
         question: String,
         creator: UserId,
@@ -33,6 +39,8 @@ pub enum SnapshotV1 {
         occurred_at: i64,
     },
     Resolved {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stakes: Option<StakeSummary>,
         id: MarketId,
         question: String,
         winner: String,
@@ -42,6 +50,8 @@ pub enum SnapshotV1 {
         occurred_at: i64,
     },
     Cancelled {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stakes: Option<StakeSummary>,
         id: MarketId,
         question: String,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -50,7 +60,47 @@ pub enum SnapshotV1 {
     },
 }
 
+/// Exact event-time amounts, ordered like the saved market outcomes.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct StakeSummary {
+    pub total: Points,
+    pub outcomes: Vec<Points>,
+}
+
+impl StakeSummary {
+    pub(crate) fn for_market(market: &crate::domain::Market) -> Self {
+        Self {
+            total: market.total_staked,
+            outcomes: market
+                .options
+                .iter()
+                .enumerate()
+                .map(|(index, _)| {
+                    Points(
+                        market
+                            .bets
+                            .iter()
+                            .filter(|bet| bet.outcome.0 == index)
+                            .map(|bet| bet.amount.0)
+                            .sum(),
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
 impl SnapshotV1 {
+    const fn stakes(&self) -> Option<&StakeSummary> {
+        match self {
+            Self::Created { stakes, .. }
+            | Self::BetPlaced { stakes, .. }
+            | Self::Resolved { stakes, .. }
+            | Self::Cancelled { stakes, .. } => stakes.as_ref(),
+            Self::Enabled { .. } | Self::MemberEnrolled { .. } => None,
+        }
+    }
+
     fn odds(&self) -> &[OutcomeOdds] {
         match self {
             Self::BetPlaced { odds, .. }

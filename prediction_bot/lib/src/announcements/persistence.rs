@@ -1,6 +1,6 @@
 use sqlx::{Row, types::Json};
 
-use super::{AnnouncementStatus, ConfigurationChange, SnapshotV1};
+use super::{AnnouncementStatus, ConfigurationChange, SnapshotV1, StakeSummary};
 use crate::events::{CloudEvent, Context};
 use crate::odds::OutcomeOdds;
 use crate::types::{ChannelId, ConfigurationVersion, EventRevision, GuildId};
@@ -73,6 +73,7 @@ fn event_snapshot(
             ))?;
             (
                 SnapshotV1::BetPlaced {
+                    stakes: None,
                     id: id.clone(),
                     question: market.question.clone(),
                     bet_count: market.bets.len(),
@@ -98,6 +99,9 @@ fn event_snapshot(
             created_at,
         } => (
             SnapshotV1::Created {
+                stakes: Some(StakeSummary::for_market(state.markets.get(id).ok_or(
+                    StoreError::History("announcement event disagrees with applied state"),
+                )?)),
                 id: id.clone(),
                 question: question.clone(),
                 creator: *creator,
@@ -122,6 +126,7 @@ fn event_snapshot(
             ))?;
             (
                 SnapshotV1::Resolved {
+                    stakes: None,
                     id: id.clone(),
                     question: market.question.clone(),
                     winner: winner.clone(),
@@ -140,6 +145,7 @@ fn event_snapshot(
             ))?;
             (
                 SnapshotV1::Cancelled {
+                    stakes: None,
                     id: id.clone(),
                     question: market.question.clone(),
                     odds: OutcomeOdds::for_market(market),
