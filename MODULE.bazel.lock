@@ -1244,8 +1244,8 @@
         },
         {
           "importpath": "github.com/cyphar/filepath-securejoin",
-          "sha256": "0da1a0531b12cdb5b287c8512072ffe3ee2dda3a03bd7c391697ad8185510221",
-          "version": "v0.5.0"
+          "sha256": "efa5407879bdd81110042fce16a5d05062c76762f0aacc392900b999446b7f01",
+          "version": "v0.6.1"
         },
         {
           "importpath": "github.com/derekparker/trie/v3",
@@ -1314,8 +1314,8 @@
         },
         {
           "importpath": "github.com/go-git/go-billy/v5",
-          "sha256": "0b200bf6b8bd7465c4460148114b29ca3fd33cecd5e8a03cb297d43656061eaa",
-          "version": "v5.8.0"
+          "sha256": "4e7e593b49012a77139d9cdce08c27e6090eeb66141ece64301a17145744515f",
+          "version": "v5.9.0"
         },
         {
           "importpath": "github.com/go-git/go-git/v5",
@@ -1991,6 +1991,16 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "github.com/cyphar/filepath-securejoin",
+          "sha256": "0da1a0531b12cdb5b287c8512072ffe3ee2dda3a03bd7c391697ad8185510221",
+          "version": "v0.5.0"
+        },
+        {
+          "importpath": "github.com/go-git/go-billy/v5",
+          "sha256": "0b200bf6b8bd7465c4460148114b29ca3fd33cecd5e8a03cb297d43656061eaa",
+          "version": "v5.8.0"
         },
         {
           "importpath": "google.golang.org/protobuf",
@@ -3121,6 +3131,16 @@
           "importpath": "rsc.io/pdf",
           "sha256": "fe87d9102096c87900d1b4a106d9bd58f60c06809a4ef79d804bff0684f5cbe7",
           "version": "v0.1.1"
+        },
+        {
+          "importpath": "cyphar.com/go-pathrs",
+          "sha256": "77eba3c67c7d0691cc969be77dca27d3afbc4fce4933bb459cea8da00b8cdd3a",
+          "version": "v0.2.1"
+        },
+        {
+          "importpath": "golang.org/x/exp",
+          "sha256": "2e2539b47bf2e73f6bcbf108d277013c44100f5f2684b0bb92d219b6187e088a",
+          "version": "v0.0.0-20260410095643-746e56fc9e2f"
         }
       ]
     },
