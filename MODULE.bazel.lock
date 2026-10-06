@@ -1319,8 +1319,8 @@
         },
         {
           "importpath": "github.com/go-git/go-git/v5",
-          "sha256": "1f995974d375a15c9d698c2b6090add6535221624e2105bd0a7eda93c00cf606",
-          "version": "v5.17.0"
+          "sha256": "bb735cd0759d5ab1e16e081cc8cccda76d42bf99f0c4465c0f401781b6a00562",
+          "version": "v5.19.2"
         },
         {
           "importpath": "github.com/go-sprout/sprout",
@@ -1465,7 +1465,7 @@
         {
           "importpath": "github.com/pjbgf/sha1cd",
           "sha256": "2c111fe72d6a66698ed0027832c76ffc9b1c3f7543b9f3d71ccd919b4ed7db12",
-          "version": "v0.5.0"
+          "version": "v0.6.0"
         },
         {
           "importpath": "github.com/psanford/memfs",
@@ -1991,6 +1991,16 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "github.com/pjbgf/sha1cd",
+          "sha256": "2c111fe72d6a66698ed0027832c76ffc9b1c3f7543b9f3d71ccd919b4ed7db12",
+          "version": "v0.5.0"
+        },
+        {
+          "importpath": "github.com/go-git/go-git/v5",
+          "sha256": "1f995974d375a15c9d698c2b6090add6535221624e2105bd0a7eda93c00cf606",
+          "version": "v5.17.0"
         },
         {
           "importpath": "github.com/cloudflare/circl",
