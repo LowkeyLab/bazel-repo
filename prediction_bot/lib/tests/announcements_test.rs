@@ -415,6 +415,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
             (
                 6,
                 json!({"Resolved": {
+                    "stakes": {"total": 0, "outcomes": [0, 0]},
                     "id": RESOLVED_MARKET,
                     "question": "Will it rain?",
                     "winner": "Yes",
@@ -427,6 +428,7 @@ async fn market_events_enqueue_durable_snapshots_once_at_their_original_revision
             (
                 7,
                 json!({"Cancelled": {
+                    "stakes": {"total": 0, "outcomes": [0, 0]},
                     "id": CANCELLED_MARKET,
                     "question": "Will it rain?",
                     "odds": [{"label": "Yes", "tenths_percent": null}, {"label": "No", "tenths_percent": null}],
@@ -3387,4 +3389,212 @@ async fn legacy_queued_payload_delivers_without_inventing_stakes() {
         )
     );
     assert_that!(message["allowed_mentions"]["parse"], eq(&json!([])));
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn resolution_delivery_retains_historical_stakes_after_settlement() {
+    for (winner, with_bets, refund) in [
+        (0, true, "no"),
+        (2, true, "yes (no winning bets)"),
+        (0, false, "yes (no winning bets)"),
+    ] {
+        let (_container, store, _owner) = fixture().await;
+        for (index, actor) in [admin(), member()].into_iter().enumerate() {
+            store
+                .execute_at(
+                    10.into(),
+                    &format!("discord:join-{index}"),
+                    actor,
+                    &Command::Join,
+                    1000,
+                )
+                .await
+                .unwrap();
+        }
+        store
+            .execute_at(
+                10.into(),
+                "discord:create",
+                admin(),
+                &Command::Create {
+                    id: FIXTURE_MARKET.into(),
+                    question: "Will it rain?".into(),
+                    options: vec!["Yes".into(), "No".into(), "Other".into()],
+                    closes_at: 2000,
+                },
+                1000,
+            )
+            .await
+            .unwrap();
+        if with_bets {
+            for (index, (actor, outcome, amount)) in
+                [(admin(), 0, 13), (member(), 1, 39), (admin(), 0, 26)]
+                    .into_iter()
+                    .enumerate()
+            {
+                store
+                    .execute_at(
+                        10.into(),
+                        &format!("discord:bet-{index}"),
+                        actor,
+                        &Command::Bet {
+                            id: FIXTURE_MARKET.into(),
+                            outcome: OutcomeIndex(outcome),
+                            amount: Points(amount),
+                        },
+                        1001,
+                    )
+                    .await
+                    .unwrap();
+            }
+        }
+        support::existing_destination(&store, 10, 20).await;
+        store
+            .execute_at(
+                10.into(),
+                "discord:resolve",
+                admin(),
+                &Command::Resolve {
+                    id: FIXTURE_MARKET.into(),
+                    outcome: OutcomeIndex(winner),
+                },
+                2000,
+            )
+            .await
+            .unwrap();
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v10/channels/20/messages"))
+            .respond_with(delivered())
+            .mount(&server)
+            .await;
+        deliver_due(
+            restart(&store),
+            Arc::new(discord_http(&server)),
+            clock(3000),
+        )
+        .await
+        .unwrap();
+        let requests = server.received_requests().await.unwrap();
+        assert_that!(requests.len(), eq(1));
+        let message: serde_json::Value = requests[0].body_json().unwrap();
+        let expected_stakes = if with_bets {
+            "Total points staked: 78\nOutcomes:\n• Yes — 39 points — 50.0% implied chance\n• No — 39 points — 50.0% implied chance\n• Other — 0 points — 0.0% implied chance"
+        } else {
+            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance\n• Other — 0 points — N/A (no bets) implied chance"
+        };
+        let winner_label = if winner == 2 { "Other" } else { "Yes" };
+        assert_that!(
+            message["content"].as_str().unwrap(),
+            eq(format!(
+                "✅ Market resolved\nMarket ID: `{FIXTURE_MARKET}`\nQuestion: Will it rain?\nWinning outcome: {winner_label}\nStakes refunded: {refund}\n{expected_stakes}\nEvent time: <t:2000:F>"
+            ))
+        );
+        assert_that!(
+            message["allowed_mentions"]["parse"].as_array().unwrap(),
+            is_empty()
+        );
+    }
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn cancellation_delivery_retains_historical_stakes_after_refunds() {
+    for with_bets in [true, false] {
+        let (_container, store, _owner) = fixture().await;
+        for (index, actor) in [admin(), member()].into_iter().enumerate() {
+            store
+                .execute_at(
+                    10.into(),
+                    &format!("discord:join-{index}"),
+                    actor,
+                    &Command::Join,
+                    1000,
+                )
+                .await
+                .unwrap();
+        }
+        store
+            .execute_at(
+                10.into(),
+                "discord:create",
+                admin(),
+                &Command::Create {
+                    id: FIXTURE_MARKET.into(),
+                    question: "Will it rain?".into(),
+                    options: vec!["Yes".into(), "No".into(), "Other".into()],
+                    closes_at: 2000,
+                },
+                1000,
+            )
+            .await
+            .unwrap();
+        if with_bets {
+            for (index, (actor, outcome, amount)) in
+                [(admin(), 0, 13), (member(), 1, 39), (admin(), 0, 26)]
+                    .into_iter()
+                    .enumerate()
+            {
+                store
+                    .execute_at(
+                        10.into(),
+                        &format!("discord:bet-{index}"),
+                        actor,
+                        &Command::Bet {
+                            id: FIXTURE_MARKET.into(),
+                            outcome: OutcomeIndex(outcome),
+                            amount: Points(amount),
+                        },
+                        1001,
+                    )
+                    .await
+                    .unwrap();
+            }
+        }
+        support::existing_destination(&store, 10, 20).await;
+        store
+            .execute_at(
+                10.into(),
+                "discord:cancel",
+                admin(),
+                &Command::Cancel {
+                    id: FIXTURE_MARKET.into(),
+                },
+                2000,
+            )
+            .await
+            .unwrap();
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v10/channels/20/messages"))
+            .respond_with(delivered())
+            .mount(&server)
+            .await;
+        deliver_due(
+            restart(&store),
+            Arc::new(discord_http(&server)),
+            clock(3000),
+        )
+        .await
+        .unwrap();
+        let requests = server.received_requests().await.unwrap();
+        assert_that!(requests.len(), eq(1));
+        let message: serde_json::Value = requests[0].body_json().unwrap();
+        let expected_stakes = if with_bets {
+            "Total points staked: 78\nOutcomes:\n• Yes — 39 points — 50.0% implied chance\n• No — 39 points — 50.0% implied chance\n• Other — 0 points — 0.0% implied chance"
+        } else {
+            "Total points staked: 0\nOutcomes:\n• Yes — 0 points — N/A (no bets) implied chance\n• No — 0 points — N/A (no bets) implied chance\n• Other — 0 points — N/A (no bets) implied chance"
+        };
+        assert_that!(
+            message["content"].as_str().unwrap(),
+            eq(format!(
+                "🚫 Market cancelled\nMarket ID: `{FIXTURE_MARKET}`\nQuestion: Will it rain?\nStakes refunded: yes\n{expected_stakes}\nEvent time: <t:2000:F>"
+            ))
+        );
+        assert_that!(
+            message["allowed_mentions"]["parse"].as_array().unwrap(),
+            is_empty()
+        );
+    }
 }
