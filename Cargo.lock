@@ -8259,7 +8259,7 @@ dependencies = [
  "serde_yaml",
  "serenity",
  "sqlx",
- "syn 2.0.119",
+ "syn 3.0.6",
  "testcontainers-modules",
  "thiserror 2.0.21",
  "time",

@@ -10,7 +10,7 @@ cargo-lock = "11.0.0"
 cargo_toml = { version = "1.0.0", features = ["features"] }
 clap = { version = "4", features = ["derive"] }
 proc-macro2 = "1"
-syn = { version = "2", features = ["full", "visit", "extra-traits"] }
+syn = { version = "3", features = ["full", "visit", "extra-traits"] }
 
 # Regular dependencies
 anyhow = "1.0.100"
