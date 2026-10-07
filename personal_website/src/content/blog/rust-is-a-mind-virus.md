@@ -21,7 +21,7 @@ I'd be using a language I already considered excellent, with a perfectly reasona
 
 > _Damn. I wish the language could check this part too._
 
-## The compiler has questions
+## The compiler's many questions
 
 At first, I found Rust hard to get into.
 
