@@ -18,7 +18,7 @@ import (
 
 const (
 	siteOrigin = "https://www.tacascer.com"
-	draftRoute = "/blog/rust-is-a-mind-virus/"
+	rustRoute  = "/blog/rust-is-a-mind-virus/"
 )
 
 type rssItem struct {
@@ -281,24 +281,34 @@ func TestPageMetadata(t *testing.T) {
 	}
 }
 
-func TestDraftNoindex(t *testing.T) {
+func TestRustArticlePublished(t *testing.T) {
 	client, files, _ := startCaddy(t)
-	response, body := get(t, client, draftRoute, nil)
+	response, body := get(t, client, rustRoute, nil)
 	if response.StatusCode != http.StatusOK {
-		t.Fatalf("draft status = %d; want direct access", response.StatusCode)
+		t.Fatalf("Rust article status = %d; want 200", response.StatusCode)
 	}
 	page := parsePage(t, body)
-	if page.meta["robots"] != "noindex" {
-		t.Errorf("draft robots = %q; want noindex", page.meta["robots"])
+	if page.heading != "Rust Is a Mind Virus." {
+		t.Errorf("Rust article heading = %q", page.heading)
 	}
-	if len(page.structured) != 0 {
-		t.Error("draft has published BlogPosting metadata")
+	if page.date != "2026-10-07T00:00:00.000Z" {
+		t.Errorf("Rust article publication date = %q; want October 7, 2026", page.date)
+	}
+	if page.meta["robots"] == "noindex" {
+		t.Error("published Rust article must be indexable")
+	}
+	if len(page.structured) != 1 {
+		t.Error("published Rust article must have BlogPosting metadata")
 	}
 	for _, path := range []string{"/index.html", "/blog/index.html"} {
+		found := false
 		for _, link := range parsePage(t, files[path]).links {
-			if strings.TrimSuffix(link, "/") == strings.TrimSuffix(draftRoute, "/") {
-				t.Errorf("draft listed in %s", path)
+			if strings.TrimSuffix(link, "/") == strings.TrimSuffix(rustRoute, "/") {
+				found = true
 			}
+		}
+		if !found {
+			t.Errorf("published Rust article missing from %s", path)
 		}
 	}
 }
@@ -308,13 +318,10 @@ func publishedRoutes(t *testing.T, files map[string]string) map[string]bool {
 	routes := map[string]bool{}
 	for _, link := range parsePage(t, files["/blog/index.html"]).links {
 		if strings.HasPrefix(link, "/blog/") && link != "/blog/" {
-			if strings.TrimSuffix(link, "/") == strings.TrimSuffix(draftRoute, "/") {
-				t.Fatal("draft in public blog")
-			}
 			routes[siteOrigin+strings.TrimSuffix(link, "/")+"/"] = true
 		}
 	}
-	for _, slug := range []string{"building-jvm-rpc-tooling", "prototyping-a-flink-pipeline", "making-a-platform-buildable-again", "guess-the-word", "free-dsl", "landing-page", "mindreadr", "local-first-gradle-build-scan", "the-future-is-remote"} {
+	for _, slug := range []string{"building-jvm-rpc-tooling", "prototyping-a-flink-pipeline", "making-a-platform-buildable-again", "guess-the-word", "free-dsl", "landing-page", "mindreadr", "local-first-gradle-build-scan", "the-future-is-remote", "rust-is-a-mind-virus"} {
 		if !routes[siteOrigin+"/blog/"+slug+"/"] {
 			t.Errorf("published article missing: %s", slug)
 		}

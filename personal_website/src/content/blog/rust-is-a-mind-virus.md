@@ -1,10 +1,10 @@
 ---
 title: "Rust Is a Mind Virus."
 description: "How I became oxidized"
-publishDate: 2026-09-29
+publishDate: 2026-10-07
 tags: ["rust", "kotlin", "type-systems"]
 type: essay
-draft: true
+draft: false
 ---
 
 Rust and Kotlin are my two favourite programming languages.

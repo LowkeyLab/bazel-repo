@@ -46,8 +46,8 @@ for route in \
 done
 
 remaining="$(<"${dist}/blog/index.html")"
-[[ -f "${dist}/blog/rust-is-a-mind-virus/index.html" ]] || fail "missing directly accessible Rust draft"
-[[ "${remaining}" != *"Rust Is a Mind Virus."* ]] || fail "Rust draft appeared in blog listing"
+[[ -f "${dist}/blog/rust-is-a-mind-virus/index.html" ]] || fail "missing published Rust article"
+[[ "${remaining}" == *"Rust Is a Mind Virus."* ]] || fail "Rust article missing from blog listing"
 mindreadr_card="${remaining#*'href="/blog/mindreadr/"'}"
 [[ "${mindreadr_card}" != "${remaining}" ]] || fail "missing Mindreadr card"
 mindreadr_card="${mindreadr_card%%'</a>'*}"
