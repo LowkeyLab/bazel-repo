@@ -34,6 +34,7 @@ use uuid::Uuid;
 
 mod announcements;
 mod bet;
+mod positions;
 mod resolve;
 pub mod resolvers;
 pub mod transport;
@@ -80,6 +81,9 @@ pub(crate) enum Action {
         user_id: Option<UserId>,
     },
     ResolverList,
+    Positions {
+        id: Option<MarketId>,
+    },
 
     BetForm,
     Help,
@@ -234,6 +238,17 @@ pub(crate) fn parse(input: &Input) -> Result<(GuildId, Actor, Action), &'static 
         "list" => {
             exact(input, &[])?;
             Action::List
+        }
+        "positions" => {
+            let fields = if input.options.is_empty() {
+                &[][..]
+            } else {
+                &["id"][..]
+            };
+            exact(input, fields)?;
+            Action::Positions {
+                id: (!fields.is_empty()).then(|| market_id(input)).transpose()?,
+            }
         }
         "show" => {
             exact(input, &["id"])?;
@@ -391,6 +406,7 @@ const HELP: &str = "I run prediction markets for this server using play points�
 • `/market bet` — choose a market and outcome, enter a stake, then confirm your bet.
 • `/market bet id outcome amount` — place a bet directly using a market ID, outcome number, and stake.
 • `/market list` and `/market show id` — view markets and their outcomes.
+• `/market positions` — discover resolved markets; `/market positions id` — inspect recorded stakes, payouts and net results; enrollment required.
 • `/market resolver list` — inspect recorded assignments for any market, including completed markets.
 • `/market resolve` — pick one of your eligible closed markets, choose its winning outcome, and confirm settlement.
 • `/market balance` and `/market leaderboard` — check your points and rankings.
@@ -562,6 +578,7 @@ fn render_query(view: &View, action: &Action, actor: Actor, now: i64) -> String 
         Action::ResolveForm => "Choose a closed market to resolve.".to_owned(),
         Action::BetForm => "Choose an open market to bet on.".to_owned(),
         Action::ResolverList => "Choose a market to inspect resolver assignments.".to_owned(),
+        Action::Positions { .. } => "Inspect resolved market positions.".to_owned(),
         Action::ResolverAdd { .. }
         | Action::ResolverRemove { .. }
         | Action::Write(_)
@@ -720,6 +737,18 @@ fn market_command() -> CreateCommand {
             "list",
             "List the ten newest open markets",
         ))
+        .add_option(
+            CreateCommandOption::new(
+                SubCommand,
+                "positions",
+                "Browse resolved positions; enrollment required",
+            )
+            .add_sub_option(CreateCommandOption::new(
+                Text,
+                "id",
+                "Resolved market ID; omit to browse",
+            )),
+        )
         .add_option(
             CreateCommandOption::new(SubCommand, "show", "Inspect a market")
                 .add_sub_option(required(Text, "id", "Market ID")),
@@ -1158,6 +1187,7 @@ impl Handler {
                             Action::Leaderboard => QueryKind::Leaderboard,
                             Action::List | Action::ResolverList => QueryKind::List,
                             Action::Show { .. } => QueryKind::Show,
+                            Action::Positions { .. } => QueryKind::Positions,
                             _ => QueryKind::Component,
                         };
                         match read_query(
@@ -1195,6 +1225,10 @@ impl Handler {
         .await;
     }
     async fn handle_component(&self, http: &serenity::http::Http, component: ComponentInteraction) {
+        if positions::is_control(&component.data.custom_id) {
+            positions::handle_component(&self.store, http, &component).await;
+            return;
+        }
         if resolvers::remove_guided::is_control(&component.data.custom_id) {
             resolvers::remove_guided::handle_component(&self.store, http, &component).await;
             return;

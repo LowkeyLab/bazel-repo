@@ -216,6 +216,7 @@ pub enum QueryKind {
     Leaderboard,
     List,
     Show,
+    Positions,
     Component,
 }
 
@@ -226,6 +227,7 @@ impl QueryKind {
             Self::Leaderboard => "leaderboard",
             Self::List => "list",
             Self::Show => "show",
+            Self::Positions => "positions",
             Self::Component => "component",
         }
     }

@@ -241,7 +241,7 @@ pub(super) async fn handle_component(store: &Store, http: &Http, component: &Com
     .await;
 }
 
-async fn read_navigation<A>(
+pub(in crate::discord) async fn read_navigation<A>(
     store: &Store,
     http: &Http,
     component: &ComponentInteraction,

@@ -149,6 +149,9 @@ pub(super) fn query(view: &View, action: &Action, actor: Actor, guild: GuildId, 
     };
     let prefix = prefix(guild, actor);
     match action {
+        Action::Positions { id } => {
+            return super::positions::start(view, guild, actor, id.as_ref());
+        }
         Action::ResolverList => return super::resolvers::list::picker(view, guild, actor, now, 0),
         Action::BetForm => return super::bet::picker(view, actor, guild, now, 0),
         Action::ResolveForm => return super::resolve::picker(view, actor, guild, now, 0),

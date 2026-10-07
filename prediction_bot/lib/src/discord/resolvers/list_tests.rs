@@ -44,6 +44,7 @@ fn view() -> View {
                 },
                 bets: vec![],
                 total_staked: Points(0),
+                payouts: Vec::new(),
                 resolvers: if n == 2 {
                     (1..=26).map(UserId).collect()
                 } else {

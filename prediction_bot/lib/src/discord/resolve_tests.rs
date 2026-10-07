@@ -34,6 +34,7 @@ fn view(count: usize) -> View {
                 status: Status::Open,
                 bets: vec![],
                 total_staked: Points(0),
+                payouts: Vec::new(),
                 resolvers: Default::default(),
             },
         );

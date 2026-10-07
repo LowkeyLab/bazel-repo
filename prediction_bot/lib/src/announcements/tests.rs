@@ -506,6 +506,7 @@ fn movement_compares_displayed_percentages_without_inventing_a_first_bet_baselin
             created_at: 1000,
             status: Status::Open,
             total_staked: Points(stakes.iter().map(|(_, amount)| amount).sum()),
+            payouts: Vec::new(),
             resolvers: Default::default(),
             bets: stakes
                 .into_iter()
