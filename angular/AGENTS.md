@@ -1,8 +1,8 @@
-# AGENTS.md (Angular Workspace)
+# AGENTS.md (Angular workspace)
 
 This guide covers Angular development within this Bazel monorepo. For repo-wide prerequisites and common commands, see the root `AGENTS.md`.
 
-## Workspace & Commands
+## Workspace & commands
 
 - Install NPM deps:
 
@@ -10,7 +10,7 @@ This guide covers Angular development within this Bazel monorepo. For repo-wide 
   pnpm install
   ```
 
-- Run Angular CLI via Bazel (for scaffolding only):
+- Run Angular command-line tool via Bazel (for scaffolding only):
 
   ```bash
   bazel run //tools:ng -- <args>
@@ -24,19 +24,19 @@ This guide covers Angular development within this Bazel monorepo. For repo-wide 
   ibazel run //angular/projects/mindreadr:mindreadr.serve
   ```
 
-## Project Guides
+## Project guides
 
 - Mindreadr: see `angular/projects/mindreadr/AGENTS.md`
 
-Note: Additional Angular projects live under `angular/projects/<name>/` and should include their own `AGENTS.md`.
+Note: additional Angular projects live under `angular/projects/<name>/` and should include their own `AGENTS.md`.
 
-## Best Practices — TypeScript
+## Best practices: TypeScript
 
 - Use strict type checking
 - Prefer type inference when the type is obvious
 - Avoid `any`; use `unknown` when uncertain
 
-## Best Practices — Angular
+## Best practices: Angular
 
 - Use standalone components (no NgModules)
 - Do not set `standalone: true` in decorators (default is standalone)
@@ -54,7 +54,7 @@ Note: Additional Angular projects live under `angular/projects/<name>/` and shou
 - Prefer Reactive forms over template-driven
 - Avoid `ngClass`/`ngStyle`; use `class`/`style` bindings
 
-## State Management
+## State management
 
 - Use signals for local state; `set`/`update` (not `mutate`)
 - Keep transformations pure and predictable

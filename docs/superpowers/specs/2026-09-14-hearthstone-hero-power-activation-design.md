@@ -1,4 +1,4 @@
-# Hearthstone Hero Power Activation
+# Hearthstone hero power activation
 
 ## Status
 
@@ -31,7 +31,7 @@ Return structured errors for a non-active/non-power subject and an exhausted pow
 
 Enumerate power activations after attacks and before concession, retaining the relative order of existing actions. Generate target options through the existing targeting helper and filter every candidate through shared validation. Use stable power-ID ordering and absent-target-first, ascending target-ID ordering.
 
-Repeated enumeration must preserve checkpoint, snapshot, RNG, and trace. Every enumerated activation must validate against the same state. Zero-effect powers remain usable if their explicit declaration contract permits it; the engine must not infer usability from whether effects will change state.
+Repeated enumeration must preserve checkpoint, snapshot, RNG, and trace. Every enumerated activation must validate against the same state. Zero-effect powers remain usable if their explicit declaration contract permits it; the engine must not infer usability from whether effects change state.
 
 ## Implemented sequence
 
@@ -43,15 +43,15 @@ One-shot operations:
 2. Execute the captured effects with `EffectOrigin::HeroPower`, the original source ID, and the accepted target. Nested work completes through the ordinary resolver; never retarget or rerun declaration filters.
 3. A serializable completion step records usage and exhausts the activating power after its effects finish. It must never look up and exhaust a replacement power merely because that power now belongs to the same player.
 4. Run an ordinary phase boundary, then resolve `AfterHeroPower` from the captured seeds.
-5. Finish boundary processing and perform sequence-end outcome checks.
+5. Finish boundary processing and perform sequence-end outcome validations.
 
-Steps 3–5 use an ordinary boundary after completion and another after after-use reactions, followed by the outcome check. This is the explicit engine policy selected while the pinned reference is unavailable; no early outcome check bypasses remaining reactions.
+Steps 3-5 use an ordinary boundary after completion and another after after-use reactions, followed by the outcome validation. This is the explicit engine policy selected while the pinned reference is unavailable; no early outcome validation bypasses remaining reactions.
 
 Store captured after-use seeds in an existing prepared event at sequence entry. Its EventCreated trace therefore precedes the effects, while candidate queueing and execution occur after completion and the boundary. A separate serializable FinishHeroPower step records exhaustion. This reuses checkpoint seed/reference validation without adding a second seed payload. At after-use queue time retain the normal source-eligibility and condition checks. A trigger created by the power's effects must not join the previously captured seed set.
 
-Completion, after-use events, cleanup, and outcome checking must not all sit beneath a source-in-Play guard: replacing the source must not silently discard unrelated remaining sequence work.
+Completion, after-use events, cleanup, and outcome validation must not all sit beneath a source-in-Play guard: replacing the source must not silently discard unrelated remaining sequence work.
 
-## OriginalPowerCompletion policy
+## `OriginalPowerCompletion` policy
 
 Existing `replace_hero` moves the old power to RemovedFromGame and creates a new stable power ID with default, ready `HeroPowerState`.
 

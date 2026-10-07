@@ -1,8 +1,12 @@
-# Hero Power Activation Implementation Checklist
+# Hero power activation implementation checklist
+
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
 
 Design: [Hero Power Activation](../specs/2026-09-14-hearthstone-hero-power-activation-design.md).
+<!-- vale Google.Colons = YES -->
 
-Status: implemented and verified on 2026-09-14. Pinned-rulebook conformance remains unverified; the design records the selected engine policy. Tests pass (9 core, 258 simulator), full build passes (351 targets), and formatting passes. Lint reports no filtered findings; unrelated website ESLint formatter errors for missing `chalk` limit the repository-wide check.
+Status: implemented and verified on 2026-09-14. Pinned-rulebook conformance remains unverified; the design records the selected engine policy. Tests pass (9 core, 258 simulator), full build passes (351 targets), and formatting passes. Lint reports no filtered findings; unrelated website ESLint formatter errors for missing `chalk` limit the repository-wide validation.
 
 ## 1. Settle sequence semantics
 
@@ -26,7 +30,7 @@ Files: `core/resolver.rs`, `core/event.rs`, `simulator/simulation_action.rs`. Re
 
 - [x] Capture original source, target, effect program, and after-use trigger seeds at the selected timing.
 - [x] Pay resources, run effects with Hero Power origin, complete exhaustion/usage, and resolve after-use events in the documented engine-policy order.
-- [x] Use the existing operation stack, prepared events, boundaries, and outcome checks.
+- [x] Use the existing operation stack, prepared events, boundaries, and outcome validations.
 - [x] Test targeted damage modifiers, untargeted resource ordering, repeated use, turn refresh, replacement, after-use eligibility, and lethal outcomes.
 
 ## 4. Preserve activation through checkpoints

@@ -1,12 +1,16 @@
-# Weapon Windfury Implementation Plan
+# Weapon windfury implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let active weapon Windfury contribute to Hero attack allowance while preserving attack history and existing combat timing.
+**Goal:** let active weapon Windfury contribute to Hero attack allowance while preserving attack history and existing combat timing.
 
-**Architecture:** Read current weapon Windfury through the existing authoritative equipment lookup. Combine it with character-owned Windfury in the shared exhaustion check, which already serves validation, snapshots, and Frozen thawing. Add no serialized state or generic keyword inheritance.
+**Architecture:** read current weapon Windfury through the existing authoritative equipment lookup. Combine it with character-owned Windfury in the shared exhaustion validation, which already serves validation, snapshots, and Frozen thawing. Add no serialized state or generic keyword inheritance.
+
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
 
 **Tech Stack:** Rust, Bevy ECS, Bazel/Aspect, Nix development environment.
+<!-- vale Google.Colons = YES -->
 
 ---
 
@@ -42,7 +46,7 @@ files and test includes, so no BUILD changes are expected.
 Do not modify the generic `aura::has_keyword`, snapshot structures, resolver operations,
 durability payment, or checkpoint version.
 
-## Task 1: Live allowance and first regression
+## Task 1: live allowance and first regression
 
 **Modify:** `hearthstone_simulator/simulator/simulation_tests_actions.rs`,
 `hearthstone_simulator/simulator/weapon.rs`,
@@ -108,7 +112,7 @@ let allowance = if has_keyword(world, entity, Keyword::Windfury)
 - [x] Run Gazelle immediately, then the same focused test; expect PASS. Keep existing
       readiness and Minion Charge/Rush logic untouched.
 
-## Task 2: Equipment, keyword, and turn transitions
+## Task 2: equipment, keyword, and turn transitions
 
 **Modify:** `hearthstone_simulator/simulator/simulation_tests_actions.rs`.
 
@@ -217,7 +221,7 @@ nix develop --command aspect test //hearthstone_simulator/simulator:simulator_te
 Expected: all cases pass with the Task 1 production change. Investigate any failure against
 shared timing semantics before adding production changes.
 
-## Task 3: Suspended replacement and accepted attacks
+## Task 3: suspended replacement and accepted attacks
 
 **Modify:** `hearthstone_simulator/simulator/simulation_tests_actions.rs`.
 
@@ -298,10 +302,10 @@ its ID with `hero(&mut sim, PlayerId::One)` after replacement. The active weapon
 old nor outer; both superseded IDs must end in Graveyard exactly once. This covers original
 source removal without erroneously restoring its grant.
 
-- [x] Run Gazelle immediately, then `--test_filter=weapon_windfury`. Expected: PASS, including
+- [x] Run Gazelle immediately, then `--test_filter=weapon_windfury`. Expected: `PASS`, including
       JSON restoration and fork comparisons through the existing restore helper.
 
-## Task 4: Document and verify the slice
+## Task 4: document and verify the slice
 
 **Modify:** the three simulator Markdown documents and approved spec listed in the file map.
 
@@ -352,7 +356,7 @@ git commit -m 'feat(hearthstone): support weapon-granted Windfury'
 
 ## Plan self-review
 
-The tasks cover live allowance, history and non-stacking, weapon lifecycle, keyword changes,
+The tasks cover live allowance, history, and non-stacking, weapon lifecycle, keyword changes,
 zero Attack, off-turn behavior, thaw ordering, accepted attacks, replacement overlap, nested
 replacement, and restored continuation. Existing Minion and equipment suites remain regression
 coverage. All new API usage is restricted to helpers already in the action tests and the one

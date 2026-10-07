@@ -1,4 +1,4 @@
-# Advanced Rulebook Conformance
+# Advanced rulebook conformance
 
 ## Ruleset contract
 
@@ -6,11 +6,11 @@ The initial profile is `AdvancedRulebook2026_06_26`, based on Hearthstone Wiki a
 
 Behavior classifications:
 
-- **Current rule** — normative behavior enabled by the profile.
-- **Compatibility quirk** — observed non-obvious behavior enabled through a named policy.
-- **Historical** — recorded by the wiki but disabled in this profile.
-- **Uncertain** — observation requires confirmation and is not silently assumed.
-- **Card definition** — belongs in card data rather than the engine.
+- **Current rule**: normative behavior enabled by the profile.
+- **Compatibility quirk**: observed non-obvious behavior enabled through a named policy.
+- **Historical**: recorded by the wiki but turned off in this profile.
+- **Uncertain**: observation requires confirmation and is not silently assumed.
+- **Card definition**: belongs in card data rather than the engine.
 
 ## Matrix
 
@@ -22,7 +22,7 @@ Behavior classifications:
 | Immutable event records and queue-time trigger snapshots            | Current rule        | `PreparedEvent`, `trigger`                         | staged capture/reaction tests                      | Implemented foundation                                     |
 | Trigger ordering by dominant player, zone, priority, and play order | Current rule        | `DominantPlayer`, order keys                       | dominant grouping/depth-first tests                | Implemented foundation                                     |
 | Same-player Death trigger mingling by priority and play order       | Current rule        | `trigger`, Death Events                            | Deathrattle/observer ordering test                 | Implemented vertical slice                                 |
-| Trigger pre-check, queue-time, and resolution-time conditions       | Current rule        | `trigger`, prepared events                         | condition/abortion tests                           | Implemented foundation                                     |
+| Trigger `pre-check`, queue-time, and resolution-time conditions     | Current rule        | `trigger`, prepared events                         | condition/abortion tests                           | Implemented foundation                                     |
 | Explicit permanent and timed enchantment duration                   | Current rule        | `EnchantmentDuration`                              | schema/checkpoint invariant tests                  | Implemented foundation                                     |
 | Play-zone trigger enchantments outside board-row capacity           | Current rule        | `enchantment`, `trigger`                           | capacity/play-order tests                          | Implemented foundation                                     |
 | Attachment-aware host and event-controller conditions               | Current rule        | `TriggerCondition`                                 | validation/controller-grouping tests               | Implemented foundation                                     |
@@ -37,7 +37,7 @@ Behavior classifications:
 | Played and summoned aura refresh timing                             | Current rule        | planned `RefreshAuras` op                          | provider-only/global refresh tests                 | Implemented foundation                                     |
 | Continuously evaluated Spell Damage                                 | Current rule        | live continuous contributions                      | attached/opponent/silence tests                    | Implemented foundation                                     |
 | Delayed simultaneous death creation                                 | Current rule        | `death`                                            | synthetic area-damage test                         | Implemented vertical slice                                 |
-| Global Death order with staged pre-check and queue-time capture     | Current rule        | `death`, prepared events                           | enabling/exclusion timing tests                    | Implemented vertical slice                                 |
+| Global Death order with staged `pre-check` and queue-time capture   | Current rule        | `death`, prepared events                           | enabling/exclusion timing tests                    | Implemented vertical slice                                 |
 | Hero defeat locked at Death Creation                                | Current rule        | `death::DefeatedHeroes`                            | lethal-then-heal test                              | Implemented vertical slice                                 |
 | Outcome after all chained Death Phases                              | Current rule        | explicit `CheckOutcome` op                         | mutual Hero defeat draw test                       | Implemented vertical slice                                 |
 | Death records, turn cache, Deathrattles, and chained Death Phases   | Current rule        | `death`, phase-boundary driver                     | cache/chained Deathrattle tests                    | Implemented vertical slice                                 |
@@ -54,7 +54,7 @@ Behavior classifications:
 | Versioned suspended-resolution restoration                          | Engine policy       | `SimulationCheckpoint`                             | JSON/reference-validation tests                    | Implemented foundation                                     |
 | Explicit targeting filter foundation                                | Engine policy       | `TargetRequirement`, validator                     | target requirement/atomicity tests                 | Implemented foundation; audience/kind and Stealth/Immune   |
 | Canonical supported action enumeration and normalization            | Engine policy       | `validate_action`, `legal_actions`                 | exhaustive/soundness/purity tests                  | Implemented foundation                                     |
-| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 17                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7–16 rejected              |
+| Guarded deferred steps and checkpoint restoration                   | Engine policy       | `SubjectGuard`, schema 17                          | skip/round-trip/fork/reference tests               | Implemented foundation; schemas 7-16 rejected              |
 | Forced Death Phase timing                                           | Compatibility quirk | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Added Deathrattles and Deathrattle-position policy                  | Current rule        | named ruleset policy                               | esoteric tests                                     | Planned                                                    |
 | Historical retired interactions                                     | Historical          | excluded by profile                                | profile tests                                      | Planned                                                    |
@@ -71,7 +71,7 @@ placement is classified as engine policy, with full phase conformance still unve
 1. Every `GameObject` has one immutable `GameEntityId`, and the index agrees with ECS membership.
 2. Every zoned game entity occurs exactly once in the authoritative zone index.
 3. Gameplay ordering never uses Bevy query order or raw `Entity` values.
-4. Pre-check trigger seeds are fixed at their ruleset timing; queue-time candidate membership and order cannot change after capture.
+4. `pre-check` trigger seeds are fixed at their ruleset timing; queue-time candidate membership and order cannot change after capture.
 5. Only the iterative driver pops one-shot operations from the LIFO stack.
 6. Resolution operations and prepared events are resource-owned values, never gameplay entities.
 7. Canonical snapshots, traces, and checkpoints contain logical IDs rather than raw Bevy entity references.
@@ -90,7 +90,7 @@ Hero cards and locations remain Milestone 8 work. Ordinary weapon support uses t
 for the synthetic targeting contract; summon-only full-board restrictions, variable usage limits,
 and game-wide usage counters remain gaps. `OriginalPowerCompletion` updates the activating power
 even after replacement removes it from Play, and leaves the new power ready. Completion precedes
-an ordinary boundary, then captured after-use reactions, another boundary, and outcome checking.
+an ordinary boundary, then captured after-use reactions, another boundary, and outcome validation.
 These completion and boundary choices are explicit engine policy, not verified pinned-rulebook
 conformance. Checkpoint schema 17 is
 the only accepted action-contract checkpoint schema; older schema versions, including 7, 8, 9, 10, 11, 12, 13, 14, 15, and 16,
@@ -98,7 +98,7 @@ are rejected.
 
 For `AdvancedRulebook2026_06_26`, Hero replacement follows the dedicated “Replacing your hero” section and removes attached temporary enchantments. The contradictory sentence in the Hero-card player-action section is not generalized into the replacement reducer; full Hero-card sequencing remains a Milestone 8 gap.
 
-## Taunt and Stealth evidence
+## Taunt and stealth evidence
 
 Declaration restrictions and Taunt suppression follow the current [Target](https://hearthstone.wiki.gg/wiki/Target),
 [Taunt](https://hearthstone.wiki.gg/wiki/Taunt?section=4), and
@@ -166,9 +166,9 @@ indexing, supports attack blocking, defensive damage, silence removal, remaining
 and fresh Rush enemy-Minion availability. The pinned revision remains inaccessible.
 
 The implementation uses a serializable thaw step after end-turn reactions, the ordinary boundary,
-and outcome checking, before temporary expiration and advancement. Eligibility uses current
+and outcome validation, before temporary expiration and advancement. Eligibility uses current
 readiness and remaining attack allowance, ignores Attack value, and requires any enemy in-Play
-Minion for fresh Rush-only subjects. Full target-filter interactions are not certified: Stealth,
+Minion for fresh Rush-only subjects. Full target-filter interactions are not certified: stealth,
 Immune, and Taunt do not affect this presence predicate. Accepted attacks continue through Frozen
 gained during reactions. These choices are explicit engine policy pending full combat conformance.
 
@@ -199,11 +199,11 @@ durability enchantments, and weapon transformations remain outside this slice.
 ## Combat reaction continuation
 
 The current [advanced rulebook Combat section](https://hearthstone.wiki.gg/wiki/Advanced_rulebook?section=55)
-describes preparation reactions, inter-phase deaths, an outcome check before combat, and Attack
+describes preparation reactions, inter-phase deaths, an outcome validation before combat, and Attack
 aura changes affecting combat. The pinned revision remains inaccessible; this is supporting
 evidence, not exact-profile certification.
 
-`PrepareCombatDamage` executes after preparation's ordinary boundary and outcome check, using
+`PrepareCombatDamage` executes after preparation's ordinary boundary and outcome validation, using
 live Attack values for both accepted subjects. Zone guards cancel if either is no longer in Play;
 an established outcome also suppresses damage and completion. Successful combat retains the
 existing damage batch, FinishAttack usage increment, and AfterAttack timing, including zero damage.

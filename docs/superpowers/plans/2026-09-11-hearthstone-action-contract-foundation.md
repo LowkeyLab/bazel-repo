@@ -1,16 +1,20 @@
-# Hearthstone Action-Contract Foundation Implementation Plan
+# Hearthstone action-contract foundation implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make supported action declarations, deterministic legal-action enumeration, explicit targeting, and guarded continuations obey one tested contract.
+**Goal:** make supported action declarations, deterministic legal-action enumeration, explicit targeting, and guarded continuations obey one tested contract.
 
-**Architecture:** Store targeting as serializable card-form data. A read-only validator returns normalized actions and is shared by submission and enumeration. Extend the existing one-shot LIFO resolver with guarded sequence operations; preserve its execution, choice, and checkpoint model.
+**Architecture:** store targeting as serializable card-form data. A read-only validator returns normalized actions and is shared by submission and enumeration. Extend the existing one-shot LIFO resolver with guarded sequence operations; preserve its execution, choice, and checkpoint model.
+
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
 
 **Tech Stack:** Rust 2024, Bevy 0.19 ECS, serde, googletest, Bazel/Gazelle, Aspect.
+<!-- vale Google.Colons = YES -->
 
-**Spec:** [Approved design](../specs/2026-09-11-hearthstone-action-contract-foundation-design.md). Read it before executing this plan; it defines semantics and exclusions.
+**Spec:** [approved design](../specs/2026-09-11-hearthstone-action-contract-foundation-design.md). Read it before executing this plan; it defines semantics and exclusions.
 
-## Global Constraints
+## Global constraints
 
 - This is an engine API foundation under the existing `AdvancedRulebook2026_06_26` profile.
 - Only minion and spell plays are included. Unsupported hand card kinds are excluded.
@@ -38,9 +42,9 @@ Extend `core/resolver.rs`, `core/trace.rs`, `simulation_action.rs`, `simulation_
 
 The actual focused test targets are `//hearthstone_simulator/core:core_test` and `//hearthstone_simulator/simulator:simulator_test`. The simulator tests are not in the core target.
 
-## Task 1: Explicit targeting data survives every card-form path
+## Task 1: explicit targeting data survives every card-form path
 
-**Files:** Create `core/targeting.rs`; modify `core/{model,card_definition,checkpoint,lib}.rs`, `simulator/{lib,simulation_card_runtime,simulation_effect_executor,simulation_checkpoint}.rs`; test in core targeting/card-definition tests and `simulator/simulation_tests_api.rs`, `simulation_tests_effects.rs`, `simulation_tests_movement.rs`. Inspect `simulator/zone.rs:reset_runtime_state`; modify it only if preservation requires a change.
+**Files:** create `core/targeting.rs`; modify `core/{model,card_definition,checkpoint,lib}.rs`, `simulator/{lib,simulation_card_runtime,simulation_effect_executor,simulation_checkpoint}.rs`; test in core targeting/card-definition tests and `simulator/simulation_tests_api.rs`, `simulation_tests_effects.rs`, `simulation_tests_movement.rs`. Inspect `simulator/zone.rs:reset_runtime_state`; modify it only if preservation requires a change.
 
 **Interfaces produced:**
 
@@ -121,13 +125,13 @@ assert_eq!(restored.checkpoint().unwrap(), checkpoint);
 - [x] Extend existing copy/transform/movement regressions: give source and replacement distinct targeting values, inspect reconstructed `copy_card_data(...).unwrap().targeting`, and assert source metadata on copies, replacement metadata after transformation, and unchanged current-form metadata after backward movement. Exercise both Play and non-Play copy destinations already covered by those fixtures.
 - [x] Run Gazelle after edits, `aspect test //hearthstone_simulator/...`, repository formatting, and full build. Commit `feat(hearthstone): persist explicit card targeting contracts`.
 
-## Task 2: Shared validator enforces targeting and normalizes declarations
+## Task 2: shared validator enforces targeting and normalizes declarations
 
-**Files:** Create `simulator/simulation_action_validation.rs`; modify `simulation.rs`, `simulation_action.rs`, `core/error.rs`; test `simulation_tests_actions.rs`. Migrate targeted action fixtures in existing simulator test modules.
+**Files:** create `simulator/simulation_action_validation.rs`; modify `simulation.rs`, `simulation_action.rs`, `core/error.rs`; test `simulation_tests_actions.rs`. Migrate targeted action fixtures in existing simulator test modules.
 
-**Interfaces consumed:** Task 1 targeting types; existing `CardRuntime`, `ZoneIndex`, `player`, `game_entity`, and effect-program validators.
+**Interfaces consumed:** task 1 targeting types; existing `CardRuntime`, `ZoneIndex`, `player`, `game_entity`, and effect-program validators.
 
-**Interfaces produced in action_validation:**
+**Interfaces produced in `action_validation`:**
 
 ```rust
 pub(super) fn validate_action(
@@ -176,7 +180,7 @@ fn untargeted_play_rejects_a_supplied_target() {
 Run Gazelle and the simulator test target. Expect this new assertion to fail under current behavior.
 
 - [x] Move `validate_action`, `validate_play_card`, and `validate_attack` into the sibling module, retaining existing validation checks. Add these structured errors with thiserror messages: `MissingTarget(GameEntityId)`, `UnexpectedTarget(GameEntityId)`, `InvalidTarget { card: GameEntityId, target: GameEntityId }`, `UnsupportedActionChoice(ChoiceId)`, and `UnexpectedBoardPosition(GameEntityId)`. Reuse the existing zone error for out-of-range minion positions.
-- [x] Match the requirement table before resolution. For a supplied target, reject None requirements as UnexpectedTarget and filter failures as InvalidTarget. For an absent target, reject Required and nonempty RequiredIfAvailable as MissingTarget. Reject nonempty choice and any spell board_index. Normalize minion None to `Some(crate::zone::board_entities(world, player).len())` only after validating the submitted position. Use `crate::zone::board_entities(world, player).len()` for board-row length in enumeration too; counting all Play entities would incorrectly include Heroes and Hero Powers.
+- [x] Match the requirement table before resolution. For a supplied target, reject None requirements as UnexpectedTarget and filter failures as InvalidTarget. For an absent target, reject Required and nonempty RequiredIfAvailable as MissingTarget. Reject nonempty choice and any spell `board_index`. Normalize minion None to `Some(crate::zone::board_entities(world, player).len())` only after validating the submitted position. Use `crate::zone::board_entities(world, player).len()` for board-row length in enumeration too; counting all Play entities would incorrectly include Heroes and Hero Powers.
 - [x] Restrict both combat entities to `EntityKind::Hero | EntityKind::Minion` in addition to existing readiness/zone/controller checks. Do not add keyword checks in this task.
 - [x] Change action submission to consume the normalized declaration before changing status:
 
@@ -191,13 +195,13 @@ Captured target and normalized placement are copied directly to SequenceStep. Ke
 - [x] Add rejection atomicity checks around each invalid declaration. Compare checkpoints after removing only the newly appended ActionRejected entry from the actual checkpoint's trace; compare remaining fields exactly. Check wrong turn, busy, complete, unsupported kind/choice, mana, capacity, and positions.
 - [x] Run Gazelle, `aspect test //hearthstone_simulator/...`, formatting, and full build. Commit `feat(hearthstone): validate and normalize action declarations`.
 
-## Task 3: Enumerate every canonical supported action
+## Task 3: enumerate every canonical supported action
 
-**Files:** Modify `simulator/simulation_action.rs`; test `simulation_tests_actions.rs` and update existing exact-list expectations in that file.
+**Files:** modify `simulator/simulation_action.rs`; test `simulation_tests_actions.rs` and update existing exact-list expectations in that file.
 
 **Consumes:** `validate_action`, `target_options` from Task 2.
 
-**Produces:** Existing `legal_actions(world: &mut World) -> Vec<GameAction>` with the approved deterministic contract; no public signature change.
+**Produces:** existing `legal_actions(world: &mut World) -> Vec<GameAction>` with the approved deterministic contract; no public signature change.
 
 - [x] Add a regression with an empty friendly board and a targeted zero-cost minion. Both opposing Hero and a spawned enemy minion are eligible. Expected plays are the two target IDs in ascending order at position Some(0), surrounded by EndTurn and Concede. This currently fails because enumeration emits target=None and omits Concede.
 - [x] Add a candidate through the shared validator using this local closure pattern:
@@ -232,15 +236,15 @@ for action in &first {
 
 In the nested test module, access `action_validation` through the parent module's path (for example `super::action_validation`); do not make it public outside the simulator.
 
-- [x] Add an independently generated exhaustive small-fixture candidate loop. Iterate every hand ID including unsupported kinds; targets None, every known entity, and a stale ID; positions None and zero through board length plus one; choices None and Some(ChoiceId(999)). Normalize each successful validation and assert it is contained in the list. Separately enumerate all entity pairs for attacks and both players for EndTurn/Concede. This test must not call target_options to generate its oracle candidates.
+- [x] Add an independently generated exhaustive small-fixture candidate loop. Iterate every hand ID including unsupported kinds; targets None, every known entity, and a stale ID; positions None and zero through board length plus one; choices None and Some(ChoiceId(999)). Normalize each successful validation and assert it is contained in the list. Separately enumerate all entity pairs for attacks and both players for EndTurn/Concede. This test must not call `target_options` to generate its oracle candidates.
 - [x] Execute every canonical action on a fresh fork of the same well-formed fixture. Add separate fixtures for exhausted/zero-attack characters, full board, unsupported hand cards, negative costs, and each status restriction. Assert minion None normalizes to exactly the final explicit position action.
 - [x] Run Gazelle, simulator tests, formatting, and full build. Commit `feat(hearthstone): enumerate canonical legal actions`.
 
-## Task 4: Guarded one-shot sequence operations
+## Task 4: guarded one-shot sequence operations
 
-**Files:** Modify `core/{resolver,trace,lib,checkpoint}.rs`, `simulator/{lib,simulation_action,simulation_event_resolver,simulation_checkpoint}.rs`; test `simulation_tests_actions.rs` and core resolver serialization tests.
+**Files:** modify `core/{resolver,trace,lib,checkpoint}.rs`, `simulator/{lib,simulation_action,simulation_event_resolver,simulation_checkpoint}.rs`; test `simulation_tests_actions.rs` and core resolver serialization tests.
 
-**Consumes:** Existing SequenceStep dispatch and normalized action compiler.
+**Consumes:** existing SequenceStep dispatch and normalized action compiler.
 
 **Produces:**
 
@@ -294,13 +298,13 @@ run_sequence_step(world, step)
 - [x] Add success, empty-guards, missing subject, wrong zone, first-of-two failure, and no-RNG-change cases. Use a queued Move effect before the guarded step to prove execution-time evaluation. Exercise move-out-and-back and stable-ID transformation passing the guard. Assert siblings and CheckOutcome still run, with no orphaned resolver work.
 - [x] Run Gazelle, Hearthstone tests, formatting, and full build. Commit `feat(hearthstone): guard deferred sequence subjects`.
 
-## Task 5: Captured targets and suspended guards survive continuation
+## Task 5: captured targets and suspended guards survive continuation
 
-**Files:** Test `simulator/simulation_tests_actions.rs`, `simulation_tests_api.rs`; modify `simulation_checkpoint.rs` only for defects revealed by these integration cases.
+**Files:** test `simulator/simulation_tests_actions.rs`, `simulation_tests_api.rs`; modify `simulation_checkpoint.rs` only for defects revealed by these integration cases.
 
-**Consumes:** Task 4 guarded operations and Task 2 captured declarations; existing `retain_operation` helper in API tests, ChoiceRequest, ChoiceOption, and Simulation checkpoint/fork API.
+**Consumes:** task 4 guarded operations and Task 2 captured declarations; existing `retain_operation` helper in API tests, ChoiceRequest, ChoiceOption, and Simulation checkpoint/fork API.
 
-**Produces:** Behavioral evidence for target capture and checkpoint-exact guarded continuation.
+**Produces:** behavioral evidence for target capture and checkpoint-exact guarded continuation.
 
 - [x] Build a required-enemy-character spell targeting a spawned enemy minion, with a CardPlayed trigger that changes that minion's controller before the spell's damage effect executes. The action is accepted based on initial enemy ownership; damage still refers to the same captured ID. Use `Effect::Move { targets: Selector::Entity(target), player: PlayerSelector::Player(PlayerId::One), zone: Zone::Play, kind: ZoneMovementKind::Normal }` to change the minion's control while remaining in Play. Give both players free board capacity; do not change Hero ownership. Assert damage hits that ID and no retarget event/RNG draw occurs.
 - [x] Add a complementary invalid-before-declaration case using the same fixture: change control before apply, then expect InvalidTarget with unchanged gameplay state. Together these distinguish declaration validation from later effect resolution.
@@ -338,13 +342,13 @@ fork.assert_invariants().unwrap();
 - Task 5 uses sequential manual `ChoiceId` fixture values because `ResolutionWork` has no `ChoiceId`
   allocator. Each fixture uses fresh explicit values and asserts its chosen option.
 
-## Task 6: Publish foundation coverage and verify the implementation
+## Task 6: publish foundation coverage and verify the implementation
 
-**Files:** Modify `hearthstone_simulator/{README,IMPLEMENTATION_PROGRESS,RULEBOOK_CONFORMANCE}.md`; update this plan's completed checkboxes only for verified tasks.
+**Files:** modify `hearthstone_simulator/{README,IMPLEMENTATION_PROGRESS,RULEBOOK_CONFORMANCE}.md`; update this plan's completed checkboxes only for verified tasks.
 
-**Consumes:** Passing tasks 1–5 and actual fresh verification results.
+**Consumes:** passing tasks 1-5 and actual fresh verification results.
 
-**Produces:** Documentation accurately describing the foundation and remaining scope.
+**Produces:** documentation accurately describing the foundation and remaining scope.
 
 - [x] Update README's action API description with explicit targeting, canonical placement enumeration, attacks, and supported declaration restrictions. Use this example, adding the public core import matching the documentation's surrounding style:
 

@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs live in GitHub Issues for LowkeyLab/bazel-repo.
+Issues and specs live in GitHub Issues for LowkeyLab/Bazel-repo.
 Use `--repo LowkeyLab/bazel-repo` with `gh issue` commands, including outside
 this checkout or from contributor forks. For `gh api`, specify the repository
 in the endpoint (`repos/LowkeyLab/bazel-repo/...`); it has no `--repo` flag.
@@ -29,8 +29,8 @@ Apply label filters to the complete results or the API query. A limited list
 is a preview, not evidence that an issue does not exist. Use the Read command
 for each candidate when comments, dependencies, or child details are needed.
 
-When a skill says "publish to the issue tracker", create a GitHub issue.
-When it says "fetch the relevant ticket", read the issue and its comments.
+When a skill says "publish to the issue tracker," create a GitHub issue.
+When it says "fetch the relevant ticket," read the issue and its comments.
 
 ## Pull requests as a triage surface
 
@@ -59,8 +59,8 @@ the maintainer designates that coordinator; other sessions request tickets
 from it rather than claiming independently. If no coordinator is designated,
 pause claiming until one is selected.
 
-The coordinator reads the map's ordered subIssues and each child's current
-state, assignees, and blockedBy before selecting the first open, unassigned,
+The coordinator reads the map's ordered `subIssues` and each child's current
+state, assignees, and `blockedBy` before selecting the first open, unassigned,
 unblocked child. Follow pagination when enumerating children or blockers:
 use `gh api --paginate repos/LowkeyLab/bazel-repo/issues/<map>/sub_issues`
 and `gh api --paginate repos/LowkeyLab/bazel-repo/issues/<child>/dependencies/blocked_by`.

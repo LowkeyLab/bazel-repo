@@ -3,7 +3,7 @@
 ## Purpose and contract
 
 Expose an HTTP liveness probe from the prediction bot process. `GET /healthz`
-returns status `200 OK`, content type `text/plain; charset=utf-8`, and body `ok`.
+returns status `200 OK`, media type `text/plain; charset=utf-8`, and body `ok`.
 The handler has no dependencies on PostgreSQL, Discord, or worker state. A
 successful response establishes only that the process can serve the probe;
 it does not establish readiness to handle market commands.
@@ -52,7 +52,7 @@ contract, default bind address, and an example request in `prediction_bot/README
 and add the setting to `.env.example`.
 
 Use googletest assertions and the repository's Bazel test workflow. Verify the HTTP
-status, body, and content type; confirm probes work while bot initialization is
+status, body, and media type; confirm probes work while bot initialization is
 pending; verify configuration defaults and invalid input; and cover bind failure,
 bot completion/failure cleanup, and unexpected server completion. Exercise the
 actual local listener where needed to establish lifecycle behavior without live
@@ -90,7 +90,7 @@ listener closure and the returned outcome. Avoid sleep-based coordination and
 assertions on internal helper calls.
 
 Keep any seam for unexpected server completion private to the supervisor and use
-it only to supply a completing or failing server future. Such a check proves the
+it only to supply a completing or failing server future. Such a test proves the
 supervisor's reaction, not that Axum produces that failure. Pair it with the real
 listener tests. Do not introduce public debug controls, test-mode branches, or
 interfaces for deterministic helpers.

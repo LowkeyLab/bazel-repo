@@ -1,4 +1,4 @@
-# Agent Instructions for Personal Website
+# Agent instructions for personal website
 
 This project is an Astro-based static site integrated into a Bazel monorepo. Agents should use Bazel commands rather than native `npm` or `pnpm` commands to ensure hermeticity and caching.
 
@@ -10,9 +10,9 @@ To build the static site:
 aspect build //personal_website:build
 ```
 
-The output will be in `bazel-bin/personal_website/dist`.
+The output is in `bazel-bin/personal_website/dist`.
 
-## Development Server
+## Development server
 
 To run the development server with live reloading (hot module replacement), use `ibazel`:
 

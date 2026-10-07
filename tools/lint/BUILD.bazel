@@ -1,11 +1,14 @@
 """Define linting tools
 """
 
+load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@rules_go//go:def.bzl", "TOOLS_NOGO", "nogo")
 load("@rules_java//java:defs.bzl", "java_binary")
+load(":linters.bzl", "vale_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -37,6 +40,7 @@ bzl_library(
         "@aspect_rules_lint//lint:pmd",
         "@aspect_rules_lint//lint:ruff",
         "@aspect_rules_lint//lint:shellcheck",
+        "@aspect_rules_lint//lint:vale",
     ],
 )
 
@@ -44,4 +48,48 @@ nogo(
     name = "nogo",
     visibility = ["//visibility:public"],
     deps = TOOLS_NOGO,
+)
+
+native_binary(
+    name = "vale",
+    src = select({
+        "@bazel_tools//src/conditions:linux_x86_64": "@vale_Linux_64-bit//:vale",
+        "@bazel_tools//src/conditions:linux_aarch64": "@vale_Linux_arm64//:vale",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@vale_macOS_64-bit//:vale",
+        "@bazel_tools//src/conditions:darwin_arm64": "@vale_macOS_arm64//:vale",
+        "@bazel_tools//src/conditions:windows_x64": "@vale_Windows_64-bit//:vale.exe",
+    }),
+    out = "vale",
+)
+
+copy_to_directory(
+    name = "vale_styles",
+    srcs = glob(["vale/**"]) + ["@vale_Google//:Google"],
+    include_external_repositories = ["*vale_*"],
+    root_paths = ["tools/lint/vale"],
+)
+
+# Assert the complete Markdown baseline, independent of Aspect's changed-line filter.
+vale_test(
+    name = "vale_test",
+    size = "small",
+    srcs = [
+        "//:markdown",
+        "//3rdparty/gazelle_rust:markdown",
+        "//angular:markdown",
+        "//angular/projects/mindreadr:markdown",
+        "//angular/projects/nicknamer2-web:markdown",
+        "//angular/projects/pinyin-composer:markdown",
+        "//angular/projects/tailwind-sample:markdown",
+        "//book_smartz/domain:markdown",
+        "//book_smartz/storage:markdown",
+        "//clojure_sample:markdown",
+        "//mindreadr:markdown",
+        "//nicknamer:markdown",
+        "//nicknamer2:markdown",
+        "//personal_website:markdown",
+        "//personal_website/src:markdown",
+        "//personal_website/tests/browser:markdown",
+    ],
+    tags = ["manual"],
 )

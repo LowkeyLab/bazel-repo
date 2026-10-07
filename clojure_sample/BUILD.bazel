@@ -11,3 +11,18 @@ java_binary(
     main_class = "clojure.main",
     runtime_deps = ["//clojure_sample/src/lowkeylab/clojure_sample:core"],
 )
+
+# Prose lint covers Markdown in this package, including nested non-package directories.
+filegroup(
+    name = "markdown",
+    srcs = glob(
+        ["**/*.md"],
+        exclude = [
+            "**/node_modules/**",
+            "**/target/**",
+            ".*/**",
+        ],
+    ),
+    tags = ["markdown"],
+    visibility = ["//tools/lint:__pkg__"],
+)

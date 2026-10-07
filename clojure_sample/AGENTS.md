@@ -1,4 +1,4 @@
-# AGENTS.md (Clojure Sample)
+# AGENTS.md (Clojure sample)
 
 This package demonstrates `griffinbank/rules_clojure` integration with Bazel.
 

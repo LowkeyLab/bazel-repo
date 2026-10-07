@@ -10,7 +10,7 @@ aspect test //angular/projects/pinyin-composer:test
 ibazel run //angular/projects/pinyin-composer:pinyin-composer.serve
 ```
 
-## User Workflow
+## User workflow
 
 1. Type tone-free pinyin into the inline document editor.
 2. Choose an inline Hanzi candidate.

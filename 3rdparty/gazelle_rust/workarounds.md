@@ -7,7 +7,7 @@ after unified crate discovery landed in `fc8321f8` (#1961, implementing #1957).
 
 | Area                       | Removed configuration                                                                        | Replacement / preserved behavior                                                                                                                                                                                                                    |
 | -------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root                       | `book_smartz/storage/*`, `prediction_bot/*`, and `nicknamer/*` exclusions                    | Generate every application Rust package; vendored and unrelated language exclusions remain.                                                                                                                                                         |
+| Root                       | `book_smartz/storage/*`, `prediction_bot/*`, and `nicknamer/*` exclusions                    | Generate every app Rust package; vendored and unrelated language exclusions remain.                                                                                                                                                                 |
 | Hearthstone simulator      | 15 module exclusions, 11 source-entry keeps, and 10 duplicate test sources in `compile_data` | All modules, including test modules, remain in generated `srcs`; retain `//:Cargo.toml` and `CARGO_MANIFEST_DIR`.                                                                                                                                   |
 | Pinyin WASM                | `src`/`tests` exclusions, two protected source globs, and 14 dependency keeps                | Explicit generated sources for both library variants; preserve crate names, native test companion, WASM platform, bindgen command, and integration runner.                                                                                          |
 | Book Smartz domain/storage | Package ignores; storage image-data/dependency keeps                                         | Narrow CloudEvents mapping; preserve migrations, fixture inputs, image data, environment, execution properties, and integration roots. Unit tests inherit library dependencies instead of redundantly listing the crate and `thiserror`.            |
@@ -29,10 +29,10 @@ after unified crate discovery landed in `fc8321f8` (#1961, implementing #1957).
 | Root                                       | `gazelle:rust_cargo_lockfile Cargo.lock`; `gazelle:rust_crates_prefix @crates//:` | These select the repository's dependency inventory and label namespace, rather than suppress generation.                                                                                                                                |
 | Gazelle Rust                               | `gazelle:exclude generation_tests` and parser `test_data`                         | Golden workspaces and malformed parser samples remain data. Issue #1969 removed the root subtree exclusion; maintained packages and tests now participate in root recursive checks.                                                     |
 
-No application Rust package exclusions or whole-package ignores remain.
+No app Rust package exclusions or whole-package ignores remain.
 The root exclusions for `githooks`, `tools`, Angular, and Kotlin projects,
 `tools/test_images`' Starlark ignore, and other language-specific directives
-are unchanged and are not application Rust suppression. Template, migration,
+are unchanged and are not app Rust suppression. Template, migration,
 and snapshot globs remain intentional non-Rust build inputs. Generated
 `crate_root` attributes are retained. No generator or Rust source changes were
 needed.
@@ -45,7 +45,7 @@ Historical #1960 validation, before the #1969 integration. Use the current
 Verified on 2026-10-05 through the repository Nix/Bazel environment:
 
 - `nix develop --command bazel run //:gazelle`: no unresolved-import or merge diagnostics; repeated generation leaves the checkout byte-for-byte unchanged.
-- `nix develop --command aspect test //hearthstone_simulator/... //pinyin-composer/wasm/... //book_smartz/... //prediction_bot/... //nicknamer/... //nicknamer2/... //test_images/rust/... @gazelle_rust//gazelle_rust_parser/tests:parse_test @gazelle_rust//generation_tests/... @gazelle_rust//rust_language:gofmt_test`: all 99 targets passed (34 application and 65 maintained generator/parser/format targets).
+- `nix develop --command aspect test //hearthstone_simulator/... //pinyin-composer/wasm/... //book_smartz/... //prediction_bot/... //nicknamer/... //nicknamer2/... //test_images/rust/... @gazelle_rust//gazelle_rust_parser/tests:parse_test @gazelle_rust//generation_tests/... @gazelle_rust//rust_language:gofmt_test`: all 99 targets passed (34 app and 65 maintained generator/parser/format targets).
 - `nix develop --command aspect format --scope=all`: passed.
 - `nix develop --command aspect build //...`: passed, 384 targets.
 - `nix develop --command aspect test //...`: all 76 targets passed (cached).
@@ -60,7 +60,7 @@ properties, and platform settings are unchanged. The only compile-data removal
 is Hearthstone's ten Rust files already present in `srcs`.
 
 The first focused attempts exposed the missing SeaORM `async-trait` label and
-missing `tracing`/`config` dependencies described above; validation passed after
+missing `tracing`/`config` dependencies described earlier; validation passed after
 applying those narrow workarounds. One Bazel server termination recovered on
 Aspect's automatic retry. Existing Nix/toolchain deprecations and upstream
 Java/native-access warnings are non-blocking.

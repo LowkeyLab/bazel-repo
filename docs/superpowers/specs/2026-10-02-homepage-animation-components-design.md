@@ -132,7 +132,7 @@ execution without replacing the production sequence with a fake implementation.
 | Homepage navigation                          | Missing initialization, duplicate sequences, or failure to clean up across Astro visits |
 
 Component browser fixtures protect the independently observable behavior. Keep a
-small homepage integration check to cover composition, independent viewport
+small homepage integration test to cover composition, independent viewport
 triggers, and navigation. Add direct lifecycle tests only where they exercise
 meaningful deterministic decisions more clearly than browser coverage. Do not
 introduce interfaces solely to mock internal helpers.
@@ -140,7 +140,7 @@ introduce interfaces solely to mock internal helpers.
 Browser tooling and fixtures must run through Bazel, with reproducible targets
 that can run each component's tests independently. The temporary local recording
 and smoke-test scripts from earlier work are baseline evidence, not the permanent
-test suite. The implementation plan will specify concrete targets and toolchain
+test suite. The implementation plan must specify concrete targets and toolchain
 wiring after inspecting the repository's available test infrastructure.
 
 ## Delivery checks

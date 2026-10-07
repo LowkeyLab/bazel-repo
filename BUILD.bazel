@@ -1,6 +1,7 @@
 """Targets in the repository root"""
 
 load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_clojure//rules:tools_deps.bzl", "clojure_gen_srcs")
@@ -105,4 +106,31 @@ define_kt_toolchain(
 alias(
     name = "gen_rust_project",
     actual = "@rules_rs//tools/rust_analyzer:gen_rust_project",
+)
+
+# Prose lint covers Markdown in this package, including nested non-package directories.
+filegroup(
+    name = "markdown",
+    srcs = glob(
+        ["**/*.md"],
+        exclude = [
+            "3rdparty/**",
+            "bazel-*/**",
+            ".*/**",
+            "**/node_modules/**",
+            "**/target/**",
+        ],
+    ) + [
+        ".claude/agents/relay-spec-checker.md",
+        ".claude/skills/agent-browser-frontend-testing/SKILL.md",
+        ".claude/skills/bazel-workflow/SKILL.md",
+    ],
+    tags = ["markdown"],
+    visibility = ["//tools/lint:__pkg__"],
+)
+
+copy_to_bin(
+    name = ".vale_ini",
+    srcs = [".vale.ini"],
+    visibility = ["//tools/lint:__pkg__"],
 )

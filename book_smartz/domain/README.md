@@ -60,7 +60,7 @@ fn example() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-The code above illustrates the calls; an application supplies its own UUIDs and
+The preceding code illustrates the calls; an app supplies its own UUIDs and
 instants. Registering the same book/work
 mapping again is idempotent. A different book UUID for the same work ID, or a
 different work ID for the same book UUID, is rejected.

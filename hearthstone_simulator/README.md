@@ -1,4 +1,4 @@
-# Hearthstone Simulator
+# Hearthstone simulator
 
 A deterministic, headless Hearthstone rules-engine foundation using Bevy 0.19 ECS and schedules. The selected profile pins Hearthstone Wiki advanced rulebook revision 913067 (2026-06-26).
 
@@ -10,7 +10,7 @@ This repository is synthetic-card-first: it implements reusable mechanics and co
 
 - Immutable stable game/resolution IDs, hook-maintained indexes, persistent card identity, and ordered zone indexes
 - A single resource-owned LIFO stack of one-shot resolution operations, strict schedules, exact-once iterative execution, choice suspension, and per-sequence safety budgets
-- Immutable event records, Death pre-check trigger seeds, and queue-time candidate snapshots that expand directly onto the stack without executable queue entities or cursors
+- Immutable event records, Death `pre-check` trigger seeds, and queue-time candidate snapshots that expand directly onto the stack without executable queue entities or cursors
 - Data-oriented effects/selectors/values, fork-safe registered native effect handlers, and versioned seeded randomness with canonical RNG traces
 - Signed mana/Overload counters, drawing, burning, fatigue, H1/H2-compliant Health recalculation, proposed-value damage/healing modifiers, ordered health mutations with prepared actual-event slots, Armor/Immune/Divine Shield handling, typed Health/Attack/Other auras, live in-play and attached Spell Damage, silence, transformation, zone-aware copying, native-keyword movement resets, and profile-owned zone/Battlefield capacity
 - Phase-boundary mortality collection with irreversible Hero defeat, global play-order sorting across ordinary and full-zone deaths, creation-ordered death caching, staged Death Event trigger capture, dominant-player trigger grouping, chained Death Phases, and sequence-end outcomes
@@ -56,7 +56,7 @@ state or trace.
 Hero cards, locations, combat redirection, complete phase guards, and
 other keyword-specific combat legality remain outside this action-contract foundation.
 
-## Taunt and Stealth
+## Taunt and stealth
 
 Minion, spell, and Hero Power declarations share the same direct-target restrictions. Enemy
 Stealth and Immune targets are excluded before evaluating RequiredIfAvailable; friendly targets
@@ -72,7 +72,7 @@ that has left Play skips this step. Damage success is not required to consume St
 
 Checkpoint schema 17 persists this step and rejects earlier schemas. The boundary placement is
 an explicit engine policy within the existing simplified combat sequence; complete preparation
-phases, redirection and full combat guards remain
+phases, redirection, and full combat guards remain
 unimplemented. Current wiki references support the keyword interactions, but the pinned rulebook
 revision remains unavailable for exact conformance verification.
 
@@ -104,7 +104,7 @@ existing simplified combat timing, whose exact pinned-rulebook conformance remai
 Checkpoint schema 17 persists `readiness_blocked` and `attacks_this_turn`; older schemas are rejected.
 Mega-Windfury and full combat phase guards remain outside this slice.
 
-## Charge and Rush
+## Charge and rush
 
 Minions with Charge can bypass initial readiness restrictions to attack eligible enemy Characters.
 Rush permits that bypass only against enemy Minions. Charge takes precedence when both are present;
@@ -136,10 +136,10 @@ can use Hero Powers. Freeze does not change readiness or attacks spent; snapshot
 continues to describe readiness and attack allowance independently of Frozen.
 
 An explicit `ThawCharacters` step runs for the ending player after end-turn reactions, their
-ordinary death boundary, and the outcome check, before temporary enchantment expiration and
+ordinary death boundary, and the outcome validation, before temporary enchantment expiration and
 turn advancement. It uses current readiness and the ordinary/Windfury attack allowance.
-A fresh Rush-only Minion additionally needs an enemy Minion in Play. This presence check ignores
-Stealth, Immune, Taunt, and Attack value; ready characters and Charge bypass that check. These
+A fresh Rush-only Minion additionally needs an enemy Minion in Play. This presence validation ignores
+Stealth, Immune, Taunt, and Attack value; ready characters and Charge bypass that validation. These
 edge cases and boundary placement are explicit engine policy, not certified pinned-rulebook
 conformance. Extra turns provide ordinary thaw opportunities.
 
@@ -167,7 +167,7 @@ already spent. After Attack reactions, combat checks participant continuity and 
 a completed Hero attack consumes one durability from the weapon captured at damage preparation
 if that weapon is still active. Replacement during damage reactions cannot charge the new weapon.
 Prevented damage still spends durability. AfterAttack precedes the ordinary death boundary, where
-weapon breakage and Minion deaths share play-order processing. Preparation deaths, aura refresh, and outcome checks follow the existing combat-reaction sequence.
+weapon breakage and Minion deaths share play-order processing. Preparation deaths, aura refresh, and outcome validations follow the existing combat-reaction sequence.
 Participant removal skips damage, durability, attack usage, and AfterAttack. Surviving accepted
 subjects continue through control changes under the existing SurvivingCombatSubjects policy.
 
@@ -183,7 +183,7 @@ weapon Windfury was inactive is not guaranteed.
 On sequence failure, replacement scopes are released and superseded weapons are retired without
 running further effects. As with other failed sequences, prior gameplay mutations are not rolled back.
 
-## Hero Power activation
+## Hero power activation
 
 `UseHeroPower { player, power, target }` activates the player's current in-Play power by stable
 ID. Validation shares the existing targeting contract, checks resources and exhaustion, and
@@ -194,7 +194,7 @@ Payment precedes effects. Effects use Hero Power damage modifiers, then the orig
 usage counter increments and it becomes exhausted. An ordinary death/aura boundary precedes
 `AfterHeroPower` reactions; their trigger seeds and PreCheck conditions are captured before
 activation effects. QueueTime and ResolutionTime conditions still run at their normal timing.
-The final boundary and outcome check follow those reactions.
+The final boundary and outcome validation follow those reactions.
 
 Under the explicit `OriginalPowerCompletion` engine policy, a power replaced during activation
 retains completion bookkeeping on its old ID, including in RemovedFromGame; the new power stays
@@ -283,7 +283,7 @@ Use Bazel/Aspect for all repository operations.
 
 ## Resolution contracts
 
-Operations execute once on the LIFO stack and schedule nested consequences above remaining work.
+Operations execute once on the LIFO stack and schedule nested consequences ahead of remaining work.
 They never inspect pending operations to recover context. Direct minion play programs use explicit
 play-scope IDs; only their direct sequences can propagate that authority. Completion consumes the
 scope, and checkpoint restoration rejects missing, mismatched, or prematurely completed scopes.
@@ -295,13 +295,13 @@ request ID, player selector, and `EffectChoiceOption` values with IDs and effect
 Use `pending_choice()` and `choose(option_id)` to inspect and answer a suspended request.
 
 Checkpoint schema 17 includes explicit play scopes and rejects schema 16 and earlier. Existing
-saved checkpoints must be regenerated. Action and choice completion check for leftover resolution
+saved checkpoints must be regenerated. Action and choice completion verify there is no leftover resolution
 state; failures clear pending work without rolling back gameplay mutations already applied.
 
 ## Combat reactions
 
 Attacks resolve Attack-event reactions and consume Stealth, then run an ordinary death/aura
-boundary (including chained Death Phases) and check the outcome. A serializable
+boundary (including chained Death Phases) and verify the outcome. A serializable
 `PrepareCombatDamage` step reads both participants' current Attack values only after that work.
 It schedules the simultaneous damage batch and `FinishAttack` only if both accepted stable IDs
 remain in Play and the game has no outcome. A zero-Attack participant still completes combat.

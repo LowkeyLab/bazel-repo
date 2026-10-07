@@ -14,7 +14,7 @@ bazel run //angular/projects/<project-name>:<project-name>.serve
 ibazel run //angular/projects/<project-name>:<project-name>.serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. Using `ibazel` will automatically reload whenever you modify any of the source files.
+Once the server is running, open your browser and navigate to `http://localhost:4200/`. Using `ibazel` automatically reloads whenever you modify any of the source files.
 
 ## Code scaffolding
 
@@ -48,6 +48,6 @@ To execute unit tests with the `aspect` Bazel frontend, run:
 aspect test //angular/projects/<project-name>:test
 ```
 
-## Additional Resources
+## Additional resources
 
 For more information on Angular, visit the [Angular documentation](https://angular.dev) page.

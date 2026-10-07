@@ -10,20 +10,20 @@ The first version includes enrollment, balances, rankings, market creation and i
 
 ## Architecture and repository placement
 
-Use Rust edition 2024, Tokio, and PostgreSQL 16. Place the application in `prediction_bot/`, with a library in `prediction_bot/lib/`, an executable in `prediction_bot/bin/`, SQL migrations in `prediction_bot/migrations/`, and behavior tests in `prediction_bot/lib/tests/`.
+Use Rust edition 2024, Tokio, and PostgreSQL 16. Place the app in `prediction_bot/`, with a library in `prediction_bot/lib/`, an executable in `prediction_bot/bin/`, SQL migrations in `prediction_bot/migrations/`, and behavior tests in `prediction_bot/lib/tests/`.
 
 The library separates these responsibilities:
 
 - Domain decisions: validate commands against replayed guild state and produce domain events. Stake validation, lifecycle transitions, payout allocation, and grant eligibility take explicit inputs, including time, and do not depend on Discord or database connections.
-- Event application: a deterministic reducer folds historical events into guild state. Applying an event never issues commands, sends notifications, consults the clock, or recalculates a historical payout.
+- Applying events: a deterministic reducer folds historical events into guild state. Applying an event never issues commands, sends notifications, consults the clock, or recalculates a historical payout.
 - Application service and PostgreSQL event store: serialize guild commands, load history, append individual event rows atomically, enforce idempotency, and manage event schema versions.
 - Read-only projections: publish immutable, revisioned views of accounts, balances, markets, bets, grant schedules, and rankings. Queries consume these views; neither command handlers nor queries directly edit projected state.
 - Discord adapter: guild slash commands, Discord identity and permission extraction, deferred responses, and concise user-facing messages.
 - Grant worker: finds due accounts and applies grants through the same transaction boundary as user commands.
 
-Use the existing SQLx, Tokio, serde, thiserror, anyhow, and tracing dependencies. Use Serenity for the Discord gateway and interaction transport, with the minimum required features; verify its current API and resolve its dependencies through Bazel before implementation. Do not add a second async runtime. Use thiserror for library errors and anyhow at the executable boundary.
+Use the existing sqlx, Tokio, serde, thiserror, anyhow, and tracing dependencies. Use Serenity for the Discord gateway and interaction transport, with the minimum required features; verify its current API and resolve its dependencies through Bazel before implementation. Do not add a second async runtime. Use thiserror for library errors and anyhow at the executable boundary.
 
-A migration command initializes the event-store schema using a separate owner role. Normal startup validates the schema, rebuilds projections from committed events, registers guild-only commands, starts the grant worker and Discord client, and shuts down on termination. A PostgreSQL advisory lock prevents multiple active gateway processes for the same application; database correctness must still tolerate concurrent commands and worker execution.
+A migration command initializes the event-store schema using a separate owner role. Normal startup validates the schema, rebuilds projections from committed events, registers guild-only commands, starts the grant worker and Discord client, and shuts down on termination. A PostgreSQL advisory lock prevents multiple active gateway processes for the same app; database correctness must still tolerate concurrent commands and worker execution.
 
 ## Discord interface and permissions
 
@@ -45,7 +45,7 @@ Commands require a guild interaction; direct messages are rejected. Guild and us
 
 Resolution and cancellation require Discord Administrator or Manage Guild permission. Market creators receive no extra settlement permission. Resolution is allowed only at or after the stated closing time, and cancellation is allowed before or after close. Every event-stream and projection lookup includes the guild ID so a market ID from another server cannot expose or mutate its data.
 
-Reject bot enrollment, malformed outcome lists, empty questions, questions longer than 200 characters, outcome labels longer than 80 characters, unknown outcomes, nonpositive stakes, insufficient balances, and betting at or after close. Bound command output to Discord limits and disable allowed mentions in generated content. Defer database-backed interaction responses before processing and return errors without database internals or credentials.
+Reject bot enrollment, malformed outcome lists, empty questions, questions longer than 200 characters, outcome labels longer than 80 characters, unknown outcomes, nonpositive stakes, insufficient balances, and betting at or after close. Bound command output to Discord limits and turn off allowed mentions in generated content. Defer database-backed interaction responses before processing and return errors without database internals or credentials.
 
 ## Economy and grant timing
 
@@ -55,7 +55,7 @@ Defaults are 100 points per 24-hour interval, configurable through deployment en
 
 First enrollment grants 100 points immediately and sets the next grant to enrollment time plus 24 hours, using that guild's configured values. Subsequent grants follow that account's fixed enrollment schedule. Repeated enrollment does not reset the schedule or issue another initial grant. Enrollment and grants are scoped to the `(guild_id, user_id)` account.
 
-A worker checks due accounts once per minute. It issues all completed intervals, including intervals elapsed while the application was offline, and advances the due timestamp by the number of granted intervals. It does not reset the schedule to the worker execution time. Enrollment remains active without Discord presence tracking; departed or inactive members retain their accounts and scheduled grants. Membership synchronization is outside this version.
+A worker checks due accounts once per minute. It issues all completed intervals, including intervals elapsed while the app was offline, and advances the due timestamp by the number of granted intervals. It does not reset the schedule to the worker execution time. Enrollment remains active without Discord presence tracking; departed or inactive members retain their accounts and scheduled grants. Membership synchronization is outside this version.
 
 Grant commands rehydrate the guild stream under its transaction lock and append a PointsGranted event recording the amount, covered interval range, and resulting next-due timestamp. Replaying that event derives the balance and schedule together. Multiple worker attempts cannot award the same interval twice. A failing grant command is logged and does not stop processing other accounts.
 
@@ -85,7 +85,7 @@ Store Discord snowflakes as decimal strings, market IDs as UUIDs, per-market out
 
 ### CloudEvents metadata contract
 
-Use the [CloudEvents 1.0.2 specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md) and its [JSON event format](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md). The wire `specversion` is `"1.0"`. CloudEvents requires `id`, `source`, `specversion`, and `type`; this bot additionally requires the attributes and extensions below as its application contract. Within each server, assign the first new event the latest committed event revision plus one while holding the transaction lock; increment once for each additional event from that command. Rollback consumes no revisions, and an accepted no-op only stores a receipt. Each event is independently interpretable as a structured JSON CloudEvent, with domain facts under `data` and context attributes at the top level.
+Use the [CloudEvents 1.0.2 specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md) and its [JSON event format](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md). The wire `specversion` is `"1.0"`. CloudEvents requires `id`, `source`, `specversion`, and `type`; this bot additionally requires the attributes and extensions below as its app contract. Within each server, assign the first new event the latest committed event revision plus one while holding the transaction lock; increment once for each additional event from that command. Rollback consumes no revisions, and an accepted no-op only stores a receipt. Each event is independently interpretable as a structured JSON CloudEvent, with domain facts under `data` and context attributes at the top level.
 
 | Attribute         | Bot convention                                                                                                                                                                        |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -102,7 +102,7 @@ Use the [CloudEvents 1.0.2 specification](https://github.com/cloudevents/spec/bl
 | `revision`        | Positive decimal string identifying this event's position in the guild stream.                                                                                                        |
 | `data`            | JSON object holding the versioned domain payload, including exact recorded allocations and schedule changes.                                                                          |
 
-The three custom extensions are `guildid`, `commandid`, and `revision`; they are application conventions, not standard CloudEvents attributes. Extension names use lowercase letters and their values use CloudEvents scalar types. Encode revisions and snowflakes as strings to avoid CloudEvents' 32-bit integer bound. Keep extensions flat rather than under an `extensions` object. The bot emits JSON objects in `data`, without JSON-string wrapping or `data_base64`.
+The three custom extensions are `guildid`, `commandid`, and `revision`; they are app conventions, not standard CloudEvents attributes. Extension names use lowercase letters and their values use CloudEvents scalar types. Encode revisions and snowflakes as strings to avoid CloudEvents' 32-bit integer bound. Keep extensions flat rather than under an `extensions` object. The bot emits JSON objects in `data`, without JSON-string wrapping or `data_base64`.
 
 For example, an accepted stake produces:
 
@@ -162,13 +162,13 @@ Process each command in one PostgreSQL READ COMMITTED transaction:
 
 1. Acquire a transaction-scoped advisory lock keyed deterministically by guild ID. Hash collisions may reduce concurrency but must never mix streams. Every event append, including worker grants, uses this path.
 2. Look up the command key. For an existing receipt, return its recorded result without appending more events. Command keys follow the CloudEvents `commandid` convention; grant keys identify the account and the scheduled grant boundary observed by the worker.
-3. Read and replay the committed stream after obtaining the lock. Never validate a command using a potentially stale query projection. Capture acceptance time after the lock is acquired, then check deadlines and grant eligibility against that time.
+3. Read and replay the committed stream after obtaining the lock. Never validate a command using a potentially stale query projection. Capture acceptance time after the lock is acquired, then validate deadlines and grant eligibility against that time.
 4. Decide the command. Starting after the last committed event revision, assign consecutive revisions to its events and INSERT each event as a separate row. INSERT the command receipt and commit them together. Unique revision constraints also reject append races. Accepted no-ops store only a receipt and consume no event revision. Rejected commands append nothing.
 5. Commit, then publish the resulting immutable projection at that committed revision. A failed commit publishes nothing. Do not hold a database transaction open while calling Discord.
 
 A retry rehydrates and reevaluates state after any conflict; it cannot blindly append previously computed events. Limit transient retries and return a retryable failure if exhausted. Grants cover only intervals still due in replayed state, even if a second worker selected an outdated schedule boundary. This prevents duplicate grants, overspending, bets after settlement, and repeated payouts without mutating live account rows.
 
-The serialized transaction determines the accepted ordering of a bet and settlement. The time check after lock acquisition rejects a bet whose processing begins after close. The grant worker uses the same guild stream lock, so a grant and a bet cannot overwrite each other's effects.
+The serialized transaction determines the accepted ordering of a bet and settlement. The time validation after lock acquisition rejects a bet whose processing begins after close. The grant worker uses the same guild stream lock, so a grant and a bet cannot overwrite each other's effects.
 
 A lost Discord response after commit does not undo or repeat the economic operation. Redelivery of the same interaction returns its stored result. The bot does not resend historical Discord messages during replay. Delivery failures are logged separately from event-store failures.
 
@@ -188,17 +188,21 @@ Full replay for each command is an explicit first-version performance tradeoff. 
 
 Require `DISCORD_TOKEN` and `DATABASE_URL` through environment variables. Optional positive integer settings `GRANT_AMOUNT` and `GRANT_INTERVAL_SECONDS` default to 100 and 86400. Use a separate `MIGRATION_DATABASE_URL` for the migration command; normal startup uses the restricted runtime `DATABASE_URL`, validates schema compatibility, and reconstructs projections. Fail startup on invalid settings, incompatible schema, or failed event replay. Never log the token, database URL, or interaction tokens.
 
-Document creating and installing a Discord application with slash-command access, enabling the necessary minimal gateway intents, supplying a persistent PostgreSQL database, running migrations, and starting the binary through Bazel. Include a local PostgreSQL compose example and an ignored example environment file containing placeholders only. Structured tracing reports startup, transaction failures, grant processing, and shutdown.
+Document creating and installing a Discord app with slash-command access, enabling the necessary minimal gateway intents, supplying a persistent PostgreSQL database, running migrations, and starting the binary through Bazel. Include a local PostgreSQL compose example and an ignored example environment file containing placeholders only. Structured tracing reports startup, transaction failures, grant processing, and shutdown.
 
-## Test design: Testing Principles
+## Test design and testing principles
 
 Test public operations and observable balances, payouts, market status, and command responses. Do not assert internal repository call sequences. Avoid sleeping to test time: provide explicit timestamps to domain rules and controllable time inputs at the service boundary.
 
-Domain tests cover exact grant boundaries and missed intervals, integer payouts and remainder ties, no-winner refunds, invalid stakes, and arithmetic overflow. Exercise command decisions followed by event application, asserting resulting public views rather than replaceable internal call sequences. Replay recorded histories into a fresh state and verify identical balances, schedules, markets, and rankings. Include versioned historical fixtures and verify that replay uses recorded payout allocations and grant settings rather than current algorithms, time, or defaults. Their feedback speed is unverified until measured.
+Domain tests cover exact grant boundaries and missed intervals, integer payouts and remainder ties, no-winner refunds, invalid stakes, and arithmetic overflow. Exercise command decisions followed by event processing, asserting resulting public views rather than replaceable internal call sequences. Replay recorded histories into a fresh state and verify identical balances, schedules, markets, and rankings. Include versioned historical fixtures and verify that replay uses recorded payout allocations and grant settings rather than current algorithms, time, or defaults. Their feedback speed is unverified until measured.
 
-Integration tests use a real isolated PostgreSQL instance with migrations, following the repository's testcontainers pattern. Treat this dedicated bot database as an application-managed dependency. Tests cover persistence across service recreation, guild isolation, duplicate interactions, grant retries, simultaneous overspending attempts, betting versus resolution, concurrent settlement, transaction rollback, and cancellation conservation. Also verify atomic multi-row event append, append-only runtime permissions, contiguous stream revisions under concurrent commands, fresh projection reconstruction from stored history, recovery after commit without projection publication, duplicate delivery during catch-up, rejection of corrupt or unsupported history, and isolation between simultaneous guild streams. Assert resulting public projections and command results; do not substitute an in-memory event store as evidence of PostgreSQL transaction correctness. In-memory projections are the intended production read model, not a database test substitute.
+Integration tests use a real isolated PostgreSQL instance with migrations, following the repository's testcontainers pattern. Treat this dedicated bot database as an app-managed dependency. Tests cover persistence across service recreation, guild isolation, duplicate interactions, grant retries, simultaneous overspending attempts, betting versus resolution, concurrent settlement, transaction rollback, and cancellation conservation. Also verify atomic multi-row event append, append-only runtime permissions, contiguous stream revisions under concurrent commands, fresh projection reconstruction from stored history, recovery after commit without projection publication, duplicate delivery during catch-up, rejection of corrupt or unsupported history, and isolation between simultaneous guild streams. Assert resulting public projections and command results; do not substitute an in-memory event store as evidence of PostgreSQL transaction correctness. In-memory projections are the intended production read model, not a database test substitute.
+
+<!-- The paired alternatives or compound predicates are not three-item lists. -->
+<!-- vale Google.OxfordComma = NO -->
 
 CloudEvents contract tests use checked-in JSON fixtures to verify required metadata, the wire version, UUID v7 event IDs, extension scalar types, flattened extensions, payload schema selection, stable event identities after persistence and replay, and per-event revision ordering. Reject missing required fields, malformed or non-v7 event IDs, invalid URIs or timestamps, event-row/receipt/payload mismatches, duplicate identities, and unsupported domain schemas. Round-trip an unknown optional extension without changing the projected result. Verify that two events from one command have distinct event IDs and the same command ID, and that a redelivered command produces no new event identities. Exercise serialized events through replay and query results rather than merely testing struct field assignments.
+<!-- vale Google.OxfordComma = YES -->
 
 Discord is an external unmanaged boundary. Adapter tests use representative interaction inputs and capture outgoing user-visible responses, including permission rejection, DM rejection, malformed options, and mention suppression. Live Discord smoke testing is separate and requires supplied credentials; local tests must not claim to establish successful Discord deployment.
 
@@ -206,6 +210,6 @@ For each implementation increment, run a meaningful failing behavior test before
 
 ## Bazel integration and completion evidence
 
-Use the root Cargo manifest and lockfile as Bazel dependency inputs, following existing rules_rs targets. Enable the existing `uuid` dependency's `v7` feature for event ID generation; retain features needed by other repository targets. Do not use cargo directly. Run `bazel run //:gazelle` immediately after each source edit and before any manual BUILD edits or formatting.
+Use the root Cargo manifest and lockfile as Bazel dependency inputs, following existing `rules_rs` targets. Enable the existing `uuid` dependency's `v7` feature for event ID generation; retain features needed by other repository targets. Do not use cargo directly. Run `bazel run //:gazelle` immediately after each source edit and before any manual BUILD edits or formatting.
 
 Run focused `aspect test` targets for the domain, PostgreSQL, and adapter tests. Before completing implementation, run `aspect format --scope=all` and `aspect build //...`. Preserve unrelated work and report any unavailable tooling or infrastructure explicitly. Use conventional commits.

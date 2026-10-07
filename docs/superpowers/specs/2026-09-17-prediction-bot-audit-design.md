@@ -1,7 +1,7 @@
 # Prediction bot operational audit events
 
 Date: 2026-09-17
-Status: Approved, including JSON logging and behavior-focused tests without diagnostic-output assertions.
+Status: approved, including JSON logging and behavior-focused tests without diagnostic-output assertions.
 
 ## Purpose and scope
 
@@ -9,7 +9,7 @@ Introduce typed operational audit events and a directly invoked listener in `pre
 
 The consumers are operators diagnosing rejected commands, unavailable queries, missing grants, and lost Discord responses. Events must distinguish these outcomes and identify the relevant guild and interaction or grant command. The existing immutable economy events and command receipts remain the durable recovery record. Operational audit events are best effort and do not replace that history.
 
-This addresses four reviewed defects: expected rejections logged as errors, query failures without an application diagnostic, delivery warnings without receipt correlation, and grant failures without actionable categories.
+This addresses four reviewed defects: expected rejections logged as errors, query failures without an app diagnostic, delivery warnings without receipt correlation, and grant failures without actionable categories.
 
 ## Architecture and composition
 
@@ -36,7 +36,7 @@ Event families:
 | Interaction acknowledgement/delivery | Success or failure; guild when available, interaction ID, acknowledgement or response stage, safe Discord status/code or transport category |
 | Grant discovery/reconstruction       | Failure with safe category; guild when known                                                                                                |
 | Command registration                 | Success or failure; guild and safe category                                                                                                 |
-| Lifecycle                            | Migration/startup/readiness/shutdown outcomes with stage and application ID when known                                                      |
+| Lifecycle                            | Migration/startup/readiness/shutdown outcomes with stage and app ID when known                                                              |
 
 Command keys already distinguish Discord requests from grant attempts. Grant keys retain the selected schedule boundary. Interaction IDs are identifiers, never interaction tokens. Prefer these existing keys to a second correlation-ID system.
 
@@ -54,7 +54,7 @@ Discord acknowledgement and response delivery emit separate outcomes. Failure to
 
 Commit errors may leave commit status unknown. Do not claim rollback from a generic database failure. If receipt recovery commits its read transaction and a following projection refresh fails, report that refresh stage rather than suggesting a new economic command was rolled back. Preserve receipt-based retry behavior.
 
-Migrate existing justified application logs for registration, startup, grant processing, delivery, and shutdown to the listener. Keep fatal startup errors visible at the executable boundary, including failures before normal initialization; do not require a remote reporting service. Third-party library logs remain outside this application event contract.
+Migrate existing justified app logs for registration, startup, grant processing, delivery, and shutdown to the listener. Keep fatal startup errors visible at the executable boundary, including failures before normal initialization; do not require a remote reporting service. Third-party library logs remain outside this app event contract.
 
 ## Structured output and data minimization
 
@@ -66,7 +66,7 @@ The logging listener chooses severity and a stable event name. Producers supply 
 
 Configure the executable tracing subscriber to emit newline-delimited JSON: one valid JSON object per log record. Each audit record includes its timestamp, severity, stable event name, and typed event fields as structured JSON fields, not a serialized payload inside a message string. Use the existing tracing infrastructure with its JSON formatting support. New log collection infrastructure is not required. Error classification uses an allowlist of stable categories, database SQLSTATE where available, and Discord status/error codes where available. Distinguish connection/pool failures, database constraints, replay/history failures, arithmetic overflow, timeouts, and transport failures. Unknown errors receive a safe fallback category.
 
-Never pass raw SQLx/Serenity error objects, URLs, credentials, interaction tokens, SQL parameters, market questions, outcome labels, or response content into audit events. Do not infer redaction safety from Display or Debug implementations. Only explicitly selected safe fields cross the listener boundary. High-cardinality correlation fields are for diagnosis, not future metric labels.
+Never pass raw sqlx/Serenity error objects, URLs, credentials, interaction tokens, SQL parameters, market questions, outcome labels, or response content into audit events. Do not infer redaction safety from Display or Debug implementations. Only explicitly selected safe fields cross the listener boundary. High-cardinality correlation fields are for diagnosis, not future metric labels.
 
 The repository establishes local and container execution but not production collection, retention, or alert ownership. Document that limitation without adding infrastructure or assuming logs are centrally retained.
 
@@ -76,7 +76,7 @@ The immediate testability obstacles are inline tracing calls, Discord I/O couple
 
 A test-local recording listener observes the public event contract. Assertions compare event meaning, correlation, and outcomes, not private helper calls or constructor order. Duplicate final outcomes are a contract defect, so relevant tests may assert their absence. Keep recorders and fake Discord adapters in test support. Rendered diagnostic logs are not an externally consumed behavior contract. Do not add tests that capture or parse JSON log output, assert rendered severity or field layout, or snapshot log lines. JSON formatting remains a production configuration requirement verified by inspecting the subscriber setup.
 
-Use the existing isolated PostgreSQL fixtures for storage integration checks. Treat PostgreSQL as the application's managed persistence boundary for these tests; no additional external database consumer contract is established by this work. Discord is an external boundary: a controlled adapter can simulate response failure without calling the live service. Such tests do not establish live Discord compatibility.
+Use the existing isolated PostgreSQL fixtures for storage integration tests. Treat PostgreSQL as the app's managed persistence boundary for these tests; no additional external database consumer contract is established by this work. Discord is an external boundary: a controlled adapter can simulate response failure without calling the live service. Such tests do not establish live Discord compatibility.
 
 Required checks:
 
@@ -87,7 +87,7 @@ Required checks:
 5. A rejected acknowledgement prevents mutation; the existing already-acknowledged case still permits receipt recovery.
 6. Grant discovery, reconstruction, and execution failures retain safe categories and relevant schedule keys. Failure for one account does not suppress an otherwise valid account's grant.
 7. Representative raw errors containing sentinel secrets produce only the allowlisted typed failure information at the listener boundary. Assert the resulting audit event, without rendering logs.
-8. Exercise the normal application construction path with an injected recording listener and assert application outcomes and typed audit events. Inspect production wiring to verify that it installs the structured logging listener and JSON subscriber; do not add captured-writer tests. Exercise the actual Discord transport adapter with a controlled endpoint where the existing client permits it; report any untested adapter or live-provider boundary explicitly.
+8. Exercise the normal app construction path with an injected recording listener and assert app outcomes and typed audit events. Inspect production wiring to verify that it installs the structured logging listener and JSON subscriber; do not add captured-writer tests. Exercise the actual Discord transport adapter with a controlled endpoint where the existing client permits it; report any untested adapter or live-provider boundary explicitly.
 
 Capture existing behavior before changing the relevant paths. Demonstrate the reviewed regressions failing before their fixes when the current seams permit it; if a minimal seam must first be introduced, state that limitation. No test claiming to exercise production behavior may bypass the new production wiring.
 
@@ -95,4 +95,4 @@ Tests should protect semantic outcomes, tolerate internal refactoring, and use d
 
 ## Acceptance
 
-The four audit findings are covered by typed, safely classified, correlated events through the direct listener. The production executable installs the structured logging listener and emits newline-delimited JSON records. Existing economic transactions, receipt recovery, retry policy, private user responses, and grant scheduling remain correct. Tests verify the typed event contract and application behavior through the production composition seam. Code review verifies the production logging listener and JSON subscriber configuration; rendered diagnostic output is not a test contract. No durable operational event store, metrics backend, tracing exporter, or unrelated refactor is introduced.
+The four audit findings are covered by typed, safely classified, correlated events through the direct listener. The production executable installs the structured logging listener and emits newline-delimited JSON records. Existing economic transactions, receipt recovery, retry policy, private user responses, and grant scheduling remain correct. Tests verify the typed event contract and app behavior through the production composition seam. Code review verifies the production logging listener and JSON subscriber configuration; rendered diagnostic output is not a test contract. No durable operational event store, metrics backend, tracing exporter, or unrelated refactor is introduced.

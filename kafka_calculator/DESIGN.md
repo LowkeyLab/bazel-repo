@@ -1,4 +1,4 @@
-# Kafka Buffer Calculator Core Design
+# Kafka buffer calculator core design
 
 ## Status
 
@@ -17,11 +17,11 @@ The core must:
 - Generate structured evaluation traces that a caller can render without reimplementing calculations.
 - Keep client-specific settings, defaults, bounds, and policies in reusable profiles rather than in the generic evaluator.
 - Reject malformed graphs before evaluation.
-- Remain a pure Rust library that can later be used by a thin WebAssembly adapter, CLI, or server.
+- Remain a pure Rust library that can later be used by a thin WebAssembly adapter, command-line tool, or server.
 
 ## Non-goals
 
-The initial core will not:
+The initial core excludes:
 
 - Render a graph or user interface.
 - Contain Angular or browser-specific behavior.
@@ -415,7 +415,7 @@ Operands must resolve to value-producing nodes. In particular, a `Finding` can d
 
 Cycle errors include the discovered cycle path, including the repeated start node that closes the path. Every node must contribute to at least one output. Independent nodes retain stable declaration order during topological sorting. Generated edges retain target declaration order and operand insertion order; repeated operands therefore remain repeated labelled edges rather than being deduplicated.
 
-The `Node<T>` constructor already guarantees that each node ID has the prefix associated with its node type, so graph validation does not need a separate prefix-kind consistency check.
+The `Node<T>` constructor already guarantees that each node ID has the prefix associated with its node type, so graph validation does not need a separate prefix-kind consistency validation.
 
 The validated graph stores read-only indexes, generated edges, dependencies, dependents, and deterministic topological order. Callers cannot mutate these invariants.
 

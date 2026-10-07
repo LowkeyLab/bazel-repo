@@ -36,8 +36,8 @@ font response, resize, or disposal cannot emit a second terminal record. When th
 listener module never loads, the bootstrap emits its watchdog warning directly.
 A failing listener receives no retry; a minimal sanitized direct warning reports
 delivery failure without recursively emitting another animation event. With
-JavaScript disabled, static-content tests remain the evidence of usability.
+JavaScript turned off, static-content tests remain the evidence of usability.
 
 Browser tests capture structured console arguments, not rendered message strings.
-They check outcomes together with visibility and keyboard accessibility, terminal
+They verify outcomes together with visibility and keyboard accessibility, terminal
 uniqueness, severity mapping, independent run IDs, and listener failure isolation.

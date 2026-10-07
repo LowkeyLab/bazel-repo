@@ -1,7 +1,7 @@
 # Prediction bot announcement channel
 
 Date: 2026-09-18
-Status: Design approved in conversation; written spec awaiting review.
+Status: design approved in conversation; written spec awaiting review.
 
 ## Purpose and scope
 
@@ -15,13 +15,13 @@ Members with Administrator or Manage Guild permission can use:
 
 - `/market announcements set channel:#channel`: validate and select a destination, enable announcements, and clear a delivery pause.
 - `/market announcements status`: show the destination, enabled or paused state, pending count, and a safe explanation of any delivery pause.
-- `/market announcements disable`: stop enqueueing and discard unsent announcements.
+- `/market announcements disable`: stop enqueuing and discard unsent announcements.
 
 All configuration commands are server-only and reply privately without pings. Validation requires a supported ordinary server text channel in the same server and the bot's ability to view and send there. Threads and special channel types are outside initial scope. A failed validation preserves the previous configuration. Authorization is enforced at the command execution boundary, not just through Discord command visibility.
 
 Enabling announcements applies only to future committed market events. While enabled but paused, new announcements continue to queue. Changing the channel moves unsent announcements to the new destination; delivered announcements are never reposted. Disabling marks pending work discarded; reenabling does not revive it.
 
-A request already in flight may still reach its original channel after a channel change or disable. The bot cannot atomically recall a Discord request. This exception is documented in help and configuration responses.
+A request already in flight may still reach its original channel after a channel change or `disable`. The bot cannot atomically recall a Discord request. This exception is documented in help and configuration responses.
 
 ## Messages
 
@@ -31,7 +31,7 @@ Each announcement is a separate message with the event type, market question, ma
 - Resolution: winning outcome and whether settlement refunded stakes because there were no winning bets.
 - Cancellation: cancellation and confirmation that stakes were refunded.
 
-Store a versioned message snapshot when enqueueing. Delayed messages describe the original event, not the current market state. Render deterministically from that snapshot. Treat user-provided content as text, suppress all allowed mentions, and stay within Discord message limits. Public betting controls are outside scope because the existing interactive controls belong to their invoking member.
+Store a versioned message snapshot when enqueuing. Delayed messages describe the original event, not the current market state. Render deterministically from that snapshot. Treat user-provided content as text, suppress all allowed mentions, and stay within Discord message limits. Public betting controls are outside scope because the existing interactive controls belong to their invoking member.
 
 ## Architecture and alternatives
 
@@ -42,7 +42,7 @@ A saved cursor over the existing event history would also be durable, but compli
 Keep responsibilities focused:
 
 - Existing Discord handlers parse and authorize configuration commands and validate destinations through the real HTTP client.
-- Announcement persistence owns configuration and outbox queries and participates in the existing store transaction for enqueueing.
+- Announcement persistence owns configuration and outbox queries and participates in the existing store transaction for enqueuing.
 - A pure renderer produces messages from snapshots.
 - A delivery worker owns ordered attempts, retries, and delivery outcomes.
 - Gateway composition starts and shuts down the worker alongside the existing grant worker.
@@ -60,17 +60,17 @@ The outbox has a unique guild/event-revision key and references the source event
 
 Enqueue only the three supported event types when settings are enabled. Paused delivery is still enabled. Historical replay only reconstructs state and never creates outbox entries. Existing command receipt deduplication and outbox uniqueness prevent repeated interactions from creating duplicate work.
 
-Configuration writes and enqueueing acquire the existing guild transaction lock, including when settings do not yet exist. This gives enable, disable, and market commits a defined order. Configuration changes preserve command idempotency: replaying an earlier configuration interaction returns its receipt without restoring an old destination or undoing a newer disable. Configuration commands do not introduce economy events.
+Configuration writes and enqueuing acquire the existing guild transaction lock, including when settings do not yet exist. This gives `enable`, `disable`, and market commits a defined order. Configuration changes preserve command idempotency: replaying an earlier configuration interaction returns its receipt without restoring an old destination or undoing a newer `disable`. Configuration commands do not introduce economy events.
 
-Startup must verify that SQLx migration 003 for announcements completed successfully before accepting commands; retain the existing economy schema marker. Missing migration 003 produces the existing actionable migration-required startup failure. Keep existing market history and event schemas compatible. Runtime access remains append-only for event and command tables; grant only the needed SELECT, INSERT, and UPDATE permissions on the new tables. Migration tests exercise the restricted application login, not only the owner account.
+Startup must verify that sqlx migration 003 for announcements completed successfully before accepting commands; retain the existing economy schema marker. Missing migration 003 produces the existing actionable migration-required startup failure. Keep existing market history and event schemas compatible. Runtime access remains append-only for event and command tables; grant only the needed SELECT, INSERT, and UPDATE permissions on the new tables. Migration tests exercise the restricted app login, not only the owner account.
 
 ## Delivery and concurrency
 
-The existing gateway guard permits one gateway for the application. Within that process, allow at most one active delivery per guild and use bounded concurrency across guilds. No database transaction or guild lock is held during Discord I/O.
+The existing gateway guard permits one gateway for the app. Within that process, allow at most one active delivery per guild and use bounded concurrency across guilds. No database transaction or guild lock is held during Discord I/O.
 
-For each guild, only its earliest pending event is eligible. A retry delay blocks later announcements for that guild but does not block other guilds. Capture the destination and configuration version, then recheck eligibility and settings immediately before sending. A configuration change after that check falls within the in-flight exception.
+For each guild, only its earliest pending event is eligible. A retry delay blocks later announcements for that guild but does not block other guilds. Capture the destination and configuration version, then recheck eligibility and settings immediately before sending. A configuration change after that validation falls within the in-flight exception.
 
-On successful delivery, record the actual channel and Discord message ID. If settings changed during a successful attempt, treat the event as delivered and do not resend it to the new channel. If disable already discarded the event, preserve that terminal state. Late failures from an old configuration must not pause the new destination or apply its old retry delay; pending work can use the new configuration. Updates are conditional on the row still being pending and, for failure policy, on the expected configuration version.
+On successful delivery, record the actual channel and Discord message ID. If settings changed during a successful attempt, treat the event as delivered and do not resend it to the new channel. If `disable` already discarded the event, preserve that terminal state. Late failures from an old configuration must not pause the new destination or apply its old retry delay; pending work can use the new configuration. Updates are conditional on the row still being pending and, for failure policy, on the expected configuration version.
 
 Pending state remains durable during a send. A process interruption does not strand a permanently claimed row. On restart, the worker resumes pending work after the gateway guard is acquired. Shutdown stops new attempts and gives active work a bounded opportunity to finish; interrupted work remains recoverable.
 
@@ -112,7 +112,7 @@ PostgreSQL and HTTP integration tests cover:
 4. A failed send survives store and worker reconstruction, does not retry before its deadline, and retries when due.
 5. Creation precedes resolution or cancellation for a guild; another guild progresses while the first waits or fails.
 6. Unauthorized or invalid configuration commands preserve settings. Redelivery of an old configuration command cannot override newer settings.
-7. Pending work moves on channel change and is discarded on disable. In-flight requests obey the documented exception, and stale failures cannot pause a new destination.
+7. Pending work moves on channel change and is discarded on `disable`. In-flight requests obey the documented exception, and stale failures cannot pause a new destination.
 8. Permission and missing-channel failures pause delivery; status exposes a safe reason; valid reconfiguration resumes work.
 9. An accepted HTTP request followed by failure to record success remains recoverable after restart; this test permits the documented duplicate.
 10. The runtime login can configure, enqueue, retry, and record delivery while event and receipt mutation remains forbidden. Repeated migrations preserve existing history.
@@ -121,9 +121,9 @@ PostgreSQL and HTTP integration tests cover:
 
 Rendering and retry policy tests use output assertions. Integration tests use observable market/configuration state and outgoing HTTP effects. Query assertions are reserved for durability and transaction invariants, not SQL call sequences.
 
-PostgreSQL appears application-owned from current repository evidence; fixtures create private instances. If external consumers directly depend on the new tables, migration compatibility becomes an additional external contract. Discord is independently observable, making outgoing message assertions appropriate. Each HTTP test uses its own endpoint and data.
+PostgreSQL appears app-owned from current repository evidence; fixtures create private instances. If external consumers directly depend on the new tables, migration compatibility becomes an additional external contract. Discord is independently observable, making outgoing message assertions appropriate. Each HTTP test uses its own endpoint and data.
 
-Regression protection targets loss, duplicate enqueueing, wrong destinations, broken permissions, and starvation. Refactoring resistance is supported by behavior-level assertions; it has not been demonstrated through an actual refactor. Feedback speed is unverified until measured. Maintainability comes from existing fixtures, small explicit setups, and no duplicate implementation of delivery logic in a fake.
+Regression protection targets loss, duplicate enqueuing, wrong destinations, broken permissions, and starvation. Refactoring resistance is supported by behavior-level assertions; it has not been demonstrated through an actual refactor. Feedback speed is unverified until measured. Maintainability comes from existing fixtures, small explicit setups, and no duplicate implementation of delivery logic in a fake.
 
 During implementation run Gazelle immediately after source edits, then repository-wide formatting, focused bot tests, and the required repository build. Local HTTP checks do not establish live Discord permission enforcement, gateway behavior, or provider rate limits. No implementation tests have been run for this design document.
 

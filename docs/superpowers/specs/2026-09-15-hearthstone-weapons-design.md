@@ -35,7 +35,7 @@ Implemented sequence:
 3. Run the new weapon's play effects with ordinary, non-spell effect origin.
 4. Complete equipping and resolve a dedicated WeaponEquipped event for eligible observers.
 5. Retire the captured previous weapon through weapon destruction bookkeeping and resolve the ordinary boundary, including Deathrattles in global play order.
-6. Resolve captured AfterPlay reactions, then the final boundary and outcome check.
+6. Resolve captured AfterPlay reactions, then the final boundary and outcome validation.
 
 The old weapon remains eligible as an in-Play effect source during the new weapon's play effects. Allow temporary overlapping weapon membership only under a durable replacement scope, not by increasing the general weapon limit. At idle there is at most one active weapon and no unfinished replacement scope.
 
@@ -55,7 +55,7 @@ Do not cache weapon Attack into Hero base stats. This avoids stale values and do
 
 Implemented `WeaponAtDamagePreparation` policy:
 
-1. After Attack reactions, preserve the preparation death/aura boundary and outcome check from main. Require both accepted subjects to remain in Play. Preserve the existing SurvivingCombatSubjects policy across control changes; do not retarget or repeat declaration checks.
+1. After Attack reactions, preserve the preparation death/aura boundary and outcome validation from main. Require both accepted subjects to remain in Play. Preserve the existing SurvivingCombatSubjects policy across control changes; do not retarget or repeat declaration checks.
 2. Read live damage values and capture the attacker's active weapon ID at this point.
 3. Resolve the existing simultaneous combat damage batch.
 4. Record attack usage and consume one durability from that captured weapon if it is still the attacker's active, in-Play weapon. A weapon equipped later in damage reactions is not charged for the earlier weapon's combat.
@@ -99,7 +99,7 @@ Snapshots and legal action enumeration remain pure. Interrupted replacement is a
 1. Add model/runtime/snapshot/checkpoint fields and update weapon fixtures. Relevant files: `core/model.rs`, `core/entity.rs`, `core/snapshot.rs`, `core/checkpoint.rs`, and simulator card runtime, snapshot, and checkpoint modules.
 2. Add scoped equip and destruction primitives; integrate zone invariants, death collection, movement/copy/transform, and Hero replacement.
 3. Add weapon declaration validation, legal-action enumeration, equip events, and durable play sequence steps in the action/resolver modules.
-4. Add shared effective-Attack calculation, deferred damage preparation, durability completion, and explicit abort handling.
+4. Add shared effective-Attack calculation, deferred damage preparation, durability completion, and explicit aborted-trigger handling.
 5. Add acceptance tests to existing action, Hero, movement, event, and API suites; create a dedicated weapon suite if needed for readability.
 6. Update README, IMPLEMENTATION_PROGRESS, and RULEBOOK_CONFORMANCE only as implementation lands. Leave Milestone 8 incomplete.
 7. Run `bazel run //:gazelle` immediately after every source-edit batch and before manual BUILD changes or formatting. Run `aspect format --scope=all`, `aspect test //hearthstone_simulator/...`, `aspect build //...`, and scoped lint. Record actual results.

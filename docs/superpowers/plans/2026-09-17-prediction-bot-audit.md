@@ -1,16 +1,20 @@
-# Prediction Bot Audit Implementation Plan
+# Prediction bot audit implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking. Subagent execution is an alternative only if selected by the user.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking. Subagent execution is an alternative only if selected by the user.
 
-**Goal:** Correct the four logging-audit findings using typed operational events delivered directly to a listener, initially backed by JSON diagnostic logging.
+**Goal:** correct the four logging-audit findings using typed operational events delivered directly to a listener, initially backed by JSON diagnostic logging.
 
-**Architecture:** Producers emit sanitized facts through a shared synchronous listener. The store owns final command outcomes, Discord orchestration owns query and delivery outcomes, and the worker owns discovery/reconstruction failures. The production listener maps these events to tracing records; tests observe event semantics and application behavior, not rendered logs.
+**Architecture:** producers emit sanitized facts through a shared synchronous listener. The store owns final command outcomes, Discord orchestration owns query and delivery outcomes, and the worker owns discovery/reconstruction failures. The production listener maps these events to tracing records; tests observe event semantics and app behavior, not rendered logs.
 
-**Tech Stack:** Rust, Tokio, SQLx/PostgreSQL, Serenity, tracing/tracing-subscriber, Bazel/Aspect, existing testcontainers fixtures.
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
+
+**Tech Stack:** Rust, Tokio, sqlx/PostgreSQL, Serenity, tracing/tracing-subscriber, Bazel/Aspect, existing testcontainers fixtures.
+<!-- vale Google.Colons = YES -->
 
 **Spec:** `docs/superpowers/specs/2026-09-17-prediction-bot-audit-design.md` (approved, including JSON output and the exclusion of diagnostic-output tests).
 
-## Global Constraints
+## Global constraints
 
 - Operational audit events are best effort and do not replace that history.
 - Producers supply facts rather than formatting text or choosing severity.
@@ -44,9 +48,9 @@
 
 Existing `lib` sources use a glob and `discord_test` compiles that library's tests. Prefer these existing targets; do not create a separate test target for each module. Keep the recorder in test code rather than exporting production test helpers.
 
-## Task 1: Introduce the event contract and safe classification
+## Task 1: introduce the event contract and safe classification
 
-**Files:** Create `audit.rs`, `audit/logging.rs`, `audit_tests.rs`; modify `lib.rs` and, only as needed after Gazelle, `lib/BUILD.bazel`.
+**Files:** create `audit.rs`, `audit/logging.rs`, `audit_tests.rs`; modify `lib.rs` and, only as needed after Gazelle, `lib/BUILD.bazel`.
 
 **Interfaces produced:**
 
@@ -124,11 +128,11 @@ fn configuration_details_do_not_enter_the_event_contract() {
 - [x] Implement `logging_listener()` returning `Arc::new(LoggingListener)`. Map variants to stable event names and named tracing fields; do not Debug-format entire events or raw errors. Success/rejection maps to INFO, delivery and timeout failures to WARN, operational failures to ERROR. Code-review this mapping; do not test rendered logs.
 - [x] Run the same focused tests, format, review the diff, and commit `feat(prediction_bot): add typed operational audit events`.
 
-## Task 2: Emit store command and grant outcomes through the listener
+## Task 2: emit store command and grant outcomes through the listener
 
-**Files:** Modify `store.rs`, `lib/tests/store_test.rs`, and any necessary BUILD declarations after Gazelle.
+**Files:** modify `store.rs`, `lib/tests/store_test.rs`, and any necessary BUILD declarations after Gazelle.
 
-**Interfaces consumed:** Task 1 event contract, `SharedAudit`, `logging_listener`, `store_outcome`.
+**Interfaces consumed:** task 1 event contract, `SharedAudit`, `logging_listener`, `store_outcome`.
 
 **Interfaces produced:**
 
@@ -187,13 +191,13 @@ No per-retry event, no success before commit, and no assumed rollback on commit 
 - [x] Add a real PostgreSQL constraint that rejects one enrolled account's grant receipt, allow another account's grant, and invoke the actual `grant_due` method. Set enrollment time sufficiently in the past via `execute_at`; do not sleep. Assert the failed account remains unchanged, the other account advances, and the failed grant event retains its schedule key. Also exercise discovery failure and corrupt-guild reconstruction independently.
 - [x] Run `store_test`, `domain_test`, and `discord_test`; format and commit `feat(prediction_bot): audit store and grant outcomes`.
 
-## Task 3: Make Discord orchestration observable at the event boundary
+## Task 3: make Discord orchestration observable at the event boundary
 
-**Files:** Modify `discord.rs`, `discord_tests.rs`, `lib/tests/store_test.rs`; create `discord/transport.rs`.
+**Files:** modify `discord.rs`, `discord_tests.rs`, `lib/tests/store_test.rs`; create `discord/transport.rs`.
 
 **Interfaces consumed:** `Store::audit`, event types, `discord_failure`, unchanged public store operations.
 
-**Interfaces produced:** A narrow transport trait consumed by the actual handlers and their shared deferred-response orchestration. Use Serenity's async-trait support already used by `EventHandler`:
+**Interfaces produced:** a narrow transport trait consumed by the actual handlers and their shared deferred-response orchestration. Use Serenity's async-trait support already used by `EventHandler`:
 
 ```rust
 #[serenity::async_trait]
@@ -229,13 +233,13 @@ assert!(events.iter().any(|event| matches!(event,
 - [x] Route acknowledgement/edit/initial-response calls through the real adapter and shared orchestration. Remove `execute_request`'s unconditional ERROR log; the store now owns that outcome. Emit sanitized acknowledgement/delivery facts separately from store results, including on modal and component paths.
 - [x] Emit final query events around the actual `store.view` calls in slash and component handlers. Report component timeout explicitly. Extract the bounded-read orchestration to accept its read future and timeout duration if needed for deterministic testing, rather than substituting a store repository. Production supplies the real view future and existing two-second limit. A pending future with a zero test timeout exercises the timeout branch without sleeps; do not assert elapsed duration.
 - [x] Test failed reads and timeouts retain the existing safe responses and identify guild/interaction/query stage. Test the normal composition path with the recorder; do not create a separate test-only orchestration implementation. Parsing and form validation rejections should also use a safe rejection event at their boundary, with existing input messages preserved and no copied input fields.
-- [x] Replace registration, grant discovery, and lifecycle application logs with typed events using the store's listener. Preserve existing recovery/shutdown semantics. Do not add an independent worker supervision redesign.
+- [x] Replace registration, grant discovery, and lifecycle app logs with typed events using the store's listener. Preserve existing recovery/shutdown semantics. Do not add an independent worker supervision redesign.
 - [x] Inspect the concrete Serenity wrappers and, if the pinned client's endpoint configuration permits, exercise them against a controlled HTTP endpoint. Explicitly record any remaining transport/live-provider fidelity gap; injected transport tests alone do not establish live Discord compatibility.
 - [x] Run `discord_test` and `store_test`, format, and commit `feat(prediction_bot): audit Discord request and delivery outcomes`.
 
 ## Task 4: Wire JSON logging and complete repository verification
 
-**Files:** Modify `bin/src/main.rs`, `Cargo.toml`, necessary generated lockfiles/BUILD declarations, and `prediction_bot/README.md`.
+**Files:** modify `bin/src/main.rs`, `Cargo.toml`, necessary generated lockfiles/BUILD declarations, and `prediction_bot/README.md`.
 
 **Interfaces consumed:** `logging_listener`, `Store::connect_with_audit`, existing `discord::run` using `Store::audit`.
 
@@ -269,13 +273,13 @@ nix develop --command aspect build //...
 git diff --check
 ```
 
-- [x] Review every original application tracing call in `prediction_bot` against the event mapping. Verify raw error objects and payloads never enter events; verify reply, commit, retry, and shutdown behavior is preserved. Check one final command event per invocation and no worker/handler duplicates.
-- [x] Review test quality: meaningful regression triggers, semantic rather than internal-call assertions, measured feedback time, and understandable private fixtures. Record commands/results, original-failure evidence, PostgreSQL execution evidence, and any production adapter gap. Do not label a proposed check as executed.
+- [x] Review every original app tracing call in `prediction_bot` against the event mapping. Verify raw error objects and payloads never enter events; verify reply, commit, retry, and shutdown behavior is preserved. Check one final command event per invocation and no worker/handler duplicates.
+- [x] Review test quality: meaningful regression triggers, semantic rather than internal-call assertions, measured feedback time, and understandable private fixtures. Record commands/results, original-failure evidence, PostgreSQL execution evidence, and any production adapter gap. Do not label a proposed test as executed.
 - [x] Commit `feat(prediction_bot): enable JSON audit logging` with only related code, generated dependency changes, and documentation. Report final state and remaining verification limitations.
 
 ## Plan self-review
 
-Coverage: Task 1 defines typed/sanitized facts and severity mapping; Task 2 covers command and grant audit defects plus retry/commit semantics; Task 3 covers query, acknowledgement, delivery, registration, and lifecycle paths plus the Discord seam; Task 4 covers JSON composition, documentation, and repository checks. Existing public entrypoints delegate to injected composition. Tests observe listener events and economic behavior, never diagnostic JSON output. Live-provider verification is explicitly separate from test-double evidence.
+Coverage: task 1 defines typed/sanitized facts and severity mapping; Task 2 covers command and grant audit defects plus retry/commit semantics; Task 3 covers query, acknowledgement, delivery, registration, and lifecycle paths plus the Discord seam; Task 4 covers JSON composition, documentation, and repository checks. Existing public entrypoints delegate to injected composition. Tests observe listener events and economic behavior, never diagnostic JSON output. Live-provider verification is explicitly separate from test-double evidence.
 
 ## Execution evidence (2026-09-18)
 
@@ -292,15 +296,15 @@ Implemented in commits `7ec05dab`, `8c2f0815`, `eab30354`, and `960377e8`, with 
 1. JSON configuration and severity mapping were reviewed directly without output tests, as instructed. The tradeoff is no test assertion over rendered diagnostic records.
 2. Existing build/tool warnings were recorded without unrelated cleanup. Those warnings remain outside this feature's scope.
 3. Acknowledgement failures retain warning severity, as specified. A future consumer requiring error severity would need an explicit policy change.
-4. Typed events are tested through classification and application behavior, not constructor-only enum assertions. Rust type checking covers enum structure; tests focus on meaningful outcomes.
+4. Typed events are tested through classification and app behavior, not constructor-only enum assertions. Rust type checking covers enum structure; tests focus on meaningful outcomes.
 5. The repository-wide build ran after integration rather than after every task. This delays detection of cross-project build issues; the final build passed.
 6. Added distinct shutdown stages so requested shutdown, gateway timeout, worker timeout, and lock release remain distinguishable. This extends the event vocabulary. Creation-menu reads use the existing Component query kind; a future consumer needing finer query breakdown would require a new kind.
 
 ### Final review corrections (2026-09-18)
 
 - Corrected severity selection in this revision: only acknowledgement/delivery failures and explicit bounded read/shutdown timers use WARN. Operational command, registration, grant, and fatal lifecycle timeouts use ERROR. Query cancellation carrying SQLSTATE `57014` also remains ERROR; a bounded read timer has no SQLSTATE. Verified this mapping by code review, without rendered-output or severity tests.
-- Discord startup/shutdown and gateway-lock-release events now retain the application ID already held by the store. The existing closed-pool test exercises actual `discord::run` and requires the configured ID, `Some(42)`. It failed on that correlation assertion before the wiring fix (49 passed, 1 failed) and passed afterward.
+- Discord startup/shutdown and gateway-lock-release events now retain the app ID already held by the store. The existing closed-pool test exercises actual `discord::run` and requires the configured ID, `Some(42)`. It failed on that correlation assertion before the wiring fix (49 passed, 1 failed) and passed afterward.
 - The final four-target command passed: `nix develop --command aspect test //prediction_bot/lib:domain_test //prediction_bot/lib:events_test //prediction_bot/lib:discord_test //prediction_bot/lib:store_test`. Discord and PostgreSQL tests executed fresh; domain and events used cached results. Bazel reported 45.842 seconds overall and 29.6 seconds for the PostgreSQL target. Gazelle passed immediately after every source edit.
-- After those corrections, `nix develop --command aspect format --scope=all` passed without modifying files, `nix develop --command aspect build //...` passed (23.280 seconds reported by Bazel), and `git diff --check` passed. The remaining live Discord, shutdown integration, and external log collection limitations above still apply.
+- After those corrections, `nix develop --command aspect format --scope=all` passed without modifying files, `nix develop --command aspect build //...` passed (23.280 seconds reported by Bazel), and `git diff --check` passed. The remaining live Discord, shutdown integration, and external log collection limitations described earlier still apply.
 
-- Final correction commit: `3c682b91`. Scoped final review approved both severity and application-ID corrections with no new findings. Temporary execution reports were removed after preserving the evidence and decisions here.
+- Final correction commit: `3c682b91`. Scoped final review approved both severity and app-ID corrections with no new findings. Temporary execution reports were removed after preserving the evidence and decisions here.

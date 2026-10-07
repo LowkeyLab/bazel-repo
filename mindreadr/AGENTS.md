@@ -1,14 +1,14 @@
-# AGENTS.md (Mindreadr Kotlin Backend)
+# AGENTS.md (Mindreadr Kotlin backend)
 
 Ktor-based backend for Mindreadr, built and run with Bazel. For repo-wide prerequisites and shared commands, see the root `AGENTS.md`.
 
-## Paths & Targets
+## Paths & targets
 
 - Main class: `io.lowkeylab.mindreadr.app.ApplicationKt`
 - Binary target: `//mindreadr/src/main/io/lowkeylab/mindreadr/app:Application`
 - Resources: `mindreadr/src/main/resources` (`application.conf`, `logback.xml`, word lists)
 
-## Build, Run, Watch
+## Build, run, watch
 
 - Build everything under Mindreadr:
 
@@ -34,7 +34,7 @@ Ktor-based backend for Mindreadr, built and run with Bazel. For repo-wide prereq
   ibazel run //mindreadr/src/main/io/lowkeylab/mindreadr/app:Application
   ```
 
-Note: `ibazel run //mindreadr` may fail depending on alias resolution. Prefer the explicit `:Application` target above.
+Note: `ibazel run //mindreadr` may fail depending on alias resolution. Prefer the explicit `:Application` target shown earlier.
 
 ## Configuration
 
@@ -51,7 +51,7 @@ set -x FRONTEND_URL localhost:4200
 ibazel run //mindreadr/src/main/io/lowkeylab/mindreadr/app:Application
 ```
 
-## API Surface
+## API surface
 
 - `GET /` → "Hello World!"
 - `GET /health` → "OK"
@@ -62,7 +62,7 @@ ibazel run //mindreadr/src/main/io/lowkeylab/mindreadr/app:Application
   - Incoming messages: sealed type with `SubmitGuess { guess: string }`
   - Outgoing messages: `GameState`, `PlayerJoined`, `GameTerminated`, `Error`
 
-Tip: Use any WebSocket client to connect (e.g., `wscat` or browser). Create a game via `POST /games`, then connect to `/games/{id}/live`.
+Tip: use any WebSocket client to connect (e.g., `wscat` or browser). Create a game via `POST /games`, then connect to `/games/{id}/live`.
 
 ## Testing
 
@@ -78,12 +78,12 @@ Tip: Use any WebSocket client to connect (e.g., `wscat` or browser). Create a ga
   aspect test //mindreadr/src/test/io/lowkeylab/mindreadr/game:game
   ```
 
-## Logs & Observability
+## Logs & observability
 
 - Logging: `logback.xml`
 - Call ID and request logging are enabled; `X-Request-Id` is supported
 
-## Dev Hygiene
+## Dev hygiene
 
 - Format code and BUILD files before committing:
 

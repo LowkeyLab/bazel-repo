@@ -104,3 +104,18 @@ ng_test(
         # keep-sorted end
     ],
 )
+
+# Prose lint covers Markdown in this package, including nested non-package directories.
+filegroup(
+    name = "markdown",
+    srcs = glob(
+        ["**/*.md"],
+        exclude = [
+            "**/node_modules/**",
+            "**/target/**",
+            ".*/**",
+        ],
+    ),
+    tags = ["markdown"],
+    visibility = ["//tools/lint:__pkg__"],
+)

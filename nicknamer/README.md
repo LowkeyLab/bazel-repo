@@ -1,8 +1,8 @@
-# Nicknamer Server
+# Nicknamer server
 
-This directory contains the nicknamer server application.
+This directory contains the Nicknamer server app.
 
-## Building and Running
+## Building and running
 
 ### Local Development
 
@@ -16,7 +16,7 @@ bazel run //nicknamer:run_locally
 
 #### Building the Docker Image
 
-To build the nicknamer server as a Docker image:
+To build the Nicknamer server as a Docker image:
 
 ```bash
 # Build the image (convenience alias)
@@ -29,7 +29,7 @@ aspect build //nicknamer/server/bin:image
 aspect build //nicknamer/server/bin:nicknamer_image
 ```
 
-#### Pushing to GitHub Container Registry
+#### Pushing to GitHub container registry
 
 To push the image to GitHub's Container Registry (ghcr.io):
 
@@ -44,12 +44,12 @@ bazel run //nicknamer:push_image
 bazel run //nicknamer/server/bin:push_image
 ```
 
-**Note**: You'll need to have proper authentication set up for GitHub Container Registry. Make sure you have:
+**Note**: you'll need to have proper authentication set up for GitHub Container Registry. Make sure you have:
 
 1. A GitHub Personal Access Token with `write:packages` permission
 2. Docker logged in to ghcr.io: `echo $GITHUB_TOKEN | docker login ghcr.io -u <username> --password-stdin`
 
-#### Using the Built Image
+#### Using the built image
 
 After building, you can load the image into your local Docker daemon:
 
@@ -59,7 +59,7 @@ bazel run //nicknamer/server/bin:nicknamer_image
 docker run --rm -p 8080:8080 nicknamer-server:latest
 ```
 
-## Project Structure
+## Project structure
 
 - `server/bin/` - Main server binary
 - `server/lib/` - Server library code
@@ -109,23 +109,23 @@ one aborted `503` observation; tasks dropped before entering it produce no reque
 Cancelled work is not reported as completed. Cancellation is cooperative: synchronous
 handler work or a blocking local writer can delay runtime scheduling and final cleanup.
 The deadline bounds the graceful-drain phase, not arbitrary synchronous blocking.
-After application cleanup (also on startup failure), SDK shutdown drains pending records
+After app cleanup (also on startup failure), SDK shutdown drains pending records
 and waits at most two seconds for the exporter worker. No separate unbounded flush is
 performed. A stalled stdout write may outlive this wait on the detached SDK thread;
 remaining records can be lost on process exit. Telemetry failure does not change the
-application exit status.
+app exit status.
 
 Delivery is best effort and in-process: each event attempts each listener once, and a
-failing listener does not change application responses or persistence outcomes. Listener
+failing listener does not change app responses or persistence outcomes. Listener
 failures use a rate-limited, sanitized stdout fallback independent of tracing. The SDK
 queue holds at most 2,048 records, exports batches of at most 512 records, and schedules
-export every second. Queue overflow drops records. SDK internal logging is disabled to
+export every second. Queue overflow drops records. SDK internal logging is turned off to
 avoid recursively exporting its own errors. The exporter reports its first failure with
 a fixed stdout diagnostic; diagnostics are skipped while the telemetry writer is busy.
 Normal request threads enqueue records instead of waiting for stdout writes. Successful
 SDK shutdown does not promise OS or collector persistence. Crashes, process aborts,
 queue overflow, and sink failures can lose records.
 No remote exporter, OpenTelemetry backend, durable audit trail, retention policy, or
-monitoring service is configured. Existing tests cover structured application facts and
+monitoring service is configured. Existing tests cover structured app facts and
 lifecycle behavior; stdout delivery and serialization are not asserted as external
 contracts. Hosted collection and retention require deployment evidence.
