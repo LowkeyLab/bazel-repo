@@ -137,6 +137,7 @@ pub fn register_worktree(
         repository_id: repo.repository_id,
         path: EncodedPath::from_path(&observed.path),
         git_directory: EncodedPath::from_path(&observed.git_directory),
+        last_release_position: None,
     };
     let event = management_event(
         session.projection.catalog_id,
@@ -171,9 +172,8 @@ pub fn refresh(
 pub fn refresh_observed(
     paths: &Paths,
     selector: Option<&OsStr>,
-    mut observe: impl FnMut(RefreshCheckpoint),
+    observe: impl FnMut(RefreshCheckpoint),
 ) -> Result<(CatalogProjection, crate::management::RefreshOperation), PoolError> {
-    use crate::management::{OperationId, RefreshFinished, RefreshStarted, RefreshState};
     let _maintenance = maintenance(paths)?;
     let state = {
         let session = catalog::open(paths)?;
@@ -186,6 +186,17 @@ pub fn refresh_observed(
             .join(format!("repository-{}.lock", repo.repository_id)),
         true,
     )?;
+    refresh_locked(paths, &repo, observe)
+}
+/// Executes refresh while the caller owns maintenance and repository coordination.
+/// # Errors
+/// Retains durable pending work on failed or interrupted effects.
+pub(crate) fn refresh_locked(
+    paths: &Paths,
+    repo: &Repository,
+    mut observe: impl FnMut(RefreshCheckpoint),
+) -> Result<(CatalogProjection, crate::management::RefreshOperation), PoolError> {
+    use crate::management::{OperationId, RefreshFinished, RefreshStarted, RefreshState};
     let operation_id = OperationId::new();
     let intent_event_id;
     {

@@ -14,3 +14,9 @@ mod store_tests;
 pub mod git;
 pub mod management;
 pub mod workflows;
+
+pub mod acquisition;
+pub mod acquisition_workflow;
+
+#[cfg(test)]
+mod acquisition_tests;

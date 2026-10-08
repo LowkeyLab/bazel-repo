@@ -1,5 +1,15 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PoolError {
+    #[error("unfinished tracked, indexed, or untracked work is present")]
+    UnfinishedWork,
+    #[error("Git operation or required lock state is present")]
+    GitOperation,
+    #[error("index state cannot be certified for ordinary worktree reuse")]
+    UnsupportedIndex,
+    #[error("retained work would collide with the selected checkout")]
+    RetainedCollision,
+    #[error("no safe registered worktree is available")]
+    Unavailable,
     #[error("Git observation failed; verify the selected repository")]
     Git,
     #[error("repository operation is pending; inspect before explicit reconciliation")]
@@ -37,6 +47,11 @@ impl PoolError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
+            Self::UnfinishedWork => "unfinished_work",
+            Self::GitOperation => "git_operation_in_progress",
+            Self::UnsupportedIndex => "unsupported_index_state",
+            Self::RetainedCollision => "retained_file_collision",
+            Self::Unavailable => "worktree_unavailable",
             Self::Git => "git_failed",
             Self::OperationPending => "operation_pending",
             Self::Unregistered => "resource_unregistered",

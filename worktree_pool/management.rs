@@ -53,6 +53,7 @@ macro_rules! identity {
 identity!(RepositoryId);
 identity!(WorktreeId);
 identity!(OperationId);
+identity!(AssignmentHandle);
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -71,6 +72,8 @@ pub struct Worktree {
     pub repository_id: RepositoryId,
     pub path: EncodedPath,
     pub git_directory: EncodedPath,
+    #[serde(default)]
+    pub last_release_position: Option<u64>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,6 +113,8 @@ pub struct RefreshFinished {
     deny_unknown_fields
 )]
 pub enum ManagementEvent {
+    WorktreeWithheld(crate::acquisition::WithheldWorktree),
+    Acquisition(crate::acquisition::AcquisitionEvent),
     RepositoryRegistered(Repository),
     WorktreeRegistered(Worktree),
     RefreshStarted(RefreshStarted),
@@ -119,6 +124,8 @@ impl ManagementEvent {
     #[must_use]
     pub const fn event_type(&self) -> &'static str {
         match self {
+            Self::WorktreeWithheld(_) => "io.lowkeylab.worktreepool.worktree.withheld.v1",
+            Self::Acquisition(a) => a.event_type(),
             Self::RepositoryRegistered(_) => "io.lowkeylab.worktreepool.repository.registered.v1",
             Self::WorktreeRegistered(_) => "io.lowkeylab.worktreepool.worktree.registered.v1",
             Self::RefreshStarted(_) => "io.lowkeylab.worktreepool.repository.refresh.started.v1",
@@ -128,6 +135,8 @@ impl ManagementEvent {
     #[must_use]
     pub const fn repository_id(&self) -> Option<RepositoryId> {
         match self {
+            Self::WorktreeWithheld(w) => Some(w.repository_id),
+            Self::Acquisition(a) => Some(a.repository_id()),
             Self::RepositoryRegistered(_) => None,
             Self::WorktreeRegistered(w) => Some(w.repository_id),
             Self::RefreshStarted(r) => Some(r.repository_id),
@@ -137,6 +146,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn operation_id(&self) -> Option<OperationId> {
         match self {
+            Self::Acquisition(a) => Some(a.operation_id()),
             Self::RefreshStarted(r) => Some(r.operation_id),
             Self::RefreshFinished(r) => Some(r.operation_id),
             _ => None,
@@ -145,6 +155,8 @@ impl ManagementEvent {
     #[must_use]
     pub fn subject(&self) -> String {
         match self {
+            Self::WorktreeWithheld(w) => format!("worktrees/{}", w.worktree_id),
+            Self::Acquisition(a) => format!("worktrees/{}", a.worktree_id()),
             Self::RepositoryRegistered(r) => format!("repositories/{}", r.repository_id),
             Self::WorktreeRegistered(w) => format!("worktrees/{}", w.worktree_id),
             Self::RefreshStarted(r) => format!("repositories/{}", r.repository_id),
@@ -161,6 +173,8 @@ impl ManagementEvent {
         causation_id: Option<&str>,
     ) -> Result<(), PoolError> {
         match self {
+            Self::WorktreeWithheld(w) => withhold(state, w)?,
+            Self::Acquisition(a) => a.apply(state, event_id, causation_id)?,
             Self::RepositoryRegistered(repository) => {
                 repository.common_directory.to_path()?;
                 repository.context_path.to_path()?;
@@ -177,7 +191,10 @@ impl ManagementEvent {
             }
             Self::WorktreeRegistered(worktree) => enroll_worktree(state, worktree)?,
             Self::RefreshStarted(started) => {
-                if state.operations.iter().any(|o| {
+                if state.acquisitions.iter().any(|o| {
+                    o.repository_id == started.repository_id
+                        && o.state != crate::acquisition::AcquisitionState::Completed
+                }) || state.operations.iter().any(|o| {
                     o.operation_id == started.operation_id
                         || (o.repository_id == started.repository_id
                             && o.state != RefreshState::Completed)
@@ -244,6 +261,9 @@ impl ManagementEvent {
 }
 
 fn enroll_worktree(state: &mut CatalogProjection, worktree: &Worktree) -> Result<(), PoolError> {
+    if worktree.last_release_position.is_some() {
+        return Err(PoolError::Corrupt);
+    }
     worktree.path.to_path()?;
     worktree.git_directory.to_path()?;
     let repo = state
@@ -268,5 +288,32 @@ fn enroll_worktree(state: &mut CatalogProjection, worktree: &Worktree) -> Result
         return Err(PoolError::Capacity);
     }
     state.worktrees.push(worktree.clone());
+    Ok(())
+}
+
+fn withhold(
+    state: &mut CatalogProjection,
+    w: &crate::acquisition::WithheldWorktree,
+) -> Result<(), PoolError> {
+    if !matches!(
+        w.reason.as_str(),
+        "safety_uncertain"
+            | "retained_file_collision"
+            | "unfinished_work"
+            | "git_operation_in_progress"
+            | "unsupported_index_state"
+    ) || !state
+        .worktrees
+        .iter()
+        .any(|x| x.repository_id == w.repository_id && x.worktree_id == w.worktree_id)
+        || state
+            .withheld_worktrees
+            .iter()
+            .any(|x| x.worktree_id == w.worktree_id)
+    {
+        return Err(PoolError::Conflict);
+    }
+    state.withheld_worktrees.push(w.clone());
+
     Ok(())
 }

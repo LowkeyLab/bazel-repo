@@ -1242,3 +1242,1009 @@ fn concurrent_registration_cannot_overflow_the_last_durable_capacity_place() {
         );
     }
 }
+
+#[googletest::test]
+fn acquire_publishes_exclusive_detached_assignment_at_fresh_main() {
+    let fixture = Fixture::new();
+    fixture.json(&["catalog", "init"]);
+    let source = fixture.repository();
+    let checkout = fixture.root.path().join("acquire-checkout");
+    fixture.git(
+        fixture.root.path(),
+        &["clone".as_ref(), source.as_os_str(), checkout.as_os_str()],
+    );
+    let registered = fixture.path_json(&["repo", "register"], &checkout);
+    let id = registered["context"]["repository_id"].as_str().unwrap();
+    fixture.path_json(&["worktree", "register", "--repo", id], &checkout);
+    fs::write(source.join("new-main"), b"fresh bytes").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+    fixture.git(
+        &source,
+        &["commit".as_ref(), "-m".as_ref(), "fresh".as_ref()],
+    );
+    let acquired = fixture.json(&["acquire", "--repo", id]);
+    assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        acquired["data"]["assignment"]["assignment_handle"].is_string(),
+        eq(true)
+    );
+    assert_that!(
+        fs::read(checkout.join("new-main")).unwrap().as_slice(),
+        eq(b"fresh bytes".as_slice())
+    );
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(),
+        eq(Some("active"))
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", id])["outcome"].as_str(),
+        eq(Some("rejected"))
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list"])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .len(),
+        eq(1)
+    );
+}
+
+impl Fixture {
+    fn acquisition(&self) -> (PathBuf, PathBuf, String) {
+        self.json(&["catalog", "init"]);
+        let source = self.repository();
+        let checkout = self.root.path().join("checkout");
+        self.git(
+            self.root.path(),
+            &["clone".as_ref(), source.as_os_str(), checkout.as_os_str()],
+        );
+        let registered = self.path_json(&["repo", "register"], &checkout);
+        let id = registered["context"]["repository_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        self.path_json(&["worktree", "register", "--repo", &id], &checkout);
+        (source, checkout, id)
+    }
+    fn git_text(&self, path: &std::path::Path, args: &[&str]) -> String {
+        let result = Command::new("git")
+            .arg("-C")
+            .arg(path)
+            .args(args)
+            .env_clear()
+            .env("PATH", env::var_os("PATH").unwrap())
+            .env("HOME", self.root.path())
+            .output()
+            .unwrap();
+        assert_that!(result.status.success(), eq(true));
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .trim_end_matches('\n')
+            .to_owned()
+    }
+}
+#[googletest::test]
+fn acquisition_preserves_old_detached_tip_with_a_durable_recorded_reference() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    fixture.git(&checkout, &["checkout".as_ref(), "--detach".as_ref()]);
+    fixture.git(
+        &checkout,
+        &[
+            "commit".as_ref(),
+            "--allow-empty".as_ref(),
+            "-m".as_ref(),
+            "private-detached-work".as_ref(),
+        ],
+    );
+    let old = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let result = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(result["outcome"].as_str(), eq(Some("completed")));
+    let operation = result["context"]["operation_id"].as_str().unwrap();
+    let reference = format!("refs/worktree-pool/{operation}");
+    assert_that!(
+        fixture
+            .git_text(&checkout, &["show-ref", "--verify", "--hash", &reference])
+            .as_str(),
+        eq(old.as_str())
+    );
+    let inspected = fixture.json(&["operation", "inspect", operation]);
+    assert_that!(
+        inspected["data"]["operation"]["preservation_reference"].as_str(),
+        eq(Some(reference.as_str()))
+    );
+    assert_that!(
+        fixture
+            .git_text(&checkout, &["branch", "--show-current"])
+            .as_str(),
+        eq("")
+    );
+}
+
+#[googletest::test]
+fn acquisition_withholds_ignored_empty_directory_collision_and_tries_safe_registration() {
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.acquisition();
+    fs::write(checkout.join(".git/info/exclude"), b"retained\n").unwrap();
+    fs::create_dir(checkout.join("retained")).unwrap();
+    let fallback = fixture.root.path().join("fallback");
+    fixture.git(
+        &checkout,
+        &[
+            "worktree".as_ref(),
+            "add".as_ref(),
+            "--detach".as_ref(),
+            fallback.as_os_str(),
+            "HEAD".as_ref(),
+        ],
+    );
+    let fallback_registered =
+        fixture.path_json(&["worktree", "register", "--repo", &id], &fallback);
+    let expected_id = fallback_registered["context"]["worktree_id"]
+        .as_str()
+        .unwrap();
+    // Keep fallback dirty initially so the first attempt must inspect and withhold the collision.
+    fs::write(fallback.join("tracked"), b"protected unfinished fallback").unwrap();
+    fs::write(source.join("retained"), b"target tracked file").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+    fixture.git(
+        &source,
+        &[
+            "commit".as_ref(),
+            "-m".as_ref(),
+            "target collision".as_ref(),
+        ],
+    );
+    let before = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let rejected = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(rejected["outcome"].as_str(), eq(Some("rejected")));
+    assert_that!(checkout.join("retained").is_dir(), eq(true));
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+        eq(before.as_str())
+    );
+    let worktrees = fixture.json(&["worktree", "list", "--repo", &id]);
+    let collision = worktrees["data"]["worktrees"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|w| w["worktree_id"].as_str() != Some(expected_id))
+        .unwrap();
+    assert_that!(collision["availability"].as_str(), eq(Some("withheld")));
+    assert_that!(
+        collision["withheld_reason"].as_str(),
+        eq(Some("retained_file_collision"))
+    );
+}
+
+#[googletest::test]
+fn retained_collisions_report_their_cause_and_fall_back_without_touching_files() {
+    use std::os::unix::fs::symlink;
+    for kind in ["file", "directory", "symlink", "prefix"] {
+        let fixture = Fixture::new();
+        let (source, checkout, id) = fixture.acquisition();
+        fs::write(checkout.join(".git/info/exclude"), b"retained\n").unwrap();
+        let sentinel = fixture.root.path().join("external");
+        fs::write(&sentinel, b"external protected bytes").unwrap();
+        match kind {
+            "directory" => fs::create_dir(checkout.join("retained")).unwrap(),
+            "symlink" => symlink(&sentinel, checkout.join("retained")).unwrap(),
+            _ => fs::write(checkout.join("retained"), b"retained protected bytes").unwrap(),
+        }
+        if kind == "prefix" {
+            fs::create_dir(source.join("retained")).unwrap();
+            fs::write(source.join("retained/child"), b"target").unwrap();
+        } else {
+            fs::write(source.join("retained"), b"target").unwrap();
+        }
+        fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+        fixture.git(
+            &source,
+            &["commit".as_ref(), "-m".as_ref(), "target".as_ref()],
+        );
+        let safe = fixture.root.path().join("safe");
+        fixture.git(
+            &checkout,
+            &[
+                "worktree".as_ref(),
+                "add".as_ref(),
+                "--detach".as_ref(),
+                safe.as_os_str(),
+                "HEAD".as_ref(),
+            ],
+        );
+        let registered = fixture.path_json(&["worktree", "register", "--repo", &id], &safe);
+        let before = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let acquired = fixture.json(&["acquire", "--repo", &id]);
+        assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            &acquired["context"]["worktree_id"],
+            eq(&registered["context"]["worktree_id"])
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+            eq(before.as_str())
+        );
+        assert_that!(
+            fs::read(&sentinel).unwrap().as_slice(),
+            eq(b"external protected bytes".as_slice())
+        );
+        match kind {
+            "directory" => assert_that!(checkout.join("retained").is_dir(), eq(true)),
+            "symlink" => assert_that!(
+                fs::read_link(checkout.join("retained")).unwrap().as_path(),
+                eq(sentinel.as_path())
+            ),
+            _ => assert_that!(
+                fs::read(checkout.join("retained")).unwrap().as_slice(),
+                eq(b"retained protected bytes".as_slice())
+            ),
+        }
+        let inspected = fixture.path_json(&["worktree", "inspect"], &checkout);
+        assert_that!(
+            inspected["data"]["worktree"]["withheld_reason"].as_str(),
+            eq(Some("retained_file_collision"))
+        );
+    }
+}
+
+#[googletest::test]
+fn acquisition_withholds_hidden_operations_indexes_and_unfinished_work_without_modifying_them() {
+    for kind in [
+        "merge",
+        "sequencer",
+        "revert",
+        "index-lock",
+        "assume-unchanged",
+        "skip-worktree",
+        "sparse",
+        "staged",
+        "untracked",
+    ] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        match kind {
+            "merge" => {
+                fixture.git(
+                    &checkout,
+                    &["checkout".as_ref(), "-b".as_ref(), "side".as_ref()],
+                );
+                fixture.git(
+                    &checkout,
+                    &[
+                        "commit".as_ref(),
+                        "--allow-empty".as_ref(),
+                        "-m".as_ref(),
+                        "side".as_ref(),
+                    ],
+                );
+                fixture.git(&checkout, &["checkout".as_ref(), "main".as_ref()]);
+                fixture.git(
+                    &checkout,
+                    &[
+                        "commit".as_ref(),
+                        "--allow-empty".as_ref(),
+                        "-m".as_ref(),
+                        "main".as_ref(),
+                    ],
+                );
+                fixture.git(
+                    &checkout,
+                    &[
+                        "merge".as_ref(),
+                        "--no-ff".as_ref(),
+                        "--no-commit".as_ref(),
+                        "side".as_ref(),
+                    ],
+                );
+                assert_that!(
+                    fixture
+                        .git_text(&checkout, &["status", "--porcelain"])
+                        .as_str(),
+                    eq("")
+                );
+            }
+            "sequencer" => fs::create_dir(checkout.join(".git/sequencer")).unwrap(),
+            "revert" => {
+                fs::write(
+                    checkout.join(".git/REVERT_HEAD"),
+                    b"unknown operation state",
+                )
+                .unwrap();
+            }
+            "index-lock" => {
+                fs::write(checkout.join(".git/index.lock"), b"protected lock").unwrap();
+            }
+            "assume-unchanged" | "skip-worktree" => {
+                fixture.git(
+                    &checkout,
+                    &[
+                        "update-index".as_ref(),
+                        format!("--{kind}").as_ref(),
+                        "tracked".as_ref(),
+                    ],
+                );
+                fs::write(
+                    checkout.join("tracked"),
+                    b"hidden protected unfinished bytes",
+                )
+                .unwrap();
+            }
+            "sparse" => fixture.git(
+                &checkout,
+                &[
+                    "config".as_ref(),
+                    "core.sparseCheckout".as_ref(),
+                    "true".as_ref(),
+                ],
+            ),
+            "staged" => {
+                fs::write(checkout.join("tracked"), b"staged unfinished bytes").unwrap();
+                fixture.git(&checkout, &["add".as_ref(), "tracked".as_ref()]);
+            }
+            "untracked" => {
+                fs::write(checkout.join("unfinished"), b"untracked protected").unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let tracked = fs::read(checkout.join("tracked")).unwrap();
+        let result = fixture.json(&["acquire", "--repo", &id]);
+        assert_that!(result["outcome"].as_str(), eq(Some("rejected")));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+            eq(head.as_str())
+        );
+        assert_that!(
+            fs::read(checkout.join("tracked")).unwrap().as_slice(),
+            eq(tracked.as_slice())
+        );
+        assert_that!(
+            fixture.json(&["assignment", "list"])["data"]["assignments"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            eq(true)
+        );
+        let view = fixture.path_json(&["worktree", "inspect"], &checkout);
+        let expected = match kind {
+            "merge" | "sequencer" | "revert" | "index-lock" => "git_operation_in_progress",
+            "assume-unchanged" | "skip-worktree" | "sparse" => "unsupported_index_state",
+            _ => "unfinished_work",
+        };
+        assert_that!(
+            view["data"]["worktree"]["withheld_reason"].as_str(),
+            eq(Some(expected))
+        );
+    }
+}
+
+#[googletest::test]
+fn cached_git_observations_cannot_hide_protected_content_or_mode_changes() {
+    use std::fs::{File, FileTimes};
+    for kind in ["weak-stat", "fsmonitor", "file-mode"] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        let tracked = checkout.join("tracked");
+        File::open(&tracked)
+            .unwrap()
+            .set_times(
+                FileTimes::new()
+                    .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_000_000_000)),
+            )
+            .unwrap();
+        fixture.git(&checkout, &["update-index".as_ref(), "--refresh".as_ref()]);
+        let original = fs::metadata(&tracked).unwrap();
+        let marker = fixture.root.path().join("monitor-called");
+        let hook = fixture.root.path().join("monitor");
+        match kind {
+            "fsmonitor" => {
+                fs::write(
+                    &hook,
+                    format!(
+                        "#!/bin/sh\nprintf called >> '{}'\nprintf 'fixture-token\\000'\n",
+                        marker.display()
+                    ),
+                )
+                .unwrap();
+                fs::set_permissions(&hook, fs::Permissions::from_mode(0o700)).unwrap();
+                fixture.git(
+                    &checkout,
+                    &[
+                        "config".as_ref(),
+                        "core.fsmonitor".as_ref(),
+                        hook.as_os_str(),
+                    ],
+                );
+                fixture.git(
+                    &checkout,
+                    &[
+                        "config".as_ref(),
+                        "core.fsmonitorHookVersion".as_ref(),
+                        "2".as_ref(),
+                    ],
+                );
+                fixture.git(
+                    &checkout,
+                    &[
+                        "update-index".as_ref(),
+                        "--fsmonitor".as_ref(),
+                        "--fsmonitor-valid".as_ref(),
+                        "tracked".as_ref(),
+                    ],
+                );
+                fs::write(
+                    &tracked,
+                    b"caller protected unfinished content larger than before\n",
+                )
+                .unwrap();
+            }
+            "file-mode" => {
+                fixture.git(
+                    &checkout,
+                    &[
+                        "config".as_ref(),
+                        "core.fileMode".as_ref(),
+                        "false".as_ref(),
+                    ],
+                );
+                fs::set_permissions(&tracked, fs::Permissions::from_mode(0o755)).unwrap();
+            }
+            _ => {
+                fixture.git(
+                    &checkout,
+                    &[
+                        "config".as_ref(),
+                        "core.trustctime".as_ref(),
+                        "false".as_ref(),
+                    ],
+                );
+                fixture.git(
+                    &checkout,
+                    &[
+                        "config".as_ref(),
+                        "core.checkStat".as_ref(),
+                        "minimal".as_ref(),
+                    ],
+                );
+                let replacement = fixture.root.path().join("replacement");
+                fs::write(
+                    &replacement,
+                    vec![b'x'; usize::try_from(original.len()).unwrap()],
+                )
+                .unwrap();
+                fs::set_permissions(&replacement, original.permissions()).unwrap();
+                File::open(&replacement)
+                    .unwrap()
+                    .set_times(FileTimes::new().set_modified(original.modified().unwrap()))
+                    .unwrap();
+                fs::rename(replacement, &tracked).unwrap();
+            }
+        }
+        assert_that!(
+            fixture
+                .git_text(&checkout, &["status", "--porcelain"])
+                .as_str(),
+            eq("")
+        );
+        if marker.exists() {
+            fs::remove_file(&marker).unwrap();
+        }
+        let before = fs::read(&tracked).unwrap();
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let mode = fs::metadata(&tracked).unwrap().permissions().mode();
+        let result = fixture.json(&["acquire", "--repo", &id]);
+        assert_that!(result["outcome"].as_str(), eq(Some("rejected")));
+        assert_that!(
+            fs::read(&tracked).unwrap().as_slice(),
+            eq(before.as_slice())
+        );
+        assert_that!(
+            fs::metadata(&tracked).unwrap().permissions().mode(),
+            eq(mode)
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+            eq(head.as_str())
+        );
+        assert_that!(marker.exists(), eq(false));
+    }
+}
+
+impl Fixture {
+    fn paused_acquire(&self, id: &str, checkpoint: &str, continuable: bool) -> Child {
+        use std::io::{BufRead, BufReader};
+        let binary = PathBuf::from(env::var_os("TEST_SRCDIR").unwrap())
+            .join(env::var_os("TEST_WORKSPACE").unwrap())
+            .join(env!("CRASH_BINARY"));
+        let environment = self.command();
+        let mut command = Command::new(binary);
+        command.env_clear();
+        for (name, value) in environment.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            }
+        }
+        let mut child = command
+            .env("OPERATION", "acquire")
+            .env("REPOSITORY_ID", id)
+            .env("CHECKPOINT", checkpoint)
+            .env("CONTINUABLE", if continuable { "1" } else { "0" })
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let reader = thread::spawn(move || {
+            let mut line = String::new();
+            BufReader::new(stdout).read_line(&mut line).unwrap();
+            let _ = sender.send(line);
+        });
+        let observed = receiver.recv_timeout(Duration::from_secs(15));
+        if observed.as_ref().is_err()
+            || observed
+                .as_ref()
+                .is_ok_and(|s| s != &format!("checkpoint:{checkpoint}\n"))
+        {
+            let _ = child.kill();
+            panic!(
+                "acquire checkpoint missing: {observed:?}; {:?}",
+                child.wait_with_output().unwrap()
+            );
+        }
+        reader.join().unwrap();
+        child
+    }
+}
+#[googletest::test]
+fn process_death_keeps_acquisition_reservations_and_effect_checkpoints_inspectable() {
+    for checkpoint in [
+        "reservation",
+        "preservation-intent",
+        "preservation-effect",
+        "preserved",
+        "checkout-intent",
+        "checkout-effect",
+        "result",
+    ] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        fixture.git(&checkout, &["checkout".as_ref(), "--detach".as_ref()]);
+        fixture.git(
+            &checkout,
+            &[
+                "commit".as_ref(),
+                "--allow-empty".as_ref(),
+                "-m".as_ref(),
+                "protected detached tip".as_ref(),
+            ],
+        );
+        let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let mut child = fixture.paused_acquire(&id, checkpoint, false);
+        let recorded = fixture.json(&["assignment", "list"]);
+        let assignments = recorded["data"]["assignments"].as_array().unwrap();
+        assert_that!(assignments.len(), eq(1));
+        let handle = assignments[0]["assignment_handle"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let op = assignments[0]["operation_id"].as_str().unwrap().to_owned();
+        child.kill().unwrap();
+        let _ = child.wait().unwrap();
+        let inspected = fixture.json(&["assignment", "inspect", &handle]);
+        assert_that!(
+            inspected["data"]["assignment"]["state"].as_str(),
+            eq(Some(if checkpoint == "result" {
+                "active"
+            } else {
+                "preparing"
+            }))
+        );
+        let operation = fixture.json(&["operation", "inspect", &op]);
+        assert_that!(
+            operation["data"]["operation"]["last_checkpoint"].is_string(),
+            eq(true)
+        );
+        if checkpoint != "result" {
+            let worktree = fixture.path_json(&["worktree", "inspect"], &checkout);
+            assert_that!(
+                worktree["data"]["worktree"]["pending_work"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|o| o["operation_id"].as_str() == Some(op.as_str())),
+                eq(true)
+            );
+        }
+        let retried = fixture.json(&["acquire", "--repo", &id]);
+        assert_that!(
+            retried["outcome"].as_str(),
+            eq(Some(if checkpoint == "result" {
+                "rejected"
+            } else {
+                "pending"
+            }))
+        );
+        assert_that!(
+            fixture.json(&["assignment", "list"])["data"]["assignments"]
+                .as_array()
+                .unwrap()
+                .len(),
+            eq(1)
+        );
+        if [
+            "preservation-effect",
+            "preserved",
+            "checkout-intent",
+            "checkout-effect",
+            "result",
+        ]
+        .contains(&checkpoint)
+        {
+            assert_that!(
+                fixture
+                    .git_text(
+                        &checkout,
+                        &[
+                            "show-ref",
+                            "--verify",
+                            "--hash",
+                            &format!("refs/worktree-pool/{op}")
+                        ]
+                    )
+                    .as_str(),
+                eq(tip.as_str())
+            );
+        }
+    }
+}
+
+#[googletest::test]
+fn default_acquisition_holds_the_committed_refresh_result_when_tracking_ref_changes() {
+    use std::io::Write;
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.acquisition();
+    fs::write(source.join("fresh"), b"fresh commit bytes").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+    fixture.git(
+        &source,
+        &["commit".as_ref(), "-m".as_ref(), "advance main".as_ref()],
+    );
+    let expected = fixture.git_text(&source, &["rev-parse", "HEAD"]);
+    let mut child = fixture.paused_acquire(&id, "refreshed", true);
+    let refreshed = fixture.json(&["repo", "inspect", &id]);
+    assert_that!(
+        refreshed["data"]["operations"][0]["resolved_commit"].as_str(),
+        eq(Some(expected.as_str()))
+    );
+    fixture.git(
+        &checkout,
+        &[
+            "update-ref".as_ref(),
+            "refs/remotes/origin/main".as_ref(),
+            "HEAD".as_ref(),
+        ],
+    );
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"continue\n")
+        .unwrap();
+    assert_that!(wait(child).status.success(), eq(true));
+    let recorded = fixture.json(&["assignment", "list"]);
+    let assignment = &recorded["data"]["assignments"][0];
+    assert_that!(
+        assignment["resolved_commit"].as_str(),
+        eq(Some(expected.as_str()))
+    );
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+        eq(expected.as_str())
+    );
+}
+
+#[googletest::test]
+fn competing_acquisitions_serialize_while_independent_repositories_prepare() {
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.acquisition();
+    let other = fixture.root.path().join("independent");
+    fixture.git(
+        fixture.root.path(),
+        &["clone".as_ref(), source.as_os_str(), other.as_os_str()],
+    );
+    let registered = fixture.path_json(&["repo", "register"], &other);
+    let other_id = registered["context"]["repository_id"].as_str().unwrap();
+    fixture.path_json(&["worktree", "register", "--repo", other_id], &other);
+    let mut paused = fixture.paused_acquire(&id, "checkout-intent", false);
+    let mut competing = fixture.command();
+    competing.args(["acquire", "--repo", &id]);
+    let mut competing = competing.spawn().unwrap();
+    let independent = fixture.json(&["acquire", "--repo", other_id]);
+    assert_that!(independent["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(competing.try_wait().unwrap().is_none(), eq(true));
+    let before = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    paused.kill().unwrap();
+    let _ = paused.wait().unwrap();
+    let rejected: Value = serde_json::from_slice(&wait(competing).stdout).unwrap();
+    assert_that!(rejected["outcome"].as_str(), eq(Some("pending")));
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+        eq(before.as_str())
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list", "--repo", &id])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .len(),
+        eq(1)
+    );
+}
+#[googletest::test]
+fn simultaneous_callers_receive_distinct_registered_worktrees_and_handles() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    let linked = fixture.root.path().join("linked");
+    fixture.git(
+        &checkout,
+        &[
+            "worktree".as_ref(),
+            "add".as_ref(),
+            "--detach".as_ref(),
+            linked.as_os_str(),
+            "HEAD".as_ref(),
+        ],
+    );
+    fixture.path_json(&["worktree", "register", "--repo", &id], &linked);
+    let barrier = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(
+            fixture
+                .root
+                .path()
+                .join(format!("state/worktree-pool/repository-{id}.lock")),
+        )
+        .unwrap();
+    barrier.lock().unwrap();
+    let mut first = fixture.command();
+    first.args(["acquire", "--repo", &id]);
+    let first = first.spawn().unwrap();
+    let mut second = fixture.command();
+    second.args(["acquire", "--repo", &id]);
+    let second = second.spawn().unwrap();
+    barrier.unlock().unwrap();
+    let a: Value = serde_json::from_slice(&wait(first).stdout).unwrap();
+    let b: Value = serde_json::from_slice(&wait(second).stdout).unwrap();
+    assert_that!(a["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(b["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        a["context"]["worktree_id"] != b["context"]["worktree_id"],
+        eq(true)
+    );
+    assert_that!(
+        a["context"]["assignment_handle"] != b["context"]["assignment_handle"],
+        eq(true)
+    );
+    assert_that!(
+        &a["data"]["assignment"]["resolved_commit"],
+        eq(&b["data"]["assignment"]["resolved_commit"])
+    );
+}
+#[googletest::test]
+fn explicit_refs_still_refresh_and_missing_ref_or_remote_failure_never_assigns_stale_work() {
+    for kind in ["explicit", "missing", "remote"] {
+        let fixture = Fixture::new();
+        let (source, checkout, id) = fixture.acquisition();
+        let old = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        fs::write(source.join("fresh"), b"new").unwrap();
+        fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+        fixture.git(
+            &source,
+            &["commit".as_ref(), "-m".as_ref(), "fresh".as_ref()],
+        );
+        let fresh = fixture.git_text(&source, &["rev-parse", "HEAD"]);
+        if kind == "remote" {
+            fixture.git(
+                &checkout,
+                &[
+                    "remote".as_ref(),
+                    "set-url".as_ref(),
+                    "origin".as_ref(),
+                    fixture.root.path().join("missing-remote").as_os_str(),
+                ],
+            );
+        }
+        let result = fixture.json(&[
+            "acquire",
+            "--repo",
+            &id,
+            if kind == "missing" {
+                "unknown-ref"
+            } else {
+                "HEAD"
+            },
+        ]);
+        if kind == "explicit" {
+            assert_that!(result["outcome"].as_str(), eq(Some("completed")));
+            assert_that!(
+                result["data"]["assignment"]["resolved_commit"].as_str(),
+                eq(Some(old.as_str()))
+            );
+            assert_that!(
+                fixture
+                    .git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"])
+                    .as_str(),
+                eq(fresh.as_str())
+            );
+        } else {
+            assert_that!(
+                result["outcome"].as_str(),
+                eq(Some(if kind == "remote" {
+                    "pending"
+                } else {
+                    "rejected"
+                }))
+            );
+            assert_that!(
+                fixture.json(&["assignment", "list"])["data"]["assignments"]
+                    .as_array()
+                    .unwrap()
+                    .is_empty(),
+                eq(true)
+            );
+            assert_that!(
+                fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+                eq(old.as_str())
+            );
+        }
+    }
+}
+#[googletest::test]
+fn lost_acquisition_stdout_keeps_the_committed_assignment_and_never_reacquires_it() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    let mut command = fixture.command();
+    command.args(["acquire", "--repo", &id]).stdout(
+        fs::OpenOptions::new()
+            .write(true)
+            .open("/dev/full")
+            .unwrap(),
+    );
+    assert_that!(output(command).status.code(), eq(Some(4)));
+    let assignments = fixture.json(&["assignment", "list"]);
+    let a = &assignments["data"]["assignments"][0];
+    let handle = a["assignment_handle"].as_str().unwrap();
+    let op = a["operation_id"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(),
+        eq(Some("active"))
+    );
+    assert_that!(
+        fixture.json(&["operation", "inspect", op])["data"]["operation"]["state"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["outcome"].as_str(),
+        eq(Some("rejected"))
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list"])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .len(),
+        eq(1)
+    );
+    assert_that!(
+        fixture
+            .git_text(&checkout, &["branch", "--show-current"])
+            .as_str(),
+        eq("")
+    );
+}
+#[googletest::test]
+fn changed_ignore_rules_retain_files_and_withhold_preparation_after_checkout() {
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.acquisition();
+    fs::write(source.join(".gitignore"), b"cache/\n").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+    fixture.git(
+        &source,
+        &["commit".as_ref(), "-m".as_ref(), "ignore cache".as_ref()],
+    );
+    fixture.git(&checkout, &["fetch".as_ref(), "origin".as_ref()]);
+    fixture.git(
+        &checkout,
+        &[
+            "checkout".as_ref(),
+            "--detach".as_ref(),
+            "origin/main".as_ref(),
+        ],
+    );
+    fs::create_dir(checkout.join("cache")).unwrap();
+    fs::write(checkout.join("cache/retained"), b"warm protected bytes").unwrap();
+    fs::remove_file(source.join(".gitignore")).unwrap();
+    fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+    fixture.git(
+        &source,
+        &[
+            "commit".as_ref(),
+            "-m".as_ref(),
+            "stop ignoring cache".as_ref(),
+        ],
+    );
+    let result = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(result["outcome"].as_str(), eq(Some("pending")));
+    assert_that!(
+        fs::read(checkout.join("cache/retained"))
+            .unwrap()
+            .as_slice(),
+        eq(b"warm protected bytes".as_slice())
+    );
+    let handle = result["context"]["assignment_handle"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(),
+        eq(Some("preparing"))
+    );
+}
+
+#[googletest::test]
+fn acquisition_prefers_a_safe_matching_commit_over_the_lowest_worktree_id() {
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.acquisition();
+    let mut registrations = vec![(
+        fixture.path_json(&["worktree", "inspect"], &checkout),
+        checkout.clone(),
+    )];
+    for name in ["candidate-one", "candidate-two"] {
+        let path = fixture.root.path().join(name);
+        fixture.git(
+            &checkout,
+            &[
+                "worktree".as_ref(),
+                "add".as_ref(),
+                "--detach".as_ref(),
+                path.as_os_str(),
+                "HEAD".as_ref(),
+            ],
+        );
+        registrations.push((
+            fixture.path_json(&["worktree", "register", "--repo", &id], &path),
+            path,
+        ));
+    }
+    registrations.sort_by_key(|(r, _)| {
+        r["data"]["worktree"]["worktree_id"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    });
+    fs::write(source.join("new-main"), b"target").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+    fixture.git(
+        &source,
+        &["commit".as_ref(), "-m".as_ref(), "new target".as_ref()],
+    );
+    fixture.git(&checkout, &["fetch".as_ref(), "origin".as_ref()]);
+    let (matching, path) = registrations.last().unwrap();
+    fixture.git(
+        path,
+        &[
+            "checkout".as_ref(),
+            "--detach".as_ref(),
+            "refs/remotes/origin/main".as_ref(),
+        ],
+    );
+    let acquired = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        &acquired["context"]["worktree_id"],
+        eq(&matching["data"]["worktree"]["worktree_id"])
+    );
+}

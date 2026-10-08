@@ -41,6 +41,9 @@ rust_test(
 rust_library(
     name = "worktree_pool_lib",
     srcs = [
+        "acquisition.rs",
+        "acquisition_tests.rs",
+        "acquisition_workflow.rs",
         "catalog.rs",
         "cli.rs",
         "coordination.rs",
