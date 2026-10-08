@@ -20,3 +20,6 @@ pub mod acquisition_workflow;
 
 #[cfg(test)]
 mod acquisition_tests;
+
+pub mod release;
+pub mod release_workflow;

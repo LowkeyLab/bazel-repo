@@ -113,6 +113,7 @@ pub struct RefreshFinished {
     deny_unknown_fields
 )]
 pub enum ManagementEvent {
+    Release(crate::release::ReleaseEvent),
     WorktreeWithheld(crate::acquisition::WithheldWorktree),
     Acquisition(crate::acquisition::AcquisitionEvent),
     RepositoryRegistered(Repository),
@@ -125,6 +126,7 @@ impl ManagementEvent {
     pub const fn event_type(&self) -> &'static str {
         match self {
             Self::WorktreeWithheld(_) => "io.lowkeylab.worktreepool.worktree.withheld.v1",
+            Self::Release(r) => r.event_type(),
             Self::Acquisition(a) => a.event_type(),
             Self::RepositoryRegistered(_) => "io.lowkeylab.worktreepool.repository.registered.v1",
             Self::WorktreeRegistered(_) => "io.lowkeylab.worktreepool.worktree.registered.v1",
@@ -136,6 +138,7 @@ impl ManagementEvent {
     pub const fn repository_id(&self) -> Option<RepositoryId> {
         match self {
             Self::WorktreeWithheld(w) => Some(w.repository_id),
+            Self::Release(r) => Some(r.repository_id()),
             Self::Acquisition(a) => Some(a.repository_id()),
             Self::RepositoryRegistered(_) => None,
             Self::WorktreeRegistered(w) => Some(w.repository_id),
@@ -146,6 +149,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn operation_id(&self) -> Option<OperationId> {
         match self {
+            Self::Release(r) => Some(r.operation_id()),
             Self::Acquisition(a) => Some(a.operation_id()),
             Self::RefreshStarted(r) => Some(r.operation_id),
             Self::RefreshFinished(r) => Some(r.operation_id),
@@ -156,6 +160,7 @@ impl ManagementEvent {
     pub fn subject(&self) -> String {
         match self {
             Self::WorktreeWithheld(w) => format!("worktrees/{}", w.worktree_id),
+            Self::Release(r) => format!("worktrees/{}", r.worktree_id()),
             Self::Acquisition(a) => format!("worktrees/{}", a.worktree_id()),
             Self::RepositoryRegistered(r) => format!("repositories/{}", r.repository_id),
             Self::WorktreeRegistered(w) => format!("worktrees/{}", w.worktree_id),
@@ -174,6 +179,7 @@ impl ManagementEvent {
     ) -> Result<(), PoolError> {
         match self {
             Self::WorktreeWithheld(w) => withhold(state, w)?,
+            Self::Release(r) => r.apply(state, event_id, causation_id)?,
             Self::Acquisition(a) => a.apply(state, event_id, causation_id)?,
             Self::RepositoryRegistered(repository) => {
                 repository.common_directory.to_path()?;
@@ -191,7 +197,10 @@ impl ManagementEvent {
             }
             Self::WorktreeRegistered(worktree) => enroll_worktree(state, worktree)?,
             Self::RefreshStarted(started) => {
-                if state.acquisitions.iter().any(|o| {
+                if state.releases.iter().any(|o| {
+                    o.repository_id == started.repository_id
+                        && o.state != crate::release::ReleaseState::Completed
+                }) || state.acquisitions.iter().any(|o| {
                     o.repository_id == started.repository_id
                         && o.state != crate::acquisition::AcquisitionState::Completed
                 }) || state.operations.iter().any(|o| {
