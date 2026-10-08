@@ -16,7 +16,7 @@ Registering a book establishes the immutable book UUID/Open Library work mapping
 It does not rank it. Registration remains committed if a later ranking command
 fails. Starting the first book immediately ranks it; later placements may remain
 pending for comparisons. Loading replays ordered history, including pending,
-paused and skipped-opponent state, without publishing old decisions again.
+paused, and skipped-opponent state, without publishing old decisions again.
 Loads and commands take work proportional to a reader's history; there are no
 snapshots or constant-time replay guarantees.
 
@@ -29,19 +29,19 @@ After `StoreError::CommitUncertain`, reconnect to the authoritative database and
 load history. Match the original event ID **and intended contents**. Absence in one
 read does not prove an in-flight commit cannot finish. Retrying preserves the
 original command, event ID, expected revision and instant. Stream locking,
-revision checking and uniqueness prevent double application. Identical book
+revision checking and uniqueness prevent applying a command twice. Identical book
 registration can be repeated. Cancellation while awaiting commit has the same
 recovery risk but cannot return a completion error or guarantee an observation.
 
 `tracing_observer()` maps typed completion facts into structured records using the
-caller's current subscriber and span. Creation, migration and committed commands
+caller's current subscriber and span. Creation, migration, and committed commands
 are info; reads, idempotent registration and expected rejection are debug;
 failures and commit uncertainty are error. Duration is numeric milliseconds;
-reader, event and correlation IDs are diagnostic fields. Command kind, revision
+reader, event, and correlation IDs are diagnostic fields. Command kind, revision,
 and load event count are included when known. No metrics or exporters are installed.
 These are completion records, not reconstructed operation spans.
 
-Delivery is synchronous, best effort, without retries, queues or flushing.
+Delivery is synchronous, best effort, without retries, queues, or flushing.
 Observers should return promptly and must not panic. Delivery errors and
 unwinding panics cannot replace a completed database result; a failed delivery
 writes one constant sanitized stderr diagnostic directly, without re-entering the
@@ -55,4 +55,4 @@ inspect retained error causes deliberately and control other dependencies' logs.
 
 A crash between commit and observation, cancellation, filtering or sink failure
 can lose diagnostics. These records are not a durable audit feed or exact activity
-counters. The caller owns diagnostic destination, retention and access.
+counters. The caller owns diagnostic destination, retention, and access.

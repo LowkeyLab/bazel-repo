@@ -14,7 +14,7 @@ Caddy serves the static build and already permanently redirects legacy project U
 
 ## Content model and flow
 
-Use only the existing blog collection for substantial content. Retain title, description, publishDate, tags, and draft. Add:
+Use only the existing blog collection for substantial content. Retain title, description, `publishDate`, tags, and draft. Add:
 
 - type: required enum of work, project, essay, or note; explicitly classify existing posts.
 - featured: optional boolean, default false, for homepage curation.
@@ -39,15 +39,18 @@ The Blog page shows all published posts, newest first, using the current list st
 
 All articles use the existing blog presentation. Optional company context remains visually secondary. No employer logos, timelines, skill meters, or corporate Work cards. Lessons can appear as ordinary prose; a reusable lesson component is deferred.
 
-Home introduces who Tim is today; About explains the broader personal journey behind those interests. About must not repeat the homepage or focus solely on Bloomberg. Use dense, connected prose rather than a chronology, technology list, or repeated contact section. Keep contact links on Home. Add “More about me →” beneath the homepage introduction. About ends with its final narrative paragraph, without a “Say hello” section or generic blog CTA. Preserve any existing resume if encountered; creating one is out of scope.
+Home introduces who Tim is today; About explains the broader personal journey behind those interests. About must not repeat the homepage or focus solely on Bloomberg. Use dense, connected prose rather than a chronology, technology list, or repeated contact section. Keep contact links on Home. Add `More about me →` beneath the homepage introduction. About ends with its final narrative paragraph, without a “Say hello” section or generic blog CTA. Preserve any existing resume if encountered; creating one is out of scope.
 
 Do not use em dashes in new site copy.
+
+<!-- Preserve the accepted first-person Home/About copy. -->
+<!-- vale Google.FirstPerson = NO -->
 
 ### Approved homepage introduction
 
 I build tools that help people spend less time wrestling with software and more time making things. I’m especially interested in automation, build systems, and making complicated work easier to do.
 
-### Approved About copy
+### Approved about copy
 
 I wasn’t especially interested in software in college. At college, I considered Electrical and Computer Engineering my main degree. Computer Science was something I could tack on and, honestly, a way to one-up my classmates. I went through an entire Computer Science degree without feeling particularly drawn to building software.
 
@@ -57,15 +60,17 @@ Around 2023, I realized that despite everything I’d learned, I still didn’t 
 
 Along the way, I developed a fervour for automation and eliminating toil. I’m interested in building the automation that builds the automation: looking beyond an individual task to the system that keeps producing it. That way of thinking connects my professional work, personal projects, and the things I write about here.
 
+<!-- vale Google.FirstPerson = YES -->
+
 ## Editorial design and interview evidence
 
 Rewrite the work entries as distinct engineering stories, using natural headings only where useful. Use concrete first-person contributions, distinguish individual work from team outcomes, and retain the user's candid voice. Do not invent metrics, incidents, motives, measured improvements, or confidential details beyond the material supplied. The user confirmed no interview details need omission or generalization.
 
 ### Building JVM RPC tooling around Bloomberg's needs
 
-Destination: /blog/building-jvm-rpc-tooling/
+Destination: `/blog/building-jvm-rpc-tooling/`
 
-The JVM community's attempts to adapt entire open-source solutions produced incompatibilities and performance issues with Bloomberg's internal technologies. Foundational RPC libraries, including codecs, were unmaintained and had bugs left unfixed for years.
+The JVM community's attempts to adapt entire open source solutions produced incompatibilities and performance issues with Bloomberg's internal technologies. Foundational RPC libraries, including codecs, were unmaintained and had bugs left unfixed for years.
 
 The author developed a Kotlin-based JVM code generator and codec around Bloomberg's requirements, aiming for better type safety, performance, and cross-language compatibility. The old XJC-based tooling could not represent xs:choice as sealed type hierarchies. The old BER codec had subtle behavioral differences from C++ and Python implementations. Present these as concrete motivations; do not claim verified parity or quantified speedups without further evidence.
 
@@ -73,7 +78,7 @@ The new generator supports Jackson and kotlinx.serialization. KotlinPoet handles
 
 Status: limited beta, moving toward production. Do not describe this as fully deployed or attribute production outcomes to it.
 
-The lesson is deliberate reuse: retain useful frameworks, implement the behavior specific to the environment, and inspect or adapt open-source code with appropriate attribution and licensing. Blind reuse and blind rewrites both miss that boundary. The project expanded the author's understanding of code generation, schemaful and schemaless formats, serialization, wire formats, and language/hardware performance optimization. Distinguish this learning from demonstrated performance results.
+The lesson is deliberate reuse: retain useful frameworks, implement the behavior specific to the environment, and inspect or adapt open source code with appropriate attribution and licensing. Blind reuse and blind rewrites both miss that boundary. The project expanded the author's understanding of code generation, schemaful and schemaless formats, serialization, wire formats, and language/hardware performance optimization. Distinguish this learning from demonstrated performance results.
 
 ### Prototyping a team's first JVM pipeline
 
@@ -81,7 +86,7 @@ Destination: /blog/prototyping-a-flink-pipeline/
 
 In 2022, an existing end-of-day C++ pipeline motivated a Flink proof of concept. State 2022 in the article prose; do not confuse the work year with the later article publication date or add a work-period field. The team was unfamiliar with Java, and this was its first JVM service. The deployment also moved from traditional servers to Kubernetes. Describe Kubernetes as this project's deployment choice, not a universal Flink requirement.
 
-The author built a functional end-to-end prototype: application code, builds, container images, CI/CD, Kubernetes deployment, and dummy traffic through Flink. Existing source material supports porting business logic first in Java and then Kotlin. Teaching the team the JVM, Java, Kotlin, and Kubernetes took substantial effort.
+The author built a functional end-to-end prototype: app code, builds, container images, CI/CD, Kubernetes deployment, and dummy traffic through Flink. Existing source material supports porting business logic first in Java and then Kotlin. Teaching the team the JVM, Java, Kotlin, and Kubernetes took substantial effort.
 
 The team subsequently improved the prototype and deployed it to production about a year later. Do not imply the author personally completed that later rollout.
 
@@ -99,7 +104,11 @@ A concrete immediate threat was removal of Python 2, which powered model-to-Java
 
 Replace environment-specific release branches with PR checks and a main-branch release flow. Builds and integration tests run in Docker, with Gradle remote build caching. Merging to main produces a deployable artifact and triggers Bloomberg's automated rollout tooling. Avoid promising reproducibility properties beyond the described controlled build environment.
 
-The replacement is in production, stable and performant according to the author's experience, with continuing adoption. Do not invent performance measurements. The story's lesson is to remove generation and release complexity from consuming teams, supported by the concrete changes above.
+<!-- The paired alternatives or compound predicates are not three-item lists. -->
+<!-- vale Google.OxfordComma = NO -->
+
+The replacement is in production, stable and performant according to the author's experience, with continuing adoption. Do not invent performance measurements. The story's lesson is to remove generation and release complexity from consuming teams, supported by the concrete changes described earlier.
+<!-- vale Google.OxfordComma = YES -->
 
 ### Existing project articles and essays
 
@@ -112,7 +121,7 @@ Use explicit Caddy permanent redirects for both trailing-slash variants of each 
 | Retired path                    | Destination                              |
 | ------------------------------- | ---------------------------------------- |
 | /work                           | /blog/                                   |
-| /work/core-java-infrastructure  | /blog/building-jvm-rpc-tooling/          |
+| /work/core-java-infrastructure  | `/blog/building-jvm-rpc-tooling/`        |
 | /work/ioi-pipeline              | /blog/prototyping-a-flink-pipeline/      |
 | /work/model-driven-architecture | /blog/making-a-platform-buildable-again/ |
 
@@ -139,7 +148,7 @@ After written-spec approval, create an implementation plan using the writing-pla
 ## Verification and acceptance
 
 - All substantial work and project content uses the blog collection and article presentation.
-- All three work stories match the interview evidence and deployment statuses above.
+- All three work stories match the interview evidence and deployment statuses described earlier.
 - No work-period fields or displays exist; publication dates remain distinct from employment history.
 - Home shows three curated posts and chronological nonduplicated recent writing; draft content stays out of public lists and feeds.
 - Blog, About, GitHub navigation and existing social/contact links work in both themes and at mobile widths.
@@ -149,6 +158,6 @@ After written-spec approval, create an implementation plan using the writing-pla
 - Rendered canonical, Open Graph, and structured metadata match article content and dates; inspect output, not merely source strings.
 - No unused Work templates or skills inventory remain.
 - Run Gazelle immediately after source edits and before formatting; use Bazel/Aspect through the repository's Nix environment.
-- Run aspect format --scope=all, focused website checks and relevant HTTP tests, aspect build //..., aspect lint, and git diff --check for implementation. Confirm actual test execution and report any warnings or environmental limitations accurately.
+- Run `aspect format --scope=all`, focused website checks and relevant HTTP tests, `aspect build //...`, `aspect lint`, and `git diff --check` for implementation. Confirm actual test execution and report any warnings or environmental limitations accurately.
 
 This spec-only change requires document review, repository formatting, and whitespace verification. Runtime/build acceptance remains for the implementation stage.

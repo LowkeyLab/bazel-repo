@@ -1,16 +1,20 @@
-# Hearthstone Milestone 7 Conformance Implementation Plan
+# Hearthstone milestone 7 conformance implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Complete the simulator's general draw, burn, fatigue, transformation, and copying rules and mark Milestone 7 complete.
+**Goal:** complete the simulator's general draw, burn, fatigue, transformation, and copying rules and mark Milestone 7 complete.
 
-**Architecture:** Add narrow serializable resolver operations, draw-result slots, and explicit transform/copy policies on top of the existing one-shot LIFO engine. Reuse prepared events, damage resolution, zone capacity, deterministic IDs, and aura refreshes; keep each mechanic checkpointable and traceable without adding a universal mutation framework.
+**Architecture:** add narrow serializable resolver operations, draw-result slots, and explicit transform/copy policies on top of the existing one-shot LIFO engine. Reuse prepared events, damage resolution, zone capacity, deterministic IDs, and aura refreshes; keep each mechanic checkpointable and traceable without adding a universal mutation framework.
+
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
 
 **Tech Stack:** Rust 2024, Bevy 0.19 ECS, serde/serde_json, googletest, Bazel/Aspect, Gazelle.
+<!-- vale Google.Colons = YES -->
 
 **Spec:** `docs/superpowers/specs/2026-09-07-hearthstone-milestone-7-conformance-design.md`
 
-## Global Constraints
+## Global constraints
 
 - Ruleset remains `AdvancedRulebook2026_06_26`, pinned to Advanced Rulebook revision `913067` dated `2026-06-26`.
 - Fix the number and player order of multi-draw requests up front, but select each card from the then-current deck top when its request executes.
@@ -25,7 +29,7 @@
 
 ---
 
-## File Structure
+## File structure
 
 - `hearthstone_simulator/core/ids.rs`: add the logical draw-result slot ID.
 - `hearthstone_simulator/core/effect.rs`: add draw continuation bindings and explicit transform/copy policy data.
@@ -47,13 +51,13 @@
 - `hearthstone_simulator/simulator/simulation_tests_effects.rs`: draw continuation and transform reducer coverage.
 - `hearthstone_simulator/simulator/simulation_tests_events.rs`: draw and played-self trigger ordering coverage.
 - `hearthstone_simulator/simulator/simulation_tests_movement.rs`: burn and non-Play copy coverage.
-- `hearthstone_simulator/simulator/simulation_tests_auras.rs`: Play-copy and delayed transform aura coverage.
+- `hearthstone_simulator/simulator/simulation_tests_auras.rs`: play-copy and delayed transform aura coverage.
 - `hearthstone_simulator/simulator/simulation_tests_api.rs`: checkpoint, trace, and invariant coverage.
 - `hearthstone_simulator/IMPLEMENTATION_PROGRESS.md`, `hearthstone_simulator/RULEBOOK_CONFORMANCE.md`, `hearthstone_simulator/README.md`: report completion only after all focused tests pass.
 
 ---
 
-### Task 1: Add Serializable Milestone 7 Contracts
+### Task 1: add serializable milestone 7 contracts
 
 **Files:**
 
@@ -70,7 +74,7 @@
 - Consumes: existing `GameEntityId`, `PlayerId`, `EffectContext`, `Card`, `Zone`, and `ResolutionOp` serialization.
 - Produces: `DrawResultSlotId`, `DrawRequest`, `DrawOutcome`, `DrawResultSlot`, `DrawContinuationPolicy`, `TransformKind`, `CopyStatePolicy`, `CopyRequest`, new effect/event/operation/trace variants, and `EffectContext::drawn_card`.
 
-- [ ] **Step 1: Write failing core contract tests**
+- [ ] **Step 1: write failing core contract tests**
 
 Add tests in `core/resolver.rs` that instantiate every new operation and assert stable `kind()` names. Add serde round-trip assertions for a `ResolutionWork` containing an empty and a filled draw slot.
 
@@ -90,15 +94,15 @@ fn milestone_seven_operations_have_stable_kind_names() {
 }
 ```
 
-- [ ] **Step 2: Regenerate and verify the tests fail**
+- [ ] **Step 2: regenerate and verify the tests fail**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/core:core_test --test_filter="milestone_seven_operations_have_stable_kind_names"`
 
-Expected: FAIL because the draw contracts and operation variants do not exist.
+Expected: `FAIL` because the draw contracts and operation variants do not exist.
 
-- [ ] **Step 3: Add the core data contracts**
+- [ ] **Step 3: add the core data contracts**
 
 Add the following shapes, deriving the same serde/equality traits as neighboring contracts:
 
@@ -200,7 +204,7 @@ EntityCopied {
 
 Export all public contracts through `core/lib.rs` and update internal imports/re-exports in `simulator/lib.rs`. Set `drawn_card: None` in every existing `EffectContext` literal and set explicit transform/copy fields in existing fixtures without changing behavior.
 
-- [ ] **Step 4: Regenerate, format, and run core plus simulator compilation tests**
+- [ ] **Step 4: regenerate, format, and run core plus simulator compilation tests**
 
 Run: `bazel run //:gazelle`
 
@@ -210,9 +214,9 @@ Run: `aspect test //hearthstone_simulator/core:core_test`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test`
 
-Expected: PASS; existing behavior is unchanged and all serialized variants compile.
+Expected: `PASS`; existing behavior is unchanged and all serialized variants compile.
 
-- [ ] **Step 5: Commit the contract slice**
+- [ ] **Step 5: commit the contract slice**
 
 ```bash
 git add hearthstone_simulator/core/ids.rs hearthstone_simulator/core/effect.rs hearthstone_simulator/core/event.rs hearthstone_simulator/core/resolver.rs hearthstone_simulator/core/trace.rs hearthstone_simulator/core/lib.rs hearthstone_simulator/simulator/lib.rs
@@ -221,7 +225,7 @@ git commit -m "feat(hearthstone): add milestone 7 resolver contracts"
 
 ---
 
-### Task 2: Implement Draw Slot Lifecycle And Invariants
+### Task 2: implement draw slot lifecycle and invariants
 
 **Files:**
 
@@ -234,7 +238,7 @@ git commit -m "feat(hearthstone): add milestone 7 resolver contracts"
 - Consumes: `DrawResultSlotId`, `DrawOutcome`, `DrawResultSlot`, and `ResolutionWork::draw_result_slots` from Task 1.
 - Produces: `allocate_draw_result_slot`, `fill_draw_result_slot`, and `take_draw_result`; sequence cleanup and idle invariants include draw slots.
 
-- [ ] **Step 1: Write failing slot lifecycle tests**
+- [ ] **Step 1: write failing slot lifecycle tests**
 
 Add tests beside the existing resolver tests for allocation, fill-once, consume-once, abandon cleanup, and idle rejection.
 
@@ -253,15 +257,15 @@ fn draw_result_slots_fill_and_consume_exactly_once() {
 }
 ```
 
-- [ ] **Step 2: Regenerate and verify failure**
+- [ ] **Step 2: regenerate and verify failure**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="draw_result_slots_fill_and_consume_exactly_once"`
 
-Expected: FAIL because slot helpers and errors are absent.
+Expected: `FAIL` because slot helpers and errors are absent.
 
-- [ ] **Step 3: Implement strict slot APIs and cleanup**
+- [ ] **Step 3: implement strict slot APIs and cleanup**
 
 Add `ResolutionError::{MissingDrawResultSlot, DrawResultSlotAlreadyFilled, EmptyDrawResultSlot}` and implement:
 
@@ -280,7 +284,7 @@ pub(crate) fn take_draw_result(
 
 Allocation increments the counter before inserting one empty slot. Fill rejects missing or already-filled slots. Take removes the slot and rejects an empty result. Include draw slots and `pending_played_self_transforms` in `begin_sequence`, `abandon_sequence`, and `assert_resolution_invariants`; the idle error text must mention draw slots and transform timing markers.
 
-- [ ] **Step 4: Regenerate, format, and run resolver tests**
+- [ ] **Step 4: regenerate, format, and run resolver tests**
 
 Run: `bazel run //:gazelle`
 
@@ -288,9 +292,9 @@ Run: `aspect format --scope=all`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="resolver::tests"`
 
-Expected: PASS, including duplicate-fill and cleanup coverage.
+Expected: `PASS`, including duplicate-fill and cleanup coverage.
 
-- [ ] **Step 5: Commit draw slot lifecycle**
+- [ ] **Step 5: commit draw slot lifecycle**
 
 ```bash
 git add hearthstone_simulator/core/resolver.rs hearthstone_simulator/simulator/resolver.rs
@@ -299,7 +303,7 @@ git commit -m "feat(hearthstone): add draw result slots"
 
 ---
 
-### Task 3: Resolve Draw, Burn, Fatigue, And Draw Events
+### Task 3: resolve draw, burn, fatigue, and draw events
 
 **Files:**
 
@@ -317,7 +321,7 @@ git commit -m "feat(hearthstone): add draw result slots"
 - Consumes: Task 2 draw slot APIs, existing `prepare_event`, `push_resolution_ops`, `ZoneMoveRequest`, and ordinary damage execution.
 - Produces: `process_draw(world, DrawRequest)`, dedicated `ProcessDraw` dispatch, semantic burn movement, sequential multi-draw behavior, and `CardDrawn` ordering.
 
-- [ ] **Step 1: Write failing DC1, DC2, DC4, and fatigue tests**
+- [ ] **Step 1: write failing DC1, DC2, DC4, and fatigue tests**
 
 Add focused tests that prove:
 
@@ -337,19 +341,19 @@ assert_that!(death_cache.records.iter().any(|record| record.entity == burned), i
 
 Build `first` with a Hand-eligible `CardDrawn` trigger whose effect is `Draw { count: 1 }`, then resolve an outer `Draw { count: 2 }`. Build `play_source` with a Play-eligible `CardDrawn` trigger and use trace-derived `trigger_sources` to prove its priority over `first`. Fill Hand before drawing `burned` and use the shown negative event/death assertions. Extend fatigue coverage to assert two empty-deck requests produce amounts `1` then `2`, and that proposed/actual damage traces complete before the next request. Represent a cross-player simultaneous instruction as an explicitly ordered `Effect::Sequence` and assert that controller order is retained.
 
-- [ ] **Step 2: Regenerate and verify representative failures**
+- [ ] **Step 2: regenerate and verify representative failures**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="draw_moves_the_card_before_play_and_hand_triggers_resolve"`
 
-Expected: FAIL because no `CardDrawn` event is created.
+Expected: `FAIL` because no `CardDrawn` event is created.
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="a_burn_is_not_draw_discard_or_death"`
 
-Expected: FAIL because burn still routes through internal discard movement and has no explicit outcome trace.
+Expected: `FAIL` because burn still routes through internal discard movement and has no explicit outcome trace.
 
-- [ ] **Step 3: Implement one-request draw resolution**
+- [ ] **Step 3: implement one-request draw resolution**
 
 Add `ZoneMovementKind::Burn` and make full-Hand draw movement use it rather than `Discard`. Implement:
 
@@ -360,7 +364,7 @@ pub(super) fn process_draw(
 ) -> Result<(), SimulationError>;
 ```
 
-For a successful move, fill `Drawn(card)`, append `TraceEntry::DrawResolved`, call `prepare_event` with `EventKind::CardDrawn`, `source: request.source`, `targets: vec![card]`, and `controller: request.player`, then push `ResolveEvent`. For a burn, fill and trace `Burned(card)` without preparing an event. For empty Deck, increment fatigue, fill and trace `Fatigue { amount }`, then call the existing damage scheduler against the active Hero with no physical card target.
+For a successful move, fill `Drawn(card)`, append `TraceEntry::DrawResolved`, call `prepare_event` with `EventKind::CardDrawn`, `source: request.source`, `targets: vec![card]`, and `controller: request.player`, then push `ResolveEvent`. Burn handling fills and traces `Burned(card)` without preparing an event. For empty Deck, increment fatigue, fill, and trace `Fatigue { amount }`, then call the existing damage scheduler against the active Hero with no physical card target.
 
 In `execute_effect_operation`, replace recursive single-count `Effect::Draw` work with execution-ordered pairs:
 
@@ -380,7 +384,7 @@ push_resolution_ops(world, operations);
 
 Dispatch `ProcessDraw` to `process_draw`; dispatch `FinishDraw` by consuming and discarding the filled result. Preserve existing Play-before-Hand ordering through the current zone buckets.
 
-- [ ] **Step 4: Regenerate, format, and run all focused draw tests**
+- [ ] **Step 4: regenerate, format, and run all focused draw tests**
 
 Run: `bazel run //:gazelle`
 
@@ -392,9 +396,9 @@ Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="fatigue"`
 
-Expected: PASS; trace assertions prove movement precedes draw reactions and each request fully resolves before its successor.
+Expected: `PASS`; trace assertions prove movement precedes draw reactions and each request fully resolves before its successor.
 
-- [ ] **Step 5: Commit draw outcomes**
+- [ ] **Step 5: commit draw outcomes**
 
 ```bash
 git add hearthstone_simulator/core/zone.rs hearthstone_simulator/simulator/zone.rs hearthstone_simulator/simulator/simulation_player.rs hearthstone_simulator/simulator/simulation_effect_executor.rs hearthstone_simulator/simulator/simulation_event_resolver.rs hearthstone_simulator/simulator/simulation_tests_effects.rs hearthstone_simulator/simulator/simulation_tests_events.rs hearthstone_simulator/simulator/simulation_tests_movement.rs
@@ -403,7 +407,7 @@ git commit -m "feat(hearthstone): resolve compliant card draws"
 
 ---
 
-### Task 4: Add Draw-Result Continuations And DC5 Attribution
+### Task 4: add draw-result continuations and DC5 attribution
 
 **Files:**
 
@@ -417,7 +421,7 @@ git commit -m "feat(hearthstone): resolve compliant card draws"
 - Consumes: `Effect::DrawThen`, `Selector::DrawnCard`, `ValueExpression::DrawnCardCost`, `ContinueDraw`, and Task 3 draw outcomes.
 - Produces: bound drawn-card contexts, post-reaction cost reads, success-required behavior, and isolated nested draw attribution.
 
-- [ ] **Step 1: Write failing continuation tests**
+- [ ] **Step 1: write failing continuation tests**
 
 Create a synthetic card whose draw trigger changes its cost before a `DrawThen` continuation reads `DrawnCardCost` to deal damage. Add burn/fatigue tests for both continuation policies and a nested-draw test where only the outer request's result is bound.
 
@@ -432,15 +436,15 @@ let effect = Effect::DrawThen {
 };
 ```
 
-- [ ] **Step 2: Regenerate and verify failure**
+- [ ] **Step 2: regenerate and verify failure**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="draw_continuation_reads_cost_after_draw_triggers"`
 
-Expected: FAIL because `DrawThen` has no execution path and the bound selector/value are unsupported.
+Expected: `FAIL` because `DrawThen` has no execution path and the bound selector/value are unsupported.
 
-- [ ] **Step 3: Implement continuation binding**
+- [ ] **Step 3: implement continuation binding**
 
 Expand `DrawThen` in this exact execution order:
 
@@ -466,7 +470,7 @@ push_resolution_ops(
 
 `ContinueDraw` consumes its private slot. For `Drawn(card)`, clone the context with `drawn_card: Some(card)` and push its effects. For `Burned` or `Fatigue`, skip `RequireCard`; run `RunWithoutCard` with `drawn_card: None`. `Selector::DrawnCard` returns zero or one entity. `DrawnCardCost` returns the bound entity's current `CardRuntime.cost`, or `0` when no valid binding exists.
 
-- [ ] **Step 4: Regenerate, format, and run continuation/event tests**
+- [ ] **Step 4: regenerate, format, and run continuation/event tests**
 
 Run: `bazel run //:gazelle`
 
@@ -476,9 +480,9 @@ Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="nested_draw"`
 
-Expected: PASS; every continuation starts after draw reactions and consumes only its own result.
+Expected: `PASS`; every continuation starts after draw reactions and consumes only its own result.
 
-- [ ] **Step 5: Commit continuation support**
+- [ ] **Step 5: commit continuation support**
 
 ```bash
 git add hearthstone_simulator/simulator/simulation_effect_executor.rs hearthstone_simulator/simulator/simulation_event_resolver.rs hearthstone_simulator/simulator/simulation_tests_effects.rs hearthstone_simulator/simulator/simulation_tests_events.rs
@@ -487,7 +491,7 @@ git commit -m "feat(hearthstone): add draw result continuations"
 
 ---
 
-### Task 5: Checkpoint Pending Draw Work
+### Task 5: checkpoint pending draw work
 
 **Files:**
 
@@ -500,9 +504,9 @@ git commit -m "feat(hearthstone): add draw result continuations"
 - Consumes: serializable draw operations, result slots, effects, contexts, and counters from Tasks 1-4.
 - Produces: checkpoint schema version `7`, monotonic draw-slot checks, operation/slot/entity reference validation, and fork-equivalent pending draw continuation.
 
-- [ ] **Step 1: Write failing checkpoint tests**
+- [ ] **Step 1: write failing checkpoint tests**
 
-Add tests that construct retained draw operations and slots directly, serialize to JSON, restore, and reject stale counters or missing references. Use a synthetic `RequestChoice` above a pending draw continuation to prove suspended restoration without adding a card-level choice effect.
+Add tests that construct retained draw operations and slots directly, serialize to JSON, restore, and reject stale counters or missing references. Use a synthetic `RequestChoice` ahead of a pending draw continuation to prove suspended restoration without adding a card-level choice effect.
 
 ```rust
 let slot = DrawResultSlotId(4);
@@ -518,21 +522,21 @@ work.stack.push(StackedResolutionOp {
 });
 ```
 
-- [ ] **Step 2: Regenerate and verify stale-counter rejection fails**
+- [ ] **Step 2: regenerate and verify stale-counter rejection fails**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="checkpoints_reject_stale_draw_slot_counters"`
 
-Expected: FAIL because checkpoint validation ignores draw counters and slot references.
+Expected: `FAIL` because checkpoint validation ignores draw counters and slot references.
 
-- [ ] **Step 3: Implement schema and recursive validation**
+- [ ] **Step 3: implement schema and recursive validation**
 
 Set `CHECKPOINT_SCHEMA_VERSION` to `7`. Validate that every stored draw slot ID and every operation-referenced slot is lower than `next_draw_result_slot_id`; operations that consume a slot must reference a retained slot. Validate `DrawRequest::source`, `EffectContext::{source,declared_target,drawn_card}`, `Selector::Entity`, event sources/targets, copy sources, transform targets, bound entities, and every `pending_played_self_transforms` member against the checkpoint entity set.
 
 Retain recursive validation for nested choices and effect programs. Reject schema `6` with the existing version-mismatch path rather than supplying backward compatibility.
 
-- [ ] **Step 4: Regenerate, format, and run checkpoint tests**
+- [ ] **Step 4: regenerate, format, and run checkpoint tests**
 
 Run: `bazel run //:gazelle`
 
@@ -542,9 +546,9 @@ Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="fork"`
 
-Expected: PASS; JSON restoration preserves pending draw state and invalid references fail deterministically.
+Expected: `PASS`; JSON restoration preserves pending draw state and invalid references fail deterministically.
 
-- [ ] **Step 5: Commit checkpoint schema 7**
+- [ ] **Step 5: commit checkpoint schema 7**
 
 ```bash
 git add hearthstone_simulator/core/checkpoint.rs hearthstone_simulator/simulator/simulation_checkpoint.rs hearthstone_simulator/simulator/simulation_tests_api.rs
@@ -553,7 +557,7 @@ git commit -m "feat(hearthstone): checkpoint pending draw work"
 
 ---
 
-### Task 6: Make Transformation Atomic And Complete
+### Task 6: make transformation atomic and complete
 
 **Files:**
 
@@ -570,7 +574,7 @@ git commit -m "feat(hearthstone): checkpoint pending draw work"
 - Consumes: `TransformKind` and `ResolutionOp::TransformEntity` from Task 1; existing component schema and attachment relationships.
 - Produces: validated atomic `transform_entity(world, target, card, kind)`, deterministic detachment, complete form reset, stable identity, and transform tracing.
 
-- [ ] **Step 1: Write failing atomic transform tests**
+- [ ] **Step 1: write failing atomic transform tests**
 
 Expand existing transformation tests to cover missing target atomicity, deterministic attachment removal, role/cache component cleanup, stable ID/zone/position, trace content, no Death/Summoned event, and delayed old-provider aura expiration.
 
@@ -586,15 +590,15 @@ assert_that!(result, err(anything()));
 assert_that!(simulation.checkpoint().unwrap(), eq(&before));
 ```
 
-- [ ] **Step 2: Regenerate and verify atomicity test fails**
+- [ ] **Step 2: regenerate and verify atomicity test fails**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="invalid_transformation_is_atomic"`
 
-Expected: FAIL because transform currently detaches before target lookup and has no structural validation.
+Expected: `FAIL` because transform currently detaches before target lookup and has no structural validation.
 
-- [ ] **Step 3: Implement explicit transform operation and policy**
+- [ ] **Step 3: implement explicit transform operation and policy**
 
 Change `Effect::Transform` execution to push one `TransformEntity` per selected target, carrying `source: context.source`. Dispatch that operation to:
 
@@ -611,7 +615,7 @@ Before mutation, resolve the target, validate the replacement program and requir
 
 Do not refresh global aura caches during the reducer. This preserves old-provider applications until the scheduled aura boundary while preventing target-local received caches from masquerading as replacement state.
 
-- [ ] **Step 4: Regenerate, format, and run transform tests**
+- [ ] **Step 4: regenerate, format, and run transform tests**
 
 Run: `bazel run //:gazelle`
 
@@ -619,9 +623,9 @@ Run: `aspect format --scope=all`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="transform"`
 
-Expected: PASS; failures are atomic and transformed state follows the explicit preserved/replaced/removed matrix.
+Expected: `PASS`; failures are atomic and transformed state follows the explicit preserved/replaced/removed matrix.
 
-- [ ] **Step 5: Commit atomic transformation**
+- [ ] **Step 5: commit atomic transformation**
 
 ```bash
 git add hearthstone_simulator/core/error.rs hearthstone_simulator/simulator/simulation_effect_executor.rs hearthstone_simulator/simulator/simulation_event_resolver.rs hearthstone_simulator/simulator/enchantment.rs hearthstone_simulator/simulator/simulation_tests_effects.rs hearthstone_simulator/simulator/simulation_tests_events.rs hearthstone_simulator/simulator/simulation_tests_auras.rs
@@ -630,7 +634,7 @@ git commit -m "feat(hearthstone): make transformations atomic"
 
 ---
 
-### Task 7: Add Narrow Transformation Timing
+### Task 7: add narrow transformation timing
 
 **Files:**
 
@@ -647,7 +651,7 @@ git commit -m "feat(hearthstone): make transformations atomic"
 - Consumes: Task 6 transform reducer, trigger seed capture, prepared events, `RefreshAuras(AuraRefreshPlan::Summon)`, and phase-boundary operations.
 - Produces: spell/no-summon timing, non-spell Summon Resolution participation, and played-self inserted/original after-play ordering.
 
-- [ ] **Step 1: Write failing timing tests**
+- [ ] **Step 1: write failing timing tests**
 
 Add one trace-based test per `TransformKind`. The played-self fixture must have a pre-transform `AfterPlay` trigger and a post-transform `AfterPlayAndSummon` trigger and assert this execution order:
 
@@ -660,15 +664,15 @@ pre-transform after-play event
 
 Assert `Spell` produces none of that summon work and `NonSpell` refreshes summon auras without emitting an ordinary `Summoned` event.
 
-- [ ] **Step 2: Regenerate and verify played-self ordering fails**
+- [ ] **Step 2: regenerate and verify played-self ordering fails**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="played_self_transform_uses_inserted_then_original_after_play_order"`
 
-Expected: FAIL because the current action compiler has no inserted/original after-play model.
+Expected: `FAIL` because the current action compiler has no inserted/original after-play model.
 
-- [ ] **Step 3: Implement only the required transform timing plan**
+- [ ] **Step 3: implement only the required transform timing plan**
 
 Add a serializable post-program barrier carrying the stable subject and captured pre-transform seeds:
 
@@ -701,7 +705,7 @@ Push barrier consequences in this order:
 
 For `NonSpell`, push `RefreshAuras(AuraRefreshPlan::Summon)` only; do not create `Summoned`. For `Spell`, push no transform-specific timing. Reject `PlayedSelf` unless `source == Some(target)` and a matching finish barrier remains on the stack. Detect `PlayedSelf` recursively inside `Effect::Sequence`, but do not add weapon, Hero Power, location, or general Milestone 8 sequences.
 
-- [ ] **Step 4: Regenerate, format, and run transform timing tests**
+- [ ] **Step 4: regenerate, format, and run transform timing tests**
 
 Run: `bazel run //:gazelle`
 
@@ -711,9 +715,9 @@ Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="inserted"`
 
-Expected: PASS with exact trace order and no ordinary summon event for transformations.
+Expected: `PASS` with exact trace order and no ordinary summon event for transformations.
 
-- [ ] **Step 5: Commit transform timing**
+- [ ] **Step 5: commit transform timing**
 
 ```bash
 git add hearthstone_simulator/core/resolver.rs hearthstone_simulator/simulator/resolver.rs hearthstone_simulator/simulator/simulation_action.rs hearthstone_simulator/simulator/simulation_effect_executor.rs hearthstone_simulator/simulator/simulation_event_resolver.rs hearthstone_simulator/simulator/simulation_tests_events.rs hearthstone_simulator/simulator/simulation_tests_auras.rs
@@ -722,7 +726,7 @@ git commit -m "feat(hearthstone): add transformation timing"
 
 ---
 
-### Task 8: Implement Explicit Non-Play Copy Policy
+### Task 8: implement explicit non-play copy policy
 
 **Files:**
 
@@ -737,7 +741,7 @@ git commit -m "feat(hearthstone): add transformation timing"
 - Consumes: `CopyRequest`, `CopyStatePolicy::CurrentForm`, explicit `CopyEntity`, existing `copy_card_data`, capacity validation, and `spawn_card`.
 - Produces: execution-time source capture, append or explicit board position, no-ID no-ops, narrow error handling, and copy trace.
 
-- [ ] **Step 1: Write failing non-Play copy tests**
+- [ ] **Step 1: write failing non-Play copy tests**
 
 Extend movement tests to assert current transformed form is copied while attachments, effective cost, damage, silence, pending destroy, aura caches, controller, position, and play order are absent. Preserve and strengthen the no-ID-consumption test for missing sources and full destinations.
 
@@ -748,21 +752,21 @@ assert_that!(world.get::<Silenced>(copy_entity), none());
 assert_that!(world.get::<Damage>(copy_entity), eq(Some(&Damage(0))));
 ```
 
-- [ ] **Step 2: Regenerate and verify explicit copy trace test fails**
+- [ ] **Step 2: regenerate and verify explicit copy trace test fails**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="non_play_copy_uses_current_form_without_runtime_attachments"`
 
-Expected: FAIL because copy has no explicit operation or trace policy.
+Expected: `FAIL` because copy has no explicit operation or trace policy.
 
-- [ ] **Step 3: Implement `CurrentForm` copy execution**
+- [ ] **Step 3: implement `CurrentForm` copy execution**
 
 When `Effect::Copy` selects a target, inspect its source zone and choose `CurrentForm` unless both source and destination are Play. Push `CopyEntity(CopyRequest)` rather than spawning inline.
 
 The operation captures `copy_card_data` at execution, validates destination capacity before allocating IDs, and calls `spawn_card`. Treat only a missing source and `ZoneError::Full` as normal no-op outcomes; propagate structural/program failures. Apply destination controller and `board_index`, append `EntityCopied`, and leave all source attachments and runtime state behind.
 
-- [ ] **Step 4: Regenerate, format, and run non-Play copy tests**
+- [ ] **Step 4: regenerate, format, and run non-Play copy tests**
 
 Run: `bazel run //:gazelle`
 
@@ -772,9 +776,9 @@ Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="full_zones"`
 
-Expected: PASS; missing/full copies are deterministic no-ops without ID consumption and valid copies are traced.
+Expected: `PASS`; missing/full copies are deterministic no-ops without ID consumption and valid copies are traced.
 
-- [ ] **Step 5: Commit non-Play copies**
+- [ ] **Step 5: commit non-Play copies**
 
 ```bash
 git add hearthstone_simulator/simulator/simulation_effect_executor.rs hearthstone_simulator/simulator/simulation_event_resolver.rs hearthstone_simulator/simulator/simulation_card_runtime.rs hearthstone_simulator/simulator/zone.rs hearthstone_simulator/simulator/simulation_tests_movement.rs
@@ -783,7 +787,7 @@ git commit -m "feat(hearthstone): add explicit card copies"
 
 ---
 
-### Task 9: Clone Play State And Enchantments
+### Task 9: clone play state and enchantments
 
 **Files:**
 
@@ -800,7 +804,7 @@ git commit -m "feat(hearthstone): add explicit card copies"
 - Consumes: Task 8 `CopyEntity`, `CopyStatePolicy::InPlayState`, attachment relationships, play-order allocation, and summon refresh/event machinery.
 - Produces: deterministic Play-to-Play state transfer, fresh cloned enchantments, reset play age, excluded aura caches, and ordinary summon resolution.
 
-- [ ] **Step 1: Write failing Play-copy matrix tests**
+- [ ] **Step 1: write failing Play-copy matrix tests**
 
 Construct one source with damage, silence, pending destroy, modified keywords, all supported attachment payloads, received aura applications, nonzero attack usage, and a known board position. Assert the copy has fresh identity/play order, destination controller/position, copied non-aura state, fresh ordered attachment IDs, and default attack usage with `exhausted: true` unless Charge applies.
 
@@ -814,15 +818,15 @@ assert_that!(copy_enchantments, not(eq(source_enchantments)));
 
 Add a trace test showing aura refresh and `Summoned` resolution finish before a later sibling effect.
 
-- [ ] **Step 2: Regenerate and verify state-transfer test fails**
+- [ ] **Step 2: regenerate and verify state-transfer test fails**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="play_copy_clones_non_aura_state_and_eligible_enchantments"`
 
-Expected: FAIL because the current Play copy preserves only silence.
+Expected: `FAIL` because the current Play copy preserves only silence.
 
-- [ ] **Step 3: Implement deterministic capture and clone**
+- [ ] **Step 3: implement deterministic capture and clone**
 
 Create private snapshot types that contain only approved state:
 
@@ -847,9 +851,9 @@ AttackState {
 }
 ```
 
-Recalculate stats, keywords, and cost after all attachments are cloned. Existing attack legality may let Charge or Rush override exhaustion; do not encode those exceptions by clearing the stored exhaustion flag. After successful state transfer, schedule `RefreshAuras(AuraRefreshPlan::Summon)` and a normal `Summoned` event above later sibling work. Append `EntityCopied` only after the copy is structurally complete.
+Recalculate stats, keywords, and cost after all attachments are cloned. Existing attack legality may let Charge or Rush override exhaustion; do not encode those exceptions by clearing the stored exhaustion flag. After successful state transfer, schedule `RefreshAuras(AuraRefreshPlan::Summon)` and a normal `Summoned` event ahead of later sibling work. Append `EntityCopied` only after the copy is structurally complete.
 
-- [ ] **Step 4: Regenerate, format, and run Play-copy tests**
+- [ ] **Step 4: regenerate, format, and run Play-copy tests**
 
 Run: `bazel run //:gazelle`
 
@@ -859,9 +863,9 @@ Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="aura"`
 
-Expected: PASS; source/copy mutations are independent, attachment IDs are fresh and deterministic, and summon consequences resolve depth-first.
+Expected: `PASS`; source/copy mutations are independent, attachment IDs are fresh and deterministic, and summon consequences resolve depth-first.
 
-- [ ] **Step 5: Commit Play copy behavior**
+- [ ] **Step 5: commit Play copy behavior**
 
 ```bash
 git add hearthstone_simulator/simulator/simulation_effect_executor.rs hearthstone_simulator/simulator/simulation_card_runtime.rs hearthstone_simulator/simulator/enchantment.rs hearthstone_simulator/simulator/aura.rs hearthstone_simulator/simulator/simulation_tests_movement.rs hearthstone_simulator/simulator/simulation_tests_auras.rs hearthstone_simulator/simulator/simulation_tests_events.rs
@@ -870,7 +874,7 @@ git commit -m "feat(hearthstone): copy in-play runtime state"
 
 ---
 
-### Task 10: Harden Checkpoints, Close Documentation, And Verify
+### Task 10: harden checkpoints, close documentation, and verify
 
 **Files:**
 
@@ -885,7 +889,7 @@ git commit -m "feat(hearthstone): copy in-play runtime state"
 - Consumes: every new operation, policy, trace, component payload, and test from Tasks 1-9.
 - Produces: complete recursive checkpoint validation, checkpoint/fork equivalence for transform/copy work, closed Milestone 7 status, and repository verification evidence.
 
-- [ ] **Step 1: Write failing retained-operation and fork tests**
+- [ ] **Step 1: write failing retained-operation and fork tests**
 
 Add schema-7 tests with pending `TransformEntity`, `CopyEntity`, and cloned-enchantment state. Reject missing transform/copy targets and stale IDs. Fork before executing each retained operation, execute identical continuations, and compare snapshots and traces.
 
@@ -895,15 +899,15 @@ assert_that!(restored.trace(), eq(fork.trace()));
 assert_that!(assert_resolution_invariants(restored.app.world()), ok(anything()));
 ```
 
-- [ ] **Step 2: Regenerate and verify missing-reference test fails**
+- [ ] **Step 2: regenerate and verify missing-reference test fails**
 
 Run: `bazel run //:gazelle`
 
 Run: `aspect test //hearthstone_simulator/simulator:simulator_test --test_filter="checkpoints_reject_missing_transform_and_copy_references"`
 
-Expected: FAIL until recursive operation validation covers transform/copy IDs and copied attachment relationships.
+Expected: `FAIL` until recursive operation validation covers transform/copy IDs and copied attachment relationships.
 
-- [ ] **Step 3: Complete validation and pass all focused tests**
+- [ ] **Step 3: complete validation and pass all focused tests**
 
 Extend operation validation to cover `TransformEntity`, `CopyEntity`, `FinishPlayedSelfTransform`, `pending_played_self_transforms`, every nested trigger seed, and all event/context logical IDs. Validate cloned attachments with the same relationship, duration, payload, and play-order rules as ordinary enchantments.
 
@@ -913,9 +917,9 @@ Run: `aspect format --scope=all`
 
 Run: `aspect test //hearthstone_simulator/...`
 
-Expected: PASS for core, simulator, and app targets.
+Expected: `PASS` for core, simulator, and app targets.
 
-- [ ] **Step 4: Update Milestone 7 documentation**
+- [ ] **Step 4: update Milestone 7 documentation**
 
 Only after Step 3 passes:
 
@@ -924,7 +928,7 @@ Only after Step 3 passes:
 - Update `README.md` to include explicit draw event ordering, draw-result continuation, transform timing, and zone-specific copy state.
 - Add the fresh verification commands and results to the progress log.
 
-- [ ] **Step 5: Format and run final repository verification**
+- [ ] **Step 5: format and run final repository verification**
 
 Run: `aspect format --scope=all`
 
@@ -934,13 +938,13 @@ Run: `aspect lint`
 
 Run: `bazel run //tools/coverage -- //hearthstone_simulator/...`
 
-Expected: PASS with all changed lines covered, or one documented unreachable compiler-derived branch.
+Expected: `PASS` with all changed lines covered, or one documented unreachable compiler-derived branch.
 
 Run: `aspect build //...`
 
-Expected: PASS for the full repository.
+Expected: `PASS` for the full repository.
 
-- [ ] **Step 6: Inspect and commit the completed milestone**
+- [ ] **Step 6: inspect and commit the completed milestone**
 
 Run: `git status --short`
 

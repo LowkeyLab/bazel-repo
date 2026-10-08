@@ -1,4 +1,4 @@
-# Glossary Map
+# Glossary map
 
 ## Contexts
 

@@ -1,4 +1,4 @@
-# nicknamer2
+# Nicknamer2
 
 ## Commands
 
@@ -21,16 +21,16 @@ aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 
 ## Environment
 
-- `DB_URL` — connection string env var (not `DATABASE_URL`); format: `postgres://user:pass@host:port/db` (docker-compose default: `nicknamer2:nicknamer2@localhost:5433/nicknamer2`)
-- `STATIC_DIR` — optional path to serve frontend static files (e.g., built Angular output)
-- `CASDOOR_CLIENT_ID` — required for auth validation; without it, mutations reject all requests
+- `DB_URL`: connection string env var (not `DATABASE_URL`); format: `postgres://user:pass@host:port/db` (docker-compose default: `nicknamer2:nicknamer2@localhost:5433/nicknamer2`)
+- `STATIC_DIR`: optional path to serve frontend static files (e.g., built Angular output)
+- `CASDOOR_CLIENT_ID`: required for auth validation; without it, mutations reject all requests
 - Backend listens on port **8080** (not 3000)
 
 ## Patterns
 
 - **Layered architecture**: `server/lib.rs` (Axum) → `graphql/` (Juniper) → `{name,discord_server}/service/lib.rs` → `{name,discord_server}/repo/lib.rs` (sqlx) → PostgreSQL
-- **Modules**: `name/` (nicknames) and `discord_server/` (servers) — both follow domain → repo → service layering. `server/` is the Axum HTTP server (not a domain module).
-- **Trait-based repositories**: `NameCreator`, `NameReader`, `NameUpdater`, `NameDeleter`, `NameCounter`; `ServerCreator`, `ServerReader` — enables testability
+- **Modules**: `name/` (nicknames) and `discord_server/` (servers): both follow domain → repo → service layering. `server/` is the Axum HTTP server (not a domain module).
+- **Trait-based repositories**: `NameCreator`, `NameReader`, `NameUpdater`, `NameDeleter`, `NameCounter`; `ServerCreator`, `ServerReader`: enables testability
 - **DAO pattern**: `NameDAO`, `ServerDAO` (sqlx `FromRow`) convert to domain models via `From`
 - **Relay Global IDs**: base64-encoded `Type:components` (e.g., `Name:{discord_id}:{discord_server}`)
 - **Cursor pagination**: base64-encoded JSON cursors, keyset pagination ordered by `discord_id`
@@ -40,7 +40,7 @@ aspect test //nicknamer2/src/name:name_repo_test --test_filter="test_name"
 - **Migrations**: `sqlx::migrate!()` macro in `src/migrations/lib.rs`, SQL files in `nicknamer2/migrations/`. Retain the migrations filegroup in Bazel `compile_data`; Gazelle preserves this attribute without a `# keep` comment.
 - **Integration tests**: spin up PostgreSQL via `testcontainers`, tagged `requires-network`
 
-## E2E Testing with Casdoor
+## E2E testing with Casdoor
 
 Casdoor's React SPA doesn't render in headless Chromium on the `/login/oauth/authorize` page.
 To get a JWT for E2E tests, use the password grant directly:
@@ -51,4 +51,4 @@ curl -s 'http://localhost:8000/api/login/oauth/access_token' \
   -d 'grant_type=password&client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>&username=<USER>&password=<PASS>&scope=profile'
 ```
 
-Requires `password` in the application's `grantTypes` list in Casdoor.
+Requires `password` in the app's `grantTypes` list in Casdoor.

@@ -7,6 +7,10 @@ type: project
 draft: false
 ---
 
+<!-- Personal essays intentionally use first-person narration. -->
+<!-- vale Google.FirstPerson = NO -->
+<!-- vale Google.We = NO -->
+
 I built Free-DSL to generate idiomatic Kotlin DSL builders for classes. It uses Kotlin Symbol Processing (KSP) to turn annotations into extension functions and builder classes, giving callers a type-safe syntax for constructing instances.
 
 The generator supports data classes and regular classes with primary constructors, including nested DSL structures, nullable properties, and default values. It works with Kotlin Multiplatform projects.
@@ -26,3 +30,6 @@ API.
 ## Links
 
 - [Source code](https://github.com/LowkeyLab/gradle-monorepo/tree/main/free-dsl)
+
+<!-- vale Google.FirstPerson = YES -->
+<!-- vale Google.We = YES -->

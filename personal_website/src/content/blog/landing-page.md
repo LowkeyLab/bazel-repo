@@ -7,6 +7,10 @@ type: project
 draft: false
 ---
 
+<!-- Personal essays intentionally use first-person narration. -->
+<!-- vale Google.FirstPerson = NO -->
+<!-- vale Google.We = NO -->
+
 I wanted a home for my writing that could also accommodate experiments with interactive frontends. Astro's approach to content and its flexibility across frontend frameworks appealed to me.
 
 This is a look at an earlier iteration of the site, including the TailwindCSS, DaisyUI, and Deno choices I made then. The site has continued to change, but the reasons behind those choices and the problems I ran into are still part of its story.
@@ -17,9 +21,9 @@ This is a look at an earlier iteration of the site, including the TailwindCSS, D
 
 [Astro](https://astro.build/)'s content-driven principle and focus on [island architecture](https://jasonformat.com/islands-architecture/) is the missing web framework I was looking for.
 
-Before Astro, web frameworks delineated themselves into "sites with only HTML content" and "sites with only JavaScript". You either went for a static site generator like [Jekyll](https://jekyllrb.com/) and forgo all your interactivity, or you went with an SPA framework like [React](https://react.dev/) and forgo using content-oriented file formats like Markdown. You either had an inherently SEO-friendly website, or you had an inherently interactive one.
+Before Astro, web frameworks delineated themselves into "sites with only HTML content" and "sites with only JavaScript." You either went for a static site generator like [Jekyll](https://jekyllrb.com/) and forgo all your interactivity, or you went with an SPA framework like [React](https://react.dev/) and forgo using content-oriented file formats like Markdown. You either had an inherently SEO-friendly website, or you had an inherently interactive one.
 
-What about [Ruby on Rails](https://rubyonrails.org/), [Flask](https://flask.palletsprojects.com/en/stable/), and the like? These frameworks require you to render your HTML entirely on the server; interactivity was provided by shipping some (probably untested) JavaScript. You would use something like [jQuery](https://jquery.com/) to do DOM manipulation and Ajax. It's very hard to fully take over on the client side and reap some of its benefits, such as lower latency, easier context management, etc. The web moved to SPAs for a reason.
+What about [Ruby on Rails](https://rubyonrails.org/), [Flask](https://flask.palletsprojects.com/en/stable/), and the like? These frameworks require you to render your HTML entirely on the server; interactivity was provided by shipping some (probably untested) JavaScript. You would use something like [`jQuery`](https://jquery.com/) to do DOM manipulation and AJAX. It's very hard to fully take over on the client side and reap some of its benefits, such as lower latency, easier context management, etc. The web moved to SPAs for a reason.
 
 The most popular framework that offered both easy content management and client interactivity is [Gatsby](https://www.gatsbyjs.com/). But Gatsby wedded you to React, and it was still using React to render content exclusively on the client side with JavaScript.
 
@@ -35,9 +39,9 @@ I strongly believe that the previous state-of-the-art of complicated CSS stylesh
 
 People started packaging components with pre-defined styles to enforce a design system. There is [React Bootstrap](https://react-bootstrap.netlify.app/) for [Bootstrap](https://getbootstrap.com/), [MaterialUI](https://mui.com/material-ui/) for [Material Design](https://m3.material.io/), etc. Companies would distribute a component library packaged with well-defined CSS styles for each. The fundamental reusable block in web design is no longer **content** (HTML) and **style** (CSS), but **components** (HTML + CSS).
 
-The problem with components is style customizability. Unless your components have a base [headless component](https://martinfowler.com/articles/headless-component.html), you can't just swap out the style of an element inside that component by passing in `textSize="large"`. Without those props, you need to write long and verbose CSS that would (hopefully) override the styles defined in the component. But how does the new font size relate to the rest of the site? Most of the time, when you change the style in a component, you're changing it in relation to another portion of your site (e.g., make this text larger than this other text). You'd need to know the internals of how the style of the other element is specified: Is the font size in `px`, `rem`, or `em`?
+The problem with components is style customizability. Unless your components have a base [headless component](https://martinfowler.com/articles/headless-component.html), you can't just swap out the style of an element inside that component by passing in `textSize="large"`. Without those props, you need to write long and verbose CSS that would (hopefully) override the styles defined in the component. But how does the new font size relate to the rest of the site? Most of the time, when you change the style in a component, you're changing it in relation to another portion of your site (e.g., make this text larger than this other text). You'd need to know the internals of how the style of the other element is specified: is the font size in `px`, `rem`, or `em`?
 
-Good design systems have well-defined [CSS variables](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascading_variables/Using_CSS_custom_properties) for things like "small font size", "medium font size", etc. to be overridden. Great design systems have well-defined classes for these common styles, like `text-sm`, `text-md`, because changing the font size also means changing the line height. TailwindCSS is that great design system.
+Good design systems have well-defined [CSS variables](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascading_variables/Using_CSS_custom_properties) for things like "small font size," "medium font size," etc. to be overridden. Great design systems have well-defined classes for these common styles, like `text-sm`, `text-md`, because changing the font size also means changing the line height. TailwindCSS is that great design system.
 
 ### DaisyUI
 
@@ -65,3 +69,6 @@ Another annoyance is the need to still include a `tsconfig.json` file, even thou
 
 - [Source code](https://github.com/LowkeyLab/deno-monorepo/tree/main/website)
 - [Website](https://www.tacascer.com)
+
+<!-- vale Google.FirstPerson = YES -->
+<!-- vale Google.We = YES -->

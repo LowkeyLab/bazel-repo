@@ -1,27 +1,31 @@
-# Nicknamer Observability Implementation Plan
+# Nicknamer observability implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Completed steps use checkbox (`- [x]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Completed steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Observe Nicknamer's real application outcomes through safe typed events and production-wired listeners without changing business behavior.
+**Goal:** observe Nicknamer's real app outcomes through safe typed events and production-wired listeners without changing business behavior.
 
-**Architecture:** Concrete PostgreSQL services emit typed observations through a shared sink. The production router installs request context around both web and API routes. The user confirmed local logging: use a synchronous local tracing listener with no OpenTelemetry dependencies or OTLP export.
+**Architecture:** concrete PostgreSQL services emit typed observations through a shared sink. The production router installs request context around both web and API routes. The user confirmed local logging: use a synchronous local tracing listener with no OpenTelemetry dependencies or OTLP export.
+
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
 
 **Tech Stack:** Rust, Axum, Tokio, SeaORM/PostgreSQL, tracing, googletest, Bazel/Aspect.
+<!-- vale Google.Colons = YES -->
 
 **Spec:** `docs/superpowers/specs/2026-09-26-nicknamer-testability-observability-design.md`
 
-## Global Constraints
+## Global constraints
 
 - Preserve existing routes, response formats, authentication policy, persistence behavior, and bulk partial success.
 - Keep DatabaseConnection concrete.
 - Measure elapsed duration with Instant and represent it as Duration.
 - Application events exclude credentials, cookies, JWTs, DB URLs, names, usernames, Discord/server IDs, raw paths, queries, request bodies, YAML, and raw error messages.
 - Never assert rendered diagnostic strings or JSON.
-- Add graceful signal handling to drain in-flight requests for at most 10 seconds, then terminate draining, emit the appropriate shutdown outcome, and flush the local listener.
+- Add graceful signal handling to drain in-flight requests for at most 10 seconds, then stop draining, emit the appropriate shutdown outcome, and flush the local listener.
 - Run `nix develop --command bazel run //:gazelle` immediately after each source-edit batch and before formatting or manual BUILD edits.
 - This plan covers observability and the composition/testing needed to prove it. The independent JWT issuance-time refactor from the combined spec is deferred.
 
-## Review Focus
+## Review focus
 
 - Persisted mutation followed by rendering failure must retain committed observation; Task 2 verifies service truth independently of HTTP status.
 - Repeated deletion IDs and duplicate-only imports must preserve current counts; Task 2 pins these cases.
@@ -31,11 +35,11 @@
 
 ## Confirmed delivery scope
 
-The user selected local logging on 2026-09-26. Implement typed events, a local tracing listener, safe request correlation, and bounded application shutdown. No OpenTelemetry SDK, OTLP exporter, remote queue, or hosted destination is part of this implementation. Apply implement-observability's producer/listener separation and structured verification within this explicitly selected scope.
+The user selected local logging on 2026-09-26. Implement typed events, a local tracing listener, safe request correlation, and bounded app shutdown. No OpenTelemetry SDK, OTLP exporter, remote queue, or hosted destination is part of this implementation. Apply implement-observability's producer/listener separation and structured verification within this explicitly selected scope.
 
-## Task 1: Typed contract, dispatcher, and local listener
+## Task 1: typed contract, dispatcher, and local listener
 
-**Files:** Create `nicknamer/server/lib/src/observations/{mod.rs,logging.rs}` and `nicknamer/server/lib/tests/observations_tests.rs`; modify library `src/lib.rs` and test `BUILD.bazel` after Gazelle.
+**Files:** create `nicknamer/server/lib/src/observations/{mod.rs,logging.rs}` and `nicknamer/server/lib/tests/observations_tests.rs`; modify library `src/lib.rs` and test `BUILD.bazel` after Gazelle.
 
 **Interfaces:**
 
@@ -53,9 +57,9 @@ The user selected local logging on 2026-09-26. Implement typed events, a local t
 - [x] Implement the logging listener with exhaustive mappings, no raw error formatting, and no network exporter.
 - [x] Run Gazelle, formatter, and the focused target; inspect executed test counts. Commit `feat(nicknamer): add typed observation boundary`.
 
-## Task 2: Persistence, bulk, and export facts
+## Task 2: persistence, bulk, and export facts
 
-**Files:** Modify `name/mod.rs`, `name/web.rs`, `name/api/v1.rs`, `tests/name_service_tests.rs`; create `tests/observations_service_tests.rs` and `tests/common/observations.rs` under `nicknamer/server/lib/`.
+**Files:** modify `name/mod.rs`, `name/web.rs`, `name/api/v1.rs`, `tests/name_service_tests.rs`; create `tests/observations_service_tests.rs` and `tests/common/observations.rs` under `nicknamer/server/lib/`.
 
 **Interfaces:**
 
@@ -71,9 +75,9 @@ The user selected local logging on 2026-09-26. Implement typed events, a local t
 - [x] Add endpoint checks consuming a recorder to prove export composition uses the observer. Verify a later error response cannot rewrite an already captured committed fact; use an accessible response-error boundary if real template failure cannot be triggered, and document that limit.
 - [x] Run Gazelle, format, focused new target and existing service/names targets. Commit `feat(nicknamer): observe persistence and bulk outcomes`.
 
-## Task 3: Authentication and merged request composition
+## Task 3: authentication and merged request composition
 
-**Files:** Modify `auth/mod.rs`, `auth/api/v1.rs`, `web/mod.rs`, `web/api.rs`; create `observations/http.rs` and `tests/observations_app_tests.rs` under `nicknamer/server/lib/`; update existing auth fixtures.
+**Files:** modify `auth/mod.rs`, `auth/api/v1.rs`, `web/mod.rs`, `web/api.rs`; create `observations/http.rs` and `tests/observations_app_tests.rs` under `nicknamer/server/lib/`; update existing auth fixtures.
 
 **Interfaces:**
 
@@ -82,28 +86,28 @@ The user selected local logging on 2026-09-26. Implement typed events, a local t
 - AuthState gains the shared observer, passed explicitly in production composition.
 - Request context is scoped to the async request future; a completion guard records aborted on drop and exactly one response-prepared outcome on normal completion.
 
-- [x] Write integration checks through create_app for browser login and cookie reuse, API token reuse, denied mutation with unchanged database, public health, and `/api/v1` nesting.
+- [x] Write integration tests through `create_app` for browser login and cookie reuse, API token reuse, denied mutation with unchanged database, public health, and `/api/v1` nesting.
 - [x] Assert authentication facts arise from actual credential evaluation, AccessDenied from protected middleware, and one RequestFinished from each request across both routers.
 - [x] Add concurrent interleaved-request and cancellation checks; assert independent correlation IDs and aborted rather than successful completion on cancellation.
-- [x] Run the new application target and verify failing tests identify absent composition/events.
+- [x] Run the new app target and verify failing tests identify absent composition/events.
 - [x] Implement the shared factory and outer observer layer, preserving all existing authentication boundaries. Use a bounded route enum including unknown, not a raw URI; map unfamiliar methods to other.
 - [x] Replace unsafe implicit instrument fields and remove duplicate HTTP tracing ownership. Keep context propagation scoped across await points, never a thread-local entered-span guard across await.
 - [x] Run Gazelle, format, new app target and existing auth/web targets. Commit `feat(nicknamer): observe authenticated application requests`.
 
-## Task 4: Startup, shutdown, and normal composition
+## Task 4: startup, shutdown, and normal composition
 
-**Files:** Modify `nicknamer/server/bin/src/main.rs`, library `web/mod.rs`, library `observations/mod.rs`; create library `observations/lifecycle.rs`, `tests/observations_lifecycle_tests.rs`; update `nicknamer/README.md`.
+**Files:** modify `nicknamer/server/bin/src/main.rs`, library `web/mod.rs`, library `observations/mod.rs`; create library `observations/lifecycle.rs`, `tests/observations_lifecycle_tests.rs`; update `nicknamer/README.md`.
 
 **Interfaces:**
 
-- Composition constructs one dispatcher before Config::from_env and passes it through create_app and service states.
+- Composition constructs one dispatcher before Config::from_env and passes it through `create_app` and service states.
 - `ShutdownOutcome::{Drained, TimedOut}`; injectable shutdown notification future for lifecycle checks.
 - Lifecycle diagnostic boundary accepts only bounded stage/category values, never the original error or configuration object.
 
 - [x] Establish baseline using the current binary and a disposable PostgreSQL fixture before moving startup responsibilities; report any environment limitation explicitly.
 - [x] Write checks for invalid configuration, bind/connection/migration failure, successful readiness, shutdown drain and 10-second timeout. Use controlled futures or Tokio test time instead of wall-clock sleeps.
 - [x] Assert listeners are registered before first startup event and request; flush occurs after final observed work; failing listener preserves exit/response semantics.
-- [x] Implement truthful stages and readiness while preserving bind-before-connect ordering; disable SQL statement/parameter diagnostics in the production connection options.
+- [x] Implement truthful stages and readiness while preserving bind-before-connect ordering; turn off SQL statement/parameter diagnostics in the production connection options.
 - [x] Handle termination signals and bounded drain, then flush local listeners. Map startup failures to a sanitized diagnostic and failure exit status without raw anyhow error printing.
 - [x] Exercise the real binary against disposable PostgreSQL for startup, migrations, HTTP access, and shutdown. Document that this is local composition evidence, not hosted delivery evidence.
 - [x] Document local logging, omitted sensitive fields, best-effort loss and blocking limits, and unchanged health semantics.

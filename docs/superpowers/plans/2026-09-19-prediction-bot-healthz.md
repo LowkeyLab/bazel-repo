@@ -1,16 +1,20 @@
 # Prediction Bot Healthz Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Serve a dependency-free HTTP liveness endpoint from prediction_bot.
+**Goal:** serve a dependency-free HTTP liveness endpoint from `prediction_bot`.
 
-**Architecture:** A private binary health module parses an explicit environment value and runs an Axum server alongside the existing bot future. The binary selects migration mode before health configuration and supplies the real bot initialization future. Discord retains signal and worker cleanup ownership.
+**Architecture:** a private binary health module parses an explicit environment value and runs an Axum server alongside the existing bot future. The binary selects migration mode before health configuration and supplies the real bot initialization future. Discord retains signal and worker cleanup ownership.
+
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
 
 **Tech Stack:** Rust, Tokio, Axum, googletest, Bazel/Aspect.
+<!-- vale Google.Colons = YES -->
 
 **Spec:** `docs/superpowers/specs/2026-09-19-prediction-bot-healthz-design.md`
 
-## Global Constraints
+## Global constraints
 
 - `GET /healthz` returns `200 OK`, `text/plain; charset=utf-8`, and `ok`.
 - `HEALTH_BIND_ADDRESS` defaults to `0.0.0.0:8080`.
@@ -22,7 +26,7 @@
 
 ## Task 1: Health configuration, HTTP server, and supervision
 
-**Files:** Create `prediction_bot/bin/src/health.rs` and `prediction_bot/bin/src/health_tests.rs`; modify `prediction_bot/bin/BUILD.bazel` after Gazelle.
+**Files:** create `prediction_bot/bin/src/health.rs` and `prediction_bot/bin/src/health_tests.rs`; modify `prediction_bot/bin/BUILD.bazel` after Gazelle.
 
 **Interfaces:** `address(value: Result<String, std::env::VarError>) -> anyhow::Result<std::net::SocketAddr>`; `run(listener: tokio::net::TcpListener, bot: impl Future<Output = anyhow::Result<()>>) -> anyhow::Result<()>`. Private supervisor takes bot and server futures; the production server receives a shutdown receiver.
 
@@ -50,11 +54,11 @@ Run the real server with graceful shutdown. Select between the bot and server fu
 - [x] Run Gazelle immediately after source writes, then format and rerun the health tests.
 - [x] Include this task in the final feature commit with binary wiring (see execution note below).
 
-## Task 2: Binary composition and operational documentation
+## Task 2: binary composition and operational documentation
 
-**Files:** Modify `prediction_bot/bin/src/main.rs`, `prediction_bot/bin/BUILD.bazel`, `prediction_bot/README.md`, and `prediction_bot/.env.example`; create `prediction_bot/bin/tests/composition_test.rs`.
+**Files:** modify `prediction_bot/bin/src/main.rs`, `prediction_bot/bin/BUILD.bazel`, `prediction_bot/README.md`, and `prediction_bot/.env.example`; create `prediction_bot/bin/tests/composition_test.rs`.
 
-**Interfaces:** Consume Task 1's `address` and `run`. Extract the existing normal-mode initialization and `discord::run` into `async fn run_bot(audit: SharedAudit, token: String, url: String, defaults: Policy) -> anyhow::Result<()>`, preserving its ordering and audit events. Read and validate the existing bot configuration before binding; pass those owned values into `run_bot`.
+**Interfaces:** consume Task 1's `address` and `run`. Extract the existing normal-mode initialization and `discord::run` into `async fn run_bot(audit: SharedAudit, token: String, url: String, defaults: Policy) -> anyhow::Result<()>`, preserving its ordering and audit events. Read and validate the existing bot configuration before binding; pass those owned values into `run_bot`.
 
 - [x] Add a binary composition test target with the binary in runfiles. Launch it with child-local environment and a held TCP address; set required bot configuration to dummy valid values and assert a bind error before external initialization. Launch `--migrate` with invalid health configuration and missing migration configuration; assert migration validation is reached. Resolve the binary through Bazel runfiles rather than an ambient checkout path.
 - [x] Run Gazelle and the composition test; verify the expected missing-binding failure before implementation.

@@ -2,11 +2,11 @@
 
 This file contains instructions for AI agents working in this Bazel-based polyglot monorepo.
 
-## 1. Build, Test, and Lint Commands
+## 1. Build, test, and lint commands
 
-**CRITICAL:** Use `bazel` for ALL operations. Do not use `cargo`, `npm`, `mvn`, or `go` directly unless explicitly instructed.
+**CRITICAL:** use `bazel` for ALL operations. Do not use `cargo`, `npm`, `mvn`, or `go` directly unless explicitly instructed.
 
-### Core Workflows
+### Core workflows
 
 ```bash
 # Build entire repository
@@ -31,7 +31,7 @@ aspect lint
 bazel run @pnpm -- --dir $PWD install
 ```
 
-### Running Single Tests
+### Running single tests
 
 1. **Identify the test target** in the relevant `BUILD.bazel` file
 2. **Run the specific test:**
@@ -56,7 +56,7 @@ aspect test //predix/internal/domain/circle:circle_test --test_filter="^TestCirc
 aspect test //mindreadr/src/test/io/lowkeylab/mindreadr:MindreadrTest
 ```
 
-### Debugging Builds
+### Debugging builds
 
 ```bash
 # Show all errors (don't stop at first failure)
@@ -69,16 +69,16 @@ aspect build //path/to/target --verbose_failures
 bazel clean && aspect build //...
 ```
 
-## 2. Code Style & Conventions
+## 2. Code style & conventions
 
-### General Rules
+### General rules
 
 - **Gazelle:** MUST run `bazel run //:gazelle` immediately after editing ANY source file (.rs, .kt, .go, .ts, .js, .proto, etc.) and BEFORE formatting
 - **Formatting:** ALWAYS run `aspect format --scope=all` before committing or completing a task
-- **Minimal changes:** Only modify what's strictly necessary
-- **Dependencies:** Prefer existing libraries in `MODULE.bazel`
-- **BUILD files:** Never manually edit BUILD files before running `bazel run //:gazelle`
-- **Verification:** Run `aspect build //...` to verify changes don't break the build
+- **Minimal changes:** only modify what's strictly necessary
+- **Dependencies:** prefer existing libraries in `MODULE.bazel`
+- **BUILD files:** never manually edit BUILD files before running `bazel run //:gazelle`
+- **Verification:** run `aspect build //...` to verify changes don't break the build
 - **Linting:** MUST run `aspect lint` and resolve lint failures before finishing implementation
 - **Security:** NEVER hardcode secrets/credentials; use environment variables
 
@@ -125,11 +125,15 @@ bazel clean && aspect build //...
 
 ### Kotlin (Mindreadr)
 
+<!-- Proper names retain their capitalization after these labels. -->
+<!-- vale Google.Colons = NO -->
+
 **Style:** Ktor framework patterns
+<!-- vale Google.Colons = YES -->
 
 **Imports:**
 
-- Organized: wildcard (\*), java.**, javax.**, kotlin.\*\*, project imports (^)
+- Organized: wildcard (\*), java.**, javax.**, `kotlin.**`, project imports (^)
 - Configured in `.editorconfig`
 
 **Formatting:**
@@ -157,7 +161,7 @@ bazel clean && aspect build //...
 
 ### Go (Predix, Cowsay)
 
-**Style:** Standard Go conventions (`gofmt`)
+**Style:** standard Go conventions (`gofmt`)
 
 **Imports:**
 
@@ -195,7 +199,7 @@ bazel clean && aspect build //...
 
 ### TypeScript / Angular
 
-**Strictness:** All projects use `strict: true` in `tsconfig.json`
+**Strictness:** all projects use `strict: true` in `tsconfig.json`
 
 **Imports:**
 
@@ -237,9 +241,9 @@ bazel clean && aspect build //...
 - 2-space indentation (Prettier)
 - Run `aspect format`
 
-### BUILD Files
+### BUILD files
 
-**Style:** Run `bazel run //tools:buildifier` for formatting
+**Style:** run `bazel run //tools:buildifier` for formatting
 
 **Conventions:**
 
@@ -247,7 +251,7 @@ bazel clean && aspect build //...
 - Run `bazel run //:gazelle` before manual edits to BUILD files
 - Verify changes: `aspect build //path/to/package/...`
 
-## 3. Repository Structure
+## 3. Repository structure
 
 ```
 bazel-repo/
@@ -266,25 +270,25 @@ bazel-repo/
 └── Cargo.lock          # Rust dependencies
 ```
 
-## 4. Development Workflow
+## 4. Development workflow
 
 1. Make code changes in appropriate project directory
 2. **Run Gazelle immediately:** `bazel run //:gazelle` (REQUIRED after ANY source file edit)
 3. **Format code:** `aspect format --scope=all` (handles all languages)
 4. **Run tests:** `aspect test //path/to/tests` or `aspect test //...`
-5. **Test locally:** Use project-specific run commands (see subproject AGENTS.md)
+5. **Test locally:** use project-specific run commands (see subproject AGENTS.md)
 6. **Verify build:** `aspect build //...` (use `--keep_going` to see all errors)
 7. **Run linters:** `aspect lint` (REQUIRED before finishing implementation; resolve lint failures)
 8. **Commit changes** after ensuring tests pass and code is formatted
 
-## 5. Polyglot Environment Notes
+## 5. Polyglot environment notes
 
 - **Tool Management:** Bazel manages Node.js, Rust, JDK, Go toolchains—do NOT install separately
-- **Bazelisk:** Manages Bazel version from `.bazelversion`
-- **Context Switching:** Be aware of language-specific idioms (this is a multi-language repo)
-- **Dependencies:** Check `MODULE.bazel` for available libraries before adding new ones
+- **Bazelisk:** manages Bazel version from `.bazelversion`
+- **Context Switching:** be aware of language-specific idioms (this is a multi-language repo)
+- **Dependencies:** inspect `MODULE.bazel` for available libraries before adding new ones
 
-## 6. Subproject-Specific Guides
+## 6. Subproject-specific guides
 
 For detailed project documentation, see:
 
@@ -319,7 +323,7 @@ bazel run //nicknamer/migration/bin -- up
 cd predix && sqlc generate
 ```
 
-## 8. Common Pitfalls
+## 8. Common pitfalls
 
 - ❌ Using `cargo build/test` instead of `aspect build/test`
 - ❌ Using `npm install` instead of `bazel run @pnpm -- --dir $PWD install`

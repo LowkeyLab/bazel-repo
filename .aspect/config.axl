@@ -13,6 +13,7 @@ def config(ctx):
         "//tools/lint:linters.bzl%ktlint",
         "//tools/lint:linters.bzl%clippy",
         "//tools/lint:linters.bzl%keep_sorted",
+        "//tools/lint:linters.bzl%vale",
     ]
 
     ctx.tasks["delivery"].args.query = "kind(\"oci_push rule\", //...)"

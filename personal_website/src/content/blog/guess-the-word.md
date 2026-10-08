@@ -7,9 +7,13 @@ type: project
 draft: false
 ---
 
+<!-- Personal essays intentionally use first-person narration. -->
+<!-- vale Google.FirstPerson = NO -->
+<!-- vale Google.We = NO -->
+
 Guess The Word is a real-time multiplayer word guessing game where players take turns guessing a word until they come to an agreement.
 
-I built it around WebSockets for live gameplay, with Supabase authentication and a responsive interface for desktop and mobile. The interesting parts were deciding where authentication belonged and finding a messaging approach that fit both sides of the application.
+I built it around WebSockets for live gameplay, with Supabase authentication and a responsive interface for desktop and mobile. The interesting parts were deciding where authentication belonged and finding a messaging approach that fit both sides of the app.
 
 ## Building the game
 
@@ -21,7 +25,11 @@ I built it around WebSockets for live gameplay, with Supabase authentication and
 
 Svelte is part of a new breed of web frameworks that compile component source code down into JavaScript, instead of being a pure JavaScript library. Svelte's popularity is why React is introducing the [React Compiler](https://react.dev/learn/react-compiler).
 
+<!-- 2020s names a decade, not a measurement. -->
+<!-- vale Google.Units = NO -->
+
 Being a web framework in the 2020s, Svelte is also keenly aware of the need for Server Side Rendering and its interplay with Client Side Rendering. SvelteKit very explicitly models where [data loading is happening](https://svelte.dev/docs/kit/load): server-only, client-only, or both. This explicit modeling of the data loading lifecycle introduces some interesting problems.
+<!-- vale Google.Units = YES -->
 
 I had a lot of trouble understanding how to [perform authentication](https://svelte.dev/docs/kit/auth), because knowing where to store the JWT token and when to trust it were mental models I didn't have before. In the end, I went with [server hooks](https://svelte.dev/docs/kit/hooks#Server-hooks), storing the auth details in [`locals`](https://svelte.dev/docs/kit/hooks#Server-hooks-locals), then performing server-side loading of a user's credentials every time they navigate to a page that needs authentication. I couldn't trust the JWT token in the `Authorization` header handed to me from the client-side, because the client could have modified it. The [Lucia guide](https://lucia-auth.com/sessions/cookies/sveltekit) was incredibly helpful in understanding how to set up authentication.
 
@@ -39,7 +47,7 @@ An [Express.js](https://expressjs.com/) server in the backend provides:
 - Socket.io server to manage game state
 - User authentication and session management
 
-The server talks to [Supabase](https://supabase.com/), an open-source [Firebase](https://firebase.google.com/) alternative. Supabase allowed me to use standard [Postgres](https://www.postgresql.org/) instead of proprietary constructs only available in Firebase.
+The server talks to [Supabase](https://supabase.com/), an open source [Firebase](https://firebase.google.com/) alternative. Supabase allowed me to use standard [Postgres](https://www.postgresql.org/) instead of proprietary constructs only available in Firebase.
 
 Games are created by making an entry in the `Games` table, and only events from authenticated users can trigger the server to create it. After a game ends, the entry is deleted.
 
@@ -52,3 +60,6 @@ This project has since been rewritten as [Mindreadr](/blog/mindreadr/).
 ## Links
 
 - [Source code](https://github.com/LowkeyLab/guess-the-word)
+
+<!-- vale Google.FirstPerson = YES -->
+<!-- vale Google.We = YES -->

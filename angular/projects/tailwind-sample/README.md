@@ -1,8 +1,8 @@
-# TailwindCSS + DaisyUI Sample Project
+# TailwindCSS + DaisyUI sample project
 
 This sample project demonstrates using TailwindCSS v4 with DaisyUI components in Angular and rules_angular within a Bazel monorepo.
 
-## Project Structure
+## Project structure
 
 ```
 angular/projects/tailwind-sample/
@@ -33,22 +33,22 @@ aspect build //angular/projects/tailwind-sample:tailwind-sample
 
 The build includes the generated CSS automatically.
 
-## Running Tests
+## Running tests
 
 ```bash
 aspect test //angular/projects/tailwind-sample:test
 ```
 
-## Technology Stack
+## Technology stack
 
 - **Angular**: v20.3 with zoneless change detection
-- **TailwindCSS**: v4.1.17 with CLI-based generation
+- **TailwindCSS**: v4.1.17 with command-line tool-based generation
 - **Build System**: Bazel with rules_angular
 - **Testing**: Vitest with jsdom and zoneless configuration
 
-## Sample Features
+## Sample features
 
-The sample application demonstrates:
+The sample app demonstrates:
 
 - Typography utilities (text sizes, weights, colors)
 - Color palettes (blues, greens, purples, reds, etc.)
@@ -60,12 +60,12 @@ The sample application demonstrates:
 - Responsive design with breakpoints (md, lg)
 - Shadows and transitions
 
-## Development Workflow
+## Development workflow
 
-### Adding New Tailwind Classes
+### Adding new Tailwind classes
 
 1. Edit your templates (`src/app/*.html`, `src/app/*.ts`)
-2. Add Tailwind utility classes as needed; the build will generate CSS automatically.
+2. Add Tailwind utility classes as needed; the build generates CSS automatically.
 
 ### Local Development
 
@@ -89,19 +89,23 @@ aspect test //angular/projects/tailwind-sample:test
 
 ## Benefits
 
+<!-- Proper names and named interface labels retain their capitalization. -->
+<!-- vale Google.Colons = NO -->
+
 ✅ **Bazel Integration**: CSS generation is a Bazel target  
-✅ **Reproducible**: Uses Bazel-managed dependencies  
-✅ **Tree-Shaking**: Only used utilities included (~2KB)  
-✅ **Version Control**: Generated CSS committed for CI  
-✅ **Simple Workflow**: One command to regenerate
+✅ **Reproducible**: uses Bazel-managed dependencies  
+✅ **Tree-Shaking**: only used utilities included (~2KB)  
+✅ **Version Control**: generated CSS committed for CI  
+✅ **Simple Workflow**: one command to regenerate
+<!-- vale Google.Colons = YES -->
 
 ## Troubleshooting
 
-### CSS Not Updating
+### CSS not updating
 
 If new utility classes aren't working, verify the build completes successfully and that your templates reference the classes correctly.
 
-### Build Errors
+### Build errors
 
 If you see build errors related to CSS:
 

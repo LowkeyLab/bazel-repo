@@ -1,8 +1,8 @@
-# Nicknamer Server — AGENTS.md
+# Nicknamer server: AGENTS.md
 
 A web service for managing names with authentication, built using Axum, SeaORM, and PostgreSQL.
 
-## Setup Commands
+## Setup commands
 
 - Start local development with dependencies (PostgreSQL + server):
 
@@ -28,15 +28,15 @@ A web service for managing names with authentication, built using Axum, SeaORM, 
   aspect build //nicknamer/server/bin:image
   ```
 
-## Build System
+## Build system
 
 This subproject uses Bazel with the workspace-managed toolchains.
 
 Key targets:
 
-- `//nicknamer:run_locally` — local dev (DB + server)
-- `//nicknamer/server/bin` — server binary
-- `//nicknamer/server/bin:image` — container image
+- `//nicknamer:run_locally`: local dev (DB + server)
+- `//nicknamer/server/bin`: server binary
+- `//nicknamer/server/bin:image`: container image
 
 ## Testing Instructions
 
@@ -59,7 +59,7 @@ Test structure:
 - Snapshot testing with the `insta` crate alongside `googletest`
 - Integration tests with `testcontainers` (spins up PostgreSQL automatically)
 
-## Code Style Guidelines (Rust)
+## Code style guidelines (Rust)
 
 - Use Rust 2024 edition
 - Prefer the newtype pattern wherever practical for distinct domain concepts, such as user IDs and validated names, instead of interchangeable primitives or type aliases
@@ -69,11 +69,11 @@ Test structure:
 - Prefer explicit error handling with `anyhow::Result`
 - Use structured logging with `tracing`
 
-## Architecture Patterns
+## Architecture patterns
 
 - Web layer: Axum for HTTP handling
 - Database: SeaORM for type-safe database interactions
-- Templates: Askama for HTML templating
+- Templates: askama for HTML templating
 - Authentication: JWT tokens with bearer auth
 - API Documentation: utoipa for OpenAPI specs
 
@@ -100,7 +100,7 @@ bazel run //nicknamer/migration/bin -- up
 sea-orm-cli migrate generate <migration_name>
 ```
 
-## Security Considerations
+## Security considerations
 
 - Provide JWT secrets via environment variables
 - Never hardcode database credentials
@@ -111,11 +111,11 @@ sea-orm-cli migrate generate <migration_name>
 Required environment variables (local dev):
 
 - `DB_URL`: PostgreSQL connection string
-- `ADMIN_USERNAME`: Admin user
-- `ADMIN_PASSWORD`: Admin password
-- `JWT_SECRET`: Secret for JWT token signing
+- `ADMIN_USERNAME`: administrator user
+- `ADMIN_PASSWORD`: administrator password
+- `JWT_SECRET`: secret for JWT token signing
 
-## Docker and Deployment
+## Docker and deployment
 
 - Base image: `gcr.io/distroless/cc-debian12`
 - Build image:
@@ -136,9 +136,9 @@ Required environment variables (local dev):
   bazel run //nicknamer:run_locally
   ```
 
-The application serves on port 8080 by default.
+The app serves on port 8080 by default.
 
-## Development Workflow
+## Development workflow
 
 1. Make code changes
 2. Format code: `aspect format --scope=all`
@@ -151,6 +151,6 @@ The application serves on port 8080 by default.
 ## Troubleshooting
 
 - Docker issues: ensure Docker daemon is running and accessible
-- Database connection: check `docker compose ps` in `nicknamer/`
+- Database connection: inspect `docker compose ps` in `nicknamer/`
 - Build failures: run `bazel clean` and retry
 - Port conflicts: ensure ports 8080 (app) and 5432 (DB) are available

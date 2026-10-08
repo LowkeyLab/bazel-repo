@@ -8,6 +8,10 @@ featured: true
 draft: false
 ---
 
+<!-- Personal essays intentionally use first-person narration. -->
+<!-- vale Google.FirstPerson = NO -->
+<!-- vale Google.We = NO -->
+
 _And no, I'm not talking about remote work_
 
 Your laptop should not be your build infrastructure.
@@ -20,7 +24,7 @@ When onboarding gets painful, you package the environment in a Docker image.
 
 When CI behaves differently, you spend engineering time figuring out which part of the developer’s machine you forgot to reproduce.
 
-We have normalised an expensive way to build software. You should demand better.
+We have normalized an expensive way to build software. You should demand better.
 
 The future is remote builds. Investing in that future should be part of your engineering strategy.
 
@@ -54,7 +58,7 @@ The build still needs to analyse dependencies and determine which results are re
 
 This should be an ordinary expectation of build infrastructure. Once you see the unnecessary data movement, it becomes difficult to defend making every developer and every fresh environment pay for it.
 
-## Put the compute near the data. We already know this.
+## Put the compute near the data
 
 We routinely design services around data locality. Then we tolerate build pipelines that drag enormous working sets across a developer’s internet connection.
 
@@ -62,9 +66,9 @@ Apply the same engineering judgement to your builds.
 
 Bazel supports [remote execution of build and test actions](https://bazel.build/remote/rbe). Buck2 supports [execution platforms](https://buck2.build/docs/users/remote_execution/) that describe where and how actions run. These give you the foundation to put workers close to the cache and distribute independent work across a fleet.
 
-If a build action needs a large artifact, let a worker retrieve it over the data centre network. If a hundred independent actions are ready, give them somewhere to run.
+If a build action needs a large artifact, let a worker retrieve it over the data center network. If a hundred independent actions are ready, give them somewhere to run.
 
-You will still have a critical path. You will still need to manage scheduling and storage throughput. But these become infrastructure problems you can address centrally, with benefits shared by everyone using the system.
+You still have a critical path. You still need to manage scheduling and storage throughput. But these become infrastructure problems you can address centrally, with benefits shared by everyone using the system.
 
 Buying every developer another expensive machine is a poor substitute for fixing the architecture.
 
@@ -72,7 +76,7 @@ Buying every developer another expensive machine is a poor substitute for fixing
 
 If your build depends on an undocumented compiler installation, an arbitrary environment variable, or something sitting in a developer’s home directory, you have a liability.
 
-Someone will eventually pay to discover that dependency. Usually when a build fails somewhere inconvenient.
+Someone eventually pays to discover that dependency. Usually when a build fails somewhere inconvenient.
 
 [Hermetic builds](https://bazel.build/basics/hermeticity) make dependencies explicit and isolate execution from the surrounding machine. That gives you a foundation for reproducibility and safe reuse.
 
@@ -116,7 +120,7 @@ With suitable toolchain and backend support, you can edit on Linux and request a
 
 That separation should be part of how you design your development platform.
 
-## “But we’re not Google”
+## The “But we’re not Google” objection
 
 You do not have to be Google to want fast, cheap, reusable, hermetic, reproducible builds.
 
@@ -144,8 +148,11 @@ Give agents a consistent way to request work from shared infrastructure. Let the
 
 If you are investing in generating code faster, invest in validating it faster. Otherwise, you are increasing the pressure on a bottleneck you should already know exists.
 
-## The place where you edit code should not dictate where it can be built.
+## The place where you edit code should not dictate where it can be built
 
 The future is remote. Start investing accordingly.
 
 And _yes_, this blog [is built with Bazel.](https://github.com/LowkeyLab/bazel-repo)
+
+<!-- vale Google.FirstPerson = YES -->
+<!-- vale Google.We = YES -->

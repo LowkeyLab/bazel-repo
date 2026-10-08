@@ -16,10 +16,10 @@ are implementation-plan decisions; the contracts below are language independent.
 
 ## Identity and boundaries
 
-- `BookId` is our own UUID, supplied by the caller rather than generated inside
+- `BookId` is a domain UUID, supplied by the caller rather than generated inside
   domain operations.
 - `ReaderId` is a distinct UUID type supplied by the caller. It identifies the
-  ranking owner. A future application maps authenticated accounts to readers and
+  ranking owner. A future app maps authenticated accounts to readers and
   enforces access; possession of a reader UUID is not authentication.
 - `OpenLibraryWorkId` is a validated identifier such as `OL45804W`, not a UUID.
 - A `Book` associates one `BookId` with one `OpenLibraryWorkId`. Grouping follows
@@ -46,7 +46,7 @@ silently altering rankings. No merge operation is included here.
 
 ## Event-driven domain architecture
 
-The domain separates command decisions from event application:
+The domain separates command decisions from event processing:
 
 ```text
 command + current projection + explicit event UUID/time + registered book identity
@@ -137,7 +137,7 @@ The caller supplies a UTC instant to each state-changing operation. UUID
 generation and reading the current clock are outside the domain boundary.
 
 - CloudEvents `time`: the accepted command's supplied instant, retained in history.
-  It is required by our domain profile, although optional in CloudEvents itself.
+  It is required by the domain profile, although optional in CloudEvents itself.
 - `startedAt`: derived from the `PlacementStarted` event's `time`.
 - `lastActivityAt`: derived from the latest event affecting the pending placement.
 - `addedAt`: derived from the event that makes placement complete: the first-book
@@ -157,7 +157,7 @@ computed by subtracting wall-clock values.
 Use the [CloudEvents 1.0.2 specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)
 and its [JSON event format](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md).
 The envelope's `specversion` is `"1.0"`, not the specification document's patch
-version. CloudEvents defines the envelope; our profile below defines ranking
+version. CloudEvents defines the envelope; the domain profile below defines ranking
 payloads and replay constraints. It supplies no persistence or ordering guarantee.
 
 | Attribute         | Domain profile                                                                                               |
@@ -171,7 +171,7 @@ payloads and replay constraints. It supplies no persistence or ordering guarante
 | `datacontenttype` | Required by this profile: `application/json`                                                                 |
 | `data`            | Required JSON object containing common ranking fields and event-specific fields                              |
 
-CloudEvents requires `id`, `source`, `specversion`, and `type`. Our additional
+CloudEvents requires `id`, `source`, `specversion`, and `type`. The additional
 requirements are deliberately stricter. Use the official Rust `cloudevents-sdk`
 for envelopes and JSON serialization, with domain-profile validation around it.
 A `dataschema` URI is optional. Incompatible domain payload changes
@@ -191,7 +191,7 @@ It remains authoritative in domain data. Encode the documented
 [Sequence extension](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/extensions/sequence.md)
 as a top-level, 20-digit zero-padded string derived from this revision, so lexical
 ordering matches numeric order. Omit `sequencetype`; its integer mode does not
-match our positive `u64` revisions. Reject mismatches between the extension and
+match the positive `u64` revisions. Reject mismatches between the extension and
 the payload. Accept older envelopes without the optional extension and add it
 when re-encoding. Derived notices omit the extension because they do not advance
 revision.
@@ -202,7 +202,7 @@ Support optional caller-supplied
 nonempty values, and the parent dependency; the caller's tracing library owns
 W3C grammar and propagation. Preserve context without using it in replay or
 creating spans. Defer recorded-time, partitioning, and auth-context adoption until
-those application boundaries exist. Never expire or sample authoritative history.
+those app boundaries exist. Never expire or sample authoritative history.
 
 Comparison data
 also contains `opponentBookId` and `choice`, whose values are `prefer_candidate`,
@@ -289,7 +289,7 @@ notice-specific fields. They are not accepted by the authoritative replay codec;
 one accepted command still appends exactly one domain event.
 
 Replay must have no telemetry side effects and must not count historical actions
-as new activity. A future application may publish accepted events and derived
+as new activity. A future app may publish accepted events and derived
 notices only for newly committed commands. Commit timing, delivery guarantees,
 listener registration, metrics, traces, retries, retention, and shutdown remain
 out of scope. Merely returning or appending an in-memory event claims no durable
@@ -316,7 +316,7 @@ repository interface. Fixed UUIDs and explicit instants are ordinary inputs.
 | Invalid commands      | Output/state: duplicate addition, second pending addition, stale revision, wrong opponent, and invalid lifecycle transitions leave state unchanged                                      |
 | Explicit time         | State/outcomes: supplied instants are retained; equal/backward times do not change ordering behavior                                                                                    |
 | Event decisions       | Output: given history and a command, return the expected typed event or error; rejection appends nothing                                                                                |
-| Replay equivalence    | State: full replay equals incremental application for ranking, pending placement, revisions, and timestamps                                                                             |
+| Replay equivalence    | State: full replay equals incremental replay for ranking, pending placement, revisions, and timestamps                                                                                  |
 | Invalid history       | Output: duplicate/gapped/reordered sequences, mixed readers, invalid pairs, and invalid lifecycle events are rejected                                                                   |
 | Derived notices       | Output: completion and automatic pause notices match transitions without becoming authoritative history                                                                                 |
 | CloudEvents contract  | Output: JSON round-trip preserves typed event semantics; required fields, source/subject agreement, event-ID uniqueness, supported versions, and precise sequence encoding are enforced |

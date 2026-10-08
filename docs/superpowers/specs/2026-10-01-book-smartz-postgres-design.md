@@ -13,7 +13,7 @@ contracts below. This document is the written specification for review before
 implementation planning; conversational approval is not approval of this artifact.
 
 Excluded: an API server, authentication, account profiles, UI, Open Library
-fetching, book display metadata, removal or reranking, snapshots, event brokers,
+fetching, book display metadata, removal, or reranking, snapshots, event brokers,
 and automatic command retries. Reader UUIDs identify streams; callers own access
 control. Book identity remains a UUID associated with one Open Library work ID.
 
@@ -24,8 +24,8 @@ commands, strict replay, projections, and CloudEvents encoding. Every accepted
 command produces one event. Caller-supplied IDs and UTC instants remain explicit;
 sequence, rather than timestamp, determines order.
 
-The repository declares SQLx with PostgreSQL, Tokio, UUID, migration, and chrono
-support. `prediction_bot` already uses SQLx transactions and SQL migrations.
+The repository declares sqlx with PostgreSQL, Tokio, UUID, migration, and chrono
+support. `prediction_bot` already uses sqlx transactions and SQL migrations.
 Reuse these dependencies and repository Bazel workflows. Introduce a concrete
 PostgreSQL store, not a repository trait solely to permit mocks.
 
@@ -116,8 +116,8 @@ silently repair or skip corrupt events.
 ## Storage contract
 
 Use a dedicated `book_smartz` schema with migration bookkeeping isolated from
-other applications. A migration check must establish that applying these
-migrations does not interfere with another application's migration history.
+other applications. A migration validation must establish that applying these
+migrations does not interfere with another app's migration history.
 
 - Books: UUID primary key and unique validated work ID. Both mapping directions
   are immutable through this library. Identical registration is idempotent even
@@ -151,7 +151,7 @@ No mutable ranking-position table is introduced.
    row exists, then acquire its row lock. Concurrent first commands must use the
    same coordination path as later commands.
 2. Read that reader's events ordered by sequence after obtaining the lock. Decode,
-   cross-check stored metadata, and replay through the existing domain.
+   cross-verify stored metadata, and replay through the existing domain.
 3. Resolve the registered identities needed by the command into the domain's
    existing registry value. Never load the entire global catalog for a command.
 4. Execute through the rehydrated domain aggregate with the supplied context.
@@ -174,8 +174,8 @@ not implicitly combined with ranking commands.
 
 PostgreSQL documents row locks and their transaction lifetime in
 [Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html).
-Concrete SQLx calls must be checked against the repository's resolved dependency;
-the version-specific online SQLx documentation was unavailable during design.
+Concrete sqlx calls must be checked against the repository's resolved dependency;
+the version-specific online sqlx documentation was unavailable during design.
 
 ## Business events and contract evolution
 
@@ -226,7 +226,7 @@ After uncertainty, reconnect to the authoritative database and inspect history
 for the original event ID and intended event contents. Absence in one read is
 not proof that an in-flight commit cannot finish. Any retry retains the original
 event ID and expected revision; uniqueness, locking, and revision validation
-prevent double application. The library does not automatically retry or silently
+prevent applying a command twice. The library does not automatically retry or silently
 turn a duplicate/stale command into success. Book registration can be repeated
 with the identical mapping after uncertainty.
 
@@ -254,7 +254,7 @@ uses the caller's subscriber and current tracing context. Delivery is synchronou
 best-effort, without queues, retries, durable buffering, or shutdown flushing.
 Listener delivery errors cannot replace a database result. Observer implementations
 must be non-panicking; containment for unwinding panics should protect a completed
-operation where supported, while process-abort behavior cannot be recovered.
+operation where supported, while `process-abort` behavior cannot be recovered.
 Failure of the observation path uses only a minimal sanitized direct diagnostic,
 without recursively emitting through that same path. No normal and fallback
 record should be emitted for the same successful delivery.
@@ -266,7 +266,7 @@ the library introduces no retained telemetry store.
 
 ## Verification design
 
-Assume this application owns these tables and other applications do not consume
+Assume this app owns these tables and other applications do not consume
 them directly. Under that boundary PostgreSQL is a managed, out-of-process
 dependency. Each integration test receives an isolated database or container;
 shared mutable fixtures must not allow tests to affect one another.
@@ -275,7 +275,7 @@ Keep deterministic domain collaborators real. Do not introduce a fake database
 or verify query counts. Existing domain tests cover ranking decisions; new tests
 focus on durability and orchestration through public operations.
 
-| Proposed check                                                                  | Observable assertion and distinct fault protected                                                                        |
+| Proposed test                                                                   | Observable assertion and distinct fault protected                                                                        |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Register and look up by both identities, including concurrent repeats/conflicts | Returned identity and committed state preserve both uniqueness directions                                                |
 | Rank, disconnect, construct a fresh store, and load                             | Ranking order, revision, history, and original timestamps survive connection lifecycle                                   |
@@ -286,20 +286,20 @@ focus on durability and orchestration through public operations.
 | Force a database failure before commit                                          | Fresh load reveals no partial accepted operation                                                                         |
 | Commit acknowledgment loss                                                      | Outcome is uncertain and recovery cannot create a second event; use a controlled PostgreSQL connection fault if feasible |
 | Malformed metadata, sequence gaps, and invalid replay transitions               | Typed corruption error, never a partial ranking presented as valid                                                       |
-| Fresh and repeated migration, alongside unrelated migration bookkeeping         | Correct schema and idempotence without affecting another application                                                     |
+| Fresh and repeated migration, alongside unrelated migration bookkeeping         | Correct schema and idempotence without affecting another app                                                             |
 | Producer plus recording observer                                                | Structured facts match actual results; replay and rollback never claim new committed activity                            |
-| Listener mappings and delivery failure                                          | Structured records preserve severity, fields, exclusions, and application result                                         |
+| Listener mappings and delivery failure                                          | Structured records preserve severity, fields, exclusions, and app result                                                 |
 | Normal store construction with real listener and database                       | Public operations use the real composition exercised by consumers                                                        |
 
 Database checks use output and state assertions; observer checks use structured
-recordings at the declared diagnostic boundary. These integration checks favor
+recordings at the declared diagnostic boundary. These integration tests favor
 regression protection and refactoring resistance over mocking internal steps.
 Existing pure tests supply the faster feedback path. Actual timing and isolation
 remain unverified until execution. If a controlled commit fault cannot be tested,
 report that specific coverage gap rather than claiming an error-mapping unit test
 establishes network-level recovery.
 
-Implementation validation must follow repository instructions: Gazelle immediately
+Implementation validation must follow repository instructions. Run Gazelle immediately
 after source changes; full-scope formatting; focused domain and storage tests;
 full repository build; lint; and diff checks, using Nix/Bazel/Aspect as appropriate.
 No new tests have run as part of this design.

@@ -1,4 +1,4 @@
-# nicknamer2-web
+# Nicknamer2-web
 
 ## Commands
 
@@ -23,19 +23,19 @@ JS_BINARY__CHDIR="$PWD/angular/projects/nicknamer2-web" \
 
 ## Patterns
 
-- **Signals for state**: `signal()` for mutable state, `computed()` for derived, `effect()` for side effects — no external state library
-- **Apollo → signals bridge**: Apollo `valueChanges` Observable piped through `.subscribe()` + `takeUntilDestroyed()` into signals
+- **Signals for state**: `signal()` for mutable state, `computed()` for derived, `effect()` for side effects: no external state library
+- **Apollo → signals bridge**: apollo `valueChanges` Observable piped through `.subscribe()` + `takeUntilDestroyed()` into signals
 - **GraphQL codegen**: `.graphql` files in `src/app/graphql/` → `codegen.ts` introspects backend → generates typed services in `src/generated/graphql.ts`
-- **Pagination cache policy**: Use `relayStylePagination()` from `@apollo/client/utilities` — do NOT hand-roll merge functions (causes duplication bugs with `cache-and-network` fetch policy)
-- **Auth**: Casdoor OAuth2 PKCE via `casdoor-js-sdk`; JWT in `sessionStorage`; `authInterceptor` adds Bearer token
+- **Pagination cache policy**: use `relayStylePagination()` from `@apollo/client/utilities`: do NOT hand-roll merge functions (causes duplication bugs with `cache-and-network` fetch policy)
+- **Auth**: Casdoor OAuth 2.0 PKCE via `casdoor-js-sdk`; JWT in `sessionStorage`; `authInterceptor` adds Bearer token
 - **Styling**: Tailwind CSS v4 + DaisyUI; inline templates with utility classes; no component-level CSS files; `process_styles` Bazel macro for PostCSS
 - **Testing**: Vitest (not Karma); `ApolloTestingModule` + `ApolloTestingController` for GraphQL mocking; `data-testid` for DOM queries; `fixture.componentRef.setInput()` for signal inputs; `apolloController.verify()` in `afterEach`
 - **Dev server**: `bazel run //angular/projects/nicknamer2-web:nicknamer2-web.serve` runs `ng serve` on port 4200 with hot reload
-- **Functional guard testing**: `CanActivateFn` guards must be called with `{} as any, {} as any` args inside `TestBed.runInInjectionContext()` — TypeScript enforces the type signature even if the guard ignores params
+- **Functional guard testing**: `CanActivateFn` guards must be called with `{} as any, {} as any` args inside `TestBed.runInInjectionContext()`: TypeScript enforces the type signature even if the guard ignores params
 
-## E2E Testing with agent-browser
+## E2E testing with agent-browser
 
-After UI changes, run an E2E smoke test using `agent-browser`. The CLI is provided by the Nix dev shell via `github:numtide/llm-agents.nix`; on Linux, that wrapper points at the shell-provided Chromium automatically. Requires the full stack running:
+After UI changes, run an E2E smoke test using `agent-browser`. The command-line tool is provided by the Nix dev shell via `github:numtide/llm-agents.nix`; on Linux, that wrapper points at the shell-provided Chromium automatically. Requires the full stack running:
 
 ```bash
 # 1. Start infrastructure

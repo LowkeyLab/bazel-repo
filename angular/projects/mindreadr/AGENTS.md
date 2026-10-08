@@ -1,8 +1,8 @@
 # AGENTS.md (Mindreadr)
 
-Project-specific commands and notes for the Mindreadr Angular application.
+Project-specific commands and notes for the Mindreadr Angular app.
 
-## Targets & Commands
+## Targets & commands
 
 - Build the app:
 

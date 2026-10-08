@@ -8,4 +8,4 @@ Use these labels whenever a skill refers to a canonical triage role.
 | needs-info      | needs-info      | Waiting on the reporter for information           |
 | ready-for-agent | ready-for-agent | Fully specified and ready for an autonomous agent |
 | ready-for-human | ready-for-human | Requires human implementation                     |
-| wontfix         | wontfix         | Will not be actioned                              |
+| wontfix         | wontfix         | Not planned for completion                        |

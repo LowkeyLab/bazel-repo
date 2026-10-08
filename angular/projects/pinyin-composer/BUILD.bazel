@@ -129,3 +129,18 @@ oci_push(
     remote_tags = ["latest"],
     repository = "ghcr.io/lowkeylab/pinyin_composer",
 )
+
+# Prose lint covers Markdown in this package, including nested non-package directories.
+filegroup(
+    name = "markdown",
+    srcs = glob(
+        ["**/*.md"],
+        exclude = [
+            "**/node_modules/**",
+            "**/target/**",
+            ".*/**",
+        ],
+    ),
+    tags = ["markdown"],
+    visibility = ["//tools/lint:__pkg__"],
+)

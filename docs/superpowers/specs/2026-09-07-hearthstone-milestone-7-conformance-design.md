@@ -1,4 +1,4 @@
-# Hearthstone Milestone 7 Conformance Design
+# Hearthstone milestone 7 conformance design
 
 ## Status
 
@@ -14,7 +14,7 @@ Implement the general rules in Advanced Rulebook revision 913067 for:
 
 The milestone remains synthetic-card-first. Official card definitions, historical behavior, and named card-specific exceptions remain out of scope unless they expose a missing general mechanic.
 
-## Source Rules
+## Source rules
 
 The relevant rulebook behavior is:
 
@@ -33,11 +33,11 @@ Use explicit, serializable resolution operations and narrow state-transfer polic
 This approach fits the existing one-shot LIFO resolver:
 
 - Each operation performs one bounded mutation or expansion.
-- Nested draw and transform consequences resolve above pending siblings.
+- Nested draw and transform consequences resolve ahead of pending siblings.
 - Pending work and result bindings survive checkpoints without resumable frames.
 - Canonical traces expose rule-sensitive ordering.
 
-## Draw Model
+## Draw model
 
 ### Core contracts
 
@@ -99,7 +99,7 @@ Burn and fatigue leave the bound card absent. The continuation definition explic
 
 Each request has its own result slot and immediate source. A nested draw cannot overwrite or satisfy an outer continuation, which implements DC5 attribution without an execution ancestry graph.
 
-## Transformation Model
+## Transformation model
 
 ### Explicit kind
 
@@ -132,7 +132,7 @@ A played self-transform uses the rulebook's explicit sequence:
 
 The transform kind is part of the serialized effect definition so spell transforms and special after-play transforms cannot accidentally enter this sequence.
 
-## Copy Model
+## Copy model
 
 ### Explicit operation
 
@@ -140,7 +140,7 @@ The transform kind is part of the serialized effect definition so spell transfor
 
 Missing sources and full generated destinations are deterministic no-ops. They do not consume a game ID or create then destroy a temporary entity.
 
-### Non-Play copies
+### Non-play copies
 
 Copies created in Hand, Deck, or another non-Play zone copy the source's current card form:
 
@@ -152,7 +152,7 @@ Copies created in Hand, Deck, or another non-Play zone copy the source's current
 
 They do not copy attached stat, keyword, cost, trigger, or continuous-effect enchantments; damage; silence; pending destroy; aura cache entries; controller; position; play order; or other zone-local state.
 
-### Play-to-Play copies
+### Play-to-play copies
 
 A copy put into Play from an in-Play source receives:
 
@@ -172,7 +172,7 @@ The destination request determines controller and board position. The new copy b
 
 Cloned enchantments receive fresh stable IDs, attach to the copy, and retain only fields that the relevant copy policy allows. Their creation order is deterministic and follows the source attachment order.
 
-## Errors And Atomicity
+## Errors and atomicity
 
 Normal rule outcomes are data, not errors:
 
@@ -180,11 +180,15 @@ Normal rule outcomes are data, not errors:
 - Empty-deck draw is `Fatigue`.
 - Full-zone generation and missing copy sources are no-ops.
 
+<!-- The paired alternatives or compound predicates are not three-item lists. -->
+<!-- vale Google.OxfordComma = NO -->
+
 Errors are reserved for corrupted resolver state, missing or multiply filled result slots, invalid checkpoint references, and structurally invalid transformations. Transform and copy validate all required source/replacement data before detaching or spawning anything, preventing partial mutation.
+<!-- vale Google.OxfordComma = YES -->
 
 Idle and complete simulations must have no draw slots, pending draw operations, prepared events, or choices. Checkpoint restoration validates every logical entity and draw-slot reference before rebuilding executable work.
 
-## Trace And Checkpoints
+## Trace and checkpoints
 
 Canonical traces add enough data to assert:
 
@@ -235,7 +239,7 @@ Focused conformance tests cover:
 - Successful and failed draw-result binding
 - DC4 burn with no draw, discard, Death Event, or death-cache consequences
 - DC5 nested draws retaining immediate attribution and separate result slots
-- Fatigue increment, ordinary damage reactions, repeated attempts, lethal timing, and outcome checks
+- Fatigue increment, ordinary damage reactions, repeated attempts, lethal timing, and outcome validations
 - Transform attachment cleanup, state reset, stable identity, and no death/resurrection consequences
 - Delayed aura removal and spell versus non-spell/played-self timing
 - Non-Play copies omitting attachments and effective-cost modifiers
@@ -256,7 +260,7 @@ Completion requires:
 6. Pass the full repository build.
 7. Mark both conformance rows and Milestone 7 complete only after focused tests pass.
 
-## Non-Goals
+## Non-goals
 
 - Complete official card coverage
 - Historical draw, transform, or copy bugs
@@ -265,6 +269,6 @@ Completion requires:
 - Forced Death Phase and Deathrattle-position policies from Milestone 9
 - A generalized transaction or mutation framework
 
-## Acceptance Criteria
+## Acceptance criteria
 
-Milestone 7 is complete when all general source rules above are represented by serializable resolver data, focused tests prove their ordering and state-transfer behavior, pending work survives checkpoints, canonical traces expose the important boundaries, documentation no longer labels the two rows Partial, and the required Bazel verification succeeds.
+Milestone 7 is complete when all general source rules defined in this document are represented by serializable resolver data, focused tests prove their ordering and state-transfer behavior, pending work survives checkpoints, canonical traces expose the important boundaries, documentation no longer labels the two rows Partial, and the required Bazel verification succeeds.

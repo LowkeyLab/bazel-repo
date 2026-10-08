@@ -1,16 +1,16 @@
 # Book Smartz PostgreSQL Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Provide durable Rust operations for registering books and executing and recovering each reader's ranking decisions in PostgreSQL.
+**Goal:** provide durable Rust operations for registering books and executing and recovering each reader's ranking decisions in PostgreSQL.
 
-**Architecture:** Keep the existing pure ranking aggregate and replay codec. A concrete SQLx store coordinates per-reader transactions and persists CloudEvents; a separate observer translates completed operation facts into diagnostics. Read rankings by replaying their authoritative histories.
+**Architecture:** keep the existing pure ranking aggregate and replay codec. A concrete sqlx store coordinates per-reader transactions and persists CloudEvents; a separate observer translates completed operation facts into diagnostics. Read rankings by replaying their authoritative histories.
 
-**Tech Stack:** Repository-resolved Rust, Tokio, SQLx/PostgreSQL, CloudEvents, googletest, testcontainers, tracing, Nix/Bazel/Aspect.
+**Tech Stack:** repository-resolved Rust, Tokio, sqlx/PostgreSQL, CloudEvents, googletest, testcontainers, tracing, Nix/Bazel/Aspect.
 
-**Spec:** [Approved persistence design](../specs/2026-10-01-book-smartz-postgres-design.md), including the domain-ownership revision committed in `0e6eb7b4`.
+**Spec:** [approved persistence design](../specs/2026-10-01-book-smartz-postgres-design.md), including the domain-ownership revision committed in `0e6eb7b4`.
 
-## Global Constraints
+## Global constraints
 
 - PostgreSQL; database-backed Rust operations only. No API server, authentication, account profiles, UI, external catalog fetches, snapshots, broker, or automatic command retries.
 - Existing `BookId`, `ReaderId`, `OpenLibraryWorkId`, `CommandContext`, commands, event profile, and pure domain remain authoritative.
@@ -26,14 +26,14 @@
 - Run focused tests for each task, then the full build and lint before completion. Never infer test execution from an empty filtered run.
 - Reuse this isolated worktree and `codex/book-smartz-postgres`; preserve unrelated work if any appears.
 
-## Review Focus
+## Review focus
 
 These implied edge cases supplement the main acceptance scenarios; each is assigned below.
 
 1. A reader's very first command races another first command: exactly one event commits, the other is stale (Task 3).
 2. SQL NULL/missing envelope fields bypass a CHECK, or large unsigned sequences narrow to signed values: reject invalid rows and preserve `u64::MAX` (Task 1).
-3. Migration connection state leaks into pooled application work: unrelated bookkeeping and later connections remain unaffected (Task 1).
-4. A repeated event ID with a fresh revision differs from a stale retry: preserve domain rejection precedence and never double-apply (Tasks 3–4).
+3. Migration connection state leaks into pooled app work: unrelated bookkeeping and later connections remain unaffected (Task 1).
+4. A repeated event ID with a fresh revision differs from a stale retry: preserve domain rejection precedence and never double-apply (Tasks 3-4).
 5. A diagnostic listener fails after the database commits: callers still receive success and fresh loads see the event (Task 5).
 
 ## File and interface map
@@ -42,7 +42,7 @@ Create `book_smartz/storage/` with focused files:
 
 - `lib.rs`: public exports, store construction, public operation wrappers.
 - `error.rs`: typed storage errors and safe classification.
-- `migration.rs`: schema bootstrap and isolated SQLx migration execution.
+- `migration.rs`: schema bootstrap and isolated sqlx migration execution.
 - `books.rs`: identity registration and lookups.
 - `ranking.rs`: aggregate reconstruction and transactional command execution.
 - `wire.rs`: checked sequence and stored-envelope conversions.
@@ -105,13 +105,13 @@ duplicate success/failure emissions. Construct the complete observation contract
 in Task 1 and wire producers as operations are added. Task 5 adds the production
 tracing listener and proves dispatch failure containment.
 
-## Task 1: Schema, migration isolation, and store foundation
+## Task 1: schema, migration isolation, and store foundation
 
-**Files:** Create migration files, storage `lib.rs`, `error.rs`, `migration.rs`,
+**Files:** create migration files, storage `lib.rs`, `error.rs`, `migration.rs`,
 `wire.rs`, `observation.rs`, `tests/mod.rs`, `tests/support.rs`,
 `tests/migration_tests.rs`, and `BUILD.bazel`.
 
-**Interfaces:** Produce `Store::new`, `Store::migrate`, error/observer types above,
+**Interfaces:** produce `Store::new`, `Store::migrate`, error/observer types defined earlier,
 and private `sequence_key(value: u64) -> Result<String, StoreError>` and
 `parse_sequence_key(value: &str) -> Result<u64, StoreError>`.
 Test support provides `Fixture::new().await`, `pool() -> &PgPool`, and
@@ -121,17 +121,17 @@ A test-only `Recorder` holds structured observations behind a mutex.
 - [ ] Add failing `migrations_are_isolated_and_repeatable`: create unrelated `public._sqlx_migrations` state, migrate twice, assert the sentinel is unchanged and `book_smartz._sqlx_migrations` records version 1. Reacquire connections and assert their search path has not changed. Add concurrent migration coverage.
 - [ ] Add failing `sequence_range_and_required_metadata_are_enforced`: assert `sequence_key(u64::MAX) == "18446744073709551615"`; reject zero, short strings, nondigits, and `"18446744073709551616"`. Use real inserts to reject absent/null required JSON identities and mismatched sequence, candidate, reader, opponent, or event ID.
 - [ ] Establish `//book_smartz/storage:storage_test` using the existing `prediction_bot/lib:store_test` pattern, `image_data("postgres_18")`, `image_env("postgres_18")`, `//test_images/rust:test_images`, and the same Docker execution properties. Fixture uses `test_images::postgres().await.start().await`; no image tag or network-pull fallback. Run the target and record the intended compilation/behavior failure before implementation.
-- [ ] Implement schema bootstrap on an acquired connection marked `close_on_drop()`, with fixed migration search path and SQLx `Migrator` embedded SQL, following `prediction_bot/lib/src/store.rs`. Ensure safe concurrent schema initialization using a fixed transaction-scoped bootstrap lock. SQLx bookkeeping must be in `book_smartz`; fully qualify application queries. Verify these concrete APIs against resolved source during implementation.
+- [ ] Implement schema bootstrap on an acquired connection marked `close_on_drop()`, with fixed migration search path and sqlx `Migrator` embedded SQL, following `prediction_bot/lib/src/store.rs`. Ensure safe concurrent schema initialization using a fixed transaction-scoped bootstrap lock. sqlx bookkeeping must be in `book_smartz`; fully qualify app queries. Verify these concrete APIs against resolved source during implementation.
 - [ ] Implement books, reader-stream, and event tables. Use C-collated fixed-width text sequence with positive/u64-bound checks. Use foreign keys for reader, candidate, and optional opponent, unique keys from the spec, and explicit non-null predicates for required envelope fields (SQL CHECK's unknown result must not admit missing data). Compare both padded extension and decimal payload sequence. Do not require an opponent for non-comparison events.
-- [ ] Implement safe errors, store/observer foundation, and migration observations. Bootstrap must create no runtime login, password, or global role. Embed SQL via Bazel `compile_data`; supply SQLx, domain, Tokio, tracing, UUID, chrono, serde_json, and thiserror dependencies only where used.
+- [ ] Implement safe errors, store/observer foundation, and migration observations. Bootstrap must create no runtime login, password, or global role. Embed SQL via Bazel `compile_data`; supply sqlx, domain, Tokio, tracing, UUID, chrono, `serde_json`, and thiserror dependencies only where used.
 - [ ] Run `nix develop --command aspect test //book_smartz/storage:storage_test`; expect all new migration tests executed and passing. Format, inspect diff, and commit `feat(book-smartz): add isolated PostgreSQL schema and migrations`.
 
-## Task 2: Durable book registration and identity lookup
+## Task 2: durable book registration and identity lookup
 
-**Files:** Create `storage/books.rs`, `storage/tests/book_tests.rs`; update storage
+**Files:** create `storage/books.rs`, `storage/tests/book_tests.rs`; update storage
 exports, test module, observations, and BUILD wiring after Gazelle.
 
-**Interfaces:** Consume `Store`, errors, observer, fixture, and migrated books table;
+**Interfaces:** consume `Store`, errors, observer, fixture, and migrated books table;
 produce the three book operations in the interface map.
 
 - [ ] Add failing `registration_preserves_both_identity_directions`, using Book UUID 1 with `OL1W`: first registration is `Created`, repeat is `AlreadyPresent`, both lookups return that Book, unknown lookups return `None`. Register UUID 1/`OL2W` and UUID 2/`OL1W`; assert the respective identity errors and unchanged lookups.
@@ -139,14 +139,14 @@ produce the three book operations in the interface map.
 - [ ] Run the storage target and verify these tests fail for missing book operations.
 - [ ] Implement bound SQL queries and transaction-based insertion/conflict resolution without overwrites. Validate work IDs loaded from storage. Acquire an explicit transaction for registration so commit uncertainty can be classified consistently in Task 4. Decode malformed stored identity as corruption, not a legitimate absent book.
 - [ ] Emit one typed completion observation per operation. After closing and reconnecting the pool, assert both identity lookups still work. Assert conflicting registration never emits created success.
-- [ ] Run the storage target; expect all book and migration checks passing. Format, inspect diff, and commit `feat(book-smartz): persist registered book identities`.
+- [ ] Run the storage target; expect all book and migration validations passing. Format, inspect diff, and commit `feat(book-smartz): persist registered book identities`.
 
-## Task 3: Durable ranking decisions and concurrent writers
+## Task 3: durable ranking decisions and concurrent writers
 
-**Files:** Create `storage/ranking.rs`, `storage/tests/ranking_tests.rs`, historical
+**Files:** create `storage/ranking.rs`, `storage/tests/ranking_tests.rs`, historical
 fixture; update `wire.rs`, exports, test modules, and BUILD `compile_data`.
 
-**Interfaces:** Produce `load_ranking` and `execute` from the interface map. Consume
+**Interfaces:** produce `load_ranking` and `execute` from the interface map. Consume
 existing `Ranking::from_history`, `Ranking::execute`, codecs, book lookup helpers,
 and sequence conversion. Private `decode_row` validates metadata against the decoded
 CloudEvent and returns a `RankingEvent` or corruption error.
@@ -160,30 +160,30 @@ CloudEvent and returns a `RankingEvent` or corruption error.
 - [ ] Add privileged corruption fixtures for a sequence gap and semantically invalid transition that satisfy SQL shape checks. Assert load returns `CorruptHistory`, never partial state. Assert notices are not extra stored decisions and replay emits only one load observation, no command outcomes.
 - [ ] Run `nix develop --command aspect test //book_smartz/domain:domain_test //book_smartz/storage:storage_test`. Format, inspect diff, and commit `feat(book-smartz): persist ranking decisions with reader concurrency control`.
 
-## Task 4: Rollback, commit uncertainty, and recovery
+## Task 4: rollback, commit uncertainty, and recovery
 
-**Files:** Create `storage/tests/recovery_tests.rs`; update `error.rs`, `books.rs`,
+**Files:** create `storage/tests/recovery_tests.rs`; update `error.rs`, `books.rs`,
 `ranking.rs`, and test support only as needed for the recovery contract.
 
-**Interfaces:** Preserve public signatures. Classify acknowledged database commit
+**Interfaces:** preserve public signatures. Classify acknowledged database commit
 rejection as database failure and transport/acknowledgment loss during commit as
 `CommitUncertain`. No production test-mode switches or retry loop.
 
 - [ ] Add failing `failed_append_rolls_back_the_first_stream`: a test-installed constraint/trigger rejects insertion after stream creation; assert failure, no stream/event remains, and no committed observation. Existing-stream failure likewise leaves prior history unchanged.
 - [ ] Add failing `closed_pool_and_definite_commit_failure_are_safe`: close a fixture pool and exercise reads/writes; assert typed failures with no credential text in Display/observations. Use a deferred test constraint to force an acknowledged COMMIT rejection and verify definite failure rather than uncertainty.
 - [ ] Run the storage target and record the intended failures, then implement phase-aware error classification without discarding underlying causes.
-- [ ] Implement test-only transport fault control in `tests/support.rs` using existing Tokio network facilities and a PostgreSQL connection with TLS disabled only in the fixture. A protocol-aware proxy forwards COMMIT but suppresses its result before breaking the client connection. Coordinate with protocol messages/barriers, not timing sleeps; establish that PostgreSQL committed through a separate direct connection.
+- [ ] Implement test-only transport fault control in `tests/support.rs` using existing Tokio network facilities and a PostgreSQL connection with TLS turned off only in the fixture. A protocol-aware proxy forwards COMMIT but suppresses its result before breaking the client connection. Coordinate with protocol messages/barriers, not timing sleeps; establish that PostgreSQL committed through a separate direct connection.
 - [ ] Add `lost_commit_acknowledgment_is_recoverable`: observe `CommitUncertain`, find the original event and contents via direct reload, retry the original context, and assert still exactly one event. Add the corresponding registration case: recovery by identical registration yields already-present. Unit error mapping alone is not evidence of this network behavior; if the fault mechanism cannot run, explicitly report that coverage gap as the spec permits.
 - [ ] Add cancellation recovery coverage while commit is in flight. No completion observation is required for a dropped future; reconnect and safely resolve/retry using the original context, checking that no duplicate decision can result.
 - [ ] Run the storage target and retain executed fault evidence. Format, inspect diff, and commit `fix(book-smartz): distinguish uncertain commits and preserve recovery`.
 
-## Task 5: Diagnostic listener, caller documentation, and acceptance
+## Task 5: diagnostic listener, caller documentation, and acceptance
 
-**Files:** Create `storage/tracing_listener.rs`, `storage/observation_tests.rs`,
+**Files:** create `storage/tracing_listener.rs`, `storage/observation_tests.rs`,
 `storage/README.md`; update observation dispatch, lib exports, BUILD wiring,
 and integration producer assertions.
 
-**Interfaces:** Produce `pub fn tracing_observer() -> SharedObserver`. Reuse the
+**Interfaces:** produce `pub fn tracing_observer() -> SharedObserver`. Reuse the
 observer contract and facts from prior tasks; no global subscriber installation.
 Add `//book_smartz/storage:observation_test` as a fast test target without Docker.
 
@@ -198,13 +198,17 @@ Add `//book_smartz/storage:observation_test` as a fast test target without Docke
 
 ## Self-review and handoff
 
+<!-- The paired alternatives or compound predicates are not three-item lists. -->
+<!-- vale Google.OxfordComma = NO -->
+
 All spec sections map to tasks: migrations/unsigned wire boundaries (1), catalog
 identity (2), aggregate ownership/replay/concurrency/evolution (3), failure and
 recovery (4), observations/composition/documentation and repository checks (5).
-Review Focus conditions have explicit tests above. Database tests remain real
-managed-dependency integration checks; only diagnostic consumers and transport
+Review Focus conditions have explicit tests described earlier. Database tests remain real
+managed-dependency integration tests; only diagnostic consumers and transport
 faults use test substitutes. Proposed test speed and network fault coverage are
 not execution evidence.
+<!-- vale Google.OxfordComma = YES -->
 
 This plan is prepared for user review. No production implementation or tests have
 run during planning. Select native execution or subagent-driven execution after

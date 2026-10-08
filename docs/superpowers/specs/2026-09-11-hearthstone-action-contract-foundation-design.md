@@ -1,4 +1,4 @@
-# Hearthstone Action-Contract Foundation
+# Hearthstone action-contract foundation
 
 ## Status and purpose
 
@@ -49,7 +49,7 @@ Initial filters combine:
 
 - Audience: friendly, enemy, or either, relative to the declaring player.
 - Kind: minion, Hero, or character (minion or Hero).
-- Zone: Play, fixed for this foundation.
+- Zone: play, fixed for this foundation.
 
 These filters describe declaration candidates, not effect selectors. They do not contain random selection, effect execution, arbitrary expressions, or native callbacks. Target enumeration must never consume RNG.
 
@@ -70,7 +70,7 @@ Validation covers:
 5. Position and choice inputs.
 6. Existing attack readiness and positive-attack checks, with attacker and defender restricted to in-Play Heroes or minions and defender controlled by the opponent.
 
-All nonempty PlayCard.choice inputs are rejected as unsupported. Choice suspension and submit_choice remain supported through their existing API; this work does not add declaration-time modal card choices.
+All nonempty PlayCard.choice inputs are rejected as unsupported. Choice suspension and `submit_choice` remain supported through their existing API; this work does not add declaration-time modal card choices.
 
 For minions, accept explicit insertion positions from zero through the current board-row length. Preserve board_index=None as an append alias. For spells, require board_index=None; the public action must not expose arbitrary Graveyard insertion positions.
 
@@ -103,7 +103,7 @@ Capture player, source/subject IDs, declared target, and normalized placement wh
 
 Introduce serializable guard data for deferred sequence steps. The initial guard checks a stable subject ID and required zone. Multiple guards on one step are evaluated in declared order; the first failure skips that step and emits one canonical guard-skip trace record identifying the subject, step, expected zone, and observed missing/wrong-zone result.
 
-Guard evaluation occurs when the step is popped, after earlier nested work completes. Skipping consumes the operation exactly once, adds no child work, and does not discard unrelated pending operations. Ordinary boundaries, cleanup, and outcome checks remain outside the guarded step.
+Guard evaluation occurs when the step is popped, after earlier nested work completes. Skipping consumes the operation exactly once, adds no child work, and does not discard unrelated pending operations. Ordinary boundaries, cleanup, and outcome validations remain outside the guarded step.
 
 Initial integration is deliberately narrow:
 
@@ -113,7 +113,11 @@ Initial integration is deliberately narrow:
 
 Do not add guards to FinishAttack or played-self-transform completion merely because they reference an entity. Do not guard an entire spell program on its source remaining in Play: spells currently move to Graveyard before their effects execute. Full phase-by-phase guard placement belongs with the subsequent player-sequence work.
 
-Do not add controller, card-form, or zone-entry-generation guard fields until an implemented step needs those semantics. For this foundation, leaving and returning to the required zone before the check passes a zone guard; transformation retaining the same stable ID and zone also passes. This explicitly defines the narrow mechanism without claiming complete subject continuity rules.
+<!-- The paired alternatives or compound predicates are not three-item lists. -->
+<!-- vale Google.OxfordComma = NO -->
+
+Do not add controller, card-form, or zone-entry-generation guard fields until an implemented step needs those semantics. For this foundation, leaving and returning to the required zone before the condition evaluation passes a zone guard; transformation retaining the same stable ID and zone also passes. This explicitly defines the narrow mechanism without claiming complete subject continuity rules.
+<!-- vale Google.OxfordComma = YES -->
 
 ## Persistence and traces
 
@@ -158,7 +162,7 @@ Meaningful behavioral tests must cover:
 - Repeated enumeration preserving snapshot, checkpoint, RNG, and trace and returning identical ordering.
 - Rejected declarations preserving gameplay and resolver state, allowing only the rejection trace.
 - A captured target surviving declaration-relevant state changes without revalidation or retargeting.
-- Guard success and skip after intervening movement; later siblings, boundaries, and outcome checks still running; deterministic skip traces.
+- Guard success and skip after intervening movement; later siblings, boundaries, and outcome validations still running; deterministic skip traces.
 - Choice suspension with guarded pending work, checkpoint JSON restoration, and fork continuation producing matching snapshots and traces.
 - Targeting metadata preserved or replaced correctly across spawn, copy, transform, backward movement, and checkpoint restoration.
 

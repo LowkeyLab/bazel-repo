@@ -7,6 +7,10 @@ type: essay
 draft: false
 ---
 
+<!-- Personal essays intentionally use first-person narration. -->
+<!-- vale Google.FirstPerson = NO -->
+<!-- vale Google.We = NO -->
+
 Rust and Kotlin are my two favourite programming languages.
 
 I find both expressive and ergonomic. Kotlin, especially, makes it easy to turn an idea into code that looks reasonably close to what I meant. Its extension functions, null handling, and approach to modelling data make it a language I enjoy using.
@@ -19,7 +23,12 @@ The strange part is that some of my appreciation for Rust developed while I was 
 
 I'd be using a language I already considered excellent, with a perfectly reasonable implementation in front of me, and think:
 
+<!-- This quotation uses check to mean verify, not select a checkbox. -->
+<!-- vale Google.WordList = NO -->
+
 > _Damn. I wish the language could check this part too._
+
+<!-- vale Google.WordList = YES -->
 
 ## The compiler's many questions
 
@@ -152,7 +161,11 @@ I receive a published post and lose access to the consumed draft. For this non-`
 
 Finishing a builder. Committing a transaction. Closing a session. There are plenty of operations after which **I should no longer be able to use the previous value**.
 
+<!-- The pauses are intentional in this personal essay. -->
+<!-- vale Google.Ellipses = NO -->
+
 _And so it begins ..._
+<!-- vale Google.Ellipses = YES -->
 
 ## Read-only starts feeling insufficient
 
@@ -207,7 +220,7 @@ For this ordinary vector, the compiler checks that **shared inspection and exclu
 
 In Kotlin, I can take a snapshot, use an [immutable collection](https://github.com/Kotlin/kotlinx.collections.immutable), or coordinate access. I have options.
 
-Rust gives me an extremely efficient option: **lend out access to the existing collection** and have the compiler check when mutation becomes available again.
+Rust gives me an extremely efficient option: **lend out access to the existing collection** and have the compiler verify when mutation becomes available again.
 
 At first, the borrow checker felt incredibly particular.
 
@@ -215,7 +228,11 @@ Then I'd be reviewing Kotlin code and tracing references to figure out who could
 
 And I'd remember that annoying borrow checker.
 
+<!-- The pauses are intentional in this personal essay. -->
+<!-- vale Google.Ellipses = NO -->
+
 _And I'd start missing it ..._
+<!-- vale Google.Ellipses = YES -->
 
 ## Extension functions make me want traits
 
@@ -230,7 +247,7 @@ val text = "A rather long article..."
 println(text.summary())
 ```
 
-The call reads naturally. The operation can live in my application without requiring changes to `String`.
+The call reads naturally. The operation can live in my app without requiring changes to `String`.
 
 But suppose I want **an abstraction that several types can implement**:
 
@@ -263,7 +280,11 @@ class TextSummary(
 renderPreview(TextSummary(text))
 ```
 
+<!-- The pauses are intentional in this personal essay. -->
+<!-- vale Google.Ellipses = NO -->
+
 But that's not very nice ...
+<!-- vale Google.Ellipses = YES -->
 
 Rust gives me the Haskell (read: ideal) way: **implement my own trait directly for the existing type**.
 
@@ -292,11 +313,15 @@ let preview = render_preview(&text);
 
 **I own the trait, so I can implement it for `String`, even though I don't own `String`.** Rust's orphan rules allow this because the trait is defined in my crate, as described in the [Rust Reference](https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules).
 
-This is powerful when I define an abstraction in my application and want existing library types to fit it. I don't need to carry an adapter around just to make the type satisfy my interface.
+This is powerful when I define an abstraction in my app and want existing library types to fit it. I don't need to carry an adapter around just to make the type satisfy my interface.
 
 Now, whenever I write an adapter, a small voice asks whether a trait implementation could have been enough.
 
+<!-- The pauses are intentional in this personal essay. -->
+<!-- vale Google.Ellipses = NO -->
+
 _And I'd weep ..._
+<!-- vale Google.Ellipses = YES -->
 
 ## Carcinization
 
@@ -315,3 +340,6 @@ That's when I became fully _oxidized_.
 **P.S. I haven't even talked about performance.**
 
 Rust's performance gives me room to delay optimization and **focus on shipping features**. Counter-intuitively, a programming language famous for being low-level lets me spend less time thinking about performance, and more time building the product.
+
+<!-- vale Google.FirstPerson = YES -->
+<!-- vale Google.We = YES -->

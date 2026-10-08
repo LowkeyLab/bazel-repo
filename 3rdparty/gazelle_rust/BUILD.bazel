@@ -1,1 +1,9 @@
 exports_files(["README.md"])
+
+# Local maintenance docs are first-party; the nested upstream module is vendored.
+filegroup(
+    name = "markdown",
+    srcs = glob(["*.md"]),
+    tags = ["markdown"],
+    visibility = ["//tools/lint:__pkg__"],
+)

@@ -4,7 +4,7 @@ Mindreadr is a cooperative word-convergence game for two players. Each round bot
 
 This project lives inside a Bazel monorepo and is built with Angular (zoneless), `rules_angular`, and `rules_js`.
 
-## Project Structure
+## Project structure
 
 ```text
 angular/projects/mindreadr/
@@ -19,13 +19,13 @@ angular/projects/mindreadr/
     └── tsconfig.spec.json  # TypeScript config (tests)
 ```
 
-## Bazel Targets
+## Bazel targets
 
-| Target                                         | Kind             | Purpose                               |
-| ---------------------------------------------- | ---------------- | ------------------------------------- |
-| `//angular/projects/mindreadr:mindreadr`       | `ng_application` | Builds the Angular application bundle |
-| `//angular/projects/mindreadr:mindreadr.serve` | (auto-generated) | Dev server with live reload           |
-| `//angular/projects/mindreadr:test`            | `ng_test`        | Runs Angular unit tests               |
+| Target                                         | Kind             | Purpose                       |
+| ---------------------------------------------- | ---------------- | ----------------------------- |
+| `//angular/projects/mindreadr:mindreadr`       | `ng_application` | Builds the Angular app bundle |
+| `//angular/projects/mindreadr:mindreadr.serve` | (auto-generated) | Dev server with live reload   |
+| `//angular/projects/mindreadr:test`            | `ng_test`        | Runs Angular unit tests       |
 
 ## Prerequisites
 
@@ -37,15 +37,15 @@ Install workspace Node dependencies once (from repo root):
 bazel run @pnpm -- --dir $PWD install
 ```
 
-## Building (Production Bundle)
+## Building (production bundle)
 
-Build the application via Bazel:
+Build the app via Bazel:
 
 ```bash
 aspect build //angular/projects/mindreadr:mindreadr
 ```
 
-Outputs will appear under `bazel-bin/angular/projects/mindreadr/` (fingerprinted build artifacts). Use these for packaging or deployment.
+Outputs appear under `bazel-bin/angular/projects/mindreadr/` (fingerprinted build artifacts). Use these for packaging or deployment.
 
 ## Serving (Development)
 
@@ -64,7 +64,7 @@ Notes:
 - Runs the Angular dev server (typically on <http://localhost:4200>).
 - If you encounter a failure, ensure dependencies are installed (`bazel run @pnpm -- --dir $PWD install`) and retry.
 
-## Running Tests
+## Running tests
 
 Execute Angular unit tests under Bazel:
 
@@ -74,7 +74,7 @@ aspect test //angular/projects/mindreadr:test
 
 Add a single spec file and re-run the target for fast feedback.
 
-## Workflow Summary
+## Workflow summary
 
 1. Edit components / logic in `src/app/`.
 2. Build: `aspect build //angular/projects/mindreadr:mindreadr`.
@@ -82,7 +82,7 @@ Add a single spec file and re-run the target for fast feedback.
 4. Test: `aspect test //angular/projects/mindreadr:test`.
 5. Commit source changes.
 
-## CI Usage
+## CI usage
 
 CI can perform deterministic builds directly:
 
@@ -95,10 +95,10 @@ CSS generation is handled automatically by the build; no manual steps required.
 
 ## Troubleshooting
 
-- Missing deps: Run `bazel run @pnpm -- --dir $PWD install`.
-- Dev serve fails: Clean and retry `bazel clean` then build/serve again.
+- Missing deps: run `bazel run @pnpm -- --dir $PWD install`.
+- Dev serve fails: clean and retry `bazel clean` then build/serve again.
 
-- Proxy issues: Verify path in `proxy.conf.json` and pass flag to serve command.
+- Proxy issues: verify path in `proxy.conf.json` and pass flag to serve command.
 
 ## License
 

@@ -32,7 +32,7 @@ Its arithmetic and fixed greeting assertions did not add generator behavior.
 
 The former `rules_rs_loads.patch` is incorporated directly:
 
-- `rust_language/lang.go` generates rules_rs loads for common Rust rules and
+- `rust_language/lang.go` generates `rules_rs` loads for common Rust rules and
   `cargo_build_script`, retaining the other upstream load families.
 - `gazelle_rust_parser/src/BUILD.bazel` explicitly sets edition `2024`.
 
@@ -43,7 +43,7 @@ Additional test integration adaptations:
   label in the current Gazelle macro.
 - `gazelle_rust_parser/tests/parse_test.rs` resolves fixture data with the
   repository-aware runfiles macro, so it works under root package labels.
-- Generation goldens use rules_rs for newly generated loads. Existing loads,
+- Generation goldens use `rules_rs` for newly generated loads. Existing loads,
   rule attributes, dependency labels, and diagnostic expectations are retained.
 
 The root `.gitattributes` preserves whitespace in upstream patch files because
@@ -117,8 +117,8 @@ labels and crate names were preserved, so dependent-label rewrites were not
 needed. The Nicknamer2 single-file targets are intentional separately imported
 crates, not redundant module targets. Existing grouped crates in Hearthstone,
 Kafka Calculator, Book Smartz, Prediction Bot, and Nicknamer retain their crate
-boundaries. No nested application BUILD file was removed. The subsequent
-[#1960 cleanup](workarounds.md) removes redundant application exclusions and
+boundaries. No nested app BUILD file was removed. The subsequent
+[#1960 cleanup](workarounds.md) removes redundant app exclusions and
 records the narrow dependency configuration that remains necessary.
 
 The exact source moves are recorded in [the migration inventory](migration.md).
@@ -142,7 +142,7 @@ git diff --check
 ```
 
 Root recursive checks discover the maintained packages and enabled tests.
-The fixture binary remains Rust-only; the application generator retains all its
+The fixture binary remains Rust-only; the app generator retains all its
 language plugins. The original unsupported `standard_unused_crates` fixture
 remains manual. The attribute test compiles the existing annotated import as a
 Rust test target, so recursive tests exercise that contract too.
@@ -152,7 +152,7 @@ which remain data. Narrow `.gitattributes` protections keep those inputs, golden
 outputs, and significant patch whitespace unchanged by formatting. Maintained
 Go, Rust, Starlark, and documentation use normal repository formatting.
 
-Before changing generation behavior, compare application BUILD content and file
+Before changing generation behavior, compare app BUILD content and file
 membership against the existing generator on identical inputs. Run generation
 again and require no further changes. Inspect fixture changes explicitly; never
 regenerate golden output wholesale to hide behavior drift. Consult
