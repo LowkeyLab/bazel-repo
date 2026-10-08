@@ -32,6 +32,7 @@ opentelemetry-proto = { version = "0.33.0", default-features = false, features =
 pinyin = "0.11"
 pinyinchch = { version = "0.3.0", features = ["hmm"] }
 pinyinchch-model-hmm = "0.3.0"
+redb = "=4.3.0"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 rust_decimal = "1.39.0"
 sea-orm = { version = "2.0.0", features = [
@@ -89,6 +90,8 @@ wasm-bindgen = "=0.2.129"
 wasm-bindgen-cli = "=0.2.129"
 
 [dev-dependencies]
+tempfile = "=3.27.0"
+proptest = { version = "=1.11.0", default-features = false, features = ["std"] }
 googletest = "=0.14.3"
 insta = { version = "=1.48.0", features = ["yaml"] }
 mockall = "=0.15.0"
