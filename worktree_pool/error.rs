@@ -1,5 +1,15 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PoolError {
+    #[error("Git observation failed; verify the selected repository")]
+    Git,
+    #[error("repository operation is pending; inspect before explicit reconciliation")]
+    OperationPending,
+    #[error("resource is not explicitly registered")]
+    Unregistered,
+    #[error("repository selectors conflict")]
+    Selectors,
+    #[error("registered worktree capacity is exhausted")]
+    Capacity,
     #[error("filesystem access failed")]
     Io(#[from] std::io::Error),
     #[error("catalog storage failed")]
@@ -27,6 +37,11 @@ impl PoolError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
+            Self::Git => "git_failed",
+            Self::OperationPending => "operation_pending",
+            Self::Unregistered => "resource_unregistered",
+            Self::Selectors => "selector_conflict",
+            Self::Capacity => "capacity_exhausted",
             Self::Io(_) => "filesystem_error",
             Self::Storage => "storage_error",
             Self::Corrupt => "catalog_corrupt",

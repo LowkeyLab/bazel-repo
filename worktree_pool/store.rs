@@ -21,6 +21,8 @@ const IDENTITIES: TableDefinition<&str, u64> = TableDefinition::new("event_ident
 struct RecordedEvent {
     position: u64,
     expected_revision: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stream_id: Option<String>,
     event: Value,
 }
 
@@ -81,6 +83,7 @@ impl Store {
         let recorded = RecordedEvent {
             position: 1,
             expected_revision: 0,
+            stream_id: None,
             event,
         };
         let wire = serde_json::to_string(&recorded).map_err(|_| PoolError::Corrupt)?;
@@ -128,6 +131,25 @@ impl Store {
             .create_with_backend(backend)
             .map_err(|_| PoolError::Storage)?;
         Self::initialize_database(database, catalog_id, before_commit)
+    }
+
+    /// Opens the real adapter through a supplied backend for storage-failure checks.
+    /// # Errors
+    /// Rejects storage failures or an invalid existing catalog.
+    #[cfg(test)]
+    pub fn open_with_fault_backend(
+        catalog_id: CatalogId,
+        backend: impl redb::StorageBackend,
+    ) -> Result<Self, PoolError> {
+        let database = Database::builder()
+            .create_with_backend(backend)
+            .map_err(|_| PoolError::Storage)?;
+        let store = Self {
+            database,
+            catalog_id,
+        };
+        store.projection()?;
+        Ok(store)
     }
 
     /// Opens an existing catalog and validates its identity and full history.
@@ -183,10 +205,7 @@ impl Store {
             let recorded: RecordedEvent =
                 serde_json::from_str(json.value()).map_err(|_| PoolError::Corrupt)?;
             let next = revision.checked_add(1).ok_or(PoolError::Corrupt)?;
-            if position.value() != next
-                || recorded.position != next
-                || recorded.expected_revision != revision
-            {
+            if position.value() != next || recorded.position != next {
                 return Err(PoolError::Corrupt);
             }
             let identity = identity(&recorded.event)?;
@@ -200,6 +219,17 @@ impl Store {
                 return Err(PoolError::Corrupt);
             }
             let event = decode_event(&recorded.event, self.catalog_id)?;
+            let stream_id = event.stream_id(self.catalog_id);
+            let expected = match rebuilt.as_ref() {
+                Some(state) => event.expected_revision(state)?,
+                None => 0,
+            };
+            if recorded.expected_revision != expected
+                || recorded.stream_id.as_ref().is_some_and(|s| *s != stream_id)
+                || (recorded.stream_id.is_none() && next != 1)
+            {
+                return Err(PoolError::Corrupt);
+            }
             rebuilt =
                 Some(reduce(rebuilt.as_ref(), revision, &event).map_err(|_| PoolError::Corrupt)?);
             revision = next;
@@ -232,6 +262,79 @@ impl Store {
                 Ok(record.event)
             })
             .collect()
+    }
+
+    /// Atomically appends a fact and its derived projection at the expected revision.
+    /// # Errors
+    /// Rejects invalid facts or revisions; failed commit requires identity inspection.
+    pub fn append(
+        &self,
+        expected_revision: u64,
+        event: Value,
+    ) -> Result<CatalogProjection, PoolError> {
+        let current = self.projection()?;
+        let typed = decode_event(&event, self.catalog_id)?;
+        if typed.expected_revision(&current)? != expected_revision {
+            return Err(PoolError::Conflict);
+        }
+        let projection = reduce(Some(&current), current.revision, &typed)?;
+        let recorded = RecordedEvent {
+            position: projection.revision,
+            expected_revision,
+            stream_id: Some(typed.stream_id(self.catalog_id)),
+            event,
+        };
+        let wire = serde_json::to_string(&recorded).map_err(|_| PoolError::Corrupt)?;
+        let state = serde_json::to_string(&projection).map_err(|_| PoolError::Corrupt)?;
+        let mut transaction = self
+            .database
+            .begin_write()
+            .map_err(|_| PoolError::Storage)?;
+        {
+            let table = transaction
+                .open_table(STATE)
+                .map_err(|_| PoolError::Storage)?;
+            let persisted = table
+                .get("catalog")
+                .map_err(|_| PoolError::Storage)?
+                .ok_or(PoolError::Corrupt)?;
+            let persisted: CatalogProjection =
+                serde_json::from_str(persisted.value()).map_err(|_| PoolError::Corrupt)?;
+            if persisted != current {
+                return Err(PoolError::Conflict);
+            }
+        }
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| PoolError::Storage)?;
+        {
+            let mut identities = transaction
+                .open_table(IDENTITIES)
+                .map_err(|_| PoolError::Storage)?;
+            let identity = identity(&recorded.event)?;
+            if identities
+                .get(identity.as_str())
+                .map_err(|_| PoolError::Storage)?
+                .is_some()
+            {
+                return Err(PoolError::Conflict);
+            }
+            identities
+                .insert(identity.as_str(), projection.revision)
+                .map_err(|_| PoolError::Storage)?;
+            transaction
+                .open_table(EVENTS)
+                .map_err(|_| PoolError::Storage)?
+                .insert(projection.revision, wire.as_str())
+                .map_err(|_| PoolError::Storage)?;
+            transaction
+                .open_table(STATE)
+                .map_err(|_| PoolError::Storage)?
+                .insert("catalog", state.as_str())
+                .map_err(|_| PoolError::Storage)?;
+        }
+        transaction.commit().map_err(|_| PoolError::CommitUnknown)?;
+        Ok(projection)
     }
 
     /// Simulates the caller losing a successful commit result after durable redb commit.
