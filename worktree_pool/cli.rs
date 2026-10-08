@@ -35,6 +35,17 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    Acquire {
+        reference: Option<OsString>,
+    },
+    Assignment {
+        #[command(subcommand)]
+        command: RecordedCommand,
+    },
+    Operation {
+        #[command(subcommand)]
+        command: RecordedCommand,
+    },
     Repo {
         #[command(subcommand)]
         command: RepoCommand,
@@ -51,6 +62,11 @@ enum Command {
         #[command(subcommand)]
         command: EventsCommand,
     },
+}
+#[derive(Subcommand)]
+enum RecordedCommand {
+    List,
+    Inspect { selector: String },
 }
 #[derive(Subcommand)]
 enum RepoCommand {
@@ -112,14 +128,23 @@ impl Envelope {
         }
     }
 }
-fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
-    let command = match &cli.command {
+const fn command_name(cli: &Cli) -> &'static str {
+    match &cli.command {
         Command::Catalog { command } => match command {
             CatalogCommand::Init => "catalog init",
             CatalogCommand::Info => "catalog info",
             CatalogCommand::Check => "catalog check",
         },
         Command::Events { .. } => "events list",
+        Command::Acquire { .. } => "acquire",
+        Command::Assignment { command } => match command {
+            RecordedCommand::List => "assignment list",
+            RecordedCommand::Inspect { .. } => "assignment inspect",
+        },
+        Command::Operation { command } => match command {
+            RecordedCommand::List => "operation list",
+            RecordedCommand::Inspect { .. } => "operation inspect",
+        },
         Command::Repo { command } => match command {
             RepoCommand::Register { .. } => "repo register",
             RepoCommand::List => "repo list",
@@ -131,8 +156,18 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             WorktreeCommand::List => "worktree list",
             WorktreeCommand::Inspect { .. } => "worktree inspect",
         },
-    };
-    if matches!(cli.command, Command::Repo { .. } | Command::Worktree { .. }) {
+    }
+}
+fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
+    let command = command_name(cli);
+    if matches!(
+        cli.command,
+        Command::Repo { .. }
+            | Command::Worktree { .. }
+            | Command::Acquire { .. }
+            | Command::Assignment { .. }
+            | Command::Operation { .. }
+    ) {
         return resources(cli, paths, command);
     }
     let (projection, data) = match &cli.command {
@@ -148,7 +183,11 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             let data = serde_json::to_value(&session.projection).map_err(|_| PoolError::Corrupt)?;
             (session.projection, data)
         }
-        Command::Repo { .. } | Command::Worktree { .. } => unreachable!(),
+        Command::Repo { .. }
+        | Command::Worktree { .. }
+        | Command::Acquire { .. }
+        | Command::Assignment { .. }
+        | Command::Operation { .. } => unreachable!(),
         Command::Events { .. } => {
             let session = catalog::open(paths)?;
             let events = session.store().events()?;
@@ -171,6 +210,25 @@ fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolEr
     let mut outcome = "completed";
     let mut reason_code = "ok";
     let (state, mut data) = match &cli.command {
+        Command::Acquire { reference } => {
+            let (state, assignment) = crate::acquisition_workflow::acquire(
+                paths,
+                cli.repo.as_deref(),
+                reference.as_deref(),
+            )?;
+            context["repository_id"] = json!(assignment.repository_id);
+            context["worktree_id"] = json!(assignment.worktree_id);
+            context["assignment_handle"] = json!(assignment.assignment_handle);
+            context["operation_id"] = json!(assignment.operation_id);
+            if assignment.state != crate::acquisition::AssignmentState::Active {
+                outcome = "pending";
+                reason_code = "operation_pending";
+            }
+            (
+                state,
+                json!({"assignment":assignment,"next_action":if outcome=="completed" {"use the assigned checkout; retain the assignment handle"} else {"inspect the recorded operation before explicit reconciliation"}}),
+            )
+        }
         Command::Repo {
             command: RepoCommand::Refresh { selector },
         } => {
@@ -245,6 +303,10 @@ fn resource_query(
 ) -> Result<Value, PoolError> {
     use crate::{management::WorktreeId, workflows};
     let data = match &cli.command {
+        Command::Assignment { command } => assignment_query(cli, state, command, context)?,
+
+        Command::Operation { command } => operation_query(cli, state, command, context)?,
+
         Command::Repo {
             command: RepoCommand::List,
         } => {
@@ -357,24 +419,56 @@ fn worktree_view(
     };
     let mut value = serde_json::to_value(worktree).unwrap_or_else(|_| json!({}));
     value["registration_state"] = json!(registration_state);
-    value["ownership"] = json!("unassigned");
-    let pending: Vec<_> = state
+    let assignment = state
+        .assignments
+        .iter()
+        .find(|a| a.worktree_id == worktree.worktree_id);
+    value["ownership"] = json!(assignment.map_or("unassigned", |a| {
+        if a.state == crate::acquisition::AssignmentState::Active {
+            "assigned"
+        } else {
+            "preparing"
+        }
+    }));
+    value["assignment_handle"] = json!(assignment.map(|a| a.assignment_handle));
+    let withheld = state
+        .withheld_worktrees
+        .iter()
+        .find(|w| w.worktree_id == worktree.worktree_id);
+    let mut pending: Vec<Value> = state
         .operations
         .iter()
         .filter(|o| {
             o.repository_id == worktree.repository_id
                 && o.state != crate::management::RefreshState::Completed
         })
+        .map(|o| json!(o))
         .collect();
-    value["availability"] = json!(
-        if registration_state == "registered" && pending.is_empty() {
-            "unverified"
-        } else {
-            "withheld"
-        }
+    pending.extend(
+        state
+            .acquisitions
+            .iter()
+            .filter(|o| {
+                o.worktree_id == worktree.worktree_id
+                    && o.state != crate::acquisition::AcquisitionState::Completed
+            })
+            .map(|o| json!(o)),
     );
+    value["availability"] = json!(if registration_state == "registered"
+        && pending.is_empty()
+        && assignment.is_none()
+        && withheld.is_none()
+    {
+        "unverified"
+    } else {
+        "withheld"
+    });
     value["withheld_reason"] = if registration_state != "registered" {
         json!(registration_state)
+    } else if let Some(withheld) = withheld {
+        json!(withheld.reason)
+    } else if assignment.is_some() {
+        json!("owned")
     } else if pending.is_empty() {
         Value::Null
     } else {
@@ -413,26 +507,7 @@ pub fn run(args: &[OsString]) -> u8 {
             return 2;
         }
     };
-    let name = match &cli.command {
-        Command::Catalog { command } => match command {
-            CatalogCommand::Init => "catalog init",
-            CatalogCommand::Info => "catalog info",
-            CatalogCommand::Check => "catalog check",
-        },
-        Command::Events { .. } => "events list",
-        Command::Repo { command } => match command {
-            RepoCommand::Register { .. } => "repo register",
-            RepoCommand::List => "repo list",
-            RepoCommand::Inspect { .. } => "repo inspect",
-            RepoCommand::Refresh { .. } => "repo refresh",
-        },
-        Command::Worktree { command } => match command {
-            WorktreeCommand::Register { .. } => "worktree register",
-            WorktreeCommand::List => "worktree list",
-            WorktreeCommand::Inspect { .. } => "worktree inspect",
-        },
-    }
-    .to_owned();
+    let name = command_name(&cli).to_owned();
     let paths = match Paths::load(cli.catalog_dir.clone(), cli.config.clone(), cli.json) {
         Ok(paths) => paths,
         Err(error) => {
@@ -517,4 +592,89 @@ fn emit(result: &Envelope, json_mode: bool) -> u8 {
         return 4;
     }
     code
+}
+
+fn assignment_query(
+    cli: &Cli,
+    state: &crate::domain::CatalogProjection,
+    command: &RecordedCommand,
+    context: &mut Value,
+) -> Result<Value, PoolError> {
+    Ok({
+        let selected = cli
+            .repo
+            .as_deref()
+            .map(|s| crate::workflows::repository(state, Some(s)))
+            .transpose()?;
+        let assignments: Vec<_> = state
+            .assignments
+            .iter()
+            .filter(|a| {
+                selected
+                    .as_ref()
+                    .is_none_or(|r| r.repository_id == a.repository_id)
+            })
+            .collect();
+        match command {
+            RecordedCommand::List => json!({"assignments":assignments}),
+            RecordedCommand::Inspect { selector } => {
+                let a = assignments
+                    .into_iter()
+                    .find(|a| a.assignment_handle.to_string() == *selector)
+                    .ok_or(PoolError::Unregistered)?;
+                context["assignment_handle"] = json!(a.assignment_handle);
+                context["repository_id"] = json!(a.repository_id);
+                context["worktree_id"] = json!(a.worktree_id);
+                context["operation_id"] = json!(a.operation_id);
+                json!({"assignment":a})
+            }
+        }
+    })
+}
+fn operation_query(
+    cli: &Cli,
+    state: &crate::domain::CatalogProjection,
+    command: &RecordedCommand,
+    context: &mut Value,
+) -> Result<Value, PoolError> {
+    Ok({
+        let selected = cli
+            .repo
+            .as_deref()
+            .map(|s| crate::workflows::repository(state, Some(s)))
+            .transpose()?;
+        let mut operations: Vec<Value> = state
+            .operations
+            .iter()
+            .filter(|o| {
+                selected
+                    .as_ref()
+                    .is_none_or(|r| r.repository_id == o.repository_id)
+            })
+            .map(|o| json!(o))
+            .collect();
+        operations.extend(
+            state
+                .acquisitions
+                .iter()
+                .filter(|o| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == o.repository_id)
+                })
+                .map(|o| json!(o)),
+        );
+        match command {
+            RecordedCommand::List => json!({"operations":operations}),
+            RecordedCommand::Inspect { selector } => {
+                let o = operations
+                    .into_iter()
+                    .find(|o| o["operation_id"].as_str() == Some(selector))
+                    .ok_or(PoolError::Unregistered)?;
+                context["operation_id"] = o["operation_id"].clone();
+                context["repository_id"] = o["repository_id"].clone();
+                json!({"operation":o})
+            }
+        }
+    })
 }

@@ -73,6 +73,12 @@ pub struct CatalogProjection {
     pub worktrees: Vec<crate::management::Worktree>,
     #[serde(default)]
     pub operations: Vec<crate::management::RefreshOperation>,
+    #[serde(default)]
+    pub assignments: Vec<crate::acquisition::Assignment>,
+    #[serde(default)]
+    pub withheld_worktrees: Vec<crate::acquisition::WithheldWorktree>,
+    #[serde(default)]
+    pub acquisitions: Vec<crate::acquisition::AcquisitionOperation>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -135,6 +141,12 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
                     | "io.lowkeylab.worktreepool.worktree.registered.v1"
                     | "io.lowkeylab.worktreepool.repository.refresh.started.v1"
                     | "io.lowkeylab.worktreepool.repository.refresh.finished.v1"
+                    | "io.lowkeylab.worktreepool.worktree.withheld.v1"
+                    | "io.lowkeylab.worktreepool.assignment.reserved.v1"
+                    | "io.lowkeylab.worktreepool.worktree.preservation.intended.v1"
+                    | "io.lowkeylab.worktreepool.worktree.preserved.v1"
+                    | "io.lowkeylab.worktreepool.worktree.checkout.intended.v1"
+                    | "io.lowkeylab.worktreepool.assignment.acquisition.finished.v1"
             )
         )
     {
@@ -231,6 +243,9 @@ pub fn reduce(
             repositories: Vec::new(),
             worktrees: Vec::new(),
             operations: Vec::new(),
+            assignments: Vec::new(),
+            withheld_worktrees: Vec::new(),
+            acquisitions: Vec::new(),
         }),
         DomainEvent::CatalogInitialized(_) => Err(PoolError::Conflict),
         DomainEvent::Management {

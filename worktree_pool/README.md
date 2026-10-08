@@ -3,7 +3,9 @@
 A synchronous Linux x86-64 command-line tool for explicitly managed persistent
 Git worktrees. It supports catalog initialization and inspection, explicit
 repository/worktree enrollment, registered resource inspection, checkpointed
-repository refresh, and event history. Ownership commands follow in later slices.
+repository refresh, safe acquisition of registered worktrees, assignment and
+operation inspection, and event history. Release and on-demand creation follow
+in later slices.
 
 Development uses Nix and Bazel. The standalone manifest pins every direct
 dependency and targets Rust 1.96, matching the Bazel toolchain. Its executable
@@ -54,9 +56,9 @@ The example omits command-specific values. `context.catalog_id` is the stable
 `UUID`. `context.catalog_path` is a lossless path. Catalog command `data` contains
 `catalog_id`, numeric `revision`, `store_version`, and `projection_version`.
 `events list` has `data.events`, an ordered array of structured CloudEvents.
-Errors have `data.next_action`, safe human guidance. Later slices expand context
-identities independently for assignments. Resource commands include distinct
-`repository_id`, `worktree_id`, and `operation_id` values where applicable.
+Errors have `data.next_action`, safe human guidance. Resource commands include distinct
+`repository_id`, `worktree_id`, `assignment_handle`, and `operation_id` values
+where applicable.
 Ownership and availability remain distinct concepts.
 
 Paths use `{"encoding":"unix-bytes","bytes":[47,116,109,112],"display":"/tmp"}`.
@@ -77,7 +79,9 @@ Stable reasons: `ok`, `invalid_arguments`, `invalid_configuration`,
 `unsupported_version`, `initialization_pending`, `unsafe_permissions`,
 `filesystem_error`, `storage_error`, `commit_unknown`, `git_failed`,
 `resource_unregistered`, `selector_conflict`, `capacity_exhausted`,
-`operation_pending`, and `refresh_failed`.
+`operation_pending`, `refresh_failed`, `worktree_unavailable`,
+`retained_file_collision`, `unfinished_work`, `git_operation_in_progress`, and
+`unsupported_index_state`.
 
 A broken stdout returns status 4 and sanitized stderr guidance. This doesn't
 undo a committed outcome or retry initialization. Inspect the catalog to learn
@@ -137,7 +141,8 @@ hold maintenance protection throughout, take a stable repository lock before
 each short catalog session, and close storage before Git effects. Repository
 enrollment uses a stable enrollment lock before its catalog session.
 
-The narrow initialization and refresh callbacks observe completed boundaries. The
+The narrow initialization, refresh, and acquisition callbacks observe durable
+checkpoints and external effect results. The
 normal command supplies a no-op observer and performs the same effects. The
 test-only helper signals each checkpoint, then waits until its parent kills it
 under a bounded watchdog. Production has no environment test mode.
@@ -153,7 +158,7 @@ human-identity tests failed before implementation. Stable public results support
 refactoring resistance, but no refactor-survival experiment accompanies this
 slice. Fault tests establish commit/error semantics and don't claim simulated
 power-loss durability. Normal processes establish kernel-lock behavior. Later
-slices verify ownership workflows, broader concurrency, and standalone installation.
+slices verify release, creation, recovery, and standalone installation.
 
 ## Registered resources and refresh
 
@@ -186,8 +191,8 @@ missing paths. Discovery never exposes an unrelated checkout.
 Command data uses `repository`, `repositories`, `worktree`, or `worktrees` as
 appropriate. Repository inspection also reports `registered_count` and
 `operations`. Worktree results separately expose `registration_state`
-(`registered`, `missing`, `mismatched`, `unreadable`), `ownership` (`unassigned`
-in this slice), `availability` (`unverified` or `withheld`), `withheld_reason`,
+(`registered`, `missing`, `mismatched`, `unreadable`), `ownership` (`unassigned`,
+`preparing`, or `assigned`), `availability` (`unverified` or `withheld`), `withheld_reason`,
 and `pending_work`. An existing checkout needs acquisition-time safety
 validation before reuse. Missing/mismatched paths and pending repository work
 remain withheld. Inspection completes successfully without making them reusable.
@@ -214,3 +219,83 @@ repositories/remotes. Run complete Bazel test targets for acceptance. With
 `googletest`, a literal `--test_filter=name` matches a fully qualified test name
 and can skip every body while the Rust harness prints success. Use
 `--test_arg=name`, a qualified name, or `--test_filter='*name*'` when filtering.
+
+## Acquire existing registrations
+
+```text
+worktree-pool acquire --repo <repository-id-or-path> [reference]
+worktree-pool assignment list [--repo <repository-id-or-path>]
+worktree-pool assignment inspect <assignment-handle>
+worktree-pool operation list [--repo <repository-id-or-path>]
+worktree-pool operation inspect <operation-id>
+```
+
+Every acquisition refreshes origin/main first, including explicit references. The
+refreshed default uses the commit in the recorded refresh result. An explicit
+reference resolves once afterward. Preparation keeps that commit fixed even
+when a reference changes. Only registered, unowned, present, safe worktrees are
+eligible. Selection prefers the matching commit, then the latest recorded
+release position, then worktree ID. Initial registrations have no release
+position. The release slice supplies actual release facts. This slice never
+creates a worktree when none is available.
+
+Acquisition records exclusive reservation before preparation, preservation
+intent before reference creation, and checkout intent before checkout. Old
+detached tips receive unique `refs/worktree-pool/<operation-id>` reachability
+references with Git reference `fsync` enabled. Expected-empty reference creation
+refuses replacement. Checkout disables hooks, creates no branch, retains ignored
+files, and uses ordinary detached checkout without force, reset, stash, or cleanup.
+Each observed effect result and acquisition outcome commits before successful
+output. No catalog handle remains across a Git effect. Repository coordination
+serializes competing assignments and shared references, while independent
+repositories can prepare concurrently. State decisions reopen under that lock.
+
+`acquire` data contains `assignment`: its unique handle, operation, repository,
+worktree, absolute lossless `path`, fixed `resolved_commit`, nullable `branch`,
+and `state` (`preparing` or `active`). A completed detached acquisition has a null
+branch. These same assignment records appear in list/inspect results. Operation
+list/inspect includes refresh and acquisition records. Acquisition records carry
+`state`, `last_checkpoint`, `intent_event_id`, and nullable `preservation_tip`
+and `preservation_reference`. Known lost results remain available for inspection by handle
+or operation ID. The command-line tool never guesses a newest assignment.
+
+Pending acquisition states are `reserved`, `preservation_intended`, `preserved`,
+`checkout_intended`, and `needs_reconciliation`. A completed result is
+`completed`. Worktree inspection reports preparing or assigned ownership
+separately from withheld availability and includes unfinished operations in
+`pending_work`. Process death never ends a reservation. Pending work blocks
+conflicting effects until explicit reconciliation, which follows in a later
+slice. Lost stdout returns unknown/status 4 while committed ownership remains.
+
+Safety probes reject dirty tracked/index/untracked state, operation
+markers and index locks, hidden index flags, and sparse layouts. Prospective
+retained-file collisions withhold that candidate and allow a safe alternative.
+The preflight includes empty directories, prefix conflicts and symlinks. The Git
+`--no-overwrite-ignore` option alone can remove an empty ignored directory. Changed
+ignore rules may reveal retained files as untracked work after checkout: preparation
+then remains pending, with bytes retained and no active assignment reported.
+Withheld reasons distinguish `retained_file_collision`, `unfinished_work`,
+`git_operation_in_progress`, `unsupported_index_state`, and `safety_uncertain`.
+Inspection never clears recorded withholding.
+
+Ordinary indexed regular files require exact raw blob equality and executable
+mode agreement. Indexed symlinks require exact link bytes. These checks avoid
+optimistic stat/fsmonitor caches. Pool Git commands turn off `fsmonitor` and object
+replacement. Submodule/gitlink and special index layouts remain conservatively
+unsupported. Filter, encoding, or line-ending conversion that changes raw bytes
+can also withhold reuse. Exact raw-byte checks don't invoke clean filters.
+Its locks coordinate pool commands, not same-user filesystem
+changes after observations.
+
+`acquisition.rs` holds typed assignment facts, pure transitions and ordering.
+`acquisition_workflow.rs` orchestrates the same concrete catalog and Git adapters
+used by the command-line tool. The small pure ordering interface accepts explicit commit and
+release-position values. It needs no repository mock. Private real Git/redb
+fixtures assert public results, known-ID inspection, and preserved files/refs.
+Worked decision inputs cover commit/recency/ID precedence. Independent processes
+cover exclusive assignments and independent-repository progress. Actual SIGKILL
+checks cover reservation, preservation intent/effect/result, checkout intent/effect,
+and acquisition commit. A post-refresh barrier proves fixed default commits.
+Other fixtures cover mandatory explicit-ref refresh, missing refs/failed remotes,
+ignored collisions/fallback, hidden Git state, observation caches, retained ignore
+changes, and lost stdout. These establish observed process and commit semantics. They don't simulate machine power loss or establish minimum Git runtime support.
