@@ -1,0 +1,12 @@
+pub mod catalog;
+pub mod cli;
+pub mod coordination;
+pub mod diagnostics;
+#[cfg(test)]
+mod diagnostics_tests;
+pub mod domain;
+pub mod error;
+pub mod paths;
+pub mod store;
+#[cfg(test)]
+mod store_tests;

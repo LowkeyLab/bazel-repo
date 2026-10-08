@@ -1,0 +1,10 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+
+rust_binary(
+    name = "test_support",
+    testonly = True,
+    srcs = ["main.rs"],
+    crate_root = "main.rs",
+    visibility = ["//worktree_pool:__pkg__"],
+    deps = ["//worktree_pool:worktree_pool_lib"],
+)
