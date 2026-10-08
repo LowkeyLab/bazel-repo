@@ -162,7 +162,7 @@ bazel_dep(name = "llvm")
 # rules_rs bindgen uses libclang and needs an explicit compile resource directory.
 git_override(
     module_name = "llvm",
-    commit = "9c3496110dde015524de3da21f067ffe8febe5f5",
+    commit = "9f09c2a6f92627849f9787682718fa8dcda09b79",
     patch_args = ["-p1"],
     patches = ["//3rdparty:llvm_compile_resource_directory.patch"],
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
