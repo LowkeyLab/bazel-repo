@@ -362,7 +362,15 @@ fn original_catalog_projection_shape_reopens_without_rewriting_its_history() {
             let mut original: serde_json::Value =
                 serde_json::from_str(state.get("catalog").unwrap().unwrap().value()).unwrap();
             let original = original.as_object_mut().unwrap();
-            for field in ["repositories", "worktrees", "operations"] {
+            for field in [
+                "repositories",
+                "worktrees",
+                "operations",
+                "assignments",
+                "acquisitions",
+                "withheld_worktrees",
+                "releases",
+            ] {
                 original.remove(field);
             }
             state
@@ -378,4 +386,189 @@ fn original_catalog_projection_shape_reopens_without_rewriting_its_history() {
         eq(true)
     );
     assert_that!(reopened.events().unwrap(), eq(&before));
+}
+
+fn append_release_fixture_fact(
+    store: &Store,
+    event: crate::management::ManagementEvent,
+    cause: Option<&str>,
+) -> String {
+    use crate::domain::{decode_event, management_event, management_event_caused_by};
+    let state = store.projection().unwrap();
+    let wire = if let Some(cause) = cause {
+        management_event_caused_by(state.catalog_id, &event, cause).unwrap()
+    } else {
+        management_event(state.catalog_id, &event).unwrap()
+    };
+    let id = wire["id"].as_str().unwrap().to_owned();
+    store
+        .append(
+            decode_event(&wire, state.catalog_id)
+                .unwrap()
+                .expected_revision(&state)
+                .unwrap(),
+            wire,
+        )
+        .unwrap();
+    id
+}
+fn seed_branch_release(store: &Store, path: &std::path::Path) -> crate::release::ReleaseOperation {
+    use crate::{
+        acquisition::{AcquisitionEvent, Assignment, AssignmentState},
+        management::{
+            AssignmentHandle, ManagementEvent, OperationId, Repository, RepositoryId, Worktree,
+            WorktreeId,
+        },
+        paths::EncodedPath,
+        release::{ReleaseEvent, ReleaseOperation, ReleaseState},
+    };
+    let repository_id = RepositoryId::new();
+    let worktree_id = WorktreeId::new();
+    let acquisition = OperationId::new();
+    let handle = AssignmentHandle::new();
+    append_release_fixture_fact(
+        store,
+        ManagementEvent::RepositoryRegistered(Repository {
+            repository_id,
+            common_directory: EncodedPath::from_path(path),
+            context_path: EncodedPath::from_path(path),
+            capacity: 4,
+            revision: 0,
+        }),
+        None,
+    );
+    append_release_fixture_fact(
+        store,
+        ManagementEvent::WorktreeRegistered(Worktree {
+            repository_id,
+            worktree_id,
+            path: EncodedPath::from_path(path),
+            git_directory: EncodedPath::from_path(&path.join(".git")),
+            last_release_position: None,
+        }),
+        None,
+    );
+    let cause = append_release_fixture_fact(
+        store,
+        ManagementEvent::Acquisition(AcquisitionEvent::Reserved(Assignment {
+            assignment_handle: handle,
+            operation_id: acquisition,
+            repository_id,
+            worktree_id,
+            path: EncodedPath::from_path(path),
+            resolved_commit: "1".repeat(40),
+            branch: None,
+            state: AssignmentState::Preparing,
+        })),
+        None,
+    );
+    let cause = append_release_fixture_fact(
+        store,
+        ManagementEvent::Acquisition(AcquisitionEvent::CheckoutIntended {
+            operation_id: acquisition,
+            repository_id,
+            worktree_id,
+        }),
+        Some(&cause),
+    );
+    append_release_fixture_fact(
+        store,
+        ManagementEvent::Acquisition(AcquisitionEvent::Finished {
+            operation_id: acquisition,
+            repository_id,
+            worktree_id,
+            successful: true,
+        }),
+        Some(&cause),
+    );
+    let operation_id = OperationId::new();
+    let mut op = ReleaseOperation {
+        operation_id,
+        repository_id,
+        worktree_id,
+        assignment_handle: handle,
+        state: ReleaseState::Intended,
+        tip: "1".repeat(40),
+        branch: Some("refs/heads/caller".into()),
+        preservation_reference: None,
+        intent_event_id: String::new(),
+        last_checkpoint: "release_intended".into(),
+    };
+    op.intent_event_id = append_release_fixture_fact(
+        store,
+        ManagementEvent::Release(ReleaseEvent::Started(op.clone())),
+        None,
+    );
+    op
+}
+#[googletest::test]
+fn release_completion_sync_failure_reopens_with_atomic_ownership_and_recency() {
+    use crate::{
+        acquisition::AssignmentState,
+        domain::{decode_event, management_event_caused_by},
+        management::ManagementEvent,
+        release::{ReleaseEvent, ReleaseState},
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("catalog.redb");
+    let catalog_id = CatalogId::new();
+    Store::create_with_id(&path, catalog_id).unwrap();
+    let store = Store::open(&path, catalog_id).unwrap();
+    let operation = seed_branch_release(&store, directory.path());
+    let before = store.projection().unwrap();
+    let wire = management_event_caused_by(
+        catalog_id,
+        &ManagementEvent::Release(ReleaseEvent::Finished {
+            operation_id: operation.operation_id,
+            repository_id: operation.repository_id,
+            worktree_id: operation.worktree_id,
+            successful: true,
+        }),
+        &operation.intent_event_id,
+    )
+    .unwrap();
+    let expected = decode_event(&wire, catalog_id)
+        .unwrap()
+        .expected_revision(&before)
+        .unwrap();
+    drop(store);
+    let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let backend = SyncFailureBackend {
+        inner: redb::backends::FileBackend::new(
+            std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&path)
+                .unwrap(),
+        )
+        .unwrap(),
+        armed: armed.clone(),
+    };
+    let store = Store::open_with_fault_backend(catalog_id, backend).unwrap();
+    armed.store(true, std::sync::atomic::Ordering::SeqCst);
+    assert_that!(
+        matches!(
+            store.append(expected, wire),
+            Err(crate::error::PoolError::CommitUnknown)
+        ),
+        eq(true)
+    );
+    drop(store);
+    let reopened = Store::open(&path, catalog_id).unwrap();
+    let state = reopened.projection().unwrap();
+    assert_that!(
+        state.revision == before.revision || state.revision == before.revision + 1,
+        eq(true)
+    );
+    assert_that!(reopened.events().unwrap().len() as u64, eq(state.revision));
+    if state.revision == before.revision {
+        assert_that!(state, eq(&before));
+    } else {
+        assert_that!(state.assignments[0].state, eq(AssignmentState::Released));
+        assert_that!(state.releases[0].state, eq(ReleaseState::Completed));
+        assert_that!(
+            state.worktrees[0].last_release_position,
+            eq(Some(state.revision))
+        );
+    }
 }

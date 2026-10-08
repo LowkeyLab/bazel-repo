@@ -59,6 +59,11 @@ pub fn acquire_observed(
     {
         return Err(PoolError::OperationPending);
     }
+    if state.releases.iter().any(|o| {
+        o.repository_id == repo.repository_id && o.state != crate::release::ReleaseState::Completed
+    }) {
+        return Err(PoolError::OperationPending);
+    }
     let (state, refresh) = workflows::refresh_locked(paths, &repo, |_| {})?;
     if refresh.state != crate::management::RefreshState::Completed {
         return Err(PoolError::OperationPending);
@@ -118,7 +123,7 @@ fn select_worktree(
                 && !state
                     .assignments
                     .iter()
-                    .any(|a| a.worktree_id == w.worktree_id)
+                    .any(|a| a.worktree_id == w.worktree_id && a.state != AssignmentState::Released)
                 && !state
                     .withheld_worktrees
                     .iter()

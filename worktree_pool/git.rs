@@ -358,6 +358,26 @@ pub fn preserve_tip(common: &Path, operation: &str, head: &str) -> Result<String
     Ok(reference)
 }
 
+/// Observes the exact recorded preservation root without rewriting it.
+/// # Errors
+/// Rejects missing, changed or unreadable preservation evidence.
+pub fn verify_preserved_tip(common: &Path, operation: &str, head: &str) -> Result<(), PoolError> {
+    if uuid::Uuid::parse_str(operation).is_err() || !valid_oid(head.as_bytes()) {
+        return Err(PoolError::Git);
+    }
+    let reference = format!("refs/worktree-pool/{operation}");
+    let observed = output_oid(
+        &command(common)
+            .args(["show-ref", "--verify", "--hash", &reference])
+            .output()
+            .map_err(|_| PoolError::Git)?,
+    )?;
+    if observed != head {
+        return Err(PoolError::Git);
+    }
+    Ok(())
+}
+
 fn observe_output(path: &Path, arguments: &[&str]) -> Result<Vec<u8>, PoolError> {
     let output = command(path)
         .args(arguments)

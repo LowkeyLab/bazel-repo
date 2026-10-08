@@ -6,6 +6,21 @@ use worktree_pool::{
 fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
+    if std::env::var("OPERATION").as_deref() == Ok("release") {
+        use worktree_pool::release_workflow::{ReleaseCheckpoint, release_observed};
+        let handle = std::env::var("ASSIGNMENT_HANDLE").unwrap().parse().unwrap();
+        release_observed(&paths, None, handle, |checkpoint| {
+            let name = match checkpoint {
+                ReleaseCheckpoint::IntentCommitted => "intent",
+                ReleaseCheckpoint::PreservationObserved => "preservation-effect",
+                ReleaseCheckpoint::PreservationCommitted => "preserved",
+                ReleaseCheckpoint::ResultCommitted => "result",
+            };
+            pause(&selected, name);
+        })
+        .unwrap();
+        return;
+    }
     if std::env::var("OPERATION").as_deref() == Ok("acquire") {
         use worktree_pool::acquisition_workflow::{AcquisitionCheckpoint, acquire_observed};
         let repo = std::env::var_os("REPOSITORY_ID").unwrap();

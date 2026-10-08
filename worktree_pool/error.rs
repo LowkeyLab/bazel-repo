@@ -1,5 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PoolError {
+    #[error("assignment handle is unknown; inspect recorded identities")]
+    UnknownAssignment,
     #[error("unfinished tracked, indexed, or untracked work is present")]
     UnfinishedWork,
     #[error("Git operation or required lock state is present")]
@@ -47,6 +49,7 @@ impl PoolError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
+            Self::UnknownAssignment => "assignment_unknown",
             Self::UnfinishedWork => "unfinished_work",
             Self::GitOperation => "git_operation_in_progress",
             Self::UnsupportedIndex => "unsupported_index_state",

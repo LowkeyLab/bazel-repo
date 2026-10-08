@@ -3,9 +3,9 @@
 A synchronous Linux x86-64 command-line tool for explicitly managed persistent
 Git worktrees. It supports catalog initialization and inspection, explicit
 repository/worktree enrollment, registered resource inspection, checkpointed
-repository refresh, safe acquisition of registered worktrees, assignment and
-operation inspection, and event history. Release and on-demand creation follow
-in later slices.
+repository refresh, safe acquisition and explicit release of registered worktrees,
+assignment and operation inspection, and event history. On-demand creation
+follows in a later slice.
 
 Development uses Nix and Bazel. The standalone manifest pins every direct
 dependency and targets Rust 1.96, matching the Bazel toolchain. Its executable
@@ -81,7 +81,7 @@ Stable reasons: `ok`, `invalid_arguments`, `invalid_configuration`,
 `resource_unregistered`, `selector_conflict`, `capacity_exhausted`,
 `operation_pending`, `refresh_failed`, `worktree_unavailable`,
 `retained_file_collision`, `unfinished_work`, `git_operation_in_progress`, and
-`unsupported_index_state`.
+`unsupported_index_state`, `assignment_unknown`, and `already_released`.
 
 A broken stdout returns status 4 and sanitized stderr guidance. This doesn't
 undo a committed outcome or retry initialization. Inspect the catalog to learn
@@ -141,7 +141,7 @@ hold maintenance protection throughout, take a stable repository lock before
 each short catalog session, and close storage before Git effects. Repository
 enrollment uses a stable enrollment lock before its catalog session.
 
-The narrow initialization, refresh, and acquisition callbacks observe durable
+The narrow initialization, refresh, acquisition, and release callbacks observe durable
 checkpoints and external effect results. The
 normal command supplies a no-op observer and performs the same effects. The
 test-only helper signals each checkpoint, then waits until its parent kills it
@@ -158,7 +158,7 @@ human-identity tests failed before implementation. Stable public results support
 refactoring resistance, but no refactor-survival experiment accompanies this
 slice. Fault tests establish commit/error semantics and don't claim simulated
 power-loss durability. Normal processes establish kernel-lock behavior. Later
-slices verify release, creation, recovery, and standalone installation.
+slices verify creation, recovery, and standalone installation.
 
 ## Registered resources and refresh
 
@@ -236,7 +236,7 @@ reference resolves once afterward. Preparation keeps that commit fixed even
 when a reference changes. Only registered, unowned, present, safe worktrees are
 eligible. Selection prefers the matching commit, then the latest recorded
 release position, then worktree ID. Initial registrations have no release
-position. The release slice supplies actual release facts. This slice never
+position. Completed release facts supply actual release positions. This slice never
 creates a worktree when none is available.
 
 Acquisition records exclusive reservation before preparation, preservation
@@ -252,9 +252,9 @@ repositories can prepare concurrently. State decisions reopen under that lock.
 
 `acquire` data contains `assignment`: its unique handle, operation, repository,
 worktree, absolute lossless `path`, fixed `resolved_commit`, nullable `branch`,
-and `state` (`preparing` or `active`). A completed detached acquisition has a null
+and `state` (`preparing`, `active`, or historical `released`). A completed detached acquisition has a null
 branch. These same assignment records appear in list/inspect results. Operation
-list/inspect includes refresh and acquisition records. Acquisition records carry
+list/inspect includes refresh, acquisition, and release records. Acquisition records carry
 `state`, `last_checkpoint`, `intent_event_id`, and nullable `preservation_tip`
 and `preservation_reference`. Known lost results remain available for inspection by handle
 or operation ID. The command-line tool never guesses a newest assignment.
@@ -299,3 +299,72 @@ and acquisition commit. A post-refresh barrier proves fixed default commits.
 Other fixtures cover mandatory explicit-ref refresh, missing refs/failed remotes,
 ignored collisions/fallback, hidden Git state, observation caches, retained ignore
 changes, and lost stdout. These establish observed process and commit semantics. They don't simulate machine power loss or establish minimum Git runtime support.
+
+## Release assignments
+
+```text
+worktree-pool release <assignment-handle> [--repo <repository-id-or-path>]
+```
+
+Release requires the current unique handle. An optional repository selector must
+agree with that handle. Unknown handles return `rejected`/`assignment_unknown`.
+Paths never substitute for a handle. Dirty tracked files, staged/index changes,
+untracked files that Git doesn't ignore, Git operations, special indexes, missing/mismatched
+registration, or uncertain observations reject without ending ownership. Copying
+work elsewhere doesn't certify a checkout that still contains unfinished work.
+There is no preservation-assertion flag that bypasses safety checks. Commit or
+otherwise finish the checkout's unfinished state before release. The tool never
+stashes, resets, forces checkout, removes work, or deletes operation markers.
+
+Ignored files alone permit release and remain in place across subsequent
+acquisitions. A later checkout collision with retained state withholds reuse.
+An otherwise clean caller-created branch stays checked out and unchanged.
+Detached tips require new, expected-empty `refs/worktree-pool/<release-operation-id>`
+reachability references with reference `fsync`. Intent commits before that Git
+effect. Its observed outcome commits before ownership changes. Final validation
+checks the recorded checkout/common-directory/Git-directory binding, clean state,
+unchanged tip/branch, and the exact detached preservation reference. Uncertain
+state retains ownership and requires explicit reconciliation.
+
+Release data contains `assignment`, `operation`, `already_released`, nullable
+`current_availability`, `revision`, and `next_action`. The assignment's commit and
+branch remain its acquisition snapshot. The release operation records the observed
+`tip` and nullable full branch reference separately, plus operation/repository/worktree/
+assignment identities, `state`, `last_checkpoint`, `intent_event_id`, and nullable
+`preservation_reference`. A reference name alone isn't proof its effect completed.
+
+Release states are `intended`, `preserved`, `completed`, and `needs_reconciliation`.
+Checkpoints distinguish `release_intended`, `preservation_committed`,
+`preservation_failed`, `release_committed`, and `release_state_uncertain`. Failed
+or interrupted preservation retains an active assignment and returns
+`pending`/`operation_pending`. Repeating that handle returns the recorded release
+without retrying Git or changing history. Indeterminate database commits return
+`unknown`/`commit_unknown`. Inspect the handle and operation before retrying.
+A lost stdout returns status 4 while a committed release remains released.
+
+Completed release atomically records historical `released` ownership and the
+worktree's `last_release_position`. A repeated released handle completes with
+`already_released` without changing a newer assignment or claiming current
+availability. `current_availability` is null because release doesn't certify a
+future checkout. Worktree inspection reports current ownership and availability
+separately. Unassigned checkouts still need acquisition-time safety validation.
+Assignment list/inspect retains released history. Operation list/inspect includes
+release progress and preservation evidence. Pending work remains visible there
+and in worktree `pending_work`.
+
+Callers must stop work before release and never resume using obsolete handles.
+Live process presence alone doesn't veto explicit release. Ownership is
+cooperative: release doesn't revoke filesystem access or stop processes. Neither
+process death nor elapsed time releases ownership.
+
+Release facts use versioned `assignment.release.started.v1`,
+`assignment.release.preservation.finished.v1`, and `assignment.release.finished.v1`
+types under the existing event namespace. They route through repository streams,
+identify the affected worktree subject, and validate causal checkpoint chains.
+`release.rs` owns pure facts/reducers. `release_workflow.rs` holds concrete
+lock-scoped orchestration. Production and crash fixtures use the same workflow
+and Git/store adapters. Private real fixtures cover release rejection, branch workflows,
+detached workflows, durable preservation failures, retained-file recency and
+collisions, live callers, stale handles, concurrent processes, crashes, and lost
+stdout. A real `redb` sync fault checks atomic release/ownership/recency reopening.
+These checks don't simulate whole-machine power loss or filesystem isolation.

@@ -35,6 +35,9 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    Release {
+        assignment_handle: String,
+    },
     Acquire {
         reference: Option<OsString>,
     },
@@ -136,6 +139,7 @@ const fn command_name(cli: &Cli) -> &'static str {
             CatalogCommand::Check => "catalog check",
         },
         Command::Events { .. } => "events list",
+        Command::Release { .. } => "release",
         Command::Acquire { .. } => "acquire",
         Command::Assignment { command } => match command {
             RecordedCommand::List => "assignment list",
@@ -164,6 +168,7 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
         cli.command,
         Command::Repo { .. }
             | Command::Worktree { .. }
+            | Command::Release { .. }
             | Command::Acquire { .. }
             | Command::Assignment { .. }
             | Command::Operation { .. }
@@ -185,6 +190,7 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
         }
         Command::Repo { .. }
         | Command::Worktree { .. }
+        | Command::Release { .. }
         | Command::Acquire { .. }
         | Command::Assignment { .. }
         | Command::Operation { .. } => unreachable!(),
@@ -206,6 +212,9 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
 }
 fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolError> {
     use crate::workflows;
+    if let Command::Release { assignment_handle } = &cli.command {
+        return release_command(cli, paths, assignment_handle);
+    }
     let mut context = json!({});
     let mut outcome = "completed";
     let mut reason_code = "ok";
@@ -419,10 +428,10 @@ fn worktree_view(
     };
     let mut value = serde_json::to_value(worktree).unwrap_or_else(|_| json!({}));
     value["registration_state"] = json!(registration_state);
-    let assignment = state
-        .assignments
-        .iter()
-        .find(|a| a.worktree_id == worktree.worktree_id);
+    let assignment = state.assignments.iter().find(|a| {
+        a.worktree_id == worktree.worktree_id
+            && a.state != crate::acquisition::AssignmentState::Released
+    });
     value["ownership"] = json!(assignment.map_or("unassigned", |a| {
         if a.state == crate::acquisition::AssignmentState::Active {
             "assigned"
@@ -451,6 +460,16 @@ fn worktree_view(
             .filter(|o| {
                 o.worktree_id == worktree.worktree_id
                     && o.state != crate::acquisition::AcquisitionState::Completed
+            })
+            .map(|o| json!(o)),
+    );
+    pending.extend(
+        state
+            .releases
+            .iter()
+            .filter(|o| {
+                o.worktree_id == worktree.worktree_id
+                    && o.state != crate::release::ReleaseState::Completed
             })
             .map(|o| json!(o)),
     );
@@ -664,6 +683,17 @@ fn operation_query(
                 })
                 .map(|o| json!(o)),
         );
+        operations.extend(
+            state
+                .releases
+                .iter()
+                .filter(|o| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == o.repository_id)
+                })
+                .map(|o| json!(o)),
+        );
         match command {
             RecordedCommand::List => json!({"operations":operations}),
             RecordedCommand::Inspect { selector } => {
@@ -676,5 +706,33 @@ fn operation_query(
                 json!({"operation":o})
             }
         }
+    })
+}
+
+fn release_command(
+    cli: &Cli,
+    paths: &Paths,
+    assignment_handle: &str,
+) -> Result<Envelope, PoolError> {
+    let handle = assignment_handle
+        .parse()
+        .map_err(|_| PoolError::UnknownAssignment)?;
+    let (state, assignment, operation, already) =
+        crate::release_workflow::release(paths, cli.repo.as_deref(), handle)?;
+    let (outcome, reason_code) = if operation.state != crate::release::ReleaseState::Completed {
+        ("pending", "operation_pending")
+    } else if already {
+        ("completed", "already_released")
+    } else {
+        ("completed", "ok")
+    };
+    Ok(Envelope {
+        schema_version: 1,
+        command: "release".into(),
+        outcome,
+        reason_code,
+        context: json!({"catalog_id":state.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog),"repository_id":assignment.repository_id,"worktree_id":assignment.worktree_id,"assignment_handle":assignment.assignment_handle,"operation_id":operation.operation_id}),
+        data: json!({"assignment":assignment,"operation":operation,"already_released":already,"current_availability":null,"revision":state.revision,"next_action":if outcome=="pending" {"inspect the recorded release; explicit reconciliation is required"}else{"stop using this assignment handle; inspect the worktree before another acquisition"}}),
+        warnings: Vec::new(),
     })
 }

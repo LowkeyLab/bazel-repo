@@ -25,6 +25,7 @@ pub struct Assignment {
 pub enum AssignmentState {
     Preparing,
     Active,
+    Released,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -252,10 +253,10 @@ fn reserve(state: &mut CatalogProjection, a: &Assignment, event_id: &str) -> Res
             .withheld_worktrees
             .iter()
             .any(|w| w.worktree_id == a.worktree_id)
-        || state
-            .assignments
-            .iter()
-            .any(|x| x.assignment_handle == a.assignment_handle || x.worktree_id == a.worktree_id)
+        || state.assignments.iter().any(|x| {
+            x.assignment_handle == a.assignment_handle
+                || (x.worktree_id == a.worktree_id && x.state != AssignmentState::Released)
+        })
         || state.acquisitions.iter().any(|o| {
             o.operation_id == a.operation_id
                 || (o.repository_id == a.repository_id && o.state != AcquisitionState::Completed)

@@ -55,6 +55,8 @@ rust_library(
         "lib.rs",
         "management.rs",
         "paths.rs",
+        "release.rs",
+        "release_workflow.rs",
         "store.rs",
         "store_tests.rs",
         "workflows.rs",
