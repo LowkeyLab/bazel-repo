@@ -10,3 +10,7 @@ pub mod paths;
 pub mod store;
 #[cfg(test)]
 mod store_tests;
+
+pub mod git;
+pub mod management;
+pub mod workflows;

@@ -67,6 +67,12 @@ pub struct CatalogProjection {
     pub revision: u64,
     pub store_version: u32,
     pub projection_version: u32,
+    #[serde(default)]
+    pub repositories: Vec<crate::management::Repository>,
+    #[serde(default)]
+    pub worktrees: Vec<crate::management::Worktree>,
+    #[serde(default)]
+    pub operations: Vec<crate::management::RefreshOperation>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -80,6 +86,11 @@ pub struct CatalogInitialized {
 #[derive(Clone, Debug)]
 pub enum DomainEvent {
     CatalogInitialized(CatalogInitialized),
+    Management {
+        event: Box<crate::management::ManagementEvent>,
+        event_id: String,
+        causation_id: Option<String>,
+    },
 }
 
 /// Records a fresh initialization fact with its event and operation identities.
@@ -115,7 +126,18 @@ pub fn initialized_event(catalog_id: CatalogId) -> Result<Value, PoolError> {
 /// or a corruption error for malformed metadata, payloads, or identities.
 pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent, PoolError> {
     let object = value.as_object().ok_or(PoolError::Corrupt)?;
-    if value["specversion"] != "1.0" || value["type"] != INITIALIZED_TYPE {
+    if value["specversion"] != "1.0"
+        || !matches!(
+            value["type"].as_str(),
+            Some(
+                INITIALIZED_TYPE
+                    | "io.lowkeylab.worktreepool.repository.registered.v1"
+                    | "io.lowkeylab.worktreepool.worktree.registered.v1"
+                    | "io.lowkeylab.worktreepool.repository.refresh.started.v1"
+                    | "io.lowkeylab.worktreepool.repository.refresh.finished.v1"
+            )
+        )
+    {
         return Err(PoolError::Unsupported);
     }
     let _: Event = serde_json::from_value(value.clone()).map_err(|_| PoolError::Corrupt)?;
@@ -124,7 +146,6 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
     if parsed_id.is_nil()
         || parsed_id.to_string() != event_id
         || value["source"] != format!("urn:uuid:{catalog_id}")
-        || value["subject"] != format!("catalogs/{catalog_id}")
         || value["datacontenttype"] != "application/json"
     {
         return Err(PoolError::Corrupt);
@@ -145,9 +166,35 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
             _ => return Err(PoolError::Corrupt),
         }
     }
+    if value["type"] != INITIALIZED_TYPE {
+        let event: crate::management::ManagementEvent =
+            serde_json::from_value(value["data"].clone()).map_err(|_| PoolError::Corrupt)?;
+        if value["subject"] != event.subject()
+            || value["type"] != event.event_type()
+            || event
+                .operation_id()
+                .is_some_and(|id| value["operationid"] != serde_json::json!(id))
+        {
+            return Err(PoolError::Corrupt);
+        }
+        let causation_id = value["causationid"].as_str().map(str::to_owned);
+        if matches!(
+            event,
+            crate::management::ManagementEvent::RefreshFinished(_)
+        ) && causation_id.as_ref().is_none_or(|id| {
+            !Uuid::parse_str(id).is_ok_and(|uuid| !uuid.is_nil() && uuid.to_string() == *id)
+        }) {
+            return Err(PoolError::Corrupt);
+        }
+        return Ok(DomainEvent::Management {
+            event: Box::new(event),
+            event_id: event_id.to_owned(),
+            causation_id,
+        });
+    }
     let data: CatalogInitialized =
         serde_json::from_value(value["data"].clone()).map_err(|_| PoolError::Corrupt)?;
-    if data.catalog_id != catalog_id {
+    if value["subject"] != format!("catalogs/{catalog_id}") || data.catalog_id != catalog_id {
         return Err(PoolError::Corrupt);
     }
     if data.store_version != STORE_VERSION || data.projection_version != PROJECTION_VERSION {
@@ -156,7 +203,7 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
     Ok(DomainEvent::CatalogInitialized(data))
 }
 
-/// Applies exactly one fact at its expected stream revision.
+/// Applies one fact at its expected global committed position.
 ///
 /// # Errors
 /// Returns a conflict for stale revisions or repeated initialization, or an
@@ -181,7 +228,76 @@ pub fn reduce(
             revision: 1,
             store_version: data.store_version,
             projection_version: data.projection_version,
+            repositories: Vec::new(),
+            worktrees: Vec::new(),
+            operations: Vec::new(),
         }),
         DomainEvent::CatalogInitialized(_) => Err(PoolError::Conflict),
+        DomainEvent::Management {
+            event,
+            event_id,
+            causation_id,
+        } => {
+            let mut next = current.cloned().ok_or(PoolError::Conflict)?;
+            event.apply(&mut next, event_id, causation_id.as_deref())?;
+            next.revision = expected_revision.checked_add(1).ok_or(PoolError::Corrupt)?;
+            Ok(next)
+        }
     }
+}
+
+/// Encodes a typed resource fact using the same strict catalog event profile.
+/// # Errors
+/// Rejects malformed typed payloads or envelope serialization.
+pub fn management_event(
+    catalog_id: CatalogId,
+    event: &crate::management::ManagementEvent,
+) -> Result<Value, PoolError> {
+    let mut value = initialized_event(catalog_id)?;
+    value["type"] = serde_json::json!(event.event_type());
+    value["subject"] = serde_json::json!(event.subject());
+    if let Some(operation_id) = event.operation_id() {
+        value["operationid"] = serde_json::json!(operation_id);
+    }
+    value["data"] = serde_json::to_value(event).map_err(|_| PoolError::Corrupt)?;
+    Ok(value)
+}
+
+impl DomainEvent {
+    #[must_use]
+    pub fn stream_id(&self, catalog_id: CatalogId) -> String {
+        match self {
+            Self::Management { event: e, .. } => e.repository_id().map_or_else(
+                || format!("catalogs/{catalog_id}"),
+                |id| format!("repositories/{id}"),
+            ),
+            Self::CatalogInitialized(_) => format!("catalogs/{catalog_id}"),
+        }
+    }
+    /// # Errors
+    /// Rejects facts for unknown repositories.
+    pub fn expected_revision(&self, state: &CatalogProjection) -> Result<u64, PoolError> {
+        match self {
+            Self::Management { event: e, .. } if e.repository_id().is_some() => state
+                .repositories
+                .iter()
+                .find(|r| Some(r.repository_id) == e.repository_id())
+                .map(|r| r.revision)
+                .ok_or(PoolError::Unregistered),
+            _ => Ok(1 + state.repositories.len() as u64),
+        }
+    }
+}
+
+/// Encodes a result fact caused by its recorded intent event.
+/// # Errors
+/// Rejects malformed typed payloads or envelope serialization.
+pub fn management_event_caused_by(
+    catalog_id: CatalogId,
+    event: &crate::management::ManagementEvent,
+    intent_event_id: &str,
+) -> Result<Value, PoolError> {
+    let mut value = management_event(catalog_id, event)?;
+    value["causationid"] = serde_json::json!(intent_event_id);
+    Ok(value)
 }

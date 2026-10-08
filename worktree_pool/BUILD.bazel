@@ -23,11 +23,13 @@ rust_test(
         "//worktree_pool/test_support",
     ],
     edition = "2024",
+    env_inherit = ["PATH"],  # keep: real Git from the repository Nix development shell
     rustc_env = {
         "POOL_BINARY": "$(rootpath :worktree_pool)",
         "CRASH_BINARY": "$(rootpath //worktree_pool/test_support)",
         "INSTA_WORKSPACE_ROOT": ".",
     },
+    tags = ["local"],  # keep: machine-local Git and filesystem integration
     deps = [
         "@crates//:googletest",
         "@crates//:insta",
@@ -46,10 +48,13 @@ rust_library(
         "diagnostics_tests.rs",
         "domain.rs",
         "error.rs",
+        "git.rs",
         "lib.rs",
+        "management.rs",
         "paths.rs",
         "store.rs",
         "store_tests.rs",
+        "workflows.rs",
     ],
     compile_data = ["Cargo.toml"],
     crate_name = "worktree_pool",

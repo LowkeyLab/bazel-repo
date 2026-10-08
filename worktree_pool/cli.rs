@@ -28,11 +28,21 @@ struct Cli {
     catalog_dir: Option<PathBuf>,
     #[arg(long, global = true)]
     config: Option<PathBuf>,
+    #[arg(long, global = true)]
+    repo: Option<OsString>,
     #[command(subcommand)]
     command: Command,
 }
 #[derive(Subcommand)]
 enum Command {
+    Repo {
+        #[command(subcommand)]
+        command: RepoCommand,
+    },
+    Worktree {
+        #[command(subcommand)]
+        command: WorktreeCommand,
+    },
     Catalog {
         #[command(subcommand)]
         command: CatalogCommand,
@@ -41,6 +51,19 @@ enum Command {
         #[command(subcommand)]
         command: EventsCommand,
     },
+}
+#[derive(Subcommand)]
+enum RepoCommand {
+    Register { path: PathBuf },
+    List,
+    Inspect { selector: Option<OsString> },
+    Refresh { selector: Option<OsString> },
+}
+#[derive(Subcommand)]
+enum WorktreeCommand {
+    Register { path: PathBuf },
+    List,
+    Inspect { selector: OsString },
 }
 #[derive(Subcommand)]
 enum CatalogCommand {
@@ -69,7 +92,7 @@ impl Envelope {
             schema_version: 1,
             command,
             outcome: match error {
-                PoolError::Pending => "pending",
+                PoolError::Pending | PoolError::OperationPending => "pending",
                 PoolError::CommitUnknown => "unknown",
                 _ => "rejected",
             },
@@ -97,7 +120,21 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             CatalogCommand::Check => "catalog check",
         },
         Command::Events { .. } => "events list",
+        Command::Repo { command } => match command {
+            RepoCommand::Register { .. } => "repo register",
+            RepoCommand::List => "repo list",
+            RepoCommand::Inspect { .. } => "repo inspect",
+            RepoCommand::Refresh { .. } => "repo refresh",
+        },
+        Command::Worktree { command } => match command {
+            WorktreeCommand::Register { .. } => "worktree register",
+            WorktreeCommand::List => "worktree list",
+            WorktreeCommand::Inspect { .. } => "worktree inspect",
+        },
     };
+    if matches!(cli.command, Command::Repo { .. } | Command::Worktree { .. }) {
+        return resources(cli, paths, command);
+    }
     let (projection, data) = match &cli.command {
         Command::Catalog {
             command: CatalogCommand::Init,
@@ -111,6 +148,7 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             let data = serde_json::to_value(&session.projection).map_err(|_| PoolError::Corrupt)?;
             (session.projection, data)
         }
+        Command::Repo { .. } | Command::Worktree { .. } => unreachable!(),
         Command::Events { .. } => {
             let session = catalog::open(paths)?;
             let events = session.store().events()?;
@@ -126,6 +164,224 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
         data,
         warnings: Vec::new(),
     })
+}
+fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolError> {
+    use crate::workflows;
+    let mut context = json!({});
+    let mut outcome = "completed";
+    let mut reason_code = "ok";
+    let (state, mut data) = match &cli.command {
+        Command::Repo {
+            command: RepoCommand::Refresh { selector },
+        } => {
+            if selector.is_some() && cli.repo.is_some() {
+                let state = {
+                    let session = catalog::open(paths)?;
+                    session.projection
+                };
+                if workflows::repository(&state, selector.as_deref())?.repository_id
+                    != workflows::repository(&state, cli.repo.as_deref())?.repository_id
+                {
+                    return Err(PoolError::Selectors);
+                }
+            }
+            let (state, operation) =
+                workflows::refresh(paths, selector.as_deref().or(cli.repo.as_deref()))?;
+            context["repository_id"] = json!(operation.repository_id);
+            context["operation_id"] = json!(operation.operation_id);
+            if operation.state != crate::management::RefreshState::Completed {
+                outcome = "pending";
+                reason_code = if operation.last_checkpoint == "fetch_failed" {
+                    "refresh_failed"
+                } else {
+                    "operation_pending"
+                };
+            }
+            (
+                state,
+                json!({"operation":operation,"next_action":if outcome == "completed" { "inspect the refreshed repository" } else { "inspect the recorded operation; explicit reconciliation is required before retry" }}),
+            )
+        }
+        Command::Repo {
+            command: RepoCommand::Register { path },
+        } => {
+            let (state, repository) =
+                workflows::register_repository(paths, path, cli.repo.as_deref())?;
+            context["repository_id"] = json!(repository.repository_id);
+            (state, json!({"repository": repository}))
+        }
+        Command::Worktree {
+            command: WorktreeCommand::Register { path },
+        } => {
+            let (state, worktree) = workflows::register_worktree(paths, path, cli.repo.as_deref())?;
+            context["repository_id"] = json!(worktree.repository_id);
+            context["worktree_id"] = json!(worktree.worktree_id);
+            let view = worktree_view(&worktree, &state);
+            (state, json!({"worktree": view}))
+        }
+        _ => {
+            let state = catalog::open(paths)?.projection;
+            let data = resource_query(cli, &state, &mut context)?;
+            (state, data)
+        }
+    };
+    data["revision"] = json!(state.revision);
+    context["catalog_id"] = json!(state.catalog_id);
+    context["catalog_path"] = json!(EncodedPath::from_path(&paths.catalog));
+    Ok(Envelope {
+        schema_version: 1,
+        command: command.into(),
+        outcome,
+        reason_code,
+        context,
+        data,
+        warnings: Vec::new(),
+    })
+}
+fn resource_query(
+    cli: &Cli,
+    state: &crate::domain::CatalogProjection,
+    context: &mut Value,
+) -> Result<Value, PoolError> {
+    use crate::{management::WorktreeId, workflows};
+    let data = match &cli.command {
+        Command::Repo {
+            command: RepoCommand::List,
+        } => {
+            if cli.repo.is_some() {
+                json!({"repositories": [workflows::repository(state, cli.repo.as_deref())?]})
+            } else {
+                json!({"repositories": state.repositories})
+            }
+        }
+        Command::Repo {
+            command: RepoCommand::Inspect { selector },
+        } => {
+            let repository =
+                workflows::repository(state, selector.as_deref().or(cli.repo.as_deref()))?;
+            if cli.repo.is_some()
+                && workflows::repository(state, cli.repo.as_deref())?.repository_id
+                    != repository.repository_id
+            {
+                return Err(PoolError::Selectors);
+            }
+            context["repository_id"] = json!(repository.repository_id);
+            json!({"repository":repository,"registered_count":state.worktrees.iter().filter(|w| w.repository_id == repository.repository_id).count(), "operations":state.operations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>()})
+        }
+        Command::Worktree {
+            command: WorktreeCommand::List,
+        } => {
+            let selected = cli
+                .repo
+                .as_deref()
+                .map(|s| workflows::repository(state, Some(s)))
+                .transpose()?;
+            let worktrees: Vec<_> = state
+                .worktrees
+                .iter()
+                .filter(|w| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == w.repository_id)
+                })
+                .map(|w| worktree_view(w, state))
+                .collect();
+            json!({"worktrees":worktrees})
+        }
+        Command::Worktree {
+            command: WorktreeCommand::Inspect { selector },
+        } => {
+            let id = selector.to_str().and_then(|s| s.parse::<WorktreeId>().ok());
+            let path = if id.is_none() {
+                let p = PathBuf::from(selector);
+                Some(if p.is_absolute() {
+                    p
+                } else {
+                    std::env::current_dir()?.join(p)
+                })
+            } else {
+                None
+            };
+            let worktree = state
+                .worktrees
+                .iter()
+                .find(|w| {
+                    Some(w.worktree_id) == id
+                        || path
+                            .as_ref()
+                            .is_some_and(|p| w.path.bytes == EncodedPath::from_path(p).bytes)
+                })
+                .ok_or(PoolError::Unregistered)?;
+            if cli.repo.is_some()
+                && workflows::repository(state, cli.repo.as_deref())?.repository_id
+                    != worktree.repository_id
+            {
+                return Err(PoolError::Selectors);
+            }
+            context["repository_id"] = json!(worktree.repository_id);
+            context["worktree_id"] = json!(worktree.worktree_id);
+            json!({"worktree":worktree_view(worktree, state)})
+        }
+        _ => unreachable!(),
+    };
+    Ok(data)
+}
+fn worktree_view(
+    worktree: &crate::management::Worktree,
+    state: &crate::domain::CatalogProjection,
+) -> Value {
+    let path = worktree.path.to_path();
+    let registration_state = match path.and_then(|p| {
+        std::fs::symlink_metadata(&p)
+            .map(|_| p)
+            .map_err(PoolError::from)
+    }) {
+        Err(PoolError::Io(ref e)) if e.kind() == io::ErrorKind::NotFound => "missing",
+        Err(_) => "unreadable",
+        Ok(path) => match crate::git::checkout(&path) {
+            Ok(observed)
+                if EncodedPath::from_path(&observed.path).bytes == worktree.path.bytes
+                    && EncodedPath::from_path(&observed.git_directory).bytes
+                        == worktree.git_directory.bytes
+                    && state.repositories.iter().any(|r| {
+                        r.repository_id == worktree.repository_id
+                            && r.common_directory.bytes
+                                == EncodedPath::from_path(&observed.common_directory).bytes
+                    }) =>
+            {
+                "registered"
+            }
+            Ok(_) => "mismatched",
+            Err(_) => "unreadable",
+        },
+    };
+    let mut value = serde_json::to_value(worktree).unwrap_or_else(|_| json!({}));
+    value["registration_state"] = json!(registration_state);
+    value["ownership"] = json!("unassigned");
+    let pending: Vec<_> = state
+        .operations
+        .iter()
+        .filter(|o| {
+            o.repository_id == worktree.repository_id
+                && o.state != crate::management::RefreshState::Completed
+        })
+        .collect();
+    value["availability"] = json!(
+        if registration_state == "registered" && pending.is_empty() {
+            "unverified"
+        } else {
+            "withheld"
+        }
+    );
+    value["withheld_reason"] = if registration_state != "registered" {
+        json!(registration_state)
+    } else if pending.is_empty() {
+        Value::Null
+    } else {
+        json!("operation_pending")
+    };
+    value["pending_work"] = json!(pending);
+    value
 }
 /// One result write; reporting failure never repeats a committed command.
 pub fn run(args: &[OsString]) -> u8 {
@@ -164,6 +420,17 @@ pub fn run(args: &[OsString]) -> u8 {
             CatalogCommand::Check => "catalog check",
         },
         Command::Events { .. } => "events list",
+        Command::Repo { command } => match command {
+            RepoCommand::Register { .. } => "repo register",
+            RepoCommand::List => "repo list",
+            RepoCommand::Inspect { .. } => "repo inspect",
+            RepoCommand::Refresh { .. } => "repo refresh",
+        },
+        Command::Worktree { command } => match command {
+            WorktreeCommand::Register { .. } => "worktree register",
+            WorktreeCommand::List => "worktree list",
+            WorktreeCommand::Inspect { .. } => "worktree inspect",
+        },
     }
     .to_owned();
     let paths = match Paths::load(cli.catalog_dir.clone(), cli.config.clone(), cli.json) {
@@ -188,7 +455,8 @@ pub fn run(args: &[OsString]) -> u8 {
         Ok(result) => result,
         Err(error) => Envelope::failure(name, &error),
     };
-    if matches!(result.outcome, "pending" | "unknown")
+    if matches!(cli.command, Command::Catalog { .. })
+        && matches!(result.outcome, "pending" | "unknown")
         && let Ok(observation) = catalog::inspect_authority(&paths)
     {
         result.context =
