@@ -1,3 +1,0 @@
-exports_files([
-    "llvm_compile_resource_directory.patch",
-])
