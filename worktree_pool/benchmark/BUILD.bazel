@@ -1,0 +1,27 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+
+py_test(
+    name = "gate_test",
+    size = "small",
+    srcs = ["gate_test.py"],
+    main = "gate_test.py",
+    deps = [":evaluate"],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
+)
+
+py_library(
+    name = "evaluate",
+    srcs = ["evaluate.py"],
+)
+
+py_binary(
+    name = "run",
+    srcs = ["run.py"],
+    main = "run.py",
+    deps = [":evaluate"],
+)
