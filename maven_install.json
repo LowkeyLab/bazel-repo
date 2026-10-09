@@ -26,7 +26,7 @@
     "io.ktor:ktor-server-test-host-jvm": 2035263202,
     "io.ktor:ktor-server-thymeleaf-jvm": 779675687,
     "io.ktor:ktor-server-websockets-jvm": -371656992,
-    "org.jetbrains.exposed:exposed-core": -976689526,
+    "org.jetbrains.exposed:exposed-core": 1510823307,
     "org.jetbrains.exposed:exposed-dao": -1119042739,
     "org.jetbrains.exposed:exposed-jdbc": 107207398,
     "org.jetbrains.kotlin:kotlin-test-junit": 1914213676,
@@ -328,13 +328,13 @@
     "org.javassist:javassist": -1460003306,
     "org.javassist:javassist:jar:javadoc": 1262034680,
     "org.javassist:javassist:jar:sources": 200392990,
-    "org.jetbrains.exposed:exposed-core": -1218171208,
-    "org.jetbrains.exposed:exposed-core:jar:javadoc": 377958605,
-    "org.jetbrains.exposed:exposed-core:jar:sources": -703958980,
-    "org.jetbrains.exposed:exposed-dao": 372792092,
+    "org.jetbrains.exposed:exposed-core": 2124739778,
+    "org.jetbrains.exposed:exposed-core:jar:javadoc": -836519594,
+    "org.jetbrains.exposed:exposed-core:jar:sources": 2145464302,
+    "org.jetbrains.exposed:exposed-dao": -394266799,
     "org.jetbrains.exposed:exposed-dao:jar:javadoc": -556233498,
     "org.jetbrains.exposed:exposed-dao:jar:sources": -1190643558,
-    "org.jetbrains.exposed:exposed-jdbc": -604127728,
+    "org.jetbrains.exposed:exposed-jdbc": -151106598,
     "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": -1337657585,
     "org.jetbrains.exposed:exposed-jdbc:jar:sources": -323947161,
     "org.jetbrains.kotlin:kotlin-reflect": -1734605400,
@@ -1212,11 +1212,11 @@
     },
     "org.jetbrains.exposed:exposed-core": {
       "shasums": {
-        "jar": "007939746e1c7d267cbce277532874f8468cf2b3de7fc1dc1cf8953389fe3a88",
-        "javadoc": "713b707639333da98d406ae1f8fb2390a9a67611a826f4534d3a90a1f7cf8ae7",
-        "sources": "2f7e0c5529e0397a675905d87b95fcfe6443894a7d7c3b9f3dfe24e83b445cf7"
+        "jar": "6689fe8999b14e56ea51e518fa2495573be8280cac939230a5d5b12164c6c1ad",
+        "javadoc": "6b0756aae3c17574a712040d599d6648797ca53f8625e140026f8951ba5cc808",
+        "sources": "ce1bfe5df7d67682016354bd48d149c830b4da135bc1ae4ce0dee22bddc62de0"
       },
-      "version": "1.5.0"
+      "version": "1.5.1"
     },
     "org.jetbrains.exposed:exposed-dao": {
       "shasums": {
