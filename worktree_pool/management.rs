@@ -81,6 +81,13 @@ pub enum RefreshState {
     Pending,
     Completed,
     NeedsReconciliation,
+    Reconciled,
+}
+impl RefreshState {
+    #[must_use]
+    pub const fn is_pending(self) -> bool {
+        matches!(self, Self::Pending | Self::NeedsReconciliation)
+    }
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -113,6 +120,8 @@ pub struct RefreshFinished {
     deny_unknown_fields
 )]
 pub enum ManagementEvent {
+    RepositoryRecovery(crate::repository_recovery::RepositoryRecoveryEvent),
+    Recovery(crate::recovery::RecoveryEvent),
     Creation(crate::creation::CreationEvent),
     CapacityConfigured {
         repository_id: RepositoryId,
@@ -131,6 +140,8 @@ impl ManagementEvent {
     #[must_use]
     pub const fn event_type(&self) -> &'static str {
         match self {
+            Self::RepositoryRecovery(r) => r.event_type(),
+            Self::Recovery(r) => r.event_type(),
             Self::Creation(c) => c.event_type(),
             Self::CapacityConfigured { .. } => {
                 "io.lowkeylab.worktreepool.repository.capacity.configured.v1"
@@ -148,6 +159,8 @@ impl ManagementEvent {
     #[must_use]
     pub const fn repository_id(&self) -> Option<RepositoryId> {
         match self {
+            Self::RepositoryRecovery(r) => Some(r.repository_id()),
+            Self::Recovery(r) => Some(r.repository_id()),
             Self::Creation(c) => c.repository_id(),
             Self::CapacityConfigured { repository_id, .. } => Some(*repository_id),
             Self::WorktreeWithheld(w) => Some(w.repository_id),
@@ -162,6 +175,8 @@ impl ManagementEvent {
     #[must_use]
     pub const fn operation_id(&self) -> Option<OperationId> {
         match self {
+            Self::RepositoryRecovery(r) => Some(r.operation_id()),
+            Self::Recovery(r) => Some(r.operation_id()),
             Self::Creation(c) => Some(c.operation_id()),
             Self::Release(r) => Some(r.operation_id()),
             Self::Acquisition(a) => Some(a.operation_id()),
@@ -173,6 +188,8 @@ impl ManagementEvent {
     #[must_use]
     pub fn subject(&self) -> String {
         match self {
+            Self::RepositoryRecovery(r) => format!("repositories/{}", r.repository_id()),
+            Self::Recovery(r) => format!("worktrees/{}", r.worktree_id()),
             Self::Creation(c) => format!("worktrees/{}", c.worktree_id()),
             Self::CapacityConfigured { repository_id, .. } => {
                 format!("repositories/{repository_id}")
@@ -198,6 +215,8 @@ impl ManagementEvent {
         causation_id: Option<&str>,
     ) -> Result<(), PoolError> {
         match self {
+            Self::RepositoryRecovery(r) => r.apply(state, event_id, causation_id)?,
+            Self::Recovery(r) => r.apply(state, event_id, causation_id)?,
             Self::Creation(c) => c.apply(state, event_id, causation_id)?,
             Self::CapacityConfigured {
                 repository_id,
@@ -206,35 +225,27 @@ impl ManagementEvent {
             Self::WorktreeWithheld(w) => withhold(state, w)?,
             Self::Release(r) => r.apply(state, event_id, causation_id)?,
             Self::Acquisition(a) => a.apply(state, event_id, causation_id)?,
-            Self::RepositoryRegistered(repository) => {
-                repository.common_directory.to_path()?;
-                repository.context_path.to_path()?;
-                if repository.capacity != 4
-                    || repository.revision != 0
-                    || state.repositories.iter().any(|r| {
-                        r.repository_id == repository.repository_id
-                            || r.common_directory.bytes == repository.common_directory.bytes
-                    })
-                {
-                    return Err(PoolError::Conflict);
-                }
-                state.repositories.push(repository.clone());
-            }
+            Self::RepositoryRegistered(repository) => register_repository_fact(state, repository)?,
             Self::WorktreeRegistered(worktree) | Self::WorktreeEnrolled(worktree) => {
                 enroll_worktree(state, worktree)?;
             }
             Self::RefreshStarted(started) => {
-                if state.releases.iter().any(|o| {
-                    o.repository_id == started.repository_id
-                        && o.state != crate::release::ReleaseState::Completed
-                }) || state.acquisitions.iter().any(|o| {
-                    o.repository_id == started.repository_id
-                        && o.state != crate::acquisition::AcquisitionState::Completed
-                }) || state.operations.iter().any(|o| {
-                    o.operation_id == started.operation_id
-                        || (o.repository_id == started.repository_id
-                            && o.state != RefreshState::Completed)
-                }) {
+                if state.has_pending_recovery(started.repository_id) {
+                    return Err(PoolError::OperationPending);
+                }
+                if state
+                    .releases
+                    .iter()
+                    .any(|o| o.repository_id == started.repository_id && o.state.is_pending())
+                    || state
+                        .acquisitions
+                        .iter()
+                        .any(|o| o.repository_id == started.repository_id && o.state.is_pending())
+                    || state.operations.iter().any(|o| {
+                        o.operation_id == started.operation_id
+                            || (o.repository_id == started.repository_id && o.state.is_pending())
+                    })
+                {
                     return Err(PoolError::OperationPending);
                 }
                 state.operations.push(RefreshOperation {
@@ -376,5 +387,25 @@ fn configure_capacity(
         .find(|r| r.repository_id == repository_id)
         .ok_or(PoolError::Unregistered)?
         .capacity = maximum;
+    Ok(())
+}
+
+fn register_repository_fact(
+    state: &mut CatalogProjection,
+    repository: &Repository,
+) -> Result<(), PoolError> {
+    repository.common_directory.to_path()?;
+    repository.context_path.to_path()?;
+    if repository.capacity != 4
+        || repository.revision != 0
+        || state.repositories.iter().any(|r| {
+            r.repository_id == repository.repository_id
+                || r.common_directory.bytes == repository.common_directory.bytes
+        })
+    {
+        return Err(PoolError::Conflict);
+    }
+    state.repositories.push(repository.clone());
+
     Ok(())
 }

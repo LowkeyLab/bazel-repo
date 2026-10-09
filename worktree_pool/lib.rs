@@ -26,3 +26,13 @@ pub mod release_workflow;
 
 pub mod creation;
 pub mod creation_workflow;
+
+pub mod recovery_workflow;
+
+pub mod recovery;
+
+pub mod catalog_recovery_cli;
+
+pub mod recovery_inspection;
+
+pub mod repository_recovery;

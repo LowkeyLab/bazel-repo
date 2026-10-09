@@ -2,7 +2,8 @@
 use std::{collections::HashSet, fs::OpenOptions, os::unix::fs::OpenOptionsExt, path::Path};
 
 use redb::{
-    Database, Durability, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition,
+    Database, Durability, ReadOnlyDatabase, ReadableDatabase, ReadableTable, ReadableTableMetadata,
+    TableDefinition,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,6 +30,13 @@ struct RecordedEvent {
 pub struct Store {
     database: Database,
     catalog_id: CatalogId,
+}
+
+/// A repair-needed database is distinct from invalid or unreadable authority.
+#[derive(Debug)]
+pub enum ReadOnlyInspectionError {
+    RepairRequired,
+    Rejected(PoolError),
 }
 
 impl Store {
@@ -173,7 +181,41 @@ impl Store {
     /// Returns storage errors, identity conflicts, unsupported versions, or
     /// corruption errors for invalid history, ordering, or derived state.
     pub fn projection(&self) -> Result<CatalogProjection, PoolError> {
-        let transaction = self.database.begin_read().map_err(|_| PoolError::Storage)?;
+        Self::validated_projection(&self.database, self.catalog_id)
+    }
+
+    /// Opens existing authority without modifying its bytes, including on rejection.
+    /// # Errors
+    /// Rejects unreadable, repair-required, conflicting, unsupported, or corrupt state.
+    pub fn inspect_read_only(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, PoolError> {
+        Self::inspect_for_recovery(path, catalog_id).map_err(|error| match error {
+            ReadOnlyInspectionError::RepairRequired => PoolError::Storage,
+            ReadOnlyInspectionError::Rejected(error) => error,
+        })
+    }
+
+    /// Distinguishes redb's actual repair requirement without writing the database.
+    /// # Errors
+    /// Returns `RepairRequired` only for redb `RepairAborted`; otherwise preserves validation errors.
+    pub fn inspect_for_recovery(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, ReadOnlyInspectionError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|error| match error {
+            redb::DatabaseError::RepairAborted => ReadOnlyInspectionError::RepairRequired,
+            _ => ReadOnlyInspectionError::Rejected(PoolError::Storage),
+        })?;
+        Self::validated_projection(&database, catalog_id).map_err(ReadOnlyInspectionError::Rejected)
+    }
+
+    fn validated_projection(
+        database: &impl ReadableDatabase,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, PoolError> {
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
         let state_table = transaction
             .open_table(STATE)
             .map_err(|_| PoolError::Corrupt)?;
@@ -183,7 +225,7 @@ impl Store {
             .ok_or(PoolError::Corrupt)?;
         let stored: CatalogProjection =
             serde_json::from_str(state.value()).map_err(|_| PoolError::Corrupt)?;
-        if stored.catalog_id != self.catalog_id {
+        if stored.catalog_id != catalog_id {
             return Err(PoolError::Conflict);
         }
         if stored.store_version != crate::domain::STORE_VERSION
@@ -218,8 +260,8 @@ impl Store {
             {
                 return Err(PoolError::Corrupt);
             }
-            let event = decode_event(&recorded.event, self.catalog_id)?;
-            let stream_id = event.stream_id(self.catalog_id);
+            let event = decode_event(&recorded.event, catalog_id)?;
+            let stream_id = event.stream_id(catalog_id);
             let expected = match rebuilt.as_ref() {
                 Some(state) => event.expected_revision(state)?,
                 None => 0,
@@ -247,8 +289,23 @@ impl Store {
     /// # Errors
     /// Returns storage errors or catalog validation errors before exposing history.
     pub fn events(&self) -> Result<Vec<Value>, PoolError> {
-        self.projection()?;
-        let transaction = self.database.begin_read().map_err(|_| PoolError::Storage)?;
+        Self::validated_events(&self.database, self.catalog_id)
+    }
+
+    /// Returns validated envelopes without modifying the catalog file.
+    /// # Errors
+    /// Rejects unreadable, repair-required, conflicting, unsupported, or corrupt state.
+    pub fn events_read_only(path: &Path, catalog_id: CatalogId) -> Result<Vec<Value>, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Self::validated_events(&database, catalog_id)
+    }
+
+    fn validated_events(
+        database: &impl ReadableDatabase,
+        catalog_id: CatalogId,
+    ) -> Result<Vec<Value>, PoolError> {
+        Self::validated_projection(database, catalog_id)?;
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
         let table = transaction
             .open_table(EVENTS)
             .map_err(|_| PoolError::Corrupt)?;

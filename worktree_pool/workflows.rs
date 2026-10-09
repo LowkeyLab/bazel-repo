@@ -196,15 +196,19 @@ pub(crate) fn refresh_locked(
     repo: &Repository,
     mut observe: impl FnMut(RefreshCheckpoint),
 ) -> Result<(CatalogProjection, crate::management::RefreshOperation), PoolError> {
-    use crate::management::{OperationId, RefreshFinished, RefreshStarted, RefreshState};
+    use crate::management::{OperationId, RefreshFinished, RefreshStarted};
     let operation_id = OperationId::new();
     let intent_event_id;
     {
         let session = catalog::open(paths)?;
-        if let Some(pending) =
-            session.projection.operations.iter().find(|o| {
-                o.repository_id == repo.repository_id && o.state != RefreshState::Completed
-            })
+        if session.projection.has_pending_recovery(repo.repository_id) {
+            return Err(PoolError::OperationPending);
+        }
+        if let Some(pending) = session
+            .projection
+            .operations
+            .iter()
+            .find(|o| o.repository_id == repo.repository_id && o.state.is_pending())
         {
             let pending = pending.clone();
             return Ok((session.projection, pending));

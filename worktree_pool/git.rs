@@ -366,6 +366,13 @@ pub fn verify_preserved_tip(common: &Path, operation: &str, head: &str) -> Resul
         return Err(PoolError::Git);
     }
     let reference = format!("refs/worktree-pool/{operation}");
+    let symbolic = command(common)
+        .args(["symbolic-ref", "--quiet", &reference])
+        .output()
+        .map_err(|_| PoolError::Git)?;
+    if symbolic.status.code() != Some(1) {
+        return Err(PoolError::Git);
+    }
     let observed = output_oid(
         &command(common)
             .args(["show-ref", "--verify", "--hash", &reference])

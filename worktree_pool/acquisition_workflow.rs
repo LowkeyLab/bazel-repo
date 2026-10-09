@@ -2,7 +2,7 @@
 use std::{ffi::OsStr, path::Path};
 
 use crate::{
-    acquisition::{AcquisitionEvent, AcquisitionState, Assignment, AssignmentState},
+    acquisition::{AcquisitionEvent, Assignment, AssignmentState},
     catalog,
     coordination::LockGuard,
     domain::{CatalogProjection, decode_event, management_event, management_event_caused_by},
@@ -59,13 +59,18 @@ pub fn acquire_observed(
     if state
         .acquisitions
         .iter()
-        .any(|o| o.repository_id == repo.repository_id && o.state != AcquisitionState::Completed)
+        .any(|o| o.repository_id == repo.repository_id && o.state.is_pending())
     {
         return Err(PoolError::OperationPending);
     }
-    if state.releases.iter().any(|o| {
-        o.repository_id == repo.repository_id && o.state != crate::release::ReleaseState::Completed
-    }) {
+    if state
+        .releases
+        .iter()
+        .any(|o| o.repository_id == repo.repository_id && o.state.is_pending())
+    {
+        return Err(PoolError::OperationPending);
+    }
+    if state.has_pending_recovery(repo.repository_id) {
         return Err(PoolError::OperationPending);
     }
     let (state, refresh) = workflows::refresh_locked(paths, &repo, |_| {})?;

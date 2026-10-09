@@ -11,8 +11,9 @@ use crate::{
     coordination::{LockGuard, private_directory, private_file},
     domain::{CatalogId, CatalogProjection},
     error::PoolError,
+    management::OperationId,
     paths::{EncodedPath, Paths},
-    store::Store,
+    store::{ReadOnlyInspectionError, Store},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -22,7 +23,35 @@ struct Locator {
     catalog_id: CatalogId,
     catalog_path: EncodedPath,
     phase: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recovery: Option<AuthorityRecovery>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    recovery_history: Vec<AuthorityRecoveryFact>,
 }
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AuthorityRecovery {
+    operation_id: OperationId,
+    checkpoint: String,
+    #[serde(default)]
+    kind: AuthorityRecoveryKind,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthorityRecoveryKind {
+    #[default]
+    Bootstrap,
+    StorageRepair,
+}
+impl Locator {
+    fn recovery_pending(&self) -> bool {
+        self.recovery
+            .as_ref()
+            .is_some_and(|recovery| recovery.checkpoint == "intent_recorded")
+    }
+}
+
 pub struct CatalogSession {
     pub projection: CatalogProjection,
     store: Store,
@@ -47,6 +76,16 @@ fn read_locator(paths: &Paths) -> Result<Locator, PoolError> {
             if value.catalog_path.to_path()? != paths.catalog {
                 return Err(PoolError::Conflict);
             }
+            if value.recovery.as_ref().is_some_and(|recovery| {
+                !matches!(
+                    (value.phase.as_str(), recovery.checkpoint.as_str()),
+                    ("initializing", "intent_recorded")
+                        | ("active", "intent_recorded" | "completed")
+                )
+            }) {
+                return Err(PoolError::Corrupt);
+            }
+            validate_recovery_history(&value)?;
             Ok(value)
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(PoolError::Missing),
@@ -89,9 +128,10 @@ pub fn initialize_observed(
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), true)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     match read_locator(paths) {
+        Ok(locator) if locator.recovery_pending() => return Err(PoolError::Pending),
         Ok(locator) if locator.phase == "active" => {
             // Validate existing authority before rejecting reinitialization.
-            let _ = Store::open(&paths.catalog, locator.catalog_id)?;
+            let _ = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
             return Err(PoolError::AlreadyInitialized);
         }
         Ok(_) => return Err(PoolError::Pending),
@@ -108,6 +148,8 @@ pub fn initialize_observed(
         catalog_id: id,
         catalog_path: EncodedPath::from_path(&paths.catalog),
         phase: "initializing".into(),
+        recovery: None,
+        recovery_history: Vec::new(),
     };
     // Durable identity and intent precede database creation. Interrupted init cannot reset authority.
     write_locator(&paths.state.join("active.json"), &locator, true)?;
@@ -136,7 +178,7 @@ pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
     let maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     let locator = read_locator(paths)?;
-    if locator.phase == "initializing" {
+    if locator.phase == "initializing" || locator.recovery_pending() {
         return Err(PoolError::Pending);
     }
     if locator.phase != "active" {
@@ -156,6 +198,60 @@ pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
     })
 }
 
+/// Inspects active catalog projection without changing protected storage.
+/// # Errors
+/// Rejects missing, pending, conflicting, unsupported, or corrupt authority.
+pub fn inspect_projection(paths: &Paths) -> Result<CatalogProjection, PoolError> {
+    if !paths.state.join("active.json").exists() {
+        return Err(PoolError::Missing);
+    }
+    let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
+    let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+    let locator = read_locator(paths)?;
+    if locator.phase == "initializing" || locator.recovery_pending() {
+        return Err(PoolError::Pending);
+    }
+    if locator.phase != "active" {
+        return Err(PoolError::Corrupt);
+    }
+    private_file(&paths.catalog).map_err(|error| match error {
+        PoolError::Io(ref error) if error.kind() == std::io::ErrorKind::NotFound => {
+            PoolError::Missing
+        }
+        _ => error,
+    })?;
+    Store::inspect_read_only(&paths.catalog, locator.catalog_id)
+}
+
+/// Inspects retained catalog events under the same authority coordination.
+/// # Errors
+/// Rejects missing, pending, conflicting, unsupported, or corrupt authority.
+pub fn inspect_events(
+    paths: &Paths,
+) -> Result<(CatalogProjection, Vec<serde_json::Value>), PoolError> {
+    if !paths.state.join("active.json").exists() {
+        return Err(PoolError::Missing);
+    }
+    let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
+    let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+    let locator = read_locator(paths)?;
+    if locator.phase == "initializing" || locator.recovery_pending() {
+        return Err(PoolError::Pending);
+    }
+    if locator.phase != "active" {
+        return Err(PoolError::Corrupt);
+    }
+    private_file(&paths.catalog).map_err(|error| match error {
+        PoolError::Io(ref error) if error.kind() == std::io::ErrorKind::NotFound => {
+            PoolError::Missing
+        }
+        _ => error,
+    })?;
+    let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
+    let events = Store::events_read_only(&paths.catalog, locator.catalog_id)?;
+    Ok((projection, events))
+}
+
 #[derive(Serialize)]
 pub struct AuthorityObservation {
     pub catalog_id: CatalogId,
@@ -164,7 +260,162 @@ pub struct AuthorityObservation {
     pub last_checkpoint: &'static str,
     pub store_state: &'static str,
     pub revision: Option<u64>,
+    pub recovery_operation_id: Option<OperationId>,
+    pub recovery_checkpoint: Option<String>,
+    pub recovery_history: Vec<AuthorityRecoveryFact>,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorityRecoveryFact {
+    pub schema_version: u32,
+    pub position: u64,
+    pub operation_id: OperationId,
+    pub kind: AuthorityRecoveryKind,
+    pub checkpoint: String,
+    pub legacy: bool,
+}
+
+/// An exact known catalog recovery result; it never selects the newest operation.
+/// # Errors
+/// Rejects missing authority or an unknown operation identity.
+pub fn inspect_authority_operation(
+    paths: &Paths,
+    operation_id: OperationId,
+) -> Result<AuthorityRecoveryFact, PoolError> {
+    select_authority_operation(&inspect_authority(paths)?.recovery_history, operation_id)
+}
+
+/// Explicitly reconciles only the selected catalog operation.
+/// # Errors
+/// Rejects unknown identities and unsafe authority state.
+pub fn reconcile_authority_operation(
+    paths: &Paths,
+    operation_id: OperationId,
+) -> Result<AuthorityRecoveryFact, PoolError> {
+    reconcile_authority_operation_observed(paths, operation_id, |_| {})
+}
+
+/// Reconciles one exact catalog operation with durable checkpoint observations.
+/// # Errors
+/// Rejects unknown identities before effects, and unsafe authority state.
+pub fn reconcile_authority_operation_observed(
+    paths: &Paths,
+    operation_id: OperationId,
+    observe: impl FnMut(AuthorityRecoveryCheckpoint),
+) -> Result<AuthorityRecoveryFact, PoolError> {
+    let authority = reconcile_authority_selected(paths, Some(operation_id), observe)?;
+    select_authority_operation(&authority.recovery_history, operation_id)
+}
+
+/// Lists the latest recorded checkpoint for every known catalog recovery operation.
+/// # Errors
+/// Rejects invalid or missing locator authority; does not require readable database state.
+pub fn list_authority_operations(paths: &Paths) -> Result<Vec<AuthorityRecoveryFact>, PoolError> {
+    let authority = inspect_authority(paths)?;
+    let mut seen = std::collections::HashSet::new();
+    let mut operations = authority
+        .recovery_history
+        .into_iter()
+        .rev()
+        .filter(|fact| seen.insert(fact.operation_id.to_string()))
+        .collect::<Vec<_>>();
+    operations.reverse();
+    Ok(operations)
+}
+
+fn select_authority_operation(
+    history: &[AuthorityRecoveryFact],
+    operation_id: OperationId,
+) -> Result<AuthorityRecoveryFact, PoolError> {
+    history
+        .iter()
+        .rev()
+        .find(|fact| fact.operation_id == operation_id)
+        .cloned()
+        .ok_or(PoolError::Unregistered)
+}
+
+fn recovery_history(locator: &Locator) -> Vec<AuthorityRecoveryFact> {
+    if !locator.recovery_history.is_empty() {
+        return locator.recovery_history.clone();
+    }
+    // Older locators record only one observed checkpoint, not an invented intent chain.
+    locator
+        .recovery
+        .as_ref()
+        .map(|recovery| AuthorityRecoveryFact {
+            schema_version: 1,
+            position: 1,
+            operation_id: recovery.operation_id,
+            kind: recovery.kind,
+            checkpoint: recovery.checkpoint.clone(),
+            legacy: true,
+        })
+        .into_iter()
+        .collect()
+}
+
+fn validate_recovery_history(locator: &Locator) -> Result<(), PoolError> {
+    let mut latest = std::collections::HashMap::<String, &AuthorityRecoveryFact>::new();
+    for (offset, fact) in locator.recovery_history.iter().enumerate() {
+        if fact.schema_version != 1 {
+            return Err(PoolError::Unsupported);
+        }
+        let expected = u64::try_from(offset).map_err(|_| PoolError::Corrupt)? + 1;
+        if fact.position != expected
+            || !matches!(fact.checkpoint.as_str(), "intent_recorded" | "completed")
+            || (fact.legacy && offset != 0)
+        {
+            return Err(PoolError::Corrupt);
+        }
+        if let Some(previous) = latest.get(&fact.operation_id.to_string()) {
+            if previous.checkpoint != "intent_recorded"
+                || fact.checkpoint != "completed"
+                || previous.kind != fact.kind
+                || fact.legacy
+            {
+                return Err(PoolError::Corrupt);
+            }
+        } else if !fact.legacy && fact.checkpoint != "intent_recorded" {
+            return Err(PoolError::Corrupt);
+        }
+        latest.insert(fact.operation_id.to_string(), fact);
+    }
+    if let Some(last) = locator.recovery_history.last() {
+        let current = locator.recovery.as_ref().ok_or(PoolError::Corrupt)?;
+        if last.operation_id != current.operation_id
+            || last.kind != current.kind
+            || last.checkpoint != current.checkpoint
+            || latest
+                .values()
+                .filter(|fact| fact.checkpoint == "intent_recorded")
+                .count()
+                != usize::from(current.checkpoint == "intent_recorded")
+        {
+            return Err(PoolError::Corrupt);
+        }
+    }
+    Ok(())
+}
+
+fn append_recovery_fact(locator: &mut Locator) -> Result<(), PoolError> {
+    let current = locator.recovery.as_ref().ok_or(PoolError::Corrupt)?;
+    let position = u64::try_from(locator.recovery_history.len())
+        .map_err(|_| PoolError::Corrupt)?
+        .checked_add(1)
+        .ok_or(PoolError::Corrupt)?;
+    locator.recovery_history.push(AuthorityRecoveryFact {
+        schema_version: 1,
+        position,
+        operation_id: current.operation_id,
+        kind: current.kind,
+        checkpoint: current.checkpoint.clone(),
+        legacy: false,
+    });
+    Ok(())
+}
+
 /// Read-only reconciliation evidence; observing a valid database never publishes it.
 /// # Errors
 /// Rejects missing, conflicting, malformed, or unsupported locator state.
@@ -175,13 +426,16 @@ pub fn inspect_authority(paths: &Paths) -> Result<AuthorityObservation, PoolErro
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     let locator = read_locator(paths)?;
+    observe_authority(paths, locator)
+}
+
+fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObservation, PoolError> {
     if locator.phase != "active" && locator.phase != "initializing" {
         return Err(PoolError::Corrupt);
     }
     let projection = if paths.catalog.exists() {
         private_file(&paths.catalog)
-            .and_then(|()| Store::open(&paths.catalog, locator.catalog_id))
-            .and_then(|store| store.projection())
+            .and_then(|()| Store::inspect_read_only(&paths.catalog, locator.catalog_id))
             .ok()
     } else {
         None
@@ -193,13 +447,16 @@ pub fn inspect_authority(paths: &Paths) -> Result<AuthorityObservation, PoolErro
     } else {
         "missing"
     };
-    let last_checkpoint = if locator.phase == "active" {
+    let last_checkpoint = if locator.phase == "active" && locator.recovery_pending() {
+        "recovery_intended"
+    } else if locator.phase == "active" {
         "authority_published"
     } else if projection.is_some() {
         "store_committed"
     } else {
         "intent_recorded"
     };
+    let recovery_history = recovery_history(&locator);
     Ok(AuthorityObservation {
         catalog_id: locator.catalog_id,
         catalog_path: locator.catalog_path,
@@ -207,5 +464,775 @@ pub fn inspect_authority(paths: &Paths) -> Result<AuthorityObservation, PoolErro
         last_checkpoint,
         store_state,
         revision: projection.map(|p| p.revision),
+        recovery_operation_id: locator.recovery.as_ref().map(|r| r.operation_id),
+        recovery_checkpoint: locator.recovery.map(|r| r.checkpoint),
+        recovery_history,
     })
+}
+
+/// Explicitly reconciles a recorded initialization without creating a new authority.
+/// # Errors
+/// Rejects missing, conflicting, malformed, unsupported, or unsafe authority state.
+pub fn reconcile_authority(paths: &Paths) -> Result<AuthorityObservation, PoolError> {
+    reconcile_authority_observed(paths, |_| {})
+}
+/// Durable boundaries of explicit bootstrap reconciliation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthorityRecoveryCheckpoint {
+    IntentRecorded,
+    StoreCommitted,
+    AuthorityPublished,
+}
+
+fn replace_locator(paths: &Paths, locator: &Locator) -> Result<(), PoolError> {
+    let temporary = paths
+        .state
+        .join(format!("locator-{}.tmp", uuid::Uuid::new_v4()));
+    write_locator(&temporary, locator, false)?;
+    fs::rename(temporary, paths.state.join("active.json"))?;
+    fs::File::open(&paths.state)?.sync_all()?;
+    Ok(())
+}
+
+/// # Errors
+/// Rejects unsafe authority or failed durable storage and filesystem effects.
+pub fn reconcile_authority_observed(
+    paths: &Paths,
+    observe: impl FnMut(AuthorityRecoveryCheckpoint),
+) -> Result<AuthorityObservation, PoolError> {
+    reconcile_authority_selected(paths, None, observe)
+}
+
+fn reconcile_authority_selected(
+    paths: &Paths,
+    selected_operation: Option<OperationId>,
+    mut observe: impl FnMut(AuthorityRecoveryCheckpoint),
+) -> Result<AuthorityObservation, PoolError> {
+    if !paths.state.join("active.json").exists() {
+        return Err(PoolError::Missing);
+    }
+    let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), true)?;
+    let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+    let mut locator = read_locator(paths)?;
+    if let Some(operation_id) = selected_operation {
+        let operation = select_authority_operation(&recovery_history(&locator), operation_id)?;
+        if operation.checkpoint == "completed" {
+            return observe_authority(paths, locator);
+        }
+        if locator
+            .recovery
+            .as_ref()
+            .map(|recovery| recovery.operation_id)
+            != Some(operation_id)
+        {
+            return Err(PoolError::Corrupt);
+        }
+    }
+    if locator.phase != "active" && locator.phase != "initializing" {
+        return Err(PoolError::Corrupt);
+    }
+    // A present but unreadable file is never treated as absent or replaced.
+    let (existing, repair_required) = match fs::symlink_metadata(&paths.catalog) {
+        Ok(_) => {
+            private_file(&paths.catalog)?;
+            match Store::inspect_for_recovery(&paths.catalog, locator.catalog_id) {
+                Ok(projection) => (Some(projection), false),
+                Err(ReadOnlyInspectionError::RepairRequired) => (None, true),
+                Err(ReadOnlyInspectionError::Rejected(error)) => return Err(error),
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => (None, false),
+        Err(error) => return Err(error.into()),
+    };
+    if locator.phase == "active" && !repair_required {
+        let projection = existing.as_ref().ok_or(PoolError::Missing)?;
+        if !locator.recovery_pending() {
+            return Ok(authority_reconciled(locator, projection.revision));
+        }
+    }
+    let legacy_history = locator.recovery_history.is_empty() && locator.recovery.is_some();
+    if legacy_history {
+        locator.recovery_history = recovery_history(&locator);
+    }
+    if !locator.recovery_pending() {
+        locator.recovery = Some(AuthorityRecovery {
+            operation_id: OperationId::new(),
+            checkpoint: "intent_recorded".into(),
+            kind: if locator.phase == "initializing" {
+                AuthorityRecoveryKind::Bootstrap
+            } else {
+                AuthorityRecoveryKind::StorageRepair
+            },
+        });
+        append_recovery_fact(&mut locator)?;
+        replace_locator(paths, &locator)?;
+    } else if legacy_history {
+        replace_locator(paths, &locator)?;
+    }
+    observe(AuthorityRecoveryCheckpoint::IntentRecorded);
+    let projection = if repair_required {
+        // Explicit apply alone permits redb allocator recovery. Identity and full history
+        // must validate before publication; this never creates/resets a database.
+        Store::open(&paths.catalog, locator.catalog_id)?.projection()?
+    } else if let Some(projection) = existing {
+        projection
+    } else {
+        match Store::create_with_id(&paths.catalog, locator.catalog_id) {
+            Ok(projection) => projection,
+            Err(PoolError::CommitUnknown) => {
+                // The real handle has closed: inspect the recorded identity before any retry.
+                Store::open(&paths.catalog, locator.catalog_id)
+                    .and_then(|store| store.projection())
+                    .map_err(|_| PoolError::CommitUnknown)?
+            }
+            Err(error) => return Err(error),
+        }
+    };
+    fs::File::open(paths.catalog.parent().ok_or(PoolError::Configuration)?)?.sync_all()?;
+    observe(AuthorityRecoveryCheckpoint::StoreCommitted);
+    locator.phase = "active".into();
+    locator
+        .recovery
+        .as_mut()
+        .ok_or(PoolError::Corrupt)?
+        .checkpoint = "completed".into();
+    append_recovery_fact(&mut locator)?;
+    replace_locator(paths, &locator)?;
+    observe(AuthorityRecoveryCheckpoint::AuthorityPublished);
+    Ok(authority_reconciled(locator, projection.revision))
+}
+
+fn authority_reconciled(locator: Locator, revision: u64) -> AuthorityObservation {
+    let recovery_history = recovery_history(&locator);
+    AuthorityObservation {
+        catalog_id: locator.catalog_id,
+        catalog_path: locator.catalog_path,
+        phase: locator.phase,
+        last_checkpoint: "authority_published",
+        store_state: "validated",
+        revision: Some(revision),
+        recovery_operation_id: locator.recovery.as_ref().map(|r| r.operation_id),
+        recovery_checkpoint: locator.recovery.map(|r| r.checkpoint),
+        recovery_history,
+    }
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use std::{
+        fs,
+        os::unix::fs::{OpenOptionsExt, symlink},
+    };
+
+    use googletest::{assert_that, matchers::eq};
+
+    use super::{
+        AuthorityRecoveryCheckpoint, InitializationCheckpoint, initialize, initialize_observed,
+        inspect_authority, inspect_authority_operation, list_authority_operations, open,
+        reconcile_authority, reconcile_authority_observed, reconcile_authority_operation,
+    };
+    use crate::{error::PoolError, management::OperationId, paths::Paths, store::Store};
+
+    #[googletest::test]
+    fn explicit_reconciliation_finishes_recorded_initialization_without_new_identity() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let interrupted = std::panic::catch_unwind(|| {
+            initialize_observed(&paths, |checkpoint| {
+                if checkpoint == InitializationCheckpoint::IntentRecorded {
+                    panic!("interrupt after durable identity");
+                }
+            })
+            .unwrap();
+        });
+        assert_that!(interrupted.is_err(), eq(true));
+        let pending = inspect_authority(&paths).unwrap();
+        assert_that!(pending.phase.as_str(), eq("initializing"));
+        assert_that!(pending.store_state, eq("missing"));
+        let reconciled = reconcile_authority(&paths).unwrap();
+        assert_that!(reconciled.phase.as_str(), eq("active"));
+        assert_that!(reconciled.catalog_id, eq(pending.catalog_id));
+        assert_that!(reconciled.revision, eq(Some(1)));
+        assert_that!(
+            open(&paths).unwrap().projection.catalog_id,
+            eq(pending.catalog_id)
+        );
+    }
+    #[googletest::test]
+    fn unknown_recovery_checkpoint_rejects_without_replacing_authority() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        initialize(&paths).unwrap();
+        let locator_path = paths.state.join("active.json");
+        let mut locator: serde_json::Value =
+            serde_json::from_slice(&fs::read(&locator_path).unwrap()).unwrap();
+        locator["recovery"] = serde_json::json!({
+            "operation_id": OperationId::new(),
+            "checkpoint": "unrecognized_checkpoint",
+        });
+        fs::write(&locator_path, serde_json::to_vec(&locator).unwrap()).unwrap();
+        let before_locator = fs::read(&locator_path).unwrap();
+        let before_catalog = fs::read(&paths.catalog).unwrap();
+        assert_that!(
+            matches!(reconcile_authority(&paths), Err(PoolError::Corrupt)),
+            eq(true)
+        );
+        assert_that!(fs::read(&locator_path).unwrap(), eq(&before_locator));
+        assert_that!(fs::read(&paths.catalog).unwrap(), eq(&before_catalog));
+    }
+
+    #[googletest::test]
+    fn explicit_reconciliation_preserves_committed_initialization_and_active_noop() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let interrupted = std::panic::catch_unwind(|| {
+            initialize_observed(&paths, |checkpoint| {
+                if checkpoint == InitializationCheckpoint::StoreCommitted {
+                    panic!("interrupt after committed initialization");
+                }
+            })
+            .unwrap();
+        });
+        assert_that!(interrupted.is_err(), eq(true));
+        let pending = inspect_authority(&paths).unwrap();
+        let before = Store::open(&paths.catalog, pending.catalog_id)
+            .unwrap()
+            .events()
+            .unwrap();
+        let completed = reconcile_authority(&paths).unwrap();
+        assert_that!(completed.catalog_id, eq(pending.catalog_id));
+        assert_that!(
+            completed.recovery_checkpoint.as_deref(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            Store::open(&paths.catalog, pending.catalog_id)
+                .unwrap()
+                .events()
+                .unwrap(),
+            eq(&before)
+        );
+        let locator = fs::read(paths.state.join("active.json")).unwrap();
+        let catalog = fs::read(&paths.catalog).unwrap();
+        let noop = reconcile_authority(&paths).unwrap();
+        assert_that!(
+            noop.recovery_operation_id,
+            eq(completed.recovery_operation_id)
+        );
+        assert_that!(
+            fs::read(paths.state.join("active.json")).unwrap(),
+            eq(&locator)
+        );
+        assert_that!(fs::read(&paths.catalog).unwrap() == catalog, eq(true));
+    }
+
+    #[googletest::test]
+    fn interrupted_bootstrap_recovery_reuses_identity_and_committed_history() {
+        for boundary in [
+            AuthorityRecoveryCheckpoint::IntentRecorded,
+            AuthorityRecoveryCheckpoint::StoreCommitted,
+            AuthorityRecoveryCheckpoint::AuthorityPublished,
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let paths = Paths {
+                catalog: root.path().join("data/catalog.redb"),
+                state: root.path().join("state"),
+                json: true,
+            };
+            let interrupted = std::panic::catch_unwind(|| {
+                initialize_observed(&paths, |checkpoint| {
+                    if checkpoint == InitializationCheckpoint::IntentRecorded {
+                        panic!("interrupt initialization");
+                    }
+                })
+                .unwrap();
+            });
+            assert_that!(interrupted.is_err(), eq(true));
+            let catalog_id = inspect_authority(&paths).unwrap().catalog_id;
+            let interrupted = std::panic::catch_unwind(|| {
+                reconcile_authority_observed(&paths, |checkpoint| {
+                    if checkpoint == boundary {
+                        panic!("interrupt recovery");
+                    }
+                })
+                .unwrap();
+            });
+            assert_that!(interrupted.is_err(), eq(true));
+            let locator_before = fs::read(paths.state.join("active.json")).unwrap();
+            let catalog_before = fs::read(&paths.catalog).ok();
+            let observed = inspect_authority(&paths).unwrap();
+            assert_that!(observed.catalog_id, eq(catalog_id));
+            assert_that!(observed.recovery_operation_id.is_some(), eq(true));
+            assert_that!(
+                fs::read(paths.state.join("active.json")).unwrap(),
+                eq(&locator_before)
+            );
+            assert_that!(fs::read(&paths.catalog).ok() == catalog_before, eq(true));
+            let events_before = catalog_before.map(|_| {
+                Store::open(&paths.catalog, catalog_id)
+                    .unwrap()
+                    .events()
+                    .unwrap()
+            });
+            let recovered = reconcile_authority(&paths).unwrap();
+            assert_that!(recovered.catalog_id, eq(catalog_id));
+            assert_that!(
+                recovered.recovery_operation_id,
+                eq(observed.recovery_operation_id)
+            );
+            assert_that!(recovered.phase.as_str(), eq("active"));
+            assert_that!(
+                recovered.recovery_checkpoint.as_deref(),
+                eq(Some("completed"))
+            );
+            let events = Store::open(&paths.catalog, catalog_id)
+                .unwrap()
+                .events()
+                .unwrap();
+            assert_that!(events.len(), eq(1));
+            if let Some(events_before) = events_before {
+                assert_that!(events, eq(&events_before));
+            }
+        }
+    }
+
+    #[googletest::test]
+    fn bootstrap_recovery_refuses_present_unsafe_storage_without_overwrite() {
+        for state in [
+            "corrupt",
+            "conflicting_identity",
+            "symlink",
+            "dangling_symlink",
+            "directory",
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let paths = Paths {
+                catalog: root.path().join("data/catalog.redb"),
+                state: root.path().join("state"),
+                json: true,
+            };
+            let interrupted = std::panic::catch_unwind(|| {
+                initialize_observed(&paths, |checkpoint| {
+                    if checkpoint == InitializationCheckpoint::IntentRecorded {
+                        panic!("interrupt initialization");
+                    }
+                })
+                .unwrap();
+            });
+            assert_that!(interrupted.is_err(), eq(true));
+            let target = root.path().join("retained");
+            fs::write(&target, b"protected bytes").unwrap();
+            match state {
+                "corrupt" => {
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .mode(0o600)
+                        .open(&paths.catalog)
+                        .unwrap();
+                    fs::write(&paths.catalog, b"not a database").unwrap();
+                }
+                "conflicting_identity" => {
+                    Store::create(&paths.catalog).unwrap();
+                }
+                "symlink" => symlink(&target, &paths.catalog).unwrap(),
+                "dangling_symlink" => {
+                    symlink(root.path().join("missing-target"), &paths.catalog).unwrap()
+                }
+                "directory" => {
+                    fs::create_dir(&paths.catalog).unwrap();
+                    fs::write(paths.catalog.join("retained"), b"directory sentinel").unwrap();
+                }
+                _ => unreachable!(),
+            }
+            let locator_before = fs::read(paths.state.join("active.json")).unwrap();
+            let catalog_before = fs::read(&paths.catalog).ok();
+            let link_before = fs::read_link(&paths.catalog).ok();
+            assert_that!(reconcile_authority(&paths).is_err(), eq(true));
+            assert_that!(
+                fs::read(paths.state.join("active.json")).unwrap(),
+                eq(&locator_before)
+            );
+            assert_that!(fs::read(&paths.catalog).ok() == catalog_before, eq(true));
+            assert_that!(fs::read_link(&paths.catalog).ok(), eq(&link_before));
+            assert_that!(fs::read(&target).unwrap(), eq(&b"protected bytes".to_vec()));
+            if state == "directory" {
+                assert_that!(
+                    fs::read(paths.catalog.join("retained")).unwrap(),
+                    eq(&b"directory sentinel".to_vec())
+                );
+                assert_that!(fs::read_dir(&paths.catalog).unwrap().count(), eq(1));
+            }
+        }
+    }
+
+    fn crash_catalog_writer(path: &std::path::Path) {
+        let ready = path.with_extension(format!("writer-ready-{}", uuid::Uuid::new_v4()));
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .env_clear()
+            .env("POOL_UNCLEAN_TEST_CATALOG", path)
+            .env("POOL_UNCLEAN_TEST_READY", &ready)
+            .args(["--exact", "catalog::recovery_tests::explicit_apply_recovers_unclean_redb_without_resetting_identity"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn().unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        while !ready.exists() {
+            if let Some(status) = child.try_wait().unwrap() {
+                panic!("unclean writer exited before readiness: {status}");
+            }
+            if std::time::Instant::now() > deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("unclean writer readiness deadline");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        child.kill().unwrap();
+        let status = child.wait().unwrap();
+        assert_that!(
+            std::os::unix::process::ExitStatusExt::signal(&status),
+            eq(Some(9))
+        );
+    }
+
+    #[googletest::test]
+    fn explicit_apply_recovers_unclean_redb_without_resetting_identity() {
+        if let Some(path) = std::env::var_os("POOL_UNCLEAN_TEST_CATALOG") {
+            let database = redb::Database::open(path).unwrap();
+            let mut transaction = database.begin_write().unwrap();
+            transaction
+                .set_durability(redb::Durability::Immediate)
+                .unwrap();
+            transaction.set_quick_repair(false);
+            transaction.commit().unwrap();
+            fs::write(
+                std::env::var_os("POOL_UNCLEAN_TEST_READY").unwrap(),
+                b"ready",
+            )
+            .unwrap();
+            loop {
+                std::thread::park();
+            }
+        }
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let initialized = initialize(&paths).unwrap();
+        let events = Store::events_read_only(&paths.catalog, initialized.catalog_id).unwrap();
+        crash_catalog_writer(&paths.catalog);
+        assert_that!(
+            matches!(
+                redb::ReadOnlyDatabase::open(&paths.catalog),
+                Err(redb::DatabaseError::RepairAborted)
+            ),
+            eq(true)
+        );
+        let before_catalog = fs::read(&paths.catalog).unwrap();
+        let before_locator = fs::read(paths.state.join("active.json")).unwrap();
+        let preview = inspect_authority(&paths).unwrap();
+        assert_that!(preview.store_state, eq("unreadable"));
+        assert_that!(
+            fs::read(&paths.catalog).unwrap() == before_catalog,
+            eq(true)
+        );
+        assert_that!(
+            fs::read(paths.state.join("active.json")).unwrap(),
+            eq(&before_locator)
+        );
+        let completed = reconcile_authority(&paths).unwrap();
+        assert_that!(completed.catalog_id, eq(initialized.catalog_id));
+        assert_that!(completed.phase.as_str(), eq("active"));
+        assert_that!(
+            completed.recovery_checkpoint.as_deref(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            Store::events_read_only(&paths.catalog, initialized.catalog_id).unwrap(),
+            eq(&events)
+        );
+        assert_that!(
+            Store::inspect_read_only(&paths.catalog, initialized.catalog_id).unwrap(),
+            eq(&initialized)
+        );
+    }
+
+    #[googletest::test]
+    fn later_storage_repair_preserves_prior_known_lifecycle_result() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        initialize(&paths).unwrap();
+        crash_catalog_writer(&paths.catalog);
+        let first = reconcile_authority(&paths).unwrap();
+        let first_id = first.recovery_operation_id.unwrap();
+        assert_that!(
+            inspect_authority_operation(&paths, first_id)
+                .unwrap()
+                .checkpoint
+                .as_str(),
+            eq("completed")
+        );
+        crash_catalog_writer(&paths.catalog);
+        let second = reconcile_authority(&paths).unwrap();
+        assert_that!(second.recovery_operation_id == Some(first_id), eq(false));
+        assert_that!(
+            second.recovery_history.starts_with(&first.recovery_history),
+            eq(true)
+        );
+        assert_that!(
+            inspect_authority_operation(&paths, first_id)
+                .unwrap()
+                .checkpoint
+                .as_str(),
+            eq("completed")
+        );
+    }
+
+    #[googletest::test]
+    fn historical_catalog_apply_never_completes_a_newer_pending_repair() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        initialize(&paths).unwrap();
+        crash_catalog_writer(&paths.catalog);
+        let first_id = reconcile_authority(&paths)
+            .unwrap()
+            .recovery_operation_id
+            .unwrap();
+        crash_catalog_writer(&paths.catalog);
+        let interrupted = std::panic::catch_unwind(|| {
+            reconcile_authority_observed(&paths, |checkpoint| {
+                if checkpoint == AuthorityRecoveryCheckpoint::IntentRecorded {
+                    panic!("interrupt second repair after durable intent");
+                }
+            })
+            .unwrap();
+        });
+        assert_that!(interrupted.is_err(), eq(true));
+        let pending = inspect_authority(&paths).unwrap();
+        let second_id = pending.recovery_operation_id.unwrap();
+        assert_that!(second_id == first_id, eq(false));
+        assert_that!(matches!(open(&paths), Err(PoolError::Pending)), eq(true));
+        assert_that!(
+            matches!(initialize(&paths), Err(PoolError::Pending)),
+            eq(true)
+        );
+        let locator = fs::read(paths.state.join("active.json")).unwrap();
+        let catalog = fs::read(&paths.catalog).unwrap();
+        let previous = reconcile_authority_operation(&paths, first_id).unwrap();
+        assert_that!(previous.checkpoint.as_str(), eq("completed"));
+        assert_that!(
+            fs::read(paths.state.join("active.json")).unwrap() == locator,
+            eq(true)
+        );
+        assert_that!(fs::read(&paths.catalog).unwrap() == catalog, eq(true));
+        assert_that!(
+            matches!(
+                reconcile_authority_operation(&paths, OperationId::new()),
+                Err(PoolError::Unregistered)
+            ),
+            eq(true)
+        );
+        assert_that!(
+            fs::read(paths.state.join("active.json")).unwrap() == locator,
+            eq(true)
+        );
+        assert_that!(fs::read(&paths.catalog).unwrap() == catalog, eq(true));
+        let completed = reconcile_authority_operation(&paths, second_id).unwrap();
+        assert_that!(completed.operation_id, eq(second_id));
+        assert_that!(completed.checkpoint.as_str(), eq("completed"));
+        let authority = inspect_authority(&paths).unwrap();
+        assert_that!(authority.recovery_history.len(), eq(4));
+        assert_that!(
+            authority
+                .recovery_history
+                .starts_with(&pending.recovery_history),
+            eq(true)
+        );
+    }
+
+    #[googletest::test]
+    fn explicit_unclean_foreign_identity_repair_preserves_events_and_pending_authority() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let interrupted = std::panic::catch_unwind(|| {
+            initialize_observed(&paths, |checkpoint| {
+                if checkpoint == InitializationCheckpoint::IntentRecorded {
+                    panic!("interrupt before catalog creation");
+                }
+            })
+            .unwrap();
+        });
+        assert_that!(interrupted.is_err(), eq(true));
+        let intended = inspect_authority(&paths).unwrap().catalog_id;
+        let foreign = Store::create(&paths.catalog).unwrap().catalog_id;
+        let events = Store::events_read_only(&paths.catalog, foreign).unwrap();
+        crash_catalog_writer(&paths.catalog);
+        assert_that!(
+            matches!(
+                redb::ReadOnlyDatabase::open(&paths.catalog),
+                Err(redb::DatabaseError::RepairAborted)
+            ),
+            eq(true)
+        );
+        let unclean = fs::read(&paths.catalog).unwrap();
+        let preview = inspect_authority(&paths).unwrap();
+        assert_that!(preview.catalog_id, eq(intended));
+        assert_that!(preview.store_state, eq("unreadable"));
+        assert_that!(fs::read(&paths.catalog).unwrap() == unclean, eq(true));
+        assert_that!(
+            matches!(reconcile_authority(&paths), Err(PoolError::Conflict)),
+            eq(true)
+        );
+        assert_that!(
+            Store::events_read_only(&paths.catalog, foreign).unwrap(),
+            eq(&events)
+        );
+        let pending = inspect_authority(&paths).unwrap();
+        assert_that!(pending.catalog_id, eq(intended));
+        assert_that!(pending.phase.as_str(), eq("initializing"));
+        assert_that!(
+            pending.recovery_checkpoint.as_deref(),
+            eq(Some("intent_recorded"))
+        );
+        assert_that!(pending.recovery_history.len(), eq(1));
+        assert_that!(matches!(open(&paths), Err(PoolError::Pending)), eq(true));
+        let locator = fs::read(paths.state.join("active.json")).unwrap();
+        let repaired = fs::read(&paths.catalog).unwrap();
+        assert_that!(
+            matches!(reconcile_authority(&paths), Err(PoolError::Conflict)),
+            eq(true)
+        );
+        assert_that!(
+            fs::read(paths.state.join("active.json")).unwrap() == locator,
+            eq(true)
+        );
+        assert_that!(fs::read(&paths.catalog).unwrap() == repaired, eq(true));
+    }
+
+    #[googletest::test]
+    fn historical_single_locator_checkpoint_is_retained_without_invented_intent() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let interrupted = std::panic::catch_unwind(|| {
+            initialize_observed(&paths, |checkpoint| {
+                if checkpoint == InitializationCheckpoint::IntentRecorded {
+                    panic!("interrupt bootstrap");
+                }
+            })
+            .unwrap();
+        });
+        assert_that!(interrupted.is_err(), eq(true));
+        let first_id = reconcile_authority(&paths)
+            .unwrap()
+            .recovery_operation_id
+            .unwrap();
+        let locator_path = paths.state.join("active.json");
+        let mut historical: serde_json::Value =
+            serde_json::from_slice(&fs::read(&locator_path).unwrap()).unwrap();
+        historical
+            .as_object_mut()
+            .unwrap()
+            .remove("recovery_history");
+        historical["recovery"]
+            .as_object_mut()
+            .unwrap()
+            .remove("kind");
+        fs::write(&locator_path, serde_json::to_vec(&historical).unwrap()).unwrap();
+        let legacy = inspect_authority(&paths).unwrap().recovery_history;
+        assert_that!(legacy.len(), eq(1));
+        assert_that!(legacy[0].legacy, eq(true));
+        assert_that!(legacy[0].operation_id, eq(first_id));
+        assert_that!(legacy[0].checkpoint.as_str(), eq("completed"));
+        crash_catalog_writer(&paths.catalog);
+        let second = reconcile_authority(&paths).unwrap();
+        let second_id = second.recovery_operation_id.unwrap();
+        assert_that!(second.recovery_history.len(), eq(3));
+        assert_that!(second.recovery_history.starts_with(&legacy), eq(true));
+        assert_that!(
+            inspect_authority_operation(&paths, first_id).unwrap(),
+            eq(&legacy[0])
+        );
+        let operations = list_authority_operations(&paths).unwrap();
+        assert_that!(
+            operations
+                .into_iter()
+                .map(|fact| fact.operation_id)
+                .collect::<Vec<_>>(),
+            eq(&vec![first_id, second_id])
+        );
+        let locator = fs::read(&locator_path).unwrap();
+        let catalog = fs::read(&paths.catalog).unwrap();
+        assert_that!(
+            reconcile_authority_operation(&paths, first_id).unwrap(),
+            eq(&legacy[0])
+        );
+        assert_that!(fs::read(&locator_path).unwrap() == locator, eq(true));
+        assert_that!(fs::read(&paths.catalog).unwrap() == catalog, eq(true));
+    }
+
+    #[googletest::test]
+    fn unsupported_or_gapped_locator_history_never_authorizes_database_repair() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        initialize(&paths).unwrap();
+        crash_catalog_writer(&paths.catalog);
+        reconcile_authority(&paths).unwrap();
+        let locator_path = paths.state.join("active.json");
+        let original: serde_json::Value =
+            serde_json::from_slice(&fs::read(&locator_path).unwrap()).unwrap();
+        crash_catalog_writer(&paths.catalog);
+        for field in ["schema_version", "position"] {
+            let mut invalid = original.clone();
+            invalid["recovery_history"][0][field] = serde_json::json!(2);
+            fs::write(&locator_path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+            let locator = fs::read(&locator_path).unwrap();
+            let catalog = fs::read(&paths.catalog).unwrap();
+            let preview = inspect_authority(&paths);
+            let apply = reconcile_authority(&paths);
+            if field == "schema_version" {
+                assert_that!(matches!(preview, Err(PoolError::Unsupported)), eq(true));
+                assert_that!(matches!(apply, Err(PoolError::Unsupported)), eq(true));
+            } else {
+                assert_that!(matches!(preview, Err(PoolError::Corrupt)), eq(true));
+                assert_that!(matches!(apply, Err(PoolError::Corrupt)), eq(true));
+            }
+            assert_that!(fs::read(&locator_path).unwrap() == locator, eq(true));
+            assert_that!(fs::read(&paths.catalog).unwrap() == catalog, eq(true));
+        }
+    }
 }
