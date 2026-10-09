@@ -39,9 +39,9 @@ fn losing_commit_result_requires_inspection_and_cannot_repeat_initialization() {
 }
 
 #[derive(Debug)]
-struct SyncFailureBackend {
-    inner: redb::backends::FileBackend,
-    armed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+pub(crate) struct SyncFailureBackend {
+    pub(crate) inner: redb::backends::FileBackend,
+    pub(crate) armed: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl redb::StorageBackend for SyncFailureBackend {

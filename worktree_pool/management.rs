@@ -120,6 +120,7 @@ pub struct RefreshFinished {
     deny_unknown_fields
 )]
 pub enum ManagementEvent {
+    Relocation(crate::relocation_events::RelocationEvent),
     Retirement(crate::retirement::RetirementEvent),
     RepositoryRecovery(crate::repository_recovery::RepositoryRecoveryEvent),
     Recovery(crate::recovery::RecoveryEvent),
@@ -141,6 +142,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn event_type(&self) -> &'static str {
         match self {
+            Self::Relocation(r) => r.event_type(),
             Self::Retirement(r) => r.event_type(),
             Self::RepositoryRecovery(r) => r.event_type(),
             Self::Recovery(r) => r.event_type(),
@@ -161,16 +163,18 @@ impl ManagementEvent {
     #[must_use]
     pub const fn repository_id(&self) -> Option<RepositoryId> {
         match self {
+            Self::Relocation(_) | Self::RepositoryRegistered(_) | Self::WorktreeEnrolled(_) => None,
             Self::Retirement(r) => r.repository_id(),
             Self::RepositoryRecovery(r) => Some(r.repository_id()),
             Self::Recovery(r) => Some(r.repository_id()),
             Self::Creation(c) => c.repository_id(),
-            Self::CapacityConfigured { repository_id, .. } => Some(*repository_id),
-            Self::WorktreeWithheld(w) => Some(w.repository_id),
+            Self::CapacityConfigured { repository_id, .. }
+            | Self::WorktreeWithheld(crate::acquisition::WithheldWorktree {
+                repository_id, ..
+            })
+            | Self::WorktreeRegistered(Worktree { repository_id, .. }) => Some(*repository_id),
             Self::Release(r) => Some(r.repository_id()),
             Self::Acquisition(a) => Some(a.repository_id()),
-            Self::RepositoryRegistered(_) | Self::WorktreeEnrolled(_) => None,
-            Self::WorktreeRegistered(w) => Some(w.repository_id),
             Self::RefreshStarted(r) => Some(r.repository_id),
             Self::RefreshFinished(r) => Some(r.repository_id),
         }
@@ -178,6 +182,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn operation_id(&self) -> Option<OperationId> {
         match self {
+            Self::Relocation(r) => Some(r.operation_id()),
             Self::Retirement(r) => Some(r.operation_id()),
             Self::RepositoryRecovery(r) => Some(r.operation_id()),
             Self::Recovery(r) => Some(r.operation_id()),
@@ -192,6 +197,7 @@ impl ManagementEvent {
     #[must_use]
     pub fn subject(&self) -> String {
         match self {
+            Self::Relocation(r) => format!("catalogs/{}", r.catalog_id()),
             Self::Retirement(r) => format!("worktrees/{}", r.worktree_id()),
             Self::RepositoryRecovery(r) => format!("repositories/{}", r.repository_id()),
             Self::Recovery(r) => format!("worktrees/{}", r.worktree_id()),
@@ -220,6 +226,7 @@ impl ManagementEvent {
         causation_id: Option<&str>,
     ) -> Result<(), PoolError> {
         match self {
+            Self::Relocation(r) => r.apply(state, event_id, causation_id)?,
             Self::Retirement(r) => r.apply(state, event_id, causation_id)?,
             Self::RepositoryRecovery(r) => r.apply(state, event_id, causation_id)?,
             Self::Recovery(r) => r.apply(state, event_id, causation_id)?,

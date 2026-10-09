@@ -84,7 +84,7 @@ impl Store {
             stream_id: None,
             event,
         };
-        let wire = serde_json::to_string(&recorded).map_err(|_| PoolError::Corrupt)?;
+        let wire = Self::encoded_record(&recorded)?;
         let state = serde_json::to_string(&projection).map_err(|_| PoolError::Corrupt)?;
         let transaction = database.begin_write().map_err(|_| PoolError::Storage)?;
         let mut transaction = transaction;
@@ -316,6 +316,62 @@ impl Store {
     ) -> Result<CatalogProjection, PoolError> {
         let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
         Ok(Self::authoritative_projection(&database, catalog_id)?.projection)
+    }
+
+    /// Encodes the exact positioned record used by normal atomic commits.
+    pub(crate) fn encoded_record(record: &RecordedEvent) -> Result<String, PoolError> {
+        serde_json::to_string(record).map_err(|_| PoolError::Corrupt)
+    }
+    /// Fixes a write-ahead record using current global and stream revisions.
+    pub(crate) fn planned_record(
+        projection: &CatalogProjection,
+        event: &Value,
+    ) -> Result<String, PoolError> {
+        let typed = decode_event(event, projection.catalog_id)?;
+        Self::encoded_record(&RecordedEvent {
+            position: projection
+                .revision
+                .checked_add(1)
+                .ok_or(PoolError::Corrupt)?,
+            expected_revision: typed.expected_revision(projection)?,
+            stream_id: Some(typed.stream_id(projection.catalog_id)),
+            event: event.clone(),
+        })
+    }
+    /// Returns literal ordered records only after full immutable-history validation.
+    pub(crate) fn raw_records_rebuild_history(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<Vec<String>, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Self::authoritative_projection(&database, catalog_id)?;
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
+        transaction
+            .open_table(EVENTS)
+            .map_err(|_| PoolError::Corrupt)?
+            .iter()
+            .map_err(|_| PoolError::Corrupt)?
+            .map(|row| {
+                row.map(|(_, value)| value.value().to_owned())
+                    .map_err(|_| PoolError::Corrupt)
+            })
+            .collect()
+    }
+
+    /// Reads validated immutable envelopes independently of replaceable derived records.
+    /// # Errors
+    /// Rejects foreign, unsupported, corrupt or repair-required authority without writes.
+    pub(crate) fn events_rebuild_history(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<Vec<Value>, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Self::authoritative_projection(&database, catalog_id)?;
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
+        Ok(Self::records(&transaction)?
+            .into_iter()
+            .map(|(_, record)| record.event)
+            .collect())
     }
 
     /// Only the explicit journaled storage-repair lifecycle may call this writable open.
@@ -567,7 +623,7 @@ impl Store {
                 identities
                     .insert(key.as_str(), record.position)
                     .map_err(|_| PoolError::Storage)?;
-                let wire = serde_json::to_string(record).map_err(|_| PoolError::Corrupt)?;
+                let wire = Self::encoded_record(record)?;
                 events
                     .insert(record.position, wire.as_str())
                     .map_err(|_| PoolError::Storage)?;

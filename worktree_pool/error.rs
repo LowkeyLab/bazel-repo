@@ -45,6 +45,14 @@ pub enum PoolError {
     Storage,
     #[error("catalog history or locator is corrupt")]
     Corrupt,
+    #[error(
+        "unsupported locator-only relocation history; preserve database and locator bytes and operation IDs for manual reconciliation; no automatic migration or CloudEvents backfill"
+    )]
+    UnsupportedRelocation,
+    #[error(
+        "unsupported decoded relocation proof; preserve database and locator bytes and operation IDs for manual reconciliation; raw immutable-record proof is required and is never migrated automatically"
+    )]
+    UnsupportedRelocationProof,
     #[error("catalog version or event type is unsupported")]
     Unsupported,
     #[error("catalog authority conflicts with the selected location")]
@@ -93,7 +101,9 @@ impl PoolError {
             Self::Io(_) => "filesystem_error",
             Self::Storage => "storage_error",
             Self::Corrupt => "catalog_corrupt",
-            Self::Unsupported => "unsupported_version",
+            Self::Unsupported | Self::UnsupportedRelocation | Self::UnsupportedRelocationProof => {
+                "unsupported_version"
+            }
             Self::Conflict => "catalog_conflict",
             Self::CommitUnknown => "commit_unknown",
             Self::Missing => "catalog_missing",

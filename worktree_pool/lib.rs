@@ -38,6 +38,7 @@ pub mod recovery_inspection;
 pub mod repository_recovery;
 
 pub mod relocation;
+pub mod relocation_events;
 
 #[cfg(test)]
 mod relocation_tests;
