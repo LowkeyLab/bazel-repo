@@ -229,6 +229,38 @@ pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
     })
 }
 
+/// Rebuilds only derived state under whole-command exclusive maintenance.
+/// # Errors
+/// Refuses missing, pending, foreign, unsupported or corrupt authoritative state.
+pub fn rebuild(paths: &Paths) -> Result<CatalogProjection, PoolError> {
+    rebuild_observed(paths, |_| {})
+}
+
+/// # Errors
+/// Preserves rebuild refusal and indeterminate-commit semantics.
+pub fn rebuild_observed(
+    paths: &Paths,
+    observe: impl FnMut(crate::rebuild::RebuildCheckpoint),
+) -> Result<CatalogProjection, PoolError> {
+    if !paths.state.join("active.json").exists() {
+        return Err(PoolError::Missing);
+    }
+    let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), true)?;
+    let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+    let locator = read_locator(paths)?;
+    if locator.phase == "initializing" || locator.recovery_pending() {
+        return Err(PoolError::Pending);
+    }
+    if locator.phase != "active" {
+        return Err(PoolError::Corrupt);
+    }
+    private_file(&paths.catalog).map_err(|error| match error {
+        PoolError::Io(ref e) if e.kind() == std::io::ErrorKind::NotFound => PoolError::Missing,
+        _ => error,
+    })?;
+    Store::rebuild(&paths.catalog, locator.catalog_id, observe)
+}
+
 /// Inspects active catalog projection without changing protected storage.
 /// # Errors
 /// Rejects missing, pending, conflicting, unsupported, or corrupt authority.
@@ -516,8 +548,19 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
     if let Some(projection) = &projection {
         crate::relocation::validate_operations(&locator, projection)?;
     }
+
+    let rebuild_revision = if projection.is_none() && paths.catalog.exists() {
+        private_file(&paths.catalog)
+            .and_then(|()| Store::inspect_rebuild_history(&paths.catalog, locator.catalog_id))
+            .ok()
+            .map(|p| p.revision)
+    } else {
+        None
+    };
     let store_state = if projection.is_some() {
         "validated"
+    } else if rebuild_revision.is_some() {
+        "rebuild_required"
     } else if paths.catalog.exists() {
         "unreadable"
     } else {
@@ -539,7 +582,7 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
         phase: locator.phase,
         last_checkpoint,
         store_state,
-        revision: projection.map(|p| p.revision),
+        revision: projection.map(|p| p.revision).or(rebuild_revision),
         recovery_operation_id: locator.recovery.as_ref().map(|r| r.operation_id),
         recovery_checkpoint: locator.recovery.map(|r| r.checkpoint),
         recovery_history,
@@ -581,6 +624,42 @@ pub fn reconcile_authority_observed(
     reconcile_authority_selected(paths, None, observe)
 }
 
+fn recovery_store(
+    paths: &Paths,
+    locator: &Locator,
+) -> Result<(Option<CatalogProjection>, bool), PoolError> {
+    // A present but unreadable file is never treated as absent or replaced.
+    let observation = match fs::symlink_metadata(&paths.catalog) {
+        Ok(_) => {
+            private_file(&paths.catalog)?;
+            match Store::inspect_for_recovery(&paths.catalog, locator.catalog_id) {
+                Ok(projection) => (Some(projection), false),
+                Err(ReadOnlyInspectionError::RepairRequired) => (None, true),
+                Err(ReadOnlyInspectionError::Rejected(PoolError::Corrupt))
+                    if locator.phase == "active"
+                        && locator.recovery_pending()
+                        && locator
+                            .recovery
+                            .as_ref()
+                            .is_some_and(|r| r.kind == AuthorityRecoveryKind::StorageRepair) =>
+                {
+                    (
+                        Some(Store::inspect_rebuild_history(
+                            &paths.catalog,
+                            locator.catalog_id,
+                        )?),
+                        false,
+                    )
+                }
+                Err(ReadOnlyInspectionError::Rejected(error)) => return Err(error),
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => (None, false),
+        Err(error) => return Err(error.into()),
+    };
+    Ok(observation)
+}
+
 fn reconcile_authority_selected(
     paths: &Paths,
     selected_operation: Option<OperationId>,
@@ -612,19 +691,7 @@ fn reconcile_authority_selected(
     if locator.phase != "active" && locator.phase != "initializing" {
         return Err(PoolError::Corrupt);
     }
-    // A present but unreadable file is never treated as absent or replaced.
-    let (existing, repair_required) = match fs::symlink_metadata(&paths.catalog) {
-        Ok(_) => {
-            private_file(&paths.catalog)?;
-            match Store::inspect_for_recovery(&paths.catalog, locator.catalog_id) {
-                Ok(projection) => (Some(projection), false),
-                Err(ReadOnlyInspectionError::RepairRequired) => (None, true),
-                Err(ReadOnlyInspectionError::Rejected(error)) => return Err(error),
-            }
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => (None, false),
-        Err(error) => return Err(error.into()),
-    };
+    let (existing, repair_required) = recovery_store(paths, &locator)?;
     if locator.phase == "active" && !repair_required {
         let projection = existing.as_ref().ok_or(PoolError::Missing)?;
         if !locator.recovery_pending() {
@@ -651,9 +718,17 @@ fn reconcile_authority_selected(
         replace_locator(paths, &locator)?;
     }
     observe(AuthorityRecoveryCheckpoint::IntentRecorded);
-    let projection = if repair_required {
-        // Explicit apply alone permits redb allocator recovery. Identity and full history
-        // must validate before publication; this never creates/resets a database.
+    let validated_authority = if repair_required
+        && locator.phase == "active"
+        && locator
+            .recovery
+            .as_ref()
+            .is_some_and(|recovery| recovery.kind == AuthorityRecoveryKind::StorageRepair)
+    {
+        // Only explicit repair of already-active authority may leave derived damage.
+        Store::repair_authority(&paths.catalog, locator.catalog_id)?
+    } else if repair_required {
+        // Bootstrap publication keeps its original strict complete-projection contract.
         Store::open(&paths.catalog, locator.catalog_id)?.projection()?
     } else if let Some(projection) = existing {
         projection
@@ -669,7 +744,7 @@ fn reconcile_authority_selected(
             Err(error) => return Err(error),
         }
     };
-    crate::relocation::validate_operations(&locator, &projection)?;
+    crate::relocation::validate_operations(&locator, &validated_authority)?;
     fs::File::open(paths.catalog.parent().ok_or(PoolError::Configuration)?)?.sync_all()?;
     observe(AuthorityRecoveryCheckpoint::StoreCommitted);
     locator.phase = "active".into();
@@ -681,7 +756,7 @@ fn reconcile_authority_selected(
     append_recovery_fact(&mut locator)?;
     replace_locator(paths, &locator)?;
     observe(AuthorityRecoveryCheckpoint::AuthorityPublished);
-    Ok(authority_reconciled(locator, projection.revision))
+    observe_authority(paths, locator)
 }
 
 fn authority_reconciled(locator: Locator, revision: u64) -> AuthorityObservation {
@@ -1318,5 +1393,101 @@ mod recovery_tests {
             assert_that!(fs::read(&locator_path).unwrap() == locator, eq(true));
             assert_that!(fs::read(&paths.catalog).unwrap() == catalog, eq(true));
         }
+    }
+    #[googletest::test]
+    fn explicit_storage_repair_can_retain_derived_damage_until_separate_rebuild() {
+        use redb::{ReadableTable, TableDefinition};
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let initialized = initialize(&paths).unwrap();
+        let history = Store::events_read_only(&paths.catalog, initialized.catalog_id).unwrap();
+        {
+            let database = redb::Database::open(&paths.catalog).unwrap();
+            let transaction = database.begin_write().unwrap();
+            {
+                let mut table = transaction
+                    .open_table(TableDefinition::<&str, &str>::new("state"))
+                    .unwrap();
+                let mut state: serde_json::Value =
+                    serde_json::from_str(table.get("catalog").unwrap().unwrap().value()).unwrap();
+                state["revision"] = serde_json::json!(999);
+                table
+                    .insert("catalog", serde_json::to_string(&state).unwrap().as_str())
+                    .unwrap();
+            }
+            transaction.commit().unwrap();
+        }
+        crash_catalog_writer(&paths.catalog);
+        assert_that!(
+            matches!(
+                redb::ReadOnlyDatabase::open(&paths.catalog),
+                Err(redb::DatabaseError::RepairAborted)
+            ),
+            eq(true)
+        );
+        let bytes = fs::read(&paths.catalog).unwrap();
+        assert_that!(super::rebuild(&paths).is_err(), eq(true));
+        assert_that!(fs::read(&paths.catalog).unwrap(), eq(&bytes));
+        let repaired = reconcile_authority(&paths).unwrap();
+        assert_that!(repaired.catalog_id, eq(initialized.catalog_id));
+        assert_that!(repaired.store_state, eq("rebuild_required"));
+        assert_that!(super::inspect_projection(&paths).is_err(), eq(true));
+        let restored = super::rebuild(&paths).unwrap();
+        assert_that!(restored, eq(&initialized));
+        assert_that!(
+            Store::events_read_only(&paths.catalog, initialized.catalog_id).unwrap(),
+            eq(&history)
+        );
+        assert_that!(
+            super::inspect_authority(&paths).unwrap().store_state,
+            eq("validated")
+        );
+    }
+    #[googletest::test]
+    fn bootstrap_storage_repair_still_requires_a_complete_valid_projection() {
+        use redb::TableDefinition;
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let interrupted = std::panic::catch_unwind(|| {
+            initialize_observed(&paths, |checkpoint| {
+                if checkpoint == InitializationCheckpoint::StoreCommitted {
+                    panic!("interrupt bootstrap");
+                }
+            })
+            .unwrap()
+        });
+        assert_that!(interrupted.is_err(), eq(true));
+        {
+            let database = redb::Database::open(&paths.catalog).unwrap();
+            let transaction = database.begin_write().unwrap();
+            transaction
+                .open_table(TableDefinition::<&str, &str>::new("state"))
+                .unwrap()
+                .insert("catalog", "malformed derived state")
+                .unwrap();
+            transaction.commit().unwrap();
+        }
+        crash_catalog_writer(&paths.catalog);
+        assert_that!(
+            matches!(
+                redb::ReadOnlyDatabase::open(&paths.catalog),
+                Err(redb::DatabaseError::RepairAborted)
+            ),
+            eq(true)
+        );
+        assert_that!(reconcile_authority(&paths).is_err(), eq(true));
+        assert_that!(
+            inspect_authority(&paths).unwrap().phase.as_str(),
+            eq("initializing")
+        );
+        assert_that!(super::rebuild(&paths).is_err(), eq(true));
     }
 }

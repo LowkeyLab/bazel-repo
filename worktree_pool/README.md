@@ -36,6 +36,62 @@ commands examine locator identity, store/projection versions, complete event
 history, contiguous revisions, deduplication index, and projection equivalence.
 Unsupported history stops use.
 
+## Check and rebuild derived state
+
+```text
+worktree-pool catalog check
+worktree-pool catalog rebuild
+```
+
+Check reads storage without changing its bytes and requires the stored projection
+and identity index to match complete supported history. Rebuild explicitly reconstructs both derived records
+from every immutable event in committed position order. Its version-1 result uses
+command `catalog rebuild`, the catalog context, and the same projection-shaped
+`data` as catalog information. The authoritative revision stays fixed. Rebuild is
+catalog-wide and rejects a repository selector.
+
+Rebuild retains registrations, capacity, assignments,
+preservation references, withheld availability, pending operations, recovery
+outcomes, release recency, and independent stream revisions. It never resumes
+checkout, creation, release, preservation, fetch, or recovery. Registered paths
+may be missing. Git and checkout filesystem access are unnecessary. Historical
+facts don't produce diagnostic notifications. The command itself uses ordinary
+outcome diagnostics.
+
+Rebuild replaces only the derived projection and identity index, atomically in
+one durable transaction. Repeated rebuilds retain the same authority and complete event
+history. History is never deleted, compacted, archived, or rewritten. Supported
+historical registration versions keep their original stream routing. Unsupported
+history, unsupported version metadata, corrupt positions/revisions/identities,
+foreign catalog identity, and locator/configuration conflicts reject before
+writable storage access. Rebuild doesn't perform an implicit schema upgrade.
+Ordinary reads and mutations continue to refuse mismatched derived state.
+
+Stable exclusive maintenance coordination spans the whole rebuild and waits for
+live commands, including their Git work outside short catalog sessions. An
+interrupted rebuild exposes a complete old or new derived state, or ordinary use
+stays blocked. Inspect the catalog before requesting another rebuild after an
+unknown outcome. If `redb` explicitly requires physical storage repair, use
+`recover preview --catalog` and `recover apply --catalog`. That recorded recovery
+validates complete immutable authority and retains existing locator operation IDs
+and history. Physical repair may complete while derived damage remains:
+`store_state` then reports `rebuild_required`, `catalog_mutations_available` is
+false, and guidance requests `catalog rebuild`. The tool exposes ownership only
+after complete reconstruction. Known storage-recovery operations remain available
+for inspection by ID. Rebuild never initializes missing state or chooses another authority.
+
+The pure positioned-history interface keeps typed decoders and reducers real.
+Concrete `redb` checks cover derived corruption, immutable-history refusal, and
+actual sync errors. Literal historical CloudEvents and generated capacity,
+revision, and ownership sequences verify deterministic reconstruction. Public
+command coverage compares ownership and recovery states. It also verifies
+withholding, protected files, Git index/ref state, and full history, including
+replay without Git or registered paths. Actual process kills bracket validation
+and publication. Kernel lock waiters establish live-command coordination.
+These checks establish observed process/commit behavior, without claiming
+whole-machine power-loss guarantees or isolation from processes that ignore
+coordination.
+
 ## Output contract, version 1
 
 JSON mode writes one object followed by a newline:
@@ -623,3 +679,99 @@ a replacement authority. Real subprocess crash tests demonstrate process
 interruption behavior and cooperative locking, not whole-machine power-loss
 recovery or protection from hostile same-user filesystem changes. SHA-256 evidence
 strengthens accidental replacement detection, not hostile-filesystem isolation.
+
+## Retire registrations and inspect retained resources
+
+Retirement frees one registered record's count capacity after human removal. It
+keeps the complete registration, assignment, operation, and event history. It never
+removes a checkout, Git metadata, ignored files, preservation refs, commits,
+external build state or caches. It never stops processes or runs build cleanup.
+
+First release the latest assignment safely, or apply explicit worktree recovery
+while the checkout still exists. Recovery must leave ownership unassigned and
+establish safe preservation. Keep the exact completed release or recovery
+operation ID. A completed reconciliation that retains active or preparing
+ownership, or leaves availability withheld, doesn't authorize retirement.
+Humans then remove the checkout and its linked Git worktree metadata using their
+own Git or filesystem workflow. Confirm removal explicitly:
+
+```sh
+worktree-pool worktree retire <worktree-id> \
+  --reconciliation <completed-release-or-recovery-operation-id> --removed
+```
+
+The command validates the latest generation's proof, absent registered checkout
+and Git directory, and every required detached preservation root. Existing
+files, ignored files, dangling links, substituted symlink ancestors, moved
+worktrees, uncertain access and unresolved repository operations refuse retirement.
+Missing files alone never release an assignment or free capacity. If removal
+preceded safe reconciliation, restore the work and reconcile it safely first.
+The removal assertion doesn't waive preservation or certify lost content.
+
+An attached proof also requires its recorded branch to remain a direct reference
+at the exact recorded tip. Deleted, symbolic, or moved branch protection refuses
+retirement. Detached roots must remain direct exact refs in
+`refs/worktree-pool/<operation-id>`. The tool doesn't repair or remove those refs
+as part of retirement. Cooperative locks don't stop humans from changing files or
+refs outside the tool. This isn't filesystem isolation.
+
+`retirement_preconditions_unmet` is a rejected result with exit code 2. Other
+Git, filesystem, pending, and commit-uncertainty reasons retain their documented
+codes. Retirement records `worktree.retirement.started.v1` and
+`worktree.retirement.finished.v1` facts under `io.lowkeylab.worktreepool`.
+The intent belongs to the repository stream. Its result retires the global
+registration in the catalog stream, retaining its repository identity in the payload.
+An intended retirement keeps capacity counted and blocks conflicting repository
+work. Only its committed result frees that record's count. Inspect the exact
+retirement ID through `operation inspect`, or use `recover preview/apply
+--operation <retirement-id>` after interruption. Apply revalidates removal and
+preservation before completing an intended result. A committed exact identity
+returns its historical receipt without repeating facts or affecting a newer
+registration. Unknown identities never select the newest operation.
+
+Retirement JSON data includes `operation`, `retired`, `already_retired`,
+`ownership`, `availability`, `resources` and `revision`. Its operation retains the
+original worktree record, exact reconciliation identity and causal checkpoint.
+Inspect exact retired worktree IDs with `registration_state: retired`.
+Path selectors select only a current registration. A later registration can reuse
+the same path with a new identity. Historical retired paths report unknown,
+unattributed bytes rather than attributing a newer checkout's files to old history.
+Inspect exact completed acquisition, release, and recovery IDs.
+Repeated apply returns their historical result. Their retired observation is
+explicitly historical and never examines a newer checkout at the recorded path.
+
+Worktree inspection exposes `resources.worktree`,
+`resources.known_external_build_state`, `resources.shared` and `resources.unknown`.
+Repository inspection reports `resources.worktree_bytes`, per-worktree observations
+and shared Git-common-directory usage once. Human output includes the same data.
+The metric is `logical_regular_file_bytes`, with unique device/inode identities
+counted once across a repository report. The tool measures common Git storage first.
+It excludes checkout-root `.git` metadata from worktree bytes and counts each
+regular file identity once, including repeated hard links. Separately requested worktree
+reports aren't an additive repository total.
+
+Measurements include ignored regular files but don't follow symlinks or cross
+filesystem devices. Arbitrary Bazel convenience symlinks don't establish external
+storage ownership. The pool has no authoritative external build-state roots, so
+known external bytes are `null`, with `no_authoritative_build_state_roots`, and
+undiscovered output bases, caches, servers and remote state remain unknown. No
+Bazel invocation or ambient cache-directory discovery occurs during inspection.
+This limitation avoids invented attribution or exclusive-usage claims.
+
+Each observation includes its encoded path, status, and bytes. Missing,
+inaccessible, unsafe, or incomplete roots have `bytes: null`. Partial traversal
+reports its observed subtotal separately as `measured_bytes`. Skipped paths
+carry explicit reasons. Measurements aren't filesystem snapshots and can change
+while humans or build processes run. Logical lengths don't measure allocated
+blocks, compression, reclaimable space or process memory. Inspection keeps
+catalog and locator bytes unchanged and performs no cleanup. Capacity limits
+registered count rather than bytes, and retirement makes no claim of external
+resource removal.
+
+Retirement verification uses private real Git/filesystem/redb fixtures and public
+command-line inspection, exact operation recovery, real subprocess SIGKILL boundaries, and
+actual backend sync failures. The commit-fault observer arms the existing real
+backend immediately before the same production transaction commit. Earlier
+storage errors aren't classified as failed commits. Reopen checks complete old or
+complete new history and projection before any retry. These checks don't establish
+whole-machine power-loss behavior or a performance benefit.

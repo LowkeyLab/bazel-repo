@@ -63,6 +63,8 @@ impl FromStr for CatalogId {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogProjection {
+    #[serde(default)]
+    pub retirements: Vec<crate::retirement::RetirementOperation>,
     pub catalog_id: CatalogId,
     pub revision: u64,
     pub store_version: u32,
@@ -94,7 +96,8 @@ pub struct CatalogProjection {
 impl CatalogProjection {
     #[must_use]
     pub fn operation_identity_used(&self, id: crate::management::OperationId) -> bool {
-        self.operations.iter().any(|o| o.operation_id == id)
+        self.retirements.iter().any(|o| o.operation_id == id)
+            || self.operations.iter().any(|o| o.operation_id == id)
             || self
                 .repository_recoveries
                 .iter()
@@ -107,7 +110,10 @@ impl CatalogProjection {
 
     #[must_use]
     pub fn has_pending_recovery(&self, repository_id: crate::management::RepositoryId) -> bool {
-        self.recoveries.iter().any(|o| {
+        self.retirements.iter().any(|o| {
+            o.repository_id == repository_id
+                && o.state != crate::retirement::RetirementState::Completed
+        }) || self.recoveries.iter().any(|o| {
             o.repository_id == repository_id && o.state != crate::recovery::RecoveryState::Completed
         }) || self.repository_recoveries.iter().any(|o| {
             o.repository_id == repository_id
@@ -172,6 +178,8 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
             value["type"].as_str(),
             Some(
                 INITIALIZED_TYPE
+                    | "io.lowkeylab.worktreepool.worktree.retirement.started.v1"
+                    | "io.lowkeylab.worktreepool.worktree.retirement.finished.v1"
                     | "io.lowkeylab.worktreepool.repository.recovery.started.v1"
                     | "io.lowkeylab.worktreepool.repository.recovery.finished.v1"
                     | "io.lowkeylab.worktreepool.recovery.started.v1"
@@ -289,6 +297,7 @@ pub fn reduce(
             store_version: data.store_version,
             projection_version: data.projection_version,
             repositories: Vec::new(),
+            retirements: Vec::new(),
             worktrees: Vec::new(),
             operations: Vec::new(),
             assignments: Vec::new(),
@@ -315,6 +324,7 @@ pub fn reduce(
                 || matches!(
                     event.as_ref(),
                     crate::management::ManagementEvent::Creation(_)
+                        | crate::management::ManagementEvent::Retirement(_)
                         | crate::management::ManagementEvent::WorktreeEnrolled(_)
                 );
             event.apply(&mut next, event_id, causation_id.as_deref())?;

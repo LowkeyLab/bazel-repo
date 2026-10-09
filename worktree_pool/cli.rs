@@ -120,9 +120,20 @@ enum RepoCommand {
 }
 #[derive(Subcommand)]
 enum WorktreeCommand {
-    Register { path: PathBuf },
+    Retire {
+        selector: OsString,
+        #[arg(long)]
+        reconciliation: String,
+        #[arg(long)]
+        removed: bool,
+    },
+    Register {
+        path: PathBuf,
+    },
     List,
-    Inspect { selector: OsString },
+    Inspect {
+        selector: OsString,
+    },
 }
 #[derive(Subcommand)]
 enum CatalogCommand {
@@ -130,6 +141,7 @@ enum CatalogCommand {
     Init,
     Info,
     Check,
+    Rebuild,
 }
 #[derive(Subcommand)]
 enum EventsCommand {
@@ -201,6 +213,7 @@ const fn command_name(cli: &Cli) -> &'static str {
             CatalogCommand::Init => "catalog init",
             CatalogCommand::Info => "catalog info",
             CatalogCommand::Check => "catalog check",
+            CatalogCommand::Rebuild => "catalog rebuild",
         },
         Command::Events { .. } => "events list",
         Command::Release { .. } => "release",
@@ -220,6 +233,7 @@ const fn command_name(cli: &Cli) -> &'static str {
             RepoCommand::Refresh { .. } => "repo refresh",
         },
         Command::Worktree { command } => match command {
+            WorktreeCommand::Retire { .. } => "worktree retire",
             WorktreeCommand::Register { .. } => "worktree register",
             WorktreeCommand::List => "worktree list",
             WorktreeCommand::Inspect { .. } => "worktree inspect",
@@ -303,6 +317,16 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             let data = serde_json::to_value(&p).map_err(|_| PoolError::Corrupt)?;
             (p, data)
         }
+        Command::Catalog {
+            command: CatalogCommand::Rebuild,
+        } => {
+            if cli.repo.is_some() {
+                return Err(PoolError::Selectors);
+            }
+            let projection = catalog::rebuild(paths)?;
+            let data = serde_json::to_value(&projection).map_err(|_| PoolError::Corrupt)?;
+            (projection, data)
+        }
         Command::Catalog { .. } => {
             let _maintenance = crate::workflows::maintenance(paths)?;
             let projection = catalog::inspect_projection(paths)?;
@@ -343,8 +367,43 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
         warnings: Vec::new(),
     })
 }
+fn retirement_command(
+    cli: &Cli,
+    paths: &Paths,
+    worktree: &WorktreeCommand,
+) -> Result<Envelope, PoolError> {
+    let WorktreeCommand::Retire {
+        selector,
+        reconciliation,
+        removed,
+    } = worktree
+    else {
+        return Err(PoolError::Selectors);
+    };
+    let proof = reconciliation
+        .parse()
+        .map_err(|_| PoolError::RetirementUnsafe)?;
+    let (state, mut data) =
+        crate::retirement_workflow::retire(paths, cli.repo.as_deref(), selector, proof, *removed)?;
+    let context = json!({"catalog_id":state.catalog_id,"repository_id":data["repository_id"],"worktree_id":data["worktree_id"],"operation_id":data["operation_id"]});
+    data["revision"] = json!(state.revision);
+    Ok(Envelope {
+        schema_version: 1,
+        command: "worktree retire".into(),
+        outcome: "completed",
+        reason_code: if data["already_retired"] == true {
+            "already_retired"
+        } else {
+            "ok"
+        },
+        context,
+        data,
+        warnings: Vec::new(),
+    })
+}
 fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolError> {
     use crate::workflows;
+    let _maintenance = workflows::maintenance(paths)?;
     if let Command::Pool {
         command: PoolCommand::Configure { max_worktrees },
     } = &cli.command
@@ -354,9 +413,12 @@ fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolEr
     if let Command::Release { assignment_handle } = &cli.command {
         return release_command(cli, paths, assignment_handle);
     }
-    let mut context = json!({});
-    let mut outcome = "completed";
-    let mut reason_code = "ok";
+    if let Command::Worktree { command: worktree } = &cli.command
+        && matches!(worktree, WorktreeCommand::Retire { .. })
+    {
+        return retirement_command(cli, paths, worktree);
+    }
+    let (mut context, mut outcome, mut reason_code) = (json!({}), "completed", "ok");
     let (state, mut data) = match &cli.command {
         Command::Acquire { reference } => {
             let (state, assignment) = crate::acquisition_workflow::acquire(
@@ -473,7 +535,7 @@ fn resource_query(
                 return Err(PoolError::Selectors);
             }
             context["repository_id"] = json!(repository.repository_id);
-            json!({"repository":repository,"registered_count":state.worktrees.iter().filter(|w| w.repository_id == repository.repository_id).count(), "operations":state.operations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>(), "creations":state.creations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>()})
+            json!({"repository":repository,"registered_count":state.worktrees.iter().filter(|w| w.repository_id == repository.repository_id).count(), "resources":crate::resources::repository_usage(state, &repository), "operations":state.operations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>(), "creations":state.creations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>()})
         }
         Command::Worktree {
             command: WorktreeCommand::List,
@@ -512,6 +574,16 @@ fn resource_query(
             let worktree = state
                 .worktrees
                 .iter()
+                .chain(
+                    state
+                        .retirements
+                        .iter()
+                        .filter(|o| {
+                            o.state == crate::retirement::RetirementState::Completed
+                                && Some(o.worktree_id) == id
+                        })
+                        .map(|o| &o.worktree),
+                )
                 .find(|w| {
                     Some(w.worktree_id) == id
                         || path
@@ -537,9 +609,22 @@ fn worktree_view(
     worktree: &crate::management::Worktree,
     state: &crate::domain::CatalogProjection,
 ) -> Value {
+    if let Some(o) = state.retirements.iter().find(|o| {
+        o.worktree_id == worktree.worktree_id
+            && o.state == crate::retirement::RetirementState::Completed
+    }) {
+        let mut value = json!(worktree);
+        value["registration_state"] = json!("retired");
+        value["ownership"] = json!("unassigned");
+        value["availability"] = json!("retired");
+        value["retirement"] = json!(o);
+        value["resources"] = crate::resources::retired_usage(worktree);
+        return value;
+    }
     let registration_state = registration_state(worktree, state);
     let mut value = serde_json::to_value(worktree).unwrap_or_else(|_| json!({}));
     value["registration_state"] = json!(registration_state);
+    value["resources"] = crate::resources::worktree_usage(worktree);
     let assignment = state.assignments.iter().find(|a| {
         a.worktree_id == worktree.worktree_id
             && a.state != crate::acquisition::AssignmentState::Released
@@ -683,6 +768,15 @@ pub fn run(args: &[OsString]) -> u8 {
             json!(crate::relocation::next_action(
                 observation.relocation.as_ref()
             ))
+        } else if matches!(
+            cli.command,
+            Command::Catalog {
+                command: CatalogCommand::Rebuild
+            }
+        ) {
+            json!(
+                "inspect the recorded catalog identity and catalog check before explicit storage recovery or another rebuild request"
+            )
         } else {
             json!(
                 "preserve recorded catalog state; explicit initialization reconciliation is required"
@@ -869,6 +963,17 @@ fn operation_query(
                 })
                 .map(|o| json!(o)),
         );
+        operations.extend(
+            state
+                .retirements
+                .iter()
+                .filter(|o| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == o.repository_id)
+                })
+                .map(|o| json!(o)),
+        );
         match command {
             RecordedCommand::List => json!({"operations":operations}),
             RecordedCommand::Inspect { selector } => {
@@ -1045,6 +1150,22 @@ fn recovery_resource(
     paths: &Paths,
     recovery: &RecoveryCommand,
 ) -> Result<(crate::domain::CatalogProjection, Value), PoolError> {
+    let operation = match recovery {
+        RecoveryCommand::Preview { operation, .. } | RecoveryCommand::Apply { operation, .. } => {
+            operation.as_deref()
+        }
+    };
+    if let Some(id) = operation.and_then(|id| id.parse().ok())
+        && let Ok(state) = catalog::inspect_projection(paths)
+        && state.retirements.iter().any(|o| o.operation_id == id)
+    {
+        return crate::retirement_workflow::recover(
+            paths,
+            cli.repo.as_deref(),
+            id,
+            matches!(recovery, RecoveryCommand::Apply { .. }),
+        );
+    }
     Ok(match recovery {
         RecoveryCommand::Preview {
             worktree: Some(worktree),

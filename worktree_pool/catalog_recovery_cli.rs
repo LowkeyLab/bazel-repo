@@ -233,6 +233,8 @@ fn next_action(authority: &AuthorityObservation) -> &'static str {
         "inspect the recorded catalog operation and explicitly apply its recovery"
     } else if authority.phase == "initializing" {
         "run recover apply --catalog to reconcile the recorded initialization"
+    } else if authority.store_state == "rebuild_required" {
+        "run catalog rebuild to reconstruct derived state from validated immutable history"
     } else if authority.store_state != "validated" {
         "inspect the selected catalog path and recorded catalog identity before explicit recovery"
     } else {

@@ -6,25 +6,11 @@ use worktree_pool::{
 fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
-    if std::env::var("OPERATION").as_deref() == Ok("relocate") {
-        use worktree_pool::relocation::{RelocationCheckpoint, relocate_observed};
-        let destination =
-            std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join("relocated");
-        relocate_observed(&paths, &destination, |checkpoint| {
-            let name = match checkpoint {
-                RelocationCheckpoint::IntentRecorded => "intent",
-                RelocationCheckpoint::DirectoryPrepared => "directory",
-                RelocationCheckpoint::DestinationCreated => "created",
-                RelocationCheckpoint::CopyStarted => "copy-started",
-                RelocationCheckpoint::CopySynced => "copied",
-                RelocationCheckpoint::DestinationPrepared => "prepared",
-                RelocationCheckpoint::LocatorSwitched => "switched",
-                RelocationCheckpoint::Completed => "completed",
-            };
-            pause(&selected, name);
-        })
-        .unwrap();
-        return;
+    match std::env::var("OPERATION").as_deref() {
+        Ok("relocate") => return relocate_catalog(&paths, &selected),
+        Ok("rebuild") => return rebuild_catalog(&paths, &selected),
+        Ok("retire") => return retire_registration(&paths, &selected),
+        _ => {}
     }
     if std::env::var("OPERATION").as_deref() == Ok("recover-repository") {
         use worktree_pool::repository_recovery::{RepositoryRecoveryCheckpoint, resume_observed};
@@ -143,6 +129,60 @@ fn recover_catalog(paths: &Paths, selected: &str) {
             AuthorityRecoveryCheckpoint::IntentRecorded => "intent",
             AuthorityRecoveryCheckpoint::StoreCommitted => "store",
             AuthorityRecoveryCheckpoint::AuthorityPublished => "published",
+        };
+        pause(selected, name);
+    })
+    .unwrap();
+}
+
+fn rebuild_catalog(paths: &Paths, selected: &str) {
+    worktree_pool::catalog::rebuild_observed(paths, |checkpoint| {
+        let name = match checkpoint {
+            worktree_pool::rebuild::RebuildCheckpoint::Validated => "validated",
+            worktree_pool::rebuild::RebuildCheckpoint::BeforeCommit => "before-commit",
+            worktree_pool::rebuild::RebuildCheckpoint::Committed => "committed",
+        };
+        pause(selected, name);
+    })
+    .unwrap();
+}
+
+fn retire_registration(paths: &Paths, selected: &str) {
+    use worktree_pool::retirement_workflow::{RetirementCheckpoint, retire_observed};
+    let ids = std::env::var("OPERATION_ID").unwrap();
+    let (worktree, proof) = ids.split_once(':').unwrap();
+    retire_observed(
+        paths,
+        None,
+        worktree.as_ref(),
+        proof.parse().unwrap(),
+        true,
+        |checkpoint| {
+            pause(
+                selected,
+                match checkpoint {
+                    RetirementCheckpoint::IntentCommitted => "intent",
+                    RetirementCheckpoint::ResultCommitted => "result",
+                },
+            );
+        },
+    )
+    .unwrap();
+}
+
+fn relocate_catalog(paths: &Paths, selected: &str) {
+    use worktree_pool::relocation::{RelocationCheckpoint, relocate_observed};
+    let destination = std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join("relocated");
+    relocate_observed(paths, &destination, |checkpoint| {
+        let name = match checkpoint {
+            RelocationCheckpoint::IntentRecorded => "intent",
+            RelocationCheckpoint::DirectoryPrepared => "directory",
+            RelocationCheckpoint::DestinationCreated => "created",
+            RelocationCheckpoint::CopyStarted => "copy-started",
+            RelocationCheckpoint::CopySynced => "copied",
+            RelocationCheckpoint::DestinationPrepared => "prepared",
+            RelocationCheckpoint::LocatorSwitched => "switched",
+            RelocationCheckpoint::Completed => "completed",
         };
         pause(selected, name);
     })

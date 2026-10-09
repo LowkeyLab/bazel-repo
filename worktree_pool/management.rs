@@ -120,6 +120,7 @@ pub struct RefreshFinished {
     deny_unknown_fields
 )]
 pub enum ManagementEvent {
+    Retirement(crate::retirement::RetirementEvent),
     RepositoryRecovery(crate::repository_recovery::RepositoryRecoveryEvent),
     Recovery(crate::recovery::RecoveryEvent),
     Creation(crate::creation::CreationEvent),
@@ -140,6 +141,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn event_type(&self) -> &'static str {
         match self {
+            Self::Retirement(r) => r.event_type(),
             Self::RepositoryRecovery(r) => r.event_type(),
             Self::Recovery(r) => r.event_type(),
             Self::Creation(c) => c.event_type(),
@@ -159,6 +161,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn repository_id(&self) -> Option<RepositoryId> {
         match self {
+            Self::Retirement(r) => r.repository_id(),
             Self::RepositoryRecovery(r) => Some(r.repository_id()),
             Self::Recovery(r) => Some(r.repository_id()),
             Self::Creation(c) => c.repository_id(),
@@ -175,6 +178,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn operation_id(&self) -> Option<OperationId> {
         match self {
+            Self::Retirement(r) => Some(r.operation_id()),
             Self::RepositoryRecovery(r) => Some(r.operation_id()),
             Self::Recovery(r) => Some(r.operation_id()),
             Self::Creation(c) => Some(c.operation_id()),
@@ -188,6 +192,7 @@ impl ManagementEvent {
     #[must_use]
     pub fn subject(&self) -> String {
         match self {
+            Self::Retirement(r) => format!("worktrees/{}", r.worktree_id()),
             Self::RepositoryRecovery(r) => format!("repositories/{}", r.repository_id()),
             Self::Recovery(r) => format!("worktrees/{}", r.worktree_id()),
             Self::Creation(c) => format!("worktrees/{}", c.worktree_id()),
@@ -215,6 +220,7 @@ impl ManagementEvent {
         causation_id: Option<&str>,
     ) -> Result<(), PoolError> {
         match self {
+            Self::Retirement(r) => r.apply(state, event_id, causation_id)?,
             Self::RepositoryRecovery(r) => r.apply(state, event_id, causation_id)?,
             Self::Recovery(r) => r.apply(state, event_id, causation_id)?,
             Self::Creation(c) => c.apply(state, event_id, causation_id)?,
@@ -311,6 +317,16 @@ pub(crate) fn enroll_worktree(
     state: &mut CatalogProjection,
     worktree: &Worktree,
 ) -> Result<(), PoolError> {
+    if state.has_pending_recovery(worktree.repository_id) {
+        return Err(PoolError::OperationPending);
+    }
+    if state
+        .retirements
+        .iter()
+        .any(|o| o.worktree_id == worktree.worktree_id)
+    {
+        return Err(PoolError::Conflict);
+    }
     if worktree.last_release_position.is_some() {
         return Err(PoolError::Corrupt);
     }

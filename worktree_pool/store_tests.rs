@@ -995,3 +995,340 @@ fn recovery_replay_rejects_forged_binding_cause_protection_and_unpreserved_relea
     );
     assert_that!(store.projection().unwrap(), eq(&before));
 }
+
+#[googletest::test]
+fn rebuild_sync_failure_never_exposes_partial_ownership_or_changes_immutable_history() {
+    use crate::{catalog, paths::Paths, rebuild::RebuildCheckpoint};
+    for fail in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let initial = catalog::initialize(&paths).unwrap();
+        let (expected, history) = {
+            let store = Store::open(&paths.catalog, initial.catalog_id).unwrap();
+            seed_preserved_release_recovery(&store, root.path());
+            (store.projection().unwrap(), store.events().unwrap())
+        };
+        {
+            use redb::{ReadableTable, TableDefinition};
+            let database = redb::Database::open(&paths.catalog).unwrap();
+            let transaction = database.begin_write().unwrap();
+            {
+                let mut table = transaction
+                    .open_table(TableDefinition::<&str, &str>::new("state"))
+                    .unwrap();
+                let mut state: serde_json::Value =
+                    serde_json::from_str(table.get("catalog").unwrap().unwrap().value()).unwrap();
+                state["assignments"] = serde_json::json!([]);
+                table
+                    .insert("catalog", serde_json::to_string(&state).unwrap().as_str())
+                    .unwrap();
+            }
+            transaction.commit().unwrap();
+        }
+        let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let backend = SyncFailureBackend {
+            inner: redb::backends::FileBackend::new(
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&paths.catalog)
+                    .unwrap(),
+            )
+            .unwrap(),
+            armed: armed.clone(),
+        };
+        let result = Store::rebuild_with_fault_backend(initial.catalog_id, backend, |checkpoint| {
+            if checkpoint == RebuildCheckpoint::BeforeCommit {
+                armed.store(fail, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        armed.store(false, std::sync::atomic::Ordering::SeqCst);
+        if fail {
+            assert_that!(
+                matches!(result, Err(crate::error::PoolError::CommitUnknown)),
+                eq(true)
+            );
+        } else {
+            assert_that!(result.unwrap(), eq(&expected));
+        }
+        // Reopen and observe complete identity/revisions before any explicit new request.
+        let observed = catalog::inspect_authority(&paths).unwrap();
+        assert_that!(observed.catalog_id, eq(initial.catalog_id));
+        if observed.store_state == "unreadable" {
+            catalog::reconcile_authority(&paths).unwrap();
+        }
+        match Store::inspect_read_only(&paths.catalog, initial.catalog_id) {
+            Ok(projection) => assert_that!(projection, eq(&expected)),
+            Err(crate::error::PoolError::Corrupt) => {
+                assert_that!(
+                    catalog::inspect_authority(&paths).unwrap().store_state,
+                    eq("rebuild_required")
+                );
+                assert_that!(catalog::open(&paths).is_err(), eq(true));
+            }
+            Err(error) => panic!("unexpected reopened state: {error:?}"),
+        }
+        assert_that!(
+            Store::inspect_rebuild_history(&paths.catalog, initial.catalog_id).unwrap(),
+            eq(&expected)
+        );
+        assert_that!(catalog::rebuild(&paths).unwrap(), eq(&expected));
+        assert_that!(
+            Store::events_read_only(&paths.catalog, initial.catalog_id).unwrap(),
+            eq(&history)
+        );
+        let store = Store::open(&paths.catalog, initial.catalog_id).unwrap();
+        assert_that!(
+            store
+                .append_batch(expected.revision, vec![history.last().unwrap().clone()])
+                .is_err(),
+            eq(true)
+        );
+        assert_that!(store.projection().unwrap(), eq(&expected));
+        assert_that!(store.events().unwrap(), eq(&history));
+    }
+}
+
+fn seed_retirement(
+    store: &Store,
+    root: &std::path::Path,
+) -> crate::retirement::RetirementOperation {
+    use crate::{
+        management::{ManagementEvent, OperationId},
+        release::ReleaseEvent,
+        retirement::{RetirementOperation, RetirementState},
+    };
+    let release = seed_branch_release(store, root);
+    append_release_fixture_fact(
+        store,
+        ManagementEvent::Release(ReleaseEvent::Finished {
+            operation_id: release.operation_id,
+            repository_id: release.repository_id,
+            worktree_id: release.worktree_id,
+            successful: true,
+        }),
+        Some(&release.intent_event_id),
+    );
+    RetirementOperation {
+        operation_id: OperationId::new(),
+        repository_id: release.repository_id,
+        worktree_id: release.worktree_id,
+        worktree: store.projection().unwrap().worktrees[0].clone(),
+        reconciliation_id: release.operation_id,
+        reconciliation_checkpoint: release.intent_event_id,
+        state: RetirementState::Intended,
+        intent_event_id: String::new(),
+        last_checkpoint: "retirement_intended".into(),
+    }
+}
+
+#[googletest::test]
+fn retirement_commit_uncertainty_preserves_complete_history_and_exact_capacity_transition() {
+    use crate::{
+        domain::{decode_event, management_event_caused_by},
+        error::PoolError,
+        management::ManagementEvent,
+        retirement::{RetirementEvent, RetirementState},
+    };
+    for phase in ["intent", "result"] {
+        for fail_sync in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("catalog.redb");
+            let id = CatalogId::new();
+            Store::create_with_id(&path, id).unwrap();
+            let store = Store::open(&path, id).unwrap();
+            let mut operation = seed_retirement(&store, root.path());
+            if phase == "result" {
+                operation.intent_event_id = append_release_fixture_fact(
+                    &store,
+                    ManagementEvent::Retirement(RetirementEvent::Started(Box::new(
+                        operation.clone(),
+                    ))),
+                    Some(&operation.reconciliation_checkpoint),
+                );
+            }
+            let before = store.projection().unwrap();
+            let old_events = store.events().unwrap();
+            let event = if phase == "intent" {
+                RetirementEvent::Started(Box::new(operation.clone()))
+            } else {
+                RetirementEvent::Finished {
+                    operation_id: operation.operation_id,
+                    repository_id: operation.repository_id,
+                    worktree_id: operation.worktree_id,
+                }
+            };
+            let cause = if phase == "intent" {
+                &operation.reconciliation_checkpoint
+            } else {
+                &operation.intent_event_id
+            };
+            let wire =
+                management_event_caused_by(id, &ManagementEvent::Retirement(event), cause).unwrap();
+            let result_id = wire["id"].as_str().unwrap().to_owned();
+            let revision = decode_event(&wire, id)
+                .unwrap()
+                .expected_revision(&before)
+                .unwrap();
+            let mut completed = before.clone();
+            completed.revision += 1;
+            if phase == "intent" {
+                completed.repositories[0].revision += 1;
+                let mut intended = operation.clone();
+                intended.intent_event_id = result_id.clone();
+                completed.retirements.push(intended);
+            } else {
+                completed.catalog_stream_revision = Some(
+                    before
+                        .catalog_stream_revision
+                        .unwrap_or(1 + before.repositories.len() as u64)
+                        + 1,
+                );
+                completed.worktrees.clear();
+                completed.retirements[0].state = RetirementState::Completed;
+                completed.retirements[0].intent_event_id = result_id.clone();
+                completed.retirements[0].last_checkpoint = "retirement_committed".into();
+            }
+            let mut new_events = old_events.clone();
+            new_events.push(wire.clone());
+            drop(store);
+            let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let backend = SyncFailureBackend {
+                inner: redb::backends::FileBackend::new(
+                    std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open(&path)
+                        .unwrap(),
+                )
+                .unwrap(),
+                armed: armed.clone(),
+            };
+            let store = Store::open_with_fault_backend(id, backend).unwrap();
+            let result = store.append_batch_observed(before.revision, vec![wire.clone()], || {
+                armed.store(fail_sync, std::sync::atomic::Ordering::SeqCst);
+            });
+            if fail_sync {
+                assert_that!(
+                    matches!(&result, Err(PoolError::CommitUnknown)),
+                    eq(true),
+                    "phase={phase} result={result:?}"
+                );
+            } else {
+                assert_that!(result.unwrap(), eq(&completed));
+            }
+            drop(store);
+            let reopened = Store::open(&path, id).unwrap();
+            let observed = reopened.projection().unwrap();
+            if observed.revision == before.revision {
+                assert_that!(fail_sync, eq(true));
+                assert_that!(&observed, eq(&before));
+                assert_that!(reopened.events().unwrap(), eq(&old_events));
+                assert_that!(
+                    reopened.append(revision, wire.clone()).unwrap(),
+                    eq(&completed)
+                );
+            } else {
+                assert_that!(&observed, eq(&completed));
+            }
+            assert_that!(reopened.events().unwrap(), eq(&new_events));
+            assert_that!(
+                matches!(
+                    reopened.append_batch(completed.revision, vec![wire]),
+                    Err(PoolError::Conflict)
+                ),
+                eq(true)
+            );
+            assert_that!(reopened.projection().unwrap(), eq(&completed));
+            assert_that!(&completed.assignments, eq(&before.assignments));
+            assert_that!(&completed.releases, eq(&before.releases));
+            assert_that!(&completed.retirements[0].worktree, eq(&before.worktrees[0]));
+        }
+    }
+}
+
+#[googletest::test]
+fn retirement_replay_rejects_forged_reconciliation_binding_cause_and_repeated_results() {
+    use crate::{
+        domain::{decode_event, management_event_caused_by, reduce},
+        management::{ManagementEvent, OperationId, RepositoryId, WorktreeId},
+        retirement::{RetirementEvent, RetirementState},
+    };
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("catalog.redb");
+    let id = CatalogId::new();
+    Store::create_with_id(&path, id).unwrap();
+    let store = Store::open(&path, id).unwrap();
+    let operation = seed_retirement(&store, root.path());
+    let state = store.projection().unwrap();
+    let events = store.events().unwrap();
+    for fault in [
+        "proof",
+        "checkpoint",
+        "repository",
+        "worktree",
+        "snapshot",
+        "identity",
+        "state",
+        "cause",
+    ] {
+        let mut invalid = operation.clone();
+        match fault {
+            "proof" => invalid.reconciliation_id = OperationId::new(),
+            "checkpoint" => invalid.reconciliation_checkpoint = uuid::Uuid::new_v4().to_string(),
+            "repository" => invalid.repository_id = RepositoryId::new(),
+            "worktree" => invalid.worktree_id = WorktreeId::new(),
+            "snapshot" => invalid.worktree.last_release_position = None,
+            "identity" => invalid.operation_id = invalid.reconciliation_id,
+            "state" => invalid.state = RetirementState::Completed,
+            _ => {}
+        }
+        let cause = if fault == "cause" {
+            uuid::Uuid::new_v4().to_string()
+        } else {
+            operation.reconciliation_checkpoint.clone()
+        };
+        let wire = management_event_caused_by(
+            id,
+            &ManagementEvent::Retirement(RetirementEvent::Started(Box::new(invalid))),
+            &cause,
+        )
+        .unwrap();
+        let typed = decode_event(&wire, id).unwrap();
+        assert_that!(
+            reduce(Some(&state), state.revision, &typed).is_err(),
+            eq(true)
+        );
+    }
+    let started = append_release_fixture_fact(
+        &store,
+        ManagementEvent::Retirement(RetirementEvent::Started(Box::new(operation.clone()))),
+        Some(&operation.reconciliation_checkpoint),
+    );
+    let result = management_event_caused_by(
+        id,
+        &ManagementEvent::Retirement(RetirementEvent::Finished {
+            operation_id: operation.operation_id,
+            repository_id: operation.repository_id,
+            worktree_id: operation.worktree_id,
+        }),
+        &started,
+    )
+    .unwrap();
+    let state = store.projection().unwrap();
+    let typed = decode_event(&result, id).unwrap();
+    let complete = reduce(Some(&state), state.revision, &typed).unwrap();
+    assert_that!(complete.worktrees.is_empty(), eq(true));
+    assert_that!(
+        reduce(Some(&complete), complete.revision, &typed).is_err(),
+        eq(true)
+    );
+    assert_that!(
+        store.events().unwrap()[..events.len()].to_vec(),
+        eq(&events)
+    );
+}
