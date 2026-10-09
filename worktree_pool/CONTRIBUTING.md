@@ -423,6 +423,9 @@ closure and isn't a universal prebuilt Linux distribution.
 
 ## Accepted benchmark and resource costs
 
+The [README summary](README.md#why-pooled-worktrees) explains the results for users.
+The exact measurements, acceptance criteria, and resource observations follow.
+
 The maintainer accepted the measured gate and retained resource costs on
 2026-10-09. The protocol covered 100 pairs: five workloads, two alternating
 batches of ten, 200 arms and 240 caller intervals. All 252 workload/input guards
