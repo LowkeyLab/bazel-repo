@@ -2,8 +2,15 @@
 
 [README.md](README.md) introduces the features and basic workflow.
 This guide covers development, implementation, verification, and detailed command behavior.
-Read the repository-root `AGENTS.md` before changing this monorepo. Development
-commands below run from the repository root, including for source-package contributors.
+Development commands require a monorepo checkout and run from its root. If you
+received this guide in an extracted source package, first obtain a checkout:
+
+```sh
+git clone https://github.com/LowkeyLab/bazel-repo.git
+cd bazel-repo
+```
+
+Read the repository-root `AGENTS.md` before making changes.
 
 ## Development workflow
 
@@ -517,8 +524,10 @@ archive includes its standalone lockfile, exact manifest, source, `AGPL-3.0` lic
 and public docs. It excludes Bazel `BUILD` files, benchmark/installation adapters
 and external workspace dependencies. Run `worktree-pool --version`, then initialize
 one catalog, explicitly register the repository, and acquire with `--repo` from
-any working directory. Retain the returned assignment handle and follow release
-and recovery obligations in the README. Installation never initializes or migrates catalogs.
+any working directory. Retain the returned assignment handle and follow the
+[release](#release-assignments) and
+[recovery](#explicit-recovery-and-lost-results) guidance below. Installation never
+initializes or migrates catalogs.
 
 ## Detailed command behavior
 

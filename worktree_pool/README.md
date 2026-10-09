@@ -49,7 +49,7 @@ for the measurements and test conditions.
 ## Installation
 
 Supports Linux x86-64 with Git 2.36+. Install from an extracted source package
-using Rust/Cargo 1.96+:
+using Rust/Cargo 1.96+ and a native linker/C toolchain:
 
 ```sh
 cargo install --locked --path /path/to/worktree-pool-0.1.0
