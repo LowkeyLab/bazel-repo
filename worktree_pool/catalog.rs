@@ -18,15 +18,19 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Locator {
-    version: u32,
-    catalog_id: CatalogId,
-    catalog_path: EncodedPath,
-    phase: String,
+pub(crate) struct Locator {
+    pub(crate) version: u32,
+    pub(crate) catalog_id: CatalogId,
+    pub(crate) catalog_path: EncodedPath,
+    pub(crate) phase: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     recovery: Option<AuthorityRecovery>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    recovery_history: Vec<AuthorityRecoveryFact>,
+    pub(crate) recovery_history: Vec<AuthorityRecoveryFact>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) relocation: Option<crate::relocation::Relocation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) relocation_history: Vec<crate::relocation::RelocationFact>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -45,7 +49,16 @@ pub enum AuthorityRecoveryKind {
     StorageRepair,
 }
 impl Locator {
-    fn recovery_pending(&self) -> bool {
+    pub(crate) fn recovery_identity_used(&self, operation_id: OperationId) -> bool {
+        self.recovery
+            .as_ref()
+            .is_some_and(|r| r.operation_id == operation_id)
+            || self
+                .recovery_history
+                .iter()
+                .any(|r| r.operation_id == operation_id)
+    }
+    pub(crate) fn recovery_pending(&self) -> bool {
         self.recovery
             .as_ref()
             .is_some_and(|recovery| recovery.checkpoint == "intent_recorded")
@@ -64,7 +77,15 @@ impl CatalogSession {
         &self.store
     }
 }
-fn read_locator(paths: &Paths) -> Result<Locator, PoolError> {
+pub(crate) fn read_locator(paths: &Paths) -> Result<Locator, PoolError> {
+    let value = read_active_locator(paths)?;
+    if value.catalog_path.to_path()? != paths.catalog {
+        return Err(PoolError::Conflict);
+    }
+    Ok(value)
+}
+
+pub(crate) fn read_active_locator(paths: &Paths) -> Result<Locator, PoolError> {
     let locator = paths.state.join("active.json");
     match fs::read(&locator) {
         Ok(bytes) => {
@@ -72,9 +93,6 @@ fn read_locator(paths: &Paths) -> Result<Locator, PoolError> {
             let value: Locator = serde_json::from_slice(&bytes).map_err(|_| PoolError::Corrupt)?;
             if value.version != 1 {
                 return Err(PoolError::Unsupported);
-            }
-            if value.catalog_path.to_path()? != paths.catalog {
-                return Err(PoolError::Conflict);
             }
             if value.recovery.as_ref().is_some_and(|recovery| {
                 !matches!(
@@ -86,6 +104,7 @@ fn read_locator(paths: &Paths) -> Result<Locator, PoolError> {
                 return Err(PoolError::Corrupt);
             }
             validate_recovery_history(&value)?;
+            crate::relocation::validate(&value)?;
             Ok(value)
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(PoolError::Missing),
@@ -128,6 +147,9 @@ pub fn initialize_observed(
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), true)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     match read_locator(paths) {
+        Ok(locator) if crate::relocation::pending(&locator) => {
+            return Err(PoolError::RelocationPending);
+        }
         Ok(locator) if locator.recovery_pending() => return Err(PoolError::Pending),
         Ok(locator) if locator.phase == "active" => {
             // Validate existing authority before rejecting reinitialization.
@@ -150,6 +172,8 @@ pub fn initialize_observed(
         phase: "initializing".into(),
         recovery: None,
         recovery_history: Vec::new(),
+        relocation: None,
+        relocation_history: Vec::new(),
     };
     // Durable identity and intent precede database creation. Interrupted init cannot reset authority.
     write_locator(&paths.state.join("active.json"), &locator, true)?;
@@ -178,6 +202,9 @@ pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
     let maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     let locator = read_locator(paths)?;
+    if crate::relocation::pending(&locator) {
+        return Err(PoolError::RelocationPending);
+    }
     if locator.phase == "initializing" || locator.recovery_pending() {
         return Err(PoolError::Pending);
     }
@@ -188,6 +215,10 @@ pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
         PoolError::Io(ref e) if e.kind() == std::io::ErrorKind::NotFound => PoolError::Missing,
         _ => error,
     })?;
+    if !locator.relocation_history.is_empty() {
+        let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
+        crate::relocation::validate_operations(&locator, &projection)?;
+    }
     let store = Store::open(&paths.catalog, locator.catalog_id)?;
     let projection = store.projection()?;
     Ok(CatalogSession {
@@ -208,6 +239,9 @@ pub fn inspect_projection(paths: &Paths) -> Result<CatalogProjection, PoolError>
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     let locator = read_locator(paths)?;
+    if crate::relocation::pending(&locator) {
+        return Err(PoolError::RelocationPending);
+    }
     if locator.phase == "initializing" || locator.recovery_pending() {
         return Err(PoolError::Pending);
     }
@@ -220,7 +254,9 @@ pub fn inspect_projection(paths: &Paths) -> Result<CatalogProjection, PoolError>
         }
         _ => error,
     })?;
-    Store::inspect_read_only(&paths.catalog, locator.catalog_id)
+    let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
+    crate::relocation::validate_operations(&locator, &projection)?;
+    Ok(projection)
 }
 
 /// Inspects retained catalog events under the same authority coordination.
@@ -235,6 +271,9 @@ pub fn inspect_events(
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     let locator = read_locator(paths)?;
+    if crate::relocation::pending(&locator) {
+        return Err(PoolError::RelocationPending);
+    }
     if locator.phase == "initializing" || locator.recovery_pending() {
         return Err(PoolError::Pending);
     }
@@ -248,6 +287,7 @@ pub fn inspect_events(
         _ => error,
     })?;
     let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
+    crate::relocation::validate_operations(&locator, &projection)?;
     let events = Store::events_read_only(&paths.catalog, locator.catalog_id)?;
     Ok((projection, events))
 }
@@ -263,6 +303,22 @@ pub struct AuthorityObservation {
     pub recovery_operation_id: Option<OperationId>,
     pub recovery_checkpoint: Option<String>,
     pub recovery_history: Vec<AuthorityRecoveryFact>,
+    pub relocation: Option<crate::relocation::Relocation>,
+    pub relocation_history: Vec<crate::relocation::RelocationFact>,
+}
+
+impl AuthorityObservation {
+    /// Whether global catalog authority permits ordinary mutations.
+    #[must_use]
+    pub fn mutations_available(&self) -> bool {
+        self.phase == "active"
+            && self.store_state == "validated"
+            && self.recovery_checkpoint.as_deref() != Some("intent_recorded")
+            && self
+                .relocation
+                .as_ref()
+                .is_none_or(|r| r.checkpoint == crate::relocation::Checkpoint::Completed)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -312,7 +368,7 @@ pub fn reconcile_authority_operation_observed(
 /// # Errors
 /// Rejects invalid or missing locator authority; does not require readable database state.
 pub fn list_authority_operations(paths: &Paths) -> Result<Vec<AuthorityRecoveryFact>, PoolError> {
-    let authority = inspect_authority(paths)?;
+    let authority = inspect_active_authority(paths)?;
     let mut seen = std::collections::HashSet::new();
     let mut operations = authority
         .recovery_history
@@ -429,6 +485,23 @@ pub fn inspect_authority(paths: &Paths) -> Result<AuthorityObservation, PoolErro
     observe_authority(paths, locator)
 }
 
+/// Observes the stable locator's active location without adopting an obsolete selector.
+/// # Errors
+/// Rejects missing, unsupported or corrupt stable authority.
+pub fn inspect_active_authority(paths: &Paths) -> Result<AuthorityObservation, PoolError> {
+    if !paths.state.join("active.json").exists() {
+        return Err(PoolError::Missing);
+    }
+    let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
+    let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+    let locator = read_active_locator(paths)?;
+    let active = Paths {
+        catalog: locator.catalog_path.to_path()?,
+        ..paths.clone()
+    };
+    observe_authority(&active, locator)
+}
+
 fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObservation, PoolError> {
     if locator.phase != "active" && locator.phase != "initializing" {
         return Err(PoolError::Corrupt);
@@ -440,6 +513,9 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
     } else {
         None
     };
+    if let Some(projection) = &projection {
+        crate::relocation::validate_operations(&locator, projection)?;
+    }
     let store_state = if projection.is_some() {
         "validated"
     } else if paths.catalog.exists() {
@@ -467,6 +543,8 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
         recovery_operation_id: locator.recovery.as_ref().map(|r| r.operation_id),
         recovery_checkpoint: locator.recovery.map(|r| r.checkpoint),
         recovery_history,
+        relocation: locator.relocation,
+        relocation_history: locator.relocation_history,
     })
 }
 
@@ -484,7 +562,7 @@ pub enum AuthorityRecoveryCheckpoint {
     AuthorityPublished,
 }
 
-fn replace_locator(paths: &Paths, locator: &Locator) -> Result<(), PoolError> {
+pub(crate) fn replace_locator(paths: &Paths, locator: &Locator) -> Result<(), PoolError> {
     let temporary = paths
         .state
         .join(format!("locator-{}.tmp", uuid::Uuid::new_v4()));
@@ -527,6 +605,9 @@ fn reconcile_authority_selected(
         {
             return Err(PoolError::Corrupt);
         }
+    }
+    if crate::relocation::pending(&locator) {
+        return Err(PoolError::RelocationPending);
     }
     if locator.phase != "active" && locator.phase != "initializing" {
         return Err(PoolError::Corrupt);
@@ -588,6 +669,7 @@ fn reconcile_authority_selected(
             Err(error) => return Err(error),
         }
     };
+    crate::relocation::validate_operations(&locator, &projection)?;
     fs::File::open(paths.catalog.parent().ok_or(PoolError::Configuration)?)?.sync_all()?;
     observe(AuthorityRecoveryCheckpoint::StoreCommitted);
     locator.phase = "active".into();
@@ -614,6 +696,8 @@ fn authority_reconciled(locator: Locator, revision: u64) -> AuthorityObservation
         recovery_operation_id: locator.recovery.as_ref().map(|r| r.operation_id),
         recovery_checkpoint: locator.recovery.map(|r| r.checkpoint),
         recovery_history,
+        relocation: locator.relocation,
+        relocation_history: locator.relocation_history,
     }
 }
 

@@ -8269,6 +8269,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "serenity",
+ "sha2 0.10.9",
  "sqlx",
  "syn 3.0.6",
  "tempfile",

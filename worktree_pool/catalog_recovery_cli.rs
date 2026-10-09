@@ -20,6 +20,12 @@ pub fn recover_catalog(
     operation: Option<&str>,
 ) -> Envelope {
     let command = recovery_command(apply);
+    if operation.is_none()
+        && let Some(result) =
+            crate::relocation::current(paths, command, apply, repository.is_some())
+    {
+        return result;
+    }
     if repository.is_some() {
         return failure(paths, command, &PoolError::Selectors, None, None);
     }
@@ -61,6 +67,11 @@ pub fn recover_known_operation(
     operation: &str,
 ) -> Option<Envelope> {
     let command = recovery_command(apply);
+    if let Some(result) =
+        crate::relocation::known(paths, command, operation, apply, repository.is_some())
+    {
+        return Some(result);
+    }
     let KnownCatalogOperation {
         authority: before,
         operation,
@@ -108,6 +119,11 @@ pub fn inspect_known_operation(
     operation: &str,
 ) -> Option<Envelope> {
     let command = "operation inspect";
+    if let Some(result) =
+        crate::relocation::known(paths, command, operation, false, repository.is_some())
+    {
+        return Some(result);
+    }
     let KnownCatalogOperation {
         authority,
         operation,
@@ -138,8 +154,23 @@ pub fn inspect_known_operation(
 /// # Errors
 /// Rejects missing, corrupt, conflicting or unsupported locator authority.
 pub fn lifecycle_operations(paths: &Paths) -> Result<Vec<Value>, PoolError> {
-    catalog::list_authority_operations(paths)
-        .map(|operations| operations.iter().map(operation_value).collect())
+    let _maintenance = crate::workflows::maintenance(paths)?;
+    let mut operations: Vec<Value> = catalog::list_authority_operations(paths)?
+        .iter()
+        .map(operation_value)
+        .collect();
+    let authority = catalog::inspect_active_authority(paths)?;
+    let mut seen = std::collections::HashSet::new();
+    let mut relocations: Vec<Value> = authority
+        .relocation_history
+        .iter()
+        .rev()
+        .filter(|fact| seen.insert(fact.relocation.operation_id.to_string()))
+        .map(|fact| crate::relocation::operation_value(&fact.relocation))
+        .collect();
+    relocations.reverse();
+    operations.extend(relocations);
+    Ok(operations)
 }
 
 struct KnownCatalogOperation {
@@ -194,9 +225,7 @@ const fn recovery_command(apply: bool) -> &'static str {
 }
 
 fn mutations_available(authority: &AuthorityObservation) -> bool {
-    authority.phase == "active"
-        && authority.store_state == "validated"
-        && authority.recovery_checkpoint.as_deref() != Some("intent_recorded")
+    authority.mutations_available()
 }
 
 fn next_action(authority: &AuthorityObservation) -> &'static str {

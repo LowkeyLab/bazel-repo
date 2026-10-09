@@ -15,7 +15,10 @@ rust_binary(
 rust_test(
     name = "cli_test",
     size = "small",
-    srcs = ["cli_test.rs"],
+    srcs = [
+        "cli_test.rs",
+        "relocation_cli_tests.rs",
+    ],
     compile_data = ["Cargo.toml"],
     crate_root = "cli_test.rs",
     data = [
@@ -63,6 +66,8 @@ rust_library(
         "recovery_workflow.rs",
         "release.rs",
         "release_workflow.rs",
+        "relocation.rs",
+        "relocation_tests.rs",
         "repository_recovery.rs",
         "store.rs",
         "store_tests.rs",
@@ -81,6 +86,7 @@ rust_library(
         "@crates//:redb",
         "@crates//:serde",
         "@crates//:serde_json",
+        "@crates//:sha2",
         "@crates//:thiserror",
         "@crates//:tracing",
         "@crates//:tracing-subscriber",

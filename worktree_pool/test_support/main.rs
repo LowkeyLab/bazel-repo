@@ -6,6 +6,26 @@ use worktree_pool::{
 fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
+    if std::env::var("OPERATION").as_deref() == Ok("relocate") {
+        use worktree_pool::relocation::{RelocationCheckpoint, relocate_observed};
+        let destination =
+            std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join("relocated");
+        relocate_observed(&paths, &destination, |checkpoint| {
+            let name = match checkpoint {
+                RelocationCheckpoint::IntentRecorded => "intent",
+                RelocationCheckpoint::DirectoryPrepared => "directory",
+                RelocationCheckpoint::DestinationCreated => "created",
+                RelocationCheckpoint::CopyStarted => "copy-started",
+                RelocationCheckpoint::CopySynced => "copied",
+                RelocationCheckpoint::DestinationPrepared => "prepared",
+                RelocationCheckpoint::LocatorSwitched => "switched",
+                RelocationCheckpoint::Completed => "completed",
+            };
+            pause(&selected, name);
+        })
+        .unwrap();
+        return;
+    }
     if std::env::var("OPERATION").as_deref() == Ok("recover-repository") {
         use worktree_pool::repository_recovery::{RepositoryRecoveryCheckpoint, resume_observed};
         let operation_id = std::env::var("OPERATION_ID").unwrap();

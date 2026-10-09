@@ -126,6 +126,7 @@ enum WorktreeCommand {
 }
 #[derive(Subcommand)]
 enum CatalogCommand {
+    Relocate { destination: PathBuf },
     Init,
     Info,
     Check,
@@ -151,7 +152,9 @@ impl Envelope {
             schema_version: 1,
             command,
             outcome: match error {
-                PoolError::Pending | PoolError::OperationPending => "pending",
+                PoolError::Pending | PoolError::RelocationPending | PoolError::OperationPending => {
+                    "pending"
+                }
                 PoolError::CommitUnknown => "unknown",
                 _ => "rejected",
             },
@@ -194,6 +197,7 @@ const fn command_name(cli: &Cli) -> &'static str {
         },
         Command::Pool { .. } => "pool configure",
         Command::Catalog { command } => match command {
+            CatalogCommand::Relocate { .. } => "catalog relocate",
             CatalogCommand::Init => "catalog init",
             CatalogCommand::Info => "catalog info",
             CatalogCommand::Check => "catalog check",
@@ -224,6 +228,15 @@ const fn command_name(cli: &Cli) -> &'static str {
 }
 fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
     let command = command_name(cli);
+    if let Command::Catalog {
+        command: CatalogCommand::Relocate { destination },
+    } = &cli.command
+    {
+        if cli.repo.is_some() {
+            return Err(PoolError::Selectors);
+        }
+        return Ok(crate::relocation::command(paths, destination));
+    }
     if let Command::Recover { command: recovery } = &cli.command {
         return handle_recovery(cli, paths, recovery);
     }
@@ -256,7 +269,12 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
                 envelope.data["repository_operations_available"] = json!(true);
                 return Ok(envelope);
             }
-            Err(error @ (PoolError::Pending | PoolError::Missing)) => {
+            Err(
+                error @ (PoolError::Pending
+                | PoolError::RelocationPending
+                | PoolError::Missing
+                | PoolError::Conflict),
+            ) => {
                 let mut envelope = Envelope::failure(command.into(), &error);
                 envelope.data["operations"] = json!(lifecycle);
                 envelope.data["repository_operations_available"] = json!(false);
@@ -286,8 +304,16 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             (p, data)
         }
         Command::Catalog { .. } => {
+            let _maintenance = crate::workflows::maintenance(paths)?;
             let projection = catalog::inspect_projection(paths)?;
-            let data = serde_json::to_value(&projection).map_err(|_| PoolError::Corrupt)?;
+            let mut data = serde_json::to_value(&projection).map_err(|_| PoolError::Corrupt)?;
+            let authority = catalog::inspect_authority(paths)?;
+            data["catalog_mutations_available"] = json!(authority.mutations_available());
+            data["worktrees_moved"] = json!(false);
+            data["next_action"] = json!(crate::relocation::next_action(
+                authority.relocation.as_ref()
+            ));
+            data["authority"] = json!(authority);
             (projection, data)
         }
         Command::Recover { .. }
@@ -303,12 +329,16 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             (projection, json!({"events": events}))
         }
     };
+    let mut context = json!({"catalog_id":projection.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog)});
+    if matches!(cli.command, Command::Catalog { .. }) {
+        context["selected_catalog_path"] = json!(EncodedPath::from_path(&paths.catalog));
+    }
     Ok(Envelope {
         schema_version: 1,
         command: command.into(),
         outcome: "completed",
         reason_code: "ok",
-        context: json!({"catalog_id":projection.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog)}),
+        context,
         data,
         warnings: Vec::new(),
     })
@@ -630,16 +660,47 @@ pub fn run(args: &[OsString]) -> u8 {
         Ok(result) => result,
         Err(error) => Envelope::failure(name, &error),
     };
-    if matches!(cli.command, Command::Catalog { .. })
+    if (matches!(cli.command, Command::Catalog { .. })
+        || result.reason_code == "catalog_relocation_pending")
         && matches!(result.outcome, "pending" | "unknown")
+        && result.data.get("authority").is_none()
         && let Ok(observation) = catalog::inspect_authority(&paths)
     {
-        result.context =
-            json!({"catalog_id":observation.catalog_id,"catalog_path":observation.catalog_path});
-        result.data = serde_json::to_value(observation).unwrap_or_else(|_| json!({}));
-        result.data["next_action"] = json!(
-            "preserve recorded catalog state; explicit initialization reconciliation is required"
-        );
+        result.context = json!({"catalog_id":observation.catalog_id,"catalog_path":observation.catalog_path,"selected_catalog_path":EncodedPath::from_path(&paths.catalog)});
+        result.data["catalog_mutations_available"] = json!(observation.mutations_available());
+        result.data["worktrees_moved"] = json!(false);
+        if let (Some(data), Ok(Value::Object(observed))) = (
+            result.data.as_object_mut(),
+            serde_json::to_value(&observation),
+        ) {
+            data.extend(observed);
+        }
+        result.data["next_action"] = if observation
+            .relocation
+            .as_ref()
+            .is_some_and(|r| r.checkpoint != crate::relocation::Checkpoint::Completed)
+        {
+            json!(crate::relocation::next_action(
+                observation.relocation.as_ref()
+            ))
+        } else {
+            json!(
+                "preserve recorded catalog state; explicit initialization reconciliation is required"
+            )
+        };
+    }
+    if result.reason_code == "catalog_conflict"
+        && let Ok(authority) = catalog::inspect_active_authority(&paths)
+    {
+        result.context["catalog_id"] = json!(authority.catalog_id);
+        result.context["catalog_path"] = json!(authority.catalog_path);
+        result.context["selected_catalog_path"] = json!(EncodedPath::from_path(&paths.catalog));
+        result.data["catalog_mutations_available"] = json!(authority.mutations_available());
+        result.data["worktrees_moved"] = json!(false);
+        result.data["authority"] = json!(authority);
+        result.data["next_action"] = json!(crate::relocation::next_action(
+            authority.relocation.as_ref()
+        ));
     }
     let fact = CommandObserved {
         command: result.command.clone(),

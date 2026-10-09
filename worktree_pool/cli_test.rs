@@ -5117,3 +5117,5 @@ fn recovery_selects_non_utf8_registered_paths_and_known_historical_results_witho
     }
     assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
 }
+
+mod relocation_cli_tests;
