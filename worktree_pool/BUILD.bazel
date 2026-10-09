@@ -33,6 +33,7 @@ rust_test(
     deps = [
         "@crates//:googletest",
         "@crates//:insta",
+        "@crates//:redb",
         "@crates//:serde_json",
         "@crates//:tempfile",
     ],
@@ -58,6 +59,8 @@ rust_library(
         "lib.rs",
         "management.rs",
         "paths.rs",
+        "rebuild.rs",
+        "rebuild_tests.rs",
         "recovery.rs",
         "recovery_inspection.rs",
         "recovery_workflow.rs",

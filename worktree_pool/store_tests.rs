@@ -995,3 +995,100 @@ fn recovery_replay_rejects_forged_binding_cause_protection_and_unpreserved_relea
     );
     assert_that!(store.projection().unwrap(), eq(&before));
 }
+
+#[googletest::test]
+fn rebuild_sync_failure_never_exposes_partial_ownership_or_changes_immutable_history() {
+    use crate::{catalog, paths::Paths, rebuild::RebuildCheckpoint};
+    for fail in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let initial = catalog::initialize(&paths).unwrap();
+        let (expected, history) = {
+            let store = Store::open(&paths.catalog, initial.catalog_id).unwrap();
+            seed_preserved_release_recovery(&store, root.path());
+            (store.projection().unwrap(), store.events().unwrap())
+        };
+        {
+            use redb::{ReadableTable, TableDefinition};
+            let database = redb::Database::open(&paths.catalog).unwrap();
+            let transaction = database.begin_write().unwrap();
+            {
+                let mut table = transaction
+                    .open_table(TableDefinition::<&str, &str>::new("state"))
+                    .unwrap();
+                let mut state: serde_json::Value =
+                    serde_json::from_str(table.get("catalog").unwrap().unwrap().value()).unwrap();
+                state["assignments"] = serde_json::json!([]);
+                table
+                    .insert("catalog", serde_json::to_string(&state).unwrap().as_str())
+                    .unwrap();
+            }
+            transaction.commit().unwrap();
+        }
+        let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let backend = SyncFailureBackend {
+            inner: redb::backends::FileBackend::new(
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&paths.catalog)
+                    .unwrap(),
+            )
+            .unwrap(),
+            armed: armed.clone(),
+        };
+        let result = Store::rebuild_with_fault_backend(initial.catalog_id, backend, |checkpoint| {
+            if checkpoint == RebuildCheckpoint::BeforeCommit {
+                armed.store(fail, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        armed.store(false, std::sync::atomic::Ordering::SeqCst);
+        if fail {
+            assert_that!(
+                matches!(result, Err(crate::error::PoolError::CommitUnknown)),
+                eq(true)
+            );
+        } else {
+            assert_that!(result.unwrap(), eq(&expected));
+        }
+        // Reopen and observe complete identity/revisions before any explicit new request.
+        let observed = catalog::inspect_authority(&paths).unwrap();
+        assert_that!(observed.catalog_id, eq(initial.catalog_id));
+        if observed.store_state == "unreadable" {
+            catalog::reconcile_authority(&paths).unwrap();
+        }
+        match Store::inspect_read_only(&paths.catalog, initial.catalog_id) {
+            Ok(projection) => assert_that!(projection, eq(&expected)),
+            Err(crate::error::PoolError::Corrupt) => {
+                assert_that!(
+                    catalog::inspect_authority(&paths).unwrap().store_state,
+                    eq("rebuild_required")
+                );
+                assert_that!(catalog::open(&paths).is_err(), eq(true));
+            }
+            Err(error) => panic!("unexpected reopened state: {error:?}"),
+        }
+        assert_that!(
+            Store::inspect_rebuild_history(&paths.catalog, initial.catalog_id).unwrap(),
+            eq(&expected)
+        );
+        assert_that!(catalog::rebuild(&paths).unwrap(), eq(&expected));
+        assert_that!(
+            Store::events_read_only(&paths.catalog, initial.catalog_id).unwrap(),
+            eq(&history)
+        );
+        let store = Store::open(&paths.catalog, initial.catalog_id).unwrap();
+        assert_that!(
+            store
+                .append_batch(expected.revision, vec![history.last().unwrap().clone()])
+                .is_err(),
+            eq(true)
+        );
+        assert_that!(store.projection().unwrap(), eq(&expected));
+        assert_that!(store.events().unwrap(), eq(&history));
+    }
+}
