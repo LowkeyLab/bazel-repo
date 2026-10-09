@@ -9,7 +9,7 @@ tool (
 )
 
 require (
-	github.com/bazelbuild/rules_go v0.63.0
+	github.com/bazelbuild/rules_go v0.64.2
 	github.com/stretchr/testify v1.12.1
 	nmyk.io/cowsay v1.1.0
 )
