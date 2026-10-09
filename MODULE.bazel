@@ -330,6 +330,22 @@ http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_j
 
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
+# Official minimum Git runtime and its static compression dependency for installed
+# package acceptance. They are verification inputs, not application dependencies.
+http_file(
+    name = "worktree_pool_git_minimum",
+    downloaded_file_path = "git-2.36.0.tar.xz",
+    sha256 = "af5ebfc1658464f5d0d45a2bfd884c935fb607a10cc021d95bc80778861cc1d3",
+    urls = ["https://www.kernel.org/pub/software/scm/git/git-2.36.0.tar.xz"],
+)
+
+http_file(
+    name = "worktree_pool_zlib",
+    downloaded_file_path = "zlib-1.3.1.tar.gz",
+    sha256 = "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23",
+    urls = ["https://zlib.net/fossils/zlib-1.3.1.tar.gz"],
+)
+
 http_archive(
     name = "net_sourceforge_pmd",
     build_file_content = "\n".join([

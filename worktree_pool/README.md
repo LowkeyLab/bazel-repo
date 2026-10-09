@@ -8,12 +8,14 @@ assignment and operation inspection, event history, on-demand detached creation,
 durable per-repository capacity, explicit recovery and projection rebuild, catalog
 relocation, registration retirement, and retained resource inspection.
 
-Development uses Nix and Bazel. The standalone manifest pins every direct
-dependency and targets Rust 1.96, matching the Bazel toolchain. Its executable
-name is `worktree-pool`. Registry publication and name verification remain
-separate work. Comparative benchmark evidence remains `HOLD` and incomplete.
-Standalone installation and minimum supported Git verification remain incomplete. Packaging remains gated on measured GO and explicit acceptance of
-retained disk and build-state costs.
+Development uses Nix and Bazel. The standalone Cargo package and executable use the
+name `worktree-pool`, version 0.1.0, with exact dependencies and Rust 1.96+ source
+installation. Runtime support is Linux x86-64 with Git 2.36+ and ordinary local
+linked-worktree repositories. See [installation](#standalone-source-installation),
+[command schemas](WIRE_SCHEMA.md) and [dependency features](DEPENDENCIES.md).
+The maintainer accepted the measured adoption gate on 2026-10-09. Its scope and
+retained costs appear in [the benchmark evidence](#accepted-benchmark-and-resource-costs).
+Crate publication and production rollout are separate maintainer actions.
 
 ## Catalog authority
 
@@ -112,8 +114,10 @@ JSON mode writes one object followed by a newline:
 ```
 
 The example omits command-specific values. `context.catalog_id` is the stable
-`UUID`. `context.catalog_path` is a lossless path. Catalog command `data` contains
-`catalog_id`, numeric `revision`, `store_version`, and `projection_version`.
+`UUID`. `context.catalog_path` is a lossless path. Catalog initialization and rebuild
+`data` contain `catalog_id`, numeric `revision`, `store_version`, and
+`projection_version`. `catalog info` and `catalog check` also include authority observations.
+Relocation and recovery use distinct [receipt variants](WIRE_SCHEMA.md).
 `events list` has `data.events`, an ordered array of structured CloudEvents.
 Errors have `data.next_action`, safe human guidance. Resource commands include distinct
 `repository_id`, `worktree_id`, `assignment_handle`, and `operation_id` values
@@ -139,10 +143,12 @@ Stable reasons: `ok`, `invalid_arguments`, `invalid_configuration`,
 `filesystem_error`, `storage_error`, `commit_unknown`, `git_failed`,
 `resource_unregistered`, `selector_conflict`, `capacity_exhausted`,
 `capacity_below_count`, `capacity_zero`, `capacity_all_assigned`,
-`capacity_no_safe_worktree`,
+`capacity_no_safe_worktree`, `retirement_preconditions_unmet`,
+`catalog_relocation_pending`,
 `operation_pending`, `refresh_failed`, `worktree_unavailable`,
 `retained_file_collision`, `unfinished_work`, `git_operation_in_progress`, and
-`unsupported_index_state`, `assignment_unknown`, and `already_released`.
+`unsupported_index_state`, `assignment_unknown`, `already_released`, and
+`already_retired`. [The command schemas](WIRE_SCHEMA.md#reasons-and-exits).
 
 A broken stdout returns status 4 and sanitized stderr guidance. This doesn't
 undo a committed outcome or retry initialization. Inspect the catalog to learn
@@ -224,7 +230,7 @@ human-identity tests failed before implementation. Stable public results support
 refactoring resistance, but no refactor-survival experiment accompanies this
 slice. Fault tests establish commit/error semantics and don't claim simulated
 power-loss durability. Normal processes establish kernel-lock behavior. Later
-slices verify recovery and standalone installation. Creation checks cover
+checks verify recovery and standalone installation. Creation checks cover
 private paths, capacity, real Git failures, process interruption, independent
 callers, protected destinations and lost results. Atomic batch faults verify
 registration and ownership reopen together.
@@ -279,7 +285,7 @@ resolution records `needs_reconciliation`/`fetch_failed` and returns
 pending/`refresh_failed`. Interruption before result commitment retains
 `pending`/`intent_recorded`, even when Git actually completed. Repeating a pending
 refresh returns the existing operation without retrying effects or changing
-history. Explicit reconciliation follows in a later slice. Lost stdout doesn't
+history. Use explicit recovery after inspecting the recorded identity. Lost stdout doesn't
 undo a completed refresh. Inspect the recorded repository operations.
 
 The public Git integration target runs locally with the development shell's
@@ -334,8 +340,7 @@ Pending acquisition states are `reserved`, `preservation_intended`, `preserved`,
 `completed`. Worktree inspection reports preparing or assigned ownership
 separately from withheld availability and includes unfinished operations in
 `pending_work`. Process death never ends a reservation. Pending work blocks
-conflicting effects until explicit reconciliation, which follows in a later
-slice. Lost stdout returns unknown/status 4 while committed ownership remains.
+conflicting effects until explicit reconciliation. Lost stdout returns unknown/status 4 while committed ownership remains.
 
 Safety probes reject dirty tracked/index/untracked state, operation
 markers and index locks, hidden index flags, and sparse layouts. Prospective
@@ -368,7 +373,9 @@ checks cover reservation, preservation intent/effect/result, checkout intent/eff
 and acquisition commit. A post-refresh barrier proves fixed default commits.
 Other fixtures cover mandatory explicit-ref refresh, missing refs/failed remotes,
 ignored collisions/fallback, hidden Git state, observation caches, retained ignore
-changes, and lost stdout. These establish observed process and commit semantics. They don't simulate machine power loss or establish minimum Git runtime support.
+changes, and lost stdout. These establish observed process and commit semantics. They don't simulate
+machine power loss. Installation verification separately exercises the minimum
+Git runtime.
 
 ## Capacity and on-demand creation
 
@@ -827,3 +834,102 @@ backend immediately before the same production transaction commit. Earlier
 storage errors aren't classified as failed commits. Reopen checks complete old or
 complete new history and projection before any retry. These checks don't establish
 whole-machine power-loss behavior or a performance benefit.
+
+## Standalone source installation
+
+A maintainer needs a Linux x86-64 source-build environment with Rust/Cargo 1.96+
+and a native linker/C toolchain. Runtime needs Git 2.36+ and the resulting native
+C runtime libraries. Execution never invokes Rust, Cargo or Bazel. Runtime verification establishes
+that these tools are absent from `PATH`. Installation
+is distinct from repository development commands. The package is ready for
+publication review. This work doesn't publish it. The maintainer must
+verify name availability immediately before publication. A conflict requires
+maintainer resolution.
+
+After a maintainer publishes version 0.1.0, the intended registry command is:
+
+```sh
+cargo install --locked --version 0.1.0 worktree-pool
+```
+
+Before publication, install from an extracted verified `worktree-pool-0.1.0.crate`
+using `cargo install --locked --path /path/to/worktree-pool-0.1.0`. The retained
+archive includes its standalone lockfile, exact manifest, source, `AGPL-3.0` license,
+and public docs. It excludes Bazel `BUILD` files, benchmark/installation adapters
+and external workspace dependencies. Run `worktree-pool --version`, then initialize
+one catalog, explicitly register the repository, and acquire with `--repo` from
+any working directory. Retain the returned assignment handle and follow release
+and recovery obligations below. Installation never initializes or migrates catalogs.
+
+Repository maintainers reproduce the actual source-package/install acceptance with:
+
+```sh
+nix develop --command bazel run //worktree_pool/install:acceptance -- \
+  --output /absolute/new/private-verification-directory
+```
+
+The output directory must not exist. The target resolves Cargo/rustc and the
+complete generated `sysroot` through Bazel's pinned Rust 1.96.0 toolchain. It
+runs real Cargo package verification, extracts the exact archive, compares
+source hashes, records normalized metadata and features, and performs locked
+installation from the extracted package. It builds checksum-pinned official
+Git 2.36.0 and static `zlib` 1.3.1 privately, then runs the full real command-line suite
+against the installed executable from an unrelated working directory.
+Runtime `PATH` contains only that Git and the shell/sleep utilities needed by
+fixtures. That path excludes Cargo, rustc, and Bazel. It retains actual
+compiler/Git versions, archive contents/hashes, native executable dependency inspection,
+installed version, command logs and raw test results. Application version is
+0.1.0. The Bazel development binary's generated package version can be 0.0.0.
+Source equivalence never promises byte-identical Cargo/Bazel executables.
+
+The suite's injected crash/commit-fault children use the Bazel test-support
+library to establish interruption/storage boundaries. Their public observation
+and recovery commands use the installed artifact. Helper execution isn't
+independent proof that the installed command-line tool can inject those faults. Tests own
+private Git/filesystem/redb fixtures and use no mock framework. Cargo registry
+access and shared repository caches remain external dependencies. Runtime
+verification establishes `PATH` independence. Toolchains can remain elsewhere on the
+host filesystem. The minimum Git build tests local transport only, with optional
+HTTP, transport layer security, and scripting features turned off. Source installation verification uses the
+Nix-managed Linux host. The produced binary depends on that host's C runtime
+closure and isn't a universal prebuilt Linux distribution.
+
+## Accepted benchmark and resource costs
+
+The maintainer accepted the measured gate and retained resource costs on
+2026-10-09. The protocol covered 100 pairs: five workloads, two alternating
+batches of ten, 200 arms and 240 caller intervals. All 252 workload/input guards
+passed. Pooled/disposable median complete acquire-to-build times in seconds were:
+
+| Workload                           | Pooled | Disposable | Pooled wins in each batch |
+| ---------------------------------- | ------ | ---------- | ------------------------- |
+| Unchanged                          | 13.653 | 28.781     | 10/10, 10/10              |
+| Small edit                         | 35.997 | 73.393     | 10/10, 10/10              |
+| Revision change                    | 17.613 | 28.918     | 10/10, 10/10              |
+| Return revision                    | 19.704 | 29.747     | 10/10, 10/10              |
+| Two callers, overall/slower caller | 35.648 | 36.866     | 9/10, 7/10                |
+| Two callers, faster caller         | 20.764 | 36.450     | 10/10, 10/10              |
+
+The primary workloads met the agreed eight-of-ten criterion in both batches.
+The secondary case stayed inside the accepted regression guard. Consistency is
+not statistical confidence or a promise for other repositories. This experiment
+built `//nicknamer/server/lib:lib` with a local origin and controlled cache policy.
+It excludes GitHub latency, and archive/remote/page caches and host contention
+remain incompletely attributable. The repository benchmark protocol records controls, paired variation and
+correctness obligations separately from the standalone distribution.
+
+Four initially warmed slots retained 25,096,658,944 allocated bytes and summed
+idle Bazel-server resident set size of 10,598,858,752 bytes. Final retained allocation was
+25,112,670,208 bytes. Final summed resident set size was 6,097,256,448 bytes with two servers
+recreated only for resource snapshots. It isn't four continuously warm servers.
+Summed resident set size includes shared pages and isn't unique physical or whole-process-tree
+peak memory. The largest caller allocated 6,283,272,192 bytes and the largest
+observed server resident set size was 5,911,044,096 bytes. Catalog logical size grew from
+61,440 to 3,149,824 bytes and events from 2 to 1,696 across the measured lifecycle.
+
+Registered capacity is a count limit, not a disk/RAM budget. Retained worktrees,
+build output bases, caches, and server state can cost much more than the catalog.
+Retirement never deletes those resources. Inspect known and unknown usage and
+plan explicit human retention decisions. Benchmark acceptance supports this
+measured adoption scope. Minimum-toolchain installation and public behavior are
+separate correctness evidence and never establish a new performance benefit.
