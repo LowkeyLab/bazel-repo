@@ -25,3 +25,14 @@ py_binary(
     main = "run.py",
     deps = [":evaluate"],
 )
+
+py_test(
+    name = "adapter_test",
+    size = "small",
+    srcs = ["adapter_test.py"],
+    data = ["//worktree_pool"],  # keep: real CLI for standalone private adapter tests
+    env_inherit = ["PATH"],  # keep: real Git from the repository Nix shell
+    main = "adapter_test.py",
+    tags = ["local"],  # keep: private real Git/catalog/filesystem integration
+    deps = [":run"],
+)

@@ -11,7 +11,10 @@ The runner owns private local Git clones, worktrees, output bases, and catalog.
 It uses real Git, the pool executable, `redb`, the filesystem, Nix, and Bazel.
 BuildBuddy, archive caches, the kernel page cache, network, and host resources
 form shared dependencies. Disclose their conditions and attribution limits.
-Preserve preexisting caches, worktrees, processes, and refs.
+Preserve preexisting caches, worktrees, processes, and refs. Ignore inherited
+`WORKTREE_POOL_*` and `GIT_*` controls. Pool Git and disposable Git use the same
+intended policy without global or system Git configuration. Pool authority uses
+only the experiment's private data, state, and configuration directories.
 
 The report evaluator accepts measurements as values and returns the gate
 assessment. Worked examples protect that decision without timing or mocking
@@ -49,8 +52,14 @@ Cover unchanged repeats, small source edits, revision changes, revision returns,
 and two simultaneous callers. Edit the same literal in
 `nicknamer/server/lib/src/lib.rs` in both arms. Immediately run Gazelle, then
 full-scope formatting, then build. Commit edited work before pool release.
-For revision-change/return requests, prepare the opposite revision in the pool
-before each measured cycle. Record these preparation cycles outside the timing.
+Before paired sampling, acquire, build, and release one pooled slot at base.
+Record this setup cycle and its resource growth separately: warmup edits leave
+caller commits, so returning to base must occur before an unchanged measurement.
+For every unchanged pooled cycle, verify the selected pre-acquisition `HEAD`
+is already the requested base. A mismatch fails the run and can't count as a
+successful unchanged pair. For revision-change/return requests, prepare the
+opposite revision before each measured cycle. Record all preparation cycles
+outside paired timing.
 For two callers, use a start barrier and separate output bases. Retain both
 caller intervals and wall time until both builds finish. Defer release until
 both builds finish.
@@ -97,7 +106,9 @@ paired samples. Review these observations and actual headroom with the
 coordinator. Choose documented reserves, then repeat with `--phase sample`
 and separate sampling authorization. Sampling requires the same complete,
 unused warmup and executable/fixture provenance. Warmup refuses an existing
-directory. Sampling refuses to overwrite a previously started sample sequence.
+directory. Sampling validates the protocol version and runner source digest,
+as well as executable and fixture provenance, before writing sample metadata.
+It refuses old or incompatible warmup proof and any previously started sequence.
 
 The runner writes metadata, command records, compressed sanitized logs, headroom,
 warmup, setup cycles, every successful cycle, completed pairs, separate failures,
@@ -122,3 +133,12 @@ footprint and idle server resident memory per new caller. Record observations,
 selected guards, and any resulting hold. These guards don't establish product
 quotas or resource bounds. Never discard successful samples, silently change
 settings, or clean user caches to produce a winner.
+
+## Adapter regression checks
+
+Run `nix develop --command aspect test //worktree_pool/benchmark:adapter_test`
+for private Git/catalog orchestration checks using the production command-line
+tool as native test data. Test support omits native build and server-resource
+effects. Its intervals aren't performance measurements. These checks cover isolated authority
+and Git policy, actual retained-tip selection, invalid unchanged preconditions,
+and incompatible warmup proof. The gate tests protect assessment semantics.

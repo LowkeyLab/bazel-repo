@@ -9,6 +9,7 @@ rust_binary(
     compile_data = ["Cargo.toml"],
     crate_root = "main.rs",
     edition = "2024",
+    visibility = ["//worktree_pool/benchmark:__pkg__"],  # keep: real CLI data for private adapter tests
     deps = [":worktree_pool_lib"],
 )
 

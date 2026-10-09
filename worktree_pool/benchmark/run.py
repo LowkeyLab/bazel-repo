@@ -39,7 +39,7 @@ class Experiment:
         self.env = {
             key: value
             for key, value in os.environ.items()
-            if not key.startswith("GIT_")
+            if not key.startswith(("GIT_", "WORKTREE_POOL_"))
         }
         self.git_env = dict(
             self.env,
@@ -53,7 +53,7 @@ class Experiment:
             GIT_COMMITTER_DATE="2026-10-09T00:00:00Z",
         )
         self.pool_env = dict(
-            self.env,
+            self.git_env,
             XDG_DATA_HOME=str(self.root / "data"),
             XDG_STATE_HOME=str(self.root / "state"),
             XDG_CONFIG_HOME=str(self.root / "config"),
@@ -72,6 +72,8 @@ class Experiment:
         self.repo_id = None
         self.metadata = {
             "schema_version": 1,
+            "protocol_version": 2,
+            "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "quiet_window": args.quiet_window,
             "target": TARGET,
             "fixture_commit": self.base_commit,
@@ -94,8 +96,14 @@ class Experiment:
             ):
                 raise RuntimeError("sampling requires a complete unused warmup")
             if any(
-                previous[key] != self.metadata[key]
-                for key in ("tool_sha256", "tool_commit", "fixture_commit")
+                previous.get(key) != self.metadata[key]
+                for key in (
+                    "protocol_version",
+                    "runner_sha256",
+                    "tool_sha256",
+                    "tool_commit",
+                    "fixture_commit",
+                )
             ):
                 raise RuntimeError("warmup/sample provenance differs")
             self.metadata = previous
@@ -463,12 +471,24 @@ class Experiment:
             "disposable_cleanup_ns": cleanup,
         }
 
-    def caller(self, arm, revision, edited, start_barrier=None, built_barrier=None):
+    def caller(
+        self,
+        arm,
+        revision,
+        edited,
+        start_barrier=None,
+        built_barrier=None,
+        require_unchanged=False,
+    ):
         if start_barrier:
             start_barrier.wait(timeout=1200)
         start = time.monotonic_ns()
         path, base, handle, worktree_id = self.acquire(arm, revision)
         acquired = time.monotonic_ns()
+        if require_unchanged and self.pre_heads.get(worktree_id) != revision:
+            raise RuntimeError(
+                "unchanged pooled cycle selected a different pre-acquisition HEAD"
+            )
         self.configure(path)
         observed_head = self.git(path, "rev-parse", "HEAD")
         if observed_head != revision:
@@ -498,21 +518,29 @@ class Experiment:
         result.update(self.finish(arm, path, base, handle, edited))
         return result
 
-    def cycle(self, arm, revision, edited=False, callers=1):
+    def cycle(self, arm, revision, edited=False, callers=1, require_unchanged=False):
         self.headroom(additional_slots=callers if arm == "disposable" else 0)
         self.pre_heads = {
             identity: self.git(path, "rev-parse", "HEAD")
             for identity, (path, _) in self.slots.items()
         }
         if callers == 1:
-            results = [self.caller(arm, revision, edited)]
+            results = [
+                self.caller(arm, revision, edited, require_unchanged=require_unchanged)
+            ]
         else:
             start_barrier = threading.Barrier(callers)
             built_barrier = threading.Barrier(callers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=callers) as executor:
                 futures = [
                     executor.submit(
-                        self.caller, arm, revision, edited, start_barrier, built_barrier
+                        self.caller,
+                        arm,
+                        revision,
+                        edited,
+                        start_barrier,
+                        built_barrier,
+                        require_unchanged,
                     )
                     for _ in range(callers)
                 ]
@@ -608,6 +636,13 @@ class Experiment:
         self.save("metadata.json", self.metadata)
 
     def sample(self):
+        # Warmup caller edits leave retained tips at their caller commits. This
+        # real base return/build/release is setup, never an unchanged sample.
+        self.append(
+            "setup_cycles.jsonl",
+            {"kind": "unchanged_base", "cycle": self.cycle("pooled", self.base_commit)},
+        )
+        self.resources("after_unchanged_base_setup")
         for workload in WORKLOADS:
             for batch in (1, 2):
                 for index in range(10):
@@ -649,6 +684,8 @@ class Experiment:
                             revision,
                             edited=workload == "small_edit",
                             callers=2 if workload == "two_callers" else 1,
+                            require_unchanged=workload == "unchanged"
+                            and arm == "pooled",
                         )
                         self.append(
                             "cycles.jsonl",
