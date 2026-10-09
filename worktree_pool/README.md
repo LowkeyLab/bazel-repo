@@ -148,7 +148,7 @@ Stable reasons: `ok`, `invalid_arguments`, `invalid_configuration`,
 `operation_pending`, `refresh_failed`, `worktree_unavailable`,
 `retained_file_collision`, `unfinished_work`, `git_operation_in_progress`, and
 `unsupported_index_state`, `assignment_unknown`, `already_released`, and
-`already_retired`. [The command schemas](WIRE_SCHEMA.md#reasons-and-exits).
+`already_retired`. [The command schemas](WIRE_SCHEMA.md#top-level-reason-vocabulary-version-1).
 
 A broken stdout returns status 4 and sanitized stderr guidance. This doesn't
 undo a committed outcome or retry initialization. Inspect the catalog to learn
