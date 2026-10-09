@@ -1,0 +1,147 @@
+# gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_binary(
+    name = "worktree_pool",
+    srcs = ["main.rs"],
+    compile_data = ["Cargo.toml"],
+    crate_root = "main.rs",
+    edition = "2024",
+    visibility = ["//worktree_pool/benchmark:__pkg__"],  # keep: real CLI data for private adapter tests
+    deps = [":worktree_pool_lib"],
+)
+
+rust_test(
+    name = "cli_test",
+    size = "small",
+    srcs = [
+        "cli_test.rs",
+        "relocation_cli_tests.rs",
+    ],
+    compile_data = ["Cargo.toml"],
+    crate_root = "cli_test.rs",
+    data = [
+        ":worktree_pool",
+        "//worktree_pool/test_support",
+    ],
+    edition = "2024",
+    env_inherit = ["PATH"],  # keep: real Git from the repository Nix development shell
+    rustc_env = {
+        "POOL_BINARY": "$(rootpath :worktree_pool)",
+        "CRASH_BINARY": "$(rootpath //worktree_pool/test_support)",
+        "INSTA_WORKSPACE_ROOT": ".",
+    },
+    tags = ["local"],  # keep: machine-local Git and filesystem integration
+    visibility = ["//worktree_pool/install:__pkg__"],  # keep: actual installed CLI acceptance
+    deps = [
+        "@crates//:googletest",
+        "@crates//:insta",
+        "@crates//:redb",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
+
+rust_library(
+    name = "worktree_pool_lib",
+    srcs = [
+        "acquisition.rs",
+        "acquisition_tests.rs",
+        "acquisition_workflow.rs",
+        "catalog.rs",
+        "catalog_recovery_cli.rs",
+        "cli.rs",
+        "coordination.rs",
+        "creation.rs",
+        "creation_workflow.rs",
+        "diagnostics.rs",
+        "diagnostics_tests.rs",
+        "domain.rs",
+        "error.rs",
+        "git.rs",
+        "lib.rs",
+        "management.rs",
+        "paths.rs",
+        "rebuild.rs",
+        "rebuild_tests.rs",
+        "recovery.rs",
+        "recovery_inspection.rs",
+        "recovery_workflow.rs",
+        "release.rs",
+        "release_workflow.rs",
+        "relocation.rs",
+        "relocation_events.rs",
+        "relocation_tests.rs",
+        "repository_recovery.rs",
+        "resources.rs",
+        "retirement.rs",
+        "retirement_workflow.rs",
+        "store.rs",
+        "store_tests.rs",
+        "workflows.rs",
+    ],
+    compile_data = ["Cargo.toml"],
+    crate_name = "worktree_pool",
+    crate_root = "lib.rs",
+    edition = "2024",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:cloudevents-sdk",
+        "@crates//:config",
+        "@crates//:redb",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:thiserror",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "worktree_pool_lib_test",
+    size = "small",
+    crate = ":worktree_pool_lib",
+    deps = [
+        "@crates//:googletest",
+        "@crates//:proptest",
+        "@crates//:redb",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:uuid",
+    ],
+)
+
+# Prose lint includes the public wire and test-design contracts.
+filegroup(
+    name = "markdown",
+    srcs = [
+        "DEPENDENCIES.md",
+        "README.md",
+        "WIRE_SCHEMA.md",
+    ],
+    tags = ["markdown"],
+)
+
+# Package inputs include BUILD so the archive policy proves Cargo excludes it.
+filegroup(
+    name = "source_package",
+    srcs = glob(
+        [
+            "*.rs",
+            "*.md",
+            "Cargo*",
+            "LICENSE",
+            "BUILD.bazel",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//worktree_pool/install:__pkg__"],
+)
+
+exports_files(["Cargo.toml"])

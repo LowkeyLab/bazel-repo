@@ -1,0 +1,27 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_python//python:defs.bzl", "py_binary")
+load(":verify.bzl", "verify_install")
+
+py_binary(
+    name = "driver",
+    srcs = ["verify.py"],
+    main = "verify.py",
+)
+
+verify_install(
+    name = "acceptance",
+    testonly = True,
+    cli_tests = "//worktree_pool:cli_test",
+    driver = ":driver",
+    git_source = "@worktree_pool_git_minimum//file",
+    manifest = "//worktree_pool:Cargo.toml",
+    package = "//worktree_pool:source_package",
+    tags = ["manual"],
+    zlib_source = "@worktree_pool_zlib//file",
+)
+
+bzl_library(
+    name = "verify",
+    srcs = ["verify.bzl"],
+    visibility = ["//visibility:public"],
+)
