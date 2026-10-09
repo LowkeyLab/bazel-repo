@@ -34,6 +34,7 @@ rust_test(
         "INSTA_WORKSPACE_ROOT": ".",
     },
     tags = ["local"],  # keep: machine-local Git and filesystem integration
+    visibility = ["//worktree_pool/install:__pkg__"],  # keep: actual installed CLI acceptance
     deps = [
         "@crates//:googletest",
         "@crates//:insta",
@@ -119,6 +120,28 @@ rust_test(
 # Prose lint includes the public wire and test-design contracts.
 filegroup(
     name = "markdown",
-    srcs = ["README.md"],
+    srcs = [
+        "DEPENDENCIES.md",
+        "README.md",
+        "WIRE_SCHEMA.md",
+    ],
     tags = ["markdown"],
 )
+
+# Package inputs include BUILD so the archive policy proves Cargo excludes it.
+filegroup(
+    name = "source_package",
+    srcs = glob(
+        [
+            "*.rs",
+            "*.md",
+            "Cargo*",
+            "LICENSE",
+            "BUILD.bazel",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//worktree_pool/install:__pkg__"],
+)
+
+exports_files(["Cargo.toml"])
