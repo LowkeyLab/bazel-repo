@@ -36,6 +36,62 @@ commands examine locator identity, store/projection versions, complete event
 history, contiguous revisions, deduplication index, and projection equivalence.
 Unsupported history stops use.
 
+## Check and rebuild derived state
+
+```text
+worktree-pool catalog check
+worktree-pool catalog rebuild
+```
+
+Check reads storage without changing its bytes and requires the stored projection
+and identity index to match complete supported history. Rebuild explicitly reconstructs both derived records
+from every immutable event in committed position order. Its version-1 result uses
+command `catalog rebuild`, the catalog context, and the same projection-shaped
+`data` as catalog information. The authoritative revision stays fixed. Rebuild is
+catalog-wide and rejects a repository selector.
+
+Rebuild retains registrations, capacity, assignments,
+preservation references, withheld availability, pending operations, recovery
+outcomes, release recency, and independent stream revisions. It never resumes
+checkout, creation, release, preservation, fetch, or recovery. Registered paths
+may be missing. Git and checkout filesystem access are unnecessary. Historical
+facts don't produce diagnostic notifications. The command itself uses ordinary
+outcome diagnostics.
+
+Rebuild replaces only the derived projection and identity index, atomically in
+one durable transaction. Repeated rebuilds retain the same authority and complete event
+history. History is never deleted, compacted, archived, or rewritten. Supported
+historical registration versions keep their original stream routing. Unsupported
+history, unsupported version metadata, corrupt positions/revisions/identities,
+foreign catalog identity, and locator/configuration conflicts reject before
+writable storage access. Rebuild doesn't perform an implicit schema upgrade.
+Ordinary reads and mutations continue to refuse mismatched derived state.
+
+Stable exclusive maintenance coordination spans the whole rebuild and waits for
+live commands, including their Git work outside short catalog sessions. An
+interrupted rebuild exposes a complete old or new derived state, or ordinary use
+stays blocked. Inspect the catalog before requesting another rebuild after an
+unknown outcome. If `redb` explicitly requires physical storage repair, use
+`recover preview --catalog` and `recover apply --catalog`. That recorded recovery
+validates complete immutable authority and retains existing locator operation IDs
+and history. Physical repair may complete while derived damage remains:
+`store_state` then reports `rebuild_required`, `catalog_mutations_available` is
+false, and guidance requests `catalog rebuild`. The tool exposes ownership only
+after complete reconstruction. Known storage-recovery operations remain available
+for inspection by ID. Rebuild never initializes missing state or chooses another authority.
+
+The pure positioned-history interface keeps typed decoders and reducers real.
+Concrete `redb` checks cover derived corruption, immutable-history refusal, and
+actual sync errors. Literal historical CloudEvents and generated capacity,
+revision, and ownership sequences verify deterministic reconstruction. Public
+command coverage compares ownership and recovery states. It also verifies
+withholding, protected files, Git index/ref state, and full history, including
+replay without Git or registered paths. Actual process kills bracket validation
+and publication. Kernel lock waiters establish live-command coordination.
+These checks establish observed process/commit behavior, without claiming
+whole-machine power-loss guarantees or isolation from processes that ignore
+coordination.
+
 ## Output contract, version 1
 
 JSON mode writes one object followed by a newline:

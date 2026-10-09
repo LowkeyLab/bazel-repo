@@ -129,6 +129,7 @@ enum CatalogCommand {
     Init,
     Info,
     Check,
+    Rebuild,
 }
 #[derive(Subcommand)]
 enum EventsCommand {
@@ -197,6 +198,7 @@ const fn command_name(cli: &Cli) -> &'static str {
             CatalogCommand::Init => "catalog init",
             CatalogCommand::Info => "catalog info",
             CatalogCommand::Check => "catalog check",
+            CatalogCommand::Rebuild => "catalog rebuild",
         },
         Command::Events { .. } => "events list",
         Command::Release { .. } => "release",
@@ -284,6 +286,16 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             let p = catalog::initialize(paths)?;
             let data = serde_json::to_value(&p).map_err(|_| PoolError::Corrupt)?;
             (p, data)
+        }
+        Command::Catalog {
+            command: CatalogCommand::Rebuild,
+        } => {
+            if cli.repo.is_some() {
+                return Err(PoolError::Selectors);
+            }
+            let projection = catalog::rebuild(paths)?;
+            let data = serde_json::to_value(&projection).map_err(|_| PoolError::Corrupt)?;
+            (projection, data)
         }
         Command::Catalog { .. } => {
             let projection = catalog::inspect_projection(paths)?;
@@ -637,9 +649,16 @@ pub fn run(args: &[OsString]) -> u8 {
         result.context =
             json!({"catalog_id":observation.catalog_id,"catalog_path":observation.catalog_path});
         result.data = serde_json::to_value(observation).unwrap_or_else(|_| json!({}));
-        result.data["next_action"] = json!(
+        result.data["next_action"] = json!(if matches!(
+            cli.command,
+            Command::Catalog {
+                command: CatalogCommand::Rebuild
+            }
+        ) {
+            "inspect the recorded catalog identity and catalog check before explicit storage recovery or another rebuild request"
+        } else {
             "preserve recorded catalog state; explicit initialization reconciliation is required"
-        );
+        });
     }
     let fact = CommandObserved {
         command: result.command.clone(),

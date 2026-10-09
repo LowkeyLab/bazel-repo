@@ -6,6 +6,10 @@ use worktree_pool::{
 fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
+    if std::env::var("OPERATION").as_deref() == Ok("rebuild") {
+        rebuild_catalog(&paths, &selected);
+        return;
+    }
     if std::env::var("OPERATION").as_deref() == Ok("recover-repository") {
         use worktree_pool::repository_recovery::{RepositoryRecoveryCheckpoint, resume_observed};
         let operation_id = std::env::var("OPERATION_ID").unwrap();
@@ -123,6 +127,18 @@ fn recover_catalog(paths: &Paths, selected: &str) {
             AuthorityRecoveryCheckpoint::IntentRecorded => "intent",
             AuthorityRecoveryCheckpoint::StoreCommitted => "store",
             AuthorityRecoveryCheckpoint::AuthorityPublished => "published",
+        };
+        pause(selected, name);
+    })
+    .unwrap();
+}
+
+fn rebuild_catalog(paths: &Paths, selected: &str) {
+    worktree_pool::catalog::rebuild_observed(paths, |checkpoint| {
+        let name = match checkpoint {
+            worktree_pool::rebuild::RebuildCheckpoint::Validated => "validated",
+            worktree_pool::rebuild::RebuildCheckpoint::BeforeCommit => "before-commit",
+            worktree_pool::rebuild::RebuildCheckpoint::Committed => "committed",
         };
         pause(selected, name);
     })

@@ -5117,3 +5117,504 @@ fn recovery_selects_non_utf8_registered_paths_and_known_historical_results_witho
     }
     assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
 }
+
+#[googletest::test]
+fn catalog_rebuild_preserves_public_state_and_complete_history() {
+    let fixture = Fixture::new();
+    fixture.json(&["catalog", "init"]);
+    let before = fixture.json(&["catalog", "info"]);
+    let history = fixture.json(&["events", "list"]);
+    let result = fixture.run(&["catalog", "rebuild"]);
+    assert_that!(result.status.code(), eq(Some(0)));
+    let rebuilt: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_that!(rebuilt["command"].as_str(), eq(Some("catalog rebuild")));
+    assert_that!(rebuilt["schema_version"].as_u64(), eq(Some(1)));
+    assert_that!(&rebuilt["data"], eq(&before["data"]));
+    assert_that!(fixture.json(&["events", "list"]), eq(&history));
+}
+
+fn damage_derived_catalog(path: &std::path::Path, kind: &str) {
+    use redb::{Database, ReadableTable, TableDefinition};
+    let database = Database::open(path).unwrap();
+    let transaction = database.begin_write().unwrap();
+    {
+        let mut state = transaction
+            .open_table(TableDefinition::<&str, &str>::new("state"))
+            .unwrap();
+        let mut value: Value =
+            serde_json::from_str(state.get("catalog").unwrap().unwrap().value()).unwrap();
+        match kind {
+            "revision" => value["revision"] = serde_json::json!(999),
+            "ownership" => value["assignments"] = serde_json::json!([]),
+            "missing" => {
+                state.remove("catalog").unwrap();
+            }
+            "malformed" => {
+                state.insert("catalog", "broken derived JSON").unwrap();
+            }
+            "index" => {
+                let mut identities = transaction
+                    .open_table(TableDefinition::<&str, u64>::new("event_identities"))
+                    .unwrap();
+                let keys: Vec<String> = identities
+                    .iter()
+                    .unwrap()
+                    .map(|r| r.unwrap().0.value().to_owned())
+                    .collect();
+                for key in keys {
+                    identities.remove(key.as_str()).unwrap();
+                }
+            }
+            _ => panic!("unknown derived fixture"),
+        }
+        if matches!(kind, "revision" | "ownership") {
+            state
+                .insert("catalog", serde_json::to_string(&value).unwrap().as_str())
+                .unwrap();
+        }
+    }
+    transaction.commit().unwrap();
+}
+
+#[googletest::test]
+fn catalog_rebuild_repairs_only_derived_damage_and_preserves_active_ownership() {
+    for kind in ["revision", "ownership", "missing", "malformed", "index"] {
+        let fixture = Fixture::new();
+        let (_, checkout, repository) = fixture.acquisition();
+        let acquired = fixture.json(&["acquire", "--repo", &repository]);
+        assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+        let before = fixture.json(&["catalog", "info"]);
+        let history = fixture.json(&["events", "list"]);
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let index = fs::read(checkout.join(".git/index")).unwrap();
+        damage_derived_catalog(&fixture.database(), kind);
+        let damaged = fs::read(fixture.database()).unwrap();
+        assert_that!(
+            fixture.run(&["catalog", "check"]).status.code(),
+            eq(Some(2))
+        );
+        assert_that!(fs::read(fixture.database()).unwrap(), eq(&damaged));
+        let rebuilt = fixture.run(&["catalog", "rebuild"]);
+        assert_that!(rebuilt.status.code(), eq(Some(0)));
+        assert_that!(
+            fixture.json(&["catalog", "info"])["data"].clone(),
+            eq(&before["data"])
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&history));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&head)
+        );
+        assert_that!(fs::read(checkout.join(".git/index")).unwrap(), eq(&index));
+        assert_that!(
+            fixture.run(&["catalog", "rebuild"]).status.code(),
+            eq(Some(0))
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&history));
+    }
+}
+
+#[googletest::test]
+fn catalog_rebuild_never_replays_pending_completed_or_withheld_workflow_effects() {
+    for scenario in [
+        "release",
+        "acquire",
+        "creation",
+        "recovery",
+        "recovered",
+        "withheld",
+        "refresh",
+    ] {
+        let fixture = Fixture::new();
+        let (_, checkout, repository) = if scenario == "creation" {
+            fixture.empty_pool()
+        } else {
+            fixture.acquisition()
+        };
+        fixture.json(&[
+            "pool",
+            "configure",
+            "--repo",
+            &repository,
+            "--max-worktrees",
+            "1",
+        ]);
+        match scenario {
+            "creation" => {
+                let mut child = fixture.paused_acquire(&repository, "creation-path", false);
+                child.kill().unwrap();
+                child.wait().unwrap();
+            }
+            "acquire" => {
+                let mut child = fixture.paused_acquire(&repository, "checkout-effect", false);
+                child.kill().unwrap();
+                child.wait().unwrap();
+            }
+            "refresh" => {
+                let mut child = fixture.paused_refresh(&repository, "intent");
+                child.kill().unwrap();
+                child.wait().unwrap();
+            }
+            _ => {
+                let acquired = fixture.json(&["acquire", "--repo", &repository]);
+                let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+                match scenario {
+                    "release" => {
+                        let mut child = fixture.paused_release(handle, "preserved", false);
+                        child.kill().unwrap();
+                        child.wait().unwrap();
+                    }
+                    "recovery" => {
+                        let mut child = fixture.paused_recovery(handle, "intent", false);
+                        child.kill().unwrap();
+                        child.wait().unwrap();
+                    }
+                    "recovered" => {
+                        assert_that!(
+                            fixture
+                                .run(&["recover", "apply", "--assignment", handle, "--abandon"])
+                                .status
+                                .code(),
+                            eq(Some(0))
+                        );
+                    }
+                    "withheld" => {
+                        fixture.json(&["release", handle]);
+                        fs::write(checkout.join("tracked"), b"protected dirty work\n").unwrap();
+                        assert_that!(
+                            fixture
+                                .run(&["acquire", "--repo", &repository])
+                                .status
+                                .success(),
+                            eq(false)
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
+        let before = fixture.json(&["catalog", "info"]);
+        let history = fixture.json(&["events", "list"]);
+        let assignments = fixture.json(&["assignment", "list"]);
+        let operations = fixture.json(&["operation", "list"]);
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let refs = fixture.git_text(&checkout, &["show-ref"]);
+        let index = fs::read(checkout.join(".git/index")).unwrap();
+        let tracked = fs::read(checkout.join("tracked")).unwrap();
+        fs::write(
+            checkout.join("ignored-build-state"),
+            b"retained build state",
+        )
+        .unwrap();
+        let locator = fixture.root.path().join("state/worktree-pool/active.json");
+        let locator_before = fs::read(&locator).unwrap();
+        // Replay succeeds even when registered paths are missing and Git cannot execute.
+        let moved = fixture.root.path().join("moved-checkout");
+        fs::rename(&checkout, &moved).unwrap();
+        let mut command = fixture.command();
+        command.env("PATH", "").args(["catalog", "rebuild"]);
+        let rebuilt = output(command);
+        assert_that!(rebuilt.status.code(), eq(Some(0)));
+        assert_that!(rebuilt.stderr.is_empty(), eq(true));
+        assert_that!(checkout.exists(), eq(false));
+        fs::rename(&moved, &checkout).unwrap();
+        assert_that!(
+            fixture.json(&["catalog", "info"])["data"].clone(),
+            eq(&before["data"])
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&history));
+        assert_that!(fixture.json(&["assignment", "list"]), eq(&assignments));
+        assert_that!(fixture.json(&["operation", "list"]), eq(&operations));
+        assert_that!(fs::read(&locator).unwrap(), eq(&locator_before));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&head)
+        );
+        assert_that!(fixture.git_text(&checkout, &["show-ref"]), eq(&refs));
+        assert_that!(fs::read(checkout.join(".git/index")).unwrap(), eq(&index));
+        assert_that!(fs::read(checkout.join("tracked")).unwrap(), eq(&tracked));
+        assert_that!(
+            fs::read(checkout.join("ignored-build-state")).unwrap(),
+            eq(&b"retained build state".to_vec())
+        );
+    }
+}
+
+#[googletest::test]
+fn catalog_rebuild_rejects_corrupt_unsupported_or_foreign_authority_without_writes() {
+    use redb::{Database, ReadableTable, TableDefinition};
+    for kind in [
+        "position",
+        "expected_revision",
+        "stream",
+        "unknown_type",
+        "specversion",
+        "store_version",
+        "projection_version",
+        "source",
+        "duplicate",
+        "empty",
+        "foreign_projection",
+        "future_projection",
+    ] {
+        let fixture = Fixture::new();
+        let (_, checkout, _) = fixture.acquisition();
+        {
+            let database = Database::open(fixture.database()).unwrap();
+            let transaction = database.begin_write().unwrap();
+            if matches!(kind, "foreign_projection" | "future_projection") {
+                let mut state = transaction
+                    .open_table(TableDefinition::<&str, &str>::new("state"))
+                    .unwrap();
+                let mut value: Value =
+                    serde_json::from_str(state.get("catalog").unwrap().unwrap().value()).unwrap();
+                if kind == "foreign_projection" {
+                    value["catalog_id"] = serde_json::json!("99999999-9999-4999-8999-999999999999");
+                } else {
+                    value["projection_version"] = serde_json::json!(2);
+                }
+                state
+                    .insert("catalog", serde_json::to_string(&value).unwrap().as_str())
+                    .unwrap();
+            } else {
+                let mut events = transaction
+                    .open_table(TableDefinition::<u64, &str>::new("events"))
+                    .unwrap();
+                let mut record: Value =
+                    serde_json::from_str(events.get(1).unwrap().unwrap().value()).unwrap();
+                match kind {
+                    "position" => record["position"] = serde_json::json!(2),
+                    "expected_revision" => record["expected_revision"] = serde_json::json!(99),
+                    "stream" => record["stream_id"] = serde_json::json!("repositories/wrong"),
+                    "unknown_type" => {
+                        record["event"]["type"] =
+                            serde_json::json!("io.lowkeylab.worktreepool.unknown.v9");
+                    }
+                    "specversion" => record["event"]["specversion"] = serde_json::json!("2.0"),
+                    "store_version" => {
+                        record["event"]["data"]["store_version"] = serde_json::json!(2);
+                    }
+                    "projection_version" => {
+                        record["event"]["data"]["projection_version"] = serde_json::json!(2);
+                    }
+                    "source" => {
+                        record["event"]["source"] =
+                            serde_json::json!("urn:uuid:99999999-9999-4999-8999-999999999999");
+                    }
+                    "duplicate" => {
+                        record["position"] = serde_json::json!(4);
+                        events
+                            .insert(4, serde_json::to_string(&record).unwrap().as_str())
+                            .unwrap();
+                    }
+                    "empty" => {
+                        events.retain(|_, _| false).unwrap();
+                    }
+                    _ => unreachable!(),
+                }
+                if !matches!(kind, "duplicate" | "empty") {
+                    events
+                        .insert(1, serde_json::to_string(&record).unwrap().as_str())
+                        .unwrap();
+                }
+            }
+            transaction.commit().unwrap();
+        }
+        let bytes = fs::read(fixture.database()).unwrap();
+        let locator = fixture.root.path().join("state/worktree-pool/active.json");
+        let before = fs::read(&locator).unwrap();
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let result = fixture.run(&["catalog", "rebuild"]);
+        assert_that!(result.status.code(), eq(Some(2)));
+        let value: Value = serde_json::from_slice(&result.stdout).unwrap();
+        let reason = match kind {
+            "unknown_type" | "specversion" | "store_version" | "projection_version"
+            | "future_projection" => "unsupported_version",
+            "foreign_projection" => "catalog_conflict",
+            _ => "catalog_corrupt",
+        };
+        assert_that!(value["reason_code"].as_str(), eq(Some(reason)));
+        assert_that!(fs::read(fixture.database()).unwrap(), eq(&bytes));
+        assert_that!(fs::read(&locator).unwrap(), eq(&before));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&head)
+        );
+        assert_that!(fixture.run(&["catalog", "info"]).status.code(), eq(Some(2)));
+    }
+}
+
+#[googletest::test]
+fn interrupted_rebuild_retains_ownership_until_explicit_complete_reconstruction() {
+    use std::os::unix::process::ExitStatusExt;
+    for checkpoint in ["validated", "before-commit", "committed"] {
+        let fixture = Fixture::new();
+        let (_, checkout, repository) = fixture.acquisition();
+        fixture.json(&["acquire", "--repo", &repository]);
+        let before = fixture.json(&["catalog", "info"]);
+        let history = fixture.json(&["events", "list"]);
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let index = fs::read(checkout.join(".git/index")).unwrap();
+        damage_derived_catalog(&fixture.database(), "ownership");
+        let mut child = fixture.paused_catalog("rebuild", checkpoint, false);
+        child.kill().unwrap();
+        assert_that!(child.wait().unwrap().signal(), eq(Some(9)));
+        let check = fixture.run(&["catalog", "check"]);
+        if check.status.success() {
+            let checked: Value = serde_json::from_slice(&check.stdout).unwrap();
+            assert_that!(&checked["data"], eq(&before["data"]));
+        }
+        let rebuilt = fixture.run(&["catalog", "rebuild"]);
+        if !rebuilt.status.success() {
+            assert_that!(
+                fixture
+                    .run(&["recover", "apply", "--catalog"])
+                    .status
+                    .code(),
+                eq(Some(0))
+            );
+            assert_that!(
+                fixture.run(&["catalog", "rebuild"]).status.code(),
+                eq(Some(0))
+            );
+        }
+        assert_that!(
+            fixture.json(&["catalog", "info"])["data"].clone(),
+            eq(&before["data"])
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&history));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&head)
+        );
+        assert_that!(fs::read(checkout.join(".git/index")).unwrap(), eq(&index));
+    }
+}
+
+fn wait_for_maintenance_waiter(fixture: &Fixture, child: &mut Child) {
+    use std::os::unix::fs::MetadataExt;
+    let inode = fs::metadata(
+        fixture
+            .root
+            .path()
+            .join("state/worktree-pool/maintenance.lock"),
+    )
+    .unwrap()
+    .ino();
+    let pid = child.id().to_string();
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        let locks = fs::read_to_string("/proc/locks").unwrap();
+        if locks.lines().any(|line| {
+            line.contains("->")
+                && line.split_whitespace().any(|part| part == pid)
+                && line.contains(&format!(":{inode} "))
+        }) {
+            return;
+        }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("command completed before its maintenance barrier: {status}");
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("maintenance lock waiter watchdog");
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+#[googletest::test]
+fn rebuild_excludes_whole_live_commands_and_serializes_later_mutations_without_lost_facts() {
+    use std::io::Write;
+    let fixture = Fixture::new();
+    let (_, _, repository) = fixture.acquisition();
+    let mut acquisition = fixture.paused_acquire(&repository, "checkout-effect", false);
+    let pending = fixture.json(&["catalog", "info"]);
+    let history = fixture.json(&["events", "list"]);
+    let mut command = fixture.command();
+    command.args(["catalog", "rebuild"]);
+    let mut rebuilding = command.spawn().unwrap();
+    wait_for_maintenance_waiter(&fixture, &mut rebuilding);
+    acquisition.kill().unwrap();
+    acquisition.wait().unwrap();
+    assert_that!(wait(rebuilding).status.code(), eq(Some(0)));
+    assert_that!(
+        fixture.json(&["catalog", "info"])["data"].clone(),
+        eq(&pending["data"])
+    );
+    assert_that!(fixture.json(&["events", "list"]), eq(&history));
+    let mut rebuilding = fixture.paused_catalog("rebuild", "validated", true);
+    let mut command = fixture.command();
+    command.args([
+        "pool",
+        "configure",
+        "--repo",
+        &repository,
+        "--max-worktrees",
+        "2",
+    ]);
+    let mut configuring = command.spawn().unwrap();
+    wait_for_maintenance_waiter(&fixture, &mut configuring);
+    rebuilding
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"continue\n")
+        .unwrap();
+    assert_that!(wait(rebuilding).status.code(), eq(Some(0)));
+    assert_that!(wait(configuring).status.code(), eq(Some(0)));
+    let after = fixture.json(&["catalog", "info"]);
+    assert_that!(
+        after["data"]["repositories"][0]["capacity"].as_u64(),
+        eq(Some(2))
+    );
+    assert_that!(
+        after["data"]["assignments"].clone(),
+        eq(&pending["data"]["assignments"])
+    );
+    assert_that!(
+        after["data"]["revision"].as_u64(),
+        eq(Some(pending["data"]["revision"].as_u64().unwrap() + 1))
+    );
+}
+
+#[googletest::test]
+fn lost_rebuild_stdout_preserves_the_committed_projection_and_complete_history() {
+    let fixture = Fixture::new();
+    let (_, _, repository) = fixture.acquisition();
+    fixture.json(&["acquire", "--repo", &repository]);
+    let before = fixture.json(&["catalog", "info"]);
+    let history = fixture.json(&["events", "list"]);
+    damage_derived_catalog(&fixture.database(), "ownership");
+    let mut command = fixture.command();
+    command.args(["catalog", "rebuild"]).stdout(
+        fs::OpenOptions::new()
+            .write(true)
+            .open("/dev/full")
+            .unwrap(),
+    );
+    assert_that!(output(command).status.code(), eq(Some(4)));
+    assert_that!(
+        fixture.json(&["catalog", "info"])["data"].clone(),
+        eq(&before["data"])
+    );
+    assert_that!(fixture.json(&["events", "list"]), eq(&history));
+    assert_that!(
+        fixture.run(&["catalog", "rebuild"]).status.code(),
+        eq(Some(0))
+    );
+    assert_that!(fixture.json(&["events", "list"]), eq(&history));
+}
+
+#[googletest::test]
+fn catalog_rebuild_rejects_repository_scope_instead_of_ignoring_the_selector() {
+    let fixture = Fixture::new();
+    fixture.json(&["catalog", "init"]);
+    let database = fs::read(fixture.database()).unwrap();
+    let result = fixture.run(&["catalog", "rebuild", "--repo", "unregistered-repository"]);
+    assert_that!(result.status.code(), eq(Some(2)));
+    let value: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_that!(value["reason_code"].as_str(), eq(Some("selector_conflict")));
+    assert_that!(fs::read(fixture.database()).unwrap(), eq(&database));
+}

@@ -36,3 +36,8 @@ pub mod catalog_recovery_cli;
 pub mod recovery_inspection;
 
 pub mod repository_recovery;
+
+pub mod rebuild;
+
+#[cfg(test)]
+mod rebuild_tests;
