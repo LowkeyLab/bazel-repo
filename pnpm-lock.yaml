@@ -48,9 +48,18 @@ catalogs:
     '@eslint/js':
       specifier: ^10.0.0
       version: 10.0.1
+    '@graphql-codegen/cli':
+      specifier: ^7.0.0
+      version: 7.4.4
+    '@graphql-codegen/typescript':
+      specifier: ^6.0.0
+      version: 6.1.1
     '@graphql-codegen/typescript-apollo-angular':
       specifier: ^5.0.0
       version: 5.0.1
+    '@graphql-codegen/typescript-operations':
+      specifier: ^6.0.0
+      version: 6.1.10
     '@graphql-typed-document-node/core':
       specifier: ^3.2.0
       version: 3.2.0
@@ -109,8 +118,8 @@ catalogs:
       specifier: ^1.9.4
       version: 1.9.4
     casdoor-js-sdk:
-      specifier: ^0.20.0
-      version: 0.20.0
+      specifier: ^0.21.0
+      version: 0.21.1
     crypto-js:
       specifier: ^4.2.0
       version: 4.2.0
@@ -132,6 +141,9 @@ catalogs:
     js-pkce:
       specifier: ^2.0.0
       version: 2.0.0
+    js-yaml:
+      specifier: ^5.0.0
+      version: 5.4.3
     jsdom:
       specifier: ^30.0.0
       version: 30.1.1
@@ -144,6 +156,9 @@ catalogs:
     playwright:
       specifier: 1.63.0
       version: 1.63.0
+    postcss:
+      specifier: ^8.5.3
+      version: 8.5.29
     postcss-cli:
       specifier: ^12.0.0
       version: 12.0.0
@@ -301,7 +316,7 @@ importers:
         version: 1.9.4
       casdoor-js-sdk:
         specifier: 'catalog:'
-        version: 0.20.0
+        version: 0.21.1
       crypto-js:
         specifier: 'catalog:'
         version: 4.2.0
@@ -3276,8 +3291,8 @@ packages:
   capital-case@1.0.4:
     resolution: {integrity: sha512-ds37W8CytHgwnhGGTi88pcPyR15qoNkOpYwmMMfnWqqWgESapLqvDx6huFjQ5vqWSn2Z06173XNA7LtMOeUh1A==}
 
-  casdoor-js-sdk@0.20.0:
-    resolution: {integrity: sha512-8miZkZHwKBP2VlAd8Rla5NsT0WzaSiNRMzO1mdpr3YVLuNHcE+CYwBrN4rMXk8JT5rkGt+rsHUBLXFf9wS3NFg==}
+  casdoor-js-sdk@0.21.1:
+    resolution: {integrity: sha512-RCV4Dasd8Z908y5ktMBuAsFH+4uTz2R4/V38JtI3UALjhUxSJynfVhNI7eGmcGyyA1mpr+gUayF/4vJ26go/fg==}
 
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
@@ -8613,7 +8628,7 @@ snapshots:
       tslib: 2.8.1
       upper-case-first: 2.0.2
 
-  casdoor-js-sdk@0.20.0:
+  casdoor-js-sdk@0.21.1:
     dependencies:
       js-pkce: 1.5.1
       jwt-decode: 4.0.0
