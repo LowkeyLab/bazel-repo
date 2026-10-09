@@ -113,6 +113,7 @@ def main():
         "Cargo.toml.orig",
         "LICENSE",
         "README.md",
+        "CONTRIBUTING.md",
         "WIRE_SCHEMA.md",
         "DEPENDENCIES.md",
         "lib.rs",
