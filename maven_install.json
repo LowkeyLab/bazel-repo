@@ -36,7 +36,7 @@
     "org.junit.jupiter:junit-jupiter-engine": 1139260123,
     "org.junit.jupiter:junit-jupiter-params": 1360583711,
     "org.junit.platform:junit-platform-console": -148505646,
-    "org.postgresql:postgresql": -1283293677,
+    "org.postgresql:postgresql": 1204219156,
     "repositories": 65937588
   },
   "__RESOLVED_ARTIFACTS_HASH": {
@@ -430,9 +430,9 @@
     "org.ow2.asm:asm": -1101379267,
     "org.ow2.asm:asm:jar:javadoc": -1828579052,
     "org.ow2.asm:asm:jar:sources": -1707020066,
-    "org.postgresql:postgresql": -671040132,
-    "org.postgresql:postgresql:jar:javadoc": -1624069490,
-    "org.postgresql:postgresql:jar:sources": -724838501,
+    "org.postgresql:postgresql": -38252756,
+    "org.postgresql:postgresql:jar:javadoc": 548722020,
+    "org.postgresql:postgresql:jar:sources": -940178470,
     "org.slf4j:slf4j-api": 1965957737,
     "org.slf4j:slf4j-api:jar:javadoc": 1446095562,
     "org.slf4j:slf4j-api:jar:sources": 170272608,
@@ -1484,11 +1484,11 @@
     },
     "org.postgresql:postgresql": {
       "shasums": {
-        "jar": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
-        "javadoc": "3a86bb85b62f82b6ae353f8c263909e99fa3c310cc4b83e67e13356c6c0aac85",
-        "sources": "47914c21e0866a23de859041b2e6ecf921fdf68efbd9c7cb42c090ed5e944bab"
+        "jar": "73914527305a40cce504b0d3d90b23caf565136912d607ae8ae7c5895512332c",
+        "javadoc": "0e3abd98970e19da586f42ba995bfce9c979713f8ed51daf34ad0bdfe3b7c4e7",
+        "sources": "c0cdfff01ebb10cc05f57d43bc16b9c9cad0c92bbd4946fe41a389cf57739193"
       },
-      "version": "42.7.13"
+      "version": "42.7.14"
     },
     "org.slf4j:slf4j-api": {
       "shasums": {
