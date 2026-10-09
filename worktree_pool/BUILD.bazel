@@ -117,10 +117,11 @@ rust_test(
     ],
 )
 
-# Prose lint includes the public wire and test-design contracts.
+# Prose lint covers user, contributor, and public wire documentation.
 filegroup(
     name = "markdown",
     srcs = [
+        "CONTRIBUTING.md",
         "DEPENDENCIES.md",
         "README.md",
         "WIRE_SCHEMA.md",
