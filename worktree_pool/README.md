@@ -5,12 +5,15 @@ Git worktrees. It supports catalog initialization and inspection, explicit
 repository/worktree enrollment, registered resource inspection, checkpointed
 repository refresh, safe acquisition and explicit release of registered worktrees,
 assignment and operation inspection, event history, on-demand detached creation,
-and durable per-repository capacity.
+durable per-repository capacity, explicit recovery and projection rebuild, catalog
+relocation, registration retirement, and retained resource inspection.
 
 Development uses Nix and Bazel. The standalone manifest pins every direct
 dependency and targets Rust 1.96, matching the Bazel toolchain. Its executable
 name is `worktree-pool`. Registry publication and name verification remain
-separate work.
+separate work. Comparative benchmark evidence remains `HOLD` and incomplete.
+Standalone installation and minimum supported Git verification remain incomplete. Packaging remains gated on measured GO and explicit acceptance of
+retained disk and build-state costs.
 
 ## Catalog authority
 
@@ -599,6 +602,86 @@ replacing those dependencies. Private real fixtures verify SIGKILL/restart,
 preview preservation, known/unidentified results, competing processes and actual
 `redb` sync-failure atomicity. They don't establish whole-machine power-loss safety
 or a benchmark speedup.
+
+## Catalog relocation
+
+`worktree-pool catalog relocate <destination-directory>` copies the closed catalog
+database to a new private directory and atomically switches the stable active
+locator. The destination must not exist, its parent must exist without symbolic
+path aliases, and the destination must be separate from source storage, stable
+state, registered checkouts and Git common directories. Relative destinations
+resolve against the current directory. The tool rejects parent traversal. New tool
+directories use mode 0700 and files 0600. Configuration files and environment
+settings are never rewritten.
+
+After completion, select the destination explicitly with `--catalog-dir` or update
+your own location setting. Obsolete selectors return `catalog_conflict`, include
+the actual active location and explain the next action. They never adopt the old
+database. The stable locator and maintenance, catalog, and repository lock files
+stay under the original state directory. Relocation excludes concurrent commands
+for its entire duration, including commands preparing Git effects. It rejects
+unresolved catalog, repository, and worktree operations. Completed assignments may
+remain active throughout relocation.
+
+Relocation preserves catalog identity, handles, capacity, preservation records,
+complete database bytes, and event history. Existing absolute checkout paths remain
+fixed, including worktrees created beside the old catalog. The tool never moves,
+deletes, or cleans worktrees. The source database also remains in place as inactive tool
+data. Each relocation retains another database copy and consumes additional disk.
+Receipts report `retained_source`, its measured `retained_source_bytes` when
+available, and `retained_source_active`. An unavailable measurement is null.
+Earlier retained locations remain recorded in lifecycle history. There is no
+automatic deletion, backup/restore subsystem or silent configuration migration.
+
+The stable locator retains schema-version-1 `relocation_history` with contiguous
+positions and exact operation IDs, alongside its separate current `relocation`
+projection. Each fact records catalog identity, lossless source/destination paths,
+source revision, tagged `SHA-256` evidence of the closed source database, and
+checkpoint. Recovery requires source and copy bytes to match this recorded
+evidence. A replacement with the same catalog ID and revision is insufficient.
+Checkpoints are `intended`, `prepared`, `switched`
+and `completed`. Prior bootstrap/storage-repair lifecycle facts and IDs remain
+unchanged, including explicitly observed legacy facts. Relocation never rewrites
+old event envelopes or worktree paths. Unsupported or inconsistent history stops
+use. Ordinary mutation requires a completed relocation. Its pending reason is
+`catalog_relocation_pending`. Successful commands use `catalog_relocated`,
+`catalog_relocation_completed`, or `catalog_relocation_already_completed`.
+Inspection uses `catalog_relocation_observed`.
+
+Inspect the exact recorded ID with `operation inspect <id>` or
+`recover preview --operation <id>`. Preview, `catalog info`, and `catalog check` commands
+preserve database and locator bytes. Operation listing retains catalog lifecycle
+results even when repository storage is unavailable, and explains partial results.
+Receipts expose active and selected paths, checkpoint, mutation availability and
+next action independently. `worktrees_moved` is false. Applying an exact older
+completed lifecycle result is a read-only no-op, even during a newer relocation.
+
+Explicit recovery uses `recover apply --operation <id>`. `recover apply --catalog`
+selects a pending catalog relocation. An unknown ID never selects another request.
+The recorded source remains the authority before switching. The destination is
+the only selected location after switching. Both stages bar ordinary mutations
+until completion. Interrupted copies are never blindly overwritten or reset:
+
+- After intent or directory creation, recovery can prepare the recorded destination.
+- After complete copy but before its checkpoint, recovery validates identical bytes,
+  identity, complete history and projection before advancing the same operation.
+- For an empty, partial or conflicting copy before preparation, verify the recorded
+  source and preserve the conflicting destination file outside the destination
+  directory manually. Recover the same ID to create a fresh complete copy.
+- After preparation or switching, missing or changed destination bytes require
+  manual restoration of the exact verified copy from the retained source, with
+  conflicting bytes preserved first. Recovery then revalidates both copies before
+  advancing. Missing or changed source bytes also require manual restoration of
+  the exact bytes recorded by the intent, preserving conflicting bytes first.
+- After completed publication, repeating exact-ID recovery changes no history.
+
+Ambiguous files or inconsistent locator facts refuse mutation. Corrupt or
+unsupported lifecycle metadata requires manual verification and reconciliation.
+The tool never invents missing history, chooses a newer operation, or initializes
+a replacement authority. Real subprocess crash tests demonstrate process
+interruption behavior and cooperative locking, not whole-machine power-loss
+recovery or protection from hostile same-user filesystem changes. `SHA-256` evidence
+strengthens accidental replacement detection, not hostile-filesystem isolation.
 
 ## Retire registrations and inspect retained resources
 

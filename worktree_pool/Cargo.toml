@@ -23,6 +23,7 @@ cloudevents-sdk = { version = "=0.9.0", default-features = false }
 config = { version = "=0.15.27", default-features = false, features = ["toml"] }
 redb = "=4.3.0"
 serde = { version = "=1.0.229", features = ["derive"] }
+sha2 = { version = "=0.10.9", default-features = false }
 serde_json = "=1.0.151"
 thiserror = "=2.0.21"
 tracing = "=0.1.44"

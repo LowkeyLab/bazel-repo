@@ -7,6 +7,8 @@ fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
     match std::env::var("OPERATION").as_deref() {
+        Ok("relocate") => return relocate_catalog(&paths, &selected),
+        Ok("recover-catalog") => return recover_catalog(&paths, &selected),
         Ok("rebuild") => return rebuild_catalog(&paths, &selected),
         Ok("retire") => return retire_registration(&paths, &selected),
         _ => {}
@@ -22,10 +24,6 @@ fn main() {
             pause(&selected, name);
         })
         .unwrap();
-        return;
-    }
-    if std::env::var("OPERATION").as_deref() == Ok("recover-catalog") {
-        recover_catalog(&paths, &selected);
         return;
     }
     if std::env::var("OPERATION").as_deref() == Ok("recover") {
@@ -166,5 +164,24 @@ fn retire_registration(paths: &Paths, selected: &str) {
             );
         },
     )
+    .unwrap();
+}
+
+fn relocate_catalog(paths: &Paths, selected: &str) {
+    use worktree_pool::relocation::{RelocationCheckpoint, relocate_observed};
+    let destination = std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join("relocated");
+    relocate_observed(paths, &destination, |checkpoint| {
+        let name = match checkpoint {
+            RelocationCheckpoint::IntentRecorded => "intent",
+            RelocationCheckpoint::DirectoryPrepared => "directory",
+            RelocationCheckpoint::DestinationCreated => "created",
+            RelocationCheckpoint::CopyStarted => "copy-started",
+            RelocationCheckpoint::CopySynced => "copied",
+            RelocationCheckpoint::DestinationPrepared => "prepared",
+            RelocationCheckpoint::LocatorSwitched => "switched",
+            RelocationCheckpoint::Completed => "completed",
+        };
+        pause(selected, name);
+    })
     .unwrap();
 }

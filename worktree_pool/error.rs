@@ -55,6 +55,10 @@ pub enum PoolError {
     Missing,
     #[error("catalog already initialized; use catalog info")]
     AlreadyInitialized,
+    #[error(
+        "catalog relocation is pending; inspect its recorded operation and explicitly reconcile it"
+    )]
+    RelocationPending,
     #[error("initialization is pending; inspect catalog before reconciliation")]
     Pending,
     #[error("configuration is invalid")]
@@ -94,6 +98,7 @@ impl PoolError {
             Self::CommitUnknown => "commit_unknown",
             Self::Missing => "catalog_missing",
             Self::AlreadyInitialized => "catalog_exists",
+            Self::RelocationPending => "catalog_relocation_pending",
             Self::Pending => "initialization_pending",
             Self::Configuration => "invalid_configuration",
             Self::Permissions => "unsafe_permissions",

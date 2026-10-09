@@ -5118,6 +5118,8 @@ fn recovery_selects_non_utf8_registered_paths_and_known_historical_results_witho
     assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
 }
 
+mod relocation_cli_tests;
+
 #[googletest::test]
 fn catalog_rebuild_preserves_public_state_and_complete_history() {
     let fixture = Fixture::new();
@@ -5129,8 +5131,25 @@ fn catalog_rebuild_preserves_public_state_and_complete_history() {
     let rebuilt: Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_that!(rebuilt["command"].as_str(), eq(Some("catalog rebuild")));
     assert_that!(rebuilt["schema_version"].as_u64(), eq(Some(1)));
-    assert_that!(&rebuilt["data"], eq(&before["data"]));
+    assert_that!(
+        &rebuilt["data"],
+        eq(&catalog_projection_data(&before["data"]))
+    );
     assert_that!(fixture.json(&["events", "list"]), eq(&history));
+}
+
+// Info adds observations beside the complete projection; rebuild returns that projection only.
+fn catalog_projection_data(data: &Value) -> Value {
+    let mut projection = data.clone();
+    for field in [
+        "authority",
+        "catalog_mutations_available",
+        "worktrees_moved",
+        "next_action",
+    ] {
+        projection.as_object_mut().unwrap().remove(field);
+    }
+    projection
 }
 
 fn damage_derived_catalog(path: &std::path::Path, kind: &str) {
@@ -5478,10 +5497,46 @@ fn interrupted_rebuild_retains_ownership_until_explicit_complete_reconstruction(
                 eq(Some(0))
             );
         }
+        let after = fixture.json(&["catalog", "info"]);
         assert_that!(
-            fixture.json(&["catalog", "info"])["data"].clone(),
-            eq(&before["data"])
+            catalog_projection_data(&after["data"]),
+            eq(&catalog_projection_data(&before["data"]))
         );
+        assert_that!(
+            after["data"]["catalog_mutations_available"].as_bool(),
+            eq(Some(true))
+        );
+        for field in [
+            "catalog_id",
+            "catalog_path",
+            "phase",
+            "store_state",
+            "revision",
+            "relocation",
+            "relocation_history",
+        ] {
+            assert_that!(
+                &after["data"]["authority"][field],
+                eq(&before["data"]["authority"][field])
+            );
+        }
+        let prior_facts = before["data"]["authority"]["recovery_history"]
+            .as_array()
+            .unwrap();
+        let facts = after["data"]["authority"]["recovery_history"]
+            .as_array()
+            .unwrap();
+        assert_that!(&facts[..prior_facts.len()], eq(prior_facts));
+        if rebuilt.status.success() {
+            assert_that!(facts, eq(prior_facts));
+        } else {
+            assert_that!(facts.len(), eq(prior_facts.len() + 2));
+            let added = &facts[prior_facts.len()..];
+            assert_that!(added[0]["kind"].as_str(), eq(Some("storage_repair")));
+            assert_that!(added[0]["checkpoint"].as_str(), eq(Some("intent_recorded")));
+            assert_that!(added[1]["checkpoint"].as_str(), eq(Some("completed")));
+            assert_that!(&added[0]["operation_id"], eq(&added[1]["operation_id"]));
+        }
         assert_that!(fixture.json(&["events", "list"]), eq(&history));
         assert_that!(
             fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
