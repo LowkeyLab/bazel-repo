@@ -41,3 +41,8 @@ pub mod rebuild;
 
 #[cfg(test)]
 mod rebuild_tests;
+
+pub mod retirement;
+pub mod retirement_workflow;
+
+pub mod resources;

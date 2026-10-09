@@ -6,9 +6,10 @@ use worktree_pool::{
 fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
-    if std::env::var("OPERATION").as_deref() == Ok("rebuild") {
-        rebuild_catalog(&paths, &selected);
-        return;
+    match std::env::var("OPERATION").as_deref() {
+        Ok("rebuild") => return rebuild_catalog(&paths, &selected),
+        Ok("retire") => return retire_registration(&paths, &selected),
+        _ => {}
     }
     if std::env::var("OPERATION").as_deref() == Ok("recover-repository") {
         use worktree_pool::repository_recovery::{RepositoryRecoveryCheckpoint, resume_observed};
@@ -142,5 +143,28 @@ fn rebuild_catalog(paths: &Paths, selected: &str) {
         };
         pause(selected, name);
     })
+    .unwrap();
+}
+
+fn retire_registration(paths: &Paths, selected: &str) {
+    use worktree_pool::retirement_workflow::{RetirementCheckpoint, retire_observed};
+    let ids = std::env::var("OPERATION_ID").unwrap();
+    let (worktree, proof) = ids.split_once(':').unwrap();
+    retire_observed(
+        paths,
+        None,
+        worktree.as_ref(),
+        proof.parse().unwrap(),
+        true,
+        |checkpoint| {
+            pause(
+                selected,
+                match checkpoint {
+                    RetirementCheckpoint::IntentCommitted => "intent",
+                    RetirementCheckpoint::ResultCommitted => "result",
+                },
+            );
+        },
+    )
     .unwrap();
 }

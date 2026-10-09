@@ -640,3 +640,29 @@ pub fn add_worktree(common: &Path, path: &Path, target: &str) -> Result<(), Pool
     }
     Ok(())
 }
+
+/// Verifies the recorded attached branch is still a direct root for its exact tip.
+/// # Errors
+/// Rejects moved, deleted, symbolic, or unobservable branch protection.
+pub fn verify_branch_tip(common: &Path, reference: &str, head: &str) -> Result<(), PoolError> {
+    if !reference.starts_with("refs/heads/") || !valid_oid(head.as_bytes()) {
+        return Err(PoolError::Git);
+    }
+    let symbolic = command(common)
+        .args(["symbolic-ref", "--quiet", reference])
+        .output()
+        .map_err(|_| PoolError::Git)?;
+    if symbolic.status.code() != Some(1) {
+        return Err(PoolError::Git);
+    }
+    let observed = output_oid(
+        &command(common)
+            .args(["show-ref", "--verify", "--hash", reference])
+            .output()
+            .map_err(|_| PoolError::Git)?,
+    )?;
+    if observed != head {
+        return Err(PoolError::Git);
+    }
+    Ok(())
+}

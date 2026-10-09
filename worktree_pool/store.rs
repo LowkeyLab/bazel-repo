@@ -487,6 +487,28 @@ impl Store {
         expected_global_revision: u64,
         events: Vec<Value>,
     ) -> Result<CatalogProjection, PoolError> {
+        self.append_batch_at_commit(expected_global_revision, events, || {})
+    }
+
+    /// Observes the actual transaction commit after all preparation succeeds.
+    /// # Errors
+    /// Preserves normal append validation and indeterminate commit reporting.
+    #[cfg(test)]
+    pub fn append_batch_observed(
+        &self,
+        expected_global_revision: u64,
+        events: Vec<Value>,
+        before_commit: impl FnOnce(),
+    ) -> Result<CatalogProjection, PoolError> {
+        self.append_batch_at_commit(expected_global_revision, events, before_commit)
+    }
+
+    fn append_batch_at_commit(
+        &self,
+        expected_global_revision: u64,
+        events: Vec<Value>,
+        before_commit: impl FnOnce(),
+    ) -> Result<CatalogProjection, PoolError> {
         let current = self.projection()?;
         if current.revision != expected_global_revision || events.is_empty() {
             return Err(PoolError::Conflict);
@@ -556,6 +578,7 @@ impl Store {
                 .insert("catalog", state.as_str())
                 .map_err(|_| PoolError::Storage)?;
         }
+        before_commit();
         transaction.commit().map_err(|_| PoolError::CommitUnknown)?;
         Ok(projection)
     }
