@@ -1190,12 +1190,17 @@ fn relocation_pending_cloud_event_without_journal_preserves_bytes_and_names_exac
     fs::write(&path, serde_json::to_vec(&journal).unwrap()).unwrap();
     let bytes = fs::read(fixture.database()).unwrap();
     let missing = fs::read(&path).unwrap();
+    let fresh = fixture.root.path().join("forbidden-fresh-relocation");
     for args in [
         vec!["catalog", "check"],
         vec!["catalog", "rebuild"],
         vec!["acquire", "--repo", &repository],
+        vec!["catalog", "relocate", fresh.to_str().unwrap()],
     ] {
         let result = fixture.json(&args);
+        assert_that!(fs::read(fixture.database()).unwrap(), eq(&bytes));
+        assert_that!(fs::read(&path).unwrap(), eq(&missing));
+        assert_that!(fresh.exists(), eq(false));
         assert_that!(result["outcome"].as_str(), eq(Some("pending")));
         assert_that!(
             result["reason_code"].as_str(),

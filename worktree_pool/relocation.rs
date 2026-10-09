@@ -161,6 +161,7 @@ fn expected_content(
     operation: &Relocation,
     selected: &Path,
 ) -> Result<ContentEvidence, PoolError> {
+    let proof = history_proof(operation, selected)?;
     if let Some(content) = locator
         .recovery_history
         .iter()
@@ -168,6 +169,7 @@ fn expected_content(
         .filter_map(|r| r.relocation_repair.as_ref())
         .find(|r| {
             r.operation_id == operation.operation_id
+                && r.history == proof
                 && r.catalog_path.to_path().is_ok_and(|p| p == selected)
                 && r.content_after.is_some()
         })
@@ -534,6 +536,9 @@ pub fn relocate_observed(
     private_file(&paths.catalog)?;
     let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
     validate_operations(&locator, &projection)?;
+    if projection.has_pending_relocation() {
+        return Err(PoolError::RelocationPending);
+    }
     if unresolved(&projection) {
         return Err(PoolError::OperationPending);
     }

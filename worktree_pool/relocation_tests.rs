@@ -95,6 +95,7 @@ fn relocation_intent_rejects_a_changed_source_even_with_identical_valid_identity
 #[googletest::test]
 fn exact_relocation_recovers_unclean_semantic_commit_with_damaged_derived_state() {
     for checkpoint in [
+        RelocationCheckpoint::JournalRecorded,
         RelocationCheckpoint::StartedCommitted,
         RelocationCheckpoint::CompletionCommitted,
     ] {
@@ -121,6 +122,8 @@ fn verify_unclean_relocation_recovery(
         json: true,
     };
     let initial = catalog::initialize(&paths).unwrap();
+    let prior_records =
+        Store::raw_records_rebuild_history(&paths.catalog, initial.catalog_id).unwrap();
     let destination = root.path().join("destination");
     let interrupted = std::panic::catch_unwind(|| {
         relocation::relocate_observed(&paths, &destination, |observed| {
@@ -134,7 +137,7 @@ fn verify_unclean_relocation_recovery(
     let locator: Value =
         serde_json::from_slice(&fs::read(paths.state.join("active.json")).unwrap()).unwrap();
     let id = serde_json::from_value(locator["relocation"]["operation_id"].clone()).unwrap();
-    let selected = if checkpoint == RelocationCheckpoint::StartedCommitted {
+    let selected = if checkpoint != RelocationCheckpoint::CompletionCommitted {
         paths.catalog.clone()
     } else {
         destination.join("catalog.redb")
@@ -216,6 +219,22 @@ fn verify_unclean_relocation_recovery(
     }
     let completed = relocation::resume(&paths, id).unwrap();
     assert_that!(completed.operation_id, eq(id));
+    assert_that!(
+        completed.intent_record.as_deref(),
+        eq(locator["relocation"]["intent_record"].as_str())
+    );
+    let mut expected_records = prior_records;
+    expected_records.push(completed.intent_record.clone().unwrap());
+    assert_that!(
+        Store::raw_records_rebuild_history(&paths.catalog, initial.catalog_id).unwrap(),
+        eq(&expected_records)
+    );
+    expected_records.push(completed.completion_record.clone().unwrap());
+    assert_that!(
+        Store::raw_records_rebuild_history(&destination.join("catalog.redb"), initial.catalog_id)
+            .unwrap(),
+        eq(&expected_records)
+    );
     let active = Paths {
         catalog: destination.join("catalog.redb"),
         ..paths.clone()
