@@ -215,7 +215,7 @@ Worked decision inputs cover commit/recency/ID precedence. Independent processes
 cover exclusive assignments and independent-repository progress. Actual SIGKILL
 checks cover reservation, preservation intent/effect/result, checkout intent/effect,
 and acquisition commit. A post-refresh barrier proves fixed default commits.
-Other fixtures cover mandatory explicit-ref refresh, missing refs/failed remotes,
+Other fixtures cover local explicit references, missing refs, failed default refreshes,
 ignored collisions/fallback, hidden Git state, observation caches, retained ignore
 changes, and lost stdout. These establish observed process and commit semantics. They don't simulate
 machine power loss. Installation verification separately exercises the minimum
@@ -701,10 +701,15 @@ worktree-pool operation list [--repo <repository-id-or-path>]
 worktree-pool operation inspect <operation-id>
 ```
 
-Every acquisition refreshes origin/main first, including explicit references. The
-refreshed default uses the commit in the recorded refresh result. An explicit
-reference resolves once afterward. Preparation keeps that commit fixed even
-when a reference changes. Only registered, unowned, present, safe worktrees are
+Acquisition without a reference refreshes `origin/main` first and uses the commit
+in the recorded refresh result. An explicit reference resolves once from local
+Git state, without fetching or requiring `origin` or `origin/main`. Branches,
+tags, commit IDs, and remote-tracking references all use their locally known
+commits. Fetch first if you need a newer remote commit. A missing explicit
+reference rejects without recording a refresh or assigning a worktree.
+Unresolved repository operations, including pending refreshes, block either
+acquisition mode until reconciliation. Preparation keeps the resolved commit
+fixed even when a reference changes. Only registered, unowned, present, safe worktrees are
 eligible. Selection prefers the matching commit, then the latest recorded
 release position, then worktree ID. Initial registrations have no release
 position. Completed release facts supply actual release positions. If no safe
@@ -918,7 +923,7 @@ recorded completed recovery without adding another workflow. To request a new
 observation after resolving protected state, explicitly select the worktree or
 assignment. Refresh reconciliation never infers successful fresh fetch from an
 existing local `origin/main` reference: it reports `fresh_fetch_proven: false` and
-requires a new explicit repository refresh or acquisition. A previously committed
+requires a new explicit repository refresh or acquisition without a reference. A previously committed
 successful refresh remains an unchanged proven result.
 
 A pending recovery blocks competing acquire/release/refresh for its repository

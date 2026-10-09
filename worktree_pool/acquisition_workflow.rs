@@ -73,16 +73,24 @@ pub fn acquire_observed(
     if state.has_pending_recovery(repo.repository_id) {
         return Err(PoolError::OperationPending);
     }
-    let (state, refresh) = workflows::refresh_locked(paths, &repo, |_| {})?;
-    if refresh.state != crate::management::RefreshState::Completed {
+    if state
+        .operations
+        .iter()
+        .any(|o| o.repository_id == repo.repository_id && o.state.is_pending())
+    {
         return Err(PoolError::OperationPending);
     }
-    observe(AcquisitionCheckpoint::RefreshCommitted);
     let common = repo.common_directory.to_path()?;
-    let target = if let Some(reference) = reference {
-        git::resolve_commit(&common, reference)?
+    let (state, target) = if let Some(reference) = reference {
+        let target = git::resolve_repository_commit(&common, reference)?;
+        (state, target)
     } else {
-        refresh.resolved_commit.ok_or(PoolError::Corrupt)?
+        let (state, refresh) = workflows::refresh_locked(paths, &repo, |_| {})?;
+        if refresh.state != crate::management::RefreshState::Completed {
+            return Err(PoolError::OperationPending);
+        }
+        observe(AcquisitionCheckpoint::RefreshCommitted);
+        (state, refresh.resolved_commit.ok_or(PoolError::Corrupt)?)
     };
     let (worktree, safety) = match select_worktree(paths, &repo, &state, &common, &target) {
         Ok(candidate) => candidate,

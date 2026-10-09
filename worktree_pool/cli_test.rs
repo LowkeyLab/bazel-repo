@@ -2074,20 +2074,63 @@ fn simultaneous_callers_receive_distinct_registered_worktrees_and_handles() {
     );
 }
 #[googletest::test]
-fn explicit_refs_still_refresh_and_missing_ref_or_remote_failure_never_assigns_stale_work() {
-    for kind in ["explicit", "missing", "remote"] {
+fn explicit_refs_use_local_commits_without_refreshing_origin_main() {
+    for reference in ["HEAD", "main", "local-tag", "origin/main"] {
         let fixture = Fixture::new();
         let (source, checkout, id) = fixture.acquisition();
         let old = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
-        fs::write(source.join("fresh"), b"new").unwrap();
-        fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
+        fixture.git(&checkout, &["tag".as_ref(), "local-tag".as_ref()]);
         fixture.git(
             &source,
-            &["commit".as_ref(), "-m".as_ref(), "fresh".as_ref()],
+            &[
+                "commit".as_ref(),
+                "--allow-empty".as_ref(),
+                "-m".as_ref(),
+                "remote advanced".as_ref(),
+            ],
         );
-        let fresh = fixture.git_text(&source, &["rev-parse", "HEAD"]);
-        if kind == "remote" {
-            fixture.git(
+        let result = fixture.json(&["acquire", "--repo", &id, reference]);
+        assert_that!(result["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            result["data"]["assignment"]["resolved_commit"].as_str(),
+            eq(Some(old.as_str()))
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&old)
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]),
+            eq(&old)
+        );
+        assert_that!(
+            fixture.json(&["catalog", "info"])["data"]["operations"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            eq(true)
+        );
+    }
+}
+#[googletest::test]
+fn explicit_refs_check_out_local_commits_without_a_usable_origin_or_main() {
+    for fault in ["broken-origin", "no-origin", "no-main"] {
+        let fixture = Fixture::new();
+        let (source, checkout, id) = fixture.acquisition();
+        fs::write(checkout.join("requested"), b"local task content\n").unwrap();
+        fixture.git(&checkout, &["add".as_ref(), ".".as_ref()]);
+        fixture.git(
+            &checkout,
+            &["commit".as_ref(), "-m".as_ref(), "local task".as_ref()],
+        );
+        let target = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        fixture.git(&checkout, &["tag".as_ref(), "local-task".as_ref()]);
+        fixture.git(
+            &checkout,
+            &["checkout".as_ref(), "--detach".as_ref(), "HEAD^".as_ref()],
+        );
+        match fault {
+            "broken-origin" => fixture.git(
                 &checkout,
                 &[
                     "remote".as_ref(),
@@ -2095,52 +2138,186 @@ fn explicit_refs_still_refresh_and_missing_ref_or_remote_failure_never_assigns_s
                     "origin".as_ref(),
                     fixture.root.path().join("missing-remote").as_os_str(),
                 ],
-            );
+            ),
+            "no-origin" => fixture.git(
+                &checkout,
+                &["remote".as_ref(), "remove".as_ref(), "origin".as_ref()],
+            ),
+            _ => {
+                fixture.git(
+                    &source,
+                    &[
+                        "update-ref".as_ref(),
+                        "-d".as_ref(),
+                        "refs/heads/main".as_ref(),
+                    ],
+                );
+                fixture.git(
+                    &checkout,
+                    &[
+                        "update-ref".as_ref(),
+                        "-d".as_ref(),
+                        "refs/remotes/origin/main".as_ref(),
+                    ],
+                );
+            }
         }
         let result = fixture.json(&[
             "acquire",
             "--repo",
             &id,
-            if kind == "missing" {
-                "unknown-ref"
+            if fault == "no-origin" {
+                &target
             } else {
-                "HEAD"
+                "local-task"
             },
         ]);
-        if kind == "explicit" {
-            assert_that!(result["outcome"].as_str(), eq(Some("completed")));
-            assert_that!(
-                result["data"]["assignment"]["resolved_commit"].as_str(),
-                eq(Some(old.as_str()))
-            );
-            assert_that!(
-                fixture
-                    .git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"])
-                    .as_str(),
-                eq(fresh.as_str())
-            );
+        assert_that!(result["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            result["data"]["assignment"]["resolved_commit"].as_str(),
+            eq(Some(target.as_str()))
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&target)
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["branch", "--show-current"]),
+            eq("")
+        );
+        assert_that!(
+            fs::read(checkout.join("requested")).unwrap().as_slice(),
+            eq(b"local task content\n".as_slice())
+        );
+        assert_that!(
+            fixture.json(&["catalog", "info"])["data"]["operations"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            eq(true)
+        );
+    }
+}
+#[googletest::test]
+fn explicit_refs_reject_replaced_common_directories_before_acquisition_effects() {
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.acquisition();
+    let other = fixture.root.path().join("replacement-target");
+    fixture.git(
+        fixture.root.path(),
+        &["clone".as_ref(), source.as_os_str(), other.as_os_str()],
+    );
+    let worktrees = fixture.git_text(&other, &["worktree", "list", "--porcelain"]);
+    fs::rename(checkout.join(".git"), checkout.join(".git.saved")).unwrap();
+    std::os::unix::fs::symlink(other.join(".git"), checkout.join(".git")).unwrap();
+    let before = fixture.json(&["events", "list"]);
+    let result = fixture.run(&["acquire", "--repo", &id, "HEAD"]);
+    assert_that!(result.status.code(), eq(Some(2)));
+    let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_that!(result["reason_code"].as_str(), eq(Some("git_failed")));
+    assert_that!(fixture.json(&["events", "list"]), eq(&before));
+    assert_that!(
+        fixture.git_text(&other, &["worktree", "list", "--porcelain"]),
+        eq(&worktrees)
+    );
+    assert_that!(checkout.join(".git.saved").is_dir(), eq(true));
+}
+#[googletest::test]
+fn missing_explicit_ref_rejects_without_refresh_or_assignment() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    fixture.git(
+        &checkout,
+        &["remote".as_ref(), "remove".as_ref(), "origin".as_ref()],
+    );
+    let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let before = fixture.json(&["events", "list"]);
+    let result = fixture.run(&["acquire", "--repo", &id, "unknown-ref"]);
+    assert_that!(result.status.code(), eq(Some(2)));
+    let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_that!(result["reason_code"].as_str(), eq(Some("git_failed")));
+    assert_that!(fixture.json(&["events", "list"]), eq(&before));
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+        eq(&head)
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list"])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        eq(true)
+    );
+}
+#[googletest::test]
+fn explicit_refs_respect_pending_refreshes_without_changing_history_or_checkout() {
+    for fault in ["interrupted", "failed"] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        if fault == "interrupted" {
+            let mut child = fixture.paused_refresh(&id, "intent");
+            child.kill().unwrap();
+            child.wait().unwrap();
         } else {
-            assert_that!(
-                result["outcome"].as_str(),
-                eq(Some(if kind == "remote" {
-                    "pending"
-                } else {
-                    "rejected"
-                }))
+            fixture.git(
+                &checkout,
+                &["remote".as_ref(), "remove".as_ref(), "origin".as_ref()],
             );
             assert_that!(
-                fixture.json(&["assignment", "list"])["data"]["assignments"]
-                    .as_array()
-                    .unwrap()
-                    .is_empty(),
-                eq(true)
-            );
-            assert_that!(
-                fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
-                eq(old.as_str())
+                fixture.json(&["repo", "refresh", "--repo", &id])["outcome"].as_str(),
+                eq(Some("pending"))
             );
         }
+        let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let before = fixture.json(&["events", "list"]);
+        let result = fixture.run(&["acquire", "--repo", &id, "HEAD"]);
+        assert_that!(result.status.code(), eq(Some(3)));
+        let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_that!(
+            result["reason_code"].as_str(),
+            eq(Some("operation_pending"))
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&before));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&head)
+        );
+        assert_that!(
+            fixture.json(&["assignment", "list"])["data"]["assignments"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            eq(true)
+        );
     }
+}
+#[googletest::test]
+fn default_acquisition_never_assigns_stale_main_after_fetch_failure() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    fixture.git(
+        &checkout,
+        &[
+            "remote".as_ref(),
+            "set-url".as_ref(),
+            "origin".as_ref(),
+            fixture.root.path().join("missing-remote").as_os_str(),
+        ],
+    );
+    let result = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(result["outcome"].as_str(), eq(Some("pending")));
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+        eq(&head)
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list"])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        eq(true)
+    );
 }
 #[googletest::test]
 fn lost_acquisition_stdout_keeps_the_committed_assignment_and_never_reacquires_it() {

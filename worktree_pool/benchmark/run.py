@@ -413,6 +413,7 @@ class Experiment:
 
     def acquire(self, arm, revision):
         if arm == "pooled":
+            self.pool("--repo", self.repo_id, "repo", "refresh")
             envelope = self.pool("--repo", self.repo_id, "acquire", revision)
             assignment = envelope["data"]["assignment"]
             if assignment["resolved_commit"] != revision:

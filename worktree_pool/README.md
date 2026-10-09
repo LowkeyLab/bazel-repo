@@ -65,6 +65,17 @@ worktree-pool repo register /absolute/repository
 worktree-pool acquire --repo /absolute/repository
 ```
 
+With no reference, acquisition fetches and checks out the latest `origin/main`.
+To start from a locally known branch, tag, or commit, supply a reference:
+
+```sh
+worktree-pool acquire --repo /absolute/repository my-task-branch
+```
+
+An explicit reference uses local Git state without fetching. This also applies to
+remote-tracking references such as `origin/main`. Fetch before acquisition if you
+need a newer remote commit. A missing reference fails without assigning a worktree.
+
 Work in the returned path. Create a Git branch if your task needs one.
 When finished, commit your changes and release the returned assignment handle:
 
