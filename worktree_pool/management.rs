@@ -113,11 +113,17 @@ pub struct RefreshFinished {
     deny_unknown_fields
 )]
 pub enum ManagementEvent {
+    Creation(crate::creation::CreationEvent),
+    CapacityConfigured {
+        repository_id: RepositoryId,
+        maximum: u32,
+    },
     Release(crate::release::ReleaseEvent),
     WorktreeWithheld(crate::acquisition::WithheldWorktree),
     Acquisition(crate::acquisition::AcquisitionEvent),
     RepositoryRegistered(Repository),
     WorktreeRegistered(Worktree),
+    WorktreeEnrolled(Worktree),
     RefreshStarted(RefreshStarted),
     RefreshFinished(RefreshFinished),
 }
@@ -125,11 +131,16 @@ impl ManagementEvent {
     #[must_use]
     pub const fn event_type(&self) -> &'static str {
         match self {
+            Self::Creation(c) => c.event_type(),
+            Self::CapacityConfigured { .. } => {
+                "io.lowkeylab.worktreepool.repository.capacity.configured.v1"
+            }
             Self::WorktreeWithheld(_) => "io.lowkeylab.worktreepool.worktree.withheld.v1",
             Self::Release(r) => r.event_type(),
             Self::Acquisition(a) => a.event_type(),
             Self::RepositoryRegistered(_) => "io.lowkeylab.worktreepool.repository.registered.v1",
             Self::WorktreeRegistered(_) => "io.lowkeylab.worktreepool.worktree.registered.v1",
+            Self::WorktreeEnrolled(_) => "io.lowkeylab.worktreepool.worktree.registered.v2",
             Self::RefreshStarted(_) => "io.lowkeylab.worktreepool.repository.refresh.started.v1",
             Self::RefreshFinished(_) => "io.lowkeylab.worktreepool.repository.refresh.finished.v1",
         }
@@ -137,10 +148,12 @@ impl ManagementEvent {
     #[must_use]
     pub const fn repository_id(&self) -> Option<RepositoryId> {
         match self {
+            Self::Creation(c) => c.repository_id(),
+            Self::CapacityConfigured { repository_id, .. } => Some(*repository_id),
             Self::WorktreeWithheld(w) => Some(w.repository_id),
             Self::Release(r) => Some(r.repository_id()),
             Self::Acquisition(a) => Some(a.repository_id()),
-            Self::RepositoryRegistered(_) => None,
+            Self::RepositoryRegistered(_) | Self::WorktreeEnrolled(_) => None,
             Self::WorktreeRegistered(w) => Some(w.repository_id),
             Self::RefreshStarted(r) => Some(r.repository_id),
             Self::RefreshFinished(r) => Some(r.repository_id),
@@ -149,6 +162,7 @@ impl ManagementEvent {
     #[must_use]
     pub const fn operation_id(&self) -> Option<OperationId> {
         match self {
+            Self::Creation(c) => Some(c.operation_id()),
             Self::Release(r) => Some(r.operation_id()),
             Self::Acquisition(a) => Some(a.operation_id()),
             Self::RefreshStarted(r) => Some(r.operation_id),
@@ -159,11 +173,17 @@ impl ManagementEvent {
     #[must_use]
     pub fn subject(&self) -> String {
         match self {
+            Self::Creation(c) => format!("worktrees/{}", c.worktree_id()),
+            Self::CapacityConfigured { repository_id, .. } => {
+                format!("repositories/{repository_id}")
+            }
             Self::WorktreeWithheld(w) => format!("worktrees/{}", w.worktree_id),
             Self::Release(r) => format!("worktrees/{}", r.worktree_id()),
             Self::Acquisition(a) => format!("worktrees/{}", a.worktree_id()),
             Self::RepositoryRegistered(r) => format!("repositories/{}", r.repository_id),
-            Self::WorktreeRegistered(w) => format!("worktrees/{}", w.worktree_id),
+            Self::WorktreeRegistered(w) | Self::WorktreeEnrolled(w) => {
+                format!("worktrees/{}", w.worktree_id)
+            }
             Self::RefreshStarted(r) => format!("repositories/{}", r.repository_id),
             Self::RefreshFinished(r) => format!("repositories/{}", r.repository_id),
         }
@@ -178,6 +198,11 @@ impl ManagementEvent {
         causation_id: Option<&str>,
     ) -> Result<(), PoolError> {
         match self {
+            Self::Creation(c) => c.apply(state, event_id, causation_id)?,
+            Self::CapacityConfigured {
+                repository_id,
+                maximum,
+            } => configure_capacity(state, *repository_id, *maximum)?,
             Self::WorktreeWithheld(w) => withhold(state, w)?,
             Self::Release(r) => r.apply(state, event_id, causation_id)?,
             Self::Acquisition(a) => a.apply(state, event_id, causation_id)?,
@@ -195,7 +220,9 @@ impl ManagementEvent {
                 }
                 state.repositories.push(repository.clone());
             }
-            Self::WorktreeRegistered(worktree) => enroll_worktree(state, worktree)?,
+            Self::WorktreeRegistered(worktree) | Self::WorktreeEnrolled(worktree) => {
+                enroll_worktree(state, worktree)?;
+            }
             Self::RefreshStarted(started) => {
                 if state.releases.iter().any(|o| {
                     o.repository_id == started.repository_id
@@ -269,7 +296,10 @@ impl ManagementEvent {
     }
 }
 
-fn enroll_worktree(state: &mut CatalogProjection, worktree: &Worktree) -> Result<(), PoolError> {
+pub(crate) fn enroll_worktree(
+    state: &mut CatalogProjection,
+    worktree: &Worktree,
+) -> Result<(), PoolError> {
     if worktree.last_release_position.is_some() {
         return Err(PoolError::Corrupt);
     }
@@ -324,5 +354,27 @@ fn withhold(
     }
     state.withheld_worktrees.push(w.clone());
 
+    Ok(())
+}
+
+fn configure_capacity(
+    state: &mut CatalogProjection,
+    repository_id: RepositoryId,
+    maximum: u32,
+) -> Result<(), PoolError> {
+    let count = state
+        .worktrees
+        .iter()
+        .filter(|w| w.repository_id == repository_id)
+        .count();
+    if (maximum as usize) < count {
+        return Err(PoolError::CapacityBelowCount);
+    }
+    state
+        .repositories
+        .iter_mut()
+        .find(|r| r.repository_id == repository_id)
+        .ok_or(PoolError::Unregistered)?
+        .capacity = maximum;
     Ok(())
 }

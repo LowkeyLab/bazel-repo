@@ -1,5 +1,18 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PoolError {
+    #[error(
+        "registered capacity is exhausted; inspect ownership and withheld records or increase durable capacity"
+    )]
+    PoolExhausted {
+        repository_id: crate::management::RepositoryId,
+        maximum: u32,
+        registered_count: usize,
+        assigned_count: usize,
+    },
+    #[error(
+        "maximum cannot be lower than current registered count; retire records explicitly first"
+    )]
+    CapacityBelowCount,
     #[error("assignment handle is unknown; inspect recorded identities")]
     UnknownAssignment,
     #[error("unfinished tracked, indexed, or untracked work is present")]
@@ -49,6 +62,14 @@ impl PoolError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
+            Self::PoolExhausted { maximum: 0, .. } => "capacity_zero",
+            Self::PoolExhausted {
+                registered_count,
+                assigned_count,
+                ..
+            } if *registered_count == *assigned_count => "capacity_all_assigned",
+            Self::PoolExhausted { .. } => "capacity_no_safe_worktree",
+            Self::CapacityBelowCount => "capacity_below_count",
             Self::UnknownAssignment => "assignment_unknown",
             Self::UnfinishedWork => "unfinished_work",
             Self::GitOperation => "git_operation_in_progress",

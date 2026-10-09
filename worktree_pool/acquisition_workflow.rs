@@ -17,6 +17,10 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AcquisitionCheckpoint {
     RefreshCommitted,
+    CreationIntended,
+    CreationPathObserved,
+    CreationPathCommitted,
+    CreationObserved,
     ReservationCommitted,
     PreservationIntended,
     PreservationObserved,
@@ -75,7 +79,13 @@ pub fn acquire_observed(
     } else {
         refresh.resolved_commit.ok_or(PoolError::Corrupt)?
     };
-    let (worktree, safety) = select_worktree(paths, &repo, &state, &common, &target)?;
+    let (worktree, safety) = match select_worktree(paths, &repo, &state, &common, &target) {
+        Ok(candidate) => candidate,
+        Err(PoolError::Unavailable) => {
+            return crate::creation_workflow::create(paths, &repo, &target, &mut observe);
+        }
+        Err(error) => return Err(error),
+    };
     let assignment = Assignment {
         assignment_handle: AssignmentHandle::new(),
         operation_id: OperationId::new(),

@@ -614,3 +614,22 @@ fn no_operation(path: &Path) -> Result<(), PoolError> {
     }
     Ok(())
 }
+
+/// Creates a detached linked checkout without force, hooks, reset or branch creation.
+/// # Errors
+/// Refuses invalid commits, existing metadata and failed Git preparation.
+pub fn add_worktree(common: &Path, path: &Path, target: &str) -> Result<(), PoolError> {
+    if !valid_oid(target.as_bytes()) {
+        return Err(PoolError::Git);
+    }
+    let output = command(common)
+        .args(["worktree", "add", "--detach", "--"])
+        .arg(path)
+        .arg(target)
+        .output()
+        .map_err(|_| PoolError::Git)?;
+    if !output.status.success() {
+        return Err(PoolError::Git);
+    }
+    Ok(())
+}
