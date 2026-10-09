@@ -330,7 +330,7 @@ pub fn resume_observed(
 fn content_evidence(path: &Path) -> Result<ContentEvidence, PoolError> {
     let mut input = File::open(path)?;
     let mut digest = Sha256::new();
-    let mut buffer = [0u8; 65536];
+    let mut buffer = vec![0u8; 65536];
     loop {
         let count = input.read(&mut buffer)?;
         if count == 0 {
@@ -346,8 +346,8 @@ fn same_bytes(source: &Path, target: &Path) -> Result<bool, PoolError> {
     if left.metadata()?.len() != right.metadata()?.len() {
         return Ok(false);
     }
-    let mut a = [0u8; 65536];
-    let mut b = [0u8; 65536];
+    let mut a = vec![0u8; 65536];
+    let mut b = vec![0u8; 65536];
     loop {
         let n = left.read(&mut a)?;
         right.read_exact(&mut b[..n])?;
@@ -423,7 +423,7 @@ fn prepare(
             File::open(directory)?.sync_all()?;
             observe(RelocationCheckpoint::DestinationCreated);
             let mut input = File::open(&source)?;
-            let mut buffer = [0u8; 65536];
+            let mut buffer = vec![0u8; 65536];
             let n = input.read(&mut buffer)?;
             output.write_all(&buffer[..n])?;
             observe(RelocationCheckpoint::CopyStarted);
@@ -498,10 +498,8 @@ fn receipt(
     error: Option<&PoolError>,
 ) -> Envelope {
     let authority = catalog::inspect_active_authority(paths).ok();
-    let mut envelope = if let Some(error) = error {
-        Envelope::failure(command.into(), error)
-    } else {
-        Envelope {
+    let mut envelope = error.map_or_else(
+        || Envelope {
             schema_version: 1,
             command: command.into(),
             outcome: "completed",
@@ -509,12 +507,27 @@ fn receipt(
             context: json!({}),
             data: json!({}),
             warnings: Vec::new(),
-        }
-    };
+        },
+        |error| Envelope::failure(command.into(), error),
+    );
     envelope.context = json!({"catalog_id": authority.as_ref().map(|a| a.catalog_id), "catalog_path": authority.as_ref().map(|a| &a.catalog_path), "selected_catalog_path": EncodedPath::from_path(&paths.catalog), "operation_id": operation.map(|o| o.operation_id), "repository_id": null, "worktree_id": null, "assignment_handle": null});
-    envelope.data = json!({"authority": authority, "operation": operation.map(operation_value), "worktrees_moved": false, "retained_source": operation.map(|o| &o.source), "retained_source_bytes": operation.and_then(|o| o.source.to_path().ok()).and_then(|p| fs::metadata(p).ok()).map(|m| m.len()), "retained_source_active": operation.is_some_and(|o| matches!(o.checkpoint, Checkpoint::Intended | Checkpoint::Prepared)), "catalog_mutations_available": authority.as_ref().is_some_and(catalog::AuthorityObservation::mutations_available), "next_action": next_action(operation)});
+    envelope.data = json!({"authority": authority, "operation": operation.map(operation_value), "worktrees_moved": false, "retained_source": operation.map(|o| &o.source), "retained_source_bytes": operation.and_then(|o| o.source.to_path().ok()).and_then(|p| fs::metadata(p).ok()).map(|m| m.len()), "retained_source_active": operation.is_some_and(|o| matches!(o.checkpoint, Checkpoint::Intended | Checkpoint::Prepared)), "catalog_mutations_available": authority.as_ref().is_some_and(catalog::AuthorityObservation::mutations_available), "next_action": authority.as_ref().map_or_else(|| next_action(operation), |a| authority_next_action(a, operation))});
     envelope
 }
+pub(crate) fn authority_next_action(
+    authority: &catalog::AuthorityObservation,
+    operation: Option<&Relocation>,
+) -> String {
+    if authority.phase != "active"
+        || authority.store_state != "validated"
+        || authority.recovery_checkpoint.as_deref() == Some("intent_recorded")
+    {
+        crate::catalog_recovery_cli::next_action(authority).into()
+    } else {
+        next_action(operation)
+    }
+}
+
 pub(crate) fn next_action(operation: Option<&Relocation>) -> String {
     match operation {
         Some(operation) if operation.checkpoint == Checkpoint::Intended => format!("inspect relocation {} and verify its source against recorded SHA-256 evidence; if source bytes are missing or changed, preserve conflicting bytes and manually restore the exact recorded source first; run recover apply --operation {}; if the destination copy is incomplete or conflicting, preserve it outside the destination manually before retrying this exact ID; no overwrite or reset is performed", operation.operation_id, operation.operation_id),

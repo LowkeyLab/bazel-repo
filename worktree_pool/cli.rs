@@ -309,6 +309,10 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
     ) {
         return resources(cli, paths, command);
     }
+    catalog_or_events(cli, paths, command)
+}
+
+fn catalog_or_events(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolError> {
     let (projection, data) = match &cli.command {
         Command::Catalog {
             command: CatalogCommand::Init,
@@ -334,7 +338,8 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             let authority = catalog::inspect_authority(paths)?;
             data["catalog_mutations_available"] = json!(authority.mutations_available());
             data["worktrees_moved"] = json!(false);
-            data["next_action"] = json!(crate::relocation::next_action(
+            data["next_action"] = json!(crate::relocation::authority_next_action(
+                &authority,
                 authority.relocation.as_ref()
             ));
             data["authority"] = json!(authority);
@@ -745,11 +750,27 @@ pub fn run(args: &[OsString]) -> u8 {
         Ok(result) => result,
         Err(error) => Envelope::failure(name, &error),
     };
+    augment_catalog_receipt(&cli, &paths, &mut result);
+    let fact = CommandObserved {
+        command: result.command.clone(),
+        outcome: result.outcome.into(),
+        reason_code: result.reason_code.into(),
+        catalog_id: result
+            .context
+            .get("catalog_id")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        revision: result.data.get("revision").and_then(Value::as_u64),
+    };
+    result.warnings.extend(diagnostics.observe(&fact));
+    emit(&result, paths.json)
+}
+fn augment_catalog_receipt(cli: &Cli, paths: &Paths, result: &mut Envelope) {
     if (matches!(cli.command, Command::Catalog { .. })
         || result.reason_code == "catalog_relocation_pending")
         && matches!(result.outcome, "pending" | "unknown")
         && result.data.get("authority").is_none()
-        && let Ok(observation) = catalog::inspect_authority(&paths)
+        && let Ok(observation) = catalog::inspect_authority(paths)
     {
         result.context = json!({"catalog_id":observation.catalog_id,"catalog_path":observation.catalog_path,"selected_catalog_path":EncodedPath::from_path(&paths.catalog)});
         result.data["catalog_mutations_available"] = json!(observation.mutations_available());
@@ -778,13 +799,11 @@ pub fn run(args: &[OsString]) -> u8 {
                 "inspect the recorded catalog identity and catalog check before explicit storage recovery or another rebuild request"
             )
         } else {
-            json!(
-                "preserve recorded catalog state; explicit initialization reconciliation is required"
-            )
+            json!(crate::catalog_recovery_cli::next_action(&observation))
         };
     }
     if result.reason_code == "catalog_conflict"
-        && let Ok(authority) = catalog::inspect_active_authority(&paths)
+        && let Ok(authority) = catalog::inspect_active_authority(paths)
     {
         result.context["catalog_id"] = json!(authority.catalog_id);
         result.context["catalog_path"] = json!(authority.catalog_path);
@@ -792,24 +811,13 @@ pub fn run(args: &[OsString]) -> u8 {
         result.data["catalog_mutations_available"] = json!(authority.mutations_available());
         result.data["worktrees_moved"] = json!(false);
         result.data["authority"] = json!(authority);
-        result.data["next_action"] = json!(crate::relocation::next_action(
+        result.data["next_action"] = json!(crate::relocation::authority_next_action(
+            &authority,
             authority.relocation.as_ref()
         ));
     }
-    let fact = CommandObserved {
-        command: result.command.clone(),
-        outcome: result.outcome.into(),
-        reason_code: result.reason_code.into(),
-        catalog_id: result
-            .context
-            .get("catalog_id")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
-        revision: result.data.get("revision").and_then(Value::as_u64),
-    };
-    result.warnings.extend(diagnostics.observe(&fact));
-    emit(&result, paths.json)
 }
+
 fn emit(result: &Envelope, json_mode: bool) -> u8 {
     let code = result.exit_code();
     let mut stdout = io::stdout().lock();

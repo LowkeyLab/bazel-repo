@@ -8,6 +8,7 @@ fn main() {
     let paths = Paths::load(None, None, true).unwrap();
     match std::env::var("OPERATION").as_deref() {
         Ok("relocate") => return relocate_catalog(&paths, &selected),
+        Ok("recover-catalog") => return recover_catalog(&paths, &selected),
         Ok("rebuild") => return rebuild_catalog(&paths, &selected),
         Ok("retire") => return retire_registration(&paths, &selected),
         _ => {}
@@ -23,10 +24,6 @@ fn main() {
             pause(&selected, name);
         })
         .unwrap();
-        return;
-    }
-    if std::env::var("OPERATION").as_deref() == Ok("recover-catalog") {
-        recover_catalog(&paths, &selected);
         return;
     }
     if std::env::var("OPERATION").as_deref() == Ok("recover") {

@@ -248,6 +248,9 @@ pub fn rebuild_observed(
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), true)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
     let locator = read_locator(paths)?;
+    if crate::relocation::pending(&locator) {
+        return Err(PoolError::RelocationPending);
+    }
     if locator.phase == "initializing" || locator.recovery_pending() {
         return Err(PoolError::Pending);
     }
@@ -258,6 +261,10 @@ pub fn rebuild_observed(
         PoolError::Io(ref e) if e.kind() == std::io::ErrorKind::NotFound => PoolError::Missing,
         _ => error,
     })?;
+    if !locator.relocation_history.is_empty() {
+        let authoritative = Store::inspect_rebuild_history(&paths.catalog, locator.catalog_id)?;
+        crate::relocation::validate_operations(&locator, &authoritative)?;
+    }
     Store::rebuild(&paths.catalog, locator.catalog_id, observe)
 }
 
@@ -545,18 +552,17 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
     } else {
         None
     };
-    if let Some(projection) = &projection {
-        crate::relocation::validate_operations(&locator, projection)?;
-    }
-
-    let rebuild_revision = if projection.is_none() && paths.catalog.exists() {
+    let rebuild_projection = if projection.is_none() && paths.catalog.exists() {
         private_file(&paths.catalog)
             .and_then(|()| Store::inspect_rebuild_history(&paths.catalog, locator.catalog_id))
             .ok()
-            .map(|p| p.revision)
     } else {
         None
     };
+    if let Some(validated) = projection.as_ref().or(rebuild_projection.as_ref()) {
+        crate::relocation::validate_operations(&locator, validated)?;
+    }
+    let rebuild_revision = rebuild_projection.map(|p| p.revision);
     let store_state = if projection.is_some() {
         "validated"
     } else if rebuild_revision.is_some() {
@@ -692,6 +698,9 @@ fn reconcile_authority_selected(
         return Err(PoolError::Corrupt);
     }
     let (existing, repair_required) = recovery_store(paths, &locator)?;
+    if let Some(projection) = &existing {
+        crate::relocation::validate_operations(&locator, projection)?;
+    }
     if locator.phase == "active" && !repair_required {
         let projection = existing.as_ref().ok_or(PoolError::Missing)?;
         if !locator.recovery_pending() {
@@ -1447,6 +1456,86 @@ mod recovery_tests {
             eq("validated")
         );
     }
+    #[googletest::test]
+    fn relocated_storage_repair_keeps_rebuild_required_barrier_and_exact_historical_receipt() {
+        use redb::TableDefinition;
+        let root = tempfile::tempdir().unwrap();
+        let source = Paths {
+            catalog: root.path().join("data/catalog.redb"),
+            state: root.path().join("state"),
+            json: true,
+        };
+        let initialized = initialize(&source).unwrap();
+        let history = Store::events_read_only(&source.catalog, initialized.catalog_id).unwrap();
+        let source_bytes = fs::read(&source.catalog).unwrap();
+        let moved = crate::relocation::relocate(&source, &root.path().join("relocated")).unwrap();
+        let paths = Paths {
+            catalog: moved.destination.to_path().unwrap(),
+            ..source.clone()
+        };
+        {
+            let database = redb::Database::open(&paths.catalog).unwrap();
+            let transaction = database.begin_write().unwrap();
+            transaction
+                .open_table(TableDefinition::<&str, &str>::new("state"))
+                .unwrap()
+                .insert("catalog", "damaged derived state")
+                .unwrap();
+            transaction.commit().unwrap();
+        }
+        crash_catalog_writer(&paths.catalog);
+        let repaired = reconcile_authority(&paths).unwrap();
+        assert_that!(repaired.store_state, eq("rebuild_required"));
+        assert_that!(repaired.mutations_available(), eq(false));
+        let bytes = fs::read(&paths.catalog).unwrap();
+        let locator = fs::read(paths.state.join("active.json")).unwrap();
+        assert_that!(super::open(&paths).is_err(), eq(true));
+        assert_that!(
+            crate::relocation::relocate(&paths, &root.path().join("forbidden")).is_err(),
+            eq(true)
+        );
+        assert_that!(root.path().join("forbidden").exists(), eq(false));
+        let receipt = crate::relocation::known(
+            &paths,
+            "recover preview",
+            &moved.operation_id.to_string(),
+            false,
+            false,
+        )
+        .unwrap();
+        assert_that!(
+            receipt.data["catalog_mutations_available"].as_bool(),
+            eq(Some(false))
+        );
+        assert_that!(
+            receipt.data["next_action"]
+                .as_str()
+                .is_some_and(|action| action.contains("catalog rebuild")),
+            eq(true)
+        );
+        assert_that!(
+            crate::relocation::resume(&paths, moved.operation_id).unwrap(),
+            eq(&moved)
+        );
+        assert_that!(fs::read(&paths.catalog).unwrap(), eq(&bytes));
+        assert_that!(
+            fs::read(paths.state.join("active.json")).unwrap(),
+            eq(&locator)
+        );
+        assert_that!(super::rebuild(&paths).unwrap(), eq(&initialized));
+        assert_that!(
+            Store::events_read_only(&paths.catalog, initialized.catalog_id).unwrap(),
+            eq(&history)
+        );
+        assert_that!(fs::read(&source.catalog).unwrap(), eq(&source_bytes));
+        assert_that!(
+            super::inspect_authority(&paths)
+                .unwrap()
+                .mutations_available(),
+            eq(true)
+        );
+    }
+
     #[googletest::test]
     fn bootstrap_storage_repair_still_requires_a_complete_valid_projection() {
         use redb::TableDefinition;

@@ -228,7 +228,7 @@ fn mutations_available(authority: &AuthorityObservation) -> bool {
     authority.mutations_available()
 }
 
-fn next_action(authority: &AuthorityObservation) -> &'static str {
+pub(crate) fn next_action(authority: &AuthorityObservation) -> &'static str {
     if authority.recovery_checkpoint.as_deref() == Some("intent_recorded") {
         "inspect the recorded catalog operation and explicitly apply its recovery"
     } else if authority.phase == "initializing" {

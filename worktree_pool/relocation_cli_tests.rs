@@ -152,6 +152,15 @@ fn relocation_recovers_each_real_crash_boundary_without_losing_handles_or_adopti
             } else {
                 fixture.database().parent().unwrap().to_path_buf()
             };
+            let bytes_before_rebuild = fs::read(selected.join("catalog.redb")).unwrap();
+            assert_that!(
+                at(&fixture, &selected, &["catalog", "rebuild"])["reason_code"].as_str(),
+                eq(Some("catalog_relocation_pending"))
+            );
+            assert_that!(
+                fs::read(selected.join("catalog.redb")).unwrap(),
+                eq(&bytes_before_rebuild)
+            );
             assert_that!(
                 at(
                     &fixture,
@@ -642,23 +651,23 @@ fn unsupported_gapped_forged_or_mismatched_relocation_history_never_becomes_auth
             "gap" => broken["relocation_history"][1]["position"] = serde_json::json!(7),
             "checkpoint" => {
                 broken["relocation_history"][1]["relocation"]["checkpoint"] =
-                    serde_json::json!("completed")
+                    serde_json::json!("completed");
             }
             "identity" => {
                 broken["relocation_history"][1]["relocation"]["operation_id"] =
-                    serde_json::json!("11111111-1111-4111-8111-111111111111")
+                    serde_json::json!("11111111-1111-4111-8111-111111111111");
             }
             "current" => broken["relocation"]["source_revision"] = serde_json::json!(987),
             "hash-algorithm" => {
                 broken["relocation_history"][0]["relocation"]["source_content"]["algorithm"] =
-                    serde_json::json!("sha1")
+                    serde_json::json!("sha1");
             }
             "hash-length" => {
                 broken["relocation_history"][0]["relocation"]["source_content"]["digest"] =
-                    serde_json::json!([0])
+                    serde_json::json!([0]);
             }
             "hash-current" => {
-                broken["relocation"]["source_content"]["digest"] = serde_json::json!(vec![0; 32])
+                broken["relocation"]["source_content"]["digest"] = serde_json::json!(vec![0; 32]);
             }
             _ => broken["catalog_path"] = broken["relocation"]["source"].clone(),
         }
@@ -748,4 +757,210 @@ fn relocation_history_cannot_shadow_an_existing_repository_operation_or_enable_m
         eq(&database)
     );
     assert_that!(fs::read(&locator_path).unwrap(), eq(&locator));
+    for damaged in [false, true] {
+        if damaged {
+            damage_derived_catalog(&directory.join("catalog.redb"), "revision");
+        }
+        let before = fs::read(directory.join("catalog.redb")).unwrap();
+        assert_that!(
+            at(&fixture, &directory, &["catalog", "rebuild"])["reason_code"].as_str(),
+            eq(Some("catalog_corrupt"))
+        );
+        assert_that!(
+            fs::read(directory.join("catalog.redb")).unwrap(),
+            eq(&before)
+        );
+        assert_that!(fs::read(&locator_path).unwrap(), eq(&locator));
+    }
+}
+
+#[googletest::test]
+fn relocation_check_and_rebuild_preserve_complete_history_live_handles_and_protected_git_state() {
+    let fixture = Fixture::new();
+    let (_, checkout, repository) = fixture.acquisition();
+    let acquired = fixture.json(&["acquire", "--repo", &repository]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let assignment = fixture.json(&["assignment", "inspect", handle])["data"].clone();
+    let history = fixture.json(&["events", "list"])["data"].clone();
+    let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let index = fs::read(checkout.join(".git/index")).unwrap();
+    fs::write(
+        checkout.join("protected-artifact"),
+        b"retained after relocation and rebuild",
+    )
+    .unwrap();
+    let worktrees = fixture.json(&["worktree", "list"])["data"].clone();
+    let source = fs::read(fixture.database()).unwrap();
+    let destination = fixture.root.path().join("relocated");
+    let moved = fixture.json(&["catalog", "relocate", destination.to_str().unwrap()]);
+    assert_that!(moved["outcome"].as_str(), eq(Some("completed")));
+    let id = moved["context"]["operation_id"].as_str().unwrap();
+    let locator_path = fixture.root.path().join("state/worktree-pool/active.json");
+    let locator = fs::read(&locator_path).unwrap();
+    let before = at(&fixture, &destination, &["catalog", "info"]);
+    damage_derived_catalog(&destination.join("catalog.redb"), "ownership");
+    assert_that!(
+        at(&fixture, &destination, &["catalog", "check"])["outcome"].as_str(),
+        eq(Some("rejected"))
+    );
+    let rebuilt = at(&fixture, &destination, &["catalog", "rebuild"]);
+    assert_that!(rebuilt["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        &rebuilt["data"],
+        eq(&catalog_projection_data(&before["data"]))
+    );
+    assert_that!(
+        at(&fixture, &destination, &["catalog", "check"])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        &at(&fixture, &destination, &["events", "list"])["data"],
+        eq(&history)
+    );
+    assert_that!(
+        &at(&fixture, &destination, &["assignment", "inspect", handle])["data"],
+        eq(&assignment)
+    );
+    assert_that!(
+        &at(&fixture, &destination, &["worktree", "list"])["data"],
+        eq(&worktrees)
+    );
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+        eq(&head)
+    );
+    assert_that!(fs::read(checkout.join(".git/index")).unwrap(), eq(&index));
+    assert_that!(
+        fs::read(checkout.join("protected-artifact")).unwrap(),
+        eq(b"retained after relocation and rebuild")
+    );
+    assert_that!(fs::read(fixture.database()).unwrap(), eq(&source));
+    assert_that!(fs::read(&locator_path).unwrap(), eq(&locator));
+    let bytes = fs::read(destination.join("catalog.redb")).unwrap();
+    assert_that!(
+        at(
+            &fixture,
+            &destination,
+            &["recover", "apply", "--operation", id]
+        )["reason_code"]
+            .as_str(),
+        eq(Some("catalog_relocation_already_completed"))
+    );
+    assert_that!(
+        fs::read(destination.join("catalog.redb")).unwrap(),
+        eq(&bytes)
+    );
+}
+
+#[googletest::test]
+fn relocation_blocks_pending_retirement_and_retains_completed_tombstones_history_and_ids() {
+    let fixture = Fixture::new();
+    let (repository, path, repo, worktree) = fixture.retirement_candidate();
+    let reconciled = fixture.json(&["recover", "apply", "--worktree", &worktree]);
+    let proof = reconciled["context"]["operation_id"].as_str().unwrap();
+    let reference = reconciled["data"]["preservation_reference"]
+        .as_str()
+        .unwrap();
+    let tip = fixture.git_stdout(&repository, &["rev-parse", reference]);
+    fixture.git(
+        &repository,
+        &["worktree".as_ref(), "remove".as_ref(), path.as_os_str()],
+    );
+    let mut retiring = fixture.paused_recovery_checkpoint(
+        "retire",
+        "intent",
+        false,
+        Some(&format!("{worktree}:{proof}")),
+    );
+    retiring.kill().unwrap();
+    retiring.wait().unwrap();
+    let state = fixture.json(&["catalog", "info"]);
+    let retirement_id = state["data"]["retirements"][0]["operation_id"]
+        .as_str()
+        .unwrap();
+    let locator_path = fixture.root.path().join("state/worktree-pool/active.json");
+    let locator = fs::read(&locator_path).unwrap();
+    let bytes = fs::read(fixture.database()).unwrap();
+    let destination = fixture.root.path().join("relocated");
+    let refused = fixture.json(&["catalog", "relocate", destination.to_str().unwrap()]);
+    assert_that!(
+        refused["reason_code"].as_str(),
+        eq(Some("operation_pending"))
+    );
+    assert_that!(destination.exists(), eq(false));
+    assert_that!(fs::read(fixture.database()).unwrap(), eq(&bytes));
+    assert_that!(fs::read(&locator_path).unwrap(), eq(&locator));
+    assert_that!(
+        fixture.json(&["recover", "apply", "--operation", retirement_id])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    let history = fixture.json(&["events", "list"])["data"].clone();
+    let projection = catalog_projection_data(&fixture.json(&["catalog", "info"])["data"]);
+    assert_that!(
+        fixture.json(&["catalog", "relocate", destination.to_str().unwrap()])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        &at(&fixture, &destination, &["catalog", "rebuild"])["data"],
+        eq(&projection)
+    );
+    assert_that!(
+        &at(&fixture, &destination, &["events", "list"])["data"],
+        eq(&history)
+    );
+    assert_that!(
+        at(
+            &fixture,
+            &destination,
+            &["repo", "inspect", "--repo", &repo]
+        )["data"]["registered_count"]
+            .as_u64(),
+        eq(Some(0))
+    );
+    let bytes = fs::read(destination.join("catalog.redb")).unwrap();
+    assert_that!(
+        at(
+            &fixture,
+            &destination,
+            &["recover", "apply", "--operation", retirement_id]
+        )["data"]["already_retired"]
+            .as_bool(),
+        eq(Some(true))
+    );
+    assert_that!(
+        at(
+            &fixture,
+            &destination,
+            &["recover", "apply", "--operation", proof]
+        )["outcome"]
+            .as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fs::read(destination.join("catalog.redb")).unwrap(),
+        eq(&bytes)
+    );
+    assert_that!(
+        fixture.git_stdout(&repository, &["rev-parse", reference]),
+        eq(&tip)
+    );
+    assert_that!(path.exists(), eq(false));
+    let mut aliased: Value = serde_json::from_slice(&fs::read(&locator_path).unwrap()).unwrap();
+    for fact in aliased["relocation_history"].as_array_mut().unwrap() {
+        fact["relocation"]["operation_id"] = serde_json::json!(retirement_id);
+    }
+    aliased["relocation"]["operation_id"] = serde_json::json!(retirement_id);
+    let corrupted = serde_json::to_vec(&aliased).unwrap();
+    fs::write(&locator_path, &corrupted).unwrap();
+    for command in ["check", "rebuild"] {
+        assert_that!(
+            at(&fixture, &destination, &["catalog", command])["reason_code"].as_str(),
+            eq(Some("catalog_corrupt"))
+        );
+        assert_that!(
+            fs::read(destination.join("catalog.redb")).unwrap(),
+            eq(&bytes)
+        );
+        assert_that!(fs::read(&locator_path).unwrap(), eq(&corrupted));
+    }
 }
