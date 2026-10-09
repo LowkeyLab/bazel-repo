@@ -6,6 +6,88 @@ fn at(fixture: &Fixture, directory: &std::path::Path, args: &[&str]) -> Value {
     serde_json::from_slice(&output(command).stdout).unwrap()
 }
 
+fn event_rows(path: &std::path::Path) -> Vec<String> {
+    use redb::{ReadableDatabase, ReadableTable, TableDefinition};
+    let database = redb::ReadOnlyDatabase::open(path).unwrap();
+    let transaction = database.begin_read().unwrap();
+    transaction
+        .open_table(TableDefinition::<u64, &str>::new("events"))
+        .unwrap()
+        .iter()
+        .unwrap()
+        .map(|r| r.unwrap().1.value().to_owned())
+        .collect()
+}
+fn assert_raw_prefix(path: &std::path::Path, prior: &[String], extra: usize) {
+    let rows = event_rows(path);
+    assert_that!(rows.len(), eq(prior.len() + extra));
+    assert_that!(&rows[..prior.len()], eq(prior));
+}
+fn assert_relocation_suffix(actual: &Value, before: &Value, count: usize) {
+    let events = actual["events"].as_array().unwrap();
+    let prefix = before["events"].as_array().unwrap();
+    assert_that!(events.len(), eq(prefix.len() + count * 2));
+    assert_that!(&events[..prefix.len()], eq(prefix.as_slice()));
+    for pair in events[prefix.len()..].chunks_exact(2) {
+        assert_that!(
+            pair[0]["type"].as_str(),
+            eq(Some(
+                "io.lowkeylab.worktreepool.catalog.relocation.started.v1"
+            ))
+        );
+        assert_that!(
+            pair[1]["type"].as_str(),
+            eq(Some(
+                "io.lowkeylab.worktreepool.catalog.relocation.completed.v1"
+            ))
+        );
+        assert_that!(&pair[1]["causationid"], eq(&pair[0]["id"]));
+        assert_that!(&pair[0]["operationid"], eq(&pair[1]["operationid"]));
+        for event in pair {
+            assert_that!(&event["source"], eq(&prefix[0]["source"]));
+            assert_that!(event["specversion"].as_str(), eq(Some("1.0")));
+            assert_that!(
+                event["datacontenttype"].as_str(),
+                eq(Some("application/json"))
+            );
+        }
+    }
+}
+fn assert_revision_after_relocation(before: &Value, after: &Value) {
+    let mut expected = before.clone();
+    expected["revision"] = serde_json::json!(before["revision"].as_u64().unwrap() + 2);
+    assert_that!(after, eq(&expected));
+}
+
+fn assert_projection_relocation(before: &Value, after: &Value) {
+    let mut prior = catalog_projection_data(before);
+    let mut actual = catalog_projection_data(after);
+    assert_that!(
+        actual["revision"].as_u64(),
+        eq(Some(prior["revision"].as_u64().unwrap() + 2))
+    );
+    let catalog_revision = prior["catalog_stream_revision"]
+        .as_u64()
+        .unwrap_or_else(|| 1 + prior["repositories"].as_array().unwrap().len() as u64);
+    assert_that!(
+        actual["catalog_stream_revision"].as_u64(),
+        eq(Some(catalog_revision + 2))
+    );
+    let prior_moves = prior["relocations"].as_array().unwrap();
+    let moves = actual["relocations"].as_array().unwrap();
+    assert_that!(moves.len(), eq(prior_moves.len() + 1));
+    assert_that!(&moves[..prior_moves.len()], eq(prior_moves.as_slice()));
+    assert_that!(
+        moves.last().unwrap()["state"].as_str(),
+        eq(Some("completed"))
+    );
+    for field in ["revision", "catalog_stream_revision", "relocations"] {
+        prior.as_object_mut().unwrap().remove(field);
+        actual.as_object_mut().unwrap().remove(field);
+    }
+    assert_that!(&actual, eq(&prior));
+}
+
 #[googletest::test]
 fn relocation_preserves_active_handles_history_capacity_and_absolute_checkout_paths() {
     let fixture = Fixture::new();
@@ -30,7 +112,7 @@ fn relocation_preserves_active_handles_history_capacity_and_absolute_checkout_pa
     let assignment = fixture.json(&["assignment", "inspect", handle]);
     let worktrees = fixture.json(&["worktree", "list"])["data"].clone();
     let history = fixture.json(&["events", "list"])["data"].clone();
-    let source_bytes = fs::read(fixture.database()).unwrap();
+    let source_rows = event_rows(&fixture.database());
     let directory = fixture.root.path().join("relocated");
     let mut command = fixture.command();
     command.args(["catalog", "relocate"]).arg(&directory);
@@ -40,10 +122,11 @@ fn relocation_preserves_active_handles_history_capacity_and_absolute_checkout_pa
         &result["context"]["catalog_id"],
         eq(&acquired["context"]["catalog_id"])
     );
-    assert_that!(fs::read(fixture.database()).unwrap(), eq(&source_bytes));
-    assert_that!(
-        fs::read(directory.join("catalog.redb")).unwrap(),
-        eq(&source_bytes)
+    assert_raw_prefix(&fixture.database(), &source_rows, 1);
+    assert_raw_prefix(&directory.join("catalog.redb"), &source_rows, 2);
+    assert_projection_relocation(
+        &initial_info["data"],
+        &at(&fixture, &directory, &["catalog", "info"])["data"],
     );
     for command in ["info", "check"] {
         let observed = at(&fixture, &directory, &["catalog", command]);
@@ -57,17 +140,18 @@ fn relocation_preserves_active_handles_history_capacity_and_absolute_checkout_pa
         );
         assert_that!(observed["data"]["next_action"].as_str().is_some_and(|action| action.contains("select") && action.contains("configuration")), eq(true));
     }
-    assert_that!(
+    assert_relocation_suffix(
         &at(&fixture, &directory, &["events", "list"])["data"],
-        eq(&history)
+        &history,
+        1,
     );
-    assert_that!(
+    assert_revision_after_relocation(
+        &assignment["data"],
         &at(&fixture, &directory, &["assignment", "inspect", handle])["data"],
-        eq(&assignment["data"])
     );
-    assert_that!(
+    assert_revision_after_relocation(
+        &worktrees,
         &at(&fixture, &directory, &["worktree", "list"])["data"],
-        eq(&worktrees)
     );
     assert_that!(at(&fixture, &directory, &["repo", "inspect", &repository])["data"]["repository"]["capacity"].as_u64(), eq(Some(2)));
     assert_that!(
@@ -84,6 +168,8 @@ fn relocation_preserves_active_handles_history_capacity_and_absolute_checkout_pa
 fn relocation_recovers_each_real_crash_boundary_without_losing_handles_or_adopting_partial_copies()
 {
     for checkpoint in [
+        "journal",
+        "started-committed",
         "intent",
         "directory",
         "created",
@@ -91,6 +177,8 @@ fn relocation_recovers_each_real_crash_boundary_without_losing_handles_or_adopti
         "copied",
         "prepared",
         "switched",
+        "completion-recorded",
+        "completion-committed",
         "completed",
     ] {
         let fixture = Fixture::new();
@@ -99,10 +187,11 @@ fn relocation_recovers_each_real_crash_boundary_without_losing_handles_or_adopti
         let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
         let assignment = fixture.json(&["assignment", "inspect", handle])["data"].clone();
         let history = fixture.json(&["events", "list"])["data"].clone();
-        let original = fs::read(fixture.database()).unwrap();
+        let prior_rows = event_rows(&fixture.database());
         let mut process = fixture.paused_catalog("relocate", checkpoint, false);
         process.kill().unwrap();
         process.wait().unwrap();
+        let original = fs::read(fixture.database()).unwrap();
         let listing = fixture.json(&["operation", "list"]);
         let operations = listing["data"]["operations"].as_array().unwrap();
         assert_that!(
@@ -147,7 +236,9 @@ fn relocation_recovers_each_real_crash_boundary_without_losing_handles_or_adopti
                 fixture.json(&["acquire", "--repo", &repository])["outcome"] != "completed",
                 eq(true)
             );
-            let selected = if checkpoint == "switched" {
+            let selected = if ["switched", "completion-recorded", "completion-committed"]
+                .contains(&checkpoint)
+            {
                 destination.clone()
             } else {
                 fixture.database().parent().unwrap().to_path_buf()
@@ -199,17 +290,16 @@ fn relocation_recovers_each_real_crash_boundary_without_losing_handles_or_adopti
         let applied = fixture.json(&["recover", "apply", "--operation", id]);
         assert_that!(applied["outcome"].as_str(), eq(Some("completed")));
         assert_that!(applied["context"]["operation_id"].as_str(), eq(Some(id)));
-        assert_that!(
-            fs::read(destination.join("catalog.redb")).unwrap(),
-            eq(&original)
-        );
-        assert_that!(
+        assert_raw_prefix(&fixture.database(), &prior_rows, 1);
+        assert_raw_prefix(&destination.join("catalog.redb"), &prior_rows, 2);
+        assert_revision_after_relocation(
+            &assignment,
             &at(&fixture, &destination, &["assignment", "inspect", handle])["data"],
-            eq(&assignment)
         );
-        assert_that!(
+        assert_relocation_suffix(
             &at(&fixture, &destination, &["events", "list"])["data"],
-            eq(&history)
+            &history,
+            1,
         );
         let before = fs::read(&locator_path).unwrap();
         assert_that!(
@@ -412,9 +502,9 @@ fn non_utf8_catalog_and_worktree_paths_remain_lossless_across_repeated_relocatio
     invoke_path(&["worktree", "register", "--repo", repository]);
     let acquired = at(&fixture, &catalog, &["acquire", "--repo", repository]);
     let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
-    let assignment = at(&fixture, &catalog, &["assignment", "inspect", handle])["data"].clone();
-    let history = at(&fixture, &catalog, &["events", "list"])["data"].clone();
-    let bytes = fs::read(catalog.join("catalog.redb")).unwrap();
+    let mut assignment = at(&fixture, &catalog, &["assignment", "inspect", handle])["data"].clone();
+    let mut history = at(&fixture, &catalog, &["events", "list"])["data"].clone();
+    let mut prior_rows = event_rows(&catalog.join("catalog.redb"));
     let mut previous = catalog;
     for name in [
         b"destination-\xfd\n".as_slice(),
@@ -441,7 +531,9 @@ fn non_utf8_catalog_and_worktree_paths_remain_lossless_across_repeated_relocatio
         );
         assert_that!(
             result["data"]["retained_source_bytes"].as_u64(),
-            eq(Some(bytes.len() as u64))
+            eq(Some(
+                fs::metadata(previous.join("catalog.redb")).unwrap().len()
+            ))
         );
         assert_that!(
             fs::metadata(&destination).unwrap().permissions().mode() & 0o777,
@@ -455,15 +547,17 @@ fn non_utf8_catalog_and_worktree_paths_remain_lossless_across_repeated_relocatio
                 & 0o777,
             eq(0o600)
         );
-        assert_that!(
+        assert_revision_after_relocation(
+            &assignment,
             &at(&fixture, &destination, &["assignment", "inspect", handle])["data"],
-            eq(&assignment)
         );
-        assert_that!(
-            &at(&fixture, &destination, &["events", "list"])["data"],
-            eq(&history)
-        );
-        assert_that!(fs::read(previous.join("catalog.redb")).unwrap(), eq(&bytes));
+        let current_history = at(&fixture, &destination, &["events", "list"])["data"].clone();
+        assert_relocation_suffix(&current_history, &history, 1);
+        assert_raw_prefix(&previous.join("catalog.redb"), &prior_rows, 1);
+        assert_raw_prefix(&destination.join("catalog.redb"), &prior_rows, 2);
+        assignment = at(&fixture, &destination, &["assignment", "inspect", handle])["data"].clone();
+        history = current_history;
+        prior_rows = event_rows(&destination.join("catalog.redb"));
         let rejected = at(&fixture, &previous, &["catalog", "init"]);
         assert_that!(
             rejected["reason_code"].as_str(),
@@ -546,10 +640,10 @@ fn ambiguous_copies_after_preparation_or_switch_refuse_mutation_and_require_exac
         for damage in ["missing", "corrupt", "foreign"] {
             let fixture = Fixture::new();
             fixture.json(&["catalog", "init"]);
-            let source = fs::read(fixture.database()).unwrap();
             let mut process = fixture.paused_catalog("relocate", checkpoint, false);
             process.kill().unwrap();
             process.wait().unwrap();
+            let source = fs::read(fixture.database()).unwrap();
             let operation = fixture.json(&["operation", "list"])["data"]["operations"]
                 .as_array()
                 .unwrap()
@@ -790,11 +884,13 @@ fn relocation_check_and_rebuild_preserve_complete_history_live_handles_and_prote
     )
     .unwrap();
     let worktrees = fixture.json(&["worktree", "list"])["data"].clone();
-    let source = fs::read(fixture.database()).unwrap();
+    let prior_rows = event_rows(&fixture.database());
     let destination = fixture.root.path().join("relocated");
     let moved = fixture.json(&["catalog", "relocate", destination.to_str().unwrap()]);
     assert_that!(moved["outcome"].as_str(), eq(Some("completed")));
     let id = moved["context"]["operation_id"].as_str().unwrap();
+    assert_raw_prefix(&fixture.database(), &prior_rows, 1);
+    let source = fs::read(fixture.database()).unwrap();
     let locator_path = fixture.root.path().join("state/worktree-pool/active.json");
     let locator = fs::read(&locator_path).unwrap();
     let before = at(&fixture, &destination, &["catalog", "info"]);
@@ -813,17 +909,18 @@ fn relocation_check_and_rebuild_preserve_complete_history_live_handles_and_prote
         at(&fixture, &destination, &["catalog", "check"])["outcome"].as_str(),
         eq(Some("completed"))
     );
-    assert_that!(
+    assert_relocation_suffix(
         &at(&fixture, &destination, &["events", "list"])["data"],
-        eq(&history)
+        &history,
+        1,
     );
-    assert_that!(
+    assert_revision_after_relocation(
+        &assignment,
         &at(&fixture, &destination, &["assignment", "inspect", handle])["data"],
-        eq(&assignment)
     );
-    assert_that!(
+    assert_revision_after_relocation(
+        &worktrees,
         &at(&fixture, &destination, &["worktree", "list"])["data"],
-        eq(&worktrees)
     );
     assert_that!(
         fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
@@ -900,13 +997,14 @@ fn relocation_blocks_pending_retirement_and_retains_completed_tombstones_history
         fixture.json(&["catalog", "relocate", destination.to_str().unwrap()])["outcome"].as_str(),
         eq(Some("completed"))
     );
-    assert_that!(
+    assert_projection_relocation(
+        &projection,
         &at(&fixture, &destination, &["catalog", "rebuild"])["data"],
-        eq(&projection)
     );
-    assert_that!(
+    assert_relocation_suffix(
         &at(&fixture, &destination, &["events", "list"])["data"],
-        eq(&history)
+        &history,
+        1,
     );
     assert_that!(
         at(
@@ -963,4 +1061,291 @@ fn relocation_blocks_pending_retirement_and_retains_completed_tombstones_history
         );
         assert_that!(fs::read(&locator_path).unwrap(), eq(&corrupted));
     }
+}
+
+#[googletest::test]
+fn relocation_semantic_cloud_events_retain_prefix_and_rebuild_complete_state() {
+    let fixture = Fixture::new();
+    let (_, _, repository) = fixture.empty_pool();
+    let acquired = fixture.json(&["acquire", "--repo", &repository]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let before = fixture.json(&["events", "list"]);
+    let prior_rows = event_rows(&fixture.database());
+    let prefix = before["data"]["events"].as_array().unwrap();
+    let before_state = fixture.json(&["catalog", "info"]);
+    let destination = fixture.root.path().join("relocated");
+    let moved = fixture.path_json(&["catalog", "relocate"], &destination);
+    assert_that!(moved["outcome"].as_str(), eq(Some("completed")));
+    let events = at(&fixture, &destination, &["events", "list"]);
+    let complete = events["data"]["events"].as_array().unwrap();
+    assert_that!(complete.len(), eq(prefix.len() + 2));
+    assert_that!(&complete[..prefix.len()], eq(prefix.as_slice()));
+    assert_raw_prefix(&fixture.database(), &prior_rows, 1);
+    assert_raw_prefix(&destination.join("catalog.redb"), &prior_rows, 2);
+    let suffix = event_rows(&destination.join("catalog.redb"));
+    let catalog_revision = before_state["data"]["catalog_stream_revision"]
+        .as_u64()
+        .unwrap_or_else(|| {
+            1 + before_state["data"]["repositories"]
+                .as_array()
+                .unwrap()
+                .len() as u64
+        });
+    for (index, row) in suffix[prior_rows.len()..].iter().enumerate() {
+        let record: Value = serde_json::from_str(row).unwrap();
+        assert_that!(
+            record["position"].as_u64(),
+            eq(Some(prior_rows.len() as u64 + index as u64 + 1))
+        );
+        assert_that!(
+            record["expected_revision"].as_u64(),
+            eq(Some(catalog_revision + index as u64))
+        );
+        assert_that!(
+            record["stream_id"].as_str(),
+            eq(Some(
+                format!(
+                    "catalogs/{}",
+                    moved["context"]["catalog_id"].as_str().unwrap()
+                )
+                .as_str()
+            ))
+        );
+    }
+    let started = &complete[prefix.len()];
+    let completed = &complete[prefix.len() + 1];
+    assert_that!(
+        started["type"].as_str(),
+        eq(Some(
+            "io.lowkeylab.worktreepool.catalog.relocation.started.v1"
+        ))
+    );
+    assert_that!(
+        completed["type"].as_str(),
+        eq(Some(
+            "io.lowkeylab.worktreepool.catalog.relocation.completed.v1"
+        ))
+    );
+    assert_that!(&completed["causationid"], eq(&started["id"]));
+    for event in [started, completed] {
+        assert_that!(event["specversion"].as_str(), eq(Some("1.0")));
+        assert_that!(&event["source"], eq(&prefix[0]["source"]));
+        assert_that!(&event["operationid"], eq(&moved["context"]["operation_id"]));
+        assert_that!(
+            event["datacontenttype"].as_str(),
+            eq(Some("application/json"))
+        );
+    }
+    let info = at(&fixture, &destination, &["catalog", "info"]);
+    assert_that!(
+        info["data"]["relocations"][0]["state"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        info["data"]["revision"].as_u64(),
+        eq(Some(before_state["data"]["revision"].as_u64().unwrap() + 2))
+    );
+    assert_that!(
+        &info["data"]["assignments"],
+        eq(&before_state["data"]["assignments"])
+    );
+    assert_that!(
+        &info["data"]["repositories"],
+        eq(&before_state["data"]["repositories"])
+    );
+    let rebuilt = at(&fixture, &destination, &["catalog", "rebuild"]);
+    assert_that!(
+        &rebuilt["data"],
+        eq(&catalog_projection_data(&info["data"]))
+    );
+    assert_that!(
+        &at(&fixture, &destination, &["events", "list"])["data"],
+        eq(&events["data"])
+    );
+    assert_that!(at(&fixture, &destination, &["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(), eq(Some("active")));
+}
+
+#[googletest::test]
+fn relocation_pending_cloud_event_without_journal_preserves_bytes_and_names_exact_manual_recovery()
+{
+    let fixture = Fixture::new();
+    let (_, _, repository) = fixture.empty_pool();
+    let acquired = fixture.json(&["acquire", "--repo", &repository]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let mut child = fixture.paused_catalog("relocate", "intent", false);
+    child.kill().unwrap();
+    child.wait().unwrap();
+    let path = fixture.root.path().join("state/worktree-pool/active.json");
+    let original = fs::read(&path).unwrap();
+    let mut journal: Value = serde_json::from_slice(&original).unwrap();
+    let id = journal["relocation"]["operation_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    journal.as_object_mut().unwrap().remove("relocation");
+    journal
+        .as_object_mut()
+        .unwrap()
+        .remove("relocation_history");
+    fs::write(&path, serde_json::to_vec(&journal).unwrap()).unwrap();
+    let bytes = fs::read(fixture.database()).unwrap();
+    let missing = fs::read(&path).unwrap();
+    for args in [
+        vec!["catalog", "check"],
+        vec!["catalog", "rebuild"],
+        vec!["acquire", "--repo", &repository],
+    ] {
+        let result = fixture.json(&args);
+        assert_that!(result["outcome"].as_str(), eq(Some("pending")));
+        assert_that!(
+            result["reason_code"].as_str(),
+            eq(Some("catalog_relocation_pending"))
+        );
+    }
+    let info = fixture.json(&["catalog", "info"]);
+    assert_that!(
+        info["data"]["catalog_mutations_available"].as_bool(),
+        eq(Some(false))
+    );
+    let action = info["data"]["next_action"].as_str().unwrap();
+    assert_that!(
+        action.contains(&id) && action.contains("journal") && action.contains("restore"),
+        eq(true)
+    );
+    for action in ["preview", "apply"] {
+        let result = fixture.json(&["recover", action, "--operation", &id]);
+        assert_that!(result["outcome"].as_str(), eq(Some("pending")));
+        assert_that!(
+            result["data"]["next_action"]
+                .as_str()
+                .is_some_and(|s| s.contains(&id) && s.contains("restore")),
+            eq(true)
+        );
+    }
+    assert_that!(fs::read(fixture.database()).unwrap(), eq(&bytes));
+    assert_that!(fs::read(&path).unwrap(), eq(&missing));
+    fs::write(&path, original).unwrap();
+    assert_that!(
+        fixture.json(&["recover", "apply", "--operation", &id])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        at(
+            &fixture,
+            &fixture.root.path().join("relocated"),
+            &["assignment", "inspect", handle]
+        )["data"]["assignment"]["state"]
+            .as_str(),
+        eq(Some("active"))
+    );
+}
+
+#[googletest::test]
+fn relocation_legacy_locator_only_history_preserves_bytes_and_requires_manual_reconciliation() {
+    let fixture = Fixture::new();
+    fixture.json(&["catalog", "init"]);
+    let mut child = fixture.paused_catalog("relocate", "intent", false);
+    child.kill().unwrap();
+    child.wait().unwrap();
+    let path = fixture.root.path().join("state/worktree-pool/active.json");
+    let mut legacy: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    let id = legacy["relocation"]["operation_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mut operation = legacy["relocation"].clone();
+    for field in [
+        "intent_event",
+        "completion_event",
+        "prefix_content",
+        "destination_content",
+    ] {
+        operation.as_object_mut().unwrap().remove(field);
+    }
+    legacy["relocation"] = operation.clone();
+    legacy["relocation_history"] =
+        serde_json::json!([{"schema_version":1,"position":1,"relocation":operation}]);
+    for version in [1, 2] {
+        legacy["relocation_history"][0]["schema_version"] = serde_json::json!(version);
+        let journal = serde_json::to_vec(&legacy).unwrap();
+        fs::write(&path, &journal).unwrap();
+        let bytes = fs::read(fixture.database()).unwrap();
+        for args in [
+            vec!["catalog", "check"],
+            vec!["recover", "apply", "--operation", &id],
+        ] {
+            let result = fixture.json(&args);
+            assert_that!(
+                result["reason_code"].as_str(),
+                eq(Some("unsupported_version"))
+            );
+            let action = result["data"]["next_action"].as_str().unwrap();
+            assert_that!(
+                action.contains(if version == 1 {
+                    "locator-only"
+                } else {
+                    "decoded"
+                }) && action.contains("manual")
+                    && action.contains("preserve"),
+                eq(true)
+            );
+            assert_that!(fs::read(&path).unwrap(), eq(&journal));
+            assert_that!(fs::read(fixture.database()).unwrap(), eq(&bytes));
+        }
+    }
+}
+
+#[googletest::test]
+fn relocation_historical_receipt_retains_recorded_size_when_inactive_path_is_replaced_or_missing() {
+    let fixture = Fixture::new();
+    fixture.json(&["catalog", "init"]);
+    let destination = fixture.root.path().join("relocated");
+    let mut command = fixture.command();
+    command.args(["catalog", "relocate"]).arg(&destination);
+    let moved: Value = serde_json::from_slice(&output(command).stdout).unwrap();
+    let id = moved["context"]["operation_id"].as_str().unwrap();
+    let recorded = moved["data"]["retained_source_bytes"].clone();
+    let source = fixture.database();
+    let archive = fixture.root.path().join("preserved-original-source");
+    fs::rename(&source, &archive).unwrap();
+    for replacement in [true, false] {
+        if replacement {
+            fs::write(&source, b"unrelated user sentinel").unwrap();
+        } else {
+            fs::remove_file(&source).unwrap();
+        }
+        let before = fs::read(destination.join("catalog.redb")).unwrap();
+        let locator_path = fixture.root.path().join("state/worktree-pool/active.json");
+        let journal = fs::read(&locator_path).unwrap();
+        for args in [
+            vec!["operation", "inspect", id],
+            vec!["recover", "preview", "--operation", id],
+            vec!["recover", "apply", "--operation", id],
+        ] {
+            let receipt = at(&fixture, &destination, &args);
+            assert_that!(receipt["outcome"].as_str(), eq(Some("completed")));
+            assert_that!(&receipt["data"]["retained_source_bytes"], eq(&recorded));
+            assert_that!(
+                receipt["data"]["retained_source_bytes_checkpoint"].as_str(),
+                eq(Some("intended"))
+            );
+            assert_that!(
+                fs::read(destination.join("catalog.redb")).unwrap(),
+                eq(&before)
+            );
+            assert_that!(fs::read(&locator_path).unwrap(), eq(&journal));
+            if replacement {
+                assert_that!(
+                    fs::read(&source).unwrap().as_slice(),
+                    eq(b"unrelated user sentinel".as_slice())
+                );
+            } else {
+                assert_that!(source.exists(), eq(false));
+            }
+        }
+    }
+    assert_that!(
+        fs::metadata(archive).unwrap().len(),
+        eq(recorded.as_u64().unwrap())
+    );
 }

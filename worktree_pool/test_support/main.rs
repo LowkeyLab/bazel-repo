@@ -172,6 +172,12 @@ fn relocate_catalog(paths: &Paths, selected: &str) {
     let destination = std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join("relocated");
     relocate_observed(paths, &destination, |checkpoint| {
         let name = match checkpoint {
+            RelocationCheckpoint::RepairIntentRecorded => "repair-intent",
+            RelocationCheckpoint::RepairStoreValidated => "repair-validated",
+            RelocationCheckpoint::RepairRebuilt => "repair-rebuilt",
+            RelocationCheckpoint::RepairCompleted => "repair-completed",
+            RelocationCheckpoint::JournalRecorded => "journal",
+            RelocationCheckpoint::StartedCommitted => "started-committed",
             RelocationCheckpoint::IntentRecorded => "intent",
             RelocationCheckpoint::DirectoryPrepared => "directory",
             RelocationCheckpoint::DestinationCreated => "created",
@@ -179,6 +185,8 @@ fn relocate_catalog(paths: &Paths, selected: &str) {
             RelocationCheckpoint::CopySynced => "copied",
             RelocationCheckpoint::DestinationPrepared => "prepared",
             RelocationCheckpoint::LocatorSwitched => "switched",
+            RelocationCheckpoint::CompletionRecorded => "completion-recorded",
+            RelocationCheckpoint::CompletionCommitted => "completion-committed",
             RelocationCheckpoint::Completed => "completed",
         };
         pause(selected, name);

@@ -1,6 +1,7 @@
 use std::{
     ffi::OsString,
     io::{self, Write},
+    os::unix::ffi::{OsStrExt, OsStringExt},
     path::PathBuf,
 };
 
@@ -697,10 +698,45 @@ fn worktree_view(
     value["pending_work"] = json!(pending);
     value
 }
+// Recover only available global output selectors; malformed commands remain rejected.
+fn output_arguments(args: &[OsString]) -> (bool, Option<PathBuf>) {
+    let mut json = false;
+    let mut config = None;
+    let mut arguments = args.iter().skip(1).peekable();
+    while let Some(argument) = arguments.next() {
+        if argument == "--" {
+            break;
+        }
+        if argument == "--json" {
+            json = true;
+        } else if argument == "--config" {
+            if arguments
+                .peek()
+                .is_some_and(|p| !p.as_bytes().starts_with(b"-"))
+            {
+                config = arguments.next().map(PathBuf::from);
+            }
+        } else if let Some(path) = argument.as_bytes().strip_prefix(b"--config=") {
+            config = Some(PathBuf::from(OsString::from_vec(path.to_vec())));
+        } else if (argument == "--catalog-dir" || argument == "--repo")
+            && arguments
+                .peek()
+                .is_some_and(|p| !p.as_bytes().starts_with(b"-"))
+        {
+            let _ = arguments.next();
+        }
+    }
+    (json, config)
+}
 /// One result write; reporting failure never repeats a committed command.
 pub fn run(args: &[OsString]) -> u8 {
-    let requested_json = args.iter().any(|arg| arg == "--json")
-        || std::env::var_os("WORKTREE_POOL_JSON").is_some_and(|v| v == "true" || v == "1");
+    let (json_flag, config) = output_arguments(args);
+    let requested_json = || {
+        Paths::output_preference(config, json_flag).unwrap_or_else(|_| {
+            json_flag
+                || std::env::var_os("WORKTREE_POOL_JSON").is_some_and(|v| v == "true" || v == "1")
+        })
+    };
     let cli = match Cli::try_parse_from(args) {
         Ok(cli) => cli,
         Err(error) => {
@@ -711,7 +747,7 @@ pub fn run(args: &[OsString]) -> u8 {
                 let _ = error.print();
                 return 0;
             }
-            if requested_json {
+            if requested_json() {
                 let result = Envelope {
                     schema_version: 1,
                     command: "parse".into(),
@@ -736,7 +772,7 @@ pub fn run(args: &[OsString]) -> u8 {
                 "worktree-pool: startup {}",
                 error.reason_code()
             );
-            return emit(&Envelope::failure(name, &error), requested_json);
+            return emit(&Envelope::failure(name, &error), requested_json());
         }
     };
     // Listener infrastructure is registered before any catalog work.
@@ -782,6 +818,13 @@ fn augment_catalog_receipt(cli: &Cli, paths: &Paths, result: &mut Envelope) {
             data.extend(observed);
         }
         result.data["next_action"] = if observation
+            .semantic_relocations
+            .iter()
+            .any(|r| r.state == crate::relocation_events::RelocationState::Pending)
+            && observation.relocation.is_none()
+        {
+            json!(crate::relocation::authority_next_action(&observation, None))
+        } else if observation
             .relocation
             .as_ref()
             .is_some_and(|r| r.checkpoint != crate::relocation::Checkpoint::Completed)

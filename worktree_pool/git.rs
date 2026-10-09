@@ -482,7 +482,9 @@ fn indexed_paths(path: &Path) -> Result<HashSet<PathBuf>, PoolError> {
             }
             let oid = output_oid(
                 &command(path)
-                    .args(["hash-object", "--no-filters", "--"])
+                    .args(["hash-object", "--path"])
+                    .arg(&relative)
+                    .arg("--")
                     .arg(&actual)
                     .output()
                     .map_err(|_| PoolError::Git)?,

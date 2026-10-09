@@ -2,6 +2,7 @@ use std::{
     env,
     ffi::OsString,
     fs,
+    io::Read,
     os::unix::{
         ffi::{OsStrExt, OsStringExt},
         fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
@@ -55,21 +56,44 @@ impl Fixture {
     }
 }
 fn wait(mut child: Child) -> Output {
+    // Drain both real pipes during execution; large histories must not fill a pipe
+    // while the watchdog waits for exit.
+    let stdout = child.stdout.take();
+    let stdout = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        if let Some(mut pipe) = stdout {
+            pipe.read_to_end(&mut bytes).unwrap();
+        }
+        bytes
+    });
+    let stderr = child.stderr.take();
+    let stderr = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        if let Some(mut pipe) = stderr {
+            pipe.read_to_end(&mut bytes).unwrap();
+        }
+        bytes
+    });
     let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if child.try_wait().unwrap().is_some() {
-            return child.wait_with_output().unwrap();
+    let (status, timed_out) = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break (status, false);
         }
         if Instant::now() >= deadline {
-            child.kill().unwrap();
-            panic!(
-                "CLI exceeded bounded watchdog: {:?}",
-                child.wait_with_output().unwrap()
-            );
+            let _ = child.kill();
+            break (child.wait().unwrap(), true);
         }
         thread::sleep(Duration::from_millis(5));
-    }
+    };
+    let result = Output {
+        status,
+        stdout: stdout.join().unwrap(),
+        stderr: stderr.join().unwrap(),
+    };
+    assert!(!timed_out, "CLI exceeded bounded watchdog: {result:?}");
+    result
 }
+
 fn output(mut command: Command) -> Output {
     wait(command.spawn().unwrap())
 }
@@ -6704,4 +6728,264 @@ fn retirement_resume_and_resource_entrypoints_wait_for_catalog_maintenance() {
         }
         assert_that!(path.exists(), eq(false));
     }
+}
+
+#[googletest::test]
+fn parse_errors_honor_available_configured_json_and_output_precedence() {
+    for (explicit, environment, flag, expected_json) in [
+        (false, None, false, true),
+        (true, None, false, true),
+        (true, Some("false"), false, false),
+        (true, Some("0"), true, true),
+    ] {
+        let fixture = Fixture::new();
+        let config = if explicit {
+            fixture
+                .root
+                .path()
+                .join(OsString::from_vec(b"settings-\xff.toml".to_vec()))
+        } else {
+            let directory = fixture.root.path().join("config/worktree-pool");
+            fs::create_dir_all(&directory).unwrap();
+            directory.join("config.toml")
+        };
+        fs::write(&config, "json = true\n").unwrap();
+        let base = fixture.command();
+        let mut command = Command::new(base.get_program());
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.env_clear();
+        for (name, value) in base.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            }
+        }
+        if explicit {
+            command.arg("--config").arg(&config);
+        }
+        if flag {
+            command.arg("--json");
+        }
+        if let Some(value) = environment {
+            command.env("WORKTREE_POOL_JSON", value);
+        }
+        command.args(["catalog", "secret-not-a-command"]);
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let result = output(command);
+        assert_that!(result.status.code(), eq(Some(2)));
+        assert_that!(!result.stdout.is_empty(), eq(expected_json));
+        if expected_json {
+            let value: Value = serde_json::from_slice(&result.stdout).unwrap();
+            assert_that!(value["command"].as_str(), eq(Some("parse")));
+            assert_that!(value["reason_code"].as_str(), eq(Some("invalid_arguments")));
+            assert_that!(value["outcome"].as_str(), eq(Some("rejected")));
+            assert_that!(
+                result
+                    .stdout
+                    .strip_suffix(b"\n")
+                    .is_some_and(|line| !line.contains(&b'\n')),
+                eq(true)
+            );
+        }
+        assert_that!(
+            String::from_utf8_lossy(&result.stdout).contains("secret-not-a-command"),
+            eq(false)
+        );
+        assert_that!(
+            String::from_utf8_lossy(&result.stderr).contains("secret-not-a-command"),
+            eq(false)
+        );
+        assert_that!(fixture.database().exists(), eq(false));
+        assert_that!(
+            fs::read_to_string(config).unwrap().as_str(),
+            eq("json = true\n")
+        );
+    }
+    for option in ["--config", "--catalog-dir", "--repo"] {
+        let fixture = Fixture::new();
+        let base = fixture.command();
+        let mut command = Command::new(base.get_program());
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.env_clear();
+        for (name, value) in base.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            }
+        }
+        command
+            .env("WORKTREE_POOL_JSON", "false")
+            .args([option, "--json", "secret-not-a-command"]);
+        let result = output(command);
+        assert_that!(result.status.code(), eq(Some(2)));
+        let value: Value = serde_json::from_slice(&result.stdout)
+            .expect("missing option value must retain explicit --json");
+        assert_that!(value["reason_code"].as_str(), eq(Some("invalid_arguments")));
+        assert_that!(
+            result
+                .stdout
+                .strip_suffix(b"\n")
+                .is_some_and(|line| !line.contains(&b'\n')),
+            eq(true)
+        );
+        assert_that!(result.stderr.is_empty(), eq(true));
+        assert_that!(fixture.database().exists(), eq(false));
+    }
+    for args in [
+        vec!["--config=--json", "secret-not-a-command"],
+        vec!["--", "--json", "secret-not-a-command"],
+    ] {
+        let fixture = Fixture::new();
+        let base = fixture.command();
+        let mut command = Command::new(base.get_program());
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.env_clear();
+        for (name, value) in base.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            }
+        }
+        command.env("WORKTREE_POOL_JSON", "false").args(args);
+        let result = output(command);
+        assert_that!(result.status.code(), eq(Some(2)));
+        assert_that!(result.stdout.is_empty(), eq(true));
+        assert_that!(
+            String::from_utf8_lossy(&result.stderr).contains("secret-not-a-command"),
+            eq(false)
+        );
+        assert_that!(fixture.database().exists(), eq(false));
+    }
+}
+
+#[googletest::test]
+fn canonical_crlf_registered_checkouts_acquire_release_and_retain_ignored_state() {
+    for attributes in [true, false] {
+        let fixture = Fixture::new();
+        let (source, checkout, repo) = fixture.acquisition();
+        if attributes {
+            fs::write(source.join(".gitattributes"), b"tracked text eol=crlf\n").unwrap();
+            fixture.git(&source, &["add".as_ref(), ".gitattributes".as_ref()]);
+            fixture.git(
+                &source,
+                &["commit".as_ref(), "-m".as_ref(), "line endings".as_ref()],
+            );
+            fixture.git(&checkout, &["pull".as_ref(), "--ff-only".as_ref()]);
+        } else {
+            fixture.git(
+                &checkout,
+                &["config".as_ref(), "core.autocrlf".as_ref(), "true".as_ref()],
+            );
+        }
+        fs::remove_file(checkout.join("tracked")).unwrap();
+        fixture.git(
+            &checkout,
+            &["checkout".as_ref(), "--".as_ref(), "tracked".as_ref()],
+        );
+        assert_that!(
+            fs::read(checkout.join("tracked")).unwrap().as_slice(),
+            eq(b"protected checkout\r\n".as_slice())
+        );
+        assert_that!(
+            fixture
+                .git_text(&checkout, &["status", "--porcelain"])
+                .as_str(),
+            eq("")
+        );
+        fs::write(checkout.join(".git/info/exclude"), b"build-cache\n").unwrap();
+        fs::write(checkout.join("build-cache"), b"retained artifact").unwrap();
+        let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let acquired = fixture.json(&["acquire", "--repo", &repo]);
+        assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+        let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+            eq(tip.as_str())
+        );
+        let released = fixture.json(&["release", handle]);
+        assert_that!(released["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            fs::read(checkout.join("build-cache")).unwrap().as_slice(),
+            eq(b"retained artifact".as_slice())
+        );
+        assert_that!(
+            fs::read(checkout.join("tracked")).unwrap().as_slice(),
+            eq(b"protected checkout\r\n".as_slice())
+        );
+    }
+}
+
+#[googletest::test]
+fn canonical_crlf_new_creation_acquires_and_releases_without_changing_the_caller() {
+    let fixture = Fixture::new();
+    let (source, checkout, repo) = fixture.empty_pool();
+    fs::write(source.join(".gitattributes"), b"tracked text eol=crlf\n").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".gitattributes".as_ref()]);
+    fixture.git(
+        &source,
+        &["commit".as_ref(), "-m".as_ref(), "line endings".as_ref()],
+    );
+    let caller_tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let caller_index = fs::read(checkout.join(".git/index")).unwrap();
+    let acquired = fixture.json(&["acquire", "--repo", &repo]);
+    assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+    let bytes: Vec<u8> =
+        serde_json::from_value(acquired["data"]["assignment"]["path"]["bytes"].clone()).unwrap();
+    let path = PathBuf::from(OsString::from_vec(bytes));
+    assert_that!(
+        fs::read(path.join("tracked")).unwrap().as_slice(),
+        eq(b"protected checkout\r\n".as_slice())
+    );
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["release", handle])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]).as_str(),
+        eq(caller_tip.as_str())
+    );
+    assert_that!(
+        fs::read(checkout.join(".git/index")).unwrap().as_slice(),
+        eq(caller_index.as_slice())
+    );
+    assert_that!(
+        fs::read(checkout.join("tracked")).unwrap().as_slice(),
+        eq(b"protected checkout\n".as_slice())
+    );
+}
+
+#[googletest::test]
+fn canonical_crlf_release_accepts_a_clean_conversion_after_acquisition() {
+    let fixture = Fixture::new();
+    let (_, checkout, repo) = fixture.acquisition();
+    let acquired = fixture.json(&["acquire", "--repo", &repo]);
+    assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    fixture.git(
+        &checkout,
+        &["config".as_ref(), "core.autocrlf".as_ref(), "true".as_ref()],
+    );
+    fs::remove_file(checkout.join("tracked")).unwrap();
+    fixture.git(
+        &checkout,
+        &["checkout".as_ref(), "--".as_ref(), "tracked".as_ref()],
+    );
+    assert_that!(
+        fs::read(checkout.join("tracked")).unwrap().as_slice(),
+        eq(b"protected checkout\r\n".as_slice())
+    );
+    assert_that!(
+        fixture
+            .git_text(&checkout, &["status", "--porcelain"])
+            .as_str(),
+        eq("")
+    );
+    let released = fixture.json(&["release", handle]);
+    assert_that!(released["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(),
+        eq(Some("released"))
+    );
+    assert_that!(
+        fs::read(checkout.join("tracked")).unwrap().as_slice(),
+        eq(b"protected checkout\r\n".as_slice())
+    );
 }

@@ -39,6 +39,8 @@ struct AuthorityRecovery {
     checkpoint: String,
     #[serde(default)]
     kind: AuthorityRecoveryKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    relocation_repair: Option<RelocationRepair>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -48,7 +50,25 @@ pub enum AuthorityRecoveryKind {
     Bootstrap,
     StorageRepair,
 }
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RelocationRepair {
+    pub operation_id: OperationId,
+    pub catalog_path: EncodedPath,
+    pub history: crate::relocation::HistoryProof,
+    pub content_before: crate::relocation::ContentEvidence,
+    pub content_after: Option<crate::relocation::ContentEvidence>,
+}
 impl Locator {
+    pub(crate) fn relocation_repair_pending(&self, id: OperationId) -> bool {
+        self.recovery_pending()
+            && self
+                .recovery
+                .as_ref()
+                .and_then(|r| r.relocation_repair.as_ref())
+                .is_some_and(|r| r.operation_id == id)
+    }
+
     pub(crate) fn recovery_identity_used(&self, operation_id: OperationId) -> bool {
         self.recovery
             .as_ref()
@@ -103,8 +123,8 @@ pub(crate) fn read_active_locator(paths: &Paths) -> Result<Locator, PoolError> {
             }) {
                 return Err(PoolError::Corrupt);
             }
-            validate_recovery_history(&value)?;
             crate::relocation::validate(&value)?;
+            validate_recovery_history(&value)?;
             Ok(value)
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(PoolError::Missing),
@@ -191,16 +211,7 @@ pub fn initialize_observed(
     observe(InitializationCheckpoint::AuthorityPublished);
     Ok(projection)
 }
-/// # Errors
-/// Rejects missing, pending, conflicting, unsupported, or corrupt catalog state.
-pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
-    // Ordinary commands do not initialize missing catalog or coordination state.
-    if !paths.state.join("active.json").exists() {
-        return Err(PoolError::Missing);
-    }
-    private_directory(&paths.state)?;
-    let maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
-    let catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+fn admit_selected_authority(paths: &Paths) -> Result<Locator, PoolError> {
     let locator = read_locator(paths)?;
     if crate::relocation::pending(&locator) {
         return Err(PoolError::RelocationPending);
@@ -215,9 +226,24 @@ pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
         PoolError::Io(ref e) if e.kind() == std::io::ErrorKind::NotFound => PoolError::Missing,
         _ => error,
     })?;
-    if !locator.relocation_history.is_empty() {
-        let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
-        crate::relocation::validate_operations(&locator, &projection)?;
+    Ok(locator)
+}
+
+/// # Errors
+/// Rejects missing, pending, conflicting, unsupported, or corrupt catalog state.
+pub fn open(paths: &Paths) -> Result<CatalogSession, PoolError> {
+    // Ordinary commands do not initialize missing catalog or coordination state.
+    if !paths.state.join("active.json").exists() {
+        return Err(PoolError::Missing);
+    }
+    private_directory(&paths.state)?;
+    let maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
+    let catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
+    let locator = admit_selected_authority(paths)?;
+    let authoritative = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
+    crate::relocation::validate_operations(&locator, &authoritative)?;
+    if authoritative.has_pending_relocation() {
+        return Err(PoolError::RelocationPending);
     }
     let store = Store::open(&paths.catalog, locator.catalog_id)?;
     let projection = store.projection()?;
@@ -247,23 +273,11 @@ pub fn rebuild_observed(
     }
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), true)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
-    let locator = read_locator(paths)?;
-    if crate::relocation::pending(&locator) {
+    let locator = admit_selected_authority(paths)?;
+    let authoritative = Store::inspect_rebuild_history(&paths.catalog, locator.catalog_id)?;
+    crate::relocation::validate_operations(&locator, &authoritative)?;
+    if authoritative.has_pending_relocation() {
         return Err(PoolError::RelocationPending);
-    }
-    if locator.phase == "initializing" || locator.recovery_pending() {
-        return Err(PoolError::Pending);
-    }
-    if locator.phase != "active" {
-        return Err(PoolError::Corrupt);
-    }
-    private_file(&paths.catalog).map_err(|error| match error {
-        PoolError::Io(ref e) if e.kind() == std::io::ErrorKind::NotFound => PoolError::Missing,
-        _ => error,
-    })?;
-    if !locator.relocation_history.is_empty() {
-        let authoritative = Store::inspect_rebuild_history(&paths.catalog, locator.catalog_id)?;
-        crate::relocation::validate_operations(&locator, &authoritative)?;
     }
     Store::rebuild(&paths.catalog, locator.catalog_id, observe)
 }
@@ -277,24 +291,12 @@ pub fn inspect_projection(paths: &Paths) -> Result<CatalogProjection, PoolError>
     }
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
-    let locator = read_locator(paths)?;
-    if crate::relocation::pending(&locator) {
-        return Err(PoolError::RelocationPending);
-    }
-    if locator.phase == "initializing" || locator.recovery_pending() {
-        return Err(PoolError::Pending);
-    }
-    if locator.phase != "active" {
-        return Err(PoolError::Corrupt);
-    }
-    private_file(&paths.catalog).map_err(|error| match error {
-        PoolError::Io(ref error) if error.kind() == std::io::ErrorKind::NotFound => {
-            PoolError::Missing
-        }
-        _ => error,
-    })?;
+    let locator = admit_selected_authority(paths)?;
     let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
     crate::relocation::validate_operations(&locator, &projection)?;
+    if projection.has_pending_relocation() {
+        return Err(PoolError::RelocationPending);
+    }
     Ok(projection)
 }
 
@@ -309,24 +311,12 @@ pub fn inspect_events(
     }
     let _maintenance = LockGuard::acquire(&paths.state.join("maintenance.lock"), false)?;
     let _catalog = LockGuard::acquire(&paths.state.join("catalog.lock"), true)?;
-    let locator = read_locator(paths)?;
-    if crate::relocation::pending(&locator) {
-        return Err(PoolError::RelocationPending);
-    }
-    if locator.phase == "initializing" || locator.recovery_pending() {
-        return Err(PoolError::Pending);
-    }
-    if locator.phase != "active" {
-        return Err(PoolError::Corrupt);
-    }
-    private_file(&paths.catalog).map_err(|error| match error {
-        PoolError::Io(ref error) if error.kind() == std::io::ErrorKind::NotFound => {
-            PoolError::Missing
-        }
-        _ => error,
-    })?;
+    let locator = admit_selected_authority(paths)?;
     let projection = Store::inspect_read_only(&paths.catalog, locator.catalog_id)?;
     crate::relocation::validate_operations(&locator, &projection)?;
+    if projection.has_pending_relocation() {
+        return Err(PoolError::RelocationPending);
+    }
     let events = Store::events_read_only(&paths.catalog, locator.catalog_id)?;
     Ok((projection, events))
 }
@@ -344,6 +334,7 @@ pub struct AuthorityObservation {
     pub recovery_history: Vec<AuthorityRecoveryFact>,
     pub relocation: Option<crate::relocation::Relocation>,
     pub relocation_history: Vec<crate::relocation::RelocationFact>,
+    pub semantic_relocations: Vec<crate::relocation_events::RelocationOperation>,
 }
 
 impl AuthorityObservation {
@@ -353,6 +344,10 @@ impl AuthorityObservation {
         self.phase == "active"
             && self.store_state == "validated"
             && self.recovery_checkpoint.as_deref() != Some("intent_recorded")
+            && !self
+                .semantic_relocations
+                .iter()
+                .any(|r| r.state == crate::relocation_events::RelocationState::Pending)
             && self
                 .relocation
                 .as_ref()
@@ -369,6 +364,8 @@ pub struct AuthorityRecoveryFact {
     pub kind: AuthorityRecoveryKind,
     pub checkpoint: String,
     pub legacy: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relocation_repair: Option<RelocationRepair>,
 }
 
 /// An exact known catalog recovery result; it never selects the newest operation.
@@ -399,6 +396,14 @@ pub fn reconcile_authority_operation_observed(
     operation_id: OperationId,
     observe: impl FnMut(AuthorityRecoveryCheckpoint),
 ) -> Result<AuthorityRecoveryFact, PoolError> {
+    let known = inspect_authority_operation(paths, operation_id)?;
+    if let Some(repair) = known.relocation_repair.as_ref() {
+        if known.checkpoint == "completed" {
+            return Ok(known);
+        }
+        crate::relocation::resume(paths, repair.operation_id)?;
+        return inspect_authority_operation(paths, operation_id);
+    }
     let authority = reconcile_authority_selected(paths, Some(operation_id), observe)?;
     select_authority_operation(&authority.recovery_history, operation_id)
 }
@@ -446,6 +451,7 @@ fn recovery_history(locator: &Locator) -> Vec<AuthorityRecoveryFact> {
             kind: recovery.kind,
             checkpoint: recovery.checkpoint.clone(),
             legacy: true,
+            relocation_repair: recovery.relocation_repair.clone(),
         })
         .into_iter()
         .collect()
@@ -464,11 +470,45 @@ fn validate_recovery_history(locator: &Locator) -> Result<(), PoolError> {
         {
             return Err(PoolError::Corrupt);
         }
+        if let Some(repair) = &fact.relocation_repair {
+            let relocation = locator
+                .relocation_history
+                .iter()
+                .find(|r| r.relocation.operation_id == repair.operation_id)
+                .ok_or(PoolError::Corrupt)?;
+            if fact.kind != AuthorityRecoveryKind::StorageRepair
+                || fact.legacy
+                || fact.operation_id == repair.operation_id
+                || ![
+                    &relocation.relocation.source,
+                    &relocation.relocation.destination,
+                ]
+                .contains(&&repair.catalog_path)
+                || !locator.relocation_history.iter().any(|r| {
+                    r.relocation.operation_id == repair.operation_id
+                        && repair.catalog_path.to_path().is_ok_and(|path| {
+                            crate::relocation::history_proof(&r.relocation, &path)
+                                .is_ok_and(|proof| proof == repair.history)
+                        })
+                })
+                || (fact.checkpoint == "completed") != repair.content_after.is_some()
+            {
+                return Err(PoolError::Corrupt);
+            }
+        }
         if let Some(previous) = latest.get(&fact.operation_id.to_string()) {
             if previous.checkpoint != "intent_recorded"
                 || fact.checkpoint != "completed"
                 || previous.kind != fact.kind
                 || fact.legacy
+                || previous.relocation_repair.as_ref().map(|r| {
+                    let mut r = r.clone();
+                    r.content_after = fact
+                        .relocation_repair
+                        .as_ref()
+                        .and_then(|r| r.content_after.clone());
+                    r
+                }) != fact.relocation_repair
             {
                 return Err(PoolError::Corrupt);
             }
@@ -482,6 +522,7 @@ fn validate_recovery_history(locator: &Locator) -> Result<(), PoolError> {
         if last.operation_id != current.operation_id
             || last.kind != current.kind
             || last.checkpoint != current.checkpoint
+            || last.relocation_repair != current.relocation_repair
             || latest
                 .values()
                 .filter(|fact| fact.checkpoint == "intent_recorded")
@@ -507,6 +548,7 @@ fn append_recovery_fact(locator: &mut Locator) -> Result<(), PoolError> {
         kind: current.kind,
         checkpoint: current.checkpoint.clone(),
         legacy: false,
+        relocation_repair: current.relocation_repair.clone(),
     });
     Ok(())
 }
@@ -562,6 +604,10 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
     if let Some(validated) = projection.as_ref().or(rebuild_projection.as_ref()) {
         crate::relocation::validate_operations(&locator, validated)?;
     }
+    let semantic_relocations = projection
+        .as_ref()
+        .or(rebuild_projection.as_ref())
+        .map_or_else(Vec::new, |p| p.relocations.clone());
     let rebuild_revision = rebuild_projection.map(|p| p.revision);
     let store_state = if projection.is_some() {
         "validated"
@@ -588,12 +634,13 @@ fn observe_authority(paths: &Paths, locator: Locator) -> Result<AuthorityObserva
         phase: locator.phase,
         last_checkpoint,
         store_state,
-        revision: projection.map(|p| p.revision).or(rebuild_revision),
+        revision: projection.as_ref().map(|p| p.revision).or(rebuild_revision),
         recovery_operation_id: locator.recovery.as_ref().map(|r| r.operation_id),
         recovery_checkpoint: locator.recovery.map(|r| r.checkpoint),
         recovery_history,
         relocation: locator.relocation,
         relocation_history: locator.relocation_history,
+        semantic_relocations,
     })
 }
 
@@ -700,6 +747,9 @@ fn reconcile_authority_selected(
     let (existing, repair_required) = recovery_store(paths, &locator)?;
     if let Some(projection) = &existing {
         crate::relocation::validate_operations(&locator, projection)?;
+        if projection.has_pending_relocation() {
+            return Err(PoolError::RelocationPending);
+        }
     }
     if locator.phase == "active" && !repair_required {
         let projection = existing.as_ref().ok_or(PoolError::Missing)?;
@@ -715,6 +765,7 @@ fn reconcile_authority_selected(
         locator.recovery = Some(AuthorityRecovery {
             operation_id: OperationId::new(),
             checkpoint: "intent_recorded".into(),
+            relocation_repair: None,
             kind: if locator.phase == "initializing" {
                 AuthorityRecoveryKind::Bootstrap
             } else {
@@ -768,6 +819,116 @@ fn reconcile_authority_selected(
     observe_authority(paths, locator)
 }
 
+/// Caller holds whole maintenance/catalog locks and explicitly selected the relocation ID.
+/// No ordinary/preview path invokes writable physical repair or derived reconstruction.
+pub(crate) fn repair_relocation_locked(
+    paths: &Paths,
+    locator: &mut Locator,
+    operation_id: OperationId,
+    selected: &Path,
+    proof: &crate::relocation::HistoryProof,
+    observe: &mut impl FnMut(crate::relocation::RelocationCheckpoint),
+) -> Result<(), PoolError> {
+    private_file(selected)?;
+    let recorded = locator
+        .recovery
+        .as_ref()
+        .filter(|r| r.checkpoint == "intent_recorded")
+        .and_then(|r| r.relocation_repair.as_ref());
+    if recorded.is_some_and(|r| {
+        r.operation_id == operation_id && !r.catalog_path.to_path().is_ok_and(|p| p == selected)
+    }) && Store::inspect_read_only(selected, locator.catalog_id).is_ok()
+    {
+        return Ok(());
+    }
+    if recorded.is_some_and(|r| {
+        r.operation_id != operation_id
+            || !r.catalog_path.to_path().is_ok_and(|p| p == selected)
+            || r.history != *proof
+    }) {
+        return Err(PoolError::Conflict);
+    }
+    let repair_required = match Store::inspect_for_recovery(selected, locator.catalog_id) {
+        Ok(_) if recorded.is_none() => return Ok(()),
+        Ok(_) => false,
+        Err(ReadOnlyInspectionError::RepairRequired) => true,
+        Err(ReadOnlyInspectionError::Rejected(PoolError::Corrupt)) if recorded.is_some() => false,
+        Err(ReadOnlyInspectionError::Rejected(error)) => return Err(error),
+    };
+    if recorded.is_none() {
+        if locator.recovery_pending() {
+            return Err(PoolError::Pending);
+        }
+        let repair = RelocationRepair {
+            operation_id,
+            catalog_path: EncodedPath::from_path(selected),
+            history: proof.clone(),
+            content_before: crate::relocation::content_evidence(selected)?,
+            content_after: None,
+        };
+        locator.recovery = Some(AuthorityRecovery {
+            operation_id: OperationId::new(),
+            checkpoint: "intent_recorded".into(),
+            kind: AuthorityRecoveryKind::StorageRepair,
+            relocation_repair: Some(repair),
+        });
+        append_recovery_fact(locator)?;
+        replace_locator(paths, locator)?;
+    }
+    observe(crate::relocation::RelocationCheckpoint::RepairIntentRecorded);
+    let authoritative = if repair_required {
+        // redb may repair physical metadata before UUID/history validation; it cannot authorize a semantic retry.
+        Store::repair_authority(selected, locator.catalog_id)?
+    } else {
+        Store::inspect_rebuild_history(selected, locator.catalog_id)?
+    };
+    if authoritative.operation_identity_used(
+        locator
+            .recovery
+            .as_ref()
+            .ok_or(PoolError::Corrupt)?
+            .operation_id,
+    ) {
+        return Err(PoolError::Corrupt);
+    }
+    observe(crate::relocation::RelocationCheckpoint::RepairStoreValidated);
+    let events = Store::events_rebuild_history(selected, locator.catalog_id)?;
+    crate::relocation::validate_history(
+        proof,
+        &events,
+        &Store::raw_records_rebuild_history(selected, locator.catalog_id)?,
+    )?;
+    if Store::inspect_read_only(selected, locator.catalog_id).is_err() {
+        // Explicit same-ID recovery owns this recorded derived reconstruction; ordinary rebuild stays barred.
+        let rebuilt = Store::rebuild(selected, locator.catalog_id, |checkpoint| {
+            if checkpoint == crate::rebuild::RebuildCheckpoint::Committed {
+                observe(crate::relocation::RelocationCheckpoint::RepairRebuilt);
+            }
+        })?;
+        if rebuilt != authoritative
+            || Store::events_read_only(selected, locator.catalog_id)? != events
+        {
+            return Err(PoolError::Conflict);
+        }
+    }
+    let validated = Store::inspect_read_only(selected, locator.catalog_id)?;
+    if validated != authoritative {
+        return Err(PoolError::Conflict);
+    }
+    let content = crate::relocation::content_evidence(selected)?;
+    let recovery = locator.recovery.as_mut().ok_or(PoolError::Corrupt)?;
+    recovery.checkpoint = "completed".into();
+    recovery
+        .relocation_repair
+        .as_mut()
+        .ok_or(PoolError::Corrupt)?
+        .content_after = Some(content);
+    append_recovery_fact(locator)?;
+    replace_locator(paths, locator)?;
+    observe(crate::relocation::RelocationCheckpoint::RepairCompleted);
+    Ok(())
+}
+
 fn authority_reconciled(locator: Locator, revision: u64) -> AuthorityObservation {
     let recovery_history = recovery_history(&locator);
     AuthorityObservation {
@@ -782,11 +943,12 @@ fn authority_reconciled(locator: Locator, revision: u64) -> AuthorityObservation
         recovery_history,
         relocation: locator.relocation,
         relocation_history: locator.relocation_history,
+        semantic_relocations: Vec::new(),
     }
 }
 
 #[cfg(test)]
-mod recovery_tests {
+pub(crate) mod recovery_tests {
     use std::{
         fs,
         os::unix::fs::{OpenOptionsExt, symlink},
@@ -1046,7 +1208,7 @@ mod recovery_tests {
         }
     }
 
-    fn crash_catalog_writer(path: &std::path::Path) {
+    pub(crate) fn crash_catalog_writer(path: &std::path::Path) {
         let ready = path.with_extension(format!("writer-ready-{}", uuid::Uuid::new_v4()));
         let mut child = std::process::Command::new(std::env::current_exe().unwrap())
             .env_clear()
@@ -1466,13 +1628,58 @@ mod recovery_tests {
             json: true,
         };
         let initialized = initialize(&source).unwrap();
-        let history = Store::events_read_only(&source.catalog, initialized.catalog_id).unwrap();
-        let source_bytes = fs::read(&source.catalog).unwrap();
+        let mut history = Store::events_read_only(&source.catalog, initialized.catalog_id).unwrap();
+        let prior_records =
+            Store::raw_records_rebuild_history(&source.catalog, initialized.catalog_id).unwrap();
         let moved = crate::relocation::relocate(&source, &root.path().join("relocated")).unwrap();
         let paths = Paths {
             catalog: moved.destination.to_path().unwrap(),
             ..source.clone()
         };
+        let expected = Store::inspect_read_only(&paths.catalog, initialized.catalog_id).unwrap();
+        assert_that!(expected.revision, eq(initialized.revision + 2));
+        assert_that!(expected.catalog_stream_revision, eq(Some(3)));
+        assert_that!(
+            expected.relocations,
+            eq(&vec![crate::relocation_events::RelocationOperation {
+                intent: crate::relocation_events::RelocationIntent {
+                    operation_id: moved.operation_id,
+                    catalog_id: initialized.catalog_id,
+                    source: moved.source.clone(),
+                    destination: moved.destination.clone(),
+                    source_revision: initialized.revision + 1,
+                },
+                state: crate::relocation_events::RelocationState::Completed,
+                intent_event_id: moved.intent_event.as_ref().unwrap()["id"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned(),
+                completion_event_id: Some(
+                    moved.completion_event.as_ref().unwrap()["id"]
+                        .as_str()
+                        .unwrap()
+                        .to_owned()
+                ),
+            }])
+        );
+        let mut unchanged = expected.clone();
+        unchanged.revision = initialized.revision;
+        unchanged.catalog_stream_revision = initialized.catalog_stream_revision;
+        unchanged.relocations.clone_from(&initialized.relocations);
+        assert_that!(unchanged, eq(&initialized));
+        history.push(moved.intent_event.clone().unwrap());
+        history.push(moved.completion_event.clone().unwrap());
+        let mut expected_records = prior_records.clone();
+        expected_records.push(moved.intent_record.clone().unwrap());
+        assert_that!(
+            Store::raw_records_rebuild_history(&source.catalog, initialized.catalog_id).unwrap(),
+            eq(&expected_records)
+        );
+        expected_records.push(moved.completion_record.clone().unwrap());
+        assert_that!(
+            Store::raw_records_rebuild_history(&paths.catalog, initialized.catalog_id).unwrap(),
+            eq(&expected_records)
+        );
         {
             let database = redb::Database::open(&paths.catalog).unwrap();
             let transaction = database.begin_write().unwrap();
@@ -1488,6 +1695,7 @@ mod recovery_tests {
         assert_that!(repaired.store_state, eq("rebuild_required"));
         assert_that!(repaired.mutations_available(), eq(false));
         let bytes = fs::read(&paths.catalog).unwrap();
+        let source_bytes = fs::read(&source.catalog).unwrap();
         let locator = fs::read(paths.state.join("active.json")).unwrap();
         assert_that!(super::open(&paths).is_err(), eq(true));
         assert_that!(
@@ -1522,10 +1730,14 @@ mod recovery_tests {
             fs::read(paths.state.join("active.json")).unwrap(),
             eq(&locator)
         );
-        assert_that!(super::rebuild(&paths).unwrap(), eq(&initialized));
+        assert_that!(super::rebuild(&paths).unwrap(), eq(&expected));
         assert_that!(
             Store::events_read_only(&paths.catalog, initialized.catalog_id).unwrap(),
             eq(&history)
+        );
+        assert_that!(
+            Store::raw_records_rebuild_history(&paths.catalog, initialized.catalog_id).unwrap(),
+            eq(&expected_records)
         );
         assert_that!(fs::read(&source.catalog).unwrap(), eq(&source_bytes));
         assert_that!(

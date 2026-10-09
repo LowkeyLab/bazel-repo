@@ -624,26 +624,55 @@ unresolved catalog, repository, and worktree operations. Completed assignments m
 remain active throughout relocation.
 
 Relocation preserves catalog identity, handles, capacity, preservation records,
-complete database bytes, and event history. Existing absolute checkout paths remain
+the exact prior event-record byte prefix, and projected ownership. Existing absolute checkout paths remain
 fixed, including worktrees created beside the old catalog. The tool never moves,
 deletes, or cleans worktrees. The source database also remains in place as inactive tool
 data. Each relocation retains another database copy and consumes additional disk.
-Receipts report `retained_source`, its measured `retained_source_bytes` when
-available, and `retained_source_active`. An unavailable measurement is null.
+Receipts report `retained_source`, `retained_source_active`, and recorded
+`retained_source_bytes` measured at Intended after the Started-bearing source
+closes. `retained_source_bytes_checkpoint` identifies that checkpoint. An absent
+recorded measurement is null. This is neither a current/live measurement nor a
+claim of reclaimable bytes. Historical receipts don't probe inactive paths.
+Later manual removal, replacement, or repair can't change the recorded value.
 Earlier retained locations remain recorded in lifecycle history. There is no
 automatic deletion, backup/restore subsystem or silent configuration migration.
 
-The stable locator retains schema-version-1 `relocation_history` with contiguous
-positions and exact operation IDs, alongside its separate current `relocation`
-projection. Each fact records catalog identity, lossless source/destination paths,
-source revision, tagged `SHA-256` evidence of the closed source database, and
-checkpoint. Recovery requires source and copy bytes to match this recorded
-evidence. A replacement with the same catalog ID and revision is insufficient.
-Checkpoints are `intended`, `prepared`, `switched`
-and `completed`. Prior bootstrap/storage-repair lifecycle facts and IDs remain
-unchanged, including explicitly observed legacy facts. Relocation never rewrites
-old event envelopes or worktree paths. Unsupported or inconsistent history stops
-use. Ordinary mutation requires a completed relocation. Its pending reason is
+Logical relocation is authoritative in two typed catalog-stream CloudEvents:
+`io.lowkeylab.worktreepool.catalog.relocation.started.v1` and
+`io.lowkeylab.worktreepool.catalog.relocation.completed.v1`. Started records the
+exact operation/catalog identities, lossless source/destination paths and copied
+revision before any destination effects. Completed links to that exact Started
+identity. The tool commits Completed only at the destination after the durable
+locator switch. Each append atomically updates event history and projection, advancing
+both global and catalog-stream revisions. `events list` includes both facts.
+Pure replay and rebuild reconstruct pending/completed relocation state without
+filesystem effects. Prior immutable event records remain byte-for-byte prefixes.
+Handles, owners, capacity, and checkout paths remain unchanged.
+
+The stable locator retains schema-version-3 `relocation_history` as technical
+physical coordination, with contiguous positions, exact operation IDs and fixed
+CloudEvent identities. Its checkpoints are `starting`, `intended`, `prepared`,
+`switched`, `committing` and `completed`. Starting fixes the Started wire event and
+prior history proof before its append. Intended freezes tagged `SHA-256` evidence
+of the closed Started-bearing source. Committing fixes the Completed wire event
+before its append. Copy preparation requires exact closed bytes, identity, history,
+and projected state. A replacement with only matching catalog ID and revision is
+insufficient. Completed logical authority comes from the accepted CloudEvent, and
+ordinary mutations remain barred until its matching technical publication finishes.
+
+Prior bootstrap/storage-repair lifecycle facts and IDs remain unchanged, including
+explicitly observed legacy facts. The tool rejects nonempty schema-version-1
+locator-only relocation history. Preserve files and operation IDs for manual
+verification and reconciliation. There is no automatic migration, backfill, fabricated event
+identity or timestamp. Unpublished schema-version-2 decoded-proof journals also
+refuse use with manual-preservation guidance. The tool never reinterprets them as
+raw proof. Prefix evidence hashes exact ordered stored-record strings, and fixed
+Started/Completed records use the normal Store encoder with exact positions and
+expected stream revisions. Repair/retry requires those literal records unchanged.
+Empty older locator relocation metadata remains compatible.
+Inconsistent new event/journal correlation refuses mutation. A replay-derived
+pending Started with a missing journal names its exact ID and requires manual
+restoration of that matching journal. The pending reason is
 `catalog_relocation_pending`. Successful commands use `catalog_relocated`,
 `catalog_relocation_completed`, or `catalog_relocation_already_completed`.
 Inspection uses `catalog_relocation_observed`.
@@ -662,7 +691,11 @@ The recorded source remains the authority before switching. The destination is
 the only selected location after switching. Both stages bar ordinary mutations
 until completion. Interrupted copies are never blindly overwritten or reset:
 
-- After intent or directory creation, recovery can prepare the recorded destination.
+- After Starting publication, recovery inspects the exact fixed Started identity and
+  expected revisions before appending or observing it. After Started commit but
+  before Intended publication, it validates the prior immutable prefix and freezes
+  the closed source evidence. After intent or directory creation, it can prepare the
+  recorded destination.
 - After complete copy but before its checkpoint, recovery validates identical bytes,
   identity, complete history and projection before advancing the same operation.
 - For an empty, partial or conflicting copy before preparation, verify the recorded
@@ -673,7 +706,23 @@ until completion. Interrupted copies are never blindly overwritten or reset:
   conflicting bytes preserved first. Recovery then revalidates both copies before
   advancing. Missing or changed source bytes also require manual restoration of
   the exact bytes recorded by the intent, preserving conflicting bytes first.
-- After completed publication, repeating exact-ID recovery changes no history.
+- After switching or fixed Completed publication, recovery inspects the exact
+  accepted Completed identity/revisions before retry. A known committed result
+  advances technical publication without appending a duplicate event.
+- If an unclean semantic commit requires physical `redb` repair, only explicit
+  exact-ID relocation recovery records a distinct correlated StorageRepair intent.
+  It validates the immutable prefix, fixed event identities, `UUID`, and revisions.
+  If derived records remain damaged, it explicitly rebuilds them under that same
+  recorded repair scope. Ordinary `catalog check`, `catalog rebuild`,
+  `recover preview`, and open commands never repair.
+  Interrupted repair/rebuild resumes the recorded repair pair through the same
+  relocation ID, validating history before recording completion and rebinding that
+  file's digest. This route remains available while relocation bars ordinary rebuild.
+  Unknown or mismatched history requires manual preservation/restoration instead.
+  `redb` can repair physical metadata before `UUID`/history validation on an unclean
+  file. That inherited limitation never authorizes a semantic retry.
+- After completed publication, repeating exact-ID recovery changes no history and
+  never inspects retained inactive files, even after later authority changes.
 
 Ambiguous files or inconsistent locator facts refuse mutation. Corrupt or
 unsupported lifecycle metadata requires manual verification and reconciliation.

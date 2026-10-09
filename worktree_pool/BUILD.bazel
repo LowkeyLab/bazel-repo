@@ -70,6 +70,7 @@ rust_library(
         "release.rs",
         "release_workflow.rs",
         "relocation.rs",
+        "relocation_events.rs",
         "relocation_tests.rs",
         "repository_recovery.rs",
         "resources.rs",
