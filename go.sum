@@ -121,6 +121,8 @@ github.com/aymerick/douceur v0.2.0 h1:Mv+mAeH1Q+n9Fr+oyamOlAkUNPWPlA8PPGR0QAaYuP
 github.com/aymerick/douceur v0.2.0/go.mod h1:wlT5vV2O3h55X9m7iVYN0TBM0NH/MmbLnd30/FjWUq4=
 github.com/bazelbuild/rules_go v0.63.0 h1:G/hGy2pBLxlrxbpQBJKdHSLhu3KFIkFsuNg8m59mn3c=
 github.com/bazelbuild/rules_go v0.63.0/go.mod h1:6YghDRf6l3FSiAwncK+Ww9jE1naoQzNq28gaKJeB67I=
+github.com/bazelbuild/rules_go v0.64.2 h1:bBzVLLT/gSQ+bhE7V1rQDQRBIcQgbv0kZrVCjELBE/Q=
+github.com/bazelbuild/rules_go v0.64.2/go.mod h1:fGJXke4qp7Xq27y1oZ7Qib3rhk5Ar3T1/A9jxOtkcH8=
 github.com/bits-and-blooms/bitset v1.24.4 h1:95H15Og1clikBrKr/DuzMXkQzECs1M6hhoGXLwLQOZE=
 github.com/bits-and-blooms/bitset v1.24.4/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/bmatcuk/doublestar/v4 v4.10.0 h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=

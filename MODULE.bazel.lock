@@ -816,8 +816,8 @@
       "required_mod_files_v1": [
         {
           "importpath": "github.com/bazelbuild/rules_go",
-          "sha256": "1d91d1594da17db4f282b8b51c268ff1f63d990d3409b34b8c1199ab038e6df8",
-          "version": "v0.63.0"
+          "sha256": "67494ccfec4a188f1f9d3dbb624621e89222dcd1f19229232dd7b0523866a37b",
+          "version": "v0.64.2"
         },
         {
           "importpath": "github.com/stretchr/testify",
@@ -2058,6 +2058,11 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "github.com/bazelbuild/rules_go",
+          "sha256": "1d91d1594da17db4f282b8b51c268ff1f63d990d3409b34b8c1199ab038e6df8",
+          "version": "v0.63.0"
         },
         {
           "importpath": "github.com/klauspost/compress",
