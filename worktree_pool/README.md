@@ -599,3 +599,99 @@ replacing those dependencies. Private real fixtures verify SIGKILL/restart,
 preview preservation, known/unidentified results, competing processes and actual
 `redb` sync-failure atomicity. They don't establish whole-machine power-loss safety
 or a benchmark speedup.
+
+## Retire registrations and inspect retained resources
+
+Retirement frees one registered record's count capacity after human removal. It
+keeps the complete registration, assignment, operation, and event history. It never
+removes a checkout, Git metadata, ignored files, preservation refs, commits,
+external build state or caches. It never stops processes or runs build cleanup.
+
+First release the latest assignment safely, or apply explicit worktree recovery
+while the checkout still exists. Recovery must leave ownership unassigned and
+establish safe preservation. Keep the exact completed release or recovery
+operation ID. A completed reconciliation that retains active or preparing
+ownership, or leaves availability withheld, doesn't authorize retirement.
+Humans then remove the checkout and its linked Git worktree metadata using their
+own Git or filesystem workflow. Confirm removal explicitly:
+
+```sh
+worktree-pool worktree retire <worktree-id> \
+  --reconciliation <completed-release-or-recovery-operation-id> --removed
+```
+
+The command validates the latest generation's proof, absent registered checkout
+and Git directory, and every required detached preservation root. Existing
+files, ignored files, dangling links, substituted symlink ancestors, moved
+worktrees, uncertain access and unresolved repository operations refuse retirement.
+Missing files alone never release an assignment or free capacity. If removal
+preceded safe reconciliation, restore the work and reconcile it safely first.
+The removal assertion doesn't waive preservation or certify lost content.
+
+An attached proof also requires its recorded branch to remain a direct reference
+at the exact recorded tip. Deleted, symbolic, or moved branch protection refuses
+retirement. Detached roots must remain direct exact refs in
+`refs/worktree-pool/<operation-id>`. The tool doesn't repair or remove those refs
+as part of retirement. Cooperative locks don't stop humans from changing files or
+refs outside the tool. This isn't filesystem isolation.
+
+`retirement_preconditions_unmet` is a rejected result with exit code 2. Other
+Git, filesystem, pending, and commit-uncertainty reasons retain their documented
+codes. Retirement records `worktree.retirement.started.v1` and
+`worktree.retirement.finished.v1` facts under `io.lowkeylab.worktreepool`.
+The intent belongs to the repository stream. Its result retires the global
+registration in the catalog stream, retaining its repository identity in the payload.
+An intended retirement keeps capacity counted and blocks conflicting repository
+work. Only its committed result frees that record's count. Inspect the exact
+retirement ID through `operation inspect`, or use `recover preview/apply
+--operation <retirement-id>` after interruption. Apply revalidates removal and
+preservation before completing an intended result. A committed exact identity
+returns its historical receipt without repeating facts or affecting a newer
+registration. Unknown identities never select the newest operation.
+
+Retirement JSON data includes `operation`, `retired`, `already_retired`,
+`ownership`, `availability`, `resources` and `revision`. Its operation retains the
+original worktree record, exact reconciliation identity and causal checkpoint.
+Inspect exact retired worktree IDs with `registration_state: retired`.
+Path selectors select only a current registration. A later registration can reuse
+the same path with a new identity. Historical retired paths report unknown,
+unattributed bytes rather than attributing a newer checkout's files to old history.
+Inspect exact completed acquisition, release, and recovery IDs.
+Repeated apply returns their historical result. Their retired observation is
+explicitly historical and never examines a newer checkout at the recorded path.
+
+Worktree inspection exposes `resources.worktree`,
+`resources.known_external_build_state`, `resources.shared` and `resources.unknown`.
+Repository inspection reports `resources.worktree_bytes`, per-worktree observations
+and shared Git-common-directory usage once. Human output includes the same data.
+The metric is `logical_regular_file_bytes`, with unique device/inode identities
+counted once across a repository report. The tool measures common Git storage first.
+It excludes checkout-root `.git` metadata from worktree bytes and counts each
+regular file identity once, including repeated hard links. Separately requested worktree
+reports aren't an additive repository total.
+
+Measurements include ignored regular files but don't follow symlinks or cross
+filesystem devices. Arbitrary Bazel convenience symlinks don't establish external
+storage ownership. The pool has no authoritative external build-state roots, so
+known external bytes are `null`, with `no_authoritative_build_state_roots`, and
+undiscovered output bases, caches, servers and remote state remain unknown. No
+Bazel invocation or ambient cache-directory discovery occurs during inspection.
+This limitation avoids invented attribution or exclusive-usage claims.
+
+Each observation includes its encoded path, status, and bytes. Missing,
+inaccessible, unsafe, or incomplete roots have `bytes: null`. Partial traversal
+reports its observed subtotal separately as `measured_bytes`. Skipped paths
+carry explicit reasons. Measurements aren't filesystem snapshots and can change
+while humans or build processes run. Logical lengths don't measure allocated
+blocks, compression, reclaimable space or process memory. Inspection keeps
+catalog and locator bytes unchanged and performs no cleanup. Capacity limits
+registered count rather than bytes, and retirement makes no claim of external
+resource removal.
+
+Retirement verification uses private real Git/filesystem/redb fixtures and public
+command-line inspection, exact operation recovery, real subprocess SIGKILL boundaries, and
+actual backend sync failures. The commit-fault observer arms the existing real
+backend immediately before the same production transaction commit. Earlier
+storage errors aren't classified as failed commits. Reopen checks complete old or
+complete new history and projection before any retry. These checks don't establish
+whole-machine power-loss behavior or a performance benefit.

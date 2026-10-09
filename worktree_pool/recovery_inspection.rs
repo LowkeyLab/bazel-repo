@@ -63,7 +63,35 @@ pub fn preview_candidates(
     let data = json!({"repository_id":selected.repository_id,"candidates":candidates,"revision":state.revision,"next_action":"select an exact operation, assignment handle, or registered worktree before explicit apply; no candidate was selected"});
     Ok((state, data))
 }
+/// Reconstruct an exact historical result without selecting a newer registration at its path.
+pub(crate) fn recorded_worktree(
+    state: &CatalogProjection,
+    id: WorktreeId,
+) -> Result<&Worktree, PoolError> {
+    state
+        .worktrees
+        .iter()
+        .find(|w| w.worktree_id == id)
+        .or_else(|| {
+            state
+                .retirements
+                .iter()
+                .find(|r| {
+                    r.worktree_id == id && r.state == crate::retirement::RetirementState::Completed
+                })
+                .map(|r| &r.worktree)
+        })
+        .ok_or(PoolError::Corrupt)
+}
 pub(crate) fn worktree_data(state: &CatalogProjection, w: &Worktree) -> Result<Value, PoolError> {
+    if state.retirements.iter().any(|r| {
+        r.worktree_id == w.worktree_id && r.state == crate::retirement::RetirementState::Completed
+    }) {
+        return Ok(
+            json!({"repository_id":w.repository_id,"worktree_id":w.worktree_id,"path":w.path,"assignment_handle":null,"assignment":null,"ownership":"unassigned","availability":"retired","observation":{"status":"historical","safe":false,"reason_code":"registration_retired"},"next_action":"this retired registration grants no current ownership"}),
+        );
+    }
+
     let owner = state
         .assignments
         .iter()

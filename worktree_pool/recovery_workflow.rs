@@ -45,11 +45,7 @@ fn assignment_preview(
     {
         return Err(PoolError::Selectors);
     }
-    let worktree = state
-        .worktrees
-        .iter()
-        .find(|w| w.worktree_id == assignment.worktree_id)
-        .ok_or(PoolError::Corrupt)?;
+    let worktree = crate::recovery_inspection::recorded_worktree(&state, assignment.worktree_id)?;
     let observed = crate::recovery_inspection::worktree_data(&state, worktree)?;
     let data = json!({
         "observation":observed["observation"],
@@ -282,11 +278,7 @@ fn acquisition_preview(
         .ok_or(PoolError::Corrupt)?;
     let observed = crate::recovery_inspection::worktree_data(
         &state,
-        state
-            .worktrees
-            .iter()
-            .find(|w| w.worktree_id == a.worktree_id)
-            .ok_or(PoolError::Corrupt)?,
+        crate::recovery_inspection::recorded_worktree(&state, a.worktree_id)?,
     )?;
     let creation = state.creations.iter().find(|c| c.operation_id == id);
     let operation = creation.map_or_else(|| json!(target), |c| json!(c));
@@ -390,11 +382,7 @@ fn release_preview(
         .ok_or(PoolError::Corrupt)?;
     let observed = crate::recovery_inspection::worktree_data(
         &state,
-        state
-            .worktrees
-            .iter()
-            .find(|w| w.worktree_id == a.worktree_id)
-            .ok_or(PoolError::Corrupt)?,
+        crate::recovery_inspection::recorded_worktree(&state, a.worktree_id)?,
     )?;
     let data = json!({"observation":observed["observation"],"repository_id":a.repository_id,"worktree_id":a.worktree_id,"assignment_handle":a.assignment_handle,"operation_id":id,"operation":target,"assignment":a,"ownership":a.state,"availability":if a.state==AssignmentState::Released {Value::Null}else{json!("withheld")},"revision":state.revision,"next_action":"explicit apply observes the recorded release and required preservation"});
     Ok((state, data))
@@ -634,7 +622,11 @@ fn recovery_result(
         .iter()
         .find(|a| Some(a.assignment_handle) == op.assignment_handle);
     let ownership = assignment.map_or_else(|| json!("unassigned"), |a| json!(a.state));
-    let availability = if assignment.is_some_and(|a| a.state == AssignmentState::Released) {
+    let availability = if state.retirements.iter().any(|r| {
+        r.worktree_id == op.worktree_id && r.state == crate::retirement::RetirementState::Completed
+    }) {
+        json!("retired")
+    } else if assignment.is_some_and(|a| a.state == AssignmentState::Released) {
         Value::Null
     } else if assignment.is_none()
         && op.state == crate::recovery::RecoveryState::Completed
@@ -649,11 +641,7 @@ fn recovery_result(
     };
     let observed = crate::recovery_inspection::worktree_data(
         &state,
-        state
-            .worktrees
-            .iter()
-            .find(|w| w.worktree_id == op.worktree_id)
-            .ok_or(PoolError::Corrupt)?,
+        crate::recovery_inspection::recorded_worktree(&state, op.worktree_id)?,
     )?;
     let data = json!({"observation":observed["observation"],"observed_assignment_handle":observed["assignment_handle"],"repository_id":op.repository_id,"worktree_id":op.worktree_id,"assignment_handle":op.assignment_handle,"operation_id":op.operation_id,"operation":op,"ownership":ownership,"availability":availability,"preservation_reference":op.preservation_reference,"preservation_tip":op.tip,"revision":state.revision,"next_action":"inspect the registered worktree before another acquisition"});
     Ok((state, data))

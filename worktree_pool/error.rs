@@ -1,6 +1,10 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PoolError {
     #[error(
+        "retirement requires human removal, latest safe reconciliation, no current owner and verified preservation; restore missing work before reconciliation when necessary"
+    )]
+    RetirementUnsafe,
+    #[error(
         "registered capacity is exhausted; inspect ownership and withheld records or increase durable capacity"
     )]
     PoolExhausted {
@@ -62,6 +66,7 @@ impl PoolError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
+            Self::RetirementUnsafe => "retirement_preconditions_unmet",
             Self::PoolExhausted { maximum: 0, .. } => "capacity_zero",
             Self::PoolExhausted {
                 registered_count,
