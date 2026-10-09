@@ -4,8 +4,8 @@ A synchronous Linux x86-64 command-line tool for explicitly managed persistent
 Git worktrees. It supports catalog initialization and inspection, explicit
 repository/worktree enrollment, registered resource inspection, checkpointed
 repository refresh, safe acquisition and explicit release of registered worktrees,
-assignment and operation inspection, and event history. On-demand creation
-follows in a later slice.
+assignment and operation inspection, event history, on-demand detached creation,
+and durable per-repository capacity.
 
 Development uses Nix and Bazel. The standalone manifest pins every direct
 dependency and targets Rust 1.96, matching the Bazel toolchain. Its executable
@@ -79,6 +79,8 @@ Stable reasons: `ok`, `invalid_arguments`, `invalid_configuration`,
 `unsupported_version`, `initialization_pending`, `unsafe_permissions`,
 `filesystem_error`, `storage_error`, `commit_unknown`, `git_failed`,
 `resource_unregistered`, `selector_conflict`, `capacity_exhausted`,
+`capacity_below_count`, `capacity_zero`, `capacity_all_assigned`,
+`capacity_no_safe_worktree`,
 `operation_pending`, `refresh_failed`, `worktree_unavailable`,
 `retained_file_collision`, `unfinished_work`, `git_operation_in_progress`, and
 `unsupported_index_state`, `assignment_unknown`, and `already_released`.
@@ -96,14 +98,19 @@ and available revision. A valid committed store under a pending locator yields
 ## Event storage
 
 Immutable CloudEvents 1.0 JSON is authoritative. Events use the
-`io.lowkeylab.worktreepool.*.v1` type namespace, catalog source URI, unique
+versioned `io.lowkeylab.worktreepool.*` type namespace, catalog source URI, unique
 source/id identity, subject, recording time in `UTC`, `application/json` typed
 data, and string `operationid`. Affected-entity subjects remain separate from
 stream routing. Refresh results carry `causationid` identifying their intent
 event, which replay validates. Global committed positions determine history
 order. Recorded stream identifiers and expected revisions enforce independent
-catalog/repository sequences. Repository enrollment belongs to the catalog
-stream. Worktree enrollment and refresh belong to their repository stream. `redb` transactions atomically update events, revision,
+catalog/repository sequences. Repository enrollment and new worktree registration
+belong to the catalog stream. New explicit registration uses `worktree.registered.v2`.
+immutable historical `worktree.registered.v1` retains its repository-stream routing.
+Creation registration uses `worktree.creation.registered.v1`. Capacity, refresh,
+assignment, and preparation facts belong to repository streams. Catalog stream
+revisions include every catalog-owned registration, independently of repository
+counts. `redb` transactions atomically update events, revision,
 projection, and identity index with immediate durability. Replay uses pure
 reducers and performs no Git or workflow effects. Failed or uncertain commits
 stop retry and require reopening and inspecting event identities/revisions.
@@ -158,7 +165,10 @@ human-identity tests failed before implementation. Stable public results support
 refactoring resistance, but no refactor-survival experiment accompanies this
 slice. Fault tests establish commit/error semantics and don't claim simulated
 power-loss durability. Normal processes establish kernel-lock behavior. Later
-slices verify creation, recovery, and standalone installation.
+slices verify recovery and standalone installation. Creation checks cover
+private paths, capacity, real Git failures, process interruption, independent
+callers, protected destinations and lost results. Atomic batch faults verify
+registration and ownership reopen together.
 
 ## Registered resources and refresh
 
@@ -189,9 +199,9 @@ Worktree inspection accepts registered identities/paths only, including recorded
 missing paths. Discovery never exposes an unrelated checkout.
 
 Command data uses `repository`, `repositories`, `worktree`, or `worktrees` as
-appropriate. Repository inspection also reports `registered_count` and
-`operations`. Worktree results separately expose `registration_state`
-(`registered`, `missing`, `mismatched`, `unreadable`), `ownership` (`unassigned`,
+appropriate. Repository inspection also reports `registered_count`,
+`operations`, and `creations`. Worktree results separately expose `registration_state`
+(`registered`, `missing`, `mismatched`, `unreadable`). They expose `ownership` (`unassigned`,
 `preparing`, or `assigned`), `availability` (`unverified` or `withheld`), `withheld_reason`,
 and `pending_work`. An existing checkout needs acquisition-time safety
 validation before reuse. Missing/mismatched paths and pending repository work
@@ -220,7 +230,7 @@ repositories/remotes. Run complete Bazel test targets for acceptance. With
 and can skip every body while the Rust harness prints success. Use
 `--test_arg=name`, a qualified name, or `--test_filter='*name*'` when filtering.
 
-## Acquire existing registrations
+## Acquire persistent worktrees
 
 ```text
 worktree-pool acquire --repo <repository-id-or-path> [reference]
@@ -236,8 +246,9 @@ reference resolves once afterward. Preparation keeps that commit fixed even
 when a reference changes. Only registered, unowned, present, safe worktrees are
 eligible. Selection prefers the matching commit, then the latest recorded
 release position, then worktree ID. Initial registrations have no release
-position. Completed release facts supply actual release positions. This slice never
-creates a worktree when none is available.
+position. Completed release facts supply actual release positions. If no safe
+registration is available and capacity remains, acquisition creates another
+detached linked worktree. Existing safe worktrees always get priority.
 
 Acquisition records exclusive reservation before preparation, preservation
 intent before reference creation, and checkout intent before checkout. Old
@@ -254,7 +265,7 @@ repositories can prepare concurrently. State decisions reopen under that lock.
 worktree, absolute lossless `path`, fixed `resolved_commit`, nullable `branch`,
 and `state` (`preparing`, `active`, or historical `released`). A completed detached acquisition has a null
 branch. These same assignment records appear in list/inspect results. Operation
-list/inspect includes refresh, acquisition, and release records. Acquisition records carry
+list/inspect includes refresh, acquisition, release, and creation records. Acquisition records carry
 `state`, `last_checkpoint`, `intent_event_id`, and nullable `preservation_tip`
 and `preservation_reference`. Known lost results remain available for inspection by handle
 or operation ID. The command-line tool never guesses a newest assignment.
@@ -299,6 +310,59 @@ and acquisition commit. A post-refresh barrier proves fixed default commits.
 Other fixtures cover mandatory explicit-ref refresh, missing refs/failed remotes,
 ignored collisions/fallback, hidden Git state, observation caches, retained ignore
 changes, and lost stdout. These establish observed process and commit semantics. They don't simulate machine power loss or establish minimum Git runtime support.
+
+## Capacity and on-demand creation
+
+```text
+worktree-pool pool configure --repo <repository-id-or-path> --max-worktrees 4
+```
+
+The maximum defaults to four and persists in the repository's event stream.
+`pool configure` data contains the updated `repository`, `registered_count`,
+and committed `revision`. A maximum below the current count rejects with
+`capacity_below_count`. A zero count permits a zero maximum. Environment or
+output configuration can't replace this durable policy. Every registration counts,
+including assigned, withheld, missing, and partially prepared records. Configuration
+never removes registrations, files, or build state.
+
+After mandatory refresh and safe reuse selection, acquisition creates only when
+count is below the recorded maximum. Exhaustion returns rejected/status 2 with
+`capacity_zero`, `capacity_all_assigned`, or `capacity_no_safe_worktree`. Its data
+contains `maximum`, `registered_count`, `assigned_count`, and `next_action`, with
+the repository ID in context. Explicit enrollment still uses `capacity_exhausted`.
+There is no waiting for a release, overflow checkout, eviction, or deletion.
+Required repository coordination and refresh still precede the capacity decision.
+
+New paths use `<catalog-directory>/worktrees/<repository-id>/<worktree-id>` and
+retain absolute byte-safe identity. Tool-created directories use mode 0700.
+Existing worktrees retain their permissions and paths. Catalog relocation never
+moves previously recorded worktrees.
+
+Creation registration and preparing assignment reservation commit atomically
+before filesystem effects. Directory preparation has a durable creation intent
+and path checkpoint. Checkout intent precedes ordinary `git worktree add --detach`
+at the fixed commit. There are no force, reset, stash, branch-creation or arbitrary
+setup hooks. The workflow refuses existing destinations or Git metadata and
+revalidates its prepared empty directory immediately before Git. Real canonical
+checkout/common-directory/Git-directory membership, clean state, and detached commit
+checks precede atomic creation and acquisition result commitment.
+
+Worktree output includes nullable `creation`. Repository inspection includes
+`creations`. Creation operations have a distinct `operation_id`, repository/worktree
+IDs, `assignment_handle`, `acquisition_operation_id`, `intent_event_id`, `state`,
+and `last_checkpoint`. States are `reserved`, `path_prepared`, `completed`, and
+`needs_reconciliation`. Checkpoints are `creation_registered`,
+`creation_path_prepared`, `creation_committed`, and `creation_uncertain`.
+A pending creation also appears in `pending_work` and operation list/inspect.
+Failed or interrupted effects retain preparing ownership and countable unavailable
+registration. Removing an obstruction doesn't authorize retry: explicit
+reconciliation must resolve the recorded state. An empty directory after interruption doesn't prove
+that preparation or checkout completed.
+
+Release keeps idle worktrees and ignored files for reuse. Real fixtures verify
+new detached acquisition, retained ignored artifacts, release, and reuse with a new
+handle. These behavior checks establish no measured build speedup. The separate
+benchmark gate evaluates benefit and retained resource costs.
 
 ## Release assignments
 

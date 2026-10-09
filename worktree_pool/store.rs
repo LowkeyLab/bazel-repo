@@ -277,14 +277,34 @@ impl Store {
         if typed.expected_revision(&current)? != expected_revision {
             return Err(PoolError::Conflict);
         }
-        let projection = reduce(Some(&current), current.revision, &typed)?;
-        let recorded = RecordedEvent {
-            position: projection.revision,
-            expected_revision,
-            stream_id: Some(typed.stream_id(self.catalog_id)),
-            event,
-        };
-        let wire = serde_json::to_string(&recorded).map_err(|_| PoolError::Corrupt)?;
+        self.append_batch(current.revision, vec![event])
+    }
+
+    /// Commits a short ordered registration/reservation batch as one atomic fact set.
+    /// # Errors
+    /// Rejects stale state or any invalid fact; failed commit requires reopen/inspection.
+    pub fn append_batch(
+        &self,
+        expected_global_revision: u64,
+        events: Vec<Value>,
+    ) -> Result<CatalogProjection, PoolError> {
+        let current = self.projection()?;
+        if current.revision != expected_global_revision || events.is_empty() {
+            return Err(PoolError::Conflict);
+        }
+        let mut projection = current.clone();
+        let mut records = Vec::new();
+        for event in events {
+            let typed = decode_event(&event, self.catalog_id)?;
+            let expected_revision = typed.expected_revision(&projection)?;
+            projection = reduce(Some(&projection), projection.revision, &typed)?;
+            records.push(RecordedEvent {
+                position: projection.revision,
+                expected_revision,
+                stream_id: Some(typed.stream_id(self.catalog_id)),
+                event,
+            });
+        }
         let state = serde_json::to_string(&projection).map_err(|_| PoolError::Corrupt)?;
         let mut transaction = self
             .database
@@ -311,22 +331,26 @@ impl Store {
             let mut identities = transaction
                 .open_table(IDENTITIES)
                 .map_err(|_| PoolError::Storage)?;
-            let identity = identity(&recorded.event)?;
-            if identities
-                .get(identity.as_str())
-                .map_err(|_| PoolError::Storage)?
-                .is_some()
-            {
-                return Err(PoolError::Conflict);
-            }
-            identities
-                .insert(identity.as_str(), projection.revision)
-                .map_err(|_| PoolError::Storage)?;
-            transaction
+            let mut events = transaction
                 .open_table(EVENTS)
-                .map_err(|_| PoolError::Storage)?
-                .insert(projection.revision, wire.as_str())
                 .map_err(|_| PoolError::Storage)?;
+            for record in &records {
+                let key = identity(&record.event)?;
+                if identities
+                    .get(key.as_str())
+                    .map_err(|_| PoolError::Storage)?
+                    .is_some()
+                {
+                    return Err(PoolError::Conflict);
+                }
+                identities
+                    .insert(key.as_str(), record.position)
+                    .map_err(|_| PoolError::Storage)?;
+                let wire = serde_json::to_string(record).map_err(|_| PoolError::Corrupt)?;
+                events
+                    .insert(record.position, wire.as_str())
+                    .map_err(|_| PoolError::Storage)?;
+            }
             transaction
                 .open_table(STATE)
                 .map_err(|_| PoolError::Storage)?

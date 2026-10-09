@@ -81,6 +81,10 @@ pub struct CatalogProjection {
     pub acquisitions: Vec<crate::acquisition::AcquisitionOperation>,
     #[serde(default)]
     pub releases: Vec<crate::release::ReleaseOperation>,
+    #[serde(default)]
+    pub creations: Vec<crate::creation::CreationOperation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub catalog_stream_revision: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -139,8 +143,13 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
             value["type"].as_str(),
             Some(
                 INITIALIZED_TYPE
+                    | "io.lowkeylab.worktreepool.worktree.creation.registered.v1"
+                    | "io.lowkeylab.worktreepool.worktree.creation.path.prepared.v1"
+                    | "io.lowkeylab.worktreepool.worktree.creation.finished.v1"
+                    | "io.lowkeylab.worktreepool.repository.capacity.configured.v1"
                     | "io.lowkeylab.worktreepool.repository.registered.v1"
                     | "io.lowkeylab.worktreepool.worktree.registered.v1"
+                    | "io.lowkeylab.worktreepool.worktree.registered.v2"
                     | "io.lowkeylab.worktreepool.repository.refresh.started.v1"
                     | "io.lowkeylab.worktreepool.repository.refresh.finished.v1"
                     | "io.lowkeylab.worktreepool.worktree.withheld.v1"
@@ -252,6 +261,8 @@ pub fn reduce(
             withheld_worktrees: Vec::new(),
             acquisitions: Vec::new(),
             releases: Vec::new(),
+            creations: Vec::new(),
+            catalog_stream_revision: None,
         }),
         DomainEvent::CatalogInitialized(_) => Err(PoolError::Conflict),
         DomainEvent::Management {
@@ -260,7 +271,21 @@ pub fn reduce(
             causation_id,
         } => {
             let mut next = current.cloned().ok_or(PoolError::Conflict)?;
+            let catalog_revision = next
+                .catalog_stream_revision
+                .unwrap_or(1 + next.repositories.len() as u64);
+            let catalog_event = event.repository_id().is_none();
+            let tracks_catalog = next.catalog_stream_revision.is_some()
+                || matches!(
+                    event.as_ref(),
+                    crate::management::ManagementEvent::Creation(_)
+                        | crate::management::ManagementEvent::WorktreeEnrolled(_)
+                );
             event.apply(&mut next, event_id, causation_id.as_deref())?;
+            if catalog_event && tracks_catalog {
+                next.catalog_stream_revision =
+                    Some(catalog_revision.checked_add(1).ok_or(PoolError::Corrupt)?);
+            }
             next.revision = expected_revision.checked_add(1).ok_or(PoolError::Corrupt)?;
             Ok(next)
         }
@@ -305,7 +330,9 @@ impl DomainEvent {
                 .find(|r| Some(r.repository_id) == e.repository_id())
                 .map(|r| r.revision)
                 .ok_or(PoolError::Unregistered),
-            _ => Ok(1 + state.repositories.len() as u64),
+            _ => Ok(state
+                .catalog_stream_revision
+                .unwrap_or(1 + state.repositories.len() as u64)),
         }
     }
 }

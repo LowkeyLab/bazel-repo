@@ -27,6 +27,10 @@ fn main() {
         acquire_observed(&paths, Some(&repo), None, |checkpoint| {
             let name = match checkpoint {
                 AcquisitionCheckpoint::RefreshCommitted => "refreshed",
+                AcquisitionCheckpoint::CreationIntended => "creation-intent",
+                AcquisitionCheckpoint::CreationPathObserved => "creation-path-effect",
+                AcquisitionCheckpoint::CreationPathCommitted => "creation-path",
+                AcquisitionCheckpoint::CreationObserved => "creation-effect",
                 AcquisitionCheckpoint::ReservationCommitted => "reservation",
                 AcquisitionCheckpoint::PreservationIntended => "preservation-intent",
                 AcquisitionCheckpoint::PreservationObserved => "preservation-effect",

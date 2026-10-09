@@ -370,6 +370,8 @@ fn original_catalog_projection_shape_reopens_without_rewriting_its_history() {
                 "acquisitions",
                 "withheld_worktrees",
                 "releases",
+                "creations",
+                "catalog_stream_revision",
             ] {
                 original.remove(field);
             }
@@ -570,5 +572,154 @@ fn release_completion_sync_failure_reopens_with_atomic_ownership_and_recency() {
             state.worktrees[0].last_release_position,
             eq(Some(state.revision))
         );
+    }
+}
+
+fn creation_batch(store: &Store, root: &std::path::Path) -> Vec<serde_json::Value> {
+    use crate::{
+        acquisition::{AcquisitionEvent, Assignment, AssignmentState},
+        creation::CreationEvent,
+        domain::management_event,
+        management::{AssignmentHandle, ManagementEvent, OperationId, Worktree, WorktreeId},
+        paths::EncodedPath,
+    };
+    let state = store.projection().unwrap();
+    let repository_id = state.repositories[0].repository_id;
+    let worktree_id = WorktreeId::new();
+    let worktree = Worktree {
+        worktree_id,
+        repository_id,
+        path: EncodedPath::from_path(&root.join("created")),
+        git_directory: EncodedPath::from_path(&root.join("admin")),
+        last_release_position: None,
+    };
+    let assignment = Assignment {
+        assignment_handle: AssignmentHandle::new(),
+        operation_id: OperationId::new(),
+        repository_id,
+        worktree_id,
+        path: worktree.path.clone(),
+        resolved_commit: "1".repeat(40),
+        branch: None,
+        state: AssignmentState::Preparing,
+    };
+    vec![
+        management_event(
+            state.catalog_id,
+            &ManagementEvent::Creation(CreationEvent::Registered {
+                operation_id: OperationId::new(),
+                worktree: Box::new(worktree),
+                assignment: Box::new(assignment.clone()),
+            }),
+        )
+        .unwrap(),
+        management_event(
+            state.catalog_id,
+            &ManagementEvent::Acquisition(AcquisitionEvent::Reserved(assignment)),
+        )
+        .unwrap(),
+    ]
+}
+
+#[googletest::test]
+fn creation_batch_sync_failure_never_exposes_uncounted_or_unowned_preparation() {
+    use crate::{
+        management::{ManagementEvent, Repository, RepositoryId, Worktree, WorktreeId},
+        paths::EncodedPath,
+    };
+    for fail in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("catalog.redb");
+        let id = CatalogId::new();
+        Store::create_with_id(&path, id).unwrap();
+        {
+            let store = Store::open(&path, id).unwrap();
+            let repository_id = RepositoryId::new();
+            append_release_fixture_fact(
+                &store,
+                ManagementEvent::RepositoryRegistered(Repository {
+                    repository_id,
+                    common_directory: EncodedPath::from_path(directory.path()),
+                    context_path: EncodedPath::from_path(directory.path()),
+                    capacity: 4,
+                    revision: 0,
+                }),
+                None,
+            );
+            // Immutable historical v1 registration remains on the repository stream.
+            append_release_fixture_fact(
+                &store,
+                ManagementEvent::WorktreeRegistered(Worktree {
+                    worktree_id: WorktreeId::new(),
+                    repository_id,
+                    path: EncodedPath::from_path(&directory.path().join("legacy")),
+                    git_directory: EncodedPath::from_path(&directory.path().join("legacy-admin")),
+                    last_release_position: None,
+                }),
+                None,
+            );
+        }
+        let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        let backend = SyncFailureBackend {
+            inner: redb::backends::FileBackend::new(file).unwrap(),
+            armed: armed.clone(),
+        };
+        let store = Store::open_with_fault_backend(id, backend).unwrap();
+        let events = creation_batch(&store, directory.path());
+        armed.store(fail, std::sync::atomic::Ordering::SeqCst);
+        let result = store.append_batch(3, events);
+        if fail {
+            assert_that!(
+                matches!(result, Err(crate::error::PoolError::CommitUnknown)),
+                eq(true)
+            );
+        } else {
+            assert_that!(result.is_ok(), eq(true));
+        }
+        drop(store);
+        let store = Store::open(&path, id).unwrap();
+        let state = store.projection().unwrap();
+        assert_that!(matches!(state.revision, 3 | 5), eq(true));
+        assert_that!(store.events().unwrap().len() as u64, eq(state.revision));
+        let created = usize::from(state.revision == 5);
+        assert_that!(state.worktrees.len(), eq(1 + created));
+        assert_that!(state.assignments.len(), eq(created));
+        assert_that!(state.creations.len(), eq(created));
+        if !fail {
+            assert_that!(state.catalog_stream_revision, eq(Some(3)));
+            assert_that!(state.repositories[0].revision, eq(2));
+            let repository_id = state.repositories[0].repository_id;
+            append_release_fixture_fact(
+                &store,
+                ManagementEvent::WorktreeEnrolled(Worktree {
+                    worktree_id: WorktreeId::new(),
+                    repository_id,
+                    path: EncodedPath::from_path(&directory.path().join("new")),
+                    git_directory: EncodedPath::from_path(&directory.path().join("new-admin")),
+                    last_release_position: None,
+                }),
+                None,
+            );
+            append_release_fixture_fact(
+                &store,
+                ManagementEvent::RepositoryRegistered(Repository {
+                    repository_id: RepositoryId::new(),
+                    common_directory: EncodedPath::from_path(&directory.path().join("another")),
+                    context_path: EncodedPath::from_path(&directory.path().join("another")),
+                    capacity: 4,
+                    revision: 0,
+                }),
+                None,
+            );
+            let state = store.projection().unwrap();
+            assert_that!(state.catalog_stream_revision, eq(Some(5)));
+            assert_that!(state.repositories[0].revision, eq(2));
+            assert_that!(state.repositories[1].revision, eq(0));
+        }
     }
 }

@@ -141,7 +141,7 @@ pub fn register_worktree(
     };
     let event = management_event(
         session.projection.catalog_id,
-        &ManagementEvent::WorktreeRegistered(worktree.clone()),
+        &ManagementEvent::WorktreeEnrolled(worktree.clone()),
     )?;
     let state = session.store().append(
         decode_event(&event, session.projection.catalog_id)?
@@ -253,4 +253,36 @@ pub(crate) fn refresh_locked(
         .cloned()
         .ok_or(PoolError::Corrupt)?;
     Ok((state, operation))
+}
+
+/// Changes durable capacity without removing or hiding registered records.
+/// # Errors
+/// Rejects a maximum below the current count or invalid catalog/selector state.
+pub fn configure_capacity(
+    paths: &Paths,
+    selector: Option<&OsStr>,
+    maximum: u32,
+) -> Result<(CatalogProjection, Repository), PoolError> {
+    let _maintenance = maintenance(paths)?;
+    let state = catalog::open(paths)?.projection;
+    let repo = repository(&state, selector)?;
+    let _repo = LockGuard::acquire(
+        &paths
+            .state
+            .join(format!("repository-{}.lock", repo.repository_id)),
+        true,
+    )?;
+    let session = catalog::open(paths)?;
+    let fact = ManagementEvent::CapacityConfigured {
+        repository_id: repo.repository_id,
+        maximum,
+    };
+    let event = management_event(session.projection.catalog_id, &fact)?;
+    let state = session.store().append(
+        decode_event(&event, session.projection.catalog_id)?
+            .expected_revision(&session.projection)?,
+        event,
+    )?;
+    let repo = repository(&state, Some(OsStr::new(&repo.repository_id.to_string())))?;
+    Ok((state, repo))
 }

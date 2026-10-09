@@ -47,6 +47,8 @@ rust_library(
         "catalog.rs",
         "cli.rs",
         "coordination.rs",
+        "creation.rs",
+        "creation_workflow.rs",
         "diagnostics.rs",
         "diagnostics_tests.rs",
         "domain.rs",

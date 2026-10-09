@@ -35,6 +35,10 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    Pool {
+        #[command(subcommand)]
+        command: PoolCommand,
+    },
     Release {
         assignment_handle: String,
     },
@@ -64,6 +68,13 @@ enum Command {
     Events {
         #[command(subcommand)]
         command: EventsCommand,
+    },
+}
+#[derive(Subcommand)]
+enum PoolCommand {
+    Configure {
+        #[arg(long)]
+        max_worktrees: u32,
     },
 }
 #[derive(Subcommand)]
@@ -116,8 +127,23 @@ impl Envelope {
                 _ => "rejected",
             },
             reason_code: error.reason_code(),
-            context: json!({}),
-            data: json!({"next_action": error.to_string()}),
+            context: match error {
+                PoolError::PoolExhausted { repository_id, .. } => {
+                    json!({"repository_id":repository_id})
+                }
+                _ => json!({}),
+            },
+            data: match error {
+                PoolError::PoolExhausted {
+                    maximum,
+                    registered_count,
+                    assigned_count,
+                    ..
+                } => {
+                    json!({"maximum":maximum,"registered_count":registered_count,"assigned_count":assigned_count,"next_action":error.to_string()})
+                }
+                _ => json!({"next_action": error.to_string()}),
+            },
             warnings: Vec::new(),
         }
     }
@@ -133,6 +159,7 @@ impl Envelope {
 }
 const fn command_name(cli: &Cli) -> &'static str {
     match &cli.command {
+        Command::Pool { .. } => "pool configure",
         Command::Catalog { command } => match command {
             CatalogCommand::Init => "catalog init",
             CatalogCommand::Info => "catalog info",
@@ -166,7 +193,8 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
     let command = command_name(cli);
     if matches!(
         cli.command,
-        Command::Repo { .. }
+        Command::Pool { .. }
+            | Command::Repo { .. }
             | Command::Worktree { .. }
             | Command::Release { .. }
             | Command::Acquire { .. }
@@ -188,7 +216,8 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             let data = serde_json::to_value(&session.projection).map_err(|_| PoolError::Corrupt)?;
             (session.projection, data)
         }
-        Command::Repo { .. }
+        Command::Pool { .. }
+        | Command::Repo { .. }
         | Command::Worktree { .. }
         | Command::Release { .. }
         | Command::Acquire { .. }
@@ -212,6 +241,12 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
 }
 fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolError> {
     use crate::workflows;
+    if let Command::Pool {
+        command: PoolCommand::Configure { max_worktrees },
+    } = &cli.command
+    {
+        return capacity_command(cli, paths, *max_worktrees);
+    }
     if let Command::Release { assignment_handle } = &cli.command {
         return release_command(cli, paths, assignment_handle);
     }
@@ -337,7 +372,7 @@ fn resource_query(
                 return Err(PoolError::Selectors);
             }
             context["repository_id"] = json!(repository.repository_id);
-            json!({"repository":repository,"registered_count":state.worktrees.iter().filter(|w| w.repository_id == repository.repository_id).count(), "operations":state.operations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>()})
+            json!({"repository":repository,"registered_count":state.worktrees.iter().filter(|w| w.repository_id == repository.repository_id).count(), "operations":state.operations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>(), "creations":state.creations.iter().filter(|o| o.repository_id == repository.repository_id).collect::<Vec<_>>()})
         }
         Command::Worktree {
             command: WorktreeCommand::List,
@@ -401,31 +436,7 @@ fn worktree_view(
     worktree: &crate::management::Worktree,
     state: &crate::domain::CatalogProjection,
 ) -> Value {
-    let path = worktree.path.to_path();
-    let registration_state = match path.and_then(|p| {
-        std::fs::symlink_metadata(&p)
-            .map(|_| p)
-            .map_err(PoolError::from)
-    }) {
-        Err(PoolError::Io(ref e)) if e.kind() == io::ErrorKind::NotFound => "missing",
-        Err(_) => "unreadable",
-        Ok(path) => match crate::git::checkout(&path) {
-            Ok(observed)
-                if EncodedPath::from_path(&observed.path).bytes == worktree.path.bytes
-                    && EncodedPath::from_path(&observed.git_directory).bytes
-                        == worktree.git_directory.bytes
-                    && state.repositories.iter().any(|r| {
-                        r.repository_id == worktree.repository_id
-                            && r.common_directory.bytes
-                                == EncodedPath::from_path(&observed.common_directory).bytes
-                    }) =>
-            {
-                "registered"
-            }
-            Ok(_) => "mismatched",
-            Err(_) => "unreadable",
-        },
-    };
+    let registration_state = registration_state(worktree, state);
     let mut value = serde_json::to_value(worktree).unwrap_or_else(|_| json!({}));
     value["registration_state"] = json!(registration_state);
     let assignment = state.assignments.iter().find(|a| {
@@ -493,6 +504,16 @@ fn worktree_view(
     } else {
         json!("operation_pending")
     };
+    let creation = state
+        .creations
+        .iter()
+        .find(|o| o.worktree_id == worktree.worktree_id);
+    value["creation"] = json!(creation);
+    if let Some(creation) =
+        creation.filter(|o| o.state != crate::creation::CreationState::Completed)
+    {
+        pending.push(json!(creation));
+    }
     value["pending_work"] = json!(pending);
     value
 }
@@ -694,6 +715,17 @@ fn operation_query(
                 })
                 .map(|o| json!(o)),
         );
+        operations.extend(
+            state
+                .creations
+                .iter()
+                .filter(|o| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == o.repository_id)
+                })
+                .map(|o| json!(o)),
+        );
         match command {
             RecordedCommand::List => json!({"operations":operations}),
             RecordedCommand::Inspect { selector } => {
@@ -735,4 +767,54 @@ fn release_command(
         data: json!({"assignment":assignment,"operation":operation,"already_released":already,"current_availability":null,"revision":state.revision,"next_action":if outcome=="pending" {"inspect the recorded release; explicit reconciliation is required"}else{"stop using this assignment handle; inspect the worktree before another acquisition"}}),
         warnings: Vec::new(),
     })
+}
+
+fn capacity_command(cli: &Cli, paths: &Paths, maximum: u32) -> Result<Envelope, PoolError> {
+    let (state, repository) =
+        crate::workflows::configure_capacity(paths, cli.repo.as_deref(), maximum)?;
+    let count = state
+        .worktrees
+        .iter()
+        .filter(|w| w.repository_id == repository.repository_id)
+        .count();
+    Ok(Envelope {
+        schema_version: 1,
+        command: "pool configure".into(),
+        outcome: "completed",
+        reason_code: "ok",
+        context: json!({"catalog_id":state.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog),"repository_id":repository.repository_id}),
+        data: json!({"repository":repository,"registered_count":count,"revision":state.revision}),
+        warnings: Vec::new(),
+    })
+}
+
+fn registration_state(
+    worktree: &crate::management::Worktree,
+    state: &crate::domain::CatalogProjection,
+) -> &'static str {
+    let path = worktree.path.to_path();
+    match path.and_then(|p| {
+        std::fs::symlink_metadata(&p)
+            .map(|_| p)
+            .map_err(PoolError::from)
+    }) {
+        Err(PoolError::Io(ref e)) if e.kind() == io::ErrorKind::NotFound => "missing",
+        Err(_) => "unreadable",
+        Ok(path) => match crate::git::checkout(&path) {
+            Ok(observed)
+                if EncodedPath::from_path(&observed.path).bytes == worktree.path.bytes
+                    && EncodedPath::from_path(&observed.git_directory).bytes
+                        == worktree.git_directory.bytes
+                    && state.repositories.iter().any(|r| {
+                        r.repository_id == worktree.repository_id
+                            && r.common_directory.bytes
+                                == EncodedPath::from_path(&observed.common_directory).bytes
+                    }) =>
+            {
+                "registered"
+            }
+            Ok(_) => "mismatched",
+            Err(_) => "unreadable",
+        },
+    }
 }

@@ -501,7 +501,7 @@ fn registered_repositories_maintain_independent_resource_stream_revisions() {
         fixture.path_json(&["worktree", "register", "--repo", id], path);
         assert_that!(
             fixture.json(&["repo", "inspect", id])["data"]["repository"]["revision"].as_u64(),
-            eq(Some(1))
+            eq(Some(0))
         );
     }
     assert_that!(
@@ -1256,6 +1256,7 @@ fn acquire_publishes_exclusive_detached_assignment_at_fresh_main() {
     let registered = fixture.path_json(&["repo", "register"], &checkout);
     let id = registered["context"]["repository_id"].as_str().unwrap();
     fixture.path_json(&["worktree", "register", "--repo", id], &checkout);
+    fixture.json(&["pool", "configure", "--repo", id, "--max-worktrees", "1"]);
     fs::write(source.join("new-main"), b"fresh bytes").unwrap();
     fixture.git(&source, &["add".as_ref(), ".".as_ref()]);
     fixture.git(
@@ -1366,6 +1367,7 @@ fn acquisition_preserves_old_detached_tip_with_a_durable_recorded_reference() {
 fn acquisition_withholds_ignored_empty_directory_collision_and_tries_safe_registration() {
     let fixture = Fixture::new();
     let (source, checkout, id) = fixture.acquisition();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "2"]);
     fs::write(checkout.join(".git/info/exclude"), b"retained\n").unwrap();
     fs::create_dir(checkout.join("retained")).unwrap();
     let fallback = fixture.root.path().join("fallback");
@@ -1504,6 +1506,7 @@ fn acquisition_withholds_hidden_operations_indexes_and_unfinished_work_without_m
     ] {
         let fixture = Fixture::new();
         let (_, checkout, id) = fixture.acquisition();
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
         match kind {
             "merge" => {
                 fixture.git(
@@ -1626,6 +1629,7 @@ fn cached_git_observations_cannot_hide_protected_content_or_mode_changes() {
     for kind in ["weak-stat", "fsmonitor", "file-mode"] {
         let fixture = Fixture::new();
         let (_, checkout, id) = fixture.acquisition();
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
         let tracked = checkout.join("tracked");
         File::open(&tracked)
             .unwrap()
@@ -1812,6 +1816,7 @@ fn process_death_keeps_acquisition_reservations_and_effect_checkpoints_inspectab
     ] {
         let fixture = Fixture::new();
         let (_, checkout, id) = fixture.acquisition();
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
         fixture.git(&checkout, &["checkout".as_ref(), "--detach".as_ref()]);
         fixture.git(
             &checkout,
@@ -2110,6 +2115,7 @@ fn explicit_refs_still_refresh_and_missing_ref_or_remote_failure_never_assigns_s
 fn lost_acquisition_stdout_keeps_the_committed_assignment_and_never_reacquires_it() {
     let fixture = Fixture::new();
     let (_, checkout, id) = fixture.acquisition();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
     let mut command = fixture.command();
     command.args(["acquire", "--repo", &id]).stdout(
         fs::OpenOptions::new()
@@ -2759,6 +2765,7 @@ fn preservation_write_failure_retains_ownership_and_never_blindly_retries() {
 fn public_reacquisition_uses_release_recency_and_withholds_retained_checkout_collisions() {
     let fixture = Fixture::new();
     let (source, checkout, id) = fixture.acquisition();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "2"]);
     let linked = fixture.root.path().join("second-checkout");
     fixture.git(
         &checkout,
@@ -3001,5 +3008,605 @@ fn release_revalidates_the_recorded_checkout_binding_before_ending_ownership() {
     assert_that!(
         fs::read(checkout.join("tracked")).unwrap().as_slice(),
         eq(b"protected checkout\n".as_slice())
+    );
+}
+
+#[googletest::test]
+fn capacity_configuration_is_durable_and_cannot_hide_registered_worktrees() {
+    let fixture = Fixture::new();
+    let (_, _, id) = fixture.acquisition();
+    let initial = fixture.json(&["repo", "inspect", &id]);
+    assert_that!(
+        initial["data"]["repository"]["capacity"].as_u64(),
+        eq(Some(4))
+    );
+    let configured = fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "2"]);
+    assert_that!(configured["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        fixture.json(&["repo", "inspect", &id])["data"]["repository"]["capacity"].as_u64(),
+        eq(Some(2))
+    );
+    let mut command = fixture.command();
+    command
+        .env("WORKTREE_POOL_MAX_WORKTREES", "99")
+        .args(["repo", "inspect", &id]);
+    let inspected: Value = serde_json::from_slice(&output(command).stdout).unwrap();
+    assert_that!(
+        inspected["data"]["repository"]["capacity"].as_u64(),
+        eq(Some(2))
+    );
+    let before = fixture.json(&["events", "list"]);
+    let rejected = fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "0"]);
+    assert_that!(
+        rejected["reason_code"].as_str(),
+        eq(Some("capacity_below_count"))
+    );
+    assert_that!(&fixture.json(&["events", "list"]), eq(&before));
+}
+
+impl Fixture {
+    fn empty_pool(&self) -> (PathBuf, PathBuf, String) {
+        self.json(&["catalog", "init"]);
+        let source = self.repository();
+        let checkout = self.root.path().join("checkout");
+        self.git(
+            self.root.path(),
+            &["clone".as_ref(), source.as_os_str(), checkout.as_os_str()],
+        );
+        let registered = self.path_json(&["repo", "register"], &checkout);
+        (
+            source,
+            checkout,
+            registered["context"]["repository_id"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+        )
+    }
+}
+#[googletest::test]
+fn acquire_creates_detached_registered_worktree_and_reuses_retained_state() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.empty_pool();
+    let original = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let acquired = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+    let worktree_id = acquired["context"]["worktree_id"].as_str().unwrap();
+    let path = fixture
+        .database()
+        .parent()
+        .unwrap()
+        .join("worktrees")
+        .join(&id)
+        .join(worktree_id);
+    assert_that!(
+        &acquired["data"]["assignment"]["path"]["bytes"],
+        eq(&serde_json::json!(path.as_os_str().as_bytes()))
+    );
+    assert_that!(
+        fixture.git_text(&path, &["rev-parse", "HEAD"]).as_str(),
+        eq(original.as_str())
+    );
+    assert_that!(
+        fixture
+            .git_text(&path, &["rev-parse", "--abbrev-ref", "HEAD"])
+            .as_str(),
+        eq("HEAD")
+    );
+    assert_that!(
+        fixture
+            .git_text(&checkout, &["branch", "--show-current"])
+            .as_str(),
+        eq("main")
+    );
+    let common = checkout.join(".git");
+    fs::write(common.join("info/exclude"), b"build-state\n").unwrap();
+    fs::write(path.join("build-state"), b"retained build artifact").unwrap();
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["release", handle])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    let again = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(
+        &again["context"]["worktree_id"],
+        eq(&acquired["context"]["worktree_id"])
+    );
+    assert_that!(
+        again["context"]["assignment_handle"] != acquired["context"]["assignment_handle"],
+        eq(true)
+    );
+    assert_that!(
+        fs::read(path.join("build-state")).unwrap().as_slice(),
+        eq(b"retained build artifact".as_slice())
+    );
+    assert_that!(
+        fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+        eq(Some(1))
+    );
+}
+
+#[googletest::test]
+fn default_capacity_counts_assignments_and_reports_immediate_exhaustion() {
+    let fixture = Fixture::new();
+    let (_, _, id) = fixture.empty_pool();
+    let mut handles = std::collections::HashSet::new();
+    let mut worktrees = std::collections::HashSet::new();
+    for _ in 0..4 {
+        let acquired = fixture.json(&["acquire", "--repo", &id]);
+        assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            handles.insert(
+                acquired["context"]["assignment_handle"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            ),
+            eq(true)
+        );
+        assert_that!(
+            worktrees.insert(
+                acquired["context"]["worktree_id"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            ),
+            eq(true)
+        );
+    }
+    let exhausted = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(
+        exhausted["reason_code"].as_str(),
+        eq(Some("capacity_all_assigned"))
+    );
+    assert_that!(exhausted["data"]["registered_count"].as_u64(), eq(Some(4)));
+    assert_that!(exhausted["data"]["maximum"].as_u64(), eq(Some(4)));
+    assert_that!(
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "3"])["reason_code"]
+            .as_str(),
+        eq(Some("capacity_below_count"))
+    );
+    assert_that!(
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "5"])["outcome"]
+            .as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+        eq(Some(5))
+    );
+}
+
+#[googletest::test]
+fn creation_crashes_remain_counted_owned_and_explicitly_inspectable() {
+    for checkpoint in [
+        "creation-intent",
+        "creation-path-effect",
+        "creation-path",
+        "checkout-intent",
+        "creation-effect",
+        "result",
+    ] {
+        let fixture = Fixture::new();
+        let (_, _, id) = fixture.empty_pool();
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
+        let mut child = fixture.paused_acquire(&id, checkpoint, false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let inspected = fixture.json(&["repo", "inspect", &id]);
+        assert_that!(inspected["data"]["registered_count"].as_u64(), eq(Some(1)));
+        let worktrees = fixture.json(&["worktree", "list", "--repo", &id]);
+        let worktree = &worktrees["data"]["worktrees"][0];
+        assert_that!(worktree["creation"]["state"].is_string(), eq(true));
+        let operation = worktree["creation"]["operation_id"].as_str().unwrap();
+        assert_that!(
+            fixture.json(&["operation", "inspect", operation])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+        let assignment = &fixture.json(&["assignment", "list"])["data"]["assignments"][0];
+        assert_that!(
+            assignment["state"].as_str(),
+            eq(Some(if checkpoint == "result" {
+                "active"
+            } else {
+                "preparing"
+            }))
+        );
+        let before = fixture.json(&["events", "list"]);
+        let retry = fixture.json(&["acquire", "--repo", &id]);
+        assert_that!(
+            retry["reason_code"].as_str(),
+            eq(Some(if checkpoint == "result" {
+                "capacity_all_assigned"
+            } else {
+                "operation_pending"
+            }))
+        );
+        if checkpoint != "result" {
+            assert_that!(&fixture.json(&["events", "list"]), eq(&before));
+        }
+        assert_that!(fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "0"])["reason_code"].as_str(), eq(Some("capacity_below_count")));
+    }
+}
+
+#[googletest::test]
+fn creation_never_prepares_preexisting_or_substituted_destinations() {
+    use std::io::Write;
+    use std::os::unix::fs::symlink;
+    for kind in ["preexisting", "substituted", "replaced-directory"] {
+        let fixture = Fixture::new();
+        let (_, _, id) = fixture.empty_pool();
+        let checkpoint = if kind == "preexisting" {
+            "creation-intent"
+        } else {
+            "checkout-intent"
+        };
+        let mut child = fixture.paused_acquire(&id, checkpoint, true);
+        let listed = fixture.json(&["worktree", "list", "--repo", &id]);
+        let worktree = &listed["data"]["worktrees"][0];
+        let path = PathBuf::from(OsString::from_vec(
+            serde_json::from_value(worktree["path"]["bytes"].clone()).unwrap(),
+        ));
+        let protected = fixture.root.path().join("protected-external");
+        fs::create_dir(&protected).unwrap();
+        if kind == "preexisting" {
+            fs::DirBuilder::new()
+                .recursive(true)
+                .mode(0o700)
+                .create(&path)
+                .unwrap();
+            fs::write(path.join("protected"), b"existing unfinished work").unwrap();
+        } else if kind == "substituted" {
+            fs::remove_dir(&path).unwrap();
+            symlink(&protected, &path).unwrap();
+        } else {
+            fs::rename(
+                &path,
+                fixture.root.path().join("retained-prepared-directory"),
+            )
+            .unwrap();
+            fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
+        }
+        child
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(b"continue\n")
+            .unwrap();
+        assert_that!(wait(child).status.success(), eq(true));
+        assert_that!(fs::read_dir(&protected).unwrap().count(), eq(0));
+        if kind == "replaced-directory" {
+            assert_that!(fs::read_dir(&path).unwrap().count(), eq(0));
+        }
+        if kind == "preexisting" {
+            assert_that!(
+                fs::read(path.join("protected")).unwrap().as_slice(),
+                eq(b"existing unfinished work".as_slice())
+            );
+        }
+        let inspected = fixture.json(&["worktree", "list", "--repo", &id]);
+        assert_that!(
+            inspected["data"]["worktrees"][0]["creation"]["state"].as_str(),
+            eq(Some("needs_reconciliation"))
+        );
+        assert_that!(
+            inspected["data"]["worktrees"][0]["ownership"].as_str(),
+            eq(Some("preparing"))
+        );
+        assert_that!(
+            fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+            eq(Some(1))
+        );
+    }
+}
+
+#[googletest::test]
+fn simultaneous_creation_respects_capacity_and_unique_assignment_ownership() {
+    for maximum in [1, 2] {
+        let fixture = Fixture::new();
+        let (_, _, id) = fixture.empty_pool();
+        fixture.json(&[
+            "pool",
+            "configure",
+            "--repo",
+            &id,
+            "--max-worktrees",
+            &maximum.to_string(),
+        ]);
+        let barrier = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(
+                fixture
+                    .root
+                    .path()
+                    .join(format!("state/worktree-pool/repository-{id}.lock")),
+            )
+            .unwrap();
+        barrier.lock().unwrap();
+        let mut first = fixture.command();
+        first.args(["acquire", "--repo", &id]);
+        let first = first.spawn().unwrap();
+        let mut second = fixture.command();
+        second.args(["acquire", "--repo", &id]);
+        let second = second.spawn().unwrap();
+        barrier.unlock().unwrap();
+        let results: Vec<Value> = [first, second]
+            .into_iter()
+            .map(|p| serde_json::from_slice(&wait(p).stdout).unwrap())
+            .collect();
+        assert_that!(
+            results
+                .iter()
+                .filter(|r| r["outcome"] == "completed")
+                .count(),
+            eq(maximum)
+        );
+        if maximum == 1 {
+            assert_that!(
+                results
+                    .iter()
+                    .any(|r| r["reason_code"] == "capacity_all_assigned"),
+                eq(true)
+            );
+        }
+        let assignments = fixture.json(&["assignment", "list", "--repo", &id]);
+        let rows = assignments["data"]["assignments"].as_array().unwrap();
+        assert_that!(rows.len(), eq(maximum));
+        let handles: std::collections::HashSet<_> = rows
+            .iter()
+            .map(|a| a["assignment_handle"].as_str().unwrap())
+            .collect();
+        let worktrees: std::collections::HashSet<_> = rows
+            .iter()
+            .map(|a| a["worktree_id"].as_str().unwrap())
+            .collect();
+        assert_that!(handles.len(), eq(maximum));
+        assert_that!(worktrees.len(), eq(maximum));
+        assert_that!(
+            fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+            eq(Some(maximum as u64))
+        );
+    }
+}
+
+#[googletest::test]
+fn zero_capacity_and_missing_or_withheld_records_never_allocate_overflow() {
+    let fixture = Fixture::new();
+    let (_, _, id) = fixture.empty_pool();
+    assert_that!(
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "0"])["outcome"]
+            .as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["reason_code"].as_str(),
+        eq(Some("capacity_zero"))
+    );
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "2"]);
+    let first = fixture.json(&["acquire", "--repo", &id]);
+    let second = fixture.json(&["acquire", "--repo", &id]);
+    let first_handle = first["context"]["assignment_handle"].as_str().unwrap();
+    fixture.json(&["release", first_handle]);
+    let path = PathBuf::from(OsString::from_vec(
+        serde_json::from_value(first["data"]["assignment"]["path"]["bytes"].clone()).unwrap(),
+    ));
+    fs::remove_dir_all(&path).unwrap(); // Explicit human removal in the private fixture.
+    let rejected = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(
+        rejected["reason_code"].as_str(),
+        eq(Some("capacity_no_safe_worktree"))
+    );
+    assert_that!(rejected["data"]["registered_count"].as_u64(), eq(Some(2)));
+    let missing = fixture.json(&[
+        "worktree",
+        "inspect",
+        first["context"]["worktree_id"].as_str().unwrap(),
+    ]);
+    assert_that!(
+        missing["data"]["worktree"]["registration_state"].as_str(),
+        eq(Some("missing"))
+    );
+    assert_that!(
+        missing["data"]["worktree"]["availability"].as_str(),
+        eq(Some("withheld"))
+    );
+    assert_that!(
+        fixture.json(&[
+            "assignment",
+            "inspect",
+            second["context"]["assignment_handle"].as_str().unwrap()
+        ])["data"]["assignment"]["state"]
+            .as_str(),
+        eq(Some("active"))
+    );
+    assert_that!(
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"])["reason_code"]
+            .as_str(),
+        eq(Some("capacity_below_count"))
+    );
+}
+
+#[googletest::test]
+fn failed_git_creation_stays_counted_and_never_retries_after_obstruction_is_removed() {
+    let fixture = Fixture::new();
+    let (source, checkout, id) = fixture.empty_pool();
+    fs::write(source.join(".gitattributes"), b"tracked filter=blocked\n").unwrap();
+    fixture.git(&source, &["add".as_ref(), ".gitattributes".as_ref()]);
+    fixture.git(
+        &source,
+        &[
+            "commit".as_ref(),
+            "-m".as_ref(),
+            "required failing filter".as_ref(),
+        ],
+    );
+    fixture.git(
+        &checkout,
+        &[
+            "config".as_ref(),
+            "filter.blocked.smudge".as_ref(),
+            "false".as_ref(),
+        ],
+    );
+    fixture.git(
+        &checkout,
+        &[
+            "config".as_ref(),
+            "filter.blocked.required".as_ref(),
+            "true".as_ref(),
+        ],
+    );
+    let pending = fixture.json(&["acquire", "--repo", &id]);
+    assert_that!(pending["outcome"].as_str(), eq(Some("pending")));
+    let worktree = fixture.json(&[
+        "worktree",
+        "inspect",
+        pending["context"]["worktree_id"].as_str().unwrap(),
+    ]);
+    assert_that!(
+        worktree["data"]["worktree"]["creation"]["state"].as_str(),
+        eq(Some("needs_reconciliation"))
+    );
+    assert_that!(
+        worktree["data"]["worktree"]["ownership"].as_str(),
+        eq(Some("preparing"))
+    );
+    let before = fixture.json(&["events", "list"]);
+    fixture.git(
+        &checkout,
+        &[
+            "config".as_ref(),
+            "--unset".as_ref(),
+            "filter.blocked.required".as_ref(),
+        ],
+    );
+    fixture.git(
+        &checkout,
+        &[
+            "config".as_ref(),
+            "--unset".as_ref(),
+            "filter.blocked.smudge".as_ref(),
+        ],
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["reason_code"].as_str(),
+        eq(Some("operation_pending"))
+    );
+    assert_that!(&fixture.json(&["events", "list"]), eq(&before));
+    assert_that!(
+        fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+        eq(Some(1))
+    );
+    assert_that!(
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "0"])["reason_code"]
+            .as_str(),
+        eq(Some("capacity_below_count"))
+    );
+    assert_that!(
+        fixture
+            .git_text(&checkout, &["branch", "--show-current"])
+            .as_str(),
+        eq("main")
+    );
+}
+
+#[googletest::test]
+fn lost_creation_stdout_is_inspectable_without_duplicate_allocation() {
+    let fixture = Fixture::new();
+    let (_, _, id) = fixture.empty_pool();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
+    let mut command = fixture.command();
+    command.args(["acquire", "--repo", &id]).stdout(
+        fs::OpenOptions::new()
+            .write(true)
+            .open("/dev/full")
+            .unwrap(),
+    );
+    assert_that!(output(command).status.code(), eq(Some(4)));
+    let listed = fixture.json(&["assignment", "list", "--repo", &id]);
+    let assignments = listed["data"]["assignments"].as_array().unwrap();
+    assert_that!(assignments.len(), eq(1));
+    let handle = assignments[0]["assignment_handle"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(),
+        eq(Some("active"))
+    );
+    let worktrees = fixture.json(&["worktree", "list", "--repo", &id]);
+    assert_that!(
+        worktrees["data"]["worktrees"][0]["creation"]["state"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["reason_code"].as_str(),
+        eq(Some("capacity_all_assigned"))
+    );
+    assert_that!(
+        fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+        eq(Some(1))
+    );
+}
+
+#[googletest::test]
+fn created_worktree_paths_preserve_catalog_bytes_and_user_only_permissions() {
+    let fixture = Fixture::new();
+    let directory = fixture
+        .root
+        .path()
+        .join(OsString::from_vec(b"catalog-\xff\n ".to_vec()));
+    let invoke = |args: &[&str]| -> Value {
+        let mut command = fixture.command();
+        command.arg("--catalog-dir").arg(&directory).args(args);
+        serde_json::from_slice(&output(command).stdout).unwrap()
+    };
+    invoke(&["catalog", "init"]);
+    let source = fixture.repository();
+    let checkout = fixture.root.path().join("context");
+    fixture.git(
+        fixture.root.path(),
+        &["clone".as_ref(), source.as_os_str(), checkout.as_os_str()],
+    );
+    let original_mode = fs::metadata(&checkout).unwrap().permissions().mode();
+    let registered = invoke(&["repo", "register", checkout.to_str().unwrap()]);
+    let id = registered["context"]["repository_id"].as_str().unwrap();
+    let acquired = invoke(&["acquire", "--repo", id]);
+    assert_that!(acquired["outcome"].as_str(), eq(Some("completed")));
+    let path = directory
+        .join("worktrees")
+        .join(id)
+        .join(acquired["context"]["worktree_id"].as_str().unwrap());
+    assert_that!(
+        &acquired["data"]["assignment"]["path"]["bytes"],
+        eq(&serde_json::json!(path.as_os_str().as_bytes()))
+    );
+    assert_that!(
+        fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+        eq(0o700)
+    );
+    assert_that!(
+        fs::metadata(&checkout).unwrap().permissions().mode(),
+        eq(original_mode)
+    );
+    let inspected = invoke(&[
+        "worktree",
+        "inspect",
+        acquired["context"]["worktree_id"].as_str().unwrap(),
+    ]);
+    assert_that!(
+        inspected["data"]["worktree"]["registration_state"].as_str(),
+        eq(Some("registered"))
+    );
+    assert_that!(
+        fixture
+            .git_text(&path, &["rev-parse", "--abbrev-ref", "HEAD"])
+            .as_str(),
+        eq("HEAD")
     );
 }
