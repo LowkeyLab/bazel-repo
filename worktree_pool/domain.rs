@@ -63,6 +63,10 @@ impl FromStr for CatalogId {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogProjection {
+    #[serde(default)]
+    pub relocations: Vec<crate::relocation_events::RelocationOperation>,
+    #[serde(default)]
+    pub retirements: Vec<crate::retirement::RetirementOperation>,
     pub catalog_id: CatalogId,
     pub revision: u64,
     pub store_version: u32,
@@ -85,6 +89,47 @@ pub struct CatalogProjection {
     pub creations: Vec<crate::creation::CreationOperation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub catalog_stream_revision: Option<u64>,
+    #[serde(default)]
+    pub recoveries: Vec<crate::recovery::RecoveryOperation>,
+    #[serde(default)]
+    pub repository_recoveries: Vec<crate::repository_recovery::RepositoryRecoveryOperation>,
+}
+
+impl CatalogProjection {
+    #[must_use]
+    pub fn operation_identity_used(&self, id: crate::management::OperationId) -> bool {
+        self.relocations.iter().any(|o| o.intent.operation_id == id)
+            || self.retirements.iter().any(|o| o.operation_id == id)
+            || self.operations.iter().any(|o| o.operation_id == id)
+            || self
+                .repository_recoveries
+                .iter()
+                .any(|o| o.operation_id == id)
+            || self.recoveries.iter().any(|o| o.operation_id == id)
+            || self.acquisitions.iter().any(|o| o.operation_id == id)
+            || self.releases.iter().any(|o| o.operation_id == id)
+            || self.creations.iter().any(|o| o.operation_id == id)
+    }
+
+    #[must_use]
+    pub fn has_pending_relocation(&self) -> bool {
+        self.relocations
+            .iter()
+            .any(|r| r.state == crate::relocation_events::RelocationState::Pending)
+    }
+
+    #[must_use]
+    pub fn has_pending_recovery(&self, repository_id: crate::management::RepositoryId) -> bool {
+        self.retirements.iter().any(|o| {
+            o.repository_id == repository_id
+                && o.state != crate::retirement::RetirementState::Completed
+        }) || self.recoveries.iter().any(|o| {
+            o.repository_id == repository_id && o.state != crate::recovery::RecoveryState::Completed
+        }) || self.repository_recoveries.iter().any(|o| {
+            o.repository_id == repository_id
+                && o.state != crate::repository_recovery::RepositoryRecoveryState::Completed
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -143,6 +188,15 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
             value["type"].as_str(),
             Some(
                 INITIALIZED_TYPE
+                    | "io.lowkeylab.worktreepool.catalog.relocation.started.v1"
+                    | "io.lowkeylab.worktreepool.catalog.relocation.completed.v1"
+                    | "io.lowkeylab.worktreepool.worktree.retirement.started.v1"
+                    | "io.lowkeylab.worktreepool.worktree.retirement.finished.v1"
+                    | "io.lowkeylab.worktreepool.repository.recovery.started.v1"
+                    | "io.lowkeylab.worktreepool.repository.recovery.finished.v1"
+                    | "io.lowkeylab.worktreepool.recovery.started.v1"
+                    | "io.lowkeylab.worktreepool.recovery.preserved.v1"
+                    | "io.lowkeylab.worktreepool.recovery.finished.v1"
                     | "io.lowkeylab.worktreepool.worktree.creation.registered.v1"
                     | "io.lowkeylab.worktreepool.worktree.creation.path.prepared.v1"
                     | "io.lowkeylab.worktreepool.worktree.creation.finished.v1"
@@ -255,6 +309,8 @@ pub fn reduce(
             store_version: data.store_version,
             projection_version: data.projection_version,
             repositories: Vec::new(),
+            retirements: Vec::new(),
+            relocations: Vec::new(),
             worktrees: Vec::new(),
             operations: Vec::new(),
             assignments: Vec::new(),
@@ -263,6 +319,8 @@ pub fn reduce(
             releases: Vec::new(),
             creations: Vec::new(),
             catalog_stream_revision: None,
+            recoveries: Vec::new(),
+            repository_recoveries: Vec::new(),
         }),
         DomainEvent::CatalogInitialized(_) => Err(PoolError::Conflict),
         DomainEvent::Management {
@@ -271,6 +329,16 @@ pub fn reduce(
             causation_id,
         } => {
             let mut next = current.cloned().ok_or(PoolError::Conflict)?;
+            if next.has_pending_relocation()
+                && !matches!(
+                    event.as_ref(),
+                    crate::management::ManagementEvent::Relocation(
+                        crate::relocation_events::RelocationEvent::Completed { .. }
+                    )
+                )
+            {
+                return Err(PoolError::RelocationPending);
+            }
             let catalog_revision = next
                 .catalog_stream_revision
                 .unwrap_or(1 + next.repositories.len() as u64);
@@ -278,7 +346,9 @@ pub fn reduce(
             let tracks_catalog = next.catalog_stream_revision.is_some()
                 || matches!(
                     event.as_ref(),
-                    crate::management::ManagementEvent::Creation(_)
+                    crate::management::ManagementEvent::Relocation(_)
+                        | crate::management::ManagementEvent::Creation(_)
+                        | crate::management::ManagementEvent::Retirement(_)
                         | crate::management::ManagementEvent::WorktreeEnrolled(_)
                 );
             event.apply(&mut next, event_id, causation_id.as_deref())?;

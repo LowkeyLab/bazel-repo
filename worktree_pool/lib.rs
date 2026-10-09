@@ -26,3 +26,29 @@ pub mod release_workflow;
 
 pub mod creation;
 pub mod creation_workflow;
+
+pub mod recovery_workflow;
+
+pub mod recovery;
+
+pub mod catalog_recovery_cli;
+
+pub mod recovery_inspection;
+
+pub mod repository_recovery;
+
+pub mod relocation;
+pub mod relocation_events;
+
+#[cfg(test)]
+mod relocation_tests;
+
+pub mod rebuild;
+
+#[cfg(test)]
+mod rebuild_tests;
+
+pub mod retirement;
+pub mod retirement_workflow;
+
+pub mod resources;

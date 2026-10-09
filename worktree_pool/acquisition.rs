@@ -36,6 +36,13 @@ pub enum AcquisitionState {
     CheckoutIntended,
     Completed,
     NeedsReconciliation,
+    Reconciled,
+}
+impl AcquisitionState {
+    #[must_use]
+    pub const fn is_pending(self) -> bool {
+        !matches!(self, Self::Completed | Self::Reconciled)
+    }
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -243,6 +250,9 @@ pub fn candidate_order(
 
 fn reserve(state: &mut CatalogProjection, a: &Assignment, event_id: &str) -> Result<(), PoolError> {
     a.path.to_path()?;
+    if state.has_pending_recovery(a.repository_id) {
+        return Err(PoolError::OperationPending);
+    }
     if a.state != AssignmentState::Preparing
         || a.branch.is_some()
         || !valid_commit(&a.resolved_commit)
@@ -259,7 +269,7 @@ fn reserve(state: &mut CatalogProjection, a: &Assignment, event_id: &str) -> Res
         })
         || state.acquisitions.iter().any(|o| {
             o.operation_id == a.operation_id
-                || (o.repository_id == a.repository_id && o.state != AcquisitionState::Completed)
+                || (o.repository_id == a.repository_id && o.state.is_pending())
         })
     {
         return Err(PoolError::Conflict);

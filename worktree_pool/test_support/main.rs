@@ -6,6 +6,41 @@ use worktree_pool::{
 fn main() {
     let selected = std::env::var("CHECKPOINT").unwrap();
     let paths = Paths::load(None, None, true).unwrap();
+    match std::env::var("OPERATION").as_deref() {
+        Ok("relocate") => return relocate_catalog(&paths, &selected),
+        Ok("recover-catalog") => return recover_catalog(&paths, &selected),
+        Ok("rebuild") => return rebuild_catalog(&paths, &selected),
+        Ok("retire") => return retire_registration(&paths, &selected),
+        _ => {}
+    }
+    if std::env::var("OPERATION").as_deref() == Ok("recover-repository") {
+        use worktree_pool::repository_recovery::{RepositoryRecoveryCheckpoint, resume_observed};
+        let operation_id = std::env::var("OPERATION_ID").unwrap();
+        resume_observed(&paths, None, &operation_id, |checkpoint| {
+            let name = match checkpoint {
+                RepositoryRecoveryCheckpoint::IntentCommitted => "intent",
+                RepositoryRecoveryCheckpoint::ResultCommitted => "result",
+            };
+            pause(&selected, name);
+        })
+        .unwrap();
+        return;
+    }
+    if std::env::var("OPERATION").as_deref() == Ok("recover") {
+        use worktree_pool::recovery_workflow::{RecoveryCheckpoint, abandon_assignment_observed};
+        let handle = std::env::var("ASSIGNMENT_HANDLE").unwrap();
+        abandon_assignment_observed(&paths, None, &handle, |checkpoint| {
+            let name = match checkpoint {
+                RecoveryCheckpoint::IntentCommitted => "intent",
+                RecoveryCheckpoint::PreservationObserved => "preservation-effect",
+                RecoveryCheckpoint::PreservationCommitted => "preserved",
+                RecoveryCheckpoint::ResultCommitted => "result",
+            };
+            pause(&selected, name);
+        })
+        .unwrap();
+        return;
+    }
     if std::env::var("OPERATION").as_deref() == Ok("release") {
         use worktree_pool::release_workflow::{ReleaseCheckpoint, release_observed};
         let handle = std::env::var("ASSIGNMENT_HANDLE").unwrap().parse().unwrap();
@@ -82,4 +117,79 @@ fn pause(selected: &str, name: &str) {
             }
         }
     }
+}
+
+fn recover_catalog(paths: &Paths, selected: &str) {
+    use worktree_pool::catalog::{AuthorityRecoveryCheckpoint, reconcile_authority_observed};
+    reconcile_authority_observed(paths, |checkpoint| {
+        let name = match checkpoint {
+            AuthorityRecoveryCheckpoint::IntentRecorded => "intent",
+            AuthorityRecoveryCheckpoint::StoreCommitted => "store",
+            AuthorityRecoveryCheckpoint::AuthorityPublished => "published",
+        };
+        pause(selected, name);
+    })
+    .unwrap();
+}
+
+fn rebuild_catalog(paths: &Paths, selected: &str) {
+    worktree_pool::catalog::rebuild_observed(paths, |checkpoint| {
+        let name = match checkpoint {
+            worktree_pool::rebuild::RebuildCheckpoint::Validated => "validated",
+            worktree_pool::rebuild::RebuildCheckpoint::BeforeCommit => "before-commit",
+            worktree_pool::rebuild::RebuildCheckpoint::Committed => "committed",
+        };
+        pause(selected, name);
+    })
+    .unwrap();
+}
+
+fn retire_registration(paths: &Paths, selected: &str) {
+    use worktree_pool::retirement_workflow::{RetirementCheckpoint, retire_observed};
+    let ids = std::env::var("OPERATION_ID").unwrap();
+    let (worktree, proof) = ids.split_once(':').unwrap();
+    retire_observed(
+        paths,
+        None,
+        worktree.as_ref(),
+        proof.parse().unwrap(),
+        true,
+        |checkpoint| {
+            pause(
+                selected,
+                match checkpoint {
+                    RetirementCheckpoint::IntentCommitted => "intent",
+                    RetirementCheckpoint::ResultCommitted => "result",
+                },
+            );
+        },
+    )
+    .unwrap();
+}
+
+fn relocate_catalog(paths: &Paths, selected: &str) {
+    use worktree_pool::relocation::{RelocationCheckpoint, relocate_observed};
+    let destination = std::path::PathBuf::from(std::env::var_os("HOME").unwrap()).join("relocated");
+    relocate_observed(paths, &destination, |checkpoint| {
+        let name = match checkpoint {
+            RelocationCheckpoint::RepairIntentRecorded => "repair-intent",
+            RelocationCheckpoint::RepairStoreValidated => "repair-validated",
+            RelocationCheckpoint::RepairRebuilt => "repair-rebuilt",
+            RelocationCheckpoint::RepairCompleted => "repair-completed",
+            RelocationCheckpoint::JournalRecorded => "journal",
+            RelocationCheckpoint::StartedCommitted => "started-committed",
+            RelocationCheckpoint::IntentRecorded => "intent",
+            RelocationCheckpoint::DirectoryPrepared => "directory",
+            RelocationCheckpoint::DestinationCreated => "created",
+            RelocationCheckpoint::CopyStarted => "copy-started",
+            RelocationCheckpoint::CopySynced => "copied",
+            RelocationCheckpoint::DestinationPrepared => "prepared",
+            RelocationCheckpoint::LocatorSwitched => "switched",
+            RelocationCheckpoint::CompletionRecorded => "completion-recorded",
+            RelocationCheckpoint::CompletionCommitted => "completion-committed",
+            RelocationCheckpoint::Completed => "completed",
+        };
+        pause(selected, name);
+    })
+    .unwrap();
 }

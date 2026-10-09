@@ -1,34 +1,32 @@
 //! Focused redb adapter. Callers hold the catalog lock for this handle's lifetime.
-use std::{collections::HashSet, fs::OpenOptions, os::unix::fs::OpenOptionsExt, path::Path};
+use std::{fs::OpenOptions, os::unix::fs::OpenOptionsExt, path::Path};
 
 use redb::{
-    Database, Durability, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition,
+    Database, Durability, ReadOnlyDatabase, ReadableDatabase, ReadableTable, ReadableTableMetadata,
+    TableDefinition,
 };
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     domain::{CatalogId, CatalogProjection, decode_event, initialized_event, reduce},
     error::PoolError,
+    rebuild::{RebuildCheckpoint, Reconstruction, RecordedEvent, identity, reconstruct},
 };
 
 const EVENTS: TableDefinition<u64, &str> = TableDefinition::new("events");
 const STATE: TableDefinition<&str, &str> = TableDefinition::new("state");
 const IDENTITIES: TableDefinition<&str, u64> = TableDefinition::new("event_identities");
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RecordedEvent {
-    position: u64,
-    expected_revision: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    stream_id: Option<String>,
-    event: Value,
-}
-
 pub struct Store {
     database: Database,
     catalog_id: CatalogId,
+}
+
+/// A repair-needed database is distinct from invalid or unreadable authority.
+#[derive(Debug)]
+pub enum ReadOnlyInspectionError {
+    RepairRequired,
+    Rejected(PoolError),
 }
 
 impl Store {
@@ -86,7 +84,7 @@ impl Store {
             stream_id: None,
             event,
         };
-        let wire = serde_json::to_string(&recorded).map_err(|_| PoolError::Corrupt)?;
+        let wire = Self::encoded_record(&recorded)?;
         let state = serde_json::to_string(&projection).map_err(|_| PoolError::Corrupt)?;
         let transaction = database.begin_write().map_err(|_| PoolError::Storage)?;
         let mut transaction = transaction;
@@ -173,7 +171,41 @@ impl Store {
     /// Returns storage errors, identity conflicts, unsupported versions, or
     /// corruption errors for invalid history, ordering, or derived state.
     pub fn projection(&self) -> Result<CatalogProjection, PoolError> {
-        let transaction = self.database.begin_read().map_err(|_| PoolError::Storage)?;
+        Self::validated_projection(&self.database, self.catalog_id)
+    }
+
+    /// Opens existing authority without modifying its bytes, including on rejection.
+    /// # Errors
+    /// Rejects unreadable, repair-required, conflicting, unsupported, or corrupt state.
+    pub fn inspect_read_only(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, PoolError> {
+        Self::inspect_for_recovery(path, catalog_id).map_err(|error| match error {
+            ReadOnlyInspectionError::RepairRequired => PoolError::Storage,
+            ReadOnlyInspectionError::Rejected(error) => error,
+        })
+    }
+
+    /// Distinguishes redb's actual repair requirement without writing the database.
+    /// # Errors
+    /// Returns `RepairRequired` only for redb `RepairAborted`; otherwise preserves validation errors.
+    pub fn inspect_for_recovery(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, ReadOnlyInspectionError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|error| match error {
+            redb::DatabaseError::RepairAborted => ReadOnlyInspectionError::RepairRequired,
+            _ => ReadOnlyInspectionError::Rejected(PoolError::Storage),
+        })?;
+        Self::validated_projection(&database, catalog_id).map_err(ReadOnlyInspectionError::Rejected)
+    }
+
+    fn validated_projection(
+        database: &impl ReadableDatabase,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, PoolError> {
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
         let state_table = transaction
             .open_table(STATE)
             .map_err(|_| PoolError::Corrupt)?;
@@ -183,7 +215,7 @@ impl Store {
             .ok_or(PoolError::Corrupt)?;
         let stored: CatalogProjection =
             serde_json::from_str(state.value()).map_err(|_| PoolError::Corrupt)?;
-        if stored.catalog_id != self.catalog_id {
+        if stored.catalog_id != catalog_id {
             return Err(PoolError::Conflict);
         }
         if stored.store_version != crate::domain::STORE_VERSION
@@ -191,55 +223,263 @@ impl Store {
         {
             return Err(PoolError::Unsupported);
         }
-        let events = transaction
-            .open_table(EVENTS)
-            .map_err(|_| PoolError::Corrupt)?;
+        let rebuilt = reconstruct(catalog_id, &Self::records(&transaction)?)?;
         let identities = transaction
             .open_table(IDENTITIES)
             .map_err(|_| PoolError::Corrupt)?;
-        let mut rebuilt = None;
-        let mut seen = HashSet::new();
-        let mut revision = 0_u64;
-        for record in events.iter().map_err(|_| PoolError::Corrupt)? {
-            let (position, json) = record.map_err(|_| PoolError::Corrupt)?;
-            let recorded: RecordedEvent =
-                serde_json::from_str(json.value()).map_err(|_| PoolError::Corrupt)?;
-            let next = revision.checked_add(1).ok_or(PoolError::Corrupt)?;
-            if position.value() != next || recorded.position != next {
-                return Err(PoolError::Corrupt);
-            }
-            let identity = identity(&recorded.event)?;
-            if !seen.insert(identity.clone())
-                || identities
-                    .get(identity.as_str())
-                    .map_err(|_| PoolError::Corrupt)?
-                    .map(|entry| entry.value())
-                    != Some(next)
-            {
-                return Err(PoolError::Corrupt);
-            }
-            let event = decode_event(&recorded.event, self.catalog_id)?;
-            let stream_id = event.stream_id(self.catalog_id);
-            let expected = match rebuilt.as_ref() {
-                Some(state) => event.expected_revision(state)?,
-                None => 0,
-            };
-            if recorded.expected_revision != expected
-                || recorded.stream_id.as_ref().is_some_and(|s| *s != stream_id)
-                || (recorded.stream_id.is_none() && next != 1)
-            {
-                return Err(PoolError::Corrupt);
-            }
-            rebuilt =
-                Some(reduce(rebuilt.as_ref(), revision, &event).map_err(|_| PoolError::Corrupt)?);
-            revision = next;
+        if identities.len().map_err(|_| PoolError::Corrupt)? != rebuilt.projection.revision {
+            return Err(PoolError::Corrupt);
         }
-        if identities.len().map_err(|_| PoolError::Corrupt)? != revision
-            || rebuilt.as_ref() != Some(&stored)
-        {
+        for (identity, position) in &rebuilt.identities {
+            if identities
+                .get(identity.as_str())
+                .map_err(|_| PoolError::Corrupt)?
+                .map(|entry| entry.value())
+                != Some(*position)
+            {
+                return Err(PoolError::Corrupt);
+            }
+        }
+        if rebuilt.projection != stored {
             return Err(PoolError::Corrupt);
         }
         Ok(stored)
+    }
+
+    fn records(
+        transaction: &redb::ReadTransaction,
+    ) -> Result<Vec<(u64, RecordedEvent)>, PoolError> {
+        let events = transaction
+            .open_table(EVENTS)
+            .map_err(|_| PoolError::Corrupt)?;
+        events
+            .iter()
+            .map_err(|_| PoolError::Corrupt)?
+            .map(|record| {
+                let (position, wire) = record.map_err(|_| PoolError::Corrupt)?;
+                Ok((
+                    position.value(),
+                    serde_json::from_str(wire.value()).map_err(|_| PoolError::Corrupt)?,
+                ))
+            })
+            .collect()
+    }
+
+    // A derived record is replaceable, but recognizable foreign identity or version
+    // metadata must never authorize adoption or an implicit upgrade.
+    fn rebuild_metadata(
+        transaction: &redb::ReadTransaction,
+        catalog_id: CatalogId,
+    ) -> Result<(), PoolError> {
+        let table = match transaction.open_table(STATE) {
+            Ok(table) => table,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(()),
+            Err(_) => return Err(PoolError::Corrupt),
+        };
+        if let Some(state) = table.get("catalog").map_err(|_| PoolError::Corrupt)?
+            && let Ok(value) = serde_json::from_str::<Value>(state.value())
+        {
+            if value
+                .get("catalog_id")
+                .is_some_and(|id| *id != serde_json::json!(catalog_id))
+            {
+                return Err(PoolError::Conflict);
+            }
+            if value
+                .get("store_version")
+                .is_some_and(|v| *v != crate::domain::STORE_VERSION)
+                || value
+                    .get("projection_version")
+                    .is_some_and(|v| *v != crate::domain::PROJECTION_VERSION)
+            {
+                return Err(PoolError::Unsupported);
+            }
+        }
+        Ok(())
+    }
+
+    fn authoritative_projection(
+        database: &impl ReadableDatabase,
+        catalog_id: CatalogId,
+    ) -> Result<Reconstruction, PoolError> {
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
+        Self::rebuild_metadata(&transaction, catalog_id)?;
+        reconstruct(catalog_id, &Self::records(&transaction)?)
+    }
+
+    /// Validates immutable authority independently of replaceable derived records.
+    /// # Errors
+    /// Rejects unsafe, unsupported, corrupt or repair-required authority without writes.
+    pub(crate) fn inspect_rebuild_history(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Ok(Self::authoritative_projection(&database, catalog_id)?.projection)
+    }
+
+    /// Encodes the exact positioned record used by normal atomic commits.
+    pub(crate) fn encoded_record(record: &RecordedEvent) -> Result<String, PoolError> {
+        serde_json::to_string(record).map_err(|_| PoolError::Corrupt)
+    }
+    /// Fixes a write-ahead record using current global and stream revisions.
+    pub(crate) fn planned_record(
+        projection: &CatalogProjection,
+        event: &Value,
+    ) -> Result<String, PoolError> {
+        let typed = decode_event(event, projection.catalog_id)?;
+        Self::encoded_record(&RecordedEvent {
+            position: projection
+                .revision
+                .checked_add(1)
+                .ok_or(PoolError::Corrupt)?,
+            expected_revision: typed.expected_revision(projection)?,
+            stream_id: Some(typed.stream_id(projection.catalog_id)),
+            event: event.clone(),
+        })
+    }
+    /// Returns literal ordered records only after full immutable-history validation.
+    pub(crate) fn raw_records_rebuild_history(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<Vec<String>, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Self::authoritative_projection(&database, catalog_id)?;
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
+        transaction
+            .open_table(EVENTS)
+            .map_err(|_| PoolError::Corrupt)?
+            .iter()
+            .map_err(|_| PoolError::Corrupt)?
+            .map(|row| {
+                row.map(|(_, value)| value.value().to_owned())
+                    .map_err(|_| PoolError::Corrupt)
+            })
+            .collect()
+    }
+
+    /// Reads validated immutable envelopes independently of replaceable derived records.
+    /// # Errors
+    /// Rejects foreign, unsupported, corrupt or repair-required authority without writes.
+    pub(crate) fn events_rebuild_history(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<Vec<Value>, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Self::authoritative_projection(&database, catalog_id)?;
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
+        Ok(Self::records(&transaction)?
+            .into_iter()
+            .map(|(_, record)| record.event)
+            .collect())
+    }
+
+    /// Only the explicit journaled storage-repair lifecycle may call this writable open.
+    /// # Errors
+    /// Rejects invalid immutable authority after any necessary redb metadata repair.
+    pub(crate) fn repair_authority(
+        path: &Path,
+        catalog_id: CatalogId,
+    ) -> Result<CatalogProjection, PoolError> {
+        let database = Database::open(path).map_err(|_| PoolError::Storage)?;
+        Ok(Self::authoritative_projection(&database, catalog_id)?.projection)
+    }
+
+    /// Explicitly replaces derived state from complete supported immutable history.
+    /// Callers hold exclusive maintenance and catalog locks for the whole operation.
+    /// # Errors
+    /// Refuses unsafe authority before writable open; an uncertain commit requires inspection.
+    pub fn rebuild(
+        path: &Path,
+        catalog_id: CatalogId,
+        mut observe: impl FnMut(RebuildCheckpoint),
+    ) -> Result<CatalogProjection, PoolError> {
+        {
+            let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+            Self::authoritative_projection(&database, catalog_id)?;
+        }
+        observe(RebuildCheckpoint::Validated);
+        let database = Database::open(path).map_err(|_| PoolError::Storage)?;
+        Self::replace_projection(database, catalog_id, observe)
+    }
+
+    /// Exercises the same publication with a real storage backend supplying sync faults.
+    /// # Errors
+    /// Preserves history refusal and indeterminate commit semantics.
+    #[cfg(test)]
+    pub fn rebuild_with_fault_backend(
+        catalog_id: CatalogId,
+        backend: impl redb::StorageBackend,
+        observe: impl FnMut(RebuildCheckpoint),
+    ) -> Result<CatalogProjection, PoolError> {
+        let database = Database::builder()
+            .create_with_backend(backend)
+            .map_err(|_| PoolError::Storage)?;
+        Self::replace_projection(database, catalog_id, observe)
+    }
+
+    fn replace_projection(
+        database: Database,
+        catalog_id: CatalogId,
+        mut observe: impl FnMut(RebuildCheckpoint),
+    ) -> Result<CatalogProjection, PoolError> {
+        let records = {
+            let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
+            Self::rebuild_metadata(&transaction, catalog_id)?;
+            Self::records(&transaction)?
+        };
+        let reconstructed = reconstruct(catalog_id, &records)?;
+        let mut transaction = database.begin_write().map_err(|_| PoolError::Storage)?;
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| PoolError::Storage)?;
+        {
+            let events = transaction
+                .open_table(EVENTS)
+                .map_err(|_| PoolError::Corrupt)?;
+            let persisted: Vec<(u64, RecordedEvent)> = events
+                .iter()
+                .map_err(|_| PoolError::Corrupt)?
+                .map(|record| {
+                    let (position, wire) = record.map_err(|_| PoolError::Corrupt)?;
+                    Ok((
+                        position.value(),
+                        serde_json::from_str(wire.value()).map_err(|_| PoolError::Corrupt)?,
+                    ))
+                })
+                .collect::<Result<_, PoolError>>()?;
+            if persisted != records {
+                return Err(PoolError::Conflict);
+            }
+        }
+        {
+            let mut identities = transaction
+                .open_table(IDENTITIES)
+                .map_err(|_| PoolError::Storage)?;
+            identities
+                .retain(|_, _| false)
+                .map_err(|_| PoolError::Storage)?;
+            for (identity, position) in &reconstructed.identities {
+                identities
+                    .insert(identity.as_str(), *position)
+                    .map_err(|_| PoolError::Storage)?;
+            }
+            transaction
+                .open_table(STATE)
+                .map_err(|_| PoolError::Storage)?
+                .insert(
+                    "catalog",
+                    serde_json::to_string(&reconstructed.projection)
+                        .map_err(|_| PoolError::Corrupt)?
+                        .as_str(),
+                )
+                .map_err(|_| PoolError::Storage)?;
+        }
+        observe(RebuildCheckpoint::BeforeCommit);
+        transaction.commit().map_err(|_| PoolError::CommitUnknown)?;
+        drop(database);
+        observe(RebuildCheckpoint::Committed);
+        Ok(reconstructed.projection)
     }
 
     /// Returns validated authoritative envelopes in committed stream order.
@@ -247,8 +487,23 @@ impl Store {
     /// # Errors
     /// Returns storage errors or catalog validation errors before exposing history.
     pub fn events(&self) -> Result<Vec<Value>, PoolError> {
-        self.projection()?;
-        let transaction = self.database.begin_read().map_err(|_| PoolError::Storage)?;
+        Self::validated_events(&self.database, self.catalog_id)
+    }
+
+    /// Returns validated envelopes without modifying the catalog file.
+    /// # Errors
+    /// Rejects unreadable, repair-required, conflicting, unsupported, or corrupt state.
+    pub fn events_read_only(path: &Path, catalog_id: CatalogId) -> Result<Vec<Value>, PoolError> {
+        let database = ReadOnlyDatabase::open(path).map_err(|_| PoolError::Storage)?;
+        Self::validated_events(&database, catalog_id)
+    }
+
+    fn validated_events(
+        database: &impl ReadableDatabase,
+        catalog_id: CatalogId,
+    ) -> Result<Vec<Value>, PoolError> {
+        Self::validated_projection(database, catalog_id)?;
+        let transaction = database.begin_read().map_err(|_| PoolError::Storage)?;
         let table = transaction
             .open_table(EVENTS)
             .map_err(|_| PoolError::Corrupt)?;
@@ -287,6 +542,28 @@ impl Store {
         &self,
         expected_global_revision: u64,
         events: Vec<Value>,
+    ) -> Result<CatalogProjection, PoolError> {
+        self.append_batch_at_commit(expected_global_revision, events, || {})
+    }
+
+    /// Observes the actual transaction commit after all preparation succeeds.
+    /// # Errors
+    /// Preserves normal append validation and indeterminate commit reporting.
+    #[cfg(test)]
+    pub fn append_batch_observed(
+        &self,
+        expected_global_revision: u64,
+        events: Vec<Value>,
+        before_commit: impl FnOnce(),
+    ) -> Result<CatalogProjection, PoolError> {
+        self.append_batch_at_commit(expected_global_revision, events, before_commit)
+    }
+
+    fn append_batch_at_commit(
+        &self,
+        expected_global_revision: u64,
+        events: Vec<Value>,
+        before_commit: impl FnOnce(),
     ) -> Result<CatalogProjection, PoolError> {
         let current = self.projection()?;
         if current.revision != expected_global_revision || events.is_empty() {
@@ -346,7 +623,7 @@ impl Store {
                 identities
                     .insert(key.as_str(), record.position)
                     .map_err(|_| PoolError::Storage)?;
-                let wire = serde_json::to_string(record).map_err(|_| PoolError::Corrupt)?;
+                let wire = Self::encoded_record(record)?;
                 events
                     .insert(record.position, wire.as_str())
                     .map_err(|_| PoolError::Storage)?;
@@ -357,6 +634,7 @@ impl Store {
                 .insert("catalog", state.as_str())
                 .map_err(|_| PoolError::Storage)?;
         }
+        before_commit();
         transaction.commit().map_err(|_| PoolError::CommitUnknown)?;
         Ok(projection)
     }
@@ -372,10 +650,4 @@ impl Store {
     ) -> Result<CatalogProjection, PoolError> {
         Self::initialize(path, catalog_id, true)
     }
-}
-
-fn identity(event: &Value) -> Result<String, PoolError> {
-    let source = event["source"].as_str().ok_or(PoolError::Corrupt)?;
-    let id = event["id"].as_str().ok_or(PoolError::Corrupt)?;
-    Ok(format!("{source}\0{id}"))
 }

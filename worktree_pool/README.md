@@ -5,12 +5,15 @@ Git worktrees. It supports catalog initialization and inspection, explicit
 repository/worktree enrollment, registered resource inspection, checkpointed
 repository refresh, safe acquisition and explicit release of registered worktrees,
 assignment and operation inspection, event history, on-demand detached creation,
-and durable per-repository capacity.
+durable per-repository capacity, explicit recovery and projection rebuild, catalog
+relocation, registration retirement, and retained resource inspection.
 
 Development uses Nix and Bazel. The standalone manifest pins every direct
 dependency and targets Rust 1.96, matching the Bazel toolchain. Its executable
 name is `worktree-pool`. Registry publication and name verification remain
-separate work.
+separate work. Comparative benchmark evidence remains `HOLD` and incomplete.
+Standalone installation and minimum supported Git verification remain incomplete. Packaging remains gated on measured GO and explicit acceptance of
+retained disk and build-state costs.
 
 ## Catalog authority
 
@@ -35,6 +38,62 @@ overwrite catalog data or repair pending work. Information and validation
 commands examine locator identity, store/projection versions, complete event
 history, contiguous revisions, deduplication index, and projection equivalence.
 Unsupported history stops use.
+
+## Check and rebuild derived state
+
+```text
+worktree-pool catalog check
+worktree-pool catalog rebuild
+```
+
+Check reads storage without changing its bytes and requires the stored projection
+and identity index to match complete supported history. Rebuild explicitly reconstructs both derived records
+from every immutable event in committed position order. Its version-1 result uses
+command `catalog rebuild`, the catalog context, and the same projection-shaped
+`data` as catalog information. The authoritative revision stays fixed. Rebuild is
+catalog-wide and rejects a repository selector.
+
+Rebuild retains registrations, capacity, assignments,
+preservation references, withheld availability, pending operations, recovery
+outcomes, release recency, and independent stream revisions. It never resumes
+checkout, creation, release, preservation, fetch, or recovery. Registered paths
+may be missing. Git and checkout filesystem access are unnecessary. Historical
+facts don't produce diagnostic notifications. The command itself uses ordinary
+outcome diagnostics.
+
+Rebuild replaces only the derived projection and identity index, atomically in
+one durable transaction. Repeated rebuilds retain the same authority and complete event
+history. History is never deleted, compacted, archived, or rewritten. Supported
+historical registration versions keep their original stream routing. Unsupported
+history, unsupported version metadata, corrupt positions/revisions/identities,
+foreign catalog identity, and locator/configuration conflicts reject before
+writable storage access. Rebuild doesn't perform an implicit schema upgrade.
+Ordinary reads and mutations continue to refuse mismatched derived state.
+
+Stable exclusive maintenance coordination spans the whole rebuild and waits for
+live commands, including their Git work outside short catalog sessions. An
+interrupted rebuild exposes a complete old or new derived state, or ordinary use
+stays blocked. Inspect the catalog before requesting another rebuild after an
+unknown outcome. If `redb` explicitly requires physical storage repair, use
+`recover preview --catalog` and `recover apply --catalog`. That recorded recovery
+validates complete immutable authority and retains existing locator operation IDs
+and history. Physical repair may complete while derived damage remains:
+`store_state` then reports `rebuild_required`, `catalog_mutations_available` is
+false, and guidance requests `catalog rebuild`. The tool exposes ownership only
+after complete reconstruction. Known storage-recovery operations remain available
+for inspection by ID. Rebuild never initializes missing state or chooses another authority.
+
+The pure positioned-history interface keeps typed decoders and reducers real.
+Concrete `redb` checks cover derived corruption, immutable-history refusal, and
+actual sync errors. Literal historical CloudEvents and generated capacity,
+revision, and ownership sequences verify deterministic reconstruction. Public
+command coverage compares ownership and recovery states. It also verifies
+withholding, protected files, Git index/ref state, and full history, including
+replay without Git or registered paths. Actual process kills bracket validation
+and publication. Kernel lock waiters establish live-command coordination.
+These checks establish observed process/commit behavior, without claiming
+whole-machine power-loss guarantees or isolation from processes that ignore
+coordination.
 
 ## Output contract, version 1
 
@@ -432,3 +491,339 @@ detached workflows, durable preservation failures, retained-file recency and
 collisions, live callers, stale handles, concurrent processes, crashes, and lost
 stdout. A real `redb` sync fault checks atomic release/ownership/recency reopening.
 These checks don't simulate whole-machine power loss or filesystem isolation.
+
+## Explicit recovery and lost results
+
+```text
+worktree-pool recover preview [--repo <id-or-path>]
+worktree-pool recover preview --operation <id>
+worktree-pool recover preview --assignment <handle>
+worktree-pool recover preview --worktree <id-or-registered-path>
+worktree-pool recover apply --operation <id>
+worktree-pool recover apply --assignment <handle> [--abandon]
+worktree-pool recover apply --worktree <id-or-registered-path> [--abandon]
+worktree-pool recover preview --catalog
+worktree-pool recover apply --catalog
+```
+
+Repository preview lists candidates without choosing one. Apply requires an exact
+recorded identity. Worktree paths preserve non-UTF-8 bytes and select only an
+explicit registration. Assignment handles remain historical identities after
+release. They never select a newer owner. Conflicting selectors reject. Known
+operation/assignment/worktree inspection resolves lost output. An unidentified
+result requires explicit inspection and selection rather than another acquisition.
+
+Preview and catalog/repository/worktree/assignment/operation/event inspection use
+read-only storage validation, including complete authoritative history, versions,
+revisions and projection replay. Recovery previews observe actual checkout binding,
+`HEAD`, branch, index, protected content, operation state and required preservation
+roots under maintenance and repository coordination. They never repair storage,
+fetch, checkout, create a worktree, update references or change ownership/history.
+An unclean `redb` file can refuse read-only inspection until explicit catalog recovery.
+
+Apply records its own durable intent and result. Detached work requires verified
+direct `refs/worktree-pool/<operation-id>` roots. A symbolic reference with the
+same resolved commit doesn't certify preservation. New writes use expected-empty
+references and reference `fsync`. Recovery observes existing roots before any retry.
+It never overwrites conflicting roots. Final validation repeats binding,
+content/index/operation, tip/branch and required-root checks before ownership can
+change. `--abandon` can't waive dirty or uncertain protection. Missing, moved,
+mismatched, or unproven partial creation remains countable and protected. A prepared
+empty directory after restart isn't proof a Git creation effect completed.
+
+A verified interrupted acquisition or linked creation can activate its existing
+preparing assignment. An unproven effect completes reconciliation with preparing
+ownership and withheld availability. Interrupted release observes or safely
+completes its recorded preservation before ending ownership. Explicit abandonment
+preserves the actual safe tip before releasing an active or preparing assignment.
+Without abandonment, an active assignment stays active. Safe unassigned
+reconciliation only removes withholding and reports `unverified` availability.
+Acquisition must still validate it. Recovery never repeats fetch, checkout or
+worktree creation, and never resets, stashes, deletes, prunes or stops callers.
+
+`outcome` and exit status describe the requested reconciliation independently of
+`ownership` and `availability`: `completed`/0 can retain active/preparing ownership
+or withheld availability. `pending`/3 retains a recorded unfinished operation.
+`unknown`/4 requires inspecting durable outcome evidence. `rejected`/2 doesn't
+certify a free worktree. Data includes the recovery operation, selected identities,
+observations, preservation evidence, revision, and next action. Historical released
+handles have nullable availability. A repeated stale release returns
+`already_released`. A release performed by recovery has nullable `operation` and
+its durable `recovery_operation` receipt.
+
+Interrupted original operations can become `reconciled`, distinct from their
+original successful `completed` result. Exact original IDs then return their
+recorded completed recovery without adding another workflow. To request a new
+observation after resolving protected state, explicitly select the worktree or
+assignment. Refresh reconciliation never infers successful fresh fetch from an
+existing local `origin/main` reference: it reports `fresh_fetch_proven: false` and
+requires a new explicit repository refresh or acquisition. A previously committed
+successful refresh remains an unchanged proven result.
+
+Worktree recovery facts use `recovery.started.v1`, `recovery.preserved.v1` and
+`recovery.finished.v1`. Repository refresh reconciliation uses
+`repository.recovery.started.v1` and `repository.recovery.finished.v1`, all under
+`io.lowkeylab.worktreepool`. They retain operation identities, causal checkpoint
+chains and repository stream revisions. A pending recovery blocks competing
+acquire/release/refresh for that repository after process death. Independent
+repositories retain progress. Database handles close before Git effects and
+catalog unlock, and lock descriptors aren't inherited by child processes.
+Indeterminate commit handling reopens and inspects the exact event ID and revision
+before any further effect. It never blindly retries a transaction or Git effect.
+
+Catalog initialization and storage-repair recovery precede repository authority.
+Their schema-versioned immutable `recovery_history`, exact operation IDs and
+intent/completed checkpoints live in the stable active-catalog locator, not
+repository CloudEvents. The current locator recovery fields are a projection of
+that history. The locator retains historical legacy checkpoint metadata explicitly without
+inventing missing intent facts. Catalog recovery IDs support public operation
+list/inspect and exact recover selectors even while repository storage is pending.
+A partial operation list explicitly reports unavailable repository operations.
+Later lifecycle changes must preserve prior locator history and known results.
+
+Ordinary initialization never repairs or replaces existing authority. Explicit
+catalog apply resumes recognized initialization checkpoints or records a repair
+intent before writable reopening of a genuinely unclean database. It validates the
+expected catalog `UUID` and complete history before publishing completion. It never
+resets or creates over present conflicting, corrupt, or unsupported authority.
+`redb` may repair allocator/header metadata before `UUID` validation on an unclean
+substituted foreign file. That explicit-apply rejection preserves authoritative
+events/history but doesn't promise physical-byte preservation or filesystem
+isolation. Healthy rejected conflicts and all read-only paths preserve bytes.
+
+`recovery.rs` owns pure worktree decisions and causal replay.
+`recovery_workflow.rs` owns concrete preservation and ownership orchestration.
+`recovery_inspection.rs` owns exact registered selection and read-only observations.
+`repository_recovery.rs` owns the distinct refresh lifecycle, while `catalog.rs`
+owns locator/bootstrap/storage authority and `catalog_recovery_cli.rs` composes its
+public receipts. These modules keep real Git, filesystem, kernel locks and `redb`
+effects. Checkpoint observers provide deterministic interruption boundaries without
+replacing those dependencies. Private real fixtures verify SIGKILL/restart,
+preview preservation, known/unidentified results, competing processes and actual
+`redb` sync-failure atomicity. They don't establish whole-machine power-loss safety
+or a benchmark speedup.
+
+## Catalog relocation
+
+`worktree-pool catalog relocate <destination-directory>` copies the closed catalog
+database to a new private directory and atomically switches the stable active
+locator. The destination must not exist, its parent must exist without symbolic
+path aliases, and the destination must be separate from source storage, stable
+state, registered checkouts and Git common directories. Relative destinations
+resolve against the current directory. The tool rejects parent traversal. New tool
+directories use mode 0700 and files 0600. Configuration files and environment
+settings are never rewritten.
+
+After completion, select the destination explicitly with `--catalog-dir` or update
+your own location setting. Obsolete selectors return `catalog_conflict`, include
+the actual active location and explain the next action. They never adopt the old
+database. The stable locator and maintenance, catalog, and repository lock files
+stay under the original state directory. Relocation excludes concurrent commands
+for its entire duration, including commands preparing Git effects. It rejects
+unresolved catalog, repository, and worktree operations. Completed assignments may
+remain active throughout relocation.
+
+Relocation preserves catalog identity, handles, capacity, preservation records,
+the exact prior event-record byte prefix, and projected ownership. Existing absolute checkout paths remain
+fixed, including worktrees created beside the old catalog. The tool never moves,
+deletes, or cleans worktrees. The source database also remains in place as inactive tool
+data. Each relocation retains another database copy and consumes additional disk.
+Receipts report `retained_source`, `retained_source_active`, and recorded
+`retained_source_bytes` measured at Intended after the Started-bearing source
+closes. `retained_source_bytes_checkpoint` identifies that checkpoint. An absent
+recorded measurement is null. This is neither a current/live measurement nor a
+claim of reclaimable bytes. Historical receipts don't probe inactive paths.
+Later manual removal, replacement, or repair can't change the recorded value.
+Earlier retained locations remain recorded in lifecycle history. There is no
+automatic deletion, backup/restore subsystem or silent configuration migration.
+
+Logical relocation is authoritative in two typed catalog-stream CloudEvents:
+`io.lowkeylab.worktreepool.catalog.relocation.started.v1` and
+`io.lowkeylab.worktreepool.catalog.relocation.completed.v1`. Started records the
+exact operation/catalog identities, lossless source/destination paths and copied
+revision before any destination effects. Completed links to that exact Started
+identity. The tool commits Completed only at the destination after the durable
+locator switch. Each append atomically updates event history and projection, advancing
+both global and catalog-stream revisions. `events list` includes both facts.
+Pure replay and rebuild reconstruct pending/completed relocation state without
+filesystem effects. Prior immutable event records remain byte-for-byte prefixes.
+Handles, owners, capacity, and checkout paths remain unchanged.
+
+The stable locator retains schema-version-3 `relocation_history` as technical
+physical coordination, with contiguous positions, exact operation IDs and fixed
+CloudEvent identities. Its checkpoints are `starting`, `intended`, `prepared`,
+`switched`, `committing` and `completed`. Starting fixes the Started wire event and
+prior history proof before its append. Intended freezes tagged `SHA-256` evidence
+of the closed Started-bearing source. Committing fixes the Completed wire event
+before its append. Copy preparation requires exact closed bytes, identity, history,
+and projected state. A replacement with only matching catalog ID and revision is
+insufficient. Completed logical authority comes from the accepted CloudEvent, and
+ordinary mutations remain barred until its matching technical publication finishes.
+
+Prior bootstrap/storage-repair lifecycle facts and IDs remain unchanged, including
+explicitly observed legacy facts. The tool rejects nonempty schema-version-1
+locator-only relocation history. Preserve files and operation IDs for manual
+verification and reconciliation. There is no automatic migration, backfill, fabricated event
+identity or timestamp. Unpublished schema-version-2 decoded-proof journals also
+refuse use with manual-preservation guidance. The tool never reinterprets them as
+raw proof. Prefix evidence hashes exact ordered stored-record strings, and fixed
+Started/Completed records use the normal Store encoder with exact positions and
+expected stream revisions. Repair/retry requires those literal records unchanged.
+Empty older locator relocation metadata remains compatible.
+Inconsistent new event/journal correlation refuses mutation. A replay-derived
+pending Started with a missing journal names its exact ID and requires manual
+restoration of that matching journal. The pending reason is
+`catalog_relocation_pending`. Successful commands use `catalog_relocated`,
+`catalog_relocation_completed`, or `catalog_relocation_already_completed`.
+Inspection uses `catalog_relocation_observed`.
+
+Inspect the exact recorded ID with `operation inspect <id>` or
+`recover preview --operation <id>`. Preview, `catalog info`, and `catalog check` commands
+preserve database and locator bytes. Operation listing retains catalog lifecycle
+results even when repository storage is unavailable, and explains partial results.
+Receipts expose active and selected paths, checkpoint, mutation availability and
+next action independently. `worktrees_moved` is false. Applying an exact older
+completed lifecycle result is a read-only no-op, even during a newer relocation.
+
+Explicit recovery uses `recover apply --operation <id>`. `recover apply --catalog`
+selects a pending catalog relocation. An unknown ID never selects another request.
+The recorded source remains the authority before switching. The destination is
+the only selected location after switching. Both stages bar ordinary mutations
+until completion. Interrupted copies are never blindly overwritten or reset:
+
+- After Starting publication, recovery inspects the exact fixed Started identity and
+  expected revisions before appending or observing it. After Started commit but
+  before Intended publication, it validates the prior immutable prefix and freezes
+  the closed source evidence. After intent or directory creation, it can prepare the
+  recorded destination.
+- After complete copy but before its checkpoint, recovery validates identical bytes,
+  identity, complete history and projection before advancing the same operation.
+- For an empty, partial or conflicting copy before preparation, verify the recorded
+  source and preserve the conflicting destination file outside the destination
+  directory manually. Recover the same ID to create a fresh complete copy.
+- After preparation or switching, missing or changed destination bytes require
+  manual restoration of the exact verified copy from the retained source, with
+  conflicting bytes preserved first. Recovery then revalidates both copies before
+  advancing. Missing or changed source bytes also require manual restoration of
+  the exact bytes recorded by the intent, preserving conflicting bytes first.
+- After switching or fixed Completed publication, recovery inspects the exact
+  accepted Completed identity/revisions before retry. A known committed result
+  advances technical publication without appending a duplicate event.
+- If an unclean semantic commit requires physical `redb` repair, only explicit
+  exact-ID relocation recovery records a distinct correlated StorageRepair intent.
+  It validates the immutable prefix, fixed event identities, `UUID`, and revisions.
+  If derived records remain damaged, it explicitly rebuilds them under that same
+  recorded repair scope. Ordinary `catalog check`, `catalog rebuild`,
+  `recover preview`, and open commands never repair.
+  Interrupted repair/rebuild resumes the recorded repair pair through the same
+  relocation ID, validating history before recording completion and rebinding that
+  file's digest. This route remains available while relocation bars ordinary rebuild.
+  Unknown or mismatched history requires manual preservation/restoration instead.
+  `redb` can repair physical metadata before `UUID`/history validation on an unclean
+  file. That inherited limitation never authorizes a semantic retry.
+- After completed publication, repeating exact-ID recovery changes no history and
+  never inspects retained inactive files, even after later authority changes.
+
+Ambiguous files or inconsistent locator facts refuse mutation. Corrupt or
+unsupported lifecycle metadata requires manual verification and reconciliation.
+The tool never invents missing history, chooses a newer operation, or initializes
+a replacement authority. Real subprocess crash tests demonstrate process
+interruption behavior and cooperative locking, not whole-machine power-loss
+recovery or protection from hostile same-user filesystem changes. `SHA-256` evidence
+strengthens accidental replacement detection, not hostile-filesystem isolation.
+
+## Retire registrations and inspect retained resources
+
+Retirement frees one registered record's count capacity after human removal. It
+keeps the complete registration, assignment, operation, and event history. It never
+removes a checkout, Git metadata, ignored files, preservation refs, commits,
+external build state or caches. It never stops processes or runs build cleanup.
+
+First release the latest assignment safely, or apply explicit worktree recovery
+while the checkout still exists. Recovery must leave ownership unassigned and
+establish safe preservation. Keep the exact completed release or recovery
+operation ID. A completed reconciliation that retains active or preparing
+ownership, or leaves availability withheld, doesn't authorize retirement.
+Humans then remove the checkout and its linked Git worktree metadata using their
+own Git or filesystem workflow. Confirm removal explicitly:
+
+```sh
+worktree-pool worktree retire <worktree-id> \
+  --reconciliation <completed-release-or-recovery-operation-id> --removed
+```
+
+The command validates the latest generation's proof, absent registered checkout
+and Git directory, and every required detached preservation root. Existing
+files, ignored files, dangling links, substituted symlink ancestors, moved
+worktrees, uncertain access and unresolved repository operations refuse retirement.
+Missing files alone never release an assignment or free capacity. If removal
+preceded safe reconciliation, restore the work and reconcile it safely first.
+The removal assertion doesn't waive preservation or certify lost content.
+
+An attached proof also requires its recorded branch to remain a direct reference
+at the exact recorded tip. Deleted, symbolic, or moved branch protection refuses
+retirement. Detached roots must remain direct exact refs in
+`refs/worktree-pool/<operation-id>`. The tool doesn't repair or remove those refs
+as part of retirement. Cooperative locks don't stop humans from changing files or
+refs outside the tool. This isn't filesystem isolation.
+
+`retirement_preconditions_unmet` is a rejected result with exit code 2. Other
+Git, filesystem, pending, and commit-uncertainty reasons retain their documented
+codes. Retirement records `worktree.retirement.started.v1` and
+`worktree.retirement.finished.v1` facts under `io.lowkeylab.worktreepool`.
+The intent belongs to the repository stream. Its result retires the global
+registration in the catalog stream, retaining its repository identity in the payload.
+An intended retirement keeps capacity counted and blocks conflicting repository
+work. Only its committed result frees that record's count. Inspect the exact
+retirement ID through `operation inspect`, or use `recover preview/apply
+--operation <retirement-id>` after interruption. Apply revalidates removal and
+preservation before completing an intended result. A committed exact identity
+returns its historical receipt without repeating facts or affecting a newer
+registration. Unknown identities never select the newest operation.
+
+Retirement JSON data includes `operation`, `retired`, `already_retired`,
+`ownership`, `availability`, `resources` and `revision`. Its operation retains the
+original worktree record, exact reconciliation identity and causal checkpoint.
+Inspect exact retired worktree IDs with `registration_state: retired`.
+Path selectors select only a current registration. A later registration can reuse
+the same path with a new identity. Historical retired paths report unknown,
+unattributed bytes rather than attributing a newer checkout's files to old history.
+Inspect exact completed acquisition, release, and recovery IDs.
+Repeated apply returns their historical result. Their retired observation is
+explicitly historical and never examines a newer checkout at the recorded path.
+
+Worktree inspection exposes `resources.worktree`,
+`resources.known_external_build_state`, `resources.shared` and `resources.unknown`.
+Repository inspection reports `resources.worktree_bytes`, per-worktree observations
+and shared Git-common-directory usage once. Human output includes the same data.
+The metric is `logical_regular_file_bytes`, with unique device/inode identities
+counted once across a repository report. The tool measures common Git storage first.
+It excludes checkout-root `.git` metadata from worktree bytes and counts each
+regular file identity once, including repeated hard links. Separately requested worktree
+reports aren't an additive repository total.
+
+Measurements include ignored regular files but don't follow symlinks or cross
+filesystem devices. Arbitrary Bazel convenience symlinks don't establish external
+storage ownership. The pool has no authoritative external build-state roots, so
+known external bytes are `null`, with `no_authoritative_build_state_roots`, and
+undiscovered output bases, caches, servers and remote state remain unknown. No
+Bazel invocation or ambient cache-directory discovery occurs during inspection.
+This limitation avoids invented attribution or exclusive-usage claims.
+
+Each observation includes its encoded path, status, and bytes. Missing,
+inaccessible, unsafe, or incomplete roots have `bytes: null`. Partial traversal
+reports its observed subtotal separately as `measured_bytes`. Skipped paths
+carry explicit reasons. Measurements aren't filesystem snapshots and can change
+while humans or build processes run. Logical lengths don't measure allocated
+blocks, compression, reclaimable space or process memory. Inspection keeps
+catalog and locator bytes unchanged and performs no cleanup. Capacity limits
+registered count rather than bytes, and retirement makes no claim of external
+resource removal.
+
+Retirement verification uses private real Git/filesystem/redb fixtures and public
+command-line inspection, exact operation recovery, real subprocess SIGKILL boundaries, and
+actual backend sync failures. The commit-fault observer arms the existing real
+backend immediately before the same production transaction commit. Earlier
+storage errors aren't classified as failed commits. Reopen checks complete old or
+complete new history and projection before any retry. These checks don't establish
+whole-machine power-loss behavior or a performance benefit.

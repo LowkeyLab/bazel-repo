@@ -15,6 +15,13 @@ pub enum CreationState {
     PathPrepared,
     Completed,
     NeedsReconciliation,
+    Reconciled,
+}
+impl CreationState {
+    #[must_use]
+    pub const fn is_pending(self) -> bool {
+        !matches!(self, Self::Completed | Self::Reconciled)
+    }
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

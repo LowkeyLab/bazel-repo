@@ -1,8 +1,9 @@
 # Worktree pool benchmark
 
 This experiment applies the acceptance policy in GitHub issues #2064 and #2070.
-It measures the frozen first acquire/build/release milestone. Software test
-results and later source changes don't establish performance or adoption.
+It measures the selected frozen pool executable. Its source revision and digest
+identify the implementation under measurement. Software test results and later
+source changes don't establish performance or adoption.
 
 ## Boundary and dependencies
 
@@ -21,10 +22,10 @@ module needs a new production interface.
 
 Use Linux x86_64, the pinned Nix shell, and `//nicknamer/server/lib:lib`.
 Set `RUN_ROOT` to a new private directory, `SOURCE` to a read-only checkout,
-and `POOL_BINARY` to the retained milestone executable. Record the source
-revision and executable digest. Both arms refresh a private local origin with
-fixed `main` on every acquisition. Local transport excludes GitHub latency.
-Each pair must resolve matching commits.
+`POOL_BINARY` to the selected retained executable, and `TOOL_COMMIT` to its
+source commit. Record the executable digest. Both arms refresh a private local
+origin with fixed `main` on every acquisition. Local transport excludes GitHub
+latency. Each pair must resolve matching commits.
 
 Use the same tracked Bazel configuration, BuildBuddy remote cache, archive
 cache, and native Nix/Aspect commands. Both arms turn off the fetched-directory
@@ -87,7 +88,7 @@ nix develop --command bazel run //worktree_pool/benchmark:run -- \
   --source "$SOURCE" \
   --pool-binary "$POOL_BINARY" \
   --fixture-commit c0dd770d87a1392bb19f8970d5f783c3631981db \
-  --tool-commit 32ab27c2ba13b805fd12d8bc0cea3d9cc19414b1 \
+  --tool-commit "$TOOL_COMMIT" \
   --quiet-window "$COORDINATOR_WINDOW"
 ```
 

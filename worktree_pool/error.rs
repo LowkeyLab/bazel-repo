@@ -1,6 +1,10 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PoolError {
     #[error(
+        "retirement requires human removal, latest safe reconciliation, no current owner and verified preservation; restore missing work before reconciliation when necessary"
+    )]
+    RetirementUnsafe,
+    #[error(
         "registered capacity is exhausted; inspect ownership and withheld records or increase durable capacity"
     )]
     PoolExhausted {
@@ -41,6 +45,14 @@ pub enum PoolError {
     Storage,
     #[error("catalog history or locator is corrupt")]
     Corrupt,
+    #[error(
+        "unsupported locator-only relocation history; preserve database and locator bytes and operation IDs for manual reconciliation; no automatic migration or CloudEvents backfill"
+    )]
+    UnsupportedRelocation,
+    #[error(
+        "unsupported decoded relocation proof; preserve database and locator bytes and operation IDs for manual reconciliation; raw immutable-record proof is required and is never migrated automatically"
+    )]
+    UnsupportedRelocationProof,
     #[error("catalog version or event type is unsupported")]
     Unsupported,
     #[error("catalog authority conflicts with the selected location")]
@@ -51,6 +63,10 @@ pub enum PoolError {
     Missing,
     #[error("catalog already initialized; use catalog info")]
     AlreadyInitialized,
+    #[error(
+        "catalog relocation is pending; inspect its recorded operation and explicitly reconcile it"
+    )]
+    RelocationPending,
     #[error("initialization is pending; inspect catalog before reconciliation")]
     Pending,
     #[error("configuration is invalid")]
@@ -62,6 +78,7 @@ impl PoolError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
+            Self::RetirementUnsafe => "retirement_preconditions_unmet",
             Self::PoolExhausted { maximum: 0, .. } => "capacity_zero",
             Self::PoolExhausted {
                 registered_count,
@@ -84,11 +101,14 @@ impl PoolError {
             Self::Io(_) => "filesystem_error",
             Self::Storage => "storage_error",
             Self::Corrupt => "catalog_corrupt",
-            Self::Unsupported => "unsupported_version",
+            Self::Unsupported | Self::UnsupportedRelocation | Self::UnsupportedRelocationProof => {
+                "unsupported_version"
+            }
             Self::Conflict => "catalog_conflict",
             Self::CommitUnknown => "commit_unknown",
             Self::Missing => "catalog_missing",
             Self::AlreadyInitialized => "catalog_exists",
+            Self::RelocationPending => "catalog_relocation_pending",
             Self::Pending => "initialization_pending",
             Self::Configuration => "invalid_configuration",
             Self::Permissions => "unsafe_permissions",
