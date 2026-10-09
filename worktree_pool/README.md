@@ -37,8 +37,9 @@ These are median times from requesting a worktree to finishing the build:
 | Run two tasks at once: both tasks finish   | 36.9 seconds           | 35.6 seconds    |
 
 The gain was smaller when waiting for both concurrent tasks to finish.
-Reuse also keeps resources around: the four warmed worktrees and their build data
-used about 25 GB of disk. Their idle build servers reported about 10.6 GB of memory
+Reuse allows reusing of existing build artifacts and existing build daemons,
+speeding up builds. The four warmed worktrees and their build data used about 25 GB
+of disk. Their idle build servers reported about 10.6 GB of memory
 in total, including shared pages.
 
 These results cover one build target with a local Git remote. Savings vary by
